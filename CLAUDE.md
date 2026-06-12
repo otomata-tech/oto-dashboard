@@ -6,7 +6,7 @@ Dashboard produit d'**oto-mcp** (gestion de compte, connecteurs, orgs, doctrine)
 
 ## Stack (dev-init, moitié frontend)
 
-- Vue 3 + Vite + TypeScript (`frontend/`), port dev **5188**
+- Vue 3 + Vite + TypeScript (`frontend/`), port dev **5192**
 - shadcn-vue (base reka, style vega, stone) + Tailwind CSS v4 — composants dans `src/components/ui/`
 - Tokens Otomata (« Manuscrit chaud ») en CSS pur dans `src/assets/main.css` (`@theme`) — **aucune dépendance à @otomata/ui**
 - Auth : `@logto/browser` (PKCE) via `src/composables/useAuth.ts` — interface `initAuth/login/logout/getAccessToken` ; `getAccessToken` lève `stale_session` sur token undefined (gotcha @logto)
@@ -16,11 +16,11 @@ Dashboard produit d'**oto-mcp** (gestion de compte, connecteurs, orgs, doctrine)
 
 ```bash
 cd frontend && npm install
-honcho start            # ou : cd frontend && npm run dev (port 5188)
+honcho start            # ou : cd frontend && npm run dev (port 5192)
 npm run build           # vue-tsc + vite build → frontend/dist
 ```
 
-`.env` : copier `frontend/.env.example` (VITE_LOGTO_APP_ID à créer via le skill `logto-client` — pas de DCR, client SPA pré-créé avec redirect `https://<domaine>/callback` + `http://localhost:5188/callback`).
+`.env` : copier `frontend/.env.example` (VITE_LOGTO_APP_ID à créer via le skill `logto-client` — pas de DCR, client SPA pré-créé avec redirect `https://<domaine>/callback` + `http://localhost:5192/callback`).
 
 ## État / feuille de route
 

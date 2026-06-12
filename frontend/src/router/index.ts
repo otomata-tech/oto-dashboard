@@ -10,6 +10,11 @@ const router = createRouter({
       component: HomeView,
     },
     {
+      path: '/connectors',
+      name: 'connectors',
+      component: () => import('../views/ConnectorsView.vue'),
+    },
+    {
       // Le retour PKCE est traité par initAuth() avant le mount du router
       // (cf. useAuth) ; cette route évite juste un 404 du router.
       path: '/callback',
