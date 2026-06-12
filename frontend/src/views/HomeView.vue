@@ -52,7 +52,12 @@ onMounted(async () => {
             org active : <strong>{{ me.active_org_name }}</strong>
           </p>
           <p v-if="error" class="text-sm text-destructive">{{ error }}</p>
-          <Button variant="outline" @click="logout">se déconnecter</Button>
+          <div class="flex gap-2">
+            <Button as-child>
+              <RouterLink to="/connectors">connecteurs</RouterLink>
+            </Button>
+            <Button variant="outline" @click="logout">se déconnecter</Button>
+          </div>
         </template>
       </CardContent>
     </Card>

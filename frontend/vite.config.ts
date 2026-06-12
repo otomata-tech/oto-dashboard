@@ -14,7 +14,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5188,
+    port: 5192,
     allowedHosts: ['dashboard.dev'],
   },
 })
