@@ -1,0 +1,53 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
+import Icon from './Icon.vue'
+import Dot from './Dot.vue'
+import { NAV } from '@/lib/consoleNav'
+import { useMe } from '@/composables/useMe'
+
+const route = useRoute()
+const { me } = useMe()
+
+const visibleGroups = computed(() => NAV.filter((g) => !g.admin || me.value?.role === 'admin'))
+const initial = computed(() => (me.value?.name || me.value?.email || '?').trim().charAt(0).toLowerCase())
+</script>
+
+<template>
+  <aside class="sb">
+    <div class="sb-brand">
+      <span class="o-medallion o-medallion-sm">o</span>
+      <div>
+        <div class="name">oto</div>
+        <div class="env">console</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div v-for="(g, gi) in visibleGroups" :key="gi" class="sb-group">
+        <div v-if="g.group" class="sb-group-label">{{ g.group }}</div>
+        <RouterLink
+          v-for="it in g.items"
+          :key="it.id"
+          class="sb-item"
+          :class="{ on: route.params.section === it.id }"
+          :to="`/console/${it.id}`"
+        >
+          <span class="ic"><Icon :name="it.icon" :size="15" /></span>
+          {{ it.label }}
+          <span v-if="it.warn" class="warn-dot"><Dot tone="saffron" :size="7" /></span>
+          <span v-else-if="it.count" class="count">{{ it.count }}</span>
+        </RouterLink>
+      </div>
+    </nav>
+    <div class="sb-foot">
+      <div class="sb-mcp"><Dot tone="olive" :size="7" /> mcp connected</div>
+      <div class="sb-user">
+        <span class="avatar">{{ initial }}</span>
+        <div class="who">
+          <div class="n">{{ me?.name || me?.email }}</div>
+          <div class="e">{{ me?.email }}</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+</template>
