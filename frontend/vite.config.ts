@@ -15,6 +15,6 @@ export default defineConfig({
   },
   server: {
     port: 5192,
-    allowedHosts: ['dashboard.dev'],
+    allowedHosts: ['dashboard.otoninja.dev'],
   },
 })
