@@ -1,0 +1,49 @@
+import LogtoClient from '@logto/browser'
+import { ref } from 'vue'
+
+// Auth Logto self-hosted (auth.oto.zone) — PKCE, audience = API oto-mcp.
+// Interface stable du scaffold dev-init : initAuth / login / logout / getAccessToken.
+const endpoint = import.meta.env.VITE_LOGTO_ENDPOINT as string
+const appId = import.meta.env.VITE_LOGTO_APP_ID as string
+const resource = import.meta.env.VITE_LOGTO_AUDIENCE as string
+
+const logto = new LogtoClient({
+  endpoint,
+  appId,
+  resources: [resource],
+})
+
+const isAuthenticated = ref(false)
+const userSub = ref<string | null>(null)
+
+export function useAuth() {
+  async function initAuth(): Promise<void> {
+    if (window.location.pathname === '/callback') {
+      await logto.handleSignInCallback(window.location.href)
+      window.history.replaceState({}, '', '/')
+    }
+    isAuthenticated.value = await logto.isAuthenticated()
+    if (isAuthenticated.value) {
+      const claims = await logto.getIdTokenClaims()
+      userSub.value = claims.sub
+    }
+  }
+
+  async function login(): Promise<void> {
+    await logto.signIn(`${window.location.origin}/callback`)
+  }
+
+  async function logout(): Promise<void> {
+    await logto.signOut(window.location.origin)
+  }
+
+  async function getAccessToken(): Promise<string> {
+    const token = await logto.getAccessToken(resource)
+    // @logto/browser peut renvoyer undefined sur session morte au lieu de throw
+    // (gotcha connu) → erreur franche plutôt qu'un « Bearer undefined ».
+    if (!token) throw new Error('stale_session')
+    return token
+  }
+
+  return { isAuthenticated, userSub, initAuth, login, logout, getAccessToken }
+}
