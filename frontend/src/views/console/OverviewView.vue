@@ -14,6 +14,7 @@ import { useMe } from '@/composables/useMe'
 import { getConnectors, getDoctrine, getGoogleStatus, getMonitoringSummary } from '@/api/console'
 import type { ConnectorMeta, GoogleOauthStatus, MonitoringSummary } from '@/types/api'
 import { toDayBars } from '@/lib/monitoring'
+import { humanize } from '@/lib/errors'
 
 type Variant = 'status' | 'activity' | 'onboarding'
 const variant = ref<Variant>((localStorage.getItem('oto.overview') as Variant) || 'status')
@@ -26,6 +27,7 @@ const catalog = ref<ConnectorMeta[]>([])
 const google = ref<GoogleOauthStatus | null>(null)
 const doctrineExists = ref(false)
 const summary = ref<MonitoringSummary | null>(null)
+const error = ref<string | null>(null)
 
 const isAdmin = computed(() => me.value?.role === 'admin')
 
@@ -36,6 +38,11 @@ const configuredCount = computed(() =>
     const p = me.value?.providers?.[c.name]
     return p && p.mode !== 'forbidden'
   }).length,
+)
+// L'onboarding « ajoute ta 1ʳᵉ clé » ne compte QUE les clés posées par l'user :
+// un provider en pool plateforme (mode 'platform') n'est pas une action de sa part.
+const userKeysCount = computed(() =>
+  keyProviders.value.filter((c) => me.value?.providers?.[c.name]?.user_key_configured).length,
 )
 const sessionsActive = computed(() => {
   let n = 0
@@ -61,23 +68,29 @@ const platformQuotas = computed(() =>
 // ── onboarding (checklist réelle) ──
 const steps = computed(() => [
   { done: true, t: 'connect a client', d: 'add mcp.oto.ninja to claude desktop, cursor or any mcp client — auth runs over oauth.', act: null as [string, string] | null },
-  { done: configuredCount.value > 0, t: 'add your first api key', d: 'paste a provider key (serper, hunter, …) so your tools can call out.', act: ['connectors', 'add a key'] as [string, string] },
+  { done: userKeysCount.value > 0, t: 'add your first api key', d: 'paste a provider key (serper, hunter, …) so your tools can call out.', act: ['connectors', 'add a key'] as [string, string] },
   { done: !!google.value?.connected, t: 'link google workspace', d: 'unlock gmail, drive, sheets and the datastore.', act: ['connectors', 'link google'] as [string, string] },
   { done: doctrineExists.value, t: 'write your doctrine', d: 'one markdown file your agents read before acting. crm rules, tone, guardrails.', act: ['doctrine', 'open the editor'] as [string, string] },
   { done: me.value?.active_org != null, t: 'join an organization', d: 'share org keys so teammates inherit your setup.', act: ['org', 'manage organization'] as [string, string] },
 ])
 const doneCount = computed(() => steps.value.filter((s) => s.done).length)
 
+// Dégrade par carte sans masquer l'échec : le 1er problème s'affiche en bandeau,
+// les données qui ont chargé restent visibles (≠ fallback silencieux).
+function soft<T>(p: Promise<T>, fallback: T): Promise<T> {
+  return p.catch((e) => { error.value = error.value ?? humanize(e); return fallback })
+}
 onMounted(async () => {
-  catalog.value = (await getConnectors().catch(() => ({ connectors: [] }))).connectors
-  google.value = await getGoogleStatus().catch(() => null)
-  doctrineExists.value = (await getDoctrine().catch(() => null))?.doctrine.exists ?? false
-  if (isAdmin.value) summary.value = await getMonitoringSummary(7).catch(() => null)
+  catalog.value = (await soft(getConnectors(), { connectors: [] })).connectors
+  google.value = await soft(getGoogleStatus(), null)
+  doctrineExists.value = (await soft(getDoctrine(), null))?.doctrine.exists ?? false
+  if (isAdmin.value) summary.value = await soft(getMonitoringSummary(7), null)
 })
 </script>
 
 <template>
   <div class="content-inner fadein">
+    <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
     <div class="eyebrow-row" style="justify-content: flex-end">
       <div class="seg">
         <button v-for="v in (['status', 'activity', 'onboarding'] as Variant[])" :key="v"
