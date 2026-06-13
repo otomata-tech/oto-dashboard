@@ -16,7 +16,7 @@ const errRate = computed(() => {
   const s = summary.value
   return s && s.total_calls ? Math.round((s.error_count / s.total_calls) * 100) : 0
 })
-const bars = computed(() => (summary.value ? toDayBars(summary.value.by_day) : []))
+const bars = computed(() => (summary.value ? toDayBars(summary.value.by_day, win.value) : []))
 
 async function load() {
   try { summary.value = await getMonitoringSummary(win.value) }
