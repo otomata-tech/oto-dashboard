@@ -20,6 +20,7 @@ const loaded = ref(false)
 
 const isOrgAdmin = computed(() => detail.value?.org.my_role === 'org_admin')
 const activeOrgId = computed(() => me.value?.active_org ?? null)
+const meSub = computed(() => me.value?.sub ?? null)
 
 async function load() {
   try {
@@ -64,7 +65,8 @@ async function removeSecret(provider: string) {
                 <td><Tag v-if="m.role === 'org_admin'" tone="ink">admin</Tag><Tag v-else>member</Tag></td>
                 <td><Dot :tone="m.active ? 'olive' : 'faint'" :size="7" /></td>
                 <td v-if="isOrgAdmin" style="text-align: right">
-                  <Btn kind="mini" @click="toggleRole(m.sub, m.role)">{{ m.role === 'org_admin' ? 'demote' : 'promote' }}</Btn>
+                  <Btn v-if="m.sub !== meSub" kind="mini" @click="toggleRole(m.sub, m.role)">{{ m.role === 'org_admin' ? 'demote' : 'promote' }}</Btn>
+                  <span v-else class="dim" style="font-size: 11px">you</span>
                 </td>
               </tr>
             </tbody>
