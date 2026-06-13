@@ -219,6 +219,44 @@ export interface MonitoringSummary {
   by_day: MonitoringDayStat[]
 }
 
+// ── scout (harnais prospection, ADR 0008) ──
+export type Heat = 'hot' | 'warm' | 'cold'
+export interface ScoutQueueItem {
+  fact_id: number
+  nom: string
+  siren: string
+  fit: number
+  heat: Heat
+  statut: string
+}
+export interface ScoutContact {
+  fact_id: number
+  nom: string
+  tel?: string | null
+  linkedin?: string | null
+}
+export interface ScoutAction {
+  fact_id: number
+  created_at: string
+  canal: string
+  outcome: string
+  note?: string | null
+}
+export interface ScoutDetail {
+  fact_id: number
+  siren: string
+  nom: string
+  bp_an?: number | null
+  idcc?: string | null
+  statut: string
+  fit: number
+  heat: Heat
+  claimed_by?: string | null
+  claimed_until?: string | null
+  contacts: ScoutContact[]
+  actions: ScoutAction[]
+}
+
 // MCP endpoint public (config, pas un secret) — affiché tel quel.
 export const MCP_URL = (import.meta.env.VITE_LOGTO_AUDIENCE as string) || 'https://mcp.oto.ninja/mcp'
 

@@ -4,6 +4,7 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import { useToast } from '@/composables/useToast'
+import { usePrompt } from '@/composables/usePrompt'
 import {
   getDoctrine, getInstruction, putInstruction,
   getInstructionVersions, revertInstruction,
@@ -13,6 +14,7 @@ import { fmtDate } from '@/types/api'
 
 const DOCTRINE_SLUG = 'claude_md'
 const { toast } = useToast()
+const { confirmAction } = usePrompt()
 
 const bundle = ref<DoctrineBundle | null>(null)
 const body = ref('')
@@ -56,7 +58,7 @@ async function publish() {
 }
 
 async function restore(v: number) {
-  if (!window.confirm(`restore v${v} as a new draft?`)) return
+  if (!await confirmAction({ title: 'restore version', confirmLabel: 'restore', message: `restore v${v} as a new draft? it becomes the new current version.` })) return
   try { await revertInstruction(DOCTRINE_SLUG, v); toast(`restored v${v}`); await load() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }

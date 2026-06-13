@@ -5,6 +5,7 @@ import Stat from '@/components/console/Stat.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import { useToast } from '@/composables/useToast'
+import { usePrompt } from '@/composables/usePrompt'
 import {
   getAdminUsers, setUserRole, getNamespaceGrants, revokeNamespaceGrant,
   getPlatformKeys, grantPlatformKey, revokePlatformKey, grantNamespace, getConnectors,
@@ -13,6 +14,7 @@ import type { AdminGrant, AdminUser, ConnectorMeta, NamespaceGrant, PlatformKey 
 import { fmtDate } from '@/types/api'
 
 const { toast } = useToast()
+const { promptForm, confirmAction } = usePrompt()
 const users = ref<AdminUser[]>([])
 const grants = ref<NamespaceGrant[]>([])
 const keys = ref<PlatformKey[]>([])
@@ -49,39 +51,55 @@ onMounted(load)
 const reloadUsers = async () => { users.value = (await getAdminUsers()).users }
 
 async function setRole(u: AdminUser) {
-  const role = window.prompt(`role for ${u.email} (${ROLES.join(' / ')})`, u.effective_role)?.trim()
-  if (!role || role === u.effective_role) return
-  if (!ROLES.includes(role)) { toast(`invalid role: ${role}`); return }
-  try { await setUserRole(u.sub, role); toast(`${u.email} → ${role}`); await reloadUsers() }
+  const r = await promptForm({
+    title: 'platform role', description: u.email ?? u.sub,
+    fields: [{ key: 'role', label: 'role', type: 'select', required: true, value: u.effective_role,
+      options: ROLES.map((x) => ({ value: x, label: x })) }],
+    submitLabel: 'update',
+  })
+  if (!r || r.role === u.effective_role) return
+  try { await setUserRole(u.sub, r.role ?? ''); toast(`${u.email} → ${r.role}`); await reloadUsers() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 
 async function grantKey(u: AdminUser) {
   if (!keys.value.length) { toast('no platform keys — create one first'); return }
-  const menu = keys.value.map((k, i) => `${i + 1}. ${k.provider}/${k.label}`).join('\n')
-  const pick = window.prompt(`grant a platform key to ${u.email}:\n${menu}\n\nnumber:`)?.trim()
-  if (!pick) return
-  const k = keys.value[Number(pick) - 1]
-  if (!k) { toast('invalid choice'); return }
-  const raw = window.prompt(`daily quota for ${k.provider}/${k.label} (blank = provider default)`)?.trim()
-  const quota = raw ? Math.max(1, Number(raw)) : undefined
-  try { await grantPlatformKey(u.sub, k.id, quota); toast(`granted ${k.provider}/${k.label}`); await reloadUsers() }
+  const r = await promptForm({
+    title: 'grant a platform key', description: `lent to ${u.email}, metered by a daily quota.`,
+    fields: [
+      { key: 'key', label: 'platform key', type: 'select', required: true, placeholder: 'choose a key',
+        options: keys.value.map((k) => ({ value: String(k.id), label: `${k.provider}/${k.label}` })) },
+      { key: 'quota', label: 'daily quota', placeholder: 'blank = provider default', hint: 'max calls per day' },
+    ],
+    submitLabel: 'grant',
+  })
+  if (!r) return
+  const quota = r.quota ? Math.max(1, Number(r.quota)) : undefined
+  try { await grantPlatformKey(u.sub, Number(r.key), quota); toast('grant added'); await reloadUsers() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 async function revokeKey(u: AdminUser, g: AdminGrant) {
-  if (!window.confirm(`revoke ${g.provider}/${g.label} from ${u.email}?`)) return
+  if (!await confirmAction({ title: 'revoke grant', danger: true, confirmLabel: 'revoke',
+    message: `revoke ${g.provider}/${g.label} from ${u.email}?` })) return
   try { await revokePlatformKey(u.sub, g.platform_key_id); toast('grant revoked'); await reloadUsers() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 async function grantNs(u: AdminUser) {
-  const hint = nsOptions.value.join(', ') || 'no controlled namespaces in catalog'
-  const ns = window.prompt(`grant a namespace to ${u.email} (${hint})`)?.trim()
-  if (!ns) return
-  try { await grantNamespace(u.sub, ns); toast(`granted ${ns}`); grants.value = (await getNamespaceGrants()).grants }
+  const r = await promptForm({
+    title: 'grant a namespace', description: `controlled namespace unlocked for ${u.email}.`,
+    fields: nsOptions.value.length
+      ? [{ key: 'ns', label: 'namespace', type: 'select', required: true, placeholder: 'choose a namespace',
+          options: nsOptions.value.map((n) => ({ value: n, label: n })) }]
+      : [{ key: 'ns', label: 'namespace', required: true, hint: 'no controlled namespace in catalog — type one' }],
+    submitLabel: 'grant',
+  })
+  if (!r) return
+  try { await grantNamespace(u.sub, r.ns ?? ''); toast(`granted ${r.ns}`); grants.value = (await getNamespaceGrants()).grants }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 async function revoke(g: NamespaceGrant) {
-  if (!window.confirm(`revoke ${g.namespace} for ${g.email}?`)) return
+  if (!await confirmAction({ title: 'revoke namespace grant', danger: true, confirmLabel: 'revoke',
+    message: `revoke ${g.namespace} for ${g.email}?` })) return
   try { await revokeNamespaceGrant(g.sub, g.namespace); toast('grant revoked'); grants.value = (await getNamespaceGrants()).grants }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }

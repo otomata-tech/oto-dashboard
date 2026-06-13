@@ -25,6 +25,9 @@ export const NAV: NavGroup[] = [
     { id: 'doctrine', label: 'doctrine', icon: 'doc' },
     { id: 'data', label: 'data', icon: 'db' },
   ]},
+  { group: 'prospection', items: [
+    { id: 'scout', label: 'cockpit', icon: 'phone' },
+  ]},
   { group: 'account', items: [
     { id: 'activity', label: 'activity', icon: 'pulse' },
     { id: 'org', label: 'organization', icon: 'users' },
@@ -43,6 +46,7 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   toolbox: { title: 'toolbox', crumb: 'workspace' },
   doctrine: { title: 'doctrine', crumb: 'workspace' },
   data: { title: 'data', crumb: 'workspace' },
+  scout: { title: 'cockpit', crumb: 'prospection' },
   activity: { title: 'activity', crumb: 'account' },
   org: { title: 'organization', crumb: 'account' },
   monitoring: { title: 'mcp monitoring', crumb: 'platform' },

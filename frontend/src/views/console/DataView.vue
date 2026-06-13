@@ -3,9 +3,11 @@ import { onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import { useToast } from '@/composables/useToast'
+import { usePrompt } from '@/composables/usePrompt'
 import { getNamespaces, createNamespace, getNamespaceUrl } from '@/api/console'
 
 const { toast } = useToast()
+const { promptText } = usePrompt()
 const namespaces = ref<string[]>([])
 const error = ref<string | null>(null)
 const loaded = ref(false)
@@ -24,7 +26,7 @@ async function load() {
 onMounted(load)
 
 async function create() {
-  const ns = window.prompt('namespace name (e.g. prospects-q3)')?.trim()
+  const ns = await promptText('new namespace', { label: 'name', required: true, placeholder: 'e.g. prospects-q3' })
   if (!ns) return
   try { await createNamespace(ns); toast(`namespace "${ns}" created`); await load() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
