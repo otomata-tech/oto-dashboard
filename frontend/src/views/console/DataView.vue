@@ -12,7 +12,13 @@ const loaded = ref(false)
 
 async function load() {
   try { namespaces.value = (await getNamespaces()).namespaces }
-  catch (e) { error.value = e instanceof Error ? e.message : String(e) }
+  catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    // pas de compte Google lié = état normal, pas une erreur : on laisse
+    // l'empty-state amical (« needs a linked google account ») s'afficher seul.
+    if (msg.includes('google_not_connected')) namespaces.value = []
+    else error.value = msg
+  }
   finally { loaded.value = true }
 }
 onMounted(load)
