@@ -63,6 +63,8 @@ export const getInstructionVersions = (slug: string) =>
   api<{ slug: string; versions: InstructionVersion[] }>(`/api/me/instructions/${slug}/versions`)
 export const revertInstruction = (slug: string, version: number) =>
   api(`/api/me/instructions/${slug}/revert`, { method: 'POST', ...j({ version }) })
+export const deleteInstruction = (slug: string) =>
+  api(`/api/me/instructions/${slug}`, { method: 'DELETE' })
 
 // ── datastore ──
 export const getNamespaces = () => api<{ namespaces: string[] }>('/api/datastore/namespaces')
