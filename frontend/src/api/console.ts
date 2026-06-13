@@ -97,3 +97,14 @@ export const getMonitoringCalls = (params: { limit?: number; sub?: string; tool?
   const qs = q.toString()
   return api<{ calls: ToolCall[] }>(`/api/admin/monitoring/calls${qs ? `?${qs}` : ''}`)
 }
+
+// Activité de l'utilisateur courant (ses propres appels) — per-user, pas admin.
+export const getMyCalls = (params: { limit?: number; tool?: string; errors?: boolean; days?: number } = {}) => {
+  const q = new URLSearchParams()
+  if (params.limit) q.set('limit', String(params.limit))
+  if (params.tool) q.set('tool', params.tool)
+  if (params.errors) q.set('errors', '1')
+  if (params.days) q.set('days', String(params.days))
+  const qs = q.toString()
+  return api<{ calls: ToolCall[] }>(`/api/me/calls${qs ? `?${qs}` : ''}`)
+}
