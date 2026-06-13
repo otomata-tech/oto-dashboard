@@ -7,6 +7,7 @@ import ErrLabel from '@/components/console/ErrLabel.vue'
 import { getMyCalls } from '@/api/console'
 import type { ToolCall } from '@/types/api'
 import { fmtMs } from '@/lib/monitoring'
+import { humanize } from '@/lib/errors'
 
 // Activité de l'utilisateur courant — endpoint per-user /api/me/calls,
 // accessible à tout membre (≠ monitoring admin qui agrège tout le monde).
@@ -37,7 +38,7 @@ const bars = computed<[number, number][]>(() => {
 
 onMounted(async () => {
   try { calls.value = (await getMyCalls({ limit: 200, days: 14 })).calls }
-  catch (e) { error.value = e instanceof Error ? e.message : String(e) }
+  catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 })
 </script>

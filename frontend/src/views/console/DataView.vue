@@ -5,6 +5,7 @@ import Btn from '@/components/console/Btn.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { getNamespaces, createNamespace, getNamespaceUrl } from '@/api/console'
+import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
 const { promptText } = usePrompt()
@@ -15,11 +16,11 @@ const loaded = ref(false)
 async function load() {
   try { namespaces.value = (await getNamespaces()).namespaces }
   catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
+    const raw = humanize(e)
     // pas de compte Google lié = état normal, pas une erreur : on laisse
     // l'empty-state amical (« needs a linked google account ») s'afficher seul.
-    if (msg.includes('google_not_connected')) namespaces.value = []
-    else error.value = msg
+    if (raw.includes('google_not_connected')) namespaces.value = []
+    else error.value = humanize(e)
   }
   finally { loaded.value = true }
 }
@@ -29,11 +30,11 @@ async function create() {
   const ns = await promptText('new namespace', { label: 'name', required: true, placeholder: 'e.g. prospects-q3' })
   if (!ns) return
   try { await createNamespace(ns); toast(`namespace "${ns}" created`); await load() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 async function openSheet(ns: string) {
   try { const { url } = await getNamespaceUrl(ns); window.open(url, '_blank', 'noopener') }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 </script>
 

@@ -12,6 +12,7 @@ import {
 } from '@/api/console'
 import type { AdminGrant, AdminUser, ConnectorMeta, NamespaceGrant, PlatformKey } from '@/types/api'
 import { fmtDate } from '@/types/api'
+import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
 const { promptForm, confirmAction } = usePrompt()
@@ -45,7 +46,7 @@ async function load() {
     grants.value = g.grants
     keys.value = k.platform_keys
     catalog.value = cat.connectors
-  } catch (e) { error.value = e instanceof Error ? e.message : String(e) }
+  } catch (e) { error.value = humanize(e) }
 }
 onMounted(load)
 const reloadUsers = async () => { users.value = (await getAdminUsers()).users }
@@ -59,7 +60,7 @@ async function setRole(u: AdminUser) {
   })
   if (!r || r.role === u.effective_role) return
   try { await setUserRole(u.sub, r.role ?? ''); toast(`${u.email} → ${r.role}`); await reloadUsers() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 
 async function grantKey(u: AdminUser) {
@@ -76,13 +77,13 @@ async function grantKey(u: AdminUser) {
   if (!r) return
   const quota = r.quota ? Math.max(1, Number(r.quota)) : undefined
   try { await grantPlatformKey(u.sub, Number(r.key), quota); toast('grant added'); await reloadUsers() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 async function revokeKey(u: AdminUser, g: AdminGrant) {
   if (!await confirmAction({ title: 'revoke grant', danger: true, confirmLabel: 'revoke',
     message: `revoke ${g.provider}/${g.label} from ${u.email}?` })) return
   try { await revokePlatformKey(u.sub, g.platform_key_id); toast('grant revoked'); await reloadUsers() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 async function grantNs(u: AdminUser) {
   const r = await promptForm({
@@ -95,13 +96,13 @@ async function grantNs(u: AdminUser) {
   })
   if (!r) return
   try { await grantNamespace(u.sub, r.ns ?? ''); toast(`granted ${r.ns}`); grants.value = (await getNamespaceGrants()).grants }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 async function revoke(g: NamespaceGrant) {
   if (!await confirmAction({ title: 'revoke namespace grant', danger: true, confirmLabel: 'revoke',
     message: `revoke ${g.namespace} for ${g.email}?` })) return
   try { await revokeNamespaceGrant(g.sub, g.namespace); toast('grant revoked'); grants.value = (await getNamespaceGrants()).grants }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 </script>
 

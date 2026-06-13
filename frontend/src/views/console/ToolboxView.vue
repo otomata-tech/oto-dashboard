@@ -12,6 +12,7 @@ import {
 } from '@/api/console'
 import type { PresetEntry, ToolEntry } from '@/types/api'
 import { fmtDate } from '@/types/api'
+import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
 const { promptText, confirmAction } = usePrompt()
@@ -40,7 +41,7 @@ async function load() {
     const [t, p] = await Promise.all([getTools(), getPresets().catch(() => ({ presets: [] }))])
     tools.value = t.tools
     presets.value = p.presets
-  } catch (e) { error.value = e instanceof Error ? e.message : String(e) }
+  } catch (e) { error.value = humanize(e) }
 }
 onMounted(load)
 
@@ -56,24 +57,24 @@ async function toggleGroup(g: Group) {
     ))
     tools.value = (await getTools()).tools
     toast(`${g.id} ${turnOff ? 'disabled' : 'enabled'}`)
-  } catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  } catch (e) { toast(humanize(e)) }
   finally { busy.value = null }
 }
 
 async function apply(name: string) {
   try { await applyPresetApi(name); tools.value = (await getTools()).tools; toast(`preset "${name}" applied`) }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 async function saveCurrent() {
   const name = await promptText('save preset', { label: 'preset name', required: true, placeholder: 'e.g. prospection', hint: 'snapshots your current tool selection' })
   if (!name) return
   try { await savePreset(name); presets.value = (await getPresets()).presets; toast(`preset "${name}" saved`) }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 async function remove(name: string) {
   if (!await confirmAction({ title: 'delete preset', danger: true, confirmLabel: 'delete', message: `delete preset "${name}"?` })) return
   try { await deletePreset(name); presets.value = (await getPresets()).presets; toast('preset deleted') }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 </script>
 

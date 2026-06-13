@@ -7,6 +7,7 @@ import Tag from '@/components/console/Tag.vue'
 import { useToast } from '@/composables/useToast'
 import { getScoutQueue, claimNextProspect, getProspect, recordAction } from '@/api/console'
 import type { Heat, ScoutQueueItem, ScoutDetail } from '@/types/api'
+import { humanize } from '@/lib/errors'
 
 // Cockpit prospection (harnais scout, ADR 0008) — file priorisée + fiche +
 // dispositions, par-dessus /api/scout/* (oto-mcp). Le statut d'un prospect est
@@ -35,13 +36,13 @@ async function loadQueue() {
   loading.value = true
   error.value = null
   try { queue.value = (await getScoutQueue(50)).items }
-  catch (e) { error.value = e instanceof Error ? e.message : String(e) }
+  catch (e) { error.value = humanize(e) }
   finally { loading.value = false }
 }
 
 async function open(id: number) {
   try { detail.value = await getProspect(id) }
-  catch (e) { toast(e instanceof Error ? e.message : String(e)) }
+  catch (e) { toast(humanize(e)) }
 }
 
 async function claimNext() {
@@ -51,7 +52,7 @@ async function claimNext() {
     if (!prospect) { toast('file vide — rien à appeler'); return }
     await open(prospect.fact_id)
     await loadQueue()
-  } catch (e) { toast(e instanceof Error ? e.message : String(e)) }
+  } catch (e) { toast(humanize(e)) }
   finally { busy.value = false }
 }
 
@@ -62,7 +63,7 @@ async function dispose(canal: string, outcome: string) {
     detail.value = await recordAction(detail.value.fact_id, canal, outcome)
     await loadQueue()
     toast(`action enregistrée → ${detail.value.statut}`)
-  } catch (e) { toast(e instanceof Error ? e.message : String(e)) }
+  } catch (e) { toast(humanize(e)) }
   finally { busy.value = false }
 }
 

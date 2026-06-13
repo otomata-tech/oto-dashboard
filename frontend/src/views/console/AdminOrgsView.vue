@@ -14,6 +14,7 @@ import {
 } from '@/api/console'
 import type { AdminOrgSummary, ConnectorMeta, OrgDetail, OrgMember, OrgSecret, OrgEntitlement, OrgRole } from '@/types/api'
 import { fmtDate } from '@/types/api'
+import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
 const { promptText, promptForm, confirmAction } = usePrompt()
@@ -35,20 +36,20 @@ onMounted(async () => {
   try {
     const [, cat] = await Promise.all([loadOrgs(), getConnectors().catch(() => ({ connectors: [] }))])
     catalog.value = cat.connectors
-  } catch (e) { error.value = e instanceof Error ? e.message : String(e) }
+  } catch (e) { error.value = humanize(e) }
 })
 
 async function select(id: number) {
   selectedId.value = id
   try { detail.value = await getAdminOrg(id) }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 
 async function newOrg() {
   const name = await promptText('new organization', { label: 'name', required: true, placeholder: 'e.g. Acme Corp' })
   if (!name) return
   try { const { id } = await createOrg(name); toast(`org "${name}" created`); await loadOrgs(); await select(id) }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 
 async function addMember() {
@@ -64,19 +65,19 @@ async function addMember() {
   })
   if (!r) return
   try { await addAdminOrgMember(selectedId.value, r.target ?? '', (r.role || 'org_member') as OrgRole); toast('member added'); await refresh(); await loadOrgs() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 async function toggleMemberRole(m: OrgMember) {
   if (selectedId.value == null) return
   const next = m.role === 'org_admin' ? 'org_member' : 'org_admin'
   try { await setAdminOrgMemberRole(selectedId.value, m.sub, next); toast('role updated'); await refresh() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 async function removeMember(m: OrgMember) {
   if (selectedId.value == null) return
   if (!await confirmAction({ title: 'remove member', danger: true, confirmLabel: 'remove', message: `remove ${m.email || m.sub}?` })) return
   try { await removeAdminOrgMember(selectedId.value, m.sub); toast('member removed'); await refresh(); await loadOrgs() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 
 async function putSecret() {
@@ -92,13 +93,13 @@ async function putSecret() {
   })
   if (!r) return
   try { await putAdminOrgSecret(selectedId.value, r.provider ?? '', r.api_key ?? '', r.base_url || undefined); toast(`${r.provider} key set`); await refresh() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 async function removeSecret(s: OrgSecret) {
   if (selectedId.value == null) return
   if (!await confirmAction({ title: 'remove shared key', danger: true, confirmLabel: 'remove', message: `remove shared ${s.provider} key?` })) return
   try { await deleteAdminOrgSecret(selectedId.value, s.provider); toast('shared key removed'); await refresh() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 
 async function grantEnt() {
@@ -113,13 +114,13 @@ async function grantEnt() {
   })
   if (!r) return
   try { await grantOrgEntitlement(selectedId.value, r.ns ?? ''); toast(`granted ${r.ns}`); await refresh() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 async function revokeEnt(e0: OrgEntitlement) {
   if (selectedId.value == null) return
   if (!await confirmAction({ title: 'revoke entitlement', danger: true, confirmLabel: 'revoke', message: `revoke ${e0.namespace}?` })) return
   try { await revokeOrgEntitlement(selectedId.value, e0.namespace); toast('entitlement revoked'); await refresh() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 </script>
 

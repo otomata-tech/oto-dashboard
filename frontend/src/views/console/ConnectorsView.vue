@@ -17,6 +17,7 @@ import {
 import type { ConnectorMeta, ConnectorMode, DotTone } from '@/lib/consoleTypes'
 import type { ApiToken, GoogleOauthStatus } from '@/types/api'
 import { fmtDate } from '@/types/api'
+import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
 const { promptText, promptForm, confirmAction } = usePrompt()
@@ -37,7 +38,7 @@ async function load() {
     google.value = g
     tokens.value = t.tokens
   } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
+    error.value = humanize(e)
   }
 }
 onMounted(load)
@@ -64,37 +65,37 @@ async function configure(c: ConnectorMeta) {
     await setApiKey(c.name, key)
     toast(`${c.label} key saved`)
     await reload()
-  } catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  } catch (e) { toast(humanize(e)) }
 }
 async function removeKey(c: ConnectorMeta) {
   if (!await confirmAction({ title: 'remove key', danger: true, confirmLabel: 'remove', message: `remove your ${c.label} key?` })) return
   try { await deleteApiKey(c.name); toast('key removed'); await reload() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 
 async function dropLinkedin() {
   if (!await confirmAction({ title: 'disconnect LinkedIn', danger: true, confirmLabel: 'disconnect', message: 'disconnect your linkedin session?' })) return
   try { await deleteLinkedin(); toast('linkedin session removed'); await reload() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 async function dropCrunchbase() {
   if (!await confirmAction({ title: 'disconnect Crunchbase', danger: true, confirmLabel: 'disconnect', message: 'disconnect your crunchbase session?' })) return
   try { await deleteCrunchbase(); toast('crunchbase session removed'); await reload() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 
 async function linkGoogle() {
   try { const { auth_url } = await startGoogleOauth(); window.location.href = auth_url }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 async function makeDefault(email: string) {
   try { await setGoogleDefault(email); toast('default account updated'); google.value = await getGoogleStatus() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 async function unlinkGoogle(email: string) {
   if (!await confirmAction({ title: 'revoke google account', danger: true, confirmLabel: 'revoke', message: `revoke ${email}? tools using it will lose access.` })) return
   try { await revokeGoogle(email); toast('grant revoked'); google.value = await getGoogleStatus() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 
 async function newToken() {
@@ -113,12 +114,12 @@ async function newToken() {
       fields: [{ key: 'token', label: 'token', value: token }],
       submitLabel: 'done',
     })
-  } catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  } catch (e) { toast(humanize(e)) }
 }
 async function revokeToken(t: ApiToken) {
   if (!await confirmAction({ title: 'revoke token', danger: true, confirmLabel: 'revoke', message: `revoke "${t.label}"?` })) return
   try { await deleteToken(t.id); toast('token revoked'); tokens.value = (await getTokens()).tokens }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 </script>
 

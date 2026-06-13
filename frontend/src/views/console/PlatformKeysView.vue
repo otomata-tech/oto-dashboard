@@ -8,6 +8,7 @@ import { usePrompt } from '@/composables/usePrompt'
 import { getPlatformKeys, createPlatformKey, deletePlatformKey, getConnectors } from '@/api/console'
 import type { ConnectorMeta, PlatformKey } from '@/types/api'
 import { fmtDate } from '@/types/api'
+import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
 const { promptForm, confirmAction } = usePrompt()
@@ -26,7 +27,7 @@ async function load() {
     const [k, cat] = await Promise.all([getPlatformKeys(), getConnectors().catch(() => ({ connectors: [] }))])
     keys.value = k.platform_keys
     catalog.value = cat.connectors
-  } catch (e) { error.value = e instanceof Error ? e.message : String(e) }
+  } catch (e) { error.value = humanize(e) }
 }
 onMounted(load)
 
@@ -46,14 +47,14 @@ async function create() {
   })
   if (!r) return
   try { await createPlatformKey(r.provider ?? '', r.label ?? '', r.api_key ?? ''); toast(`${r.provider}/${r.label} saved`); await load() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 
 async function remove(k: PlatformKey) {
   if (!await confirmAction({ title: 'delete platform key', danger: true, confirmLabel: 'delete',
     message: `delete "${k.provider}/${k.label}"? grants using it will stop resolving.` })) return
   try { await deletePlatformKey(k.id); toast('key deleted'); await load() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 </script>
 

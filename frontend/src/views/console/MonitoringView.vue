@@ -7,6 +7,7 @@ import ErrLabel from '@/components/console/ErrLabel.vue'
 import { getMonitoringSummary } from '@/api/console'
 import type { MonitoringSummary } from '@/types/api'
 import { toDayBars, fmtMs } from '@/lib/monitoring'
+import { humanize } from '@/lib/errors'
 
 const win = ref(7)
 const summary = ref<MonitoringSummary | null>(null)
@@ -20,7 +21,7 @@ const bars = computed(() => (summary.value ? toDayBars(summary.value.by_day, win
 
 async function load() {
   try { summary.value = await getMonitoringSummary(win.value) }
-  catch (e) { error.value = e instanceof Error ? e.message : String(e) }
+  catch (e) { error.value = humanize(e) }
 }
 watch(win, load, { immediate: true })
 </script>
