@@ -48,7 +48,7 @@ const errRate = computed(() => {
   const s = summary.value
   return s && s.total_calls ? Math.round((s.error_count / s.total_calls) * 100) : 0
 })
-const bars = computed(() => (summary.value ? toDayBars(summary.value.by_day) : []))
+const bars = computed(() => (summary.value ? toDayBars(summary.value.by_day, 7) : []))
 
 // ── platform quotas (clés plateforme prêtées, depuis me.providers) ──
 const platformQuotas = computed(() =>
@@ -123,7 +123,7 @@ onMounted(async () => {
           <Stat label="errors" :value="summary.error_count" :unit="errRate + '%'" tone="var(--color-terra-ink)" sub="across all callers" />
           <Stat label="top tool" :value="summary.by_tool[0]?.tool_name ?? '—'" :sub="`${summary.by_tool[0]?.calls ?? 0} calls`" />
         </div>
-        <ConsoleCard title="calls · last 14 days" sub="terra segments are failures.">
+        <ConsoleCard title="calls · last 7 days" sub="terra segments are failures.">
           <DayBars :days="bars" />
         </ConsoleCard>
         <div class="grid23">
