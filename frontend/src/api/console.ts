@@ -4,7 +4,7 @@ import { api } from '@/api'
 import type {
   AdminUser, AdminOrgSummary, ApiToken, ConnectorMeta, DoctrineBundle,
   GoogleOauthStatus, InstructionDetail, InstructionVersion, Me, MonitoringSummary,
-  NamespaceGrant, Org, OrgDetail, PlatformKey, PresetEntry, ToolCall, ToolEntry,
+  NamespaceGrant, Org, OrgDetail, OrgRole, PlatformKey, PresetEntry, ToolCall, ToolEntry,
   WhatsappStatus,
 } from '@/types/api'
 
@@ -77,12 +77,43 @@ export const deleteOrgSecret = (id: number, provider: string) =>
 export const getAdminUsers = () => api<{ users: AdminUser[] }>('/api/admin/users')
 export const setUserRole = (sub: string, role: string) =>
   api(`/api/admin/users/${sub}/role`, { method: 'POST', ...j({ role }) })
-export const getAdminOrgs = () => api<{ orgs: AdminOrgSummary[] }>('/api/admin/orgs')
 export const getPlatformKeys = () => api<{ platform_keys: PlatformKey[] }>('/api/admin/platform-keys')
+export const createPlatformKey = (provider: string, label: string, api_key: string) =>
+  api<{ id: number; provider: string; label: string }>('/api/admin/platform-keys', { method: 'POST', ...j({ provider, label, api_key }) })
 export const deletePlatformKey = (id: number) => api(`/api/admin/platform-keys/${id}`, { method: 'DELETE' })
+
+// platform key grants per-user (lent platform keys with a daily quota)
+export const grantPlatformKey = (sub: string, keyId: number, daily_quota?: number) =>
+  api(`/api/admin/users/${sub}/grants/${keyId}`, { method: 'POST', ...j({ daily_quota }) })
+export const revokePlatformKey = (sub: string, keyId: number) =>
+  api(`/api/admin/users/${sub}/grants/${keyId}`, { method: 'DELETE' })
+
+// namespace grants per-user (controlled namespaces)
 export const getNamespaceGrants = () => api<{ grants: NamespaceGrant[] }>('/api/admin/namespace-grants')
+export const grantNamespace = (sub: string, namespace: string) =>
+  api(`/api/admin/users/${sub}/namespace-grants/${namespace}`, { method: 'POST' })
 export const revokeNamespaceGrant = (sub: string, namespace: string) =>
   api(`/api/admin/users/${sub}/namespace-grants/${namespace}`, { method: 'DELETE' })
+
+// ── admin orgs (cross-org governance) ──
+export const getAdminOrgs = () => api<{ orgs: AdminOrgSummary[] }>('/api/admin/orgs')
+export const createOrg = (name: string) =>
+  api<{ id: number }>('/api/admin/orgs', { method: 'POST', ...j({ name }) })
+export const getAdminOrg = (id: number) => api<OrgDetail>(`/api/admin/orgs/${id}`)
+export const addAdminOrgMember = (id: number, target: string, role: OrgRole) =>
+  api(`/api/admin/orgs/${id}/members`, { method: 'POST', ...j({ target, role }) })
+export const setAdminOrgMemberRole = (id: number, sub: string, role: OrgRole) =>
+  api(`/api/admin/orgs/${id}/members/${sub}`, { method: 'POST', ...j({ role }) })
+export const removeAdminOrgMember = (id: number, sub: string) =>
+  api(`/api/admin/orgs/${id}/members/${sub}`, { method: 'DELETE' })
+export const putAdminOrgSecret = (id: number, provider: string, api_key: string, base_url?: string) =>
+  api(`/api/admin/orgs/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url }) })
+export const deleteAdminOrgSecret = (id: number, provider: string) =>
+  api(`/api/admin/orgs/${id}/secrets/${provider}`, { method: 'DELETE' })
+export const grantOrgEntitlement = (id: number, namespace: string) =>
+  api(`/api/admin/orgs/${id}/entitlements/${namespace}`, { method: 'POST' })
+export const revokeOrgEntitlement = (id: number, namespace: string) =>
+  api(`/api/admin/orgs/${id}/entitlements/${namespace}`, { method: 'DELETE' })
 
 // ── monitoring (admin) ──
 export const getMonitoringSummary = (days: number) =>
