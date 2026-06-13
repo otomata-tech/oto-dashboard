@@ -10,6 +10,7 @@ import { useMe } from '@/composables/useMe'
 import { getMyOrgs, getOrg, setOrgMemberRole, deleteOrgSecret } from '@/api/console'
 import type { Org, OrgDetail } from '@/types/api'
 import { fmtDate } from '@/types/api'
+import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
@@ -28,7 +29,7 @@ async function load() {
   try {
     orgs.value = (await getMyOrgs()).orgs
     if (activeOrgId.value != null) detail.value = await getOrg(activeOrgId.value)
-  } catch (e) { error.value = e instanceof Error ? e.message : String(e) }
+  } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
 onMounted(load)
@@ -36,12 +37,12 @@ onMounted(load)
 async function toggleRole(sub: string, role: string) {
   const next = role === 'org_admin' ? 'org_member' : 'org_admin'
   try { await setOrgMemberRole(activeOrgId.value!, sub, next); toast('role updated'); detail.value = await getOrg(activeOrgId.value!) }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 async function removeSecret(provider: string) {
   if (!await confirmAction({ title: 'remove shared key', danger: true, confirmLabel: 'remove', message: `remove the shared ${provider} key?` })) return
   try { await deleteOrgSecret(activeOrgId.value!, provider); toast('shared key removed'); detail.value = await getOrg(activeOrgId.value!) }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 </script>
 
