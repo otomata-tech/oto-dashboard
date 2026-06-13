@@ -109,6 +109,12 @@ export interface WhatsappStatus {
   active_pairing: { session_id: string; status: string } | null
 }
 
+// MCP fédéré (otomata#16) — statut de connexion OAuth per-user (ex. memento).
+export interface MementoStatus {
+  connected: boolean
+  set_at: string | null
+}
+
 // ── orgs ──
 export interface Org {
   id: number
