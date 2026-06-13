@@ -3,6 +3,7 @@ import { computed, watch, type Component } from 'vue'
 import { useRoute } from 'vue-router'
 import ConsoleSidebar from '@/components/console/ConsoleSidebar.vue'
 import ConsoleTopbar from '@/components/console/ConsoleTopbar.vue'
+import PromptDialog from '@/components/console/PromptDialog.vue'
 import LoginGate from './LoginGate.vue'
 import { useToast } from '@/composables/useToast'
 import { useAuth } from '@/composables/useAuth'
@@ -13,6 +14,7 @@ import ConnectorsView from './ConnectorsView.vue'
 import ToolboxView from './ToolboxView.vue'
 import DoctrineView from './DoctrineView.vue'
 import DataView from './DataView.vue'
+import ScoutView from './ScoutView.vue'
 import ActivityView from './ActivityView.vue'
 import OrgView from './OrgView.vue'
 import MonitoringView from './MonitoringView.vue'
@@ -26,6 +28,7 @@ const VIEWS: Record<string, Component> = {
   toolbox: ToolboxView,
   doctrine: DoctrineView,
   data: DataView,
+  scout: ScoutView,
   activity: ActivityView,
   org: OrgView,
   monitoring: MonitoringView,
@@ -65,5 +68,6 @@ const current = computed(() => VIEWS[section.value] ?? OverviewView)
       </div>
     </div>
     <div v-if="message" class="toast">{{ message }}</div>
+    <PromptDialog />
   </div>
 </template>
