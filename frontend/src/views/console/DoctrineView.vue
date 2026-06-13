@@ -11,6 +11,7 @@ import {
 } from '@/api/console'
 import type { DoctrineBundle, InstructionVersion } from '@/types/api'
 import { fmtDate } from '@/types/api'
+import { humanize } from '@/lib/errors'
 
 const DOCTRINE_SLUG = 'claude_md'
 const { toast } = useToast()
@@ -40,12 +41,12 @@ async function load() {
       }
       versions.value = (await getInstructionVersions(DOCTRINE_SLUG).catch(() => ({ versions: [] }))).versions
     }
-  } catch (e) { error.value = e instanceof Error ? e.message : String(e) }
+  } catch (e) { error.value = humanize(e) }
   finally { loading.value = false }
 }
 onMounted(load)
 
-function revert() { body.value = saved.value; toast('draft reverted') }
+function discardDraft() { body.value = saved.value; toast('draft discarded') }
 
 async function publish() {
   if (!dirty.value) { toast('no changes to save'); return }
@@ -54,13 +55,13 @@ async function publish() {
     saved.value = body.value
     toast(`published v${r.version}`)
     await load()
-  } catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  } catch (e) { toast(humanize(e)) }
 }
 
 async function restore(v: number) {
   if (!await confirmAction({ title: 'restore version', confirmLabel: 'restore', message: `restore v${v} as a new draft? it becomes the new current version.` })) return
   try { await revertInstruction(DOCTRINE_SLUG, v); toast(`restored v${v}`); await load() }
-  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+  catch (e) { toast(humanize(e)) }
 }
 </script>
 
@@ -79,7 +80,7 @@ async function restore(v: number) {
           doctrine de base <Tag v-if="curVersion" tone="saffron">v{{ curVersion }}</Tag>
         </template>
         <template #actions>
-          <Btn v-if="canEdit" kind="mini" @click="revert">revert</Btn>
+          <Btn v-if="canEdit && dirty" kind="mini" @click="discardDraft">discard draft</Btn>
           <Btn v-if="canEdit" @click="publish">publish</Btn>
           <Tag v-else>read only</Tag>
         </template>
