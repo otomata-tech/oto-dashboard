@@ -5,7 +5,7 @@ import type {
   AdminUser, AdminOrgSummary, ApiToken, ConnectorMeta, DoctrineBundle,
   GoogleOauthStatus, InstructionDetail, InstructionVersion, Me, MonitoringSummary,
   NamespaceGrant, Org, OrgDetail, OrgRole, PlatformKey, PresetEntry, ToolCall, ToolEntry,
-  WhatsappStatus, ScoutQueueItem, ScoutDetail,
+  WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus,
 } from '@/types/api'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
@@ -32,6 +32,11 @@ export const setGoogleDefault = (account: string) =>
   api('/api/google/oauth/default', { method: 'POST', ...j({ account }) })
 export const revokeGoogle = (account?: string) =>
   api(`/api/google/oauth${account ? `?account=${encodeURIComponent(account)}` : ''}`, { method: 'DELETE' })
+
+// ── memento (MCP fédéré, otomata#16) ──
+export const getMementoStatus = () => api<MementoStatus>('/api/memento/oauth/status')
+export const startMementoOauth = () => api<{ auth_url: string }>('/api/memento/oauth/start')
+export const disconnectMemento = () => api('/api/memento/oauth', { method: 'DELETE' })
 
 // ── cli tokens ──
 export const getTokens = () => api<{ tokens: ApiToken[] }>('/api/me/tokens')

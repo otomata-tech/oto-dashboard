@@ -12,10 +12,11 @@ import { useMe } from '@/composables/useMe'
 import {
   getConnectors, setApiKey, deleteApiKey, deleteLinkedin, deleteCrunchbase,
   getGoogleStatus, startGoogleOauth, setGoogleDefault, revokeGoogle,
+  getMementoStatus, startMementoOauth, disconnectMemento,
   getTokens, createToken, deleteToken,
 } from '@/api/console'
 import type { ConnectorMeta, ConnectorMode, DotTone } from '@/lib/consoleTypes'
-import type { ApiToken, GoogleOauthStatus } from '@/types/api'
+import type { ApiToken, GoogleOauthStatus, MementoStatus } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
@@ -25,23 +26,53 @@ const { me, reload } = useMe()
 
 const catalog = ref<ConnectorMeta[]>([])
 const google = ref<GoogleOauthStatus | null>(null)
+const memento = ref<MementoStatus | null>(null)
 const tokens = ref<ApiToken[]>([])
 const error = ref<string | null>(null)
 
-// Connecteurs à clé/secret (les sessions perso ont leur propre carte).
-const keyConnectors = computed(() => catalog.value.filter((c) => !c.personal_session && c.secret_kind !== 'none'))
+// Connecteurs à clé API (les sessions perso + les MCP fédérés OAuth ont leur
+// propre carte — un MCP fédéré (kind=mount) se connecte en OAuth, pas par clé).
+const keyConnectors = computed(() => catalog.value.filter(
+  (c) => !c.personal_session && c.secret_kind !== 'none' && c.secret_kind !== 'oauth'))
+// MCP fédérés (otomata#16) : oauth + non personal_session (ex. memento). Présents
+// dans le catalogue seulement si l'user est entitled (grant-only, deny-by-default).
+const federatedConnectors = computed(() => catalog.value.filter(
+  (c) => c.secret_kind === 'oauth' && !c.personal_session))
 
 async function load() {
   try {
-    const [cat, g, t] = await Promise.all([getConnectors(), getGoogleStatus().catch(() => null), getTokens().catch(() => ({ tokens: [] }))])
+    const [cat, g, m, t] = await Promise.all([
+      getConnectors(),
+      getGoogleStatus().catch(() => null),
+      getMementoStatus().catch(() => null),
+      getTokens().catch(() => ({ tokens: [] })),
+    ])
     catalog.value = cat.connectors
     google.value = g
+    memento.value = m
     tokens.value = t.tokens
   } catch (e) {
     error.value = humanize(e)
   }
 }
-onMounted(load)
+onMounted(() => {
+  // Retour du consentement OAuth memento (redirige avec ?memento=connected|error).
+  const p = new URLSearchParams(window.location.search).get('memento')
+  if (p === 'connected') toast('memento connecté')
+  else if (p === 'error') toast('échec de la connexion memento')
+  if (p) window.history.replaceState({}, '', window.location.pathname)
+  load()
+})
+
+async function linkMemento() {
+  try { const { auth_url } = await startMementoOauth(); window.location.href = auth_url }
+  catch (e) { toast(humanize(e)) }
+}
+async function dropMemento() {
+  if (!await confirmAction({ title: 'disconnect memento', danger: true, confirmLabel: 'disconnect', message: 'disconnect your memento workspace? its tools will disappear from your session.' })) return
+  try { await disconnectMemento(); toast('memento disconnected'); memento.value = await getMementoStatus() }
+  catch (e) { toast(humanize(e)) }
+}
 
 function statusMode(name: string): ConnectorMode {
   const p = me.value?.providers?.[name]
@@ -208,6 +239,25 @@ async function revokeToken(t: ApiToken) {
         <div v-else class="helptext">no google account linked yet — link one to unlock gmail, drive & sheets tools.</div>
       </ConsoleCard>
     </div>
+
+    <ConsoleCard v-if="federatedConnectors.length" title="federated mcp"
+      sub="connect another mcp to your oto — its tools mount into your session, scoped to your own account.">
+      <div class="rowlist">
+        <div v-for="c in federatedConnectors" :key="c.name" class="rowitem" style="gap: 12px">
+          <Dot :tone="memento?.connected ? 'olive' : 'faint'" :size="8" />
+          <div style="min-width: 0; flex: 1">
+            <div style="font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: center">
+              {{ c.label }} <Tag tone="cobalt">mcp</Tag>
+            </div>
+            <div style="font-size: 11.5px; color: var(--color-mute)">
+              {{ memento?.connected ? `connected ${fmtDate(memento.set_at) ?? ''} · ${c.help}` : c.help }}
+            </div>
+          </div>
+          <Btn v-if="memento?.connected" kind="danger" @click="dropMemento">disconnect</Btn>
+          <Btn v-else kind="mini" @click="linkMemento">connect</Btn>
+        </div>
+      </div>
+    </ConsoleCard>
 
     <ConsoleCard title="cli & api tokens" flush sub="long-lived tokens for the oto cli and ci environments.">
       <template #actions>
