@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import Btn from './Btn.vue'
 import { usePrompt } from '@/composables/usePrompt'
 
@@ -8,6 +8,7 @@ const { state, resolve } = usePrompt()
 // Valeurs locales du formulaire, ré-initialisées à chaque ouverture.
 const values = ref<Record<string, string>>({})
 const firstInput = ref<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null>(null)
+const confirmBtn = ref<HTMLButtonElement | null>(null)
 
 const form = computed(() => (state.value?.kind === 'form' ? state.value.config : null))
 const confirm = computed(() => (state.value?.kind === 'confirm' ? state.value.config : null))
@@ -17,10 +18,14 @@ const missingRequired = computed(() =>
 )
 
 watch(state, async (s) => {
-  if (s?.kind === 'form') {
+  if (!s) return
+  if (s.kind === 'form') {
     values.value = Object.fromEntries(s.config.fields.map((f) => [f.key, f.value ?? '']))
     await nextTick()
     firstInput.value?.focus()
+  } else {
+    await nextTick()
+    confirmBtn.value?.focus()
   }
 })
 
@@ -32,7 +37,10 @@ function submitForm() {
 }
 function cancel() { resolve(state.value?.kind === 'confirm' ? false : null) }
 
+// Listener global actif tant que la modale est ouverte : marche que le focus
+// soit dans un champ (form) ou sur le bouton (confirm), sans dépendre du DOM.
 function onKeydown(e: KeyboardEvent) {
+  if (!state.value) return
   if (e.key === 'Escape') { e.preventDefault(); cancel() }
   // Enter soumet (sauf dans un textarea, où il insère un saut de ligne).
   else if (e.key === 'Enter' && (e.target as HTMLElement)?.tagName !== 'TEXTAREA') {
@@ -41,11 +49,13 @@ function onKeydown(e: KeyboardEvent) {
     else if (confirm.value) resolve(true)
   }
 }
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
   <Transition name="modal-fade">
-    <div v-if="state" class="modal-overlay" @mousedown.self="cancel" @keydown="onKeydown">
+    <div v-if="state" class="modal-overlay" @mousedown.self="cancel">
       <div class="modal" role="dialog" aria-modal="true">
         <!-- formulaire -->
         <template v-if="form">
@@ -80,7 +90,7 @@ function onKeydown(e: KeyboardEvent) {
           <p v-if="confirm.message" class="modal-desc">{{ confirm.message }}</p>
           <div class="modal-actions">
             <Btn kind="mini" @click="cancel">cancel</Btn>
-            <button :class="confirm.danger ? 'btn danger-solid' : 'btn'" @click="resolve(true)">
+            <button ref="confirmBtn" :class="confirm.danger ? 'btn danger-solid' : 'btn'" @click="resolve(true)">
               {{ confirm.confirmLabel || 'confirm' }}
             </button>
           </div>
