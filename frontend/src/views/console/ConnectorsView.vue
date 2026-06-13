@@ -7,6 +7,7 @@ import Btn from '@/components/console/Btn.vue'
 import Quota from '@/components/console/Quota.vue'
 import ModeTag from '@/components/console/ModeTag.vue'
 import { useToast } from '@/composables/useToast'
+import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
 import {
   getConnectors, setApiKey, deleteApiKey, deleteLinkedin, deleteCrunchbase,
@@ -18,6 +19,7 @@ import type { ApiToken, GoogleOauthStatus } from '@/types/api'
 import { fmtDate } from '@/types/api'
 
 const { toast } = useToast()
+const { promptText, promptForm, confirmAction } = usePrompt()
 const { me, reload } = useMe()
 
 const catalog = ref<ConnectorMeta[]>([])
@@ -56,27 +58,27 @@ function connectorTone(name: string): DotTone {
 }
 
 async function configure(c: ConnectorMeta) {
-  const key = window.prompt(`paste your ${c.label} api key`)
+  const key = await promptText(`${c.label} api key`, { label: 'api key', type: 'password', required: true, placeholder: `paste your ${c.label} key`, hint: 'yours overrides the org and platform keys' })
   if (!key) return
   try {
-    await setApiKey(c.name, key.trim())
+    await setApiKey(c.name, key)
     toast(`${c.label} key saved`)
     await reload()
   } catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 async function removeKey(c: ConnectorMeta) {
-  if (!window.confirm(`remove your ${c.label} key?`)) return
+  if (!await confirmAction({ title: 'remove key', danger: true, confirmLabel: 'remove', message: `remove your ${c.label} key?` })) return
   try { await deleteApiKey(c.name); toast('key removed'); await reload() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 
 async function dropLinkedin() {
-  if (!window.confirm('disconnect your linkedin session?')) return
+  if (!await confirmAction({ title: 'disconnect LinkedIn', danger: true, confirmLabel: 'disconnect', message: 'disconnect your linkedin session?' })) return
   try { await deleteLinkedin(); toast('linkedin session removed'); await reload() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 async function dropCrunchbase() {
-  if (!window.confirm('disconnect your crunchbase session?')) return
+  if (!await confirmAction({ title: 'disconnect Crunchbase', danger: true, confirmLabel: 'disconnect', message: 'disconnect your crunchbase session?' })) return
   try { await deleteCrunchbase(); toast('crunchbase session removed'); await reload() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
@@ -90,21 +92,31 @@ async function makeDefault(email: string) {
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 async function unlinkGoogle(email: string) {
-  if (!window.confirm(`revoke ${email}?`)) return
+  if (!await confirmAction({ title: 'revoke google account', danger: true, confirmLabel: 'revoke', message: `revoke ${email}? tools using it will lose access.` })) return
   try { await revokeGoogle(email); toast('grant revoked'); google.value = await getGoogleStatus() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 
 async function newToken() {
-  const label = window.prompt('token label', 'cli') || undefined
+  const r = await promptForm({
+    title: 'new cli token', description: 'long-lived token for the oto cli and ci environments.',
+    fields: [{ key: 'label', label: 'label', value: 'cli', placeholder: 'e.g. cli, ci' }],
+    submitLabel: 'create',
+  })
+  if (!r) return
   try {
-    const { token } = await createToken(label)
-    window.prompt('copy this token now — it is shown only once:', token)
+    const { token } = await createToken(r.label || undefined)
     tokens.value = (await getTokens()).tokens
+    await promptForm({
+      title: 'copy this token now',
+      description: 'it is shown only once — store it in your secrets manager.',
+      fields: [{ key: 'token', label: 'token', value: token }],
+      submitLabel: 'done',
+    })
   } catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 async function revokeToken(t: ApiToken) {
-  if (!window.confirm(`revoke "${t.label}"?`)) return
+  if (!await confirmAction({ title: 'revoke token', danger: true, confirmLabel: 'revoke', message: `revoke "${t.label}"?` })) return
   try { await deleteToken(t.id); toast('token revoked'); tokens.value = (await getTokens()).tokens }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }

@@ -5,6 +5,7 @@ import Stat from '@/components/console/Stat.vue'
 import Btn from '@/components/console/Btn.vue'
 import Toggle from '@/components/console/Toggle.vue'
 import { useToast } from '@/composables/useToast'
+import { usePrompt } from '@/composables/usePrompt'
 import {
   getTools, enableTool, disableTool, getPresets, applyPreset as applyPresetApi,
   savePreset, deletePreset,
@@ -13,6 +14,7 @@ import type { PresetEntry, ToolEntry } from '@/types/api'
 import { fmtDate } from '@/types/api'
 
 const { toast } = useToast()
+const { promptText, confirmAction } = usePrompt()
 const tools = ref<ToolEntry[]>([])
 const presets = ref<PresetEntry[]>([])
 const error = ref<string | null>(null)
@@ -63,13 +65,13 @@ async function apply(name: string) {
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 async function saveCurrent() {
-  const name = window.prompt('preset name')?.trim()
+  const name = await promptText('save preset', { label: 'preset name', required: true, placeholder: 'e.g. prospection', hint: 'snapshots your current tool selection' })
   if (!name) return
   try { await savePreset(name); presets.value = (await getPresets()).presets; toast(`preset "${name}" saved`) }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 async function remove(name: string) {
-  if (!window.confirm(`delete preset "${name}"?`)) return
+  if (!await confirmAction({ title: 'delete preset', danger: true, confirmLabel: 'delete', message: `delete preset "${name}"?` })) return
   try { await deletePreset(name); presets.value = (await getPresets()).presets; toast('preset deleted') }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }

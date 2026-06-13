@@ -24,6 +24,7 @@ const ICON_PATHS: Record<string, string> = {
   pen: 'M4 20l1-4L17 4l3 3L8 19l-4 1ZM14 7l3 3',
   bolt: 'M13 2 4 14h6l-1 8 9-12h-6l1-8Z',
   logout: 'M15 12H4m0 0 3.5-3.5M4 12l3.5 3.5M11 7.5V6a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5a2 2 0 0 1-2-2v-1.5',
+  phone: 'M5 4h3l2 5-2.5 1.5a11 11 0 0 0 5 5L19 14l-1 3v3a17 17 0 0 1-13-13Z',
 }
 
 const props = withDefaults(defineProps<{ name: string; size?: number; sw?: number }>(), {

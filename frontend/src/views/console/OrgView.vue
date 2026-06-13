@@ -5,12 +5,14 @@ import Dot from '@/components/console/Dot.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import { useToast } from '@/composables/useToast'
+import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
 import { getMyOrgs, getOrg, setOrgMemberRole, deleteOrgSecret } from '@/api/console'
 import type { Org, OrgDetail } from '@/types/api'
 import { fmtDate } from '@/types/api'
 
 const { toast } = useToast()
+const { confirmAction } = usePrompt()
 const { me } = useMe()
 
 const orgs = ref<Org[]>([])
@@ -37,7 +39,7 @@ async function toggleRole(sub: string, role: string) {
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 async function removeSecret(provider: string) {
-  if (!window.confirm(`remove the shared ${provider} key?`)) return
+  if (!await confirmAction({ title: 'remove shared key', danger: true, confirmLabel: 'remove', message: `remove the shared ${provider} key?` })) return
   try { await deleteOrgSecret(activeOrgId.value!, provider); toast('shared key removed'); detail.value = await getOrg(activeOrgId.value!) }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }

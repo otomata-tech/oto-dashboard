@@ -6,15 +6,17 @@ import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import Dot from '@/components/console/Dot.vue'
 import { useToast } from '@/composables/useToast'
+import { usePrompt } from '@/composables/usePrompt'
 import {
   getAdminOrgs, createOrg, getAdminOrg, addAdminOrgMember, setAdminOrgMemberRole,
   removeAdminOrgMember, putAdminOrgSecret, deleteAdminOrgSecret,
   grantOrgEntitlement, revokeOrgEntitlement, getConnectors,
 } from '@/api/console'
-import type { AdminOrgSummary, ConnectorMeta, OrgDetail, OrgMember, OrgSecret, OrgEntitlement } from '@/types/api'
+import type { AdminOrgSummary, ConnectorMeta, OrgDetail, OrgMember, OrgSecret, OrgEntitlement, OrgRole } from '@/types/api'
 import { fmtDate } from '@/types/api'
 
 const { toast } = useToast()
+const { promptText, promptForm, confirmAction } = usePrompt()
 const orgs = ref<AdminOrgSummary[]>([])
 const detail = ref<OrgDetail | null>(null)
 const selectedId = ref<number | null>(null)
@@ -43,7 +45,7 @@ async function select(id: number) {
 }
 
 async function newOrg() {
-  const name = window.prompt('organization name')?.trim()
+  const name = await promptText('new organization', { label: 'name', required: true, placeholder: 'e.g. Acme Corp' })
   if (!name) return
   try { const { id } = await createOrg(name); toast(`org "${name}" created`); await loadOrgs(); await select(id) }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
@@ -51,11 +53,17 @@ async function newOrg() {
 
 async function addMember() {
   if (selectedId.value == null) return
-  const target = window.prompt('member email or sub')?.trim()
-  if (!target) return
-  const role = window.prompt('role (org_member / org_admin)', 'org_member')?.trim()
-  if (role !== 'org_member' && role !== 'org_admin') { toast('invalid role'); return }
-  try { await addAdminOrgMember(selectedId.value, target, role); toast('member added'); await refresh(); await loadOrgs() }
+  const r = await promptForm({
+    title: 'add member', description: `to ${detail.value?.org.name}`,
+    fields: [
+      { key: 'target', label: 'email or sub', required: true, placeholder: 'user@example.com' },
+      { key: 'role', label: 'role', type: 'select', value: 'org_member',
+        options: [{ value: 'org_member', label: 'member' }, { value: 'org_admin', label: 'admin' }] },
+    ],
+    submitLabel: 'add',
+  })
+  if (!r) return
+  try { await addAdminOrgMember(selectedId.value, r.target ?? '', (r.role || 'org_member') as OrgRole); toast('member added'); await refresh(); await loadOrgs() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 async function toggleMemberRole(m: OrgMember) {
@@ -65,37 +73,51 @@ async function toggleMemberRole(m: OrgMember) {
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 async function removeMember(m: OrgMember) {
-  if (selectedId.value == null || !window.confirm(`remove ${m.email || m.sub}?`)) return
+  if (selectedId.value == null) return
+  if (!await confirmAction({ title: 'remove member', danger: true, confirmLabel: 'remove', message: `remove ${m.email || m.sub}?` })) return
   try { await removeAdminOrgMember(selectedId.value, m.sub); toast('member removed'); await refresh(); await loadOrgs() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 
 async function putSecret() {
   if (selectedId.value == null) return
-  const provider = window.prompt('provider (e.g. attio, lemlist)')?.trim()
-  if (!provider) return
-  const key = window.prompt(`paste the shared ${provider} api key`)?.trim()
-  if (!key) return
-  const base = window.prompt('base_url (optional — blank for none)')?.trim() || undefined
-  try { await putAdminOrgSecret(selectedId.value, provider, key, base); toast(`${provider} key set`); await refresh() }
+  const r = await promptForm({
+    title: 'shared org key', description: 'inherited by every member of this org.',
+    fields: [
+      { key: 'provider', label: 'provider', required: true, placeholder: 'e.g. attio, lemlist' },
+      { key: 'api_key', label: 'api key', type: 'password', required: true, placeholder: 'paste the key' },
+      { key: 'base_url', label: 'base url', placeholder: 'optional' },
+    ],
+    submitLabel: 'set key',
+  })
+  if (!r) return
+  try { await putAdminOrgSecret(selectedId.value, r.provider ?? '', r.api_key ?? '', r.base_url || undefined); toast(`${r.provider} key set`); await refresh() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 async function removeSecret(s: OrgSecret) {
-  if (selectedId.value == null || !window.confirm(`remove shared ${s.provider} key?`)) return
+  if (selectedId.value == null) return
+  if (!await confirmAction({ title: 'remove shared key', danger: true, confirmLabel: 'remove', message: `remove shared ${s.provider} key?` })) return
   try { await deleteAdminOrgSecret(selectedId.value, s.provider); toast('shared key removed'); await refresh() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 
 async function grantEnt() {
   if (selectedId.value == null) return
-  const hint = nsOptions.value.join(', ') || 'no controlled namespaces in catalog'
-  const ns = window.prompt(`grant a namespace to this org (${hint})`)?.trim()
-  if (!ns) return
-  try { await grantOrgEntitlement(selectedId.value, ns); toast(`granted ${ns}`); await refresh() }
+  const r = await promptForm({
+    title: 'grant entitlement', description: 'unlock a controlled namespace for the whole org.',
+    fields: nsOptions.value.length
+      ? [{ key: 'ns', label: 'namespace', type: 'select', required: true, placeholder: 'choose a namespace',
+          options: nsOptions.value.map((n) => ({ value: n, label: n })) }]
+      : [{ key: 'ns', label: 'namespace', required: true, hint: 'no controlled namespace in catalog — type one' }],
+    submitLabel: 'grant',
+  })
+  if (!r) return
+  try { await grantOrgEntitlement(selectedId.value, r.ns ?? ''); toast(`granted ${r.ns}`); await refresh() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 async function revokeEnt(e0: OrgEntitlement) {
-  if (selectedId.value == null || !window.confirm(`revoke ${e0.namespace}?`)) return
+  if (selectedId.value == null) return
+  if (!await confirmAction({ title: 'revoke entitlement', danger: true, confirmLabel: 'revoke', message: `revoke ${e0.namespace}?` })) return
   try { await revokeOrgEntitlement(selectedId.value, e0.namespace); toast('entitlement revoked'); await refresh() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }

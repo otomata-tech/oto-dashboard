@@ -5,7 +5,7 @@ import type {
   AdminUser, AdminOrgSummary, ApiToken, ConnectorMeta, DoctrineBundle,
   GoogleOauthStatus, InstructionDetail, InstructionVersion, Me, MonitoringSummary,
   NamespaceGrant, Org, OrgDetail, OrgRole, PlatformKey, PresetEntry, ToolCall, ToolEntry,
-  WhatsappStatus,
+  WhatsappStatus, ScoutQueueItem, ScoutDetail,
 } from '@/types/api'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
@@ -139,3 +139,12 @@ export const getMyCalls = (params: { limit?: number; tool?: string; errors?: boo
   const qs = q.toString()
   return api<{ calls: ToolCall[] }>(`/api/me/calls${qs ? `?${qs}` : ''}`)
 }
+
+// ── scout (harnais prospection, ADR 0008) ──
+export const getScoutQueue = (limit = 50) =>
+  api<{ items: ScoutQueueItem[]; count: number }>(`/api/scout/queue?limit=${limit}`)
+export const claimNextProspect = () =>
+  api<{ prospect: ScoutQueueItem | null }>('/api/scout/claim-next', { method: 'POST' })
+export const getProspect = (id: number) => api<ScoutDetail>(`/api/scout/prospects/${id}`)
+export const recordAction = (id: number, canal: string, outcome: string, note?: string) =>
+  api<ScoutDetail>(`/api/scout/prospects/${id}/actions`, { method: 'POST', ...j({ canal, outcome, note }) })

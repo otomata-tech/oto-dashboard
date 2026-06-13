@@ -4,11 +4,13 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import ErrLabel from '@/components/console/ErrLabel.vue'
 import { useToast } from '@/composables/useToast'
+import { usePrompt } from '@/composables/usePrompt'
 import { getPlatformKeys, createPlatformKey, deletePlatformKey, getConnectors } from '@/api/console'
 import type { ConnectorMeta, PlatformKey } from '@/types/api'
 import { fmtDate } from '@/types/api'
 
 const { toast } = useToast()
+const { promptForm, confirmAction } = usePrompt()
 const keys = ref<PlatformKey[]>([])
 const catalog = ref<ConnectorMeta[]>([])
 const error = ref<string | null>(null)
@@ -29,19 +31,27 @@ async function load() {
 onMounted(load)
 
 async function create() {
-  const hint = platformProviders.value.join(', ') || 'serper, hunter, sirene, kaspr'
-  const provider = window.prompt(`provider (${hint})`)?.trim()
-  if (!provider) return
-  const label = window.prompt('label (e.g. "prod", "env") — re-posting the same provider+label rotates the key', 'prod')?.trim()
-  if (!label) return
-  const key = window.prompt(`paste the ${provider} api key`)?.trim()
-  if (!key) return
-  try { await createPlatformKey(provider, label, key); toast(`${provider}/${label} saved`); await load() }
+  const providers = platformProviders.value.length ? platformProviders.value : ['serper', 'hunter', 'sirene', 'kaspr']
+  const r = await promptForm({
+    title: 'new platform key',
+    description: 'studio-owned key, lent to users via grants with a daily quota.',
+    fields: [
+      { key: 'provider', label: 'provider', type: 'select', required: true,
+        placeholder: 'choose a provider', options: providers.map((p) => ({ value: p, label: p })) },
+      { key: 'label', label: 'label', value: 'prod', required: true,
+        hint: 're-posting the same provider + label rotates the key' },
+      { key: 'api_key', label: 'api key', type: 'password', required: true, placeholder: 'paste the key' },
+    ],
+    submitLabel: 'create',
+  })
+  if (!r) return
+  try { await createPlatformKey(r.provider ?? '', r.label ?? '', r.api_key ?? ''); toast(`${r.provider}/${r.label} saved`); await load() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
 
 async function remove(k: PlatformKey) {
-  if (!window.confirm(`delete platform key "${k.label}"?`)) return
+  if (!await confirmAction({ title: 'delete platform key', danger: true, confirmLabel: 'delete',
+    message: `delete "${k.provider}/${k.label}"? grants using it will stop resolving.` })) return
   try { await deletePlatformKey(k.id); toast('key deleted'); await load() }
   catch (e) { toast(e instanceof Error ? e.message : 'failed') }
 }
