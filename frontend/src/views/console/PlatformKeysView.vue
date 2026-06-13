@@ -1,22 +1,44 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import ErrLabel from '@/components/console/ErrLabel.vue'
 import { useToast } from '@/composables/useToast'
-import { getPlatformKeys, deletePlatformKey } from '@/api/console'
-import type { PlatformKey } from '@/types/api'
+import { getPlatformKeys, createPlatformKey, deletePlatformKey, getConnectors } from '@/api/console'
+import type { ConnectorMeta, PlatformKey } from '@/types/api'
 import { fmtDate } from '@/types/api'
 
 const { toast } = useToast()
 const keys = ref<PlatformKey[]>([])
+const catalog = ref<ConnectorMeta[]>([])
 const error = ref<string | null>(null)
 
+// Seuls les providers platform-éligibles (auth_modes inclut 'platform') peuvent
+// porter une clé plateforme — les byo-only (attio/lemlist/…) la refuseraient.
+const platformProviders = computed(() =>
+  catalog.value.filter((c) => c.auth_modes.includes('platform')).map((c) => c.name),
+)
+
 async function load() {
-  try { keys.value = (await getPlatformKeys()).platform_keys }
-  catch (e) { error.value = e instanceof Error ? e.message : String(e) }
+  try {
+    const [k, cat] = await Promise.all([getPlatformKeys(), getConnectors().catch(() => ({ connectors: [] }))])
+    keys.value = k.platform_keys
+    catalog.value = cat.connectors
+  } catch (e) { error.value = e instanceof Error ? e.message : String(e) }
 }
 onMounted(load)
+
+async function create() {
+  const hint = platformProviders.value.join(', ') || 'serper, hunter, sirene, kaspr'
+  const provider = window.prompt(`provider (${hint})`)?.trim()
+  if (!provider) return
+  const label = window.prompt('label (e.g. "prod", "env") — re-posting the same provider+label rotates the key', 'prod')?.trim()
+  if (!label) return
+  const key = window.prompt(`paste the ${provider} api key`)?.trim()
+  if (!key) return
+  try { await createPlatformKey(provider, label, key); toast(`${provider}/${label} saved`); await load() }
+  catch (e) { toast(e instanceof Error ? e.message : 'failed') }
+}
 
 async function remove(k: PlatformKey) {
   if (!window.confirm(`delete platform key "${k.label}"?`)) return
@@ -31,6 +53,9 @@ async function remove(k: PlatformKey) {
 
     <ConsoleCard flush title="platform keys"
       sub="studio-owned api keys, lent to users via grants with a daily quota. the key itself is never shown again.">
+      <template #actions>
+        <Btn kind="mini" icon="plus" @click="create">new key</Btn>
+      </template>
       <table class="tbl">
         <thead><tr><th>provider</th><th>label</th><th>key</th><th>created</th><th style="width: 90px"></th></tr></thead>
         <tbody>
