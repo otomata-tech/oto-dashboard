@@ -5,9 +5,11 @@ import Icon from './Icon.vue'
 import Dot from './Dot.vue'
 import { NAV } from '@/lib/consoleNav'
 import { useMe } from '@/composables/useMe'
+import { useAuth } from '@/composables/useAuth'
 
 const route = useRoute()
 const { me } = useMe()
+const { logout } = useAuth()
 
 const visibleGroups = computed(() => NAV.filter((g) => !g.admin || me.value?.role === 'admin'))
 const initial = computed(() => (me.value?.name || me.value?.email || '?').trim().charAt(0).toLowerCase())
@@ -47,6 +49,9 @@ const initial = computed(() => (me.value?.name || me.value?.email || '?').trim()
           <div class="n">{{ me?.name || me?.email }}</div>
           <div class="e">{{ me?.email }}</div>
         </div>
+        <button class="sb-logout" title="se déconnecter" aria-label="se déconnecter" @click="logout">
+          <Icon name="logout" :size="15" />
+        </button>
       </div>
     </div>
   </aside>
