@@ -136,11 +136,25 @@ async function revokeNs(g: NamespaceGrant) {
         </template>
         <div class="helptext">
           {{ detail.email }} · <code class="mono">{{ detail.sub }}</code>
-          <span v-if="detail.active_org"> · active org #{{ detail.active_org }}</span>
         </div>
         <div class="helptext" style="margin-top: 6px">
           platform role gates only the admin section — tool access comes from keys, grants and org membership below.
         </div>
+      </ConsoleCard>
+
+      <!-- organisations dont il est membre -->
+      <ConsoleCard title="organizations" sub="orgs this user belongs to, with their role. shared keys & doctrine come from the active org.">
+        <div v-if="detail.orgs.length" class="rowlist">
+          <div v-for="o in detail.orgs" :key="o.org_id" class="rowitem" style="gap: 10px">
+            <Dot :tone="o.is_active ? 'saffron' : 'faint'" :size="8" />
+            <div style="flex: 1; min-width: 0">
+              <span style="font-weight: 600; font-size: 13px">{{ o.name }}</span>
+              <Tag :tone="o.org_role === 'org_admin' ? 'ink' : undefined" style="margin-left: 8px">{{ o.org_role === 'org_admin' ? 'org admin' : 'member' }}</Tag>
+            </div>
+            <Tag v-if="o.is_active" tone="saffron">active</Tag>
+          </div>
+        </div>
+        <div v-else class="helptext">not a member of any organization.</div>
       </ConsoleCard>
 
       <!-- accès effectif par provider (répond « a-t-il déjà accès ? ») -->
