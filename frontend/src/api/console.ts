@@ -4,7 +4,7 @@ import { api } from '@/api'
 import type {
   AdminUser, AdminOrgSummary, ApiToken, ConnectorMeta, DoctrineBundle,
   GoogleOauthStatus, InstructionDetail, InstructionVersion, Me, MonitoringSummary,
-  NamespaceGrant, Org, OrgDetail, OrgRole, PlatformKey, PresetEntry, ToolCall, ToolEntry,
+  NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ToolCall, ToolEntry,
   WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus,
 } from '@/types/api'
 
@@ -74,7 +74,22 @@ export const createNamespace = (namespace: string) =>
 
 // ── orgs (self-service) ──
 export const getMyOrgs = () => api<{ orgs: Org[] }>('/api/me/orgs')
+export const createMyOrg = (name: string) =>
+  api<{ org_id: number; name: string; active_org: number; org_role: string }>(
+    '/api/me/orgs', { method: 'POST', ...j({ name }) })
 export const getOrg = (id: number) => api<OrgDetail>(`/api/orgs/${id}`)
+
+// ── invitations d'équipe (onboarding SaaS) ──
+export const listInvitations = (id: number) =>
+  api<{ invitations: OrgInvitation[] }>(`/api/orgs/${id}/invitations`)
+export const inviteMember = (id: number, email: string, role: OrgRole) =>
+  api<{ ok: boolean; email: string; role: string; emailed: boolean; invite_url: string }>(
+    `/api/orgs/${id}/invitations`, { method: 'POST', ...j({ email, role }) })
+export const revokeInvitation = (id: number, inviteId: number) =>
+  api(`/api/orgs/${id}/invitations/${inviteId}`, { method: 'DELETE' })
+export const acceptInvite = (token: string) =>
+  api<{ ok: boolean; org_id: number; org_role: string; name: string | null }>(
+    '/api/me/invitations/accept', { method: 'POST', ...j({ token }) })
 export const setOrgMemberRole = (id: number, sub: string, role: string) =>
   api(`/api/orgs/${id}/members/${sub}`, { method: 'POST', ...j({ role }) })
 export const deleteOrgSecret = (id: number, provider: string) =>
