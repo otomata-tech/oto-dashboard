@@ -17,6 +17,9 @@ export const getMe = () => api<Me>('/api/me')
 export const getConnectors = () => api<{ connectors: ConnectorMeta[] }>('/api/connectors')
 export const setApiKey = (provider: string, key: string) =>
   api(`/api/settings/api-keys/${provider}`, { method: 'POST', ...j({ key }) })
+// basic_auth (ex. planity) : email + password → base64 côté serveur, stocké au coffre.
+export const setBasicAuth = (provider: string, email: string, password: string) =>
+  api(`/api/settings/api-keys/${provider}`, { method: 'POST', ...j({ email, password }) })
 export const deleteApiKey = (provider: string) =>
   api(`/api/settings/api-keys/${provider}`, { method: 'DELETE' })
 
