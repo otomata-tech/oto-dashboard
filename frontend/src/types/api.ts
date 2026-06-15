@@ -1,7 +1,7 @@
 // Contrats REST oto-backend (mcp.oto.ninja) consommés par le dashboard.
 // Reflètent les handlers de oto-mcp (api_routes*.py) + l'ancien account/src/types.
 
-export type Role = 'guest' | 'member' | 'admin'
+export type Role = 'member' | 'admin'
 export type OrgRole = 'org_member' | 'org_admin'
 
 // ── connecteurs (catalogue, registre source unique) ──

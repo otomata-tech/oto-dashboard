@@ -84,7 +84,7 @@ async function remove(k: PlatformKey) {
     <ConsoleCard title="resolution order">
       <div class="helptext" style="font-size: 12.5px">
         when a tool needs a key: <strong>user key</strong> → <strong>org shared key</strong> → <strong>platform grant</strong> (quota-metered) → <ErrLabel>forbidden</ErrLabel>.
-        guests get nothing until approved.
+        no key and no grant = no access until one is set.
       </div>
     </ConsoleCard>
   </div>
