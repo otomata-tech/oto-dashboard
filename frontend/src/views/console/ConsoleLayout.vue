@@ -6,6 +6,7 @@ import ConsoleTopbar from '@/components/console/ConsoleTopbar.vue'
 import PromptDialog from '@/components/console/PromptDialog.vue'
 import StateError from '@/components/console/StateError.vue'
 import SkeletonOverview from '@/components/console/SkeletonOverview.vue'
+import WelcomeOrg from './WelcomeOrg.vue'
 import LoginGate from './LoginGate.vue'
 import { useToast } from '@/composables/useToast'
 import { useAuth } from '@/composables/useAuth'
@@ -60,6 +61,7 @@ const current = computed(() => VIEWS[section.value] ?? OverviewView)
         <ConsoleTopbar />
         <div class="content">
           <StateError v-if="error" :message="error" @retry="load(true)" />
+          <WelcomeOrg v-else-if="me && me.active_org == null" />
           <component :is="current" v-else-if="me" :key="section" />
           <SkeletonOverview v-else />
         </div>

@@ -145,6 +145,14 @@ export interface OrgDetail {
   secrets: OrgSecret[]
   entitlements?: OrgEntitlement[]
 }
+export interface OrgInvitation {
+  id: number
+  email: string
+  org_role: OrgRole
+  invited_by?: string | null
+  created_at?: string | null
+  expires_at?: string | null
+}
 
 // ── admin ──
 export interface AdminGrant {

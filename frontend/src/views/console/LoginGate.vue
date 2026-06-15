@@ -16,7 +16,7 @@ const { login } = useAuth()
         <p class="helptext" style="margin: 4px 0 6px">
           sign in with your otomata account to manage connectors, doctrine and your org.
         </p>
-        <button class="btn" @click="login">sign in</button>
+        <button class="btn" @click="() => login()">sign in</button>
       </div>
     </section>
   </div>

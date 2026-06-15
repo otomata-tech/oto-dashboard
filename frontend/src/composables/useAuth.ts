@@ -20,7 +20,10 @@ export function useAuth() {
   async function initAuth(): Promise<void> {
     if (window.location.pathname === '/callback') {
       await logto.handleSignInCallback(window.location.href)
-      window.history.replaceState({}, '', '/')
+      // Reprend la destination pré-login (ex. /invite?token=…), sinon racine.
+      const dest = sessionStorage.getItem('oto-postlogin') || '/'
+      sessionStorage.removeItem('oto-postlogin')
+      window.history.replaceState({}, '', dest)
     }
     isAuthenticated.value = await logto.isAuthenticated()
     if (isAuthenticated.value) {
@@ -29,7 +32,8 @@ export function useAuth() {
     }
   }
 
-  async function login(): Promise<void> {
+  async function login(returnTo?: string): Promise<void> {
+    if (returnTo) sessionStorage.setItem('oto-postlogin', returnTo)
     await logto.signIn(`${window.location.origin}/callback`)
   }
 

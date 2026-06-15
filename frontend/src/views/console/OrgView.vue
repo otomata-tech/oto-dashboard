@@ -7,17 +7,19 @@ import Btn from '@/components/console/Btn.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
-import { getMyOrgs, getOrg, setOrgMemberRole, deleteOrgSecret } from '@/api/console'
-import type { Org, OrgDetail } from '@/types/api'
+import { getMyOrgs, getOrg, setOrgMemberRole, deleteOrgSecret,
+  listInvitations, inviteMember, revokeInvitation } from '@/api/console'
+import type { Org, OrgDetail, OrgInvitation, OrgRole } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
-const { confirmAction } = usePrompt()
+const { confirmAction, promptForm } = usePrompt()
 const { me } = useMe()
 
 const orgs = ref<Org[]>([])
 const detail = ref<OrgDetail | null>(null)
+const invites = ref<OrgInvitation[]>([])
 const error = ref<string | null>(null)
 const loaded = ref(false)
 
@@ -25,14 +27,56 @@ const isOrgAdmin = computed(() => detail.value?.org.my_role === 'org_admin')
 const activeOrgId = computed(() => me.value?.active_org ?? null)
 const meSub = computed(() => me.value?.sub ?? null)
 
+async function loadInvites() {
+  if (!isOrgAdmin.value || activeOrgId.value == null) { invites.value = []; return }
+  try { invites.value = (await listInvitations(activeOrgId.value)).invitations }
+  catch { invites.value = [] }
+}
+
 async function load() {
   try {
     orgs.value = (await getMyOrgs()).orgs
-    if (activeOrgId.value != null) detail.value = await getOrg(activeOrgId.value)
+    if (activeOrgId.value != null) {
+      detail.value = await getOrg(activeOrgId.value)
+      await loadInvites()
+    }
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
 onMounted(load)
+
+async function invite() {
+  const r = await promptForm({
+    title: 'invite a teammate',
+    description: 'they receive an email link to join this org.',
+    fields: [
+      { key: 'email', label: 'email', placeholder: 'name@company.com' },
+      { key: 'role', label: 'role', value: 'org_member',
+        options: [{ value: 'org_member', label: 'member' }, { value: 'org_admin', label: 'admin' }] },
+    ],
+    submitLabel: 'send invite',
+  })
+  if (!r || !r.email) return
+  const role: OrgRole = r.role === 'org_admin' ? 'org_admin' : 'org_member'
+  try {
+    const res = await inviteMember(activeOrgId.value!, r.email, role)
+    toast(res.emailed ? `invite sent to ${res.email}` : 'invite created — share the link')
+    if (!res.emailed) {
+      await promptForm({
+        title: 'share this invite link',
+        description: 'email delivery is off on this server — copy and send it yourself.',
+        fields: [{ key: 'url', label: 'invite link', value: res.invite_url }],
+        submitLabel: 'done',
+      })
+    }
+    await loadInvites()
+  } catch (e) { toast(humanize(e)) }
+}
+async function revokeInv(id: number) {
+  if (!await confirmAction({ title: 'revoke invitation', danger: true, confirmLabel: 'revoke', message: 'revoke this pending invitation?' })) return
+  try { await revokeInvitation(activeOrgId.value!, id); toast('invitation revoked'); await loadInvites() }
+  catch (e) { toast(humanize(e)) }
+}
 
 async function toggleRole(sub: string, role: string) {
   const next = role === 'org_admin' ? 'org_member' : 'org_admin'
@@ -100,6 +144,26 @@ async function removeSecret(provider: string) {
           </ConsoleCard>
         </div>
       </div>
+
+      <ConsoleCard v-if="isOrgAdmin" title="invitations"
+        sub="invite teammates by email — they join this org when they accept the link.">
+        <template #actions>
+          <Btn kind="mini" icon="plus" @click="invite">invite</Btn>
+        </template>
+        <div class="rowlist">
+          <div v-for="iv in invites" :key="iv.id" class="rowitem" style="gap: 12px">
+            <Dot tone="saffron" :size="8" />
+            <div style="min-width: 0; flex: 1">
+              <div style="font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: center">
+                {{ iv.email }} <Tag :tone="iv.org_role === 'org_admin' ? 'ink' : undefined">{{ iv.org_role === 'org_admin' ? 'admin' : 'member' }}</Tag>
+              </div>
+              <div style="font-size: 11.5px; color: var(--color-mute)">invited {{ fmtDate(iv.created_at) }} · expires {{ fmtDate(iv.expires_at) }}</div>
+            </div>
+            <Btn kind="danger" @click="revokeInv(iv.id)">revoke</Btn>
+          </div>
+          <div v-if="!invites.length" class="helptext">no pending invitations — invite a teammate to get started.</div>
+        </div>
+      </ConsoleCard>
 
       <ConsoleCard title="shared keys" flush
         sub="org-level credentials every member inherits. per-user sessions (linkedin, google) are never shared.">
