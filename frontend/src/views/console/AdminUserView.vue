@@ -7,7 +7,7 @@ import Btn from '@/components/console/Btn.vue'
 import Dot from '@/components/console/Dot.vue'
 import ErrLabel from '@/components/console/ErrLabel.vue'
 import { useToast } from '@/composables/useToast'
-import { usePrompt } from '@/composables/usePrompt'
+import { usePrompt, type PromptField } from '@/composables/usePrompt'
 import {
   getAdminUser, setUserRole, getPlatformKeys, getConnectors, getMonitoringCalls,
   grantPlatformKey, revokePlatformKey, grantNamespace, revokeNamespaceGrant,
@@ -80,20 +80,26 @@ async function toggleAdmin() {
   catch (e) { toast(humanize(e)) }
 }
 
-async function grantKey() {
-  if (!keys.value.length) { toast('no platform keys — create one first'); return }
+const grantFor = (provider: string) => detail.value?.grants.find((g) => g.provider === provider)
+const platformKeysFor = (provider: string) => keys.value.filter((k) => k.provider === provider)
+
+async function grantKey(provider: string) {
+  const pool = platformKeysFor(provider)
+  if (!pool.length) { toast(`no platform key for ${provider} — create one in platform keys first`); return }
+  const fields: PromptField[] = []
+  if (pool.length > 1) {
+    fields.push({ key: 'key', label: 'platform key', type: 'select', required: true,
+      options: pool.map((k) => ({ value: String(k.id), label: `${k.provider}/${k.label}` })) })
+  }
+  fields.push({ key: 'quota', label: 'daily quota', placeholder: 'blank = provider default', hint: 'max calls per day' })
   const r = await promptForm({
-    title: 'grant a platform key', description: 'lend a shared platform key to this user (quota-metered). their own key always wins.',
-    fields: [
-      { key: 'key', label: 'platform key', type: 'select', required: true, placeholder: 'choose a key',
-        options: keys.value.map((k) => ({ value: String(k.id), label: `${k.provider}/${k.label}` })) },
-      { key: 'quota', label: 'daily quota', placeholder: 'blank = provider default', hint: 'max calls per day' },
-    ],
-    submitLabel: 'grant',
+    title: `grant ${provider}`, description: `lend the shared ${provider} platform key to this user (quota-metered, key never revealed).`,
+    fields, submitLabel: 'grant',
   })
   if (!r) return
+  const keyId = pool.length > 1 ? Number(r.key) : pool[0]!.id
   const quota = r.quota ? Math.max(1, Number(r.quota)) : undefined
-  try { await grantPlatformKey(sub.value, Number(r.key), quota); toast('grant added'); await loadDetail() }
+  try { await grantPlatformKey(sub.value, keyId, quota); toast(`${provider} granted`); await loadDetail() }
   catch (e) { toast(humanize(e)) }
 }
 async function revokeKey(g: AdminGrant) {
@@ -157,39 +163,25 @@ async function revokeNs(g: NamespaceGrant) {
         <div v-else class="helptext">not a member of any organization.</div>
       </ConsoleCard>
 
-      <!-- accès effectif par provider (répond « a-t-il déjà accès ? ») -->
+      <!-- accès effectif par provider + grant/revoke inline de la clé plateforme -->
       <ConsoleCard flush title="connector access"
-        sub="effective access per keyed provider. own key wins over org, org over the platform pool.">
+        sub="effective access per keyed provider — grant or revoke the shared platform key inline. own key wins over org, org over platform.">
         <table class="tbl">
-          <thead><tr><th style="width: 18px"></th><th>provider</th><th>access</th></tr></thead>
+          <thead><tr><th style="width: 18px"></th><th>provider</th><th>access</th><th style="width: 90px"></th></tr></thead>
           <tbody>
             <tr v-for="[name, p] in providerRows" :key="name">
               <td><Dot :tone="p.mode === 'forbidden' ? 'faint' : p.mode === 'over_quota' ? 'terra' : p.mode === 'platform' ? 'saffron' : 'olive'" :size="7" /></td>
               <td style="font-weight: 600; color: var(--color-ink)">{{ name }}</td>
-              <td>
-                <Tag :tone="access(p).tone">{{ access(p).text }}</Tag>
-                <span v-if="access(p).text === 'no access'" class="dim" style="font-size: 11px; margin-left: 8px">grant a key below to give access</span>
+              <td><Tag :tone="access(p).tone">{{ access(p).text }}</Tag></td>
+              <td style="text-align: right">
+                <Btn v-if="grantFor(name)" kind="danger" @click="revokeKey(grantFor(name)!)">revoke</Btn>
+                <Btn v-else-if="platformKeysFor(name).length" kind="mini" @click="grantKey(name)">grant key</Btn>
+                <span v-else class="dim" style="font-size: 11px">no platform key</span>
               </td>
             </tr>
-            <tr v-if="!providerRows.length"><td colspan="3" class="dim" style="text-align: center; padding: 16px">no keyed providers</td></tr>
+            <tr v-if="!providerRows.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no keyed providers</td></tr>
           </tbody>
         </table>
-      </ConsoleCard>
-
-      <!-- grants de clé plateforme -->
-      <ConsoleCard title="platform key grants" sub="shared platform keys lent to this user, metered by a daily quota.">
-        <template #actions><Btn kind="mini" @click="grantKey">grant a key</Btn></template>
-        <div v-if="detail.grants.length" class="rowlist">
-          <div v-for="g in detail.grants" :key="g.platform_key_id" class="rowitem" style="gap: 10px">
-            <Dot tone="olive" :size="7" />
-            <div style="flex: 1; min-width: 0">
-              <span style="font-weight: 600; font-size: 13px">{{ g.provider }}/{{ g.label }}</span>
-              <span v-if="g.daily_quota" class="dim" style="font-size: 11.5px"> · {{ g.daily_quota }}/day</span>
-            </div>
-            <Btn kind="danger" @click="revokeKey(g)">revoke</Btn>
-          </div>
-        </div>
-        <div v-else class="helptext">no platform key grants — this user relies only on their own keys (or has no access where neither is set).</div>
       </ConsoleCard>
 
       <!-- namespaces débloqués -->
