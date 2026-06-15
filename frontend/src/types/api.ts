@@ -173,6 +173,18 @@ export interface AdminUser {
   updated_at: string
   grants: AdminGrant[]
 }
+// Fiche détaillée d'un user (GET /api/admin/users/{sub}) : accès effectif par
+// provider + grants + namespaces, pour la page /console/adminusers/user/:sub.
+export interface AdminUserDetail {
+  sub: string
+  email: string | null
+  name: string | null
+  role: Role
+  active_org: number | null
+  providers: Record<string, ProviderStatus | undefined>
+  grants: AdminGrant[]
+  namespace_grants: NamespaceGrant[]
+}
 export interface AdminOrgSummary {
   id: number
   name: string
