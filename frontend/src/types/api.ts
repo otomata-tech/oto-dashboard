@@ -17,6 +17,17 @@ export interface ConnectorMeta {
   namespaces: string[]
 }
 
+// Cran d'activation des connecteurs (ADR 0010, admin). `enabled` null = jamais
+// posé → OFF (deny-by-default). `overrides` = exceptions par org.
+export interface ConnectorActivation {
+  connector: string
+  label: string
+  help: string
+  namespaces: string[]
+  enabled: boolean | null
+  overrides: { org_id: number; enabled: boolean }[]
+}
+
 // Miroir de access.py::status_for (cascade user > org > platform).
 export interface ProviderStatus {
   mode: 'user' | 'org' | 'platform' | 'forbidden' | 'over_quota'
