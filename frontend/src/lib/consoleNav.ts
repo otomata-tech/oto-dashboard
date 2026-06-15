@@ -37,7 +37,7 @@ export const NAV: NavGroup[] = [
     { id: 'adminusers', label: 'users & grants', icon: 'shield' },
     { id: 'adminorgs', label: 'orgs', icon: 'building' },
     { id: 'platformkeys', label: 'platform keys', icon: 'key' },
-    { id: 'adminconnectors', label: 'connectors', icon: 'plug' },
+    { id: 'adminconnectors', label: 'connector activation', icon: 'plug' },
   ]},
 ]
 
