@@ -4,13 +4,16 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
+import Dot from '@/components/console/Dot.vue'
+import ErrLabel from '@/components/console/ErrLabel.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import {
   getAdminUsers, setUserRole, getNamespaceGrants, revokeNamespaceGrant,
   getPlatformKeys, grantPlatformKey, revokePlatformKey, grantNamespace, getConnectors,
+  getMonitoringCalls,
 } from '@/api/console'
-import type { AdminGrant, AdminUser, ConnectorMeta, NamespaceGrant, PlatformKey } from '@/types/api'
+import type { AdminGrant, AdminUser, ConnectorMeta, NamespaceGrant, PlatformKey, ToolCall } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
@@ -33,6 +36,24 @@ const nsOptions = computed(() =>
 )
 
 const ROLES = ['guest', 'member', 'admin']
+
+// ── activité par user (drill-down) ──
+const selected = ref<AdminUser | null>(null)
+const calls = ref<ToolCall[]>([])
+const callsBusy = ref(false)
+const callsErr = ref<string | null>(null)
+const callsErrCount = computed(() => calls.value.filter((c) => !c.ok).length)
+
+async function viewActivity(u: AdminUser) {
+  selected.value = u
+  calls.value = []
+  callsErr.value = null
+  callsBusy.value = true
+  try { calls.value = (await getMonitoringCalls({ sub: u.sub, limit: 100, days: 30 })).calls }
+  catch (e) { callsErr.value = humanize(e) }
+  finally { callsBusy.value = false }
+}
+function closeActivity() { selected.value = null; calls.value = [] }
 
 async function load() {
   try {
@@ -122,7 +143,7 @@ async function revoke(g: NamespaceGrant) {
         <input v-model="q" class="inp" placeholder="filter by name or email…" style="width: 220px" />
       </template>
       <table class="tbl">
-        <thead><tr><th>user</th><th>role</th><th>platform key grants</th><th style="width: 210px; text-align: right"></th></tr></thead>
+        <thead><tr><th>user</th><th>role</th><th>platform key grants</th><th style="width: 290px; text-align: right"></th></tr></thead>
         <tbody>
           <tr v-for="u in filtered" :key="u.sub">
             <td>
@@ -143,12 +164,38 @@ async function revoke(g: NamespaceGrant) {
               <span v-else class="dim">—</span>
             </td>
             <td style="text-align: right; white-space: nowrap">
+              <Btn kind="mini" @click="viewActivity(u)">activity</Btn>
               <Btn kind="mini" @click="grantKey(u)">grant key</Btn>
               <Btn kind="mini" @click="grantNs(u)">grant ns</Btn>
               <Btn kind="mini" @click="setRole(u)">role</Btn>
             </td>
           </tr>
           <tr v-if="!filtered.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no users</td></tr>
+        </tbody>
+      </table>
+    </ConsoleCard>
+
+    <ConsoleCard v-if="selected" flush :title="`activity · ${selected.email || selected.sub}`"
+      sub="recent tool calls (last 30 days, up to 100).">
+      <template #actions>
+        <span class="dim" style="font-size: 11.5px">
+          {{ calls.length }} calls · <ErrLabel v-if="callsErrCount">{{ callsErrCount }} err</ErrLabel><span v-else class="dim">0 err</span>
+        </span>
+        <Btn kind="mini" @click="closeActivity">close</Btn>
+      </template>
+      <p v-if="callsErr" class="helptext" style="color: var(--color-terra-ink); padding: 0 14px 12px">{{ callsErr }}</p>
+      <table class="tbl">
+        <thead><tr><th style="width: 18px"></th><th>tool</th><th>when</th><th class="num">duration</th><th>status</th></tr></thead>
+        <tbody>
+          <tr v-for="c in calls" :key="c.id">
+            <td><Dot :tone="c.ok ? 'olive' : 'terra'" :size="7" /></td>
+            <td><code class="mono">{{ c.tool_name }}</code></td>
+            <td class="dim">{{ fmtDate(c.called_at) }}</td>
+            <td class="num dim">{{ c.duration_ms != null ? c.duration_ms + ' ms' : '—' }}</td>
+            <td><ErrLabel v-if="!c.ok">{{ c.error || 'error' }}</ErrLabel><span v-else class="dim">ok</span></td>
+          </tr>
+          <tr v-if="callsBusy"><td colspan="5" class="dim" style="text-align: center; padding: 16px">loading…</td></tr>
+          <tr v-else-if="!calls.length"><td colspan="5" class="dim" style="text-align: center; padding: 16px">no calls in the window</td></tr>
         </tbody>
       </table>
     </ConsoleCard>
