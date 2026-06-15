@@ -10,6 +10,12 @@ const router = createRouter({
     // Acceptation d'invitation (hors shell console) — gère sa propre auth.
     { path: '/invite', name: 'invite', component: InviteAcceptView },
     {
+      // Fiche user (admin) — route dédiée, résolue par le layout vers AdminUserView.
+      path: '/console/adminusers/user/:sub',
+      name: 'admin-user',
+      component: ConsoleLayout,
+    },
+    {
       // Une seule route dynamique : le layout résout la section → vue.
       path: '/console/:section',
       name: 'console',

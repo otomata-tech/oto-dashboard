@@ -2,7 +2,7 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api } from '@/api'
 import type {
-  AdminUser, AdminOrgSummary, ApiToken, ConnectorMeta, DoctrineBundle,
+  AdminUser, AdminUserDetail, AdminOrgSummary, ApiToken, ConnectorMeta, DoctrineBundle,
   GoogleOauthStatus, InstructionDetail, InstructionVersion, Me, MonitoringSummary,
   NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ToolCall, ToolEntry,
   WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus,
@@ -97,6 +97,8 @@ export const deleteOrgSecret = (id: number, provider: string) =>
 
 // ── admin ──
 export const getAdminUsers = () => api<{ users: AdminUser[] }>('/api/admin/users')
+export const getAdminUser = (sub: string) =>
+  api<AdminUserDetail>(`/api/admin/users/${encodeURIComponent(sub)}`)
 export const setUserRole = (sub: string, role: string) =>
   api(`/api/admin/users/${sub}/role`, { method: 'POST', ...j({ role }) })
 export const getPlatformKeys = () => api<{ platform_keys: PlatformKey[] }>('/api/admin/platform-keys')

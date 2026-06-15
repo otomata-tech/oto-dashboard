@@ -22,6 +22,7 @@ import ActivityView from './ActivityView.vue'
 import OrgView from './OrgView.vue'
 import MonitoringView from './MonitoringView.vue'
 import AdminUsersView from './AdminUsersView.vue'
+import AdminUserView from './AdminUserView.vue'
 import AdminOrgsView from './AdminOrgsView.vue'
 import PlatformKeysView from './PlatformKeysView.vue'
 
@@ -49,7 +50,13 @@ const { me, error, load } = useMe()
 watch(isAuthenticated, (ok) => { if (ok) load() }, { immediate: true })
 
 const section = computed(() => String(route.params.section || 'overview'))
-const current = computed(() => VIEWS[section.value] ?? OverviewView)
+const current = computed(() => {
+  if (route.name === 'admin-user') return AdminUserView   // fiche /console/adminusers/user/:sub
+  return VIEWS[section.value] ?? OverviewView
+})
+// Clé de remount : la route complète pour la fiche (change de :sub → remount),
+// sinon la section.
+const viewKey = computed(() => (route.name === 'admin-user' ? route.fullPath : section.value))
 </script>
 
 <template>
@@ -61,8 +68,8 @@ const current = computed(() => VIEWS[section.value] ?? OverviewView)
         <ConsoleTopbar />
         <div class="content">
           <StateError v-if="error" :message="error" @retry="load(true)" />
-          <WelcomeOrg v-else-if="me && me.active_org == null" />
-          <component :is="current" v-else-if="me" :key="section" />
+          <WelcomeOrg v-else-if="me && me.active_org == null && me.role !== 'admin'" />
+          <component :is="current" v-else-if="me" :key="viewKey" />
           <SkeletonOverview v-else />
         </div>
       </div>

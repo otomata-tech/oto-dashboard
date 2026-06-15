@@ -8,7 +8,10 @@ import { useMe } from '@/composables/useMe'
 
 const route = useRoute()
 const { me } = useMe()
-const meta = computed(() => PAGE_META[String(route.params.section)] ?? PAGE_META.overview!)
+const meta = computed(() =>
+  route.name === 'admin-user'
+    ? { title: 'user fiche', crumb: 'platform · admin' }
+    : PAGE_META[String(route.params.section)] ?? PAGE_META.overview!)
 </script>
 
 <template>
