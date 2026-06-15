@@ -10,6 +10,8 @@ import Quota from '@/components/console/Quota.vue'
 import DayBars from '@/components/console/DayBars.vue'
 import ConnectorHealthGrid from '@/components/console/ConnectorHealthGrid.vue'
 import McpEndpointCard from '@/components/console/McpEndpointCard.vue'
+import StateEmpty from '@/components/console/StateEmpty.vue'
+import Squiggle from '@/components/console/Squiggle.vue'
 import { useMe } from '@/composables/useMe'
 import { getConnectors, getDoctrine, getGoogleStatus, getMonitoringSummary } from '@/api/console'
 import type { ConnectorMeta, GoogleOauthStatus, MonitoringSummary } from '@/types/api'
@@ -56,6 +58,13 @@ const errRate = computed(() => {
   return s && s.total_calls ? Math.round((s.error_count / s.total_calls) * 100) : 0
 })
 const bars = computed(() => (summary.value ? toDayBars(summary.value.by_day, 7) : []))
+const callsSpark = computed(() => bars.value.map(([ok, err]) => ok + err))
+
+// Console « quiet » : rien posé, aucune session, aucun appel — état vide éditorial.
+const loaded = ref(false)
+const isEmpty = computed(() =>
+  loaded.value && userKeysCount.value === 0 && sessionsActive.value === 0
+  && (!summary.value || summary.value.total_calls === 0))
 
 // ── platform quotas (clés plateforme prêtées, depuis me.providers) ──
 const platformQuotas = computed(() =>
@@ -74,6 +83,8 @@ const steps = computed(() => [
   { done: me.value?.active_org != null, t: 'join an organization', d: 'share org keys so teammates inherit your setup.', act: ['org', 'manage organization'] as [string, string] },
 ])
 const doneCount = computed(() => steps.value.filter((s) => s.done).length)
+const nextStep = computed(() => steps.value.find((s) => !s.done))
+const nextStepNo = computed(() => steps.value.findIndex((s) => !s.done) + 1)
 
 // Dégrade par carte sans masquer l'échec : le 1er problème s'affiche en bandeau,
 // les données qui ont chargé restent visibles (≠ fallback silencieux).
@@ -85,13 +96,18 @@ onMounted(async () => {
   google.value = await soft(getGoogleStatus(), null)
   doctrineExists.value = (await soft(getDoctrine(), null))?.doctrine.exists ?? false
   if (isAdmin.value) summary.value = await soft(getMonitoringSummary(7), null)
+  loaded.value = true
 })
 </script>
 
 <template>
   <div class="content-inner fadein">
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
-    <div class="eyebrow-row" style="justify-content: flex-end">
+    <div class="eyebrow-row" style="justify-content: space-between">
+      <div style="display: flex; align-items: center; gap: 9px">
+        <Dot tone="olive" :size="7" />
+        <span class="eyebrow">studio open · all systems nominal</span>
+      </div>
       <div class="seg">
         <button v-for="v in (['status', 'activity', 'onboarding'] as Variant[])" :key="v"
           :class="{ on: variant === v }" @click="setVariant(v)">{{ v }}</button>
@@ -100,26 +116,57 @@ onMounted(async () => {
 
     <!-- ── status ── -->
     <template v-if="variant === 'status'">
-      <div class="grid3">
-        <Stat label="connectors live" :value="configuredCount" :unit="'/ ' + keyProviders.length" sub="api keys resolvable for your tools" />
-        <Stat label="sessions" :value="sessionsActive" unit="/ 3" sub="linkedin · crunchbase · google" />
-        <Stat v-if="summary" label="calls · 7 days" :value="summary.total_calls.toLocaleString('en-US')" :sub="`${summary.error_count} errors (${errRate}%)`" />
-        <Stat v-else label="your account" :value="me?.role ?? '—'" :sub="me?.active_org_name ? 'org · ' + me.active_org_name : 'no active org'" />
-      </div>
-      <div class="grid23">
-        <ConnectorHealthGrid />
-        <McpEndpointCard />
-      </div>
-      <div v-if="platformQuotas.length" class="grid23">
-        <ConsoleCard title="shared quotas" sub="platform keys you use, with today's burn.">
-          <div style="display: flex; flex-direction: column; gap: 14px">
-            <Quota v-for="q in platformQuotas" :key="q.label" :used="q.used" :total="q.total" :label="q.label" />
-          </div>
+      <StateEmpty v-if="isEmpty">
+        <template #title>your console is <Squiggle>quiet</Squiggle>.</template>
+        no tools have run yet. connect a client, add a provider key, and your agents start
+        showing up here — calls, quotas, errors, the lot.
+        <template #cta>
+          <Btn @click="router.push('/console/connectors')">add a key</Btn>
+          <Btn kind="ghost" @click="setVariant('onboarding')">see onboarding</Btn>
+        </template>
+      </StateEmpty>
+      <template v-else>
+        <div :class="summary ? 'grid4' : 'grid3'">
+          <Stat label="connectors live" :value="configuredCount" :unit="'/ ' + keyProviders.length" sub="api keys resolvable for your tools" />
+          <Stat label="sessions" :value="sessionsActive" unit="/ 3" sub="linkedin · crunchbase · google" />
+          <Stat v-if="summary" label="calls · 7 days" :value="summary.total_calls.toLocaleString('en-US')" :spark="callsSpark" :sub="`${summary.error_count} errors · ${errRate}%`" />
+          <Stat label="active org" :value="me?.active_org_name ?? '—'" :sub="me?.active_org ? `you · ${me.org_role}` : 'no active org'" />
+        </div>
+        <div class="grid23">
+          <ConnectorHealthGrid />
+          <McpEndpointCard />
+        </div>
+        <ConsoleCard v-if="summary" title="calls · last 7 days" sub="terra segments are failures.">
+          <template #actions>
+            <RouterLink class="linklike" to="/console/monitoring">monitoring →</RouterLink>
+          </template>
+          <DayBars :days="bars" />
         </ConsoleCard>
-        <ConsoleCard title="next step" sub="finish setting up.">
-          <Btn kind="mini" @click="setVariant('onboarding')">open the checklist →</Btn>
-        </ConsoleCard>
-      </div>
+        <div class="grid23">
+          <ConsoleCard v-if="platformQuotas.length" title="shared quotas" sub="platform keys you use, with today's burn.">
+            <div style="display: flex; flex-direction: column; gap: 14px">
+              <Quota v-for="q in platformQuotas" :key="q.label" :used="q.used" :total="q.total" :label="q.label" />
+            </div>
+          </ConsoleCard>
+          <div v-else />
+          <ConsoleCard title="next step" :sub="`${doneCount} of ${steps.length} done — finish setting up.`">
+            <div style="margin-bottom: 4px">
+              <Quota :used="doneCount" :total="steps.length" label="" />
+            </div>
+            <div v-if="nextStep" class="checkstep" style="border-bottom: 0; padding-bottom: 0">
+              <span class="ck">{{ nextStepNo }}</span>
+              <div style="flex: 1">
+                <div class="st-t">{{ nextStep.t }}</div>
+                <div class="st-d">{{ nextStep.d }}</div>
+                <div v-if="nextStep.act" style="margin-top: 8px">
+                  <Btn kind="mini" @click="router.push(`/console/${nextStep.act[0]}`)">{{ nextStep.act[1] }} →</Btn>
+                </div>
+              </div>
+            </div>
+            <Btn v-else kind="mini" @click="setVariant('onboarding')">review setup →</Btn>
+          </ConsoleCard>
+        </div>
+      </template>
     </template>
 
     <!-- ── activity (admin: monitoring) ── -->

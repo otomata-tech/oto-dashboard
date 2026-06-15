@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router'
 import ConsoleSidebar from '@/components/console/ConsoleSidebar.vue'
 import ConsoleTopbar from '@/components/console/ConsoleTopbar.vue'
 import PromptDialog from '@/components/console/PromptDialog.vue'
+import StateError from '@/components/console/StateError.vue'
+import SkeletonOverview from '@/components/console/SkeletonOverview.vue'
 import LoginGate from './LoginGate.vue'
 import { useToast } from '@/composables/useToast'
 import { useAuth } from '@/composables/useAuth'
@@ -57,13 +59,9 @@ const current = computed(() => VIEWS[section.value] ?? OverviewView)
       <div class="main">
         <ConsoleTopbar />
         <div class="content">
-          <div v-if="error" class="content-inner">
-            <section class="card" style="border-color: var(--color-terra-soft)">
-              <div style="font-weight: 600; color: var(--color-terra-ink)">couldn't reach oto-mcp</div>
-              <div class="helptext" style="margin-top: 4px">{{ error }}</div>
-            </section>
-          </div>
+          <StateError v-if="error" :message="error" @retry="load(true)" />
           <component :is="current" v-else-if="me" :key="section" />
+          <SkeletonOverview v-else />
         </div>
       </div>
     </div>
