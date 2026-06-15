@@ -25,6 +25,7 @@ import AdminUsersView from './AdminUsersView.vue'
 import AdminUserView from './AdminUserView.vue'
 import AdminOrgsView from './AdminOrgsView.vue'
 import PlatformKeysView from './PlatformKeysView.vue'
+import AdminConnectorsView from './AdminConnectorsView.vue'
 
 const VIEWS: Record<string, Component> = {
   overview: OverviewView,
@@ -39,6 +40,7 @@ const VIEWS: Record<string, Component> = {
   adminusers: AdminUsersView,
   adminorgs: AdminOrgsView,
   platformkeys: PlatformKeysView,
+  adminconnectors: AdminConnectorsView,
 }
 
 const route = useRoute()

@@ -2,7 +2,7 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, ApiToken, ConnectorMeta, DoctrineBundle,
+  AdminUser, AdminUserDetail, AdminOrgSummary, ApiToken, ConnectorActivation, ConnectorMeta, DoctrineBundle,
   GoogleOauthStatus, InstructionDetail, InstructionVersion, Me, MonitoringSummary,
   NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ToolCall, ToolEntry,
   WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus,
@@ -138,6 +138,14 @@ export const grantOrgEntitlement = (id: number, namespace: string) =>
   api(`/api/admin/orgs/${id}/entitlements/${namespace}`, { method: 'POST' })
 export const revokeOrgEntitlement = (id: number, namespace: string) =>
   api(`/api/admin/orgs/${id}/entitlements/${namespace}`, { method: 'DELETE' })
+
+// ── admin connectors (cran d'activation, ADR 0010) ──
+export const getAdminConnectors = () =>
+  api<{ connectors: ConnectorActivation[] }>('/api/admin/connectors/activation')
+export const setConnectorActivation = (connector: string, enabled: boolean, org_id?: number) =>
+  api('/api/admin/connectors/activation', { method: 'POST', ...j({ connector, enabled, org_id }) })
+export const clearConnectorOverride = (connector: string, org_id: number) =>
+  api(`/api/admin/connectors/activation?connector=${encodeURIComponent(connector)}&org_id=${org_id}`, { method: 'DELETE' })
 
 // ── monitoring (admin) ──
 export const getMonitoringSummary = (days: number) =>
