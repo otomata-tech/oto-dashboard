@@ -10,7 +10,7 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
 import {
-  getConnectors, setApiKey, deleteApiKey, deleteLinkedin, deleteCrunchbase,
+  getConnectors, setApiKey, setBasicAuth, deleteApiKey, deleteLinkedin, deleteCrunchbase,
   getGoogleStatus, startGoogleOauth, setGoogleDefault, revokeGoogle,
   getMementoStatus, startMementoOauth, disconnectMemento,
   getTokens, createToken, deleteToken,
@@ -90,6 +90,22 @@ function connectorTone(name: string): DotTone {
 }
 
 async function configure(c: ConnectorMeta) {
+  // basic_auth (ex. planity, MCP fédéré) : email + password, encodés au coffre.
+  if (c.secret_kind === 'basic_auth') {
+    const r = await promptForm({
+      title: `connect ${c.label}`,
+      description: `your ${c.label} account — stored encrypted, used to act on your behalf.`,
+      fields: [
+        { key: 'email', label: 'email', required: true, placeholder: 'you@example.com' },
+        { key: 'password', label: 'password', type: 'password', required: true },
+      ],
+      submitLabel: 'connect',
+    })
+    if (!r) return
+    try { await setBasicAuth(c.name, r.email ?? '', r.password ?? ''); toast(`${c.label} connected`); await reload() }
+    catch (e) { toast(humanize(e)) }
+    return
+  }
   const key = await promptText(`${c.label} api key`, { label: 'api key', type: 'password', required: true, placeholder: `paste your ${c.label} key`, hint: 'yours overrides the org and platform keys' })
   if (!key) return
   try {

@@ -13,7 +13,7 @@ export interface ConnectorMeta {
   availability: 'self_serve' | 'platform_granted'
   auth_modes: string[]
   personal_session: boolean
-  secret_kind: 'api_key' | 'cookie' | 'oauth' | 'refresh_token' | 'none'
+  secret_kind: 'api_key' | 'basic_auth' | 'cookie' | 'oauth' | 'refresh_token' | 'none'
   namespaces: string[]
 }
 
