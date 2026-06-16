@@ -6,6 +6,7 @@ import type {
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, Me, MonitoringSummary,
   NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ToolCall, ToolEntry,
+  ToolRegistryEntry, InstructionUsage,
   WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus, WaitlistEntry,
 } from '@/types/api'
 
@@ -70,6 +71,13 @@ export const revertInstruction = (slug: string, version: number) =>
   api(`/api/me/instructions/${slug}/revert`, { method: 'POST', ...j({ version }) })
 export const deleteInstruction = (slug: string) =>
   api(`/api/me/instructions/${slug}`, { method: 'DELETE' })
+// Registre résolu des tools (ADR 0014) : alimente la résolution des marqueurs
+// <tool:slug>, l'autocomplétion @ et le manifeste « outils référencés ».
+export const getToolRegistry = () =>
+  api<{ tools: ToolRegistryEntry[]; count: number }>('/api/me/tools/registry')
+// Usage d'une doctrine, dérivé de tool_calls (chargements par l'agent).
+export const getInstructionUsage = (slug: string) =>
+  api<InstructionUsage>(`/api/me/instructions/${slug}/usage`)
 
 // ── datastore ──
 export const getNamespaces = () => api<{ namespaces: string[] }>('/api/datastore/namespaces')
@@ -79,6 +87,9 @@ export const createNamespace = (namespace: string) =>
 
 // ── orgs (self-service) ──
 export const getMyOrgs = () => api<{ orgs: Org[] }>('/api/me/orgs')
+// Bascule l'org active (membre). Contrat unifié MCP/REST : champ `org` = id ou nom.
+export const setActiveOrg = (id: number) =>
+  api<{ active_org: number; name: string }>('/api/me/active-org', { method: 'PUT', ...j({ org: String(id) }) })
 export const createMyOrg = (name: string) =>
   api<{ org_id: number; name: string; active_org: number; org_role: string }>(
     '/api/me/orgs', { method: 'POST', ...j({ name }) })
