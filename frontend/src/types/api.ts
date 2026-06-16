@@ -6,6 +6,13 @@ export type OrgRole = 'org_member' | 'org_admin'
 export type GroupRole = 'group_member' | 'group_admin'   // chef d'équipe = group_admin
 
 // ── connecteurs (catalogue, registre source unique) ──
+// Un champ de saisie d'un credential (modèle générique multi-champs, ADR 0011) —
+// le formulaire « configure » se rend en bouclant dessus. `secret` = champ masqué.
+export interface CredentialField {
+  name: string
+  label: string
+  secret: boolean
+}
 export interface ConnectorMeta {
   name: string
   label: string
@@ -14,8 +21,9 @@ export interface ConnectorMeta {
   availability: 'self_serve' | 'platform_granted'
   auth_modes: string[]
   personal_session: boolean
-  secret_kind: 'api_key' | 'basic_auth' | 'cookie' | 'oauth' | 'refresh_token' | 'none'
+  secret_kind: 'api_key' | 'basic_auth' | 'fields' | 'cookie' | 'oauth' | 'refresh_token' | 'none'
   namespaces: string[]
+  credential_fields: CredentialField[]
 }
 
 // Cran d'activation des connecteurs (ADR 0010, admin). `enabled` null = jamais
