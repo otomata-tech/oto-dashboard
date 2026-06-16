@@ -10,7 +10,7 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
 import {
-  getConnectors, setApiKey, setBasicAuth, deleteApiKey, deleteLinkedin, deleteCrunchbase,
+  getConnectors, setCredential, deleteApiKey, deleteLinkedin, deleteCrunchbase,
   getGoogleStatus, startGoogleOauth, setGoogleDefault, revokeGoogle,
   getMementoStatus, startMementoOauth, disconnectMemento,
   getTokens, createToken, deleteToken,
@@ -21,7 +21,7 @@ import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
-const { promptText, promptForm, confirmAction } = usePrompt()
+const { promptForm, confirmAction } = usePrompt()
 const { me, reload } = useMe()
 
 const catalog = ref<ConnectorMeta[]>([])
@@ -30,10 +30,12 @@ const memento = ref<MementoStatus | null>(null)
 const tokens = ref<ApiToken[]>([])
 const error = ref<string | null>(null)
 
-// Connecteurs à clé API (les sessions perso + les MCP fédérés OAuth ont leur
-// propre carte — un MCP fédéré (kind=mount) se connecte en OAuth, pas par clé).
+// Connecteurs à credential saisissable (modèle générique multi-champs, ADR 0011) :
+// ceux qui déclarent des `credential_fields` (api_key 1 champ, basic_auth 2, silae
+// 3…). Les sessions perso (cookie) et les MCP fédérés OAuth ont 0 champ → exclus
+// (carte/flux dédiés).
 const keyConnectors = computed(() => catalog.value.filter(
-  (c) => !c.personal_session && c.secret_kind !== 'none' && c.secret_kind !== 'oauth'))
+  (c) => (c.credential_fields?.length ?? 0) > 0))
 // MCP fédérés (otomata#16) : oauth + non personal_session (ex. memento). Présents
 // dans le catalogue seulement si l'user est entitled (grant-only, deny-by-default).
 const federatedConnectors = computed(() => catalog.value.filter(
@@ -90,27 +92,30 @@ function connectorTone(name: string): DotTone {
 }
 
 async function configure(c: ConnectorMeta) {
-  // basic_auth (ex. planity, MCP fédéré) : email + password, encodés au coffre.
-  if (c.secret_kind === 'basic_auth') {
-    const r = await promptForm({
-      title: `connect ${c.label}`,
-      description: `your ${c.label} account — stored encrypted, used to act on your behalf.`,
-      fields: [
-        { key: 'email', label: 'email', required: true, placeholder: 'you@example.com' },
-        { key: 'password', label: 'password', type: 'password', required: true },
-      ],
-      submitLabel: 'connect',
-    })
-    if (!r) return
-    try { await setBasicAuth(c.name, r.email ?? '', r.password ?? ''); toast(`${c.label} connected`); await reload() }
-    catch (e) { toast(humanize(e)) }
-    return
-  }
-  const key = await promptText(`${c.label} api key`, { label: 'api key', type: 'password', required: true, placeholder: `paste your ${c.label} key`, hint: 'yours overrides the org and platform keys' })
-  if (!key) return
+  // GÉNÉRIQUE (ADR 0011) : le formulaire se rend depuis les champs déclarés par le
+  // connecteur. 1 champ (api_key) = saisie simple ; ≥2 (basic_auth, silae) = form
+  // multi-champs. Le serveur pack/chiffre selon la forme — aucune branche ici.
+  const fields = c.credential_fields ?? []
+  if (!fields.length) return
+  const single = fields.length === 1
+  const r = await promptForm({
+    title: single ? `${c.label} api key` : `connect ${c.label}`,
+    description: single
+      ? `your ${c.label} key — stored encrypted; yours overrides the org and platform keys.`
+      : `your ${c.label} credentials — stored encrypted, used to act on your behalf.`,
+    fields: fields.map((f) => ({
+      key: f.name,
+      label: f.label.toLowerCase(),
+      type: f.secret ? 'password' : undefined,
+      required: true,
+      placeholder: single ? `paste your ${c.label} key` : undefined,
+    })),
+    submitLabel: single ? 'save' : 'connect',
+  })
+  if (!r) return
   try {
-    await setApiKey(c.name, key)
-    toast(`${c.label} key saved`)
+    await setCredential(c.name, r)
+    toast(`${c.label} ${single ? 'key saved' : 'connected'}`)
     await reload()
   } catch (e) { toast(humanize(e)) }
 }

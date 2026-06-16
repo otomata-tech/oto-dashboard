@@ -16,11 +16,12 @@ export const getMe = () => api<Me>('/api/me')
 
 // ── connecteurs ──
 export const getConnectors = () => api<{ connectors: ConnectorMeta[] }>('/api/connectors')
-export const setApiKey = (provider: string, key: string) =>
-  api(`/api/settings/api-keys/${provider}`, { method: 'POST', ...j({ key }) })
-// basic_auth (ex. planity) : email + password → base64 côté serveur, stocké au coffre.
-export const setBasicAuth = (provider: string, email: string, password: string) =>
-  api(`/api/settings/api-keys/${provider}`, { method: 'POST', ...j({ email, password }) })
+// Credential générique (modèle multi-champs, ADR 0011) : poste les champs déclarés
+// par le connecteur (`credential_fields`). api_key → {key}, basic_auth (planity) →
+// {email,password}, silae → {client_id,client_secret,subscription_key}. Le serveur
+// pack/chiffre selon la forme. Une seule surface, zéro branche par connecteur.
+export const setCredential = (provider: string, fields: Record<string, string>) =>
+  api(`/api/settings/api-keys/${provider}`, { method: 'POST', ...j(fields) })
 export const deleteApiKey = (provider: string) =>
   api(`/api/settings/api-keys/${provider}`, { method: 'DELETE' })
 
