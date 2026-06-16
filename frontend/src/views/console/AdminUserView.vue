@@ -45,6 +45,7 @@ const nsOptions = computed(() =>
 function access(p: ProviderStatus): { text: string; tone?: 'olive' | 'cobalt' | 'saffron' | 'terra' } {
   switch (p.mode) {
     case 'user': return { text: 'own key', tone: 'olive' }
+    case 'group': return { text: 'via team', tone: 'cobalt' }
     case 'org': return { text: 'via org', tone: 'cobalt' }
     case 'platform': return { text: `platform · ${p.quota_used_today}/${p.quota_daily ?? '∞'}`, tone: 'saffron' }
     case 'over_quota': return { text: 'platform · quota exhausted', tone: 'terra' }

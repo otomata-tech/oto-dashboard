@@ -3,7 +3,8 @@
 import { api } from '@/api'
 import type {
   AdminUser, AdminUserDetail, AdminOrgSummary, ApiToken, ConnectorActivation, ConnectorMeta, DoctrineBundle,
-  GoogleOauthStatus, InstructionDetail, InstructionVersion, Me, MonitoringSummary,
+  GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
+  InstructionVersion, Me, MonitoringSummary,
   NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ToolCall, ToolEntry,
   WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus,
 } from '@/types/api'
@@ -97,6 +98,46 @@ export const setOrgMemberRole = (id: number, sub: string, role: string) =>
   api(`/api/orgs/${id}/members/${sub}`, { method: 'POST', ...j({ role }) })
 export const deleteOrgSecret = (id: number, provider: string) =>
   api(`/api/orgs/${id}/secrets/${provider}`, { method: 'DELETE' })
+
+// ── groupes (départements / équipes, ADR 0012) ──
+export const listGroups = (orgId: number) =>
+  api<{ org_id: number; groups: GroupListItem[] }>(`/api/orgs/${orgId}/groups`)
+export const createGroup = (orgId: number, name: string, description = '') =>
+  api<{ id: number; group_id: number; name: string }>(
+    `/api/orgs/${orgId}/groups`, { method: 'POST', ...j({ name, description }) })
+export const getGroup = (id: number) => api<GroupDetail>(`/api/groups/${id}`)
+export const updateGroup = (id: number, patch: { name?: string; description?: string }) =>
+  api(`/api/groups/${id}`, { method: 'PATCH', ...j(patch) })
+export const deleteGroup = (id: number) => api(`/api/groups/${id}`, { method: 'DELETE' })
+export const useGroup = (group_id: number) =>
+  api<{ active_group: number; name: string; active_org: number }>(
+    '/api/me/active-group', { method: 'PUT', ...j({ group_id }) })
+export const clearActiveGroup = () => api('/api/me/active-group', { method: 'DELETE' })
+export const addGroupMember = (id: number, target: string, role: GroupRole) =>
+  api(`/api/groups/${id}/members`, { method: 'POST', ...j({ target, role }) })
+export const setGroupMemberRole = (id: number, sub: string, role: GroupRole) =>
+  api(`/api/groups/${id}/members/${sub}`, { method: 'POST', ...j({ role }) })
+export const removeGroupMember = (id: number, sub: string) =>
+  api(`/api/groups/${id}/members/${sub}`, { method: 'DELETE' })
+export const setGroupSecret = (id: number, provider: string, api_key: string, base_url?: string) =>
+  api(`/api/groups/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url }) })
+export const deleteGroupSecret = (id: number, provider: string) =>
+  api(`/api/groups/${id}/secrets/${provider}`, { method: 'DELETE' })
+export const setGroupPreset = (id: number, tools: string[] | null) =>
+  api(`/api/groups/${id}/preset`, { method: 'PUT', ...j({ tools }) })
+// doctrine & skills du groupe (lecture = membre, écriture = chef)
+export const getGroupInstructions = (id: number) =>
+  api<GroupInstructionsBundle>(`/api/groups/${id}/instructions`)
+export const getGroupInstruction = (id: number, slug: string) =>
+  api<InstructionDetail>(`/api/groups/${id}/instructions/${slug}`)
+export const putGroupInstruction = (id: number, slug: string, body_md: string, title?: string, description?: string) =>
+  api<{ slug: string; version: number }>(`/api/groups/${id}/instructions/${slug}`, { method: 'PUT', ...j({ body_md, title, description }) })
+export const deleteGroupInstruction = (id: number, slug: string) =>
+  api(`/api/groups/${id}/instructions/${slug}`, { method: 'DELETE' })
+export const getGroupInstructionVersions = (id: number, slug: string) =>
+  api<{ slug: string; versions: InstructionVersion[] }>(`/api/groups/${id}/instructions/${slug}/versions`)
+export const revertGroupInstruction = (id: number, slug: string, version: number) =>
+  api(`/api/groups/${id}/instructions/${slug}/revert`, { method: 'POST', ...j({ version }) })
 
 // ── admin ──
 export const getAdminUsers = () => api<{ users: AdminUser[] }>('/api/admin/users')

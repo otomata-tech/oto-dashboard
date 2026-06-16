@@ -26,6 +26,10 @@ npm run build           # vue-tsc + vite build → frontend/dist
 
 Squelette validé (login Logto + `GET /api/me` affiché). La migration des features d'`account/` (connecteurs, orgs, doctrine, admin, datastore) se fait écran par écran ; `account/` reste servi en prod jusqu'au cutover (bascule du dist Caddy). Suivi : `otomata#20` + issues de ce repo.
 
+## Groupes / départements (ADR 0012)
+
+Section `/console/groups` (`GroupsView.vue` + `GroupDoctrineCard.vue`) : départements d'une org avec **chef d'équipe** (`group_admin`). Un membre bascule son **groupe actif** (`useGroup` → `PUT /api/me/active-group`) ; le chef (ou un org_admin) gère membres, **secrets partagés** (résolus avant ceux de l'org), **preset de toolset** (baseline de visibilité) et **doctrine** de groupe. Hiérarchie de droits côté backend (`roles.py`, escalade descendante) — l'UI masque seulement les contrôles. `Me` porte `active_group`/`active_group_name`/`group_role` ; `ProviderStatus.mode` peut valoir `group` (libellé « team key »). Contrats : `oto-backend/docs/groups-and-roles.md`.
+
 ## Conventions
 
 - API RESTful consommée sous `/api/*` (contrats : `oto-mcp/CLAUDE.md` §REST + `oto-app/docs/ORG_API_CONTRACT.md`)

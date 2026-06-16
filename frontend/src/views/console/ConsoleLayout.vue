@@ -20,6 +20,7 @@ import DataView from './DataView.vue'
 import ScoutView from './ScoutView.vue'
 import ActivityView from './ActivityView.vue'
 import OrgView from './OrgView.vue'
+import GroupsView from './GroupsView.vue'
 import MonitoringView from './MonitoringView.vue'
 import AdminUsersView from './AdminUsersView.vue'
 import AdminUserView from './AdminUserView.vue'
@@ -36,6 +37,7 @@ const VIEWS: Record<string, Component> = {
   scout: ScoutView,
   activity: ActivityView,
   org: OrgView,
+  groups: GroupsView,
   monitoring: MonitoringView,
   adminusers: AdminUsersView,
   adminorgs: AdminOrgsView,
