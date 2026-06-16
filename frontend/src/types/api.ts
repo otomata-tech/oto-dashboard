@@ -3,6 +3,7 @@
 
 export type Role = 'member' | 'admin'
 export type OrgRole = 'org_member' | 'org_admin'
+export type GroupRole = 'group_member' | 'group_admin'   // chef d'équipe = group_admin
 
 // ── connecteurs (catalogue, registre source unique) ──
 export interface ConnectorMeta {
@@ -28,10 +29,11 @@ export interface ConnectorActivation {
   overrides: { org_id: number; enabled: boolean }[]
 }
 
-// Miroir de access.py::status_for (cascade user > org > platform).
+// Miroir de access.py::status_for (cascade user > group > org > platform).
 export interface ProviderStatus {
-  mode: 'user' | 'org' | 'platform' | 'forbidden' | 'over_quota'
+  mode: 'user' | 'group' | 'org' | 'platform' | 'forbidden' | 'over_quota'
   user_key_configured: boolean
+  group_secret_configured?: boolean
   org_secret_configured: boolean
   platform_key_label: string | null
   quota_used_today: number
@@ -53,6 +55,9 @@ export interface Me {
   active_org: number | null
   active_org_name: string | null
   org_role: OrgRole | null
+  active_group: number | null
+  active_group_name: string | null
+  group_role: GroupRole | null         // effectif (escalade org_admin/platform incluse)
   linkedin: SessionState
   crunchbase: SessionState
   providers: Record<string, ProviderStatus | undefined>
@@ -163,6 +168,53 @@ export interface OrgInvitation {
   invited_by?: string | null
   created_at?: string | null
   expires_at?: string | null
+}
+
+// ── groupes (départements / équipes, ADR 0012) ──
+export interface GroupListItem {
+  id: number
+  group_id: number
+  name: string
+  description: string
+  member_count: number
+  my_role: GroupRole | null
+  active: boolean
+}
+export interface GroupBrief {
+  id: number
+  group_id: number
+  org_id: number
+  name: string
+  description: string
+  member_count: number
+  has_preset: boolean
+  my_role: GroupRole | null
+}
+export interface GroupMember {
+  sub: string
+  email: string | null
+  name: string | null
+  role: GroupRole
+  active: boolean
+}
+export interface GroupSecret {
+  provider: string
+  base_url?: string | null
+  set_at?: string | null
+  set_by?: string | null
+}
+export interface GroupDetail {
+  group: GroupBrief
+  default_tools: string[] | null     // preset de toolset ; null = pas de baseline
+  members: GroupMember[]
+  secrets: GroupSecret[]
+}
+export interface GroupInstructionsBundle {
+  group_id: number
+  doctrine: string
+  doctrine_version: number | null
+  instructions: InstructionMeta[]
+  can_edit: boolean
 }
 
 // ── admin ──
