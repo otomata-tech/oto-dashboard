@@ -11,6 +11,7 @@ import LoginGate from './LoginGate.vue'
 import { useToast } from '@/composables/useToast'
 import { useAuth } from '@/composables/useAuth'
 import { useMe } from '@/composables/useMe'
+import { useNav } from '@/composables/useNav'
 
 import OverviewView from './OverviewView.vue'
 import ConnectorsView from './ConnectorsView.vue'
@@ -49,9 +50,13 @@ const route = useRoute()
 const { isAuthenticated } = useAuth()
 const { message } = useToast()
 const { me, error, load } = useMe()
+const { navOpen, closeNav } = useNav()
 
 // Charge le profil dès qu'on est authentifié (pilote identité + gating admin).
 watch(isAuthenticated, (ok) => { if (ok) load() }, { immediate: true })
+
+// Referme le tiroir mobile à chaque navigation (sécurité si un lien ne le fait pas).
+watch(() => route.fullPath, () => closeNav())
 
 const section = computed(() => String(route.params.section || 'overview'))
 const current = computed(() => {
@@ -66,8 +71,9 @@ const viewKey = computed(() => (route.name === 'admin-user' ? route.fullPath : s
 <template>
   <LoginGate v-if="!isAuthenticated" />
   <div v-else class="console-root">
-    <div class="shell">
+    <div class="shell" :class="{ 'nav-open': navOpen }">
       <ConsoleSidebar />
+      <div class="nav-backdrop" @click="closeNav" />
       <div class="main">
         <ConsoleTopbar />
         <div class="content">
