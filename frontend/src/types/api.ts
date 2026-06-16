@@ -92,6 +92,21 @@ export interface ToolEntry {
   name: string
   enabled: boolean
 }
+// Entrée du registre résolu (ADR 0014). `source` = native (in-process oto) ou
+// federated (MCP tiers monté) ; `mcp` = nom du connecteur fédéré le cas échéant.
+export interface ToolRegistryEntry {
+  name: string
+  description: string
+  source: 'native' | 'federated'
+  mcp?: string
+}
+// Usage d'une doctrine : nb de chargements par l'agent, appelants, série 30j.
+export interface InstructionUsage {
+  slug: string
+  count: number
+  callers: string[]
+  series: number[]
+}
 export interface PresetEntry {
   name: string
   tool_count: number
