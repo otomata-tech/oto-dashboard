@@ -6,7 +6,7 @@ import type {
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, Me, MonitoringSummary,
   NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ToolCall, ToolEntry,
-  WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus,
+  WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus, WaitlistEntry,
 } from '@/types/api'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
@@ -93,8 +93,23 @@ export const inviteMember = (id: number, email: string, role: OrgRole) =>
 export const revokeInvitation = (id: number, inviteId: number) =>
   api(`/api/orgs/${id}/invitations/${inviteId}`, { method: 'DELETE' })
 export const acceptInvite = (token: string) =>
-  api<{ ok: boolean; org_id: number; org_role: string; name: string | null }>(
+  api<{ ok: boolean; referral: boolean; org_id: number | null; org_role: string | null; name: string | null }>(
     '/api/me/invitations/accept', { method: 'POST', ...j({ token }) })
+
+// ── accès plateforme & invitation virale (alpha, ADR 0013) ──
+// Un alpha-user actif dépense une de ses invitations ; l'invité crée sa propre org.
+export const sendAlphaInvite = (email: string) =>
+  api<{ ok: boolean; email: string; emailed: boolean; invite_url: string; invites_left: number }>(
+    '/api/me/alpha-invites', { method: 'POST', ...j({ email }) })
+// Admin : file d'attente + approbation (active + quota) + ajustement de quota.
+export const getWaitlist = () =>
+  api<{ waitlist: WaitlistEntry[]; count: number }>('/api/admin/waitlist')
+export const grantAlphaAccess = (sub: string, quota?: number) =>
+  api<{ ok: boolean; sub: string; access_status: string; invite_quota: number; emailed: boolean }>(
+    `/api/admin/users/${sub}/access`, { method: 'POST', ...j(quota == null ? {} : { quota }) })
+export const setUserQuota = (sub: string, quota: number) =>
+  api<{ ok: boolean; sub: string; invite_quota: number }>(
+    `/api/admin/users/${sub}/quota`, { method: 'PUT', ...j({ quota }) })
 export const setOrgMemberRole = (id: number, sub: string, role: string) =>
   api(`/api/orgs/${id}/members/${sub}`, { method: 'POST', ...j({ role }) })
 export const deleteOrgSecret = (id: number, provider: string) =>
