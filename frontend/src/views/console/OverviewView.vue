@@ -12,6 +12,7 @@ import ConnectorHealthGrid from '@/components/console/ConnectorHealthGrid.vue'
 import McpEndpointCard from '@/components/console/McpEndpointCard.vue'
 import StateEmpty from '@/components/console/StateEmpty.vue'
 import Squiggle from '@/components/console/Squiggle.vue'
+import InviteFriendCard from '@/components/console/InviteFriendCard.vue'
 import { useMe } from '@/composables/useMe'
 import { getConnectors, getDoctrine, getGoogleStatus, getMonitoringSummary } from '@/api/console'
 import type { ConnectorMeta, GoogleOauthStatus, MonitoringSummary } from '@/types/api'
@@ -136,6 +137,7 @@ onMounted(async () => {
           <ConnectorHealthGrid />
           <McpEndpointCard />
         </div>
+        <InviteFriendCard v-if="me?.access?.status === 'active'" />
         <ConsoleCard v-if="summary" title="calls · last 7 days" sub="terra segments are failures.">
           <template #actions>
             <RouterLink class="linklike" to="/console/monitoring">monitoring →</RouterLink>

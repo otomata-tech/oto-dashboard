@@ -7,6 +7,7 @@ import PromptDialog from '@/components/console/PromptDialog.vue'
 import StateError from '@/components/console/StateError.vue'
 import SkeletonOverview from '@/components/console/SkeletonOverview.vue'
 import WelcomeOrg from './WelcomeOrg.vue'
+import WaitlistView from './WaitlistView.vue'
 import LoginGate from './LoginGate.vue'
 import { useToast } from '@/composables/useToast'
 import { useAuth } from '@/composables/useAuth'
@@ -27,6 +28,7 @@ import AdminUserView from './AdminUserView.vue'
 import AdminOrgsView from './AdminOrgsView.vue'
 import PlatformKeysView from './PlatformKeysView.vue'
 import AdminConnectorsView from './AdminConnectorsView.vue'
+import AdminAccessView from './AdminAccessView.vue'
 
 const VIEWS: Record<string, Component> = {
   overview: OverviewView,
@@ -43,6 +45,7 @@ const VIEWS: Record<string, Component> = {
   adminorgs: AdminOrgsView,
   platformkeys: PlatformKeysView,
   adminconnectors: AdminConnectorsView,
+  adminaccess: AdminAccessView,
 }
 
 const route = useRoute()
@@ -72,6 +75,7 @@ const viewKey = computed(() => (route.name === 'admin-user' ? route.fullPath : s
         <ConsoleTopbar />
         <div class="content">
           <StateError v-if="error" :message="error" @retry="load(true)" />
+          <WaitlistView v-else-if="me && me.access?.status === 'pending' && me.role !== 'admin'" />
           <WelcomeOrg v-else-if="me && me.active_org == null && me.role !== 'admin'" />
           <component :is="current" v-else-if="me" :key="viewKey" />
           <SkeletonOverview v-else />

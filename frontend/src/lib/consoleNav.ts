@@ -36,6 +36,7 @@ export const NAV: NavGroup[] = [
   { group: 'platform · admin', admin: true, items: [
     { id: 'monitoring', label: 'monitoring', icon: 'chart' },
     { id: 'adminusers', label: 'users & grants', icon: 'shield' },
+    { id: 'adminaccess', label: 'alpha access', icon: 'shield' },
     { id: 'adminorgs', label: 'orgs', icon: 'building' },
     { id: 'platformkeys', label: 'platform keys', icon: 'key' },
     { id: 'adminconnectors', label: 'connector activation', icon: 'plug' },
@@ -54,6 +55,7 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   groups: { title: 'departments', crumb: 'account' },
   monitoring: { title: 'mcp monitoring', crumb: 'platform' },
   adminusers: { title: 'users & grants', crumb: 'platform' },
+  adminaccess: { title: 'alpha access', crumb: 'platform' },
   adminorgs: { title: 'organizations', crumb: 'platform' },
   platformkeys: { title: 'platform keys', crumb: 'platform' },
   adminconnectors: { title: 'connector activation', crumb: 'platform' },

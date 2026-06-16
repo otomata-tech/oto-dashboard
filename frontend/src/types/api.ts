@@ -66,9 +66,25 @@ export interface Me {
   active_group: number | null
   active_group_name: string | null
   group_role: GroupRole | null         // effectif (escalade org_admin/platform incluse)
+  access: AccessState                  // gate doux alpha (ADR 0013)
   linkedin: SessionState
   crunchbase: SessionState
   providers: Record<string, ProviderStatus | undefined>
+}
+
+// Accès plateforme alpha (ADR 0013) : status = gate doux, invites_left = budget
+// referral restant, invited_by = parrain.
+export interface AccessState {
+  status: 'pending' | 'active' | 'blocked' | null
+  invites_left: number
+  invited_by: string | null
+}
+
+export interface WaitlistEntry {
+  sub: string
+  email: string | null
+  name: string | null
+  created_at: string
 }
 
 // ── tools / presets ──

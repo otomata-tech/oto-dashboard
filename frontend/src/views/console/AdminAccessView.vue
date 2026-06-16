@@ -1,0 +1,79 @@
+<script setup lang="ts">
+// Admin de l'accès plateforme alpha (ADR 0013) : la file d'attente (comptes
+// pending) + approbation (active + quota referral) + ajustement de quota.
+import { onMounted, ref } from 'vue'
+import ConsoleCard from '@/components/console/ConsoleCard.vue'
+import Stat from '@/components/console/Stat.vue'
+import Btn from '@/components/console/Btn.vue'
+import { getWaitlist, grantAlphaAccess } from '@/api/console'
+import type { WaitlistEntry } from '@/types/api'
+import { useToast } from '@/composables/useToast'
+import { usePrompt } from '@/composables/usePrompt'
+import { humanize } from '@/lib/errors'
+
+const { toast } = useToast()
+const { promptForm } = usePrompt()
+const waitlist = ref<WaitlistEntry[]>([])
+const error = ref<string | null>(null)
+const busy = ref<string | null>(null)
+
+async function load() {
+  try {
+    waitlist.value = (await getWaitlist()).waitlist
+    error.value = null
+  } catch (e) { error.value = humanize(e) }
+}
+
+async function grant(u: WaitlistEntry) {
+  const r = await promptForm({
+    title: `grant alpha access`,
+    description: `${u.email || u.sub} gets platform access + an invitation quota, and is emailed.`,
+    fields: [{ key: 'quota', label: 'invitation quota', value: '3' }],
+    submitLabel: 'grant access',
+  })
+  if (!r) return
+  const quota = Number(r.quota)
+  busy.value = u.sub
+  try {
+    const res = await grantAlphaAccess(u.sub, Number.isFinite(quota) ? quota : undefined)
+    toast(res.emailed ? `access granted — ${u.email} emailed` : 'access granted (email off)')
+    await load()
+  } catch (e) { toast(humanize(e)) } finally { busy.value = null }
+}
+
+onMounted(load)
+</script>
+
+<template>
+  <div class="content-inner fadein">
+    <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
+
+    <div class="grid3">
+      <Stat label="waitlist" :value="waitlist.length" sub="awaiting alpha access" />
+    </div>
+
+    <ConsoleCard flush title="waitlist"
+      sub="accounts that signed up but aren't approved yet — oldest first. grant access to let them in.">
+      <table class="tbl">
+        <thead><tr><th>account</th><th>joined</th><th style="width: 140px"></th></tr></thead>
+        <tbody>
+          <tr v-for="u in waitlist" :key="u.sub">
+            <td>
+              <div style="font-weight: 600; color: var(--color-ink)">{{ u.name || u.email || u.sub }}</div>
+              <div style="font-size: 11px; color: var(--color-faint)">{{ u.email }}</div>
+            </td>
+            <td class="dim">{{ u.created_at }}</td>
+            <td style="text-align: right">
+              <Btn kind="mini" :disabled="busy === u.sub" @click="grant(u)">
+                {{ busy === u.sub ? 'granting…' : 'grant access' }}
+              </Btn>
+            </td>
+          </tr>
+          <tr v-if="!waitlist.length">
+            <td colspan="3" class="dim" style="text-align: center; padding: 16px">waitlist empty</td>
+          </tr>
+        </tbody>
+      </table>
+    </ConsoleCard>
+  </div>
+</template>
