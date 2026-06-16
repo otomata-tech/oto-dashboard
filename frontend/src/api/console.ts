@@ -1,6 +1,6 @@
 // Client REST typé pour la console — toutes les routes oto-mcp (api_routes*.py).
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
-import { api } from '@/api'
+import { api, apiUpload } from '@/api'
 import type {
   AdminUser, AdminUserDetail, AdminOrgSummary, ApiToken, ConnectorActivation, ConnectorMeta, DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
@@ -13,6 +13,12 @@ const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
 
 // ── identité ──
 export const getMe = () => api<Me>('/api/me')
+export const uploadAvatar = (file: File) =>
+  apiUpload<{ ok: boolean; avatar_url: string }>('/api/me/avatar', file)
+export const deleteAvatar = () => api('/api/me/avatar', { method: 'DELETE' })
+export const uploadOrgLogo = (id: number, file: File) =>
+  apiUpload<{ ok: boolean; logo_url: string }>(`/api/orgs/${id}/logo`, file)
+export const deleteOrgLogo = (id: number) => api(`/api/orgs/${id}/logo`, { method: 'DELETE' })
 
 // ── connecteurs ──
 export const getConnectors = () => api<{ connectors: ConnectorMeta[] }>('/api/connectors')
