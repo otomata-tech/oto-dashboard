@@ -4,24 +4,28 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Dot from '@/components/console/Dot.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
+import Avatar from '@/components/console/Avatar.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
 import { getMyOrgs, getOrg, setOrgMemberRole, deleteOrgSecret,
-  listInvitations, inviteMember, revokeInvitation } from '@/api/console'
+  listInvitations, inviteMember, revokeInvitation, uploadOrgLogo, deleteOrgLogo } from '@/api/console'
 import type { Org, OrgDetail, OrgInvitation, OrgRole } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { validateImage, IMAGE_ACCEPT_ATTR } from '@/lib/imageUpload'
 
 const { toast } = useToast()
 const { confirmAction, promptForm } = usePrompt()
-const { me } = useMe()
+const { me, reload: reloadMe } = useMe()
 
 const orgs = ref<Org[]>([])
 const detail = ref<OrgDetail | null>(null)
 const invites = ref<OrgInvitation[]>([])
 const error = ref<string | null>(null)
 const loaded = ref(false)
+const logoInput = ref<HTMLInputElement | null>(null)
+const logoBusy = ref(false)
 
 const isOrgAdmin = computed(() => detail.value?.org.my_role === 'org_admin')
 const activeOrgId = computed(() => me.value?.active_org ?? null)
@@ -88,6 +92,37 @@ async function removeSecret(provider: string) {
   try { await deleteOrgSecret(activeOrgId.value!, provider); toast('shared key removed'); detail.value = await getOrg(activeOrgId.value!) }
   catch (e) { toast(humanize(e)) }
 }
+
+function pickLogo() { logoInput.value?.click() }
+async function onLogoFile(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file || activeOrgId.value == null) return
+  try {
+    validateImage(file)
+    logoBusy.value = true
+    await uploadOrgLogo(activeOrgId.value, file)
+    detail.value = await getOrg(activeOrgId.value)
+    orgs.value = (await getMyOrgs()).orgs
+    await reloadMe()          // rafraîchit le logo de l'org-pill (topbar)
+    toast('org logo updated')
+  } catch (err) { toast(humanize(err)) }
+  finally { logoBusy.value = false }
+}
+async function removeLogo() {
+  if (activeOrgId.value == null) return
+  if (!await confirmAction({ title: 'remove org logo', danger: true, confirmLabel: 'remove', message: 'remove this organization logo?' })) return
+  try {
+    logoBusy.value = true
+    await deleteOrgLogo(activeOrgId.value)
+    detail.value = await getOrg(activeOrgId.value)
+    orgs.value = (await getMyOrgs()).orgs
+    await reloadMe()
+    toast('org logo removed')
+  } catch (err) { toast(humanize(err)) }
+  finally { logoBusy.value = false }
+}
 </script>
 
 <template>
@@ -106,8 +141,13 @@ async function removeSecret(provider: string) {
             <tbody>
               <tr v-for="m in detail?.members ?? []" :key="m.sub">
                 <td>
-                  <div style="font-weight: 600; color: var(--color-ink)">{{ m.name || m.email }}</div>
-                  <div style="font-size: 11px; color: var(--color-faint)">{{ m.email }}</div>
+                  <div style="display: flex; align-items: center; gap: 9px">
+                    <Avatar :src="m.avatar_url" :name="m.name || m.email" :size="28" />
+                    <div>
+                      <div style="font-weight: 600; color: var(--color-ink)">{{ m.name || m.email }}</div>
+                      <div style="font-size: 11px; color: var(--color-faint)">{{ m.email }}</div>
+                    </div>
+                  </div>
                 </td>
                 <td><Tag v-if="m.role === 'org_admin'" tone="ink">admin</Tag><Tag v-else>member</Tag></td>
                 <td><Dot :tone="m.active ? 'olive' : 'faint'" :size="7" /></td>
@@ -124,7 +164,8 @@ async function removeSecret(provider: string) {
           <ConsoleCard title="your orgs">
             <div class="rowlist">
               <div v-for="o in orgs" :key="o.id" class="rowitem">
-                <Dot :tone="o.id === activeOrgId ? 'saffron' : 'faint'" :size="8" />
+                <Avatar v-if="o.logo_url" :src="o.logo_url" :name="o.name" :size="22" shape="square" />
+                <Dot v-else :tone="o.id === activeOrgId ? 'saffron' : 'faint'" :size="8" />
                 <div style="flex: 1">
                   <div style="font-weight: 600; font-size: 13px">{{ o.name }}</div>
                   <div style="font-size: 11px; color: var(--color-faint)">{{ o.member_count }} members · you are {{ o.my_role === 'org_admin' ? 'admin' : 'member' }}</div>
@@ -132,6 +173,16 @@ async function removeSecret(provider: string) {
                 <Tag v-if="o.id === activeOrgId" tone="saffron">active</Tag>
               </div>
               <div v-if="!orgs.length" class="helptext">no orgs.</div>
+            </div>
+          </ConsoleCard>
+          <ConsoleCard v-if="isOrgAdmin" title="branding" sub="logo shown across the dashboard for this org. png, jpeg or webp · up to 2 MB.">
+            <div style="display: flex; align-items: center; gap: 16px">
+              <Avatar :src="detail?.org.logo_url" :name="detail?.org.name" :size="56" shape="square" />
+              <div style="display: flex; gap: 10px; flex-wrap: wrap">
+                <input ref="logoInput" type="file" :accept="IMAGE_ACCEPT_ATTR" style="display: none" @change="onLogoFile" />
+                <Btn icon="pen" :disabled="logoBusy" @click="pickLogo">{{ detail?.org.logo_url ? 'change logo' : 'upload logo' }}</Btn>
+                <Btn v-if="detail?.org.logo_url" kind="danger" :disabled="logoBusy" @click="removeLogo">remove</Btn>
+              </div>
             </div>
           </ConsoleCard>
           <ConsoleCard v-if="detail?.entitlements?.length" title="entitlements" sub="controlled namespaces unlocked for this org.">
