@@ -30,6 +30,7 @@ export const NAV: NavGroup[] = [
   ]},
   { group: 'account', items: [
     { id: 'activity', label: 'activity', icon: 'pulse' },
+    { id: 'billing', label: 'billing & credits', icon: 'card' },
     { id: 'org', label: 'organization', icon: 'users' },
     { id: 'groups', label: 'departments', icon: 'users' },
   ]},
@@ -50,6 +51,7 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   data: { title: 'data', crumb: 'workspace' },
   scout: { title: 'cockpit', crumb: 'prospection' },
   activity: { title: 'activity', crumb: 'account' },
+  billing: { title: 'billing & credits', crumb: 'account' },
   org: { title: 'organization', crumb: 'account' },
   groups: { title: 'departments', crumb: 'account' },
   monitoring: { title: 'mcp monitoring', crumb: 'platform' },
