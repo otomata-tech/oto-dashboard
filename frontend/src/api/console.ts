@@ -2,7 +2,8 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, ApiToken, ConnectorActivation, ConnectorMeta, DoctrineBundle,
+  AdminUser, AdminUserDetail, AdminOrgSummary, ApiToken, BillingBalance, ConnectorActivation, ConnectorMeta,
+  CreditPack, CreditTransaction, DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, Me, MonitoringSummary,
   NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ToolCall, ToolEntry,
@@ -78,6 +79,14 @@ export const getToolRegistry = () =>
 // Usage d'une doctrine, dérivé de tool_calls (chargements par l'agent).
 export const getInstructionUsage = (slug: string) =>
   api<InstructionUsage>(`/api/me/instructions/${slug}/usage`)
+
+// ── billing (credits d'appel par org, recharge Stripe) ──
+export const getBillingBalance = () => api<BillingBalance & { org_id: number }>('/api/me/billing')
+export const getBillingTransactions = () =>
+  api<{ org_id: number; transactions: CreditTransaction[] }>('/api/me/billing/transactions')
+export const getBillingPacks = () => api<{ packs: CreditPack[] }>('/api/billing/packs')
+export const startCheckout = (pack_id: string) =>
+  api<{ checkout_url: string }>('/api/me/billing/checkout', { method: 'POST', ...j({ pack_id }) })
 
 // ── datastore ──
 export const getNamespaces = () => api<{ namespaces: string[] }>('/api/datastore/namespaces')
