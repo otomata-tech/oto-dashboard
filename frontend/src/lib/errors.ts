@@ -22,6 +22,8 @@ const MESSAGES: Record<string, string> = {
   invalid_api_token: 'invalid api token',
   invalid_token: 'invalid session token',
   missing_bearer: 'not authenticated',
+  email_mismatch: 'this invitation was sent to a different email — sign in with the account that received it',
+  invalid_or_expired: 'this invitation is invalid, expired, or already used',
 }
 
 export function humanize(e: unknown): string {

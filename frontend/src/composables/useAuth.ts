@@ -37,8 +37,8 @@ export function useAuth() {
     await logto.signIn(`${window.location.origin}/callback`)
   }
 
-  async function logout(): Promise<void> {
-    await logto.signOut(window.location.origin)
+  async function logout(redirectTo?: string): Promise<void> {
+    await logto.signOut(redirectTo || window.location.origin)
   }
 
   async function getAccessToken(): Promise<string> {
