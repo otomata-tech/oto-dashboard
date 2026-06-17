@@ -32,9 +32,9 @@ export function useAuth() {
     }
   }
 
-  async function login(returnTo?: string): Promise<void> {
+  async function login(returnTo?: string, firstScreen?: 'sign_in' | 'register'): Promise<void> {
     if (returnTo) sessionStorage.setItem('oto-postlogin', returnTo)
-    await logto.signIn(`${window.location.origin}/callback`)
+    await logto.signIn({ redirectUri: `${window.location.origin}/callback`, firstScreen })
   }
 
   async function logout(redirectTo?: string): Promise<void> {
