@@ -140,6 +140,9 @@ export const listAlphaInvites = () =>
   api<{ invitations: AlphaInvite[] }>('/api/admin/alpha-invites')
 export const revokeAlphaInvite = (id: number) =>
   api(`/api/admin/alpha-invites/${id}`, { method: 'DELETE' })
+export const resendAlphaInvite = (email: string) =>
+  api<{ ok: boolean; email: string; emailed: boolean; invite_url: string }>(
+    '/api/admin/alpha-invites/resend', { method: 'POST', ...j({ email }) })
 // Admin : file d'attente + approbation (active + quota) + ajustement de quota.
 export const getWaitlist = () =>
   api<{ waitlist: WaitlistEntry[]; count: number }>('/api/admin/waitlist')

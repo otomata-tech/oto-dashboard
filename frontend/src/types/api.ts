@@ -332,6 +332,8 @@ export interface AdminUserDetail {
   name: string | null
   role: Role
   active_org: number | null
+  access_status: string | null
+  pending_invite: { id: number; created_at: string; expires_at: string } | null
   orgs: AdminUserOrg[]
   providers: Record<string, ProviderStatus | undefined>
   grants: AdminGrant[]

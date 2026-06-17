@@ -10,7 +10,7 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt, type PromptField } from '@/composables/usePrompt'
 import {
   getAdminUser, setUserRole, getPlatformKeys, getConnectors, getMonitoringCalls,
-  grantPlatformKey, revokePlatformKey, grantNamespace, revokeNamespaceGrant,
+  grantPlatformKey, revokePlatformKey, grantNamespace, revokeNamespaceGrant, resendAlphaInvite,
 } from '@/api/console'
 import type {
   AdminGrant, AdminUserDetail, ConnectorMeta, NamespaceGrant, PlatformKey, ProviderStatus, ToolCall,
@@ -31,6 +31,11 @@ const error = ref<string | null>(null)
 const callsBusy = ref(false)
 
 const isAdmin = computed(() => detail.value?.role === 'admin')
+const accessStatus = computed(() => detail.value?.access_status ?? null)
+// On propose le renvoi tant que l'accès n'est pas actif (waitlist/pending ou bloqué),
+// ou s'il reste une invitation en attente pour son email.
+const canResend = computed(() =>
+  !!detail.value?.email && (accessStatus.value !== 'active' || !!detail.value?.pending_invite))
 const callsErrCount = computed(() => calls.value.filter((c) => !c.ok).length)
 // Accès effectif par provider keyé (la question « a-t-il déjà accès ? »).
 const providerRows = computed(() =>
@@ -70,6 +75,26 @@ async function loadStatic() {
 function loadAll() { error.value = null; loadDetail(); loadActivity(); loadStatic() }
 onMounted(loadAll)
 watch(sub, loadAll)
+
+const resending = ref(false)
+async function resendInvite() {
+  if (!detail.value?.email) return
+  resending.value = true
+  try {
+    const res = await resendAlphaInvite(detail.value.email)
+    if (res.emailed) {
+      toast(`invitation re-sent to ${res.email}`)
+    } else {
+      await promptForm({
+        title: 'share this invitation link',
+        description: 'email delivery is off on this server — copy and send it yourself.',
+        fields: [{ key: 'url', label: 'invitation link', value: res.invite_url }],
+        submitLabel: 'done',
+      })
+    }
+    await loadDetail()
+  } catch (e) { toast(humanize(e)) } finally { resending.value = false }
+}
 
 async function toggleAdmin() {
   const next = isAdmin.value ? 'member' : 'admin'
@@ -137,12 +162,21 @@ async function revokeNs(g: NamespaceGrant) {
       <!-- identité + rôle -->
       <ConsoleCard :title="detail.name || detail.email || detail.sub" sub="platform-admin user fiche.">
         <template #actions>
+          <Tag v-if="accessStatus === 'active'" tone="olive">active</Tag>
+          <Tag v-else-if="accessStatus === 'blocked'" tone="terra">blocked</Tag>
+          <Tag v-else-if="accessStatus" tone="saffron">{{ accessStatus }}</Tag>
           <Tag v-if="isAdmin" tone="ink">platform admin</Tag>
           <Tag v-else tone="olive">user</Tag>
+          <Btn v-if="canResend" kind="mini" :disabled="resending" @click="resendInvite">
+            {{ resending ? 'sending…' : 'resend invite' }}
+          </Btn>
           <Btn kind="mini" @click="toggleAdmin">{{ isAdmin ? 'remove admin' : 'make admin' }}</Btn>
         </template>
         <div class="helptext">
           {{ detail.email }} · <code class="mono">{{ detail.sub }}</code>
+        </div>
+        <div v-if="detail.pending_invite" class="helptext" style="margin-top: 6px">
+          pending alpha invitation · expires {{ fmtDate(detail.pending_invite.expires_at) }} — resend issues a fresh link.
         </div>
         <div class="helptext" style="margin-top: 6px">
           platform role gates only the admin section — tool access comes from keys, grants and org membership below.
