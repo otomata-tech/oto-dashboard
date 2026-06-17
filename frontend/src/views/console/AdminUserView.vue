@@ -11,9 +11,10 @@ import { usePrompt, type PromptField } from '@/composables/usePrompt'
 import {
   getAdminUser, setUserRole, getPlatformKeys, getConnectors, getMonitoringCalls,
   grantPlatformKey, revokePlatformKey, grantNamespace, revokeNamespaceGrant, resendAlphaInvite,
+  setAdminOrgMemberRole,
 } from '@/api/console'
 import type {
-  AdminGrant, AdminUserDetail, ConnectorMeta, NamespaceGrant, PlatformKey, ProviderStatus, ToolCall,
+  AdminGrant, AdminUserDetail, AdminUserOrg, ConnectorMeta, NamespaceGrant, PlatformKey, ProviderStatus, ToolCall,
 } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -151,6 +152,15 @@ async function revokeNs(g: NamespaceGrant) {
   try { await revokeNamespaceGrant(sub.value, g.namespace); toast('grant revoked'); await loadDetail() }
   catch (e) { toast(humanize(e)) }
 }
+
+// Bascule le rôle d'org du user (member ↔ org_admin) depuis la fiche admin.
+async function toggleOrgRole(o: AdminUserOrg) {
+  const next = o.org_role === 'org_admin' ? 'org_member' : 'org_admin'
+  const label = next === 'org_admin' ? 'make org admin' : 'remove org admin'
+  if (!await confirmAction({ title: 'org role', confirmLabel: label, message: `${label} of "${o.name}"?` })) return
+  try { await setAdminOrgMemberRole(o.org_id, sub.value, next); toast(`${o.name} → ${next === 'org_admin' ? 'org admin' : 'member'}`); await loadDetail() }
+  catch (e) { toast(humanize(e)) }
+}
 </script>
 
 <template>
@@ -193,6 +203,9 @@ async function revokeNs(g: NamespaceGrant) {
               <Tag :tone="o.org_role === 'org_admin' ? 'ink' : undefined" style="margin-left: 8px">{{ o.org_role === 'org_admin' ? 'org admin' : 'member' }}</Tag>
             </div>
             <Tag v-if="o.is_active" tone="saffron">active</Tag>
+            <Btn kind="mini" @click="toggleOrgRole(o)">
+              {{ o.org_role === 'org_admin' ? 'make member' : 'make admin' }}
+            </Btn>
           </div>
         </div>
         <div v-else class="helptext">not a member of any organization.</div>
