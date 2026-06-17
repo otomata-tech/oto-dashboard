@@ -5,7 +5,7 @@ import { onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Btn from '@/components/console/Btn.vue'
-import { getWaitlist, grantAlphaAccess } from '@/api/console'
+import { getWaitlist, grantAlphaAccess, adminAlphaInvite } from '@/api/console'
 import type { WaitlistEntry } from '@/types/api'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
@@ -16,6 +16,7 @@ const { promptForm } = usePrompt()
 const waitlist = ref<WaitlistEntry[]>([])
 const error = ref<string | null>(null)
 const busy = ref<string | null>(null)
+const inviting = ref(false)
 
 async function load() {
   try {
@@ -41,6 +42,30 @@ async function grant(u: WaitlistEntry) {
   } catch (e) { toast(humanize(e)) } finally { busy.value = null }
 }
 
+async function invite() {
+  const r = await promptForm({
+    title: 'invite someone to the alpha',
+    description: "send a platform invitation by email. doesn't spend any referral quota — they get their own account and org.",
+    fields: [{ key: 'email', label: 'email', placeholder: 'name@company.com' }],
+    submitLabel: 'send invitation',
+  })
+  if (!r || !r.email) return
+  inviting.value = true
+  try {
+    const res = await adminAlphaInvite(r.email)
+    if (res.emailed) {
+      toast(`invitation sent to ${res.email}`)
+    } else {
+      await promptForm({
+        title: 'share this invitation link',
+        description: 'email delivery is off on this server — copy and send it yourself.',
+        fields: [{ key: 'url', label: 'invitation link', value: res.invite_url }],
+        submitLabel: 'done',
+      })
+    }
+  } catch (e) { toast(humanize(e)) } finally { inviting.value = false }
+}
+
 onMounted(load)
 </script>
 
@@ -51,6 +76,13 @@ onMounted(load)
     <div class="grid3">
       <Stat label="waitlist" :value="waitlist.length" sub="awaiting alpha access" />
     </div>
+
+    <ConsoleCard title="invite to the alpha"
+      sub="open the service to a new email — no referral quota spent. they get their own account and org.">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <Btn :disabled="inviting" @click="invite">{{ inviting ? 'sending…' : 'invite by email' }}</Btn>
+      </div>
+    </ConsoleCard>
 
     <ConsoleCard flush title="waitlist"
       sub="accounts that signed up but aren't approved yet — oldest first. grant access to let them in.">

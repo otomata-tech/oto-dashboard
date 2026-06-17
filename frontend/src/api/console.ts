@@ -127,6 +127,11 @@ export const acceptInvite = (token: string) =>
 export const sendAlphaInvite = (email: string) =>
   api<{ ok: boolean; email: string; emailed: boolean; invite_url: string; invites_left: number }>(
     '/api/me/alpha-invites', { method: 'POST', ...j({ email }) })
+// Admin : invite un tiers au service par email, SANS entamer de quota referral
+// (l'invité crée sa propre org). Réservé platform admin.
+export const adminAlphaInvite = (email: string) =>
+  api<{ ok: boolean; email: string; emailed: boolean; invite_url: string }>(
+    '/api/admin/alpha-invites', { method: 'POST', ...j({ email }) })
 // Admin : file d'attente + approbation (active + quota) + ajustement de quota.
 export const getWaitlist = () =>
   api<{ waitlist: WaitlistEntry[]; count: number }>('/api/admin/waitlist')
