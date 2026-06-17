@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import Icon from './Icon.vue'
 import Dot from './Dot.vue'
+import Avatar from './Avatar.vue'
 import { PAGE_META } from '@/lib/consoleNav'
 import { useMe } from '@/composables/useMe'
 import { getMyOrgs, setActiveOrg } from '@/api/console'
@@ -59,7 +60,14 @@ async function pick(o: Org) {
     <div v-if="me?.active_org_name" class="right">
       <div class="org-switch">
         <button class="org-pill" :aria-expanded="open" @click="toggle">
-          <Dot tone="saffron" :size="7" />
+          <Avatar
+            v-if="me.active_org_logo_url"
+            :src="me.active_org_logo_url"
+            :name="me.active_org_name"
+            :size="18"
+            shape="square"
+          />
+          <Dot v-else tone="saffron" :size="7" />
           {{ me.active_org_name }}
           <span class="role">{{ me.org_role === 'org_admin' ? 'admin' : 'member' }}</span>
           <Icon name="chevd" :size="11" :style="{ color: 'var(--color-faint)' }" />
