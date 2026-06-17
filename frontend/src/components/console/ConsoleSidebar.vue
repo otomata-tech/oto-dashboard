@@ -6,23 +6,28 @@ import Dot from './Dot.vue'
 import { NAV } from '@/lib/consoleNav'
 import { useMe } from '@/composables/useMe'
 import { useAuth } from '@/composables/useAuth'
+import { useNav } from '@/composables/useNav'
 
 const route = useRoute()
 const { me } = useMe()
 const { logout } = useAuth()
+const { navOpen, closeNav } = useNav()
 
 const visibleGroups = computed(() => NAV.filter((g) => !g.admin || me.value?.role === 'admin'))
 const initial = computed(() => (me.value?.name || me.value?.email || '?').trim().charAt(0).toLowerCase())
 </script>
 
 <template>
-  <aside class="sb">
+  <aside class="sb" :class="{ open: navOpen }">
     <div class="sb-brand">
       <span class="o-medallion o-medallion-sm">o</span>
       <div>
         <div class="name">oto</div>
         <div class="env">console</div>
       </div>
+      <button class="sb-close" aria-label="fermer le menu" @click="closeNav">
+        <Icon name="close" :size="18" />
+      </button>
     </div>
     <nav class="sb-nav">
       <div v-for="(g, gi) in visibleGroups" :key="gi" class="sb-group">
@@ -33,6 +38,7 @@ const initial = computed(() => (me.value?.name || me.value?.email || '?').trim()
           class="sb-item"
           :class="{ on: route.params.section === it.id }"
           :to="`/console/${it.id}`"
+          @click="closeNav"
         >
           <span class="ic"><Icon :name="it.icon" :size="15" /></span>
           {{ it.label }}
