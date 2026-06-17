@@ -60,6 +60,7 @@ export interface Me {
   group_role: GroupRole | null         // effectif (escalade org_admin/platform incluse)
   linkedin: SessionState
   crunchbase: SessionState
+  memento?: MementoStatus              // fédération MCP (otomata#16) — auto-prompt connexion
   providers: Record<string, ProviderStatus | undefined>
 }
 
