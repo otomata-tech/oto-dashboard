@@ -105,6 +105,13 @@ export const getMyOrgs = () => api<{ orgs: Org[] }>('/api/me/orgs')
 // Bascule l'org active (membre). Contrat unifié MCP/REST : champ `org` = id ou nom.
 export const setActiveOrg = (id: number) =>
   api<{ active_org: number; name: string }>('/api/me/active-org', { method: 'PUT', ...j({ org: String(id) }) })
+// Désélectionne l'org active → identité perso/globale (ADR 0015).
+export const clearActiveOrg = () =>
+  api<{ active_org: null }>('/api/me/active-org', { method: 'DELETE' })
+// Baseline de toolset de l'org (org_admin) — preset de visibilité des membres.
+export const setOrgPreset = (id: number, tools: string[] | null) =>
+  api<{ ok: boolean; org_id: number; preset: number | null }>(
+    `/api/orgs/${id}/preset`, { method: 'PUT', ...j({ tools }) })
 export const createMyOrg = (name: string) =>
   api<{ org_id: number; name: string; active_org: number; org_role: string }>(
     '/api/me/orgs', { method: 'POST', ...j({ name }) })

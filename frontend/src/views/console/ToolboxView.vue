@@ -13,6 +13,11 @@ import {
 import type { PresetEntry, ToolEntry } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { useMe } from '@/composables/useMe'
+
+const { me } = useMe()
+// Le toolset est scopé par profil (sub, org active) — ADR 0015. Bandeau de contexte.
+const profileLabel = computed(() => me.value?.active_org_name || 'Perso')
 
 const { toast } = useToast()
 const { promptText, confirmAction } = usePrompt()
@@ -81,6 +86,12 @@ async function remove(name: string) {
 <template>
   <div class="content-inner fadein">
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
+
+    <p class="helptext" style="margin: -4px 0 2px">
+      toolset · <strong style="color: var(--color-ink)">{{ profileLabel }}</strong>
+      <span v-if="me && me.active_org == null"> — profil perso/global</span>
+      <span v-else> — propre à cette organisation</span>
+    </p>
 
     <div class="grid3">
       <Stat label="tools exposed" :value="enabledCount" :unit="'/ ' + tools.length" sub="what your mcp clients see" />
