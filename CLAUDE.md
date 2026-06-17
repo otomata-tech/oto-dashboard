@@ -30,6 +30,16 @@ Squelette validé (login Logto + `GET /api/me` affiché). La migration des featu
 
 Section `/console/groups` (`GroupsView.vue` + `GroupDoctrineCard.vue`) : départements d'une org avec **chef d'équipe** (`group_admin`). Un membre bascule son **groupe actif** (`useGroup` → `PUT /api/me/active-group`) ; le chef (ou un org_admin) gère membres, **secrets partagés** (résolus avant ceux de l'org), **preset de toolset** (baseline de visibilité) et **doctrine** de groupe. Hiérarchie de droits côté backend (`roles.py`, escalade descendante) — l'UI masque seulement les contrôles. `Me` porte `active_group`/`active_group_name`/`group_role` ; `ProviderStatus.mode` peut valoir `group` (libellé « team key »). Contrats : `oto-backend/docs/groups-and-roles.md`.
 
+## Fédération MCP (memento, otomata#16)
+
+`ConnectorsView.vue` porte la carte « federated mcp » (connect/disconnect du compte memento
+per-user, OAuth via `/api/memento/oauth/*`). Depuis 2026-06-17 la fédération memento est
+**systématique** côté oto-mcp (connecteur `self_serve`, monté d'office) → la carte s'affiche
+pour **tous** les users (plus seulement les entitled). `OverviewView` ajoute une étape
+d'onboarding « connect your knowledge base » (auto-prompt) tant que `me.memento.connected` est
+faux. `Me.memento` (`{connected, set_at}`) vient de `GET /api/me`. Le compte memento est
+provisionné automatiquement à la création du compte oto (côté backend).
+
 ## Conventions
 
 - API RESTful consommée sous `/api/*` (contrats : `oto-mcp/CLAUDE.md` §REST + `oto-app/docs/ORG_API_CONTRACT.md`)
