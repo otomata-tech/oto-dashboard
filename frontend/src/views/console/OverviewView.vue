@@ -80,6 +80,7 @@ const steps = computed(() => [
   { done: true, t: 'connect a client', d: 'add mcp.oto.ninja to claude desktop, cursor or any mcp client — auth runs over oauth.', act: null as [string, string] | null },
   { done: userKeysCount.value > 0, t: 'add your first api key', d: 'paste a provider key (serper, hunter, …) so your tools can call out.', act: ['connectors', 'add a key'] as [string, string] },
   { done: !!google.value?.connected, t: 'link google workspace', d: 'unlock gmail, drive, sheets and the datastore.', act: ['connectors', 'link google'] as [string, string] },
+  { done: !!me.value?.memento?.connected, t: 'connect your knowledge base', d: 'link memento — a structured, sourced memory your agents read and write across sessions. federated into every oto session.', act: ['connectors', 'connect memento'] as [string, string] },
   { done: doctrineExists.value, t: 'write your doctrine', d: 'one markdown file your agents read before acting. crm rules, tone, guardrails.', act: ['doctrine', 'open the editor'] as [string, string] },
   { done: me.value?.active_org != null, t: 'join an organization', d: 'share org keys so teammates inherit your setup.', act: ['org', 'manage organization'] as [string, string] },
 ])

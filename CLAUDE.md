@@ -33,6 +33,15 @@ Section `/console/groups` (`GroupsView.vue` + `GroupDoctrineCard.vue`) : départ
 ## Billing / credits (paiement Stripe)
 
 Section `/console/billing` (`BillingView.vue`) : portefeuille de credits d'appel **par org active**. 1 appel MCP = 1 credit ; chaque org reçoit un stock de base gratuit, puis recharge par **packs Stripe** (paiement ponctuel — `POST /api/me/billing/checkout` → redirect `checkout_url`). Soft : le solde peut être négatif, l'appel n'est jamais bloqué (drapeau `low`). Le solde vit dans `me.billing` (`{balance, low, base_granted}`, `null` si pas d'org active) — pas de fetch dédié pour l'afficher. Packs/historique via `getBillingPacks`/`getBillingTransactions`. Retour de Checkout : `?status=success|cancel` → toast + `reload()` du `me`. Achat ouvert à tout membre (recharge le wallet partagé). Backend : `oto-backend/CLAUDE.md` §Billing.
+## Fédération MCP (memento, otomata#16)
+
+`ConnectorsView.vue` porte la carte « federated mcp » (connect/disconnect du compte memento
+per-user, OAuth via `/api/memento/oauth/*`). Depuis 2026-06-17 la fédération memento est
+**systématique** côté oto-mcp (connecteur `self_serve`, monté d'office) → la carte s'affiche
+pour **tous** les users (plus seulement les entitled). `OverviewView` ajoute une étape
+d'onboarding « connect your knowledge base » (auto-prompt) tant que `me.memento.connected` est
+faux. `Me.memento` (`{connected, set_at}`) vient de `GET /api/me`. Le compte memento est
+provisionné automatiquement à la création du compte oto (côté backend).
 
 ## Conventions
 
