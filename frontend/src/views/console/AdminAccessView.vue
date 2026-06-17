@@ -5,24 +5,37 @@ import { onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Btn from '@/components/console/Btn.vue'
-import { getWaitlist, grantAlphaAccess, adminAlphaInvite } from '@/api/console'
-import type { WaitlistEntry } from '@/types/api'
+import { getWaitlist, grantAlphaAccess, adminAlphaInvite, listAlphaInvites, revokeAlphaInvite } from '@/api/console'
+import type { WaitlistEntry, AlphaInvite } from '@/types/api'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
-const { promptForm } = usePrompt()
+const { promptForm, confirmAction } = usePrompt()
 const waitlist = ref<WaitlistEntry[]>([])
+const invites = ref<AlphaInvite[]>([])
 const error = ref<string | null>(null)
 const busy = ref<string | null>(null)
 const inviting = ref(false)
 
 async function load() {
   try {
-    waitlist.value = (await getWaitlist()).waitlist
+    const [w, i] = await Promise.all([getWaitlist(), listAlphaInvites()])
+    waitlist.value = w.waitlist
+    invites.value = i.invitations
     error.value = null
   } catch (e) { error.value = humanize(e) }
+}
+
+async function revoke(inv: AlphaInvite) {
+  if (!await confirmAction({ title: 'revoke invitation', message: `revoke the pending invitation to ${inv.email}? the link will stop working.`, confirmLabel: 'revoke', danger: true })) return
+  busy.value = `inv:${inv.id}`
+  try {
+    await revokeAlphaInvite(inv.id)
+    toast('invitation revoked')
+    await load()
+  } catch (e) { toast(humanize(e)) } finally { busy.value = null }
 }
 
 async function grant(u: WaitlistEntry) {
@@ -63,6 +76,7 @@ async function invite() {
         submitLabel: 'done',
       })
     }
+    await load()
   } catch (e) { toast(humanize(e)) } finally { inviting.value = false }
 }
 
@@ -75,6 +89,7 @@ onMounted(load)
 
     <div class="grid3">
       <Stat label="waitlist" :value="waitlist.length" sub="awaiting alpha access" />
+      <Stat label="pending invites" :value="invites.length" sub="sent, not yet accepted" />
     </div>
 
     <ConsoleCard title="invite to the alpha"
@@ -82,6 +97,31 @@ onMounted(load)
       <div style="display: flex; align-items: center; gap: 10px">
         <Btn :disabled="inviting" @click="invite">{{ inviting ? 'sending…' : 'invite by email' }}</Btn>
       </div>
+    </ConsoleCard>
+
+    <ConsoleCard flush title="pending invitations"
+      sub="alpha invitations sent but not yet accepted. revoke to kill the link.">
+      <table class="tbl">
+        <thead><tr><th>email</th><th>sent</th><th>expires</th><th style="width: 110px"></th></tr></thead>
+        <tbody>
+          <tr v-for="inv in invites" :key="inv.id">
+            <td>
+              <div style="font-weight: 600; color: var(--color-ink)">{{ inv.email }}</div>
+              <div v-if="inv.source" style="font-size: 11px; color: var(--color-faint)">{{ inv.source }}</div>
+            </td>
+            <td class="dim">{{ inv.created_at }}</td>
+            <td class="dim">{{ inv.expires_at }}</td>
+            <td style="text-align: right">
+              <Btn kind="mini" :disabled="busy === `inv:${inv.id}`" @click="revoke(inv)">
+                {{ busy === `inv:${inv.id}` ? 'revoking…' : 'revoke' }}
+              </Btn>
+            </td>
+          </tr>
+          <tr v-if="!invites.length">
+            <td colspan="4" class="dim" style="text-align: center; padding: 16px">no pending invitations</td>
+          </tr>
+        </tbody>
+      </table>
     </ConsoleCard>
 
     <ConsoleCard flush title="waitlist"

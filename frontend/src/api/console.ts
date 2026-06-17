@@ -8,7 +8,7 @@ import type {
   InstructionVersion, Me, MonitoringSummary,
   NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage,
-  WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus, WaitlistEntry,
+  WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus, WaitlistEntry, AlphaInvite,
 } from '@/types/api'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
@@ -132,6 +132,10 @@ export const sendAlphaInvite = (email: string) =>
 export const adminAlphaInvite = (email: string) =>
   api<{ ok: boolean; email: string; emailed: boolean; invite_url: string }>(
     '/api/admin/alpha-invites', { method: 'POST', ...j({ email }) })
+export const listAlphaInvites = () =>
+  api<{ invitations: AlphaInvite[] }>('/api/admin/alpha-invites')
+export const revokeAlphaInvite = (id: number) =>
+  api(`/api/admin/alpha-invites/${id}`, { method: 'DELETE' })
 // Admin : file d'attente + approbation (active + quota) + ajustement de quota.
 export const getWaitlist = () =>
   api<{ waitlist: WaitlistEntry[]; count: number }>('/api/admin/waitlist')

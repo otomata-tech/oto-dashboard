@@ -32,7 +32,10 @@ async function switchAccount() {
 onMounted(async () => {
   token.value = new URLSearchParams(window.location.search).get('token') ?? ''
   if (!token.value) { state.value = 'error'; errMsg.value = 'this invitation link is missing its token.'; return }
-  if (!isAuthenticated.value) { await login(`/invite?token=${encodeURIComponent(token.value)}`); return }
+  // Invité sans session → on ouvre Logto sur l'inscription (register) : la cible
+  // est en général un nouveau compte. L'écran register garde un lien « se
+  // connecter » pour les comptes existants (cas dual-sub).
+  if (!isAuthenticated.value) { await login(`/invite?token=${encodeURIComponent(token.value)}`, 'register'); return }
   try {
     const r = await acceptInvite(token.value)
     orgName.value = r.name

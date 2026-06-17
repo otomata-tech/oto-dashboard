@@ -111,6 +111,15 @@ export interface WaitlistEntry {
   created_at: string
 }
 
+export interface AlphaInvite {
+  id: number
+  email: string
+  invited_by: string | null
+  source: string | null
+  created_at: string
+  expires_at: string
+}
+
 // ── tools / presets ──
 export interface ToolEntry {
   name: string
