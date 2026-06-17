@@ -70,6 +70,27 @@ export interface Me {
   linkedin: SessionState
   crunchbase: SessionState
   providers: Record<string, ProviderStatus | undefined>
+  billing: BillingBalance | null    // wallet de credits de l'org active (null si pas d'org)
+}
+
+// ── billing (credits d'appel par org, paiement Stripe) ──
+export interface BillingBalance {
+  balance: number           // credits d'appel restants ; peut être négatif (soft)
+  low: boolean              // solde bas/négatif → alerte UI
+  base_granted: boolean     // le stock de base gratuit a été crédité
+}
+export interface CreditPack {
+  pack_id: string
+  calls: number
+  amount_cents: number
+  label: string
+}
+export interface CreditTransaction {
+  id: number
+  delta: number             // >0 = recharge/don, <0 = ajustement
+  reason: string            // 'stripe' | 'base_grant' | 'admin_adjust'
+  stripe_event_id: string | null
+  created_at: string
 }
 
 // Accès plateforme alpha (ADR 0013) : status = gate doux, invites_left = budget

@@ -27,6 +27,7 @@ const ICON_PATHS: Record<string, string> = {
   phone: 'M5 4h3l2 5-2.5 1.5a11 11 0 0 0 5 5L19 14l-1 3v3a17 17 0 0 1-13-13Z',
   menu: 'M4 7h16M4 12h16M4 17h16',
   close: 'M6 6l12 12M18 6 6 18',
+  card: 'M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Zm-1 4h20M6 15h4',
 }
 
 const props = withDefaults(defineProps<{ name: string; size?: number; sw?: number }>(), {
