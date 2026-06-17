@@ -8,7 +8,7 @@ import type {
   InstructionVersion, Me, MonitoringSummary,
   NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage,
-  WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus, WaitlistEntry, AlphaInvite, InvitePreview,
+  WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus, UnipileStatus, WaitlistEntry, AlphaInvite, InvitePreview,
 } from '@/types/api'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
@@ -50,6 +50,13 @@ export const revokeGoogle = (account?: string) =>
 export const getMementoStatus = () => api<MementoStatus>('/api/memento/oauth/status')
 export const startMementoOauth = () => api<{ auth_url: string }>('/api/memento/oauth/start')
 export const disconnectMemento = () => api('/api/memento/oauth', { method: 'DELETE' })
+
+// ── unipile (LinkedIn hébergé) — hosted-auth per-user sous la clé partagée ──
+export const getUnipileStatus = () => api<UnipileStatus>('/api/me/unipile')
+export const connectUnipile = () => api<{ url: string }>('/api/me/unipile/connect', { method: 'POST' })
+export const syncUnipile = () =>
+  api<{ connected: boolean; account_id?: string; reason?: string }>('/api/me/unipile/sync', { method: 'POST' })
+export const disconnectUnipile = () => api('/api/me/unipile', { method: 'DELETE' })
 
 // ── cli tokens ──
 export const getTokens = () => api<{ tokens: ApiToken[] }>('/api/me/tokens')
