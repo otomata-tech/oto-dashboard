@@ -21,3 +21,22 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
   return resp.json() as Promise<T>
 }
+
+// Upload multipart (avatar / logo) : FormData champ `file`, PAS de Content-Type
+// (le navigateur pose le boundary lui-même). Même gestion d'erreur que api().
+export async function apiUpload<T>(path: string, file: File, method = 'POST'): Promise<T> {
+  const { getAccessToken } = useAuth()
+  const token = await getAccessToken()
+  const form = new FormData()
+  form.append('file', file)
+  const resp = await fetch(`${base}${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  })
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({}))
+    throw new Error(`${resp.status} ${(body as { error?: string }).error ?? resp.statusText}`)
+  }
+  return resp.json() as Promise<T>
+}

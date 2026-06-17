@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import Icon from './Icon.vue'
 import Dot from './Dot.vue'
+import Avatar from './Avatar.vue'
 import { NAV } from '@/lib/consoleNav'
 import { useMe } from '@/composables/useMe'
 import { useAuth } from '@/composables/useAuth'
@@ -14,7 +15,6 @@ const { logout } = useAuth()
 const { navOpen, closeNav } = useNav()
 
 const visibleGroups = computed(() => NAV.filter((g) => !g.admin || me.value?.role === 'admin'))
-const initial = computed(() => (me.value?.name || me.value?.email || '?').trim().charAt(0).toLowerCase())
 </script>
 
 <template>
@@ -50,7 +50,7 @@ const initial = computed(() => (me.value?.name || me.value?.email || '?').trim()
     <div class="sb-foot">
       <div class="sb-mcp"><Dot tone="olive" :size="7" /> mcp connected</div>
       <div class="sb-user">
-        <span class="avatar">{{ initial }}</span>
+        <Avatar :src="me?.avatar_url" :name="me?.name || me?.email" :size="26" />
         <div class="who">
           <div class="n">{{ me?.name || me?.email }}</div>
           <div class="e">{{ me?.email }}</div>

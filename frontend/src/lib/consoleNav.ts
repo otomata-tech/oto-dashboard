@@ -29,6 +29,7 @@ export const NAV: NavGroup[] = [
     { id: 'scout', label: 'cockpit', icon: 'phone' },
   ]},
   { group: 'account', items: [
+    { id: 'account', label: 'profile', icon: 'user' },
     { id: 'activity', label: 'activity', icon: 'pulse' },
     { id: 'billing', label: 'billing & credits', icon: 'card' },
     { id: 'org', label: 'organization', icon: 'users' },
@@ -51,6 +52,7 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   doctrine: { title: 'doctrine', crumb: 'workspace' },
   data: { title: 'data', crumb: 'workspace' },
   scout: { title: 'cockpit', crumb: 'prospection' },
+  account: { title: 'profile', crumb: 'account' },
   activity: { title: 'activity', crumb: 'account' },
   billing: { title: 'billing & credits', crumb: 'account' },
   org: { title: 'organization', crumb: 'account' },

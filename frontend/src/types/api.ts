@@ -59,9 +59,11 @@ export interface Me {
   sub: string
   email: string | null
   name: string | null
+  avatar_url: string | null
   role: Role
   active_org: number | null
   active_org_name: string | null
+  active_org_logo_url: string | null
   org_role: OrgRole | null
   active_group: number | null
   active_group_name: string | null
@@ -196,6 +198,7 @@ export interface MementoStatus {
 export interface Org {
   id: number
   name: string
+  logo_url?: string | null
   member_count?: number
   my_role?: OrgRole
 }
@@ -203,6 +206,7 @@ export interface OrgMember {
   sub: string
   email: string | null
   name: string | null
+  avatar_url?: string | null
   role: OrgRole
   active: boolean
 }
