@@ -9,23 +9,37 @@ import { acceptInvite } from '@/api/console'
 import { humanize } from '@/lib/errors'
 
 const router = useRouter()
-const { isAuthenticated, login } = useAuth()
+const { isAuthenticated, login, logout } = useAuth()
 const { reload } = useMe()
 
 const state = ref<'working' | 'ok' | 'error'>('working')
 const orgName = ref<string | null>(null)
 const errMsg = ref('')
+const errCode = ref('')
+const token = ref('')
+
+function codeOf(e: unknown): string {
+  const raw = e instanceof Error ? e.message : String(e)
+  return raw.includes(' ') ? raw.slice(raw.indexOf(' ') + 1) : raw
+}
+
+// Cas mismatch : on est connecté avec le mauvais compte → se déconnecter et
+// revenir sur ce lien pour ré-authentifier avec le compte invité.
+async function switchAccount() {
+  await logout(`${window.location.origin}/invite?token=${encodeURIComponent(token.value)}`)
+}
 
 onMounted(async () => {
-  const token = new URLSearchParams(window.location.search).get('token')
-  if (!token) { state.value = 'error'; errMsg.value = 'this invitation link is missing its token.'; return }
-  if (!isAuthenticated.value) { await login(`/invite?token=${encodeURIComponent(token)}`); return }
+  token.value = new URLSearchParams(window.location.search).get('token') ?? ''
+  if (!token.value) { state.value = 'error'; errMsg.value = 'this invitation link is missing its token.'; return }
+  if (!isAuthenticated.value) { await login(`/invite?token=${encodeURIComponent(token.value)}`); return }
   try {
-    const r = await acceptInvite(token)
+    const r = await acceptInvite(token.value)
     orgName.value = r.name
     await reload()
     state.value = 'ok'
   } catch (e) {
+    errCode.value = codeOf(e)
     errMsg.value = humanize(e)
     state.value = 'error'
   }
@@ -50,8 +64,16 @@ onMounted(async () => {
         </div>
       </template>
 
+      <template v-else-if="errCode === 'email_mismatch'">
+        <div class="se-title">wrong <Squiggle>account</Squiggle>.</div>
+        <div class="se-body">{{ errMsg }}</div>
+        <div class="se-cta">
+          <Btn @click="switchAccount">sign in with another account</Btn>
+        </div>
+      </template>
+
       <template v-else>
-        <div class="se-title">invitation <Squiggle>expired</Squiggle>.</div>
+        <div class="se-title">invitation <Squiggle>problem</Squiggle>.</div>
         <div class="se-body">{{ errMsg }}</div>
         <div class="se-cta">
           <Btn kind="ghost" @click="router.push('/console/overview')">go to console</Btn>

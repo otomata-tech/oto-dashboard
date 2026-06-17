@@ -55,7 +55,7 @@ const visibleGroups = computed(() => NAV.filter((g) => !g.admin || me.value?.rol
           <div class="n">{{ me?.name || me?.email }}</div>
           <div class="e">{{ me?.email }}</div>
         </div>
-        <button class="sb-logout" title="se déconnecter" aria-label="se déconnecter" @click="logout">
+        <button class="sb-logout" title="se déconnecter" aria-label="se déconnecter" @click="() => logout()">
           <Icon name="logout" :size="15" />
         </button>
       </div>
