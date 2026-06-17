@@ -143,7 +143,11 @@ async function onPublish() {
       isBase.value ? 'doctrine de base' : activeDoc.value?.title,
       isBase.value ? undefined : draftSummary.value,
     )
-    toast(`publié v${r.version}`)
+    // Warning serveur (ADR 0014) : refs d'outils non résolues à la publication.
+    const dead = r.unresolved_tools ?? []
+    toast(dead.length
+      ? `publié v${r.version} — ${dead.length} réf. d'outil non résolue${dead.length > 1 ? 's' : ''}`
+      : `publié v${r.version}`)
     editing.value = false
     await loadAll()
     await selectDoc(activeSlug.value)
