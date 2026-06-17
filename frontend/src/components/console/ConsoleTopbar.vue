@@ -6,7 +6,7 @@ import Dot from './Dot.vue'
 import Avatar from './Avatar.vue'
 import { PAGE_META } from '@/lib/consoleNav'
 import { useMe } from '@/composables/useMe'
-import { getMyOrgs, setActiveOrg } from '@/api/console'
+import { getMyOrgs, setActiveOrg, clearActiveOrg } from '@/api/console'
 import type { Org } from '@/types/api'
 import { useNav } from '@/composables/useNav'
 
@@ -46,6 +46,19 @@ async function pick(o: Org) {
     switching.value = false
   }
 }
+
+// Identité « perso » (ADR 0015) = aucune org active : profil/toolset globaux.
+async function pickPerso() {
+  if (switching.value) return
+  if (me.value?.active_org == null) { open.value = false; return }
+  switching.value = true
+  try {
+    await clearActiveOrg()
+    location.reload()
+  } catch {
+    switching.value = false
+  }
+}
 </script>
 
 <template>
@@ -57,26 +70,45 @@ async function pick(o: Org) {
       <h1>{{ meta.title }}</h1>
       <span class="crumb">{{ meta.crumb }}</span>
     </div>
-    <div v-if="me?.active_org_name" class="right">
+    <div v-if="me" class="right">
       <div class="org-switch">
         <button class="org-pill" :aria-expanded="open" @click="toggle">
-          <Avatar
-            v-if="me.active_org_logo_url"
-            :src="me.active_org_logo_url"
-            :name="me.active_org_name"
-            :size="18"
-            shape="square"
-          />
-          <Dot v-else tone="saffron" :size="7" />
-          {{ me.active_org_name }}
-          <span class="role">{{ me.org_role === 'org_admin' ? 'admin' : 'member' }}</span>
+          <template v-if="me.active_org_name">
+            <Avatar
+              v-if="me.active_org_logo_url"
+              :src="me.active_org_logo_url"
+              :name="me.active_org_name"
+              :size="18"
+              shape="square"
+            />
+            <Dot v-else tone="saffron" :size="7" />
+            {{ me.active_org_name }}
+            <span class="role">{{ me.org_role === 'org_admin' ? 'admin' : 'member' }}</span>
+          </template>
+          <template v-else>
+            <Dot tone="faint" :size="7" />
+            Perso
+            <span class="role">global</span>
+          </template>
           <Icon name="chevd" :size="11" :style="{ color: 'var(--color-faint)' }" />
         </button>
 
         <template v-if="open">
           <div class="org-backdrop" @click="open = false" />
           <div class="org-menu">
-            <div class="org-menu-head">switch organization</div>
+            <div class="org-menu-head">profil actif</div>
+            <button
+              class="org-menu-item"
+              :class="{ active: me.active_org == null }"
+              :disabled="switching"
+              @click="pickPerso"
+            >
+              <Dot :tone="me.active_org == null ? 'saffron' : 'faint'" :size="6" />
+              <span class="org-menu-name">Perso</span>
+              <span class="role">global</span>
+              <Icon v-if="me.active_org == null" name="check" :size="12" :style="{ color: 'var(--color-saffron)' }" />
+            </button>
+            <div class="org-menu-head">organisations</div>
             <div v-if="loading" class="org-menu-empty">loading…</div>
             <button
               v-for="o in orgs"
