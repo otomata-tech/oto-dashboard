@@ -340,7 +340,7 @@ async function removeSkill(slug: string, label: string) {
 
 <style scoped>
 .err { color: var(--color-terra-ink); font-size: 13px; }
-.doc-grid { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 322px; gap: 18px; align-items: start; }
+.doc-grid { max-width: 1280px; margin: 0; display: grid; grid-template-columns: minmax(0, 1fr) 322px; gap: 18px; align-items: start; }
 @media (max-width: 1120px) { .doc-grid { grid-template-columns: 1fr; } }
 .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 

@@ -46,7 +46,7 @@ const cellStyle = 'border: 1px solid var(--color-hair); border-radius: 9px; padd
     <template #actions>
       <RouterLink class="linklike" to="/console/connectors">manage →</RouterLink>
     </template>
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px">
       <div v-for="c in connectors" :key="c.name" :style="cellStyle">
         <div style="display: flex; align-items: center; gap: 7px">
           <Dot :tone="connectorTone(c.name)" :size="7" />

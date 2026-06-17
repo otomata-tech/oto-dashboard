@@ -4,14 +4,14 @@
 
 <template>
   <div class="content-inner">
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px">
+    <div class="grid4">
       <div v-for="i in 4" :key="i" class="sk-card">
         <div class="sk" style="height: 9px; width: 55%" />
         <div class="sk" style="height: 24px; width: 42%; margin-top: 10px" />
         <div class="sk" style="height: 8px; width: 80%; margin-top: 10px" />
       </div>
     </div>
-    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px">
+    <div class="grid23">
       <div class="sk-card" style="padding: 16px">
         <div class="sk" style="height: 11px; width: 30%" />
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 16px">

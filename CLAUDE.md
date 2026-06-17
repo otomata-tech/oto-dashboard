@@ -8,7 +8,7 @@ Dashboard produit d'**oto-mcp** (gestion de compte, connecteurs, orgs, doctrine)
 
 - Vue 3 + Vite + TypeScript (`frontend/`), port dev **5192**
 - shadcn-vue (base reka, style vega, stone) + Tailwind CSS v4 — composants dans `src/components/ui/`
-- Tokens Otomata (« Manuscrit chaud ») en CSS pur dans `src/assets/main.css` (`@theme`) — **aucune dépendance à @otomata/ui**
+- Tokens Otomata (« Manuscrit chaud ») en CSS pur — **aucune dépendance à @otomata/ui**. ⚠️ Deux fichiers, ne pas confondre : `src/assets/main.css` (`@theme`) ne déclare que les **6 couleurs de base** (génération des utilitaires Tailwind) ; le **set complet** (`--color-surface`/`-bg`/`-ink-soft`/`-hair-soft`/`-paper-3` + tous les `-soft`/`-ink` des accents + `--ease-out`, classes `.o-medallion`/`.fadein`, keyframes `oto-pulse`) vit dans **`src/assets/console.css`**, importé global via `main.ts`, consommé par les vues console en `var(--…)`. Pour un écran console, piocher dans `console.css`.
 - Auth : `@logto/browser` (PKCE) via `src/composables/useAuth.ts` — interface `initAuth/login/logout/getAccessToken` ; `getAccessToken` lève `stale_session` sur token undefined (gotcha @logto)
 - API : `src/api.ts` — fetch authentifié vers `VITE_OTO_MCP_BASE`
 

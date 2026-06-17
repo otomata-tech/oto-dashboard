@@ -57,7 +57,7 @@ async function remove() {
 </script>
 
 <template>
-  <div class="content-inner fadein">
+  <div class="content-inner narrow fadein">
     <ConsoleCard title="profile" sub="your identity across oto — synced from your login.">
       <div class="profile-row">
         <Avatar :src="me?.avatar_url" :name="displayName" :size="72" />

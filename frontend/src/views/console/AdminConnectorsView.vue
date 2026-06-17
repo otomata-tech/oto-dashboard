@@ -48,7 +48,7 @@ async function toggle(c: ConnectorActivation) {
               <div style="font-weight: 600; color: var(--color-ink)">{{ c.label }}</div>
               <div style="font-size: 11px; color: var(--color-faint)">{{ c.connector }}<template v-if="c.help"> — {{ c.help }}</template></div>
             </td>
-            <td class="dim"><code class="mono">{{ c.namespaces.join(', ') }}</code></td>
+            <td class="dim" style="max-width: 320px"><code class="mono" style="word-break: break-word">{{ c.namespaces.join(', ') }}</code></td>
             <td>
               <span :style="{ fontSize: '11px', fontWeight: 600, color: c.enabled ? 'var(--color-ink)' : 'var(--color-faint)' }">
                 {{ c.enabled ? 'active' : 'off' }}
