@@ -13,10 +13,11 @@ import {
   getConnectors, setCredential, deleteApiKey, deleteLinkedin, deleteCrunchbase,
   getGoogleStatus, startGoogleOauth, setGoogleDefault, revokeGoogle,
   getMementoStatus, startMementoOauth, disconnectMemento,
+  getUnipileStatus, connectUnipile, syncUnipile, disconnectUnipile,
   getTokens, createToken, deleteToken,
 } from '@/api/console'
 import type { ConnectorMeta, ConnectorMode, DotTone } from '@/lib/consoleTypes'
-import type { ApiToken, GoogleOauthStatus, MementoStatus } from '@/types/api'
+import type { ApiToken, GoogleOauthStatus, MementoStatus, UnipileStatus } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
@@ -27,15 +28,19 @@ const { me, reload } = useMe()
 const catalog = ref<ConnectorMeta[]>([])
 const google = ref<GoogleOauthStatus | null>(null)
 const memento = ref<MementoStatus | null>(null)
+const unipile = ref<UnipileStatus | null>(null)
 const tokens = ref<ApiToken[]>([])
 const error = ref<string | null>(null)
 
 // Connecteurs à credential saisissable (modèle générique multi-champs, ADR 0011) :
 // ceux qui déclarent des `credential_fields` (api_key 1 champ, basic_auth 2, silae
 // 3…). Les sessions perso (cookie) et les MCP fédérés OAuth ont 0 champ → exclus
-// (carte/flux dédiés).
+// (carte/flux dédiés). `unipile` aussi : le LinkedIn se connecte par hosted-auth
+// (carte dédiée), pas en collant une clé — la clé Unipile est un secret d'org.
 const keyConnectors = computed(() => catalog.value.filter(
-  (c) => (c.credential_fields?.length ?? 0) > 0))
+  (c) => (c.credential_fields?.length ?? 0) > 0 && c.name !== 'unipile'))
+// La carte Unipile n'apparaît que si le connecteur est exposé à l'user (activé).
+const hasUnipile = computed(() => catalog.value.some((c) => c.name === 'unipile'))
 // MCP fédérés (otomata#16) : oauth + non personal_session (ex. memento). Présents
 // dans le catalogue seulement si l'user est entitled (grant-only, deny-by-default).
 const federatedConnectors = computed(() => catalog.value.filter(
@@ -43,26 +48,38 @@ const federatedConnectors = computed(() => catalog.value.filter(
 
 async function load() {
   try {
-    const [cat, g, m, t] = await Promise.all([
+    const [cat, g, m, u, t] = await Promise.all([
       getConnectors(),
       getGoogleStatus().catch(() => null),
       getMementoStatus().catch(() => null),
+      getUnipileStatus().catch(() => null),
       getTokens().catch(() => ({ tokens: [] })),
     ])
     catalog.value = cat.connectors
     google.value = g
     memento.value = m
+    unipile.value = u
     tokens.value = t.tokens
   } catch (e) {
     error.value = humanize(e)
   }
 }
-onMounted(() => {
+onMounted(async () => {
   // Retour du consentement OAuth memento (redirige avec ?memento=connected|error).
   const p = new URLSearchParams(window.location.search).get('memento')
   if (p === 'connected') toast('memento connecté')
   else if (p === 'error') toast('échec de la connexion memento')
-  if (p) window.history.replaceState({}, '', window.location.pathname)
+  // Retour du hosted-auth Unipile (?unipile=connected|failed) → on capte l'account_id.
+  const up = new URLSearchParams(window.location.search).get('unipile')
+  if (p || up) window.history.replaceState({}, '', window.location.pathname)
+  if (up === 'connected') {
+    try {
+      const r = await syncUnipile()
+      toast(r.connected ? 'linkedin connecté via unipile' : 'connexion enregistrée — synchro en attente')
+    } catch (e) { toast(humanize(e)) }
+  } else if (up === 'failed') {
+    toast('échec de la connexion linkedin')
+  }
   load()
 })
 
@@ -73,6 +90,16 @@ async function linkMemento() {
 async function dropMemento() {
   if (!await confirmAction({ title: 'disconnect memento', danger: true, confirmLabel: 'disconnect', message: 'disconnect your memento workspace? its tools will disappear from your session.' })) return
   try { await disconnectMemento(); toast('memento disconnected'); memento.value = await getMementoStatus() }
+  catch (e) { toast(humanize(e)) }
+}
+
+async function linkUnipile() {
+  try { const { url } = await connectUnipile(); window.location.href = url }
+  catch (e) { toast(humanize(e)) }
+}
+async function dropUnipile() {
+  if (!await confirmAction({ title: 'disconnect linkedin (unipile)', danger: true, confirmLabel: 'disconnect', message: 'disconnect your linkedin? the unipile tools will stop acting as you.' })) return
+  try { await disconnectUnipile(); toast('linkedin disconnected'); unipile.value = await getUnipileStatus() }
   catch (e) { toast(humanize(e)) }
 }
 
@@ -276,6 +303,27 @@ async function revokeToken(t: ApiToken) {
           </div>
           <Btn v-if="memento?.connected" kind="danger" @click="dropMemento">disconnect</Btn>
           <Btn v-else kind="mini" @click="linkMemento">connect</Btn>
+        </div>
+      </div>
+    </ConsoleCard>
+
+    <ConsoleCard v-if="hasUnipile" title="linkedin (unipile)"
+      sub="connect your own linkedin under the shared unipile subscription — hosted login, no cookie, no extension. the unipile tools then act as you.">
+      <div class="rowlist">
+        <div class="rowitem" style="gap: 12px">
+          <Dot :tone="unipile?.connected ? 'olive' : 'faint'" :size="8" />
+          <div style="min-width: 0; flex: 1">
+            <div style="font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: center">
+              linkedin <Tag tone="cobalt">hosted</Tag>
+            </div>
+            <div style="font-size: 11.5px; color: var(--color-mute)">
+              {{ unipile?.connected
+                ? `connected ${fmtDate(unipile.connected_at) ?? ''} · search, scrape & message as you`
+                : 'not connected — link your linkedin to search, scrape & message as yourself' }}
+            </div>
+          </div>
+          <Btn v-if="unipile?.connected" kind="danger" @click="dropUnipile">disconnect</Btn>
+          <Btn v-else kind="mini" @click="linkUnipile">connect</Btn>
         </div>
       </div>
     </ConsoleCard>
