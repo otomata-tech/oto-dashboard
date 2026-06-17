@@ -13,7 +13,7 @@ import {
   getConnectors, setCredential, deleteApiKey, deleteLinkedin, deleteCrunchbase,
   getGoogleStatus, startGoogleOauth, setGoogleDefault, revokeGoogle,
   getMementoStatus, startMementoOauth, disconnectMemento,
-  getUnipileStatus, connectUnipile, syncUnipile, disconnectUnipile,
+  getUnipileStatus, connectUnipile, disconnectUnipile,
   getTokens, createToken, deleteToken,
 } from '@/api/console'
 import type { ConnectorMeta, ConnectorMode, DotTone } from '@/lib/consoleTypes'
@@ -73,10 +73,14 @@ onMounted(async () => {
   const up = new URLSearchParams(window.location.search).get('unipile')
   if (p || up) window.history.replaceState({}, '', window.location.pathname)
   if (up === 'connected') {
-    try {
-      const r = await syncUnipile()
-      toast(r.connected ? 'linkedin connecté via unipile' : 'connexion enregistrée — synchro en attente')
-    } catch (e) { toast(humanize(e)) }
+    // Le webhook lie l'account_id côté serveur (asynchrone) — on poll le statut
+    // le temps qu'il arrive (quelques secondes).
+    for (let i = 0; i < 5; i++) {
+      unipile.value = await getUnipileStatus().catch(() => unipile.value)
+      if (unipile.value?.connected) break
+      await new Promise((r) => setTimeout(r, 1200))
+    }
+    toast(unipile.value?.connected ? 'linkedin connecté via unipile' : 'connexion en cours — rafraîchis dans un instant')
   } else if (up === 'failed') {
     toast('échec de la connexion linkedin')
   }
