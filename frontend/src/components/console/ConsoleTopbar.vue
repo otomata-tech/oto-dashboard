@@ -7,9 +7,11 @@ import { PAGE_META } from '@/lib/consoleNav'
 import { useMe } from '@/composables/useMe'
 import { getMyOrgs, setActiveOrg } from '@/api/console'
 import type { Org } from '@/types/api'
+import { useNav } from '@/composables/useNav'
 
 const route = useRoute()
 const { me } = useMe()
+const { toggleNav } = useNav()
 const meta = computed(() =>
   route.name === 'admin-user'
     ? { title: 'user fiche', crumb: 'platform · admin' }
@@ -47,7 +49,10 @@ async function pick(o: Org) {
 
 <template>
   <header class="topbar">
-    <div style="display: flex; align-items: baseline; gap: 10px">
+    <button class="nav-toggle" aria-label="ouvrir le menu" @click="toggleNav">
+      <Icon name="menu" :size="18" />
+    </button>
+    <div class="topbar-title">
       <h1>{{ meta.title }}</h1>
       <span class="crumb">{{ meta.crumb }}</span>
     </div>
