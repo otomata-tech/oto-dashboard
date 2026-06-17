@@ -5,7 +5,7 @@ import { onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Btn from '@/components/console/Btn.vue'
-import { getWaitlist, grantAlphaAccess, adminAlphaInvite, listAlphaInvites, revokeAlphaInvite } from '@/api/console'
+import { getWaitlist, grantAlphaAccess, adminAlphaInvite, listAlphaInvites, revokeAlphaInvite, resendAlphaInvite } from '@/api/console'
 import type { WaitlistEntry, AlphaInvite } from '@/types/api'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
@@ -26,6 +26,24 @@ async function load() {
     invites.value = i.invitations
     error.value = null
   } catch (e) { error.value = humanize(e) }
+}
+
+async function resend(inv: AlphaInvite) {
+  busy.value = `inv:${inv.id}`
+  try {
+    const res = await resendAlphaInvite(inv.email)
+    if (res.emailed) {
+      toast(`invitation re-sent to ${res.email}`)
+    } else {
+      await promptForm({
+        title: 'share this invitation link',
+        description: 'email delivery is off on this server — copy and send it yourself.',
+        fields: [{ key: 'url', label: 'invitation link', value: res.invite_url }],
+        submitLabel: 'done',
+      })
+    }
+    await load()
+  } catch (e) { toast(humanize(e)) } finally { busy.value = null }
 }
 
 async function revoke(inv: AlphaInvite) {
@@ -102,7 +120,7 @@ onMounted(load)
     <ConsoleCard flush title="pending invitations"
       sub="alpha invitations sent but not yet accepted. revoke to kill the link.">
       <table class="tbl">
-        <thead><tr><th>email</th><th>sent</th><th>expires</th><th style="width: 110px"></th></tr></thead>
+        <thead><tr><th>email</th><th>sent</th><th>expires</th><th style="width: 150px"></th></tr></thead>
         <tbody>
           <tr v-for="inv in invites" :key="inv.id">
             <td>
@@ -111,10 +129,9 @@ onMounted(load)
             </td>
             <td class="dim">{{ inv.created_at }}</td>
             <td class="dim">{{ inv.expires_at }}</td>
-            <td style="text-align: right">
-              <Btn kind="mini" :disabled="busy === `inv:${inv.id}`" @click="revoke(inv)">
-                {{ busy === `inv:${inv.id}` ? 'revoking…' : 'revoke' }}
-              </Btn>
+            <td style="text-align: right; white-space: nowrap">
+              <Btn kind="mini" :disabled="busy === `inv:${inv.id}`" @click="resend(inv)">resend</Btn>
+              <Btn kind="mini" :disabled="busy === `inv:${inv.id}`" @click="revoke(inv)" style="margin-left: 6px">revoke</Btn>
             </td>
           </tr>
           <tr v-if="!invites.length">
