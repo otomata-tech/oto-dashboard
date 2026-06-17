@@ -111,6 +111,13 @@ export interface WaitlistEntry {
   created_at: string
 }
 
+export interface InvitePreview {
+  email: string
+  referral: boolean
+  inviter: string | null
+  org_name: string | null
+}
+
 export interface AlphaInvite {
   id: number
   email: string

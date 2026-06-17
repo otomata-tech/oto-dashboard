@@ -1,6 +1,6 @@
 // Client REST typé pour la console — toutes les routes oto-mcp (api_routes*.py).
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
-import { api, apiUpload } from '@/api'
+import { api, apiUpload, apiPublic } from '@/api'
 import type {
   AdminUser, AdminUserDetail, AdminOrgSummary, ApiToken, BillingBalance, ConnectorActivation, ConnectorMeta,
   CreditPack, CreditTransaction, DoctrineBundle,
@@ -8,7 +8,7 @@ import type {
   InstructionVersion, Me, MonitoringSummary,
   NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage,
-  WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus, WaitlistEntry, AlphaInvite,
+  WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus, WaitlistEntry, AlphaInvite, InvitePreview,
 } from '@/types/api'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
@@ -118,6 +118,10 @@ export const inviteMember = (id: number, email: string, role: OrgRole) =>
     `/api/orgs/${id}/invitations`, { method: 'POST', ...j({ email, role }) })
 export const revokeInvitation = (id: number, inviteId: number) =>
   api(`/api/orgs/${id}/invitations/${inviteId}`, { method: 'DELETE' })
+// Aperçu public d'une invitation (sans auth — le token est le secret). Alimente
+// la page d'accueil « vous êtes invité·e » avant la création de compte.
+export const previewInvite = (token: string) =>
+  apiPublic<InvitePreview>(`/api/invitations/${encodeURIComponent(token)}`)
 export const acceptInvite = (token: string) =>
   api<{ ok: boolean; referral: boolean; org_id: number | null; org_role: string | null; name: string | null }>(
     '/api/me/invitations/accept', { method: 'POST', ...j({ token }) })
