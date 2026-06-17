@@ -64,7 +64,7 @@ export const getDoctrine = () => api<DoctrineBundle>('/api/me/instructions')
 export const getInstruction = (slug: string, version?: number) =>
   api<InstructionDetail>(`/api/me/instructions/${slug}${version ? `?version=${version}` : ''}`)
 export const putInstruction = (slug: string, body_md: string, title?: string, description?: string) =>
-  api<{ ok: boolean; slug: string; version: number }>(`/api/me/instructions/${slug}`, { method: 'PUT', ...j({ body_md, title, description }) })
+  api<{ ok: boolean; slug: string; version: number; unresolved_tools?: string[] }>(`/api/me/instructions/${slug}`, { method: 'PUT', ...j({ body_md, title, description }) })
 export const getInstructionVersions = (slug: string) =>
   api<{ slug: string; versions: InstructionVersion[] }>(`/api/me/instructions/${slug}/versions`)
 export const revertInstruction = (slug: string, version: number) =>
