@@ -8,13 +8,21 @@ import { NAV } from '@/lib/consoleNav'
 import { useMe } from '@/composables/useMe'
 import { useAuth } from '@/composables/useAuth'
 import { useNav } from '@/composables/useNav'
+import { useScope } from '@/composables/useScope'
 
 const route = useRoute()
 const { me } = useMe()
 const { logout } = useAuth()
 const { navOpen, closeNav } = useNav()
+const { registre, activeScope } = useScope()
 
-const visibleGroups = computed(() => NAV.filter((g) => !g.admin || me.value?.role === 'admin'))
+// La sidebar ne montre que le registre actif ; en gouvernance, que le scope
+// sélectionné. Le scope plateforme reste gaté par le rôle admin (l'API l'impose
+// aussi côté serveur, l'UI ne fait que masquer).
+const visibleGroups = computed(() =>
+  NAV.filter((g) => g.registre === registre.value)
+     .filter((g) => g.registre !== 'gov' || g.scope === activeScope.value)
+     .filter((g) => !g.admin || me.value?.role === 'admin'))
 </script>
 
 <template>
