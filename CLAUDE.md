@@ -9,6 +9,7 @@ Dashboard produit d'**oto-mcp** (gestion de compte, connecteurs, orgs, doctrine)
 - Vue 3 + Vite + TypeScript (`frontend/`), port dev **5192**
 - shadcn-vue (base reka, style vega, stone) + Tailwind CSS v4 — composants dans `src/components/ui/`
 - Tokens Otomata (« Manuscrit chaud ») en CSS pur — **aucune dépendance à @otomata/ui**. ⚠️ Deux fichiers, ne pas confondre : `src/assets/main.css` (`@theme`) ne déclare que les **6 couleurs de base** (génération des utilitaires Tailwind) ; le **set complet** (`--color-surface`/`-bg`/`-ink-soft`/`-hair-soft`/`-paper-3` + tous les `-soft`/`-ink` des accents + `--ease-out`, classes `.o-medallion`/`.fadein`, keyframes `oto-pulse`) vit dans **`src/assets/console.css`**, importé global via `main.ts`, consommé par les vues console en `var(--…)`. Pour un écran console, piocher dans `console.css`.
+- **Design system console : `DESIGN.md`** (racine repo) — catalogue d'usage des classes `console.css` (shell, card, grilles, stats, tables, tags sémantiques, boutons, états empty/error/loading, checklist nouvel écran) + tableau « marketing vs console » (mêmes tokens, deux dialectes à ne pas transplanter). Tokens « Manuscrit chaud » communs : `@otomata/ui` `THEME.md`.
 - Auth : `@logto/browser` (PKCE) via `src/composables/useAuth.ts` — interface `initAuth/login/logout/getAccessToken` ; `getAccessToken` lève `stale_session` sur token undefined (gotcha @logto)
 - API : `src/api.ts` — fetch authentifié vers `VITE_OTO_MCP_BASE`
 
@@ -42,6 +43,12 @@ pour **tous** les users (plus seulement les entitled). `OverviewView` ajoute une
 d'onboarding « connect your knowledge base » (auto-prompt) tant que `me.memento.connected` est
 faux. `Me.memento` (`{connected, set_at}`) vient de `GET /api/me`. Le compte memento est
 provisionné automatiquement à la création du compte oto (côté backend).
+
+## Mémoire — datastore + knowledge (ADR 0016)
+
+Groupe nav **« memory »** (`consoleNav.ts`) = deux surfaces de mémoire :
+- **Datastore** (`/console/data`, `DataView.vue`) — stockage tabulaire per-user, **substrat PG natif** (plus Google Sheets) ; liste/crée des namespaces, badge « shared ». `getNamespaces` renvoie des `NamespaceEntry` (objets, pas des strings). Plus de gate Google.
+- **Knowledge** (`/console/knowledge`, `KnowledgeView.vue`) — connexion **Memento opt-in** (réutilise `getMementoStatus`/`startMementoOauth`/`disconnectMemento`, mêmes endpoints que la carte federated mcp de `ConnectorsView`) ; pas de browse des KB (déféré). Retour OAuth `?memento=connected|error`.
 
 ## Conventions
 
