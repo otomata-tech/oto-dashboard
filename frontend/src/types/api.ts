@@ -210,12 +210,14 @@ export interface MementoStatus {
   set_at: string | null
 }
 
-// Unipile (LinkedIn hébergé) — l'user connecte SON LinkedIn (account_id per-user)
-// sous la clé Unipile partagée de l'org. connected=false → doit faire le hosted-auth.
-export interface UnipileStatus {
-  connected: boolean
-  account_id: string | null
-  connected_at: string | null
+// Datastore (ADR 0016) — un namespace possédé ou partagé.
+export interface NamespaceEntry {
+  namespace: string
+  url: string
+  shared: boolean
+  created_at?: string | null
+  owner_sub?: string
+  permission?: string
 }
 
 // ── orgs ──
