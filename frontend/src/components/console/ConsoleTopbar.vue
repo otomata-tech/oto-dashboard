@@ -5,7 +5,7 @@ import Icon from './Icon.vue'
 import Dot from './Dot.vue'
 import Avatar from './Avatar.vue'
 import { PAGE_META } from '@/lib/consoleNav'
-import { useMe } from '@/composables/useMe'
+import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { getMyOrgs, setActiveOrg, clearActiveOrg } from '@/api/console'
 import type { Org } from '@/types/api'
 import { useNav } from '@/composables/useNav'
@@ -81,7 +81,7 @@ async function pickPerso() {
       <!-- Scope de gouvernance : org vs plateforme (plateforme gatée admin) -->
       <div v-if="registre === 'gov'" class="scope-switch" aria-label="scope de gouvernance">
         <button class="scope" :class="{ on: activeScope === 'org' }" @click="goScope('org')">org</button>
-        <button v-if="me.role === 'admin'" class="scope plat" :class="{ on: activeScope === 'platform' }" @click="goScope('platform')">plateforme</button>
+        <button v-if="isPlatformOperator(me)" class="scope plat" :class="{ on: activeScope === 'platform' }" @click="goScope('platform')">plateforme</button>
       </div>
       <div class="org-switch">
         <button class="org-pill" :aria-expanded="open" @click="toggle">

@@ -6,7 +6,7 @@ import type {
   CreditPack, CreditTransaction, DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, Me, MonitoringSummary,
-  NamespaceEntry, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ToolCall, ToolEntry,
+  NamespaceEntry, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage,
   WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus, UnipileStatus, WaitlistEntry, AlphaInvite, InvitePreview,
 } from '@/types/api'
@@ -214,7 +214,7 @@ export const revertGroupInstruction = (id: number, slug: string, version: number
 export const getAdminUsers = () => api<{ users: AdminUser[] }>('/api/admin/users')
 export const getAdminUser = (sub: string) =>
   api<AdminUserDetail>(`/api/admin/users/${encodeURIComponent(sub)}`)
-export const setUserRole = (sub: string, role: string) =>
+export const setUserRole = (sub: string, role: Role) =>
   api(`/api/admin/users/${sub}/role`, { method: 'POST', ...j({ role }) })
 export const getPlatformKeys = () => api<{ platform_keys: PlatformKey[] }>('/api/admin/platform-keys')
 export const createPlatformKey = (provider: string, label: string, api_key: string) =>

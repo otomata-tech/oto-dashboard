@@ -1,7 +1,12 @@
 // Contrats REST oto-backend (mcp.oto.ninja) consommés par le dashboard.
 // Reflètent les handlers de oto-mcp (api_routes*.py) + l'ancien account/src/types.
 
-export type Role = 'member' | 'admin'
+// Paliers de rôle plateforme (3 crans, ADR rôles) :
+//   super_admin > admin (opérateur) > member.
+// super_admin = tout-puissant (rôles plateforme, platform keys) ; admin = palier
+// OPÉRATIONNEL (voit la section « platform · admin » et la majorité des écrans en
+// lecture/gestion, mais ne change PAS les rôles plateforme ni les platform keys).
+export type Role = 'member' | 'admin' | 'super_admin'
 export type OrgRole = 'org_member' | 'org_admin'
 export type GroupRole = 'group_member' | 'group_admin'   // chef d'équipe = group_admin
 

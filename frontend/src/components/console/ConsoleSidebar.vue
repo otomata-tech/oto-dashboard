@@ -5,7 +5,7 @@ import Icon from './Icon.vue'
 import Dot from './Dot.vue'
 import Avatar from './Avatar.vue'
 import { NAV } from '@/lib/consoleNav'
-import { useMe } from '@/composables/useMe'
+import { useMe, isPlatformOperator, isSuperAdmin } from '@/composables/useMe'
 import { useAuth } from '@/composables/useAuth'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
@@ -17,12 +17,18 @@ const { navOpen, closeNav } = useNav()
 const { registre, activeScope } = useScope()
 
 // La sidebar ne montre que le registre actif ; en gouvernance, que le scope
-// sélectionné. Le scope plateforme reste gaté par le rôle admin (l'API l'impose
-// aussi côté serveur, l'UI ne fait que masquer).
+// sélectionné. Le scope plateforme reste gaté par le rôle plateforme (opérateur
+// admin OU super_admin ; l'API l'impose aussi côté serveur, l'UI ne fait que
+// masquer). Les items marqués `super` (ex. platform keys) ne sortent qu'au
+// super_admin — les autres restent visibles à l'opérateur.
 const visibleGroups = computed(() =>
   NAV.filter((g) => g.registre === registre.value)
      .filter((g) => g.registre !== 'gov' || g.scope === activeScope.value)
-     .filter((g) => !g.admin || me.value?.role === 'admin'))
+     .filter((g) => !g.admin || isPlatformOperator(me.value))
+     .map((g) => ({
+       ...g,
+       items: g.items.filter((it) => !it.super || isSuperAdmin(me.value)),
+     })))
 </script>
 
 <template>
