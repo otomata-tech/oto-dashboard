@@ -7,7 +7,7 @@ import type {
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, Me, MonitoringSummary,
   NamespaceEntry, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
-  ToolRegistryEntry, InstructionUsage,
+  ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall,
   WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus, UnipileStatus, WaitlistEntry, AlphaInvite, InvitePreview,
 } from '@/types/api'
 
@@ -275,6 +275,13 @@ export const getMonitoringCalls = (params: { limit?: number; sub?: string; tool?
   const qs = q.toString()
   return api<{ calls: ToolCall[] }>(`/api/admin/monitoring/calls${qs ? `?${qs}` : ''}`)
 }
+
+// ── usage / déroulés (ADR 0017, admin) ──
+export const getUsageRuns = () => api<{ runs: DoctrineRun[] }>('/api/admin/usage/runs')
+export const getUsageRun = (runId: string) =>
+  api<{ run_id: string; calls: RunCall[] }>(`/api/admin/usage/runs/${runId}`)
+export const getUsageGaps = () => api<{ gaps: UsageGap[] }>('/api/admin/usage/gaps')
+export const getUsageToolQuality = () => api<{ tools: ToolFeedbackAgg[] }>('/api/admin/usage/tool-quality')
 
 // Activité de l'utilisateur courant (ses propres appels) — per-user, pas admin.
 export const getMyCalls = (params: { limit?: number; tool?: string; errors?: boolean; days?: number } = {}) => {
