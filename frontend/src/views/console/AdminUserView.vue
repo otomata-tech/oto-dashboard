@@ -8,13 +8,14 @@ import Dot from '@/components/console/Dot.vue'
 import ErrLabel from '@/components/console/ErrLabel.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt, type PromptField } from '@/composables/usePrompt'
+import { useMe, isSuperAdmin } from '@/composables/useMe'
 import {
   getAdminUser, setUserRole, getPlatformKeys, getConnectors, getMonitoringCalls,
   grantPlatformKey, revokePlatformKey, grantNamespace, revokeNamespaceGrant, resendAlphaInvite,
   setAdminOrgMemberRole,
 } from '@/api/console'
 import type {
-  AdminGrant, AdminUserDetail, AdminUserOrg, ConnectorMeta, NamespaceGrant, PlatformKey, ProviderStatus, ToolCall,
+  AdminGrant, AdminUserDetail, AdminUserOrg, ConnectorMeta, NamespaceGrant, PlatformKey, ProviderStatus, Role, ToolCall,
 } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -22,6 +23,11 @@ import { humanize } from '@/lib/errors'
 const route = useRoute()
 const { toast } = useToast()
 const { promptForm, confirmAction } = usePrompt()
+const { me } = useMe()
+
+// La gestion des rôles plateforme est réservée au super_admin (le backend rejette
+// de toute façon ; l'UI ne propose pas l'action à un simple opérateur).
+const canManageRoles = computed(() => isSuperAdmin(me.value))
 
 const sub = computed(() => String(route.params.sub))
 const detail = ref<AdminUserDetail | null>(null)
@@ -31,7 +37,12 @@ const calls = ref<ToolCall[]>([])
 const error = ref<string | null>(null)
 const callsBusy = ref(false)
 
-const isAdmin = computed(() => detail.value?.role === 'admin')
+const currentRole = computed<Role>(() => detail.value?.role ?? 'member')
+// Libellés des 3 paliers plateforme, pour le Tag de la fiche.
+const roleLabel = computed(() =>
+  currentRole.value === 'super_admin' ? 'super admin'
+  : currentRole.value === 'admin' ? 'operator admin'
+  : 'member')
 const accessStatus = computed(() => detail.value?.access_status ?? null)
 // On propose le renvoi tant que l'accès n'est pas actif (waitlist/pending ou bloqué),
 // ou s'il reste une invitation en attente pour son email.
@@ -97,12 +108,25 @@ async function resendInvite() {
   } catch (e) { toast(humanize(e)) } finally { resending.value = false }
 }
 
-async function toggleAdmin() {
-  const next = isAdmin.value ? 'member' : 'admin'
-  const msg = isAdmin.value
-    ? 'remove platform admin from this user?'
-    : 'make this user a platform admin? they get the full platform · admin section.'
-  if (!await confirmAction({ title: 'platform role', danger: isAdmin.value, confirmLabel: next === 'admin' ? 'make admin' : 'remove admin', message: msg })) return
+// Pose explicitement un des 3 paliers plateforme. Confirmation requise ;
+// rétrograder un super_admin (perte des droits sensibles) est marqué danger.
+async function setRole(next: Role) {
+  if (next === currentRole.value) return
+  const labels: Record<Role, string> = {
+    super_admin: 'make super admin',
+    admin: 'make operator admin',
+    member: 'demote to member',
+  }
+  const descr: Record<Role, string> = {
+    super_admin: 'full power: manages platform roles and platform keys.',
+    admin: 'operational tier: sees the platform · admin section, but cannot change platform roles or manage platform keys.',
+    member: 'no platform admin access.',
+  }
+  const danger = currentRole.value === 'super_admin' // rétrogradation depuis super_admin
+  if (!await confirmAction({
+    title: 'platform role', danger, confirmLabel: labels[next],
+    message: `${labels[next]} for this user? ${descr[next]}`,
+  })) return
   try { await setUserRole(sub.value, next); toast(`role → ${next}`); await loadDetail() }
   catch (e) { toast(humanize(e)) }
 }
@@ -175,12 +199,18 @@ async function toggleOrgRole(o: AdminUserOrg) {
           <Tag v-if="accessStatus === 'active'" tone="olive">active</Tag>
           <Tag v-else-if="accessStatus === 'blocked'" tone="terra">blocked</Tag>
           <Tag v-else-if="accessStatus" tone="saffron">{{ accessStatus }}</Tag>
-          <Tag v-if="isAdmin" tone="ink">platform admin</Tag>
-          <Tag v-else tone="olive">user</Tag>
+          <Tag v-if="currentRole === 'super_admin'" tone="terra">{{ roleLabel }}</Tag>
+          <Tag v-else-if="currentRole === 'admin'" tone="ink">{{ roleLabel }}</Tag>
+          <Tag v-else tone="olive">member</Tag>
           <Btn v-if="canResend" kind="mini" :disabled="resending" @click="resendInvite">
             {{ resending ? 'sending…' : 'resend invite' }}
           </Btn>
-          <Btn kind="mini" @click="toggleAdmin">{{ isAdmin ? 'remove admin' : 'make admin' }}</Btn>
+          <!-- gestion des rôles plateforme : super_admin seul ; un bouton par palier sauf le courant -->
+          <template v-if="canManageRoles">
+            <Btn v-if="currentRole !== 'super_admin'" kind="mini" @click="setRole('super_admin')">make super admin</Btn>
+            <Btn v-if="currentRole !== 'admin'" kind="mini" @click="setRole('admin')">make operator admin</Btn>
+            <Btn v-if="currentRole !== 'member'" kind="mini" @click="setRole('member')">demote to member</Btn>
+          </template>
         </template>
         <div class="helptext">
           {{ detail.email }} · <code class="mono">{{ detail.sub }}</code>
@@ -189,7 +219,9 @@ async function toggleOrgRole(o: AdminUserOrg) {
           pending alpha invitation · expires {{ fmtDate(detail.pending_invite.expires_at) }} — resend issues a fresh link.
         </div>
         <div class="helptext" style="margin-top: 6px">
-          platform role gates only the admin section — tool access comes from keys, grants and org membership below.
+          platform role has three tiers — <strong>super admin</strong> (full power: manages platform roles &amp; platform keys),
+          <strong>operator admin</strong> (sees the platform · admin section, but can't change roles or platform keys),
+          and <strong>member</strong>. it gates only the admin section — tool access comes from keys, grants and org membership below.
         </div>
       </ConsoleCard>
 

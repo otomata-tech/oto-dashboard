@@ -13,7 +13,7 @@ import McpEndpointCard from '@/components/console/McpEndpointCard.vue'
 import StateEmpty from '@/components/console/StateEmpty.vue'
 import Squiggle from '@/components/console/Squiggle.vue'
 import InviteFriendCard from '@/components/console/InviteFriendCard.vue'
-import { useMe } from '@/composables/useMe'
+import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { getConnectors, getDoctrine, getGoogleStatus, getMonitoringSummary } from '@/api/console'
 import type { ConnectorMeta, GoogleOauthStatus, MonitoringSummary } from '@/types/api'
 import { toDayBars } from '@/lib/monitoring'
@@ -32,7 +32,8 @@ const doctrineExists = ref(false)
 const summary = ref<MonitoringSummary | null>(null)
 const error = ref<string | null>(null)
 
-const isAdmin = computed(() => me.value?.role === 'admin')
+// Opérateur plateforme (admin OU super_admin) : voit le résumé monitoring.
+const isAdmin = computed(() => isPlatformOperator(me.value))
 
 // ── signaux dérivés de me.providers ──
 const keyProviders = computed(() => catalog.value.filter((c) => !c.personal_session && c.secret_kind !== 'none'))

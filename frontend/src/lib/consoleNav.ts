@@ -18,13 +18,14 @@ export interface NavItem {
   icon: string
   warn?: boolean
   count?: string
+  super?: boolean // visible au super_admin seul (action plateforme sensible)
 }
 
 export interface NavGroup {
   group: string | null
   registre: Registre
   scope?: GovScope // gouvernance uniquement
-  admin?: boolean
+  admin?: boolean // section gatée : visible à l'opérateur plateforme (admin) ET au super_admin
   items: NavItem[]
 }
 
@@ -60,7 +61,7 @@ export const NAV: NavGroup[] = [
     { id: 'adminusers', label: 'users & grants', icon: 'shield' },
     { id: 'adminaccess', label: 'alpha access', icon: 'shield' },
     { id: 'adminorgs', label: 'orgs', icon: 'building' },
-    { id: 'platformkeys', label: 'platform keys', icon: 'key' },
+    { id: 'platformkeys', label: 'platform keys', icon: 'key', super: true },
     { id: 'adminconnectors', label: 'connector activation', icon: 'plug' },
   ]},
 ]

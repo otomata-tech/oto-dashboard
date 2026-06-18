@@ -57,7 +57,8 @@ onMounted(async () => {
               <div style="font-size: 11px; color: var(--color-faint)">{{ u.email }}</div>
             </td>
             <td>
-              <Tag v-if="u.effective_role === 'admin'" tone="ink">admin</Tag>
+              <Tag v-if="u.effective_role === 'super_admin'" tone="terra">super admin</Tag>
+              <Tag v-else-if="u.effective_role === 'admin'" tone="ink">admin</Tag>
               <Tag v-else tone="olive">user</Tag>
             </td>
             <td class="dim">{{ u.grants.length }} key{{ u.grants.length === 1 ? '' : 's' }} · {{ nsCountFor(u.sub) }} ns</td>

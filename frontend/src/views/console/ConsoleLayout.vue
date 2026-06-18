@@ -11,7 +11,7 @@ import WaitlistView from './WaitlistView.vue'
 import LoginGate from './LoginGate.vue'
 import { useToast } from '@/composables/useToast'
 import { useAuth } from '@/composables/useAuth'
-import { useMe } from '@/composables/useMe'
+import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 
 import OverviewView from './OverviewView.vue'
@@ -87,8 +87,8 @@ const viewKey = computed(() => (route.name === 'admin-user' ? route.fullPath : s
         <ConsoleTopbar />
         <div class="content">
           <StateError v-if="error" :message="error" @retry="load(true)" />
-          <WaitlistView v-else-if="me && me.access?.status === 'pending' && me.role !== 'admin'" />
-          <WelcomeOrg v-else-if="me && me.active_org == null && me.role !== 'admin'" />
+          <WaitlistView v-else-if="me && me.access?.status === 'pending' && !isPlatformOperator(me)" />
+          <WelcomeOrg v-else-if="me && me.active_org == null && !isPlatformOperator(me)" />
           <component :is="current" v-else-if="me" :key="viewKey" />
           <SkeletonOverview v-else />
         </div>
