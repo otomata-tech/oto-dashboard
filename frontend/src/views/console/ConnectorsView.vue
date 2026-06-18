@@ -13,7 +13,7 @@ import {
   getConnectors, setCredential, deleteApiKey, deleteLinkedin, deleteCrunchbase,
   getGoogleStatus, startGoogleOauth, setGoogleDefault, revokeGoogle,
   getMementoStatus, startMementoOauth, disconnectMemento,
-  getUnipileStatus, connectUnipile, disconnectUnipile,
+  getUnipileStatus, subscribeUnipile, connectUnipile, disconnectUnipile,
   getTokens, createToken, deleteToken,
 } from '@/api/console'
 import type { ConnectorMeta, ConnectorMode, DotTone } from '@/lib/consoleTypes'
@@ -83,6 +83,17 @@ onMounted(async () => {
     toast(unipile.value?.connected ? 'linkedin connecté via unipile' : 'connexion en cours — rafraîchis dans un instant')
   } else if (up === 'failed') {
     toast('échec de la connexion linkedin')
+  } else if (up === 'subscribed') {
+    // Retour du checkout Stripe (abonnement option LinkedIn) — le webhook bascule
+    // l'org en `active` (asynchrone), on poll le statut le temps qu'il arrive.
+    for (let i = 0; i < 5; i++) {
+      unipile.value = await getUnipileStatus().catch(() => unipile.value)
+      if (unipile.value?.subscribed) break
+      await new Promise((r) => setTimeout(r, 1200))
+    }
+    toast(unipile.value?.subscribed ? 'option linkedin activée' : 'activation en cours — rafraîchis dans un instant')
+  } else if (up === 'cancel') {
+    toast('activation annulée')
   }
   load()
 })
@@ -97,6 +108,10 @@ async function dropMemento() {
   catch (e) { toast(humanize(e)) }
 }
 
+async function activateUnipile() {
+  try { const { checkout_url } = await subscribeUnipile(); window.location.href = checkout_url }
+  catch (e) { toast(humanize(e)) }
+}
 async function linkUnipile() {
   try { const { url } = await connectUnipile(); window.location.href = url }
   catch (e) { toast(humanize(e)) }
@@ -312,22 +327,28 @@ async function revokeToken(t: ApiToken) {
     </ConsoleCard>
 
     <ConsoleCard v-if="hasUnipile" title="linkedin (unipile)"
-      sub="connect your own linkedin under the shared unipile subscription — hosted login, no cookie, no extension. the unipile tools then act as you.">
+      sub="a paid add-on — €15/mo per connected linkedin. hosted login, no cookie, no extension; the unipile tools then act as you. mcp call credits apply on top.">
       <div class="rowlist">
         <div class="rowitem" style="gap: 12px">
-          <Dot :tone="unipile?.connected ? 'olive' : 'faint'" :size="8" />
+          <Dot :tone="unipile?.connected ? 'olive' : (unipile?.subscribed ? 'saffron' : 'faint')" :size="8" />
           <div style="min-width: 0; flex: 1">
             <div style="font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: center">
               linkedin <Tag tone="cobalt">hosted</Tag>
+              <Tag v-if="unipile?.subscribed" tone="olive">option active</Tag>
             </div>
             <div style="font-size: 11.5px; color: var(--color-mute)">
-              {{ unipile?.connected
-                ? `connected ${fmtDate(unipile.connected_at) ?? ''} · search, scrape & message as you`
-                : 'not connected — link your linkedin to search, scrape & message as yourself' }}
+              {{ !unipile?.subscribed
+                ? 'option not active — €15/mo per linkedin seat, billed monthly'
+                : (unipile?.connected
+                  ? `connected ${fmtDate(unipile.connected_at) ?? ''} · search, scrape & message as you`
+                  : 'option active — link your linkedin to start') }}
             </div>
           </div>
-          <Btn v-if="unipile?.connected" kind="danger" @click="dropUnipile">disconnect</Btn>
-          <Btn v-else kind="mini" @click="linkUnipile">connect</Btn>
+          <Btn v-if="!unipile?.subscribed" kind="mini" @click="activateUnipile">activate · €15/mo</Btn>
+          <template v-else>
+            <Btn v-if="unipile?.connected" kind="danger" @click="dropUnipile">disconnect</Btn>
+            <Btn v-else kind="mini" @click="linkUnipile">connect</Btn>
+          </template>
         </div>
       </div>
     </ConsoleCard>

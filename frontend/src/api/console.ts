@@ -53,6 +53,7 @@ export const disconnectMemento = () => api('/api/memento/oauth', { method: 'DELE
 
 // ── unipile (LinkedIn hébergé) — hosted-auth per-user sous la clé partagée ──
 export const getUnipileStatus = () => api<UnipileStatus>('/api/me/unipile')
+export const subscribeUnipile = () => api<{ checkout_url: string }>('/api/me/unipile/subscribe', { method: 'POST' })
 export const connectUnipile = () => api<{ url: string }>('/api/me/unipile/connect', { method: 'POST' })
 export const disconnectUnipile = () => api('/api/me/unipile', { method: 'DELETE' })
 
