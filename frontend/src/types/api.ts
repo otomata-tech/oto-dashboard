@@ -423,6 +423,38 @@ export interface MonitoringSummary {
   by_day: MonitoringDayStat[]
 }
 
+// ── usage / déroulés de doctrine (ADR 0017) ──
+export interface DoctrineRun {
+  run_id: string
+  slug: string | null
+  sub: string | null
+  started_at: string
+  finished_at: string | null
+  outcome: string | null      // done | abandoned | failed | blocked (null = en cours)
+  n_calls: number
+}
+export interface UsageGap {
+  kind: string                // missing_tool | missing_doctrine | missing_data | other
+  intent: string | null       // ce que l'agent voulait faire
+  n: number
+  last_at: string
+}
+export interface ToolFeedbackAgg {
+  tool: string | null
+  kind: string                // bug | misleading_doc | wrong_result | praise | other
+  n: number
+  last_at: string
+}
+// Un appel dans la timeline d'un déroulé (get_doctrine_run) — colonnes brutes
+// tool_calls (tool/created_at), distinct du ToolCall aliasé du monitoring.
+export interface RunCall {
+  created_at: string
+  tool: string
+  ok: boolean
+  error: string | null
+  duration_ms: number | null
+}
+
 // ── scout (harnais prospection, ADR 0008) ──
 export type Heat = 'hot' | 'warm' | 'cold'
 export interface ScoutQueueItem {

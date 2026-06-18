@@ -58,6 +58,7 @@ export const NAV: NavGroup[] = [
   ]},
   { group: 'platform · admin', registre: 'gov', scope: 'platform', admin: true, items: [
     { id: 'monitoring', label: 'monitoring', icon: 'chart' },
+    { id: 'usage', label: 'usage & déroulés', icon: 'pulse' },
     { id: 'adminusers', label: 'users & grants', icon: 'shield' },
     { id: 'adminaccess', label: 'alpha access', icon: 'shield' },
     { id: 'adminorgs', label: 'orgs', icon: 'building' },
@@ -96,6 +97,7 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   org: { title: 'organization', crumb: 'governance · org' },
   groups: { title: 'departments', crumb: 'governance · org' },
   monitoring: { title: 'mcp monitoring', crumb: 'governance · platform' },
+  usage: { title: 'usage & déroulés', crumb: 'governance · platform' },
   adminusers: { title: 'users & grants', crumb: 'governance · platform' },
   adminaccess: { title: 'alpha access', crumb: 'governance · platform' },
   adminorgs: { title: 'organizations', crumb: 'governance · platform' },
