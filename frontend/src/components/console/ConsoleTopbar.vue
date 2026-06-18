@@ -9,13 +9,15 @@ import { useMe } from '@/composables/useMe'
 import { getMyOrgs, setActiveOrg, clearActiveOrg } from '@/api/console'
 import type { Org } from '@/types/api'
 import { useNav } from '@/composables/useNav'
+import { useScope } from '@/composables/useScope'
 
 const route = useRoute()
 const { me } = useMe()
 const { toggleNav } = useNav()
+const { registre, activeScope, goRegistre, goScope } = useScope()
 const meta = computed(() =>
   route.name === 'admin-user'
-    ? { title: 'user fiche', crumb: 'platform · admin' }
+    ? { title: 'user fiche', crumb: 'governance · platform' }
     : PAGE_META[String(route.params.section)] ?? PAGE_META.overview!)
 
 // ── switcher d'org (membre) ──
@@ -71,6 +73,16 @@ async function pickPerso() {
       <span class="crumb">{{ meta.crumb }}</span>
     </div>
     <div v-if="me" class="right">
+      <!-- Registre : consommer (« mon espace ») vs gouverner -->
+      <div class="reg-switch" role="tablist" aria-label="registre">
+        <button class="reg" :class="{ on: registre === 'work' }" role="tab" :aria-selected="registre === 'work'" @click="goRegistre('work')">mon espace</button>
+        <button class="reg" :class="{ on: registre === 'gov' }" role="tab" :aria-selected="registre === 'gov'" @click="goRegistre('gov')">gouvernance</button>
+      </div>
+      <!-- Scope de gouvernance : org vs plateforme (plateforme gatée admin) -->
+      <div v-if="registre === 'gov'" class="scope-switch" aria-label="scope de gouvernance">
+        <button class="scope" :class="{ on: activeScope === 'org' }" @click="goScope('org')">org</button>
+        <button v-if="me.role === 'admin'" class="scope plat" :class="{ on: activeScope === 'platform' }" @click="goScope('platform')">plateforme</button>
+      </div>
       <div class="org-switch">
         <button class="org-pill" :aria-expanded="open" @click="toggle">
           <template v-if="me.active_org_name">
@@ -128,9 +140,52 @@ async function pickPerso() {
       </div>
     </div>
   </header>
+
+  <!-- Signal franc : en gouvernance on AGIT SUR une org / la plateforme -->
+  <div v-if="me && registre === 'gov'" class="gov-banner" :class="{ platform: activeScope === 'platform' }">
+    <Icon name="shield" :size="13" />
+    <template v-if="activeScope === 'platform'">
+      administration plateforme — tes actions touchent <strong>toute la plateforme</strong>
+    </template>
+    <template v-else>
+      gouvernance — tu agis sur l'organisation <strong>{{ me.active_org_name || 'Perso (aucune org active)' }}</strong>
+    </template>
+  </div>
 </template>
 
 <style scoped>
+/* ── Registre + scope : segmented controls ── */
+.reg-switch, .scope-switch {
+  display: inline-flex; gap: 2px; padding: 2px;
+  background: var(--color-paper-2); border: 1px solid var(--color-hair);
+  border-radius: 9px;
+}
+.reg, .scope {
+  border: 0; background: transparent; cursor: pointer;
+  padding: 5px 10px; border-radius: 7px;
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.02em;
+  font-weight: 600; color: var(--color-mute); white-space: nowrap;
+}
+.reg:hover, .scope:hover { color: var(--color-ink); }
+.reg.on { background: var(--color-surface); color: var(--color-ink); box-shadow: 0 1px 2px rgb(0 0 0 / 0.06); }
+.scope.on { background: var(--color-surface); color: var(--color-ink); }
+.scope.plat.on { color: var(--color-saffron); }
+
+/* ── Bandeau de gouvernance ── */
+.gov-banner {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 18px; font-size: 12px; color: var(--color-ink-soft);
+  background: var(--color-saffron-soft);
+  border-bottom: 1px solid var(--color-hair);
+}
+.gov-banner strong { font-weight: 700; color: var(--color-ink); }
+.gov-banner.platform {
+  color: #7a2e0e;
+  background: color-mix(in srgb, var(--color-saffron) 22%, var(--color-surface));
+  border-bottom-color: color-mix(in srgb, var(--color-saffron) 45%, var(--color-hair));
+}
+.gov-banner.platform strong { color: #7a2e0e; }
+
 .org-switch { position: relative; }
 .org-backdrop { position: fixed; inset: 0; z-index: 40; }
 .org-menu {
