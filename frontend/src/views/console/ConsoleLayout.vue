@@ -19,6 +19,7 @@ import ConnectorsView from './ConnectorsView.vue'
 import ToolboxView from './ToolboxView.vue'
 import DoctrineView from './DoctrineView.vue'
 import DataView from './DataView.vue'
+import KnowledgeView from './KnowledgeView.vue'
 import ScoutView from './ScoutView.vue'
 import ActivityView from './ActivityView.vue'
 import BillingView from './BillingView.vue'
@@ -39,6 +40,7 @@ const VIEWS: Record<string, Component> = {
   toolbox: ToolboxView,
   doctrine: DoctrineView,
   data: DataView,
+  knowledge: KnowledgeView,
   scout: ScoutView,
   activity: ActivityView,
   billing: BillingView,

@@ -2,26 +2,22 @@
 import { onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
+import Tag from '@/components/console/Tag.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
-import { getNamespaces, createNamespace, getNamespaceUrl } from '@/api/console'
+import { getNamespaces, createNamespace } from '@/api/console'
+import type { NamespaceEntry } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
 const { promptText } = usePrompt()
-const namespaces = ref<string[]>([])
+const namespaces = ref<NamespaceEntry[]>([])
 const error = ref<string | null>(null)
 const loaded = ref(false)
 
 async function load() {
   try { namespaces.value = (await getNamespaces()).namespaces }
-  catch (e) {
-    const raw = humanize(e)
-    // pas de compte Google lié = état normal, pas une erreur : on laisse
-    // l'empty-state amical (« needs a linked google account ») s'afficher seul.
-    if (raw.includes('google_not_connected')) namespaces.value = []
-    else error.value = humanize(e)
-  }
+  catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
 onMounted(load)
@@ -32,10 +28,6 @@ async function create() {
   try { await createNamespace(ns); toast(`namespace "${ns}" created`); await load() }
   catch (e) { toast(humanize(e)) }
 }
-async function openSheet(ns: string) {
-  try { const { url } = await getNamespaceUrl(ns); window.open(url, '_blank', 'noopener') }
-  catch (e) { toast(humanize(e)) }
-}
 </script>
 
 <template>
@@ -43,22 +35,22 @@ async function openSheet(ns: string) {
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
     <ConsoleCard title="datastore namespaces" flush
-      sub="each namespace is a google sheet your agents read &amp; write through datastore_* tools.">
+      sub="lightweight tabular storage your agents read &amp; write through data_* tools.">
       <template #actions>
         <Btn kind="mini" icon="plus" @click="create">new namespace</Btn>
       </template>
       <table class="tbl">
-        <thead><tr><th>namespace</th><th style="width: 130px"></th></tr></thead>
+        <thead><tr><th>namespace</th><th style="width: 120px"></th></tr></thead>
         <tbody>
-          <tr v-for="ns in namespaces" :key="ns">
-            <td><code class="mono" style="font-weight: 600">{{ ns }}</code></td>
+          <tr v-for="ns in namespaces" :key="ns.namespace">
+            <td><code class="mono" style="font-weight: 600">{{ ns.namespace }}</code></td>
             <td style="text-align: right; white-space: nowrap">
-              <Btn kind="mini" icon="ext" @click="openSheet(ns)">open sheet</Btn>
+              <Tag v-if="ns.shared" tone="cobalt">shared · {{ ns.permission || 'read' }}</Tag>
             </td>
           </tr>
           <tr v-if="loaded && !namespaces.length">
             <td colspan="2" class="dim" style="text-align: center; padding: 16px">
-              no namespaces yet — needs a linked google account.
+              no namespaces yet — create one to let your agents store rows.
             </td>
           </tr>
         </tbody>
@@ -68,15 +60,17 @@ async function openSheet(ns: string) {
     <div class="grid2">
       <ConsoleCard title="how agents use this">
         <div class="helptext" style="font-size: 12.5px; line-height: 1.65">
-          <code style="font-size: 11px">datastore_set("prospects-q3", row)</code> appends to the sheet ·
-          <code style="font-size: 11px">datastore_query("prospects-q3", filter)</code> reads it back.
-          the sheet stays yours — share it, pivot it, plug it into looker. oto never locks your data in.
+          <code style="font-size: 11px">data_write("prospects-q3", row)</code> appends a row ·
+          <code style="font-size: 11px">data_rows("prospects-q3", filter)</code> reads it back ·
+          <code style="font-size: 11px">data_share("prospects-q3", email)</code> shares it with a teammate.
+          schema-free — new fields just appear.
         </div>
       </ConsoleCard>
-      <ConsoleCard title="backing store" sub="datastore is google sheets under the hood.">
+      <ConsoleCard title="backing store" sub="native, no external dependency.">
         <div class="helptext">
-          each namespace is a real sheet in your linked google drive. revoke the grant in
-          <strong>connectors</strong> and the tools lose access — your data stays in your drive.
+          rows live in oto's own database (postgres) — datastore works without connecting any
+          third-party account. exporting a namespace to a tool you control (sheets, notion…) is
+          on the roadmap.
         </div>
       </ConsoleCard>
     </div>

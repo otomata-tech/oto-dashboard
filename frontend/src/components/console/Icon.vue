@@ -29,6 +29,7 @@ const ICON_PATHS: Record<string, string> = {
   menu: 'M4 7h16M4 12h16M4 17h16',
   close: 'M6 6l12 12M18 6 6 18',
   card: 'M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Zm-1 4h20M6 15h4',
+  book: 'M12 6c-2-1.3-4.5-1.3-7 0v12c2.5-1.3 5-1.3 7 0m0-12c2-1.3 4.5-1.3 7 0v12c-2.5-1.3-5-1.3-7 0m0-12v12',
 }
 
 const props = withDefaults(defineProps<{ name: string; size?: number; sw?: number }>(), {
