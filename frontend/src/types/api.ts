@@ -220,6 +220,14 @@ export interface NamespaceEntry {
   permission?: string
 }
 
+// Unipile (LinkedIn hébergé) — l'user connecte SON LinkedIn (account_id per-user)
+// sous la clé Unipile partagée de l'org. connected=false → doit faire le hosted-auth.
+export interface UnipileStatus {
+  connected: boolean
+  account_id: string | null
+  connected_at: string | null
+}
+
 // ── orgs ──
 export interface Org {
   id: number

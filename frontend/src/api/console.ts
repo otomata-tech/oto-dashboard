@@ -8,7 +8,7 @@ import type {
   InstructionVersion, Me, MonitoringSummary,
   NamespaceEntry, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage,
-  WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus, WaitlistEntry, AlphaInvite, InvitePreview,
+  WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus, UnipileStatus, WaitlistEntry, AlphaInvite, InvitePreview,
 } from '@/types/api'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
@@ -50,6 +50,11 @@ export const revokeGoogle = (account?: string) =>
 export const getMementoStatus = () => api<MementoStatus>('/api/memento/oauth/status')
 export const startMementoOauth = () => api<{ auth_url: string }>('/api/memento/oauth/start')
 export const disconnectMemento = () => api('/api/memento/oauth', { method: 'DELETE' })
+
+// ── unipile (LinkedIn hébergé) — hosted-auth per-user sous la clé partagée ──
+export const getUnipileStatus = () => api<UnipileStatus>('/api/me/unipile')
+export const connectUnipile = () => api<{ url: string }>('/api/me/unipile/connect', { method: 'POST' })
+export const disconnectUnipile = () => api('/api/me/unipile', { method: 'DELETE' })
 
 // ── cli tokens ──
 export const getTokens = () => api<{ tokens: ApiToken[] }>('/api/me/tokens')
@@ -105,6 +110,13 @@ export const getMyOrgs = () => api<{ orgs: Org[] }>('/api/me/orgs')
 // Bascule l'org active (membre). Contrat unifié MCP/REST : champ `org` = id ou nom.
 export const setActiveOrg = (id: number) =>
   api<{ active_org: number; name: string }>('/api/me/active-org', { method: 'PUT', ...j({ org: String(id) }) })
+// Désélectionne l'org active → identité perso/globale (ADR 0015).
+export const clearActiveOrg = () =>
+  api<{ active_org: null }>('/api/me/active-org', { method: 'DELETE' })
+// Baseline de toolset de l'org (org_admin) — preset de visibilité des membres.
+export const setOrgPreset = (id: number, tools: string[] | null) =>
+  api<{ ok: boolean; org_id: number; preset: number | null }>(
+    `/api/orgs/${id}/preset`, { method: 'PUT', ...j({ tools }) })
 export const createMyOrg = (name: string) =>
   api<{ org_id: number; name: string; active_org: number; org_role: string }>(
     '/api/me/orgs', { method: 'POST', ...j({ name }) })
