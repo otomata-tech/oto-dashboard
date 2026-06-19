@@ -14,17 +14,15 @@ const route = useRoute()
 const { me } = useMe()
 const { logout } = useAuth()
 const { navOpen, closeNav } = useNav()
-const { registre, activeScope } = useScope()
+const { level } = useScope()
 
-// La sidebar ne montre que le registre actif ; en gouvernance, que le scope
-// sélectionné. Le scope plateforme reste gaté par le rôle plateforme (opérateur
-// admin OU super_admin ; l'API l'impose aussi côté serveur, l'UI ne fait que
-// masquer). Les items marqués `super` (ex. platform keys) ne sortent qu'au
-// super_admin — les autres restent visibles à l'opérateur.
+// La sidebar ne montre que le niveau actif. Le niveau plateforme reste gaté par
+// le rôle plateforme (opérateur admin OU super_admin ; l'API l'impose aussi côté
+// serveur, l'UI ne fait que masquer). Les items marqués `super` (ex. platform
+// keys) ne sortent qu'au super_admin — les autres restent visibles à l'opérateur.
 const visibleGroups = computed(() =>
-  NAV.filter((g) => g.registre === registre.value)
-     .filter((g) => g.registre !== 'gov' || g.scope === activeScope.value)
-     .filter((g) => !g.admin || isPlatformOperator(me.value))
+  NAV.filter((g) => g.level === level.value)
+     .filter((g) => g.level !== 'platform' || isPlatformOperator(me.value))
      .map((g) => ({
        ...g,
        items: g.items.filter((it) => !it.super || isSuperAdmin(me.value)),
@@ -48,10 +46,10 @@ const visibleGroups = computed(() =>
         <div v-if="g.group" class="sb-group-label">{{ g.group }}</div>
         <RouterLink
           v-for="it in g.items"
-          :key="it.id"
+          :key="it.path"
           class="sb-item"
-          :class="{ on: route.params.section === it.id }"
-          :to="`/console/${it.id}`"
+          :class="{ on: route.meta.section === it.path }"
+          :to="it.path"
           @click="closeNav"
         >
           <span class="ic"><Icon :name="it.icon" :size="15" /></span>

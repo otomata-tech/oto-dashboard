@@ -104,7 +104,7 @@ onMounted(async () => {
           <template v-else>your access is open. let's set up your workspace.</template>
         </div>
         <div class="se-cta">
-          <Btn @click="router.push('/console/overview')">go to console</Btn>
+          <Btn @click="router.push('/overview')">go to console</Btn>
         </div>
       </template>
 
@@ -120,7 +120,7 @@ onMounted(async () => {
         <div class="se-title">invitation <Squiggle>problem</Squiggle>.</div>
         <div class="se-body">{{ errMsg }}</div>
         <div class="se-cta">
-          <Btn kind="ghost" @click="router.push('/console/overview')">go to console</Btn>
+          <Btn kind="ghost" @click="router.push('/overview')">go to console</Btn>
         </div>
       </template>
     </div>

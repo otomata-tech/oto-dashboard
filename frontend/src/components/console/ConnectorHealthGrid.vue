@@ -44,7 +44,7 @@ const cellStyle = 'border: 1px solid var(--color-hair); border-radius: 9px; padd
     sub="api keys and per-user sessions your tools depend on."
   >
     <template #actions>
-      <RouterLink class="linklike" to="/console/connectors">manage →</RouterLink>
+      <RouterLink class="linklike" to="/connectors">manage →</RouterLink>
     </template>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px">
       <div v-for="c in connectors" :key="c.name" :style="cellStyle">

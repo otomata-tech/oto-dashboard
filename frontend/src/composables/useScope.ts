@@ -1,47 +1,26 @@
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import {
-  registreOf, scopeOf, firstSection,
-  type Registre, type GovScope,
-} from '@/lib/consoleNav'
+import { levelOf, firstPath, type NavLevel } from '@/lib/consoleNav'
 
-// Scope de gouvernance mémorisé (module-level → persiste entre navigations,
-// partagé par la sidebar et le topbar). Défaut : org.
-const govScope = ref<GovScope>('org')
+export type { NavLevel }
 
-// Le registre/scope actif est DÉRIVÉ de la route (chaque section connaît son
-// registre via consoleNav). Pas d'état dupliqué : la route est la vérité.
+// Niveau de gouvernance = un seul axe ordonné d'élévation (mon espace → mon org →
+// la plateforme), projeté en UN segmented control. La section + le niveau courants
+// sont DÉRIVÉS de la route (meta), jamais dupliqués en état : la route est la
+// vérité. Le pill « profil actif » (quelle org) est l'axe orthogonal.
 export function useScope() {
   const route = useRoute()
   const router = useRouter()
 
-  const section = computed(() => String(route.params.section || 'overview'))
+  const section = computed(() => String(route.meta.section || '/overview'))
+  const level = computed<NavLevel>(
+    () => (route.meta.level as NavLevel | undefined) ?? levelOf(section.value),
+  )
 
-  const registre = computed<Registre>(() =>
-    route.name === 'admin-user' ? 'gov' : registreOf(section.value))
-
-  const activeScope = computed<GovScope>(() => {
-    if (route.name === 'admin-user') return 'platform'
-    return scopeOf(section.value) ?? govScope.value
-  })
-
-  // Tient le scope mémorisé synchro quand on atterrit sur une section de gouvernance
-  // (clic direct dans la sidebar) → le sélecteur reflète toujours la réalité.
-  watch(() => section.value, (s) => {
-    const sc = route.name === 'admin-user' ? 'platform' : scopeOf(s)
-    if (sc) govScope.value = sc
-  }, { immediate: true })
-
-  function goRegistre(r: Registre) {
-    if (r === registre.value) return
-    router.push(`/console/${firstSection(r, r === 'gov' ? govScope.value : undefined)}`)
+  function goLevel(l: NavLevel) {
+    if (l === level.value) return
+    router.push(firstPath(l))
   }
 
-  function goScope(s: GovScope) {
-    if (s === activeScope.value && registre.value === 'gov') return
-    govScope.value = s
-    router.push(`/console/${firstSection('gov', s)}`)
-  }
-
-  return { registre, activeScope, govScope, goRegistre, goScope }
+  return { section, level, goLevel }
 }

@@ -1,19 +1,20 @@
-// Navigation de la console : deux registres + métadonnées de page (titre/crumb).
+// Navigation de la console : trois NIVEAUX d'autorité, un seul axe ordonné.
 //
-// L'IA est organisée par NIVEAU D'AUTORITÉ, pas seulement par fonction :
-//   • registre 'work' (« mon espace ») = surfaces de consommation, toujours au
-//     niveau de l'utilisateur (ma config effective, mes données, mon usage).
-//   • registre 'gov' (« gouvernance ») = surfaces qui AGISSENT SUR une org ou la
-//     plateforme entière, sous-découpées par `scope` ('org' | 'platform').
+//   • 'work'     (« mon espace »)      = surfaces de consommation, au niveau de
+//                                        l'utilisateur. Servies à la RACINE.
+//   • 'org'      (« gérer mon org »)   = agir SUR l'organisation active. Sous /org.
+//   • 'platform' (« gérer la plateforme ») = agir sur toute la plateforme, réservé
+//                                        à l'opérateur plateforme. Sous /platform.
 //
-// `id` = segment de route sous /console/<id> (les routes restent plates ; seul
-// l'affichage sidebar/topbar dépend du registre/scope actif).
+// Le `path` (chemin complet, unique) EST l'identité d'une section : il sert de clé
+// au routeur, aux vues (ConsoleLayout) et au surlignage. Pas d'id séparé à tenir
+// synchro — « derive don't duplicate ». Le pill « profil actif » (quelle org) est
+// l'axe ORTHOGONAL : ne pas le confondre avec le niveau (quoi je fais).
 
-export type Registre = 'work' | 'gov'
-export type GovScope = 'org' | 'platform'
+export type NavLevel = 'work' | 'org' | 'platform'
 
 export interface NavItem {
-  id: string
+  path: string
   label: string
   icon: string
   warn?: boolean
@@ -23,92 +24,88 @@ export interface NavItem {
 
 export interface NavGroup {
   group: string | null
-  registre: Registre
-  scope?: GovScope // gouvernance uniquement
-  admin?: boolean // section gatée : visible à l'opérateur plateforme (admin) ET au super_admin
+  level: NavLevel
   items: NavItem[]
 }
 
 export const NAV: NavGroup[] = [
-  // ── Mon espace : consommation, niveau utilisateur ──────────────────────────
-  { group: null, registre: 'work', items: [
-    { id: 'overview', label: 'overview', icon: 'home' },
+  // ── Mon espace : consommation, niveau utilisateur (racine) ─────────────────
+  { group: null, level: 'work', items: [
+    { path: '/overview', label: 'overview', icon: 'home' },
   ]},
-  { group: 'workspace', registre: 'work', items: [
-    { id: 'connectors', label: 'connectors', icon: 'plug' },
-    { id: 'toolbox', label: 'toolbox', icon: 'wrench' },
-    { id: 'doctrine', label: 'doctrine', icon: 'doc' },
+  { group: 'workspace', level: 'work', items: [
+    { path: '/connectors', label: 'connectors', icon: 'plug' },
+    { path: '/toolbox', label: 'toolbox', icon: 'wrench' },
+    { path: '/doctrine', label: 'doctrine', icon: 'doc' },
   ]},
-  { group: 'library', registre: 'work', items: [
-    { id: 'connector-library', label: 'connector library', icon: 'plug' },
-    { id: 'doctrine-library', label: 'doctrine library', icon: 'book' },
+  { group: 'library', level: 'work', items: [
+    { path: '/library/connectors', label: 'connector library', icon: 'plug' },
+    { path: '/library/doctrines', label: 'doctrine library', icon: 'book' },
   ]},
-  { group: 'memory', registre: 'work', items: [
-    { id: 'data', label: 'datastore', icon: 'db' },
-    { id: 'knowledge', label: 'knowledge', icon: 'book' },
+  { group: 'memory', level: 'work', items: [
+    { path: '/data', label: 'datastore', icon: 'db' },
+    { path: '/knowledge', label: 'knowledge', icon: 'book' },
   ]},
-  { group: 'prospection', registre: 'work', items: [
-    { id: 'scout', label: 'cockpit', icon: 'phone' },
+  { group: 'prospection', level: 'work', items: [
+    { path: '/scout', label: 'cockpit', icon: 'phone' },
   ]},
-  { group: 'account', registre: 'work', items: [
-    { id: 'account', label: 'profile', icon: 'user' },
-    { id: 'activity', label: 'activity', icon: 'pulse' },
-    { id: 'billing', label: 'billing & credits', icon: 'card' },
+  { group: 'account', level: 'work', items: [
+    { path: '/account', label: 'profile', icon: 'user' },
+    { path: '/activity', label: 'activity', icon: 'pulse' },
+    { path: '/billing', label: 'billing & credits', icon: 'card' },
   ]},
-  // ── Gouvernance : agir SUR une org / la plateforme ─────────────────────────
-  { group: 'organization', registre: 'gov', scope: 'org', items: [
-    { id: 'org', label: 'members & secrets', icon: 'users' },
-    { id: 'groups', label: 'departments', icon: 'users' },
-    { id: 'redaction', label: 'field redaction', icon: 'shield' },
+  // ── Gérer mon org : agir SUR l'organisation active ─────────────────────────
+  { group: 'organization', level: 'org', items: [
+    { path: '/org', label: 'members & secrets', icon: 'users' },
+    { path: '/org/departments', label: 'departments', icon: 'users' },
+    { path: '/org/redaction', label: 'field redaction', icon: 'shield' },
   ]},
-  { group: 'platform · admin', registre: 'gov', scope: 'platform', admin: true, items: [
-    { id: 'monitoring', label: 'monitoring', icon: 'chart' },
-    { id: 'usage', label: 'usage & déroulés', icon: 'pulse' },
-    { id: 'adminusers', label: 'users & grants', icon: 'shield' },
-    { id: 'adminaccess', label: 'alpha access', icon: 'shield' },
-    { id: 'adminorgs', label: 'orgs', icon: 'building' },
-    { id: 'platformkeys', label: 'platform keys', icon: 'key', super: true },
-    { id: 'adminconnectors', label: 'connector activation', icon: 'plug' },
+  // ── Gérer la plateforme : réservé opérateur plateforme ─────────────────────
+  { group: 'platform · admin', level: 'platform', items: [
+    { path: '/platform/monitoring', label: 'monitoring', icon: 'chart' },
+    { path: '/platform/usage', label: 'usage & déroulés', icon: 'pulse' },
+    { path: '/platform/users', label: 'users & grants', icon: 'shield' },
+    { path: '/platform/access', label: 'alpha access', icon: 'shield' },
+    { path: '/platform/orgs', label: 'orgs', icon: 'building' },
+    { path: '/platform/keys', label: 'platform keys', icon: 'key', super: true },
+    { path: '/platform/connectors', label: 'connector activation', icon: 'plug' },
   ]},
 ]
 
-// ── Helpers dérivés : à quel registre / scope appartient une section ─────────
-export function groupOf(section: string): NavGroup | undefined {
-  return NAV.find((g) => g.items.some((it) => it.id === section))
+// ── Helpers dérivés : à quel groupe / niveau appartient un path ─────────────
+export function groupOfPath(path: string): NavGroup | undefined {
+  return NAV.find((g) => g.items.some((it) => it.path === path))
 }
-export function registreOf(section: string): Registre {
-  return groupOf(section)?.registre ?? 'work'
+export function levelOf(path: string): NavLevel {
+  return groupOfPath(path)?.level ?? 'work'
 }
-export function scopeOf(section: string): GovScope | undefined {
-  return groupOf(section)?.scope
-}
-// Première section atteignable d'un registre (et scope, en gouvernance).
-export function firstSection(registre: Registre, scope?: GovScope): string {
-  const g = NAV.find((x) => x.registre === registre && (scope ? x.scope === scope : true))
-  return g?.items[0]?.id ?? 'overview'
+// Première section atteignable d'un niveau (cible du switch de niveau).
+export function firstPath(level: NavLevel): string {
+  const g = NAV.find((x) => x.level === level)
+  return g?.items[0]?.path ?? '/overview'
 }
 
 export const PAGE_META: Record<string, { title: string; crumb: string }> = {
-  overview: { title: 'overview', crumb: 'app.oto.ninja' },
-  connectors: { title: 'connectors', crumb: 'workspace' },
-  toolbox: { title: 'toolbox', crumb: 'workspace' },
-  doctrine: { title: 'doctrine', crumb: 'workspace' },
-  'connector-library': { title: 'connector library', crumb: 'library' },
-  'doctrine-library': { title: 'doctrine library', crumb: 'library' },
-  data: { title: 'datastore', crumb: 'memory' },
-  knowledge: { title: 'knowledge', crumb: 'memory' },
-  scout: { title: 'cockpit', crumb: 'prospection' },
-  account: { title: 'profile', crumb: 'account' },
-  activity: { title: 'activity', crumb: 'account' },
-  billing: { title: 'billing & credits', crumb: 'account' },
-  org: { title: 'organization', crumb: 'governance · org' },
-  groups: { title: 'departments', crumb: 'governance · org' },
-  redaction: { title: 'field redaction', crumb: 'governance · org' },
-  monitoring: { title: 'mcp monitoring', crumb: 'governance · platform' },
-  usage: { title: 'usage & déroulés', crumb: 'governance · platform' },
-  adminusers: { title: 'users & grants', crumb: 'governance · platform' },
-  adminaccess: { title: 'alpha access', crumb: 'governance · platform' },
-  adminorgs: { title: 'organizations', crumb: 'governance · platform' },
-  platformkeys: { title: 'platform keys', crumb: 'governance · platform' },
-  adminconnectors: { title: 'connector activation', crumb: 'governance · platform' },
+  '/overview': { title: 'overview', crumb: 'app.oto.ninja' },
+  '/connectors': { title: 'connectors', crumb: 'workspace' },
+  '/toolbox': { title: 'toolbox', crumb: 'workspace' },
+  '/doctrine': { title: 'doctrine', crumb: 'workspace' },
+  '/library/connectors': { title: 'connector library', crumb: 'library' },
+  '/library/doctrines': { title: 'doctrine library', crumb: 'library' },
+  '/data': { title: 'datastore', crumb: 'memory' },
+  '/knowledge': { title: 'knowledge', crumb: 'memory' },
+  '/scout': { title: 'cockpit', crumb: 'prospection' },
+  '/account': { title: 'profile', crumb: 'account' },
+  '/activity': { title: 'activity', crumb: 'account' },
+  '/billing': { title: 'billing & credits', crumb: 'account' },
+  '/org': { title: 'organization', crumb: 'gérer mon org' },
+  '/org/departments': { title: 'departments', crumb: 'gérer mon org' },
+  '/org/redaction': { title: 'field redaction', crumb: 'gérer mon org' },
+  '/platform/monitoring': { title: 'mcp monitoring', crumb: 'plateforme' },
+  '/platform/usage': { title: 'usage & déroulés', crumb: 'plateforme' },
+  '/platform/users': { title: 'users & grants', crumb: 'plateforme' },
+  '/platform/access': { title: 'alpha access', crumb: 'plateforme' },
+  '/platform/orgs': { title: 'organizations', crumb: 'plateforme' },
+  '/platform/keys': { title: 'platform keys', crumb: 'plateforme' },
+  '/platform/connectors': { title: 'connector activation', crumb: 'plateforme' },
 }

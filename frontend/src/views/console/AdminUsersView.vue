@@ -21,7 +21,7 @@ const grantsTotal = computed(() => users.value.reduce((a, u) => a + u.grants.len
 const nsCountFor = (sub: string) => grants.value.filter((g) => g.sub === sub).length
 
 function openUser(u: AdminUser) {
-  router.push(`/console/adminusers/user/${encodeURIComponent(u.sub)}`)
+  router.push(`/platform/users/${encodeURIComponent(u.sub)}`)
 }
 
 onMounted(async () => {

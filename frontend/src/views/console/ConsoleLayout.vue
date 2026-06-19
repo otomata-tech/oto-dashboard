@@ -38,29 +38,30 @@ import PlatformKeysView from './PlatformKeysView.vue'
 import AdminConnectorsView from './AdminConnectorsView.vue'
 import AdminAccessView from './AdminAccessView.vue'
 
+// Keyé par path canonique (= meta.section porté par chaque route, cf. consoleNav).
 const VIEWS: Record<string, Component> = {
-  overview: OverviewView,
-  connectors: ConnectorsView,
-  'connector-library': ConnectorLibraryView,
-  toolbox: ToolboxView,
-  doctrine: DoctrineView,
-  'doctrine-library': DoctrineLibraryView,
-  data: DataView,
-  knowledge: KnowledgeView,
-  scout: ScoutView,
-  activity: ActivityView,
-  billing: BillingView,
-  account: AccountView,
-  org: OrgView,
-  groups: GroupsView,
-  redaction: FieldFiltersView,
-  monitoring: MonitoringView,
-  usage: UsageView,
-  adminusers: AdminUsersView,
-  adminorgs: AdminOrgsView,
-  platformkeys: PlatformKeysView,
-  adminconnectors: AdminConnectorsView,
-  adminaccess: AdminAccessView,
+  '/overview': OverviewView,
+  '/connectors': ConnectorsView,
+  '/library/connectors': ConnectorLibraryView,
+  '/toolbox': ToolboxView,
+  '/doctrine': DoctrineView,
+  '/library/doctrines': DoctrineLibraryView,
+  '/data': DataView,
+  '/knowledge': KnowledgeView,
+  '/scout': ScoutView,
+  '/activity': ActivityView,
+  '/billing': BillingView,
+  '/account': AccountView,
+  '/org': OrgView,
+  '/org/departments': GroupsView,
+  '/org/redaction': FieldFiltersView,
+  '/platform/monitoring': MonitoringView,
+  '/platform/usage': UsageView,
+  '/platform/users': AdminUsersView,
+  '/platform/orgs': AdminOrgsView,
+  '/platform/keys': PlatformKeysView,
+  '/platform/connectors': AdminConnectorsView,
+  '/platform/access': AdminAccessView,
 }
 
 const route = useRoute()
@@ -75,9 +76,9 @@ watch(isAuthenticated, (ok) => { if (ok) load() }, { immediate: true })
 // Referme le tiroir mobile à chaque navigation (sécurité si un lien ne le fait pas).
 watch(() => route.fullPath, () => closeNav())
 
-const section = computed(() => String(route.params.section || 'overview'))
+const section = computed(() => String(route.meta.section || '/overview'))
 const current = computed(() => {
-  if (route.name === 'admin-user') return AdminUserView   // fiche /console/adminusers/user/:sub
+  if (route.name === 'admin-user') return AdminUserView   // fiche /platform/users/:sub
   return VIEWS[section.value] ?? OverviewView
 })
 // Clé de remount : la route complète pour la fiche (change de :sub → remount),
