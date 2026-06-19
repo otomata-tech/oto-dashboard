@@ -79,7 +79,7 @@ onMounted(async () => {
       billing is per-org: each organization gets a free base stock of calls, then tops up with
       credit packs. join or create an organization to see its balance and recharge.
       <template #cta>
-        <Btn @click="router.push('/console/org')">manage organization</Btn>
+        <Btn @click="router.push('/org')">manage organization</Btn>
       </template>
     </StateEmpty>
 

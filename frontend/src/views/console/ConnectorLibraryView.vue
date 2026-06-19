@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Bibliothèque de connecteurs — catalogue navigable (logo éditeur, recherche,
 // filtres par catégorie / éditeur). Surface de DÉCOUVERTE ; la connexion d'un
-// credential reste sur /console/connectors. Données = GET /api/connectors (même
+// credential reste sur /connectors. Données = GET /api/connectors (même
 // source que la vitrine, qui consomme l'anonyme).
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -57,7 +57,7 @@ const familyTone = (f: string): 'olive' | 'saffron' | 'cobalt' | 'ink' =>
 function manage(c: ConnectorMeta) {
   // Externe si le connecteur pointe une doc/console tierce, sinon la page de gestion.
   if (c.href) window.open(c.href, '_blank', 'noopener')
-  else router.push('/console/connectors')
+  else router.push('/connectors')
 }
 </script>
 

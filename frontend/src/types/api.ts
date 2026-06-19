@@ -407,7 +407,7 @@ export interface AdminUser {
   grants: AdminGrant[]
 }
 // Fiche détaillée d'un user (GET /api/admin/users/{sub}) : accès effectif par
-// provider + grants + namespaces, pour la page /console/adminusers/user/:sub.
+// provider + grants + namespaces, pour la page /platform/users/:sub.
 export interface AdminUserOrg {
   org_id: number
   name: string

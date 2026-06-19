@@ -75,7 +75,7 @@ async function fork(e: LibraryEntry | LibraryDoctrine) {
     const r = await forkLibraryDoctrine(e.slug)
     toast(`forked as "${r.slug}" into ${me.value.active_org_name ?? 'your org'}`)
     closePreview()
-    router.push('/console/doctrine')
+    router.push('/doctrine')
   } catch (err) { toast(humanize(err)) }
   finally { busy.value = false }
 }
@@ -151,7 +151,7 @@ async function unpublish(e: LibraryEntry | LibraryDoctrine) {
 
       <div v-else-if="loaded && !error" class="state-empty" style="margin-top: 40px">
         <h3>the library is empty here</h3>
-        <p>no published doctrine matches. publish one from your <a href="#" @click.prevent="router.push('/console/doctrine')">doctrine</a> page.</p>
+        <p>no published doctrine matches. publish one from your <a href="#" @click.prevent="router.push('/doctrine')">doctrine</a> page.</p>
       </div>
     </template>
   </div>

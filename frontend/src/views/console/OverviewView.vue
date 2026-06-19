@@ -79,11 +79,11 @@ const platformQuotas = computed(() =>
 // ── onboarding (checklist réelle) ──
 const steps = computed(() => [
   { done: true, t: 'connect a client', d: 'add mcp.oto.ninja to claude desktop, cursor or any mcp client — auth runs over oauth.', act: null as [string, string] | null },
-  { done: userKeysCount.value > 0, t: 'add your first api key', d: 'paste a provider key (serper, hunter, …) so your tools can call out.', act: ['connectors', 'add a key'] as [string, string] },
-  { done: !!google.value?.connected, t: 'link google workspace', d: 'unlock gmail, drive, sheets and the datastore.', act: ['connectors', 'link google'] as [string, string] },
-  { done: !!me.value?.memento?.connected, t: 'connect your knowledge base', d: 'link memento — a structured, sourced memory your agents read and write across sessions. federated into every oto session.', act: ['connectors', 'connect memento'] as [string, string] },
-  { done: doctrineExists.value, t: 'write your doctrine', d: 'one markdown file your agents read before acting. crm rules, tone, guardrails.', act: ['doctrine', 'open the editor'] as [string, string] },
-  { done: me.value?.active_org != null, t: 'join an organization', d: 'share org keys so teammates inherit your setup.', act: ['org', 'manage organization'] as [string, string] },
+  { done: userKeysCount.value > 0, t: 'add your first api key', d: 'paste a provider key (serper, hunter, …) so your tools can call out.', act: ['/connectors', 'add a key'] as [string, string] },
+  { done: !!google.value?.connected, t: 'link google workspace', d: 'unlock gmail, drive, sheets and the datastore.', act: ['/connectors', 'link google'] as [string, string] },
+  { done: !!me.value?.memento?.connected, t: 'connect your knowledge base', d: 'link memento — a structured, sourced memory your agents read and write across sessions. federated into every oto session.', act: ['/connectors', 'connect memento'] as [string, string] },
+  { done: doctrineExists.value, t: 'write your doctrine', d: 'one markdown file your agents read before acting. crm rules, tone, guardrails.', act: ['/doctrine', 'open the editor'] as [string, string] },
+  { done: me.value?.active_org != null, t: 'join an organization', d: 'share org keys so teammates inherit your setup.', act: ['/org', 'manage organization'] as [string, string] },
 ])
 const doneCount = computed(() => steps.value.filter((s) => s.done).length)
 const nextStep = computed(() => steps.value.find((s) => !s.done))
@@ -124,7 +124,7 @@ onMounted(async () => {
         no tools have run yet. connect a client, add a provider key, and your agents start
         showing up here — calls, quotas, errors, the lot.
         <template #cta>
-          <Btn @click="router.push('/console/connectors')">add a key</Btn>
+          <Btn @click="router.push('/connectors')">add a key</Btn>
           <Btn kind="ghost" @click="setVariant('onboarding')">see onboarding</Btn>
         </template>
       </StateEmpty>
@@ -142,7 +142,7 @@ onMounted(async () => {
         <InviteFriendCard v-if="me?.access?.status === 'active'" />
         <ConsoleCard v-if="summary" title="calls · last 7 days" sub="terra segments are failures.">
           <template #actions>
-            <RouterLink class="linklike" to="/console/monitoring">monitoring →</RouterLink>
+            <RouterLink class="linklike" to="/platform/monitoring">monitoring →</RouterLink>
           </template>
           <DayBars :days="bars" />
         </ConsoleCard>
@@ -163,7 +163,7 @@ onMounted(async () => {
                 <div class="st-t">{{ nextStep.t }}</div>
                 <div class="st-d">{{ nextStep.d }}</div>
                 <div v-if="nextStep.act" style="margin-top: 8px">
-                  <Btn kind="mini" @click="router.push(`/console/${nextStep.act[0]}`)">{{ nextStep.act[1] }} →</Btn>
+                  <Btn kind="mini" @click="router.push(nextStep.act[0])">{{ nextStep.act[1] }} →</Btn>
                 </div>
               </div>
             </div>
@@ -178,7 +178,7 @@ onMounted(async () => {
       <ConsoleCard v-if="!summary" title="activity">
         <div class="helptext">
           aggregate activity is a platform-admin view. see your own tool calls under
-          <RouterLink class="linklike" to="/console/activity">activity</RouterLink>.
+          <RouterLink class="linklike" to="/activity">activity</RouterLink>.
         </div>
       </ConsoleCard>
       <template v-else>
@@ -193,7 +193,7 @@ onMounted(async () => {
         <div class="grid23">
           <ConsoleCard title="recent · top tools" flush>
             <template #actions>
-              <RouterLink class="linklike" to="/console/monitoring">monitoring →</RouterLink>
+              <RouterLink class="linklike" to="/platform/monitoring">monitoring →</RouterLink>
             </template>
             <table class="tbl">
               <tbody>
@@ -227,7 +227,7 @@ onMounted(async () => {
               <div class="st-t">{{ s.t }}</div>
               <div class="st-d">{{ s.d }}</div>
               <div v-if="s.act && !s.done" style="margin-top: 7px">
-                <Btn kind="mini" @click="router.push(`/console/${s.act[0]}`)">{{ s.act[1] }}</Btn>
+                <Btn kind="mini" @click="router.push(s.act[0])">{{ s.act[1] }}</Btn>
               </div>
             </div>
           </div>

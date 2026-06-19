@@ -189,7 +189,7 @@ async function toggleOrgRole(o: AdminUserOrg) {
 
 <template>
   <div class="content-inner fadein">
-    <RouterLink class="linklike" to="/console/adminusers">← users</RouterLink>
+    <RouterLink class="linklike" to="/platform/users">← users</RouterLink>
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
     <template v-if="detail">

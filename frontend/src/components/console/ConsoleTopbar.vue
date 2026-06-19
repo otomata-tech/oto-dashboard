@@ -14,11 +14,11 @@ import { useScope } from '@/composables/useScope'
 const route = useRoute()
 const { me } = useMe()
 const { toggleNav } = useNav()
-const { registre, activeScope, goRegistre, goScope } = useScope()
+const { level, goLevel } = useScope()
 const meta = computed(() =>
   route.name === 'admin-user'
-    ? { title: 'user fiche', crumb: 'governance · platform' }
-    : PAGE_META[String(route.params.section)] ?? PAGE_META.overview!)
+    ? { title: 'user fiche', crumb: 'plateforme' }
+    : PAGE_META[String(route.meta.section)] ?? PAGE_META['/overview']!)
 
 // ── switcher d'org (membre) ──
 const open = ref(false)
@@ -89,15 +89,12 @@ async function createOrg() {
       <span class="crumb">{{ meta.crumb }}</span>
     </div>
     <div v-if="me" class="right">
-      <!-- Registre : consommer (« mon espace ») vs gouverner -->
-      <div class="reg-switch" role="tablist" aria-label="registre">
-        <button class="reg" :class="{ on: registre === 'work' }" role="tab" :aria-selected="registre === 'work'" @click="goRegistre('work')">mon espace</button>
-        <button class="reg" :class="{ on: registre === 'gov' }" role="tab" :aria-selected="registre === 'gov'" @click="goRegistre('gov')">gouvernance</button>
-      </div>
-      <!-- Scope de gouvernance : org vs plateforme (plateforme gatée admin) -->
-      <div v-if="registre === 'gov'" class="scope-switch" aria-label="scope de gouvernance">
-        <button class="scope" :class="{ on: activeScope === 'org' }" @click="goScope('org')">org</button>
-        <button v-if="isPlatformOperator(me)" class="scope plat" :class="{ on: activeScope === 'platform' }" @click="goScope('platform')">plateforme</button>
+      <!-- Niveau de gouvernance : échelle d'élévation à 3 crans (chaque cran révélé
+           selon les droits). Axe « QUOI je fais » — orthogonal au pill « profil actif ». -->
+      <div class="level-switch" role="tablist" aria-label="niveau">
+        <button class="lvl" :class="{ on: level === 'work' }" role="tab" :aria-selected="level === 'work'" @click="goLevel('work')">mon espace</button>
+        <button v-if="me.active_org != null" class="lvl" :class="{ on: level === 'org' }" role="tab" :aria-selected="level === 'org'" @click="goLevel('org')">gérer mon org</button>
+        <button v-if="isPlatformOperator(me)" class="lvl plat" :class="{ on: level === 'platform' }" role="tab" :aria-selected="level === 'platform'" @click="goLevel('platform')">gérer la plateforme</button>
       </div>
       <div class="org-switch">
         <button class="org-pill" :aria-expanded="open" @click="toggle">
@@ -182,10 +179,10 @@ async function createOrg() {
     </div>
   </header>
 
-  <!-- Signal franc : en gouvernance on AGIT SUR une org / la plateforme -->
-  <div v-if="me && registre === 'gov'" class="gov-banner" :class="{ platform: activeScope === 'platform' }">
+  <!-- Signal franc : hors « mon espace » on AGIT SUR une org / la plateforme -->
+  <div v-if="me && level !== 'work'" class="gov-banner" :class="{ platform: level === 'platform' }">
     <Icon name="shield" :size="13" />
-    <template v-if="activeScope === 'platform'">
+    <template v-if="level === 'platform'">
       administration plateforme — tes actions touchent <strong>toute la plateforme</strong>
     </template>
     <template v-else>
@@ -195,22 +192,21 @@ async function createOrg() {
 </template>
 
 <style scoped>
-/* ── Registre + scope : segmented controls ── */
-.reg-switch, .scope-switch {
+/* ── Niveau de gouvernance : un seul segmented control à 3 crans ── */
+.level-switch {
   display: inline-flex; gap: 2px; padding: 2px;
   background: var(--color-paper-2); border: 1px solid var(--color-hair);
   border-radius: 9px;
 }
-.reg, .scope {
+.lvl {
   border: 0; background: transparent; cursor: pointer;
   padding: 5px 10px; border-radius: 7px;
   font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.02em;
   font-weight: 600; color: var(--color-mute); white-space: nowrap;
 }
-.reg:hover, .scope:hover { color: var(--color-ink); }
-.reg.on { background: var(--color-surface); color: var(--color-ink); box-shadow: 0 1px 2px rgb(0 0 0 / 0.06); }
-.scope.on { background: var(--color-surface); color: var(--color-ink); }
-.scope.plat.on { color: var(--color-saffron); }
+.lvl:hover { color: var(--color-ink); }
+.lvl.on { background: var(--color-surface); color: var(--color-ink); box-shadow: 0 1px 2px rgb(0 0 0 / 0.06); }
+.lvl.plat.on { color: var(--color-saffron); }
 
 /* ── Bandeau de gouvernance ── */
 .gov-banner {
