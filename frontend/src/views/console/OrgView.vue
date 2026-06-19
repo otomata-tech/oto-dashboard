@@ -105,7 +105,7 @@ async function onLogoFile(e: Event) {
     await uploadOrgLogo(activeOrgId.value, file)
     detail.value = await getOrg(activeOrgId.value)
     orgs.value = (await getMyOrgs()).orgs
-    await reloadMe()          // rafraîchit le logo de l'org-pill (topbar)
+    await reloadMe()          // rafraîchit le logo dans le badge identité (topbar)
     toast('org logo updated')
   } catch (err) { toast(humanize(err)) }
   finally { logoBusy.value = false }
