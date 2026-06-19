@@ -100,7 +100,7 @@ export const listLibraryDoctrines = (
   params: { q?: string; category?: string; author?: string; limit?: number } = {},
 ) => {
   const s = new URLSearchParams()
-  if (params.q) s.set('q', params.q)
+  if (params.q) s.set('query', params.q)   // backend LibraryListInput.field = `query`
   if (params.category) s.set('category', params.category)
   if (params.author) s.set('author_kind', params.author)
   if (params.limit) s.set('limit', String(params.limit))
