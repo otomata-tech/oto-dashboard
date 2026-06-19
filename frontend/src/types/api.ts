@@ -231,7 +231,7 @@ export interface UnipileChannel {
 }
 export interface UnipileStatus {
   subscribed: boolean       // option payée (abonnement actif) — gate l'étape « connecter »
-  channels: { linkedin: UnipileChannel; whatsapp: UnipileChannel }
+  channels: { linkedin: UnipileChannel; whatsapp: UnipileChannel; telegram: UnipileChannel; instagram: UnipileChannel }
 }
 
 // ── orgs ──
