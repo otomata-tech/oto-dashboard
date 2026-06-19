@@ -122,4 +122,13 @@ const identityOpen = ref(false)
   padding-right: 6px; margin-right: -1px; border-right: 1px solid var(--color-hair);
 }
 .id-badge-name { overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+
+@media (max-width: 820px) {
+  /* L'axe gouvernance (mon espace / mon org / plateforme) est un contrôle
+     desktop : sur mobile ses libellés débordent et repoussent le badge sur le
+     côté. On le masque — le badge « identité MCP » reste prioritaire. */
+  .level-switch { display: none; }
+  .id-badge { padding: 5px 9px; }
+  .id-badge-name { max-width: 96px; }
+}
 </style>
