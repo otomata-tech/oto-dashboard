@@ -34,6 +34,17 @@ Section `/console/groups` (`GroupsView.vue` + `GroupDoctrineCard.vue`) : départ
 ## Billing / credits (paiement Stripe)
 
 Section `/console/billing` (`BillingView.vue`) : portefeuille de credits d'appel **par org active**. 1 appel MCP = 1 credit ; chaque org reçoit un stock de base gratuit, puis recharge par **packs Stripe** (paiement ponctuel — `POST /api/me/billing/checkout` → redirect `checkout_url`). Soft : le solde peut être négatif, l'appel n'est jamais bloqué (drapeau `low`). Le solde vit dans `me.billing` (`{balance, low, base_granted}`, `null` si pas d'org active) — pas de fetch dédié pour l'afficher. Packs/historique via `getBillingPacks`/`getBillingTransactions`. Retour de Checkout : `?status=success|cancel` → toast + `reload()` du `me`. Achat ouvert à tout membre (recharge le wallet partagé). Backend : `oto-backend/CLAUDE.md` §Billing.
+## WhatsApp (pairing QR per-user)
+
+`ConnectorsView.vue` carte « sessions » porte une ligne **whatsapp** (à côté de
+linkedin/crunchbase). « pair » ouvre `WhatsappPairDialog.vue` : POST
+`/api/whatsapp/pair/start`, lecture du SSE `/api/whatsapp/pair/stream` (via
+`apiStream` — fetch + `ReadableStream`, EventSource ne peut pas poser de bearer),
+rendu du QR avec le package `qrcode` (`toDataURL`), jusqu'à l'event `paired` →
+`reload()` du `me`. « disconnect » = `DELETE /api/whatsapp`. L'état vient de
+`me.whatsapp` (`{paired, active_pairing}`, `GET /api/me`). Pas de browse des
+messages dans le dashboard (les tools `whatsapp_*` vivent côté MCP).
+
 ## Fédération MCP (memento, otomata#16)
 
 `ConnectorsView.vue` porte la carte « federated mcp » (connect/disconnect du compte memento

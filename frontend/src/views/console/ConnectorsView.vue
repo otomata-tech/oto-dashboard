@@ -6,6 +6,7 @@ import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import Quota from '@/components/console/Quota.vue'
 import ModeTag from '@/components/console/ModeTag.vue'
+import WhatsappPairDialog from '@/components/console/WhatsappPairDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
@@ -14,6 +15,7 @@ import {
   getGoogleStatus, startGoogleOauth, setGoogleDefault, revokeGoogle,
   getMementoStatus, startMementoOauth, disconnectMemento,
   getUnipileStatus, subscribeUnipile, connectUnipile, disconnectUnipile,
+  disconnectWhatsapp,
   getTokens, createToken, deleteToken,
 } from '@/api/console'
 import type { ConnectorMeta, ConnectorMode, DotTone } from '@/lib/consoleTypes'
@@ -31,6 +33,7 @@ const memento = ref<MementoStatus | null>(null)
 const unipile = ref<UnipileStatus | null>(null)
 const tokens = ref<ApiToken[]>([])
 const error = ref<string | null>(null)
+const waPairing = ref(false)
 
 // Connecteurs à credential saisissable (modèle générique multi-champs, ADR 0011) :
 // ceux qui déclarent des `credential_fields` (api_key 1 champ, basic_auth 2, silae
@@ -181,6 +184,15 @@ async function dropCrunchbase() {
   try { await deleteCrunchbase(); toast('crunchbase session removed'); await reload() }
   catch (e) { toast(humanize(e)) }
 }
+async function onWhatsappPaired() {
+  toast('whatsapp paired')
+  await reload()
+}
+async function dropWhatsapp() {
+  if (!await confirmAction({ title: 'disconnect WhatsApp', danger: true, confirmLabel: 'disconnect', message: 'disconnect your whatsapp session? you will need to scan a new qr to pair again.' })) return
+  try { await disconnectWhatsapp(); toast('whatsapp session removed'); await reload() }
+  catch (e) { toast(humanize(e)) }
+}
 
 async function linkGoogle() {
   try { const { auth_url } = await startGoogleOauth(); window.location.href = auth_url }
@@ -283,6 +295,17 @@ async function revokeToken(t: ApiToken) {
             <Btn v-if="me?.crunchbase.configured" kind="danger" @click="dropCrunchbase">disconnect</Btn>
             <Btn v-else kind="mini" @click="toast('capture your crunchbase cookies via the extension')">connect</Btn>
           </div>
+          <div class="rowitem" style="gap: 12px">
+            <Dot :tone="me?.whatsapp?.paired ? 'olive' : 'faint'" :size="8" />
+            <div style="min-width: 0; flex: 1">
+              <div style="font-weight: 600; font-size: 13px">whatsapp</div>
+              <div style="font-size: 11.5px; color: var(--color-mute)">
+                {{ me?.whatsapp?.paired ? 'paired · send & read messages as you' : 'not paired — scan a qr to link your account' }}
+              </div>
+            </div>
+            <Btn v-if="me?.whatsapp?.paired" kind="danger" @click="dropWhatsapp">disconnect</Btn>
+            <Btn v-else kind="mini" @click="waPairing = true">pair</Btn>
+          </div>
         </div>
       </ConsoleCard>
 
@@ -370,5 +393,7 @@ async function revokeToken(t: ApiToken) {
         </tbody>
       </table>
     </ConsoleCard>
+
+    <WhatsappPairDialog v-model:open="waPairing" @paired="onWhatsappPaired" />
   </div>
 </template>

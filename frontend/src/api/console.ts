@@ -1,6 +1,6 @@
 // Client REST typé pour la console — toutes les routes oto-mcp (api_routes*.py).
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
-import { api, apiUpload, apiPublic } from '@/api'
+import { api, apiUpload, apiPublic, apiStream } from '@/api'
 import type {
   AdminUser, AdminUserDetail, AdminOrgSummary, ApiToken, BillingBalance, ConnectorActivation, ConnectorMeta,
   CreditPack, CreditTransaction, DoctrineBundle,
@@ -37,6 +37,14 @@ export const deleteApiKey = (provider: string) =>
 export const deleteLinkedin = () => api('/api/settings/linkedin', { method: 'DELETE' })
 export const deleteCrunchbase = () => api('/api/settings/crunchbase', { method: 'DELETE' })
 export const getWhatsappStatus = () => api<WhatsappStatus>('/api/whatsapp/status')
+// Pairing QR : start ouvre une session, stream émet les events SSE (qr|paired|failed),
+// cancel l'interrompt. disconnect supprime la session (logout). Cf. oto-mcp §WhatsApp.
+export const startWhatsappPair = () =>
+  api<{ session_id: string; status: string }>('/api/whatsapp/pair/start', { method: 'POST' })
+export const streamWhatsappPair = (sessionId: string, signal?: AbortSignal) =>
+  apiStream(`/api/whatsapp/pair/stream?session_id=${encodeURIComponent(sessionId)}`, signal)
+export const cancelWhatsappPair = () => api('/api/whatsapp/pair/cancel', { method: 'POST' })
+export const disconnectWhatsapp = () => api<{ ok: boolean; removed: boolean }>('/api/whatsapp', { method: 'DELETE' })
 
 // ── google ──
 export const getGoogleStatus = () => api<GoogleOauthStatus>('/api/google/oauth/status')

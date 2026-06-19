@@ -22,6 +22,23 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return resp.json() as Promise<T>
 }
 
+// Stream authentifié (Server-Sent Events) — retourne la Response brute pour que
+// l'appelant lise `response.body` (ReadableStream). EventSource ne peut pas poser
+// d'Authorization → on passe par fetch. Lève sur !ok comme api().
+export async function apiStream(path: string, signal?: AbortSignal): Promise<Response> {
+  const { getAccessToken } = useAuth()
+  const token = await getAccessToken()
+  const resp = await fetch(`${base}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal,
+  })
+  if (!resp.ok || !resp.body) {
+    const body = await resp.json().catch(() => ({}))
+    throw new Error(`${resp.status} ${(body as { error?: string }).error ?? resp.statusText}`)
+  }
+  return resp
+}
+
 // Fetch PUBLIC (sans bearer) — pour les endpoints non authentifiés (ex. aperçu
 // d'invitation, où le token de l'URL est le seul secret). Même gestion d'erreur.
 export async function apiPublic<T>(path: string, init: RequestInit = {}): Promise<T> {

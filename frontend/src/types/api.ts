@@ -76,6 +76,7 @@ export interface Me {
   access: AccessState                  // gate doux alpha (ADR 0013)
   linkedin: SessionState
   crunchbase: SessionState
+  whatsapp?: WhatsappStatus            // session WhatsApp per-user (QR pairing)
   memento?: MementoStatus              // fédération MCP (otomata#16) — auto-prompt connexion
   providers: Record<string, ProviderStatus | undefined>
   billing: BillingBalance | null    // wallet de credits de l'org active (null si pas d'org)
