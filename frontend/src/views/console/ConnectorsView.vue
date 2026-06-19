@@ -47,6 +47,8 @@ const unipileChannels = [
   { key: 'whatsapp', label: 'whatsapp', desc: 'read & send messages as you' },
   { key: 'telegram', label: 'telegram', desc: 'read & send messages as you' },
   { key: 'instagram', label: 'instagram', desc: 'read & send DMs as you' },
+  { key: 'messenger', label: 'messenger', desc: 'read & send messages as you' },
+  { key: 'twitter', label: 'x / twitter', desc: 'read & send DMs as you' },
 ] as const
 // MCP fédérés (otomata#16) : oauth + non personal_session (ex. memento). Présents
 // dans le catalogue seulement si l'user est entitled (grant-only, deny-by-default).
@@ -78,7 +80,7 @@ onMounted(async () => {
   else if (p === 'error') toast('échec de la connexion memento')
   // Retour du hosted-auth Unipile (?unipile=connected|failed&channel=<canal>).
   const up = new URLSearchParams(window.location.search).get('unipile')
-  const upCh = (new URLSearchParams(window.location.search).get('channel') || 'linkedin') as 'linkedin' | 'whatsapp' | 'telegram' | 'instagram'
+  const upCh = (new URLSearchParams(window.location.search).get('channel') || 'linkedin') as 'linkedin' | 'whatsapp' | 'telegram' | 'instagram' | 'messenger' | 'twitter'
   if (p || up) window.history.replaceState({}, '', window.location.pathname)
   if (up === 'connected') {
     // Le webhook lie l'account_id côté serveur (asynchrone) — on poll le canal visé
