@@ -266,6 +266,40 @@ export interface OrgDetail {
   secrets: OrgSecret[]
   entitlements?: OrgEntitlement[]
 }
+// ── redaction de champs par connecteur (FieldFilter, ADR 0015) ──
+export interface FieldRule {
+  fields: string[]
+  action: 'mask' | 'drop' | 'pseudonym' | 'generalize' | 'hash' | 'anonymize'
+  // params optionnels selon l'action
+  preserve?: 'email' | 'phone' | 'iban'
+  keep_first?: number
+  keep_last?: number
+  kind?: string          // pseudonym
+  to?: string            // generalize : year|month|department|range
+  step?: number          // generalize range
+}
+export interface FieldFilterBlock {
+  salt?: string
+  rules: FieldRule[]
+}
+export interface FieldActionParam {
+  key: string
+  type: 'select' | 'int'
+  label: string
+  options?: string[]
+}
+export interface FieldActionSchema {
+  action: string
+  label: string
+  params: FieldActionParam[]
+}
+export interface FieldFiltersBundle {
+  org_id: number
+  filters: Record<string, FieldFilterBlock>   // service -> politique de l'org
+  defaults: Record<string, FieldFilterBlock>  // défauts serveur (plancher PII)
+  schema: FieldActionSchema[]                 // modes dispo (pilote le formulaire)
+}
+
 export interface OrgInvitation {
   id: number
   email: string

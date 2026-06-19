@@ -9,6 +9,7 @@ import type {
   NamespaceEntry, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall,
   WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus, UnipileStatus, WaitlistEntry, AlphaInvite, InvitePreview,
+  FieldRule, FieldFiltersBundle,
 } from '@/types/api'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
@@ -122,6 +123,14 @@ export const createMyOrg = (name: string) =>
   api<{ org_id: number; name: string; active_org: number; org_role: string }>(
     '/api/me/orgs', { method: 'POST', ...j({ name }) })
 export const getOrg = (id: number) => api<OrgDetail>(`/api/orgs/${id}`)
+
+// ── redaction de champs par connecteur (org_admin, ADR 0015) ──
+export const getOrgFieldFilters = (id: number) =>
+  api<FieldFiltersBundle>(`/api/orgs/${id}/field-filters`)
+// rules=null efface la politique du connecteur (repli sur le défaut serveur).
+export const setOrgFieldFilter = (id: number, service: string, rules: FieldRule[] | null, salt?: string) =>
+  api<{ ok: boolean; service: string; cleared: boolean; rules: number }>(
+    `/api/orgs/${id}/field-filters/${service}`, { method: 'PUT', ...j({ rules, salt }) })
 
 // ── invitations d'équipe (onboarding SaaS) ──
 export const listInvitations = (id: number) =>
