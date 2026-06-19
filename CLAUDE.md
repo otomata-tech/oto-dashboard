@@ -65,6 +65,23 @@ Deux surfaces de **découverte** (≠ gestion), groupe nav `library` (`consoleNa
   `unpublishDoctrine`. `DoctrineView.vue` ajoute l'action **« publier »** d'un skill (org_admin →
   `publishDoctrine`). Backend : `oto-backend/CLAUDE.md` §REST (capacités `library.*`).
 
+## Identité MCP (topbar)
+
+Le topbar porte un **badge « identité MCP »** (`ConsoleTopbar.vue` → `IdentityDialog.vue`,
+icône plug) = sous quelle identité Claude agit quand il appelle les outils : **compte
+(sub) × org active**. Clic → modale : compte (email + rôle, **lecture seule** — le sub
+est fixé par l'OAuth claude.ai, pas modifiable au dashboard, juste un HOWTO « reconnecte
+le connecteur dans claude.ai ») + choix de l'**org active** (Perso/orgs/créer) qui écrit
+`active_org` via `setActiveOrg`/`clearActiveOrg`/`createMyOrg` puis `location.reload()`
+(les vues sont org-scopées). Erreurs en **toast** (≠ ancien dropdown au catch muet).
+
+**Découplage clé à comprendre** : changer l'org ici règle le **défaut des prochaines
+conversations** Claude. Une conversation **déjà ouverte** ne se met pas à jour depuis le
+dashboard (connexion MCP séparée) — sauf via `oto_use_org <org>` **dans** Claude, qui
+recharge la toolbox live (fix backend `refresh_visibility`, cf. `oto-backend/CLAUDE.md`
+§Visibility). Les credentials, eux, basculent toujours immédiatement. Le badge n'est PAS
+le level-switch voisin (axe gouvernance « mon espace/org/plateforme », masqué en mobile).
+
 ## Conventions
 
 - API RESTful consommée sous `/api/*` (contrats : `oto-mcp/CLAUDE.md` §REST + `oto-app/docs/ORG_API_CONTRACT.md`)
