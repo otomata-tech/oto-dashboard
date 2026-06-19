@@ -5,7 +5,7 @@ import type {
   AdminUser, AdminUserDetail, AdminOrgSummary, ApiToken, BillingBalance, ConnectorActivation, ConnectorMeta,
   CreditPack, CreditTransaction, DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
-  InstructionVersion, Me, MonitoringSummary,
+  InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
   NamespaceEntry, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall,
   WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus, UnipileStatus, WaitlistEntry, AlphaInvite, InvitePreview,
@@ -91,6 +91,37 @@ export const getToolRegistry = () =>
 // Usage d'une doctrine, dérivé de tool_calls (chargements par l'agent).
 export const getInstructionUsage = (slug: string) =>
   api<InstructionUsage>(`/api/me/instructions/${slug}/usage`)
+
+// ── bibliothèque publique de doctrines (marketplace, capacités library.*) ──
+// Catalogue cherchable de doctrines publiées (auteur Otomata ou créateur privé).
+// Surface authentifiée ; la vitrine consomme la même donnée en anonyme via
+// /api/doctrines/library (public-only).
+export const listLibraryDoctrines = (
+  params: { q?: string; category?: string; author?: string; limit?: number } = {},
+) => {
+  const s = new URLSearchParams()
+  if (params.q) s.set('q', params.q)
+  if (params.category) s.set('category', params.category)
+  if (params.author) s.set('author_kind', params.author)
+  if (params.limit) s.set('limit', String(params.limit))
+  const qs = s.toString()
+  return api<{ doctrines: LibraryEntry[] }>(`/api/me/doctrines/library${qs ? `?${qs}` : ''}`)
+}
+export const getLibraryDoctrine = (slug: string) =>
+  api<LibraryDoctrine>(`/api/me/doctrines/library/${encodeURIComponent(slug)}`)
+// Publie un skill nommé de l'org active dans la bibliothèque (org_admin).
+export const publishDoctrine = (payload: {
+  slug: string; public_slug?: string; title?: string; description?: string
+  category?: string; tags?: string[]; visibility?: 'public' | 'unlisted'
+}) =>
+  api<{ published: boolean; id: number; slug: string; version: number; visibility: string }>(
+    '/api/me/doctrines/publish', { method: 'POST', ...j(payload) })
+// Forke une entrée publique dans l'org active comme nouveau skill (org_admin).
+export const forkLibraryDoctrine = (slug: string, new_slug?: string) =>
+  api<{ forked: boolean; org_id: number; slug: string; version: number; forked_from: number }>(
+    '/api/me/doctrines/fork', { method: 'POST', ...j({ slug, new_slug }) })
+export const unpublishDoctrine = (id: number) =>
+  api(`/api/me/doctrines/library/${id}`, { method: 'DELETE' })
 
 // ── billing (credits d'appel par org, recharge Stripe) ──
 export const getBillingBalance = () => api<BillingBalance & { org_id: number }>('/api/me/billing')

@@ -16,8 +16,10 @@ import { useNav } from '@/composables/useNav'
 
 import OverviewView from './OverviewView.vue'
 import ConnectorsView from './ConnectorsView.vue'
+import ConnectorLibraryView from './ConnectorLibraryView.vue'
 import ToolboxView from './ToolboxView.vue'
 import DoctrineView from './DoctrineView.vue'
+import DoctrineLibraryView from './DoctrineLibraryView.vue'
 import DataView from './DataView.vue'
 import KnowledgeView from './KnowledgeView.vue'
 import ScoutView from './ScoutView.vue'
@@ -38,8 +40,10 @@ import AdminAccessView from './AdminAccessView.vue'
 const VIEWS: Record<string, Component> = {
   overview: OverviewView,
   connectors: ConnectorsView,
+  'connector-library': ConnectorLibraryView,
   toolbox: ToolboxView,
   doctrine: DoctrineView,
+  'doctrine-library': DoctrineLibraryView,
   data: DataView,
   knowledge: KnowledgeView,
   scout: ScoutView,

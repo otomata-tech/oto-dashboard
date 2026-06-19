@@ -23,12 +23,43 @@ export interface ConnectorMeta {
   label: string
   help: string
   href: string | null
+  publisher: string          // éditeur affiché (curé) — catalogue
+  logo_url: string | null    // logo éditeur (oto-media), null si absent → placeholder
   availability: 'self_serve' | 'platform_granted'
   auth_modes: string[]
   personal_session: boolean
   secret_kind: 'api_key' | 'basic_auth' | 'fields' | 'cookie' | 'oauth' | 'refresh_token' | 'none'
   namespaces: string[]
+  family: string             // axe builder (dérivé) — api|open-data|browser|google|federated|bridge
+  category: string           // axe utilisateur (curé) — Prospection|Data FR|…
   credential_fields: CredentialField[]
+}
+
+// ── bibliothèque publique de doctrines (marketplace, library.*) ──
+// Métadonnées d'une entrée publiée (sans body ; `snippet` présent si recherche).
+export interface LibraryEntry {
+  id: number
+  slug: string
+  title: string
+  description: string
+  author_kind: 'otomata' | 'org'
+  author_org_id: number | null
+  author_display: string
+  category: string
+  tags: string[]
+  visibility: 'public' | 'unlisted'
+  version: number
+  created_at: string
+  updated_at: string
+  snippet?: string
+}
+// Entrée complète (avec le markdown), pour la preview.
+export interface LibraryDoctrine extends LibraryEntry {
+  body_md: string
+  source_org_id: number | null
+  source_slug: string | null
+  forked_from: number | null
+  published_by: string | null
 }
 
 // Cran d'activation des connecteurs (ADR 0010, admin). `enabled` null = jamais
