@@ -16,6 +16,7 @@ import { useNav } from '@/composables/useNav'
 
 import OverviewView from './OverviewView.vue'
 import ConnectorsView from './ConnectorsView.vue'
+import MyConnectorsView from './MyConnectorsView.vue'
 import ConnectorLibraryView from './ConnectorLibraryView.vue'
 import ToolboxView from './ToolboxView.vue'
 import DoctrineView from './DoctrineView.vue'
@@ -41,6 +42,7 @@ import AdminAccessView from './AdminAccessView.vue'
 // Keyé par path canonique (= meta.section porté par chaque route, cf. consoleNav).
 const VIEWS: Record<string, Component> = {
   '/overview': OverviewView,
+  '/my-connectors': MyConnectorsView,
   '/connectors': ConnectorsView,
   '/library/connectors': ConnectorLibraryView,
   '/toolbox': ToolboxView,

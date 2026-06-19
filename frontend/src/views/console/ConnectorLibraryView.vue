@@ -4,28 +4,36 @@
 // credential reste sur /connectors. Données = GET /api/connectors (même
 // source que la vitrine, qui consomme l'anonyme).
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
-import { getConnectors } from '@/api/console'
-import type { ConnectorMeta } from '@/types/api'
+import { getMyConnectors, selectConnector } from '@/api/console'
+import type { MyConnector } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
-const router = useRouter()
-const catalog = ref<ConnectorMeta[]>([])
+const catalog = ref<MyConnector[]>([])
 const loaded = ref(false)
 const error = ref<string | null>(null)
+const busy = ref<string | null>(null)
 
 const q = ref('')
 const category = ref<string | null>(null)
 
 async function load() {
-  try { catalog.value = (await getConnectors()).connectors }
+  try { catalog.value = (await getMyConnectors()).connectors }
   catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
 onMounted(load)
+
+// Installer = sélectionner dans son workspace (state → active). Le détail (config
+// credential, pause, retrait) se gère ensuite dans « mes connecteurs ».
+async function install(c: MyConnector) {
+  busy.value = c.name
+  try { await selectConnector(c.name); c.state = 'active' }
+  catch (e) { error.value = humanize(e) }
+  finally { busy.value = null }
+}
 
 // Catégories présentes, ordonnées par nb de connecteurs.
 const categories = computed(() => {
@@ -50,15 +58,10 @@ const filtered = computed(() => {
 })
 
 // Monogramme de repli quand pas de logo (1ʳᵉ lettre du label).
-const monogram = (c: ConnectorMeta) => (c.label || c.name).charAt(0).toUpperCase()
+const monogram = (c: MyConnector) => (c.label || c.name).charAt(0).toUpperCase()
 const familyTone = (f: string): 'olive' | 'saffron' | 'cobalt' | 'ink' =>
   f === 'open-data' ? 'olive' : f === 'federated' || f === 'bridge' ? 'cobalt' : 'ink'
 
-function manage(c: ConnectorMeta) {
-  // Externe si le connecteur pointe une doc/console tierce, sinon la page de gestion.
-  if (c.href) window.open(c.href, '_blank', 'noopener')
-  else router.push('/connectors')
-}
 </script>
 
 <template>
@@ -95,11 +98,18 @@ function manage(c: ConnectorMeta) {
         <div class="lib-tags">
           <Tag tone="saffron">{{ c.category }}</Tag>
           <Tag :tone="familyTone(c.family)">{{ c.family }}</Tag>
+          <span v-if="c.recommended" class="lib-flag lib-flag-proposed">proposed by org</span>
           <span v-if="c.availability === 'platform_granted'" class="lib-flag">grant-only</span>
         </div>
         <div class="lib-foot">
           <code class="mono lib-ns">{{ c.namespaces.join('  ') }}</code>
-          <Btn kind="mini" @click="manage(c)">{{ c.href ? 'learn more' : 'connect' }}</Btn>
+          <div class="lib-actions">
+            <a v-if="c.href" :href="c.href" target="_blank" rel="noopener" class="lib-doc" @click.stop>↗ doc</a>
+            <Btn v-if="c.state === 'not_selected'" kind="mini" :disabled="busy === c.name" @click="install(c)">
+              {{ busy === c.name ? '…' : 'install' }}
+            </Btn>
+            <RouterLink v-else to="/console/my-connectors" class="lib-installed">installed →</RouterLink>
+          </div>
         </div>
       </article>
     </div>
@@ -149,4 +159,11 @@ function manage(c: ConnectorMeta) {
 }
 .lib-foot { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
 .lib-ns { font-size: 11px; color: var(--color-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.lib-doc { font-size: 11px; color: var(--color-faint); text-decoration: none; }
+.lib-doc:hover { color: var(--color-ink-soft); }
+.lib-installed {
+  font-size: 12px; font-weight: 600; color: var(--color-olive); text-decoration: none; white-space: nowrap;
+}
+.lib-flag-proposed { border-color: var(--color-olive); color: var(--color-olive); }
 </style>
