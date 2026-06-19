@@ -35,6 +35,16 @@ export interface ConnectorMeta {
   credential_fields: CredentialField[]
 }
 
+// État de sélection marketplace d'un connecteur pour le membre (ADR 0019).
+export type ConnectorState = 'not_selected' | 'active' | 'paused'
+
+// Catalogue + état per-membre (GET /api/me/connectors) — source unique du
+// marketplace dashboard (library installable + « mes connecteurs »).
+export interface MyConnector extends ConnectorMeta {
+  state: ConnectorState
+  recommended: boolean       // proposé par l'org active (baseline default_connectors)
+}
+
 // ── bibliothèque publique de doctrines (marketplace, library.*) ──
 // Métadonnées d'une entrée publiée (sans body ; `snippet` présent si recherche).
 export interface LibraryEntry {

@@ -2,7 +2,7 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, ApiToken, BillingBalance, ConnectorActivation, ConnectorMeta,
+  AdminUser, AdminUserDetail, AdminOrgSummary, ApiToken, BillingBalance, ConnectorActivation, ConnectorMeta, MyConnector,
   CreditPack, CreditTransaction, DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
@@ -25,6 +25,15 @@ export const deleteOrgLogo = (id: number) => api(`/api/orgs/${id}/logo`, { metho
 
 // ── connecteurs ──
 export const getConnectors = () => api<{ connectors: ConnectorMeta[] }>('/api/connectors')
+// Marketplace (ADR 0019) : catalogue exposé + état per-membre (not_selected/active/paused)
+// + recommended. Source unique de la library installable ET de « mes connecteurs ».
+export const getMyConnectors = () => api<{ connectors: MyConnector[] }>('/api/me/connectors')
+export const selectConnector = (name: string) =>
+  api(`/api/me/connectors/${encodeURIComponent(name)}/select`, { method: 'POST' })
+export const pauseConnector = (name: string) =>
+  api(`/api/me/connectors/${encodeURIComponent(name)}/pause`, { method: 'POST' })
+export const unselectConnector = (name: string) =>
+  api(`/api/me/connectors/${encodeURIComponent(name)}`, { method: 'DELETE' })
 // Credential générique (modèle multi-champs, ADR 0011) : poste les champs déclarés
 // par le connecteur (`credential_fields`). api_key → {key}, basic_auth (planity) →
 // {email,password}, silae → {client_id,client_secret,subscription_key}. Le serveur
