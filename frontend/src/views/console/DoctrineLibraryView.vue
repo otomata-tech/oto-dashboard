@@ -125,7 +125,7 @@ async function unpublish(e: LibraryEntry | LibraryDoctrine) {
     </ConsoleCard>
 
     <template v-else>
-      <ConsoleCard title="doctrine library" flush
+      <ConsoleCard title="doctrine library"
         sub="a public marketplace of skills — published by Otomata or by other teams. preview, then fork into your org.">
         <div class="dl-controls">
           <input v-model="q" class="inp" placeholder="search doctrines…" @keyup.enter="load" />

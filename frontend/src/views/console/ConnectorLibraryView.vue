@@ -66,7 +66,7 @@ const familyTone = (f: string): 'olive' | 'saffron' | 'cobalt' | 'ink' =>
 
 <template>
   <div class="content-inner fadein">
-    <ConsoleCard title="connector library" flush
+    <ConsoleCard title="connector library"
       sub="browse every connector oto can drive — search, filter by category, then connect from your workspace.">
       <div class="lib-controls">
         <input v-model="q" class="inp" placeholder="search connectors, publishers, namespaces…" />
