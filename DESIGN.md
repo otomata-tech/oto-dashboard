@@ -50,7 +50,7 @@ Mêmes tokens, intentions opposées. Ne pas transplanter l'un dans l'autre :
 </div>
 ```
 
-- `.card.flush` : padding 0 + `overflow:hidden` pour une carte qui enveloppe une **table** pleine largeur (le head reprend son padding).
+- `.card.flush` : padding 0 + `overflow:hidden` pour une carte qui enveloppe une **table** pleine largeur (le head reprend son padding). ⚠️ **Anti-pattern** : ne PAS mettre autre chose qu'une table (ou une liste full-bleed dont les items portent leur propre `padding-inline`) dans une carte `flush` — le contenu colle aux bords (controls, boutons, paragraphes, `.rowitem` qui n'a que du padding vertical). Une carte de controls/recherche/un seul row = carte normale (sans `flush`). Listes type `.ns-item`/`.ws-item` (hover/active pleine largeur) = `flush` OK mais ajouter `padding-inline: var(--pad-card)` aux items.
 - Densité réglée par tokens (`--pad-card`, `--fs-body`) ; `.console-root.density-dense` resserre tout (option utilisateur).
 
 ## Grilles
