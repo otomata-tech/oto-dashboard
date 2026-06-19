@@ -6,9 +6,9 @@ import type {
   CreditPack, CreditTransaction, DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
-  NamespaceEntry, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
+  DatastoreRow, NamespaceEntry, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal,
-  ScoutQueueItem, ScoutDetail, MementoStatus, UnipileStatus, WaitlistEntry, AlphaInvite, InvitePreview,
+  ScoutQueueItem, ScoutDetail, MementoStatus, MementoWorkspaces, UnipileStatus, WaitlistEntry, AlphaInvite, InvitePreview,
   FieldRule, FieldFiltersBundle,
 } from '@/types/api'
 
@@ -59,6 +59,7 @@ export const revokeGoogle = (account?: string) =>
 export const getMementoStatus = () => api<MementoStatus>('/api/memento/oauth/status')
 export const startMementoOauth = () => api<{ auth_url: string }>('/api/memento/oauth/start')
 export const disconnectMemento = () => api('/api/memento/oauth', { method: 'DELETE' })
+export const getMementoWorkspaces = () => api<MementoWorkspaces>('/api/memento/workspaces')
 
 // ── unipile (LinkedIn hébergé) — hosted-auth per-user sous la clé partagée ──
 export const getUnipileStatus = () => api<UnipileStatus>('/api/me/unipile')
@@ -147,6 +148,21 @@ export const getNamespaces = () => api<{ namespaces: NamespaceEntry[] }>('/api/d
 export const getNamespaceUrl = (ns: string) => api<{ url: string }>(`/api/datastore/namespaces/${ns}/url`)
 export const createNamespace = (namespace: string) =>
   api('/api/datastore/namespaces', { method: 'POST', ...j({ namespace }) })
+export const deleteNamespace = (ns: string) =>
+  api(`/api/datastore/namespaces/${encodeURIComponent(ns)}`, { method: 'DELETE' })
+export const getNamespaceRows = (ns: string, limit = 200) =>
+  api<{ rows: DatastoreRow[]; count: number }>(
+    `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows?limit=${limit}`)
+export const appendNamespaceRow = (ns: string, row: Record<string, unknown>) =>
+  api<DatastoreRow>(`/api/datastore/namespaces/${encodeURIComponent(ns)}/rows`,
+    { method: 'POST', ...j(row) })
+export const updateNamespaceRow = (ns: string, rowId: string, patch: Record<string, unknown>) =>
+  api<DatastoreRow>(
+    `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`,
+    { method: 'PATCH', ...j(patch) })
+export const deleteNamespaceRow = (ns: string, rowId: string) =>
+  api(`/api/datastore/namespaces/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`,
+    { method: 'DELETE' })
 
 // ── orgs (self-service) ──
 export const getMyOrgs = () => api<{ orgs: Org[] }>('/api/me/orgs')

@@ -252,6 +252,29 @@ export interface MementoStatus {
   set_at: string | null
 }
 
+// Carte read-only des KB memento (orientation dashboard ; curation sur me.mento.cc).
+export interface MementoWorkspace {
+  slug: string
+  name: string
+  summary: string
+  visibility: 'org' | 'private' | 'public'
+  myRole: string | null
+}
+export interface MementoOrg {
+  org: string
+  name: string
+  myRole: string | null
+  personal: boolean
+  workspaces: MementoWorkspace[]
+}
+export interface MementoWorkspaces {
+  connected: boolean
+  default?: string
+  orgs: MementoOrg[]
+  shared: MementoWorkspace[]
+  pinned: MementoWorkspace[]
+}
+
 // Datastore (ADR 0016) — un namespace possédé ou partagé.
 export interface NamespaceEntry {
   namespace: string
@@ -260,6 +283,15 @@ export interface NamespaceEntry {
   created_at?: string | null
   owner_sub?: string
   permission?: string
+}
+
+// Une row du datastore : méta à plat (`_id`/`_created_at`/`_updated_at`) + champs
+// user arbitraires (schéma libre). Cf. datastore.py::_row_to_dict.
+export interface DatastoreRow {
+  _id: string
+  _created_at?: string | null
+  _updated_at?: string | null
+  [field: string]: unknown
 }
 
 // Unipile (LinkedIn & WhatsApp hébergés) — l'user connecte SES comptes (account_id
