@@ -69,7 +69,7 @@ async function disconnect() {
 
 <template>
   <div class="content-inner fadein">
-    <ConsoleCard title="knowledge base" flush
+    <ConsoleCard title="knowledge base"
       sub="memento — a structured, sourced knowledge base for your agents. opt-in.">
       <div class="rowitem" style="gap: 12px">
         <Dot :tone="memento?.connected ? 'olive' : 'faint'" :size="8" />
@@ -148,6 +148,7 @@ async function disconnect() {
 .ws-org-name { font-weight: 600; color: var(--color-ink-soft); }
 .ws-item {
   display: flex; align-items: center; gap: 12px;
+  padding-inline: 16px;
   text-decoration: none; color: inherit; cursor: pointer;
 }
 .ws-item:hover { background: var(--color-paper-3); }

@@ -61,7 +61,7 @@ async function toggleTool(t: ToolEntry) {
 
 <template>
   <div class="content-inner fadein">
-    <ConsoleCard title="my connectors" flush
+    <ConsoleCard title="my connectors"
       sub="connectors installed in your workspace — pause one, toggle its tools, or remove it.">
       <Btn kind="mini" @click="router.push('/console/library/connectors')">+ browse library</Btn>
     </ConsoleCard>

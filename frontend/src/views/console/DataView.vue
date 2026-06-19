@@ -310,6 +310,7 @@ async function removeRow(row: DatastoreRow) {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  padding-inline: var(--pad-card);
   background: none;
   border: 0;
   text-align: left;
