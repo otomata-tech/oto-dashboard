@@ -510,6 +510,17 @@ export interface ToolFeedbackAgg {
   n: number
   last_at: string
 }
+// Un signal d'usage brut (usage_signals) — le détail derrière un agrégat
+// tool-quality/gap (le `body` = le texte du feedback/gap).
+export interface UsageSignal {
+  id: number
+  created_at: string
+  signal: string              // tool_feedback | gap
+  kind: string
+  target: string | null       // nom d'outil (tool_feedback) ou intent (gap)
+  body: string | null
+  source: string              // agent | human
+}
 // Un appel dans la timeline d'un déroulé (get_doctrine_run) — colonnes brutes
 // tool_calls (tool/created_at), distinct du ToolCall aliasé du monitoring.
 export interface RunCall {
