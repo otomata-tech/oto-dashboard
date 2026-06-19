@@ -204,10 +204,6 @@ export interface ApiToken {
   created_at: string
   last_used_at: string | null
 }
-export interface WhatsappStatus {
-  paired: boolean
-  active_pairing: { session_id: string; status: string } | null
-}
 
 // MCP fédéré (otomata#16) — statut de connexion OAuth per-user (ex. memento).
 export interface MementoStatus {
@@ -225,13 +221,17 @@ export interface NamespaceEntry {
   permission?: string
 }
 
-// Unipile (LinkedIn hébergé) — l'user connecte SON LinkedIn (account_id per-user)
-// sous la clé Unipile partagée de l'org. connected=false → doit faire le hosted-auth.
-export interface UnipileStatus {
-  subscribed: boolean       // option LinkedIn payée (abonnement actif) — gate l'étape « connecter »
+// Unipile (LinkedIn & WhatsApp hébergés) — l'user connecte SES comptes (account_id
+// per-user PAR CANAL) sous la clé Unipile partagée de l'org, sous un abonnement
+// commun. channels.<canal>.connected=false → doit faire le hosted-auth de ce canal.
+export interface UnipileChannel {
   connected: boolean
   account_id: string | null
   connected_at: string | null
+}
+export interface UnipileStatus {
+  subscribed: boolean       // option payée (abonnement actif) — gate l'étape « connecter »
+  channels: { linkedin: UnipileChannel; whatsapp: UnipileChannel }
 }
 
 // ── orgs ──
