@@ -6,6 +6,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import {
   getDoctrine, getInstruction, putInstruction, deleteInstruction,
   getInstructionVersions, revertInstruction, getToolRegistry, getInstructionUsage,
+  publishDoctrine,
 } from '@/api/console'
 import type { DoctrineBundle, InstructionUsage, InstructionVersion } from '@/types/api'
 import { fmtDate } from '@/types/api'
@@ -187,6 +188,22 @@ async function createSkill(p: { title: string; slug: string; summary: string }) 
   }
 }
 
+// Publie le skill courant dans la bibliothèque publique (org_admin → can_edit).
+// L'auteur (Otomata vs org) est résolu côté serveur selon le rôle du publieur.
+async function publishToLibrary(slug: string, label: string) {
+  if (!await confirmAction({
+    title: 'publier dans la bibliothèque', confirmLabel: 'publier',
+    message: `publier « ${label} » dans la bibliothèque publique de doctrines ? `
+      + `tout le monde pourra le découvrir et le forker.`,
+  })) return
+  try {
+    const r = await publishDoctrine({ slug, visibility: 'public' })
+    toast(`publié dans la bibliothèque (v${r.version})`)
+  } catch (e) {
+    toast(humanize(e))
+  }
+}
+
 async function removeSkill(slug: string, label: string) {
   if (!await confirmAction({
     title: 'supprimer le skill', danger: true, confirmLabel: 'supprimer',
@@ -242,6 +259,10 @@ async function removeSkill(slug: string, label: string) {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
                 stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10a2 2 0 0 0-3-3L5 17v3z" /></svg>
               éditer
+            </button>
+            <button v-if="!isEdit && canEdit && !isBase && activeDoc?.exists" type="button"
+              class="btn-edit" @click="publishToLibrary(activeSlug, activeDoc?.title || activeSlug)">
+              publier
             </button>
           </div>
 

@@ -39,6 +39,10 @@ export const NAV: NavGroup[] = [
     { id: 'toolbox', label: 'toolbox', icon: 'wrench' },
     { id: 'doctrine', label: 'doctrine', icon: 'doc' },
   ]},
+  { group: 'library', registre: 'work', items: [
+    { id: 'connector-library', label: 'connector library', icon: 'plug' },
+    { id: 'doctrine-library', label: 'doctrine library', icon: 'book' },
+  ]},
   { group: 'memory', registre: 'work', items: [
     { id: 'data', label: 'datastore', icon: 'db' },
     { id: 'knowledge', label: 'knowledge', icon: 'book' },
@@ -89,6 +93,8 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   connectors: { title: 'connectors', crumb: 'workspace' },
   toolbox: { title: 'toolbox', crumb: 'workspace' },
   doctrine: { title: 'doctrine', crumb: 'workspace' },
+  'connector-library': { title: 'connector library', crumb: 'library' },
+  'doctrine-library': { title: 'doctrine library', crumb: 'library' },
   data: { title: 'datastore', crumb: 'memory' },
   knowledge: { title: 'knowledge', crumb: 'memory' },
   scout: { title: 'cockpit', crumb: 'prospection' },

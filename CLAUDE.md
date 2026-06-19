@@ -50,6 +50,21 @@ Groupe nav **« memory »** (`consoleNav.ts`) = deux surfaces de mémoire :
 - **Datastore** (`/console/data`, `DataView.vue`) — stockage tabulaire per-user, **substrat PG natif** (plus Google Sheets) ; liste/crée des namespaces, badge « shared ». `getNamespaces` renvoie des `NamespaceEntry` (objets, pas des strings). Plus de gate Google.
 - **Knowledge** (`/console/knowledge`, `KnowledgeView.vue`) — connexion **Memento opt-in** (réutilise `getMementoStatus`/`startMementoOauth`/`disconnectMemento`, mêmes endpoints que la carte federated mcp de `ConnectorsView`) ; pas de browse des KB (déféré). Retour OAuth `?memento=connected|error`.
 
+## Bibliothèque — connecteurs & doctrines (groupe nav « library »)
+
+Deux surfaces de **découverte** (≠ gestion), groupe nav `library` (`consoleNav.ts`) :
+- **Connector library** (`/console/connector-library`, `ConnectorLibraryView.vue`) — catalogue
+  navigable de tous les connecteurs : logo de l'éditeur (`ConnectorMeta.logo_url`, monogramme de
+  repli) + `publisher`, recherche (nom/éditeur/namespace), filtres par `category`, tags `family`.
+  Données = `getConnectors()` (même `/api/connectors` que la vitrine). La connexion d'un credential
+  reste sur `/console/connectors`.
+- **Doctrine library** (`/console/doctrine-library`, `DoctrineLibraryView.vue`) — marketplace de
+  doctrines publiques : chaque entrée a un **auteur** (badge « Otomata » ou nom de l'org créatrice),
+  recherche + filtres auteur/topic, preview markdown, **fork** dans l'org active (org_admin),
+  unpublish conditionnel. API `listLibraryDoctrines`/`getLibraryDoctrine`/`forkLibraryDoctrine`/
+  `unpublishDoctrine`. `DoctrineView.vue` ajoute l'action **« publier »** d'un skill (org_admin →
+  `publishDoctrine`). Backend : `oto-backend/CLAUDE.md` §REST (capacités `library.*`).
+
 ## Conventions
 
 - API RESTful consommée sous `/api/*` (contrats : `oto-mcp/CLAUDE.md` §REST + `oto-app/docs/ORG_API_CONTRACT.md`)
