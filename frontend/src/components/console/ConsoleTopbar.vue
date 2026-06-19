@@ -6,7 +6,7 @@ import Dot from './Dot.vue'
 import Avatar from './Avatar.vue'
 import { PAGE_META } from '@/lib/consoleNav'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
-import { getMyOrgs, setActiveOrg, clearActiveOrg } from '@/api/console'
+import { getMyOrgs, setActiveOrg, clearActiveOrg, createMyOrg } from '@/api/console'
 import type { Org } from '@/types/api'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
@@ -25,9 +25,12 @@ const open = ref(false)
 const orgs = ref<Org[]>([])
 const loading = ref(false)
 const switching = ref(false)
+const creating = ref(false)
+const newName = ref('')
 
 async function toggle() {
   open.value = !open.value
+  if (!open.value) { creating.value = false; newName.value = '' }
   if (open.value && !orgs.value.length) {
     loading.value = true
     try { orgs.value = (await getMyOrgs()).orgs } finally { loading.value = false }
@@ -57,6 +60,19 @@ async function pickPerso() {
   try {
     await clearActiveOrg()
     location.reload()
+  } catch {
+    switching.value = false
+  }
+}
+
+// Création self-serve d'un espace (ADR 0013) — devient l'org active côté backend.
+async function createOrg() {
+  const name = newName.value.trim()
+  if (!name || switching.value) return
+  switching.value = true
+  try {
+    await createMyOrg(name)
+    location.reload()  // mêmes raisons que pick() : toutes les vues sont org-scopées
   } catch {
     switching.value = false
   }
@@ -135,6 +151,31 @@ async function pickPerso() {
               <span class="role">{{ o.my_role === 'org_admin' ? 'admin' : 'member' }}</span>
               <Icon v-if="o.id === me.active_org" name="check" :size="12" :style="{ color: 'var(--color-saffron)' }" />
             </button>
+
+            <div class="org-menu-sep" />
+            <button
+              v-if="!creating"
+              class="org-menu-item"
+              :disabled="switching"
+              @click="creating = true"
+            >
+              <Icon name="plus" :size="13" :style="{ color: 'var(--color-faint)' }" />
+              <span class="org-menu-name">new workspace</span>
+            </button>
+            <form v-else class="org-menu-newform" @submit.prevent="createOrg">
+              <input
+                v-model="newName"
+                class="org-menu-input"
+                placeholder="workspace name"
+                maxlength="80"
+                :disabled="switching"
+              />
+              <button
+                class="org-menu-go"
+                type="submit"
+                :disabled="switching || !newName.trim()"
+              >{{ switching ? '…' : 'create' }}</button>
+            </form>
           </div>
         </template>
       </div>
@@ -210,4 +251,20 @@ async function pickPerso() {
 .org-menu-item:disabled { opacity: 0.55; cursor: default; }
 .org-menu-item.active { cursor: default; }
 .org-menu-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.org-menu-sep { height: 1px; margin: 5px 4px; background: var(--color-hair); }
+.org-menu-newform { display: flex; gap: 6px; padding: 4px 5px 6px; }
+.org-menu-input {
+  flex: 1; min-width: 0; padding: 7px 9px;
+  border: 1px solid var(--color-hair); border-radius: 8px;
+  background: var(--color-paper-2); color: var(--color-ink);
+  font-size: 12.5px; outline: none;
+}
+.org-menu-input:focus { border-color: var(--color-saffron); }
+.org-menu-go {
+  border: 0; border-radius: 8px; padding: 0 12px; cursor: pointer;
+  background: var(--color-saffron); color: #fff;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  white-space: nowrap;
+}
+.org-menu-go:disabled { opacity: 0.5; cursor: default; }
 </style>
