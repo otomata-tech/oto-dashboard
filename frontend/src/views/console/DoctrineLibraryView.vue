@@ -11,8 +11,11 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
 import {
-  listLibraryDoctrines, getLibraryDoctrine, forkLibraryDoctrine, unpublishDoctrine,
+  listLibraryDoctrines, getLibraryDoctrine, forkLibraryDoctrine, unpublishDoctrine, getToolRegistry,
 } from '@/api/console'
+import { buildReg, type ToolReg } from '@/components/console/doctrine/tools'
+import DoctrineContent from '@/components/console/doctrine/DoctrineContent.vue'
+import ReferencedTools from '@/components/console/doctrine/ReferencedTools.vue'
 import type { LibraryEntry, LibraryDoctrine } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -32,6 +35,9 @@ const category = ref<string | null>(null)
 const selected = ref<LibraryDoctrine | null>(null)
 const previewing = ref(false)
 const busy = ref(false)
+// Registre d'outils résolu — pour rendre les <tool:slug> en chips + le manifeste
+// « outils référencés », comme l'éditeur de doctrine (cohérence ADR 0014).
+const reg = ref<ToolReg>(buildReg([]))
 
 async function load() {
   loaded.value = false
@@ -44,7 +50,10 @@ async function load() {
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
-onMounted(load)
+onMounted(async () => {
+  await load()
+  try { reg.value = buildReg((await getToolRegistry()).tools) } catch { /* registre optionnel */ }
+})
 
 const categories = computed(() => {
   const s = new Set<string>()
@@ -109,7 +118,10 @@ async function unpublish(e: LibraryEntry | LibraryDoctrine) {
         <Tag v-if="selected.category" tone="saffron">{{ selected.category }}</Tag>
         <span class="dim">v{{ selected.version }} · updated {{ fmtDate(selected.updated_at) }}</span>
       </div>
-      <pre class="dl-md">{{ selected.body_md }}</pre>
+      <div class="dl-body">
+        <DoctrineContent :text="selected.body_md" :reg="reg" />
+        <ReferencedTools :text="selected.body_md" :reg="reg" />
+      </div>
     </ConsoleCard>
 
     <template v-else>
@@ -191,11 +203,9 @@ async function unpublish(e: LibraryEntry | LibraryDoctrine) {
 .dl-author.otomata { background: var(--color-ink); color: var(--color-bg); }
 .dl-author.org { background: var(--color-cobalt-soft); color: var(--color-cobalt-ink); }
 
-.dl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
-.dl-md {
-  white-space: pre-wrap; word-wrap: break-word; font-family: var(--font-mono);
-  font-size: 12.5px; line-height: 1.65; color: var(--color-ink); margin: 0;
-  background: var(--color-surface); border: 1px solid var(--color-hair);
-  border-radius: 10px; padding: 16px; max-height: 60vh; overflow: auto;
+.dl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; padding: 14px 20px 0; }
+.dl-body {
+  padding: 4px 20px 18px; max-height: 64vh; overflow-y: auto;
 }
+.dl-body :deep(.oto-content) { margin-bottom: 18px; }
 </style>
