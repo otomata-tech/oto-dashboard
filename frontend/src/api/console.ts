@@ -8,7 +8,7 @@ import type {
   InstructionVersion, Me, MonitoringSummary,
   NamespaceEntry, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall,
-  WhatsappStatus, ScoutQueueItem, ScoutDetail, MementoStatus, UnipileStatus, WaitlistEntry, AlphaInvite, InvitePreview,
+  ScoutQueueItem, ScoutDetail, MementoStatus, UnipileStatus, WaitlistEntry, AlphaInvite, InvitePreview,
   FieldRule, FieldFiltersBundle,
 } from '@/types/api'
 
@@ -37,7 +37,6 @@ export const deleteApiKey = (provider: string) =>
 // ── sessions ──
 export const deleteLinkedin = () => api('/api/settings/linkedin', { method: 'DELETE' })
 export const deleteCrunchbase = () => api('/api/settings/crunchbase', { method: 'DELETE' })
-export const getWhatsappStatus = () => api<WhatsappStatus>('/api/whatsapp/status')
 
 // ── google ──
 export const getGoogleStatus = () => api<GoogleOauthStatus>('/api/google/oauth/status')
@@ -55,8 +54,10 @@ export const disconnectMemento = () => api('/api/memento/oauth', { method: 'DELE
 // ── unipile (LinkedIn hébergé) — hosted-auth per-user sous la clé partagée ──
 export const getUnipileStatus = () => api<UnipileStatus>('/api/me/unipile')
 export const subscribeUnipile = () => api<{ checkout_url: string }>('/api/me/unipile/subscribe', { method: 'POST' })
-export const connectUnipile = () => api<{ url: string }>('/api/me/unipile/connect', { method: 'POST' })
-export const disconnectUnipile = () => api('/api/me/unipile', { method: 'DELETE' })
+export const connectUnipile = (channel: string) =>
+  api<{ url: string }>('/api/me/unipile/connect', { method: 'POST', ...j({ channel }) })
+export const disconnectUnipile = (channel: string) =>
+  api(`/api/me/unipile?channel=${encodeURIComponent(channel)}`, { method: 'DELETE' })
 
 // ── cli tokens ──
 export const getTokens = () => api<{ tokens: ApiToken[] }>('/api/me/tokens')

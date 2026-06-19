@@ -41,6 +41,11 @@ const keyConnectors = computed(() => catalog.value.filter(
   (c) => (c.credential_fields?.length ?? 0) > 0 && c.name !== 'unipile'))
 // La carte Unipile n'apparaît que si le connecteur est exposé à l'user (activé).
 const hasUnipile = computed(() => catalog.value.some((c) => c.name === 'unipile'))
+// Canaux Unipile (même connecteur, même abonnement partagé) — LinkedIn + WhatsApp hébergés.
+const unipileChannels = [
+  { key: 'linkedin', label: 'linkedin', desc: 'search, scrape & message as you' },
+  { key: 'whatsapp', label: 'whatsapp', desc: 'read & send messages as you' },
+] as const
 // MCP fédérés (otomata#16) : oauth + non personal_session (ex. memento). Présents
 // dans le catalogue seulement si l'user est entitled (grant-only, deny-by-default).
 const federatedConnectors = computed(() => catalog.value.filter(
@@ -69,29 +74,30 @@ onMounted(async () => {
   const p = new URLSearchParams(window.location.search).get('memento')
   if (p === 'connected') toast('memento connecté')
   else if (p === 'error') toast('échec de la connexion memento')
-  // Retour du hosted-auth Unipile (?unipile=connected|failed) → on capte l'account_id.
+  // Retour du hosted-auth Unipile (?unipile=connected|failed&channel=<canal>).
   const up = new URLSearchParams(window.location.search).get('unipile')
+  const upCh = (new URLSearchParams(window.location.search).get('channel') || 'linkedin') as 'linkedin' | 'whatsapp'
   if (p || up) window.history.replaceState({}, '', window.location.pathname)
   if (up === 'connected') {
-    // Le webhook lie l'account_id côté serveur (asynchrone) — on poll le statut
+    // Le webhook lie l'account_id côté serveur (asynchrone) — on poll le canal visé
     // le temps qu'il arrive (quelques secondes).
     for (let i = 0; i < 5; i++) {
       unipile.value = await getUnipileStatus().catch(() => unipile.value)
-      if (unipile.value?.connected) break
+      if (unipile.value?.channels?.[upCh]?.connected) break
       await new Promise((r) => setTimeout(r, 1200))
     }
-    toast(unipile.value?.connected ? 'linkedin connecté via unipile' : 'connexion en cours — rafraîchis dans un instant')
+    toast(unipile.value?.channels?.[upCh]?.connected ? `${upCh} connecté via unipile` : 'connexion en cours — rafraîchis dans un instant')
   } else if (up === 'failed') {
-    toast('échec de la connexion linkedin')
+    toast(`échec de la connexion ${upCh}`)
   } else if (up === 'subscribed') {
-    // Retour du checkout Stripe (abonnement option LinkedIn) — le webhook bascule
+    // Retour du checkout Stripe (abonnement option messagerie) — le webhook bascule
     // l'org en `active` (asynchrone), on poll le statut le temps qu'il arrive.
     for (let i = 0; i < 5; i++) {
       unipile.value = await getUnipileStatus().catch(() => unipile.value)
       if (unipile.value?.subscribed) break
       await new Promise((r) => setTimeout(r, 1200))
     }
-    toast(unipile.value?.subscribed ? 'option linkedin activée' : 'activation en cours — rafraîchis dans un instant')
+    toast(unipile.value?.subscribed ? 'option messagerie activée' : 'activation en cours — rafraîchis dans un instant')
   } else if (up === 'cancel') {
     toast('activation annulée')
   }
@@ -112,13 +118,13 @@ async function activateUnipile() {
   try { const { checkout_url } = await subscribeUnipile(); window.location.href = checkout_url }
   catch (e) { toast(humanize(e)) }
 }
-async function linkUnipile() {
-  try { const { url } = await connectUnipile(); window.location.href = url }
+async function linkUnipile(channel: string) {
+  try { const { url } = await connectUnipile(channel); window.location.href = url }
   catch (e) { toast(humanize(e)) }
 }
-async function dropUnipile() {
-  if (!await confirmAction({ title: 'disconnect linkedin (unipile)', danger: true, confirmLabel: 'disconnect', message: 'disconnect your linkedin? the unipile tools will stop acting as you.' })) return
-  try { await disconnectUnipile(); toast('linkedin disconnected'); unipile.value = await getUnipileStatus() }
+async function dropUnipile(channel: string) {
+  if (!await confirmAction({ title: `disconnect ${channel} (unipile)`, danger: true, confirmLabel: 'disconnect', message: `disconnect your ${channel}? the unipile tools will stop acting as you on this channel.` })) return
+  try { await disconnectUnipile(channel); toast(`${channel} disconnected`); unipile.value = await getUnipileStatus() }
   catch (e) { toast(humanize(e)) }
 }
 
@@ -326,28 +332,30 @@ async function revokeToken(t: ApiToken) {
       </div>
     </ConsoleCard>
 
-    <ConsoleCard v-if="hasUnipile" title="linkedin (unipile)"
-      sub="a paid add-on — €15/mo per connected linkedin. hosted login, no cookie, no extension; the unipile tools then act as you. mcp call credits apply on top.">
+    <ConsoleCard v-if="hasUnipile" title="messaging (unipile)"
+      sub="a paid add-on — hosted login (no cookie, no extension) for linkedin & whatsapp; the unipile tools then act as you. degressive €15 / €10 / €7 per connected account per month. mcp call credits apply on top.">
+      <template #actions>
+        <Btn v-if="!unipile?.subscribed" kind="mini" @click="activateUnipile">activate · from €15/mo</Btn>
+      </template>
       <div class="rowlist">
-        <div class="rowitem" style="gap: 12px">
-          <Dot :tone="unipile?.connected ? 'olive' : (unipile?.subscribed ? 'saffron' : 'faint')" :size="8" />
+        <div v-for="c in unipileChannels" :key="c.key" class="rowitem" style="gap: 12px">
+          <Dot :tone="unipile?.channels?.[c.key]?.connected ? 'olive' : (unipile?.subscribed ? 'saffron' : 'faint')" :size="8" />
           <div style="min-width: 0; flex: 1">
             <div style="font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: center">
-              linkedin <Tag tone="cobalt">hosted</Tag>
-              <Tag v-if="unipile?.subscribed" tone="olive">option active</Tag>
+              {{ c.label }} <Tag tone="cobalt">hosted</Tag>
+              <Tag v-if="unipile?.channels?.[c.key]?.connected" tone="olive">connected</Tag>
             </div>
             <div style="font-size: 11.5px; color: var(--color-mute)">
               {{ !unipile?.subscribed
-                ? 'option not active — €15/mo per linkedin seat, billed monthly'
-                : (unipile?.connected
-                  ? `connected ${fmtDate(unipile.connected_at) ?? ''} · search, scrape & message as you`
-                  : 'option active — link your linkedin to start') }}
+                ? 'activate the option above to connect'
+                : (unipile?.channels?.[c.key]?.connected
+                  ? `connected ${fmtDate(unipile?.channels?.[c.key]?.connected_at ?? null) ?? ''} · ${c.desc}`
+                  : `option active — link your ${c.label} to start`) }}
             </div>
           </div>
-          <Btn v-if="!unipile?.subscribed" kind="mini" @click="activateUnipile">activate · €15/mo</Btn>
-          <template v-else>
-            <Btn v-if="unipile?.connected" kind="danger" @click="dropUnipile">disconnect</Btn>
-            <Btn v-else kind="mini" @click="linkUnipile">connect</Btn>
+          <template v-if="unipile?.subscribed">
+            <Btn v-if="unipile?.channels?.[c.key]?.connected" kind="danger" @click="dropUnipile(c.key)">disconnect</Btn>
+            <Btn v-else kind="mini" @click="linkUnipile(c.key)">connect</Btn>
           </template>
         </div>
       </div>
