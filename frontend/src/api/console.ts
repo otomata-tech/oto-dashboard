@@ -7,7 +7,7 @@ import type {
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
   NamespaceEntry, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
-  ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall,
+  ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal,
   ScoutQueueItem, ScoutDetail, MementoStatus, UnipileStatus, WaitlistEntry, AlphaInvite, InvitePreview,
   FieldRule, FieldFiltersBundle,
 } from '@/types/api'
@@ -323,6 +323,14 @@ export const getUsageRun = (runId: string) =>
   api<{ run_id: string; calls: RunCall[] }>(`/api/admin/usage/runs/${runId}`)
 export const getUsageGaps = () => api<{ gaps: UsageGap[] }>('/api/admin/usage/gaps')
 export const getUsageToolQuality = () => api<{ tools: ToolFeedbackAgg[] }>('/api/admin/usage/tool-quality')
+// Détail (drill-down) : signaux bruts filtrés par signal (tool_feedback|gap) + target (outil/intent).
+export const getUsageSignals = (signal?: string, target?: string) => {
+  const q = new URLSearchParams()
+  if (signal) q.set('signal', signal)
+  if (target) q.set('target', target)
+  const qs = q.toString()
+  return api<{ signals: UsageSignal[] }>(`/api/admin/usage/signals${qs ? `?${qs}` : ''}`)
+}
 
 // Activité de l'utilisateur courant (ses propres appels) — per-user, pas admin.
 export const getMyCalls = (params: { limit?: number; tool?: string; errors?: boolean; days?: number } = {}) => {
