@@ -55,6 +55,7 @@ export const NAV: NavGroup[] = [
   { group: 'organization', registre: 'gov', scope: 'org', items: [
     { id: 'org', label: 'members & secrets', icon: 'users' },
     { id: 'groups', label: 'departments', icon: 'users' },
+    { id: 'redaction', label: 'field redaction', icon: 'shield' },
   ]},
   { group: 'platform · admin', registre: 'gov', scope: 'platform', admin: true, items: [
     { id: 'monitoring', label: 'monitoring', icon: 'chart' },
@@ -96,6 +97,7 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   billing: { title: 'billing & credits', crumb: 'account' },
   org: { title: 'organization', crumb: 'governance · org' },
   groups: { title: 'departments', crumb: 'governance · org' },
+  redaction: { title: 'field redaction', crumb: 'governance · org' },
   monitoring: { title: 'mcp monitoring', crumb: 'governance · platform' },
   usage: { title: 'usage & déroulés', crumb: 'governance · platform' },
   adminusers: { title: 'users & grants', crumb: 'governance · platform' },

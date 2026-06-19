@@ -26,6 +26,7 @@ import BillingView from './BillingView.vue'
 import AccountView from './AccountView.vue'
 import OrgView from './OrgView.vue'
 import GroupsView from './GroupsView.vue'
+import FieldFiltersView from './FieldFiltersView.vue'
 import MonitoringView from './MonitoringView.vue'
 import UsageView from './UsageView.vue'
 import AdminUsersView from './AdminUsersView.vue'
@@ -48,6 +49,7 @@ const VIEWS: Record<string, Component> = {
   account: AccountView,
   org: OrgView,
   groups: GroupsView,
+  redaction: FieldFiltersView,
   monitoring: MonitoringView,
   usage: UsageView,
   adminusers: AdminUsersView,
