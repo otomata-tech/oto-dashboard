@@ -1,13 +1,23 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 
 const { login } = useAuth()
 const route = useRoute()
-// Arrivée depuis « rejoindre la waitlist » (oto.ninja, ?join) → accueil orienté
-// création de compte / alpha, et on ouvre direct l'écran d'inscription Logto.
+// Arrivée depuis « rejoindre la waitlist » (oto.ninja, ?join) → on enchaîne
+// DIRECTEMENT sur l'écran d'inscription Logto, sans interstitiel à bouton
+// (l'ancien écran « créer mon compte » était un double écran inutile). On garde
+// un état de redirection minimal + un repli cliquable si le rebond JS traîne.
 const join = computed(() => route.query.join !== undefined)
+const redirecting = ref(false)
+
+onMounted(() => {
+  if (join.value) {
+    redirecting.value = true
+    login(undefined, 'register')
+  }
+})
 </script>
 
 <template>
@@ -22,12 +32,10 @@ const join = computed(() => route.query.join !== undefined)
             <div class="env" style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-faint); margin-top: 3px">alpha · sur invitation</div>
           </div>
           <p class="helptext" style="margin: 4px 0 6px">
-            crée ton compte otomata pour rejoindre l'alpha d'oto. l'accès s'ouvre par vagues —
-            tu es ajouté à la liste d'attente et on te prévient dès l'ouverture.
+            redirection vers la création de compte…
           </p>
-          <button class="btn" @click="() => login(undefined, 'register')">créer mon compte</button>
-          <a href="#" @click.prevent="() => login()" style="font-size: 13px; color: var(--color-mute); text-decoration: underline">
-            déjà un compte ? se connecter
+          <a href="#" @click.prevent="() => login(undefined, 'register')" style="font-size: 13px; color: var(--color-mute); text-decoration: underline">
+            la redirection ne se lance pas ? créer mon compte
           </a>
         </template>
 
