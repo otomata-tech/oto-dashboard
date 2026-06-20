@@ -34,6 +34,24 @@ Section `/console/groups` (`GroupsView.vue` + `GroupDoctrineCard.vue`) : départ
 ## Billing / credits (paiement Stripe)
 
 Section `/console/billing` (`BillingView.vue`) : portefeuille de credits d'appel **par org active**. 1 appel MCP = 1 credit ; chaque org reçoit un stock de base gratuit, puis recharge par **packs Stripe** (paiement ponctuel — `POST /api/me/billing/checkout` → redirect `checkout_url`). Soft : le solde peut être négatif, l'appel n'est jamais bloqué (drapeau `low`). Le solde vit dans `me.billing` (`{balance, low, base_granted}`, `null` si pas d'org active) — pas de fetch dédié pour l'afficher. Packs/historique via `getBillingPacks`/`getBillingTransactions`. Retour de Checkout : `?status=success|cancel` → toast + `reload()` du `me`. Achat ouvert à tout membre (recharge le wallet partagé). Backend : `oto-backend/CLAUDE.md` §Billing.
+## Connecteurs — surface unifiée (connexion + outils, 3 états)
+
+Section unique `/console/connectors` (`ConnectorsView.vue`) : **fusion** des ex-écrans
+`/my-connectors` + `/connectors` + `/toolbox` (qui redirigent désormais ici). Un connecteur
+= **UNE chose à deux faces** : la **config de la connexion** (credential) ET le **paramétrage
+de ses outils** (toolbox). Chaque connecteur est une carte (`ConnectorCard.vue`) portant les
+deux + un **sélecteur 3 états** câblé sur `connector_selection` (ADR 0019, `getMyConnectors`/
+`selectConnector`/`pauseConnector`/`unselectConnector`) :
+- **active** (`state=active`) — outils exposés à l'agent (visibilité normale).
+- **hidden / masqué** (`state=paused`) — installé mais outils cachés de l'agent.
+- **off / désactivé** (`not_selected`) — **le défaut**, connecteur non installé.
+
+La carte dérive sa face credential des champs du registre (`ConnectorMeta`) : keyé
+(`credential_fields`) → formulaire inline (`setCredential`) ; oauth/cookie/hosted →
+elle pointe (`@goto`) vers la carte dédiée ancrée plus bas (`#sessions`/`#google`/
+`#federated`/`#messaging`). Les toggles d'outils par connecteur restent `enableTool`/
+`disableTool`. Les **presets** de toolbox + les **tokens CLI** vivent en bas de la même vue.
+
 ## Fédération MCP (memento, otomata#16)
 
 `ConnectorsView.vue` porte la carte « federated mcp » (connect/disconnect du compte memento

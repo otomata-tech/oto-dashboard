@@ -18,6 +18,10 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', redirect: '/overview' },
+    // Anciennes sections fusionnées dans /connectors (ex-my-connectors + ex-toolbox) :
+    // redirections pour ne pas casser bookmarks / liens existants.
+    { path: '/my-connectors', redirect: '/connectors' },
+    { path: '/toolbox', redirect: '/connectors' },
     // Acceptation d'invitation (hors shell console) — gère sa propre auth.
     { path: '/invite', name: 'invite', component: InviteAcceptView },
     {

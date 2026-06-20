@@ -27,7 +27,7 @@ async function load() {
 onMounted(load)
 
 // Installer = sélectionner dans son workspace (state → active). Le détail (config
-// credential, pause, retrait) se gère ensuite dans « mes connecteurs ».
+// credential, masquage, désactivation) se gère ensuite dans /connectors.
 async function install(c: MyConnector) {
   busy.value = c.name
   try { await selectConnector(c.name); c.state = 'active' }
@@ -108,7 +108,7 @@ const familyTone = (f: string): 'olive' | 'saffron' | 'cobalt' | 'ink' =>
             <Btn v-if="c.state === 'not_selected'" kind="mini" :disabled="busy === c.name" @click="install(c)">
               {{ busy === c.name ? '…' : 'install' }}
             </Btn>
-            <RouterLink v-else to="/console/my-connectors" class="lib-installed">installed →</RouterLink>
+            <RouterLink v-else to="/connectors" class="lib-installed">installed →</RouterLink>
           </div>
         </div>
       </article>
