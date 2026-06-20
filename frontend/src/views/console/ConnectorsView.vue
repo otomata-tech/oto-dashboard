@@ -1,156 +1,121 @@
 <script setup lang="ts">
+// Connecteurs — surface UNIFIÉE (fusion ex-/connectors + ex-/toolbox + ex-/my-connectors).
+// Un connecteur = UNE chose à deux faces : config de la connexion (credential) ET
+// paramétrage de ses outils (toolbox). Chaque connecteur est une carte (ConnectorCard)
+// portant les deux + le sélecteur 3 états (actif/masqué/désactivé, ADR 0019). Les flux
+// de connexion à carte dédiée (sessions, google, messagerie unipile, mcp fédéré, tokens
+// cli) restent en bas, ancrés (la carte y pointe). Presets de toolbox tout en bas.
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
+import ConnectorCard from '@/components/console/ConnectorCard.vue'
+import Stat from '@/components/console/Stat.vue'
 import Dot from '@/components/console/Dot.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
-import Quota from '@/components/console/Quota.vue'
-import ModeTag from '@/components/console/ModeTag.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
 import {
-  getConnectors, setCredential, deleteApiKey, deleteLinkedin, deleteCrunchbase,
+  getMyConnectors, getTools, getPresets, setCredential, deleteApiKey,
+  deleteLinkedin, deleteCrunchbase,
   getGoogleStatus, startGoogleOauth, setGoogleDefault, revokeGoogle,
   getMementoStatus, startMementoOauth, disconnectMemento,
   getUnipileStatus, subscribeUnipile, connectUnipile, disconnectUnipile,
   getTokens, createToken, deleteToken,
+  applyPreset as applyPresetApi, savePreset, deletePreset,
 } from '@/api/console'
-import type { ConnectorMeta, ConnectorMode, DotTone } from '@/lib/consoleTypes'
-import type { ApiToken, GoogleOauthStatus, MementoStatus, UnipileStatus } from '@/types/api'
+import type {
+  ApiToken, ConnectorState, GoogleOauthStatus, MementoStatus, MyConnector, PresetEntry, ToolEntry, UnipileStatus,
+} from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
-const { promptForm, confirmAction } = usePrompt()
+const { promptForm, promptText, confirmAction } = usePrompt()
 const { me, reload } = useMe()
 
-const catalog = ref<ConnectorMeta[]>([])
+const profileLabel = computed(() => me.value?.active_org_name || 'Perso')
+
+const catalog = ref<MyConnector[]>([])
+const tools = ref<ToolEntry[]>([])
+const presets = ref<PresetEntry[]>([])
 const google = ref<GoogleOauthStatus | null>(null)
 const memento = ref<MementoStatus | null>(null)
 const unipile = ref<UnipileStatus | null>(null)
 const tokens = ref<ApiToken[]>([])
 const error = ref<string | null>(null)
+const q = ref('')
 
-// Connecteurs à credential saisissable (modèle générique multi-champs, ADR 0011) :
-// ceux qui déclarent des `credential_fields` (api_key 1 champ, basic_auth 2, silae
-// 3…). Les sessions perso (cookie) et les MCP fédérés OAuth ont 0 champ → exclus
-// (carte/flux dédiés). `unipile` aussi : le LinkedIn se connecte par hosted-auth
-// (carte dédiée), pas en collant une clé — la clé Unipile est un secret d'org.
-const keyConnectors = computed(() => catalog.value.filter(
-  (c) => (c.credential_fields?.length ?? 0) > 0 && c.name !== 'unipile'))
-// La carte Unipile n'apparaît que si le connecteur est exposé à l'user (activé).
-const hasUnipile = computed(() => catalog.value.some((c) => c.name === 'unipile'))
-// Canaux Unipile (même connecteur, même abonnement partagé) — LinkedIn + WhatsApp hébergés.
-const unipileChannels = [
-  { key: 'linkedin', label: 'linkedin', desc: 'search, scrape & message as you' },
-  { key: 'whatsapp', label: 'whatsapp', desc: 'read & send messages as you' },
-  { key: 'telegram', label: 'telegram', desc: 'read & send messages as you' },
-  { key: 'instagram', label: 'instagram', desc: 'read & send DMs as you' },
-  { key: 'messenger', label: 'messenger', desc: 'read & send messages as you' },
-  { key: 'twitter', label: 'x / twitter', desc: 'read & send DMs as you' },
-] as const
-// MCP fédérés (otomata#16) : oauth + non personal_session (ex. memento). Présents
-// dans le catalogue seulement si l'user est entitled (grant-only, deny-by-default).
-const federatedConnectors = computed(() => catalog.value.filter(
-  (c) => c.secret_kind === 'oauth' && !c.personal_session))
+const nsOf = (toolName: string): string => toolName.split('_')[0] ?? toolName
+function toolsOf(c: MyConnector): ToolEntry[] {
+  const ns = new Set(c.namespaces)
+  return tools.value.filter((t) => ns.has(nsOf(t.name)))
+}
+
+// Tri : actifs d'abord, puis masqués, puis désactivés ; à l'intérieur par libellé.
+const ORDER: Record<ConnectorState, number> = { active: 0, paused: 1, not_selected: 2 }
+const shown = computed(() => {
+  const needle = q.value.trim().toLowerCase()
+  return catalog.value
+    .filter((c) => !needle
+      || c.label.toLowerCase().includes(needle)
+      || c.name.toLowerCase().includes(needle)
+      || c.publisher.toLowerCase().includes(needle)
+      || c.namespaces.some((n) => n.includes(needle)))
+    .sort((a, b) => (ORDER[a.state] - ORDER[b.state]) || a.label.localeCompare(b.label))
+})
+const activeCount = computed(() => catalog.value.filter((c) => c.state === 'active').length)
+const exposedTools = computed(() => tools.value.filter((t) => t.enabled).length)
 
 async function load() {
   try {
-    const [cat, g, m, u, t] = await Promise.all([
-      getConnectors(),
-      getGoogleStatus().catch(() => null),
-      getMementoStatus().catch(() => null),
-      getUnipileStatus().catch(() => null),
-      getTokens().catch(() => ({ tokens: [] })),
+    const [mc, tl, pr, g, m, u, t] = await Promise.all([
+      getMyConnectors(), getTools(), getPresets().catch(() => ({ presets: [] })),
+      getGoogleStatus().catch(() => null), getMementoStatus().catch(() => null),
+      getUnipileStatus().catch(() => null), getTokens().catch(() => ({ tokens: [] })),
     ])
-    catalog.value = cat.connectors
+    catalog.value = mc.connectors
+    tools.value = tl.tools
+    presets.value = pr.presets
     google.value = g
     memento.value = m
     unipile.value = u
     tokens.value = t.tokens
-  } catch (e) {
-    error.value = humanize(e)
-  }
+  } catch (e) { error.value = humanize(e) }
 }
 onMounted(async () => {
-  // Retour du consentement OAuth memento (redirige avec ?memento=connected|error).
-  const p = new URLSearchParams(window.location.search).get('memento')
+  // Retour des flux OAuth (memento) / hosted-auth (unipile) — toast + poll.
+  const sp = new URLSearchParams(window.location.search)
+  const p = sp.get('memento'), up = sp.get('unipile')
+  const upCh = (sp.get('channel') || 'linkedin') as keyof UnipileStatus['channels']
   if (p === 'connected') toast('memento connecté')
   else if (p === 'error') toast('échec de la connexion memento')
-  // Retour du hosted-auth Unipile (?unipile=connected|failed&channel=<canal>).
-  const up = new URLSearchParams(window.location.search).get('unipile')
-  const upCh = (new URLSearchParams(window.location.search).get('channel') || 'linkedin') as 'linkedin' | 'whatsapp' | 'telegram' | 'instagram' | 'messenger' | 'twitter'
   if (p || up) window.history.replaceState({}, '', window.location.pathname)
   if (up === 'connected') {
-    // Le webhook lie l'account_id côté serveur (asynchrone) — on poll le canal visé
-    // le temps qu'il arrive (quelques secondes).
     for (let i = 0; i < 5; i++) {
       unipile.value = await getUnipileStatus().catch(() => unipile.value)
       if (unipile.value?.channels?.[upCh]?.connected) break
       await new Promise((r) => setTimeout(r, 1200))
     }
     toast(unipile.value?.channels?.[upCh]?.connected ? `${upCh} connecté via unipile` : 'connexion en cours — rafraîchis dans un instant')
-  } else if (up === 'failed') {
-    toast(`échec de la connexion ${upCh}`)
-  } else if (up === 'subscribed') {
-    // Retour du checkout Stripe (abonnement option messagerie) — le webhook bascule
-    // l'org en `active` (asynchrone), on poll le statut le temps qu'il arrive.
+  } else if (up === 'failed') toast(`échec de la connexion ${upCh}`)
+  else if (up === 'subscribed') {
     for (let i = 0; i < 5; i++) {
       unipile.value = await getUnipileStatus().catch(() => unipile.value)
       if (unipile.value?.subscribed) break
       await new Promise((r) => setTimeout(r, 1200))
     }
     toast(unipile.value?.subscribed ? 'option messagerie activée' : 'activation en cours — rafraîchis dans un instant')
-  } else if (up === 'cancel') {
-    toast('activation annulée')
-  }
+  } else if (up === 'cancel') toast('activation annulée')
   load()
 })
 
-async function linkMemento() {
-  try { const { auth_url } = await startMementoOauth(); window.location.href = auth_url }
-  catch (e) { toast(humanize(e)) }
-}
-async function dropMemento() {
-  if (!await confirmAction({ title: 'disconnect memento', danger: true, confirmLabel: 'disconnect', message: 'disconnect your memento workspace? its tools will disappear from your session.' })) return
-  try { await disconnectMemento(); toast('memento disconnected'); memento.value = await getMementoStatus() }
-  catch (e) { toast(humanize(e)) }
+function goto(section: string) {
+  document.getElementById(section)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-async function activateUnipile() {
-  try { const { checkout_url } = await subscribeUnipile(); window.location.href = checkout_url }
-  catch (e) { toast(humanize(e)) }
-}
-async function linkUnipile(channel: string) {
-  try { const { url } = await connectUnipile(channel); window.location.href = url }
-  catch (e) { toast(humanize(e)) }
-}
-async function dropUnipile(channel: string) {
-  if (!await confirmAction({ title: `disconnect ${channel} (unipile)`, danger: true, confirmLabel: 'disconnect', message: `disconnect your ${channel}? the unipile tools will stop acting as you on this channel.` })) return
-  try { await disconnectUnipile(channel); toast(`${channel} disconnected`); unipile.value = await getUnipileStatus() }
-  catch (e) { toast(humanize(e)) }
-}
-
-function statusMode(name: string): ConnectorMode {
-  const p = me.value?.providers?.[name]
-  if (!p || p.mode === 'forbidden') return 'none'
-  if (p.mode === 'over_quota') return 'platform'
-  return p.mode as ConnectorMode
-}
-function connectorTone(name: string): DotTone {
-  const p = me.value?.providers?.[name]
-  if (!p || p.mode === 'forbidden') return 'faint'
-  if (p.mode === 'over_quota') return 'terra'
-  if (p.mode === 'user') return 'olive'
-  if (p.quota_daily && p.quota_used_today / p.quota_daily >= 0.75) return 'saffron'
-  return 'olive'
-}
-
-async function configure(c: ConnectorMeta) {
-  // GÉNÉRIQUE (ADR 0011) : le formulaire se rend depuis les champs déclarés par le
-  // connecteur. 1 champ (api_key) = saisie simple ; ≥2 (basic_auth, silae) = form
-  // multi-champs. Le serveur pack/chiffre selon la forme — aucune branche ici.
+// ── credential keyé (générique, ADR 0011) ──
+async function configure(c: MyConnector) {
   const fields = c.credential_fields ?? []
   if (!fields.length) return
   const single = fields.length === 1
@@ -160,74 +125,104 @@ async function configure(c: ConnectorMeta) {
       ? `your ${c.label} key — stored encrypted; yours overrides the org and platform keys.`
       : `your ${c.label} credentials — stored encrypted, used to act on your behalf.`,
     fields: fields.map((f) => ({
-      key: f.name,
-      label: f.label.toLowerCase(),
-      type: f.secret ? 'password' : undefined,
-      required: true,
-      placeholder: single ? `paste your ${c.label} key` : undefined,
+      key: f.name, label: f.label.toLowerCase(), type: f.secret ? 'password' : undefined,
+      required: true, placeholder: single ? `paste your ${c.label} key` : undefined,
     })),
     submitLabel: single ? 'save' : 'connect',
   })
   if (!r) return
-  try {
-    await setCredential(c.name, r)
-    toast(`${c.label} ${single ? 'key saved' : 'connected'}`)
-    await reload()
-  } catch (e) { toast(humanize(e)) }
+  try { await setCredential(c.name, r); toast(`${c.label} ${single ? 'key saved' : 'connected'}`); await reload() }
+  catch (e) { toast(humanize(e)) }
 }
-async function removeKey(c: ConnectorMeta) {
+async function removeKey(c: MyConnector) {
   if (!await confirmAction({ title: 'remove key', danger: true, confirmLabel: 'remove', message: `remove your ${c.label} key?` })) return
   try { await deleteApiKey(c.name); toast('key removed'); await reload() }
   catch (e) { toast(humanize(e)) }
 }
 
+// ── sessions ──
 async function dropLinkedin() {
   if (!await confirmAction({ title: 'disconnect LinkedIn', danger: true, confirmLabel: 'disconnect', message: 'disconnect your linkedin session?' })) return
-  try { await deleteLinkedin(); toast('linkedin session removed'); await reload() }
-  catch (e) { toast(humanize(e)) }
+  try { await deleteLinkedin(); toast('linkedin session removed'); await reload() } catch (e) { toast(humanize(e)) }
 }
 async function dropCrunchbase() {
   if (!await confirmAction({ title: 'disconnect Crunchbase', danger: true, confirmLabel: 'disconnect', message: 'disconnect your crunchbase session?' })) return
-  try { await deleteCrunchbase(); toast('crunchbase session removed'); await reload() }
-  catch (e) { toast(humanize(e)) }
+  try { await deleteCrunchbase(); toast('crunchbase session removed'); await reload() } catch (e) { toast(humanize(e)) }
 }
 
+// ── google ──
 async function linkGoogle() {
-  try { const { auth_url } = await startGoogleOauth(); window.location.href = auth_url }
-  catch (e) { toast(humanize(e)) }
+  try { const { auth_url } = await startGoogleOauth(); window.location.href = auth_url } catch (e) { toast(humanize(e)) }
 }
 async function makeDefault(email: string) {
-  try { await setGoogleDefault(email); toast('default account updated'); google.value = await getGoogleStatus() }
-  catch (e) { toast(humanize(e)) }
+  try { await setGoogleDefault(email); toast('default account updated'); google.value = await getGoogleStatus() } catch (e) { toast(humanize(e)) }
 }
 async function unlinkGoogle(email: string) {
   if (!await confirmAction({ title: 'revoke google account', danger: true, confirmLabel: 'revoke', message: `revoke ${email}? tools using it will lose access.` })) return
-  try { await revokeGoogle(email); toast('grant revoked'); google.value = await getGoogleStatus() }
-  catch (e) { toast(humanize(e)) }
+  try { await revokeGoogle(email); toast('grant revoked'); google.value = await getGoogleStatus() } catch (e) { toast(humanize(e)) }
 }
 
+// ── memento (mcp fédéré) ──
+async function linkMemento() {
+  try { const { auth_url } = await startMementoOauth(); window.location.href = auth_url } catch (e) { toast(humanize(e)) }
+}
+async function dropMemento() {
+  if (!await confirmAction({ title: 'disconnect memento', danger: true, confirmLabel: 'disconnect', message: 'disconnect your memento workspace? its tools will disappear from your session.' })) return
+  try { await disconnectMemento(); toast('memento disconnected'); memento.value = await getMementoStatus() } catch (e) { toast(humanize(e)) }
+}
+
+// ── messagerie unipile ──
+async function activateUnipile() {
+  try { const { checkout_url } = await subscribeUnipile(); window.location.href = checkout_url } catch (e) { toast(humanize(e)) }
+}
+async function linkUnipile(channel: string) {
+  try { const { url } = await connectUnipile(channel); window.location.href = url } catch (e) { toast(humanize(e)) }
+}
+async function dropUnipile(channel: string) {
+  if (!await confirmAction({ title: `disconnect ${channel} (unipile)`, danger: true, confirmLabel: 'disconnect', message: `disconnect your ${channel}? the unipile tools will stop acting as you on this channel.` })) return
+  try { await disconnectUnipile(channel); toast(`${channel} disconnected`); unipile.value = await getUnipileStatus() } catch (e) { toast(humanize(e)) }
+}
+const hasUnipile = computed(() => catalog.value.some((c) => c.name === 'unipile'))
+const unipileChannels = [
+  { key: 'linkedin', label: 'linkedin', desc: 'search, scrape & message as you' },
+  { key: 'whatsapp', label: 'whatsapp', desc: 'read & send messages as you' },
+  { key: 'telegram', label: 'telegram', desc: 'read & send messages as you' },
+  { key: 'instagram', label: 'instagram', desc: 'read & send DMs as you' },
+  { key: 'messenger', label: 'messenger', desc: 'read & send messages as you' },
+  { key: 'twitter', label: 'x / twitter', desc: 'read & send DMs as you' },
+] as const
+const federated = computed(() => catalog.value.filter((c) => c.secret_kind === 'oauth' && !c.personal_session))
+
+// ── cli tokens ──
 async function newToken() {
   const r = await promptForm({
     title: 'new cli token', description: 'long-lived token for the oto cli and ci environments.',
-    fields: [{ key: 'label', label: 'label', value: 'cli', placeholder: 'e.g. cli, ci' }],
-    submitLabel: 'create',
+    fields: [{ key: 'label', label: 'label', value: 'cli', placeholder: 'e.g. cli, ci' }], submitLabel: 'create',
   })
   if (!r) return
   try {
     const { token } = await createToken(r.label || undefined)
     tokens.value = (await getTokens()).tokens
-    await promptForm({
-      title: 'copy this token now',
-      description: 'it is shown only once — store it in your secrets manager.',
-      fields: [{ key: 'token', label: 'token', value: token }],
-      submitLabel: 'done',
-    })
+    await promptForm({ title: 'copy this token now', description: 'it is shown only once — store it in your secrets manager.', fields: [{ key: 'token', label: 'token', value: token }], submitLabel: 'done' })
   } catch (e) { toast(humanize(e)) }
 }
 async function revokeToken(t: ApiToken) {
   if (!await confirmAction({ title: 'revoke token', danger: true, confirmLabel: 'revoke', message: `revoke "${t.label}"?` })) return
-  try { await deleteToken(t.id); toast('token revoked'); tokens.value = (await getTokens()).tokens }
-  catch (e) { toast(humanize(e)) }
+  try { await deleteToken(t.id); toast('token revoked'); tokens.value = (await getTokens()).tokens } catch (e) { toast(humanize(e)) }
+}
+
+// ── presets de toolbox ──
+async function applyPreset(name: string) {
+  try { await applyPresetApi(name); tools.value = (await getTools()).tools; toast(`preset "${name}" applied`) } catch (e) { toast(humanize(e)) }
+}
+async function saveCurrentPreset() {
+  const name = await promptText('save preset', { label: 'preset name', required: true, placeholder: 'e.g. prospection', hint: 'snapshots your current tool selection' })
+  if (!name) return
+  try { await savePreset(name); presets.value = (await getPresets()).presets; toast(`preset "${name}" saved`) } catch (e) { toast(humanize(e)) }
+}
+async function removePreset(name: string) {
+  if (!await confirmAction({ title: 'delete preset', danger: true, confirmLabel: 'delete', message: `delete preset "${name}"?` })) return
+  try { await deletePreset(name); presets.value = (await getPresets()).presets; toast('preset deleted') } catch (e) { toast(humanize(e)) }
 }
 </script>
 
@@ -235,40 +230,32 @@ async function revokeToken(t: ApiToken) {
   <div class="content-inner fadein">
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
-    <ConsoleCard title="api keys" flush
-      sub="one key per provider. yours wins over the org's; the org's wins over the platform pool.">
-      <table class="tbl">
-        <thead>
-          <tr><th style="width: 18px"></th><th>provider</th><th>source</th><th>quota today</th><th style="width: 90px"></th></tr>
-        </thead>
-        <tbody>
-          <tr v-for="c in keyConnectors" :key="c.name">
-            <td><Dot :tone="connectorTone(c.name)" :size="7" /></td>
-            <td>
-              <div style="font-weight: 600; color: var(--color-ink)">{{ c.label }}</div>
-              <div style="font-size: 11px; color: var(--color-faint)">{{ c.help }}</div>
-            </td>
-            <td>
-              <ModeTag :mode="statusMode(c.name)" />
-              <span v-if="me?.providers?.[c.name]?.platform_key_label" class="dim" style="margin-left: 6px; font-size: 11px">{{ me?.providers?.[c.name]?.platform_key_label }}</span>
-            </td>
-            <td style="min-width: 130px">
-              <Quota v-if="me?.providers?.[c.name]?.quota_daily"
-                :used="me!.providers[c.name]!.quota_used_today"
-                :total="me!.providers[c.name]!.quota_daily!" label="" />
-              <span v-else class="dim">—</span>
-            </td>
-            <td style="text-align: right">
-              <Btn v-if="me?.providers?.[c.name]?.user_key_configured" kind="danger" @click="removeKey(c)">remove</Btn>
-              <Btn v-else-if="statusMode(c.name) === 'none'" kind="mini" @click="configure(c)">configure</Btn>
-              <Btn v-else kind="mini" @click="configure(c)">override</Btn>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <p class="helptext" style="margin: -4px 0 2px">
+      connectors · <strong style="color: var(--color-ink)">{{ profileLabel }}</strong>
+      <span v-if="me && me.active_org == null"> — profil perso/global</span>
+      <span v-else> — propre à cette organisation</span>
+    </p>
+
+    <div class="grid3">
+      <Stat label="connectors active" :value="activeCount" :unit="'/ ' + catalog.length" sub="exposing tools to your agents" />
+      <Stat label="tools exposed" :value="exposedTools" :unit="'/ ' + tools.length" sub="what your mcp clients see" />
+      <Stat label="presets" :value="presets.length" sub="one-click tool selections" />
+    </div>
+
+    <ConsoleCard title="connectors"
+      sub="one card per connector — its connection (credential) and its tools, together. active = tools exposed · hidden = installed but tools cloaked · off = disabled (default).">
+      <template #actions>
+        <input v-model="q" class="cc-search" placeholder="search connectors…" />
+      </template>
+      <div class="cc-grid">
+        <ConnectorCard v-for="c in shown" :key="c.name" :connector="c" :tools="toolsOf(c)"
+          @configure="configure" @remove="removeKey" @goto="goto" />
+      </div>
+      <p v-if="!shown.length" class="helptext" style="text-align: center; padding: 16px">no connector matches “{{ q }}”.</p>
     </ConsoleCard>
 
-    <div class="grid2">
+    <!-- ── flux de connexion à carte dédiée (ancrés ; les cartes y pointent) ── -->
+    <div id="sessions" class="grid2">
       <ConsoleCard title="sessions" sub="per-user browser sessions — never shared with your org.">
         <div class="rowlist">
           <div class="rowitem" style="gap: 12px">
@@ -296,10 +283,8 @@ async function revokeToken(t: ApiToken) {
         </div>
       </ConsoleCard>
 
-      <ConsoleCard title="google accounts" sub="oauth grants used by gmail, drive, sheets and calendar tools.">
-        <template #actions>
-          <Btn kind="mini" icon="plus" @click="linkGoogle">link account</Btn>
-        </template>
+      <ConsoleCard id="google" title="google accounts" sub="oauth grants used by gmail, drive, sheets and calendar tools.">
+        <template #actions><Btn kind="mini" icon="plus" @click="linkGoogle">link account</Btn></template>
         <div v-if="google?.accounts?.length" class="rowlist">
           <div v-for="g in google.accounts" :key="g.email || ''" class="rowitem" style="gap: 12px">
             <Dot tone="olive" :size="8" />
@@ -317,10 +302,10 @@ async function revokeToken(t: ApiToken) {
       </ConsoleCard>
     </div>
 
-    <ConsoleCard v-if="federatedConnectors.length" title="federated mcp"
+    <ConsoleCard v-if="federated.length" id="federated" title="federated mcp"
       sub="connect another mcp to your oto — its tools mount into your session, scoped to your own account.">
       <div class="rowlist">
-        <div v-for="c in federatedConnectors" :key="c.name" class="rowitem" style="gap: 12px">
+        <div v-for="c in federated" :key="c.name" class="rowitem" style="gap: 12px">
           <Dot :tone="memento?.connected ? 'olive' : 'faint'" :size="8" />
           <div style="min-width: 0; flex: 1">
             <div style="font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: center">
@@ -336,7 +321,7 @@ async function revokeToken(t: ApiToken) {
       </div>
     </ConsoleCard>
 
-    <ConsoleCard v-if="hasUnipile" title="messaging (unipile)"
+    <ConsoleCard v-if="hasUnipile" id="messaging" title="messaging (unipile)"
       sub="a paid add-on — hosted login (no cookie, no extension) for linkedin & whatsapp; the unipile tools then act as you. degressive €15 / €10 / €7 per connected account per month. mcp call credits apply on top.">
       <template #actions>
         <Btn v-if="!unipile?.subscribed" kind="mini" @click="activateUnipile">activate · from €15/mo</Btn>
@@ -365,22 +350,48 @@ async function revokeToken(t: ApiToken) {
       </div>
     </ConsoleCard>
 
-    <ConsoleCard title="cli & api tokens" flush sub="long-lived tokens for the oto cli and ci environments.">
-      <template #actions>
-        <Btn kind="mini" icon="plus" @click="newToken">new token</Btn>
-      </template>
-      <table class="tbl">
-        <thead><tr><th>label</th><th>created</th><th>last used</th><th style="width: 80px"></th></tr></thead>
-        <tbody>
-          <tr v-for="t in tokens" :key="t.id">
-            <td style="font-weight: 600; color: var(--color-ink)">{{ t.label }}</td>
-            <td class="dim">{{ fmtDate(t.created_at) }}</td>
-            <td class="dim">{{ fmtDate(t.last_used_at) ?? 'never' }}</td>
-            <td style="text-align: right"><Btn kind="danger" @click="revokeToken(t)">revoke</Btn></td>
-          </tr>
-          <tr v-if="!tokens.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no tokens yet</td></tr>
-        </tbody>
-      </table>
-    </ConsoleCard>
+    <div class="grid2">
+      <ConsoleCard title="presets" sub="saved tool selections — switch your whole toolbox in one move.">
+        <template #actions><Btn kind="mini" icon="plus" @click="saveCurrentPreset">save current</Btn></template>
+        <div class="rowlist">
+          <div v-for="p in presets" :key="p.name" class="rowitem" style="gap: 12px">
+            <div style="min-width: 0; flex: 1">
+              <div style="font-weight: 600; font-size: 13px">{{ p.name }}
+                <span style="font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); margin-left: 4px">{{ p.tool_count }} tools</span>
+              </div>
+              <div style="font-size: 11.5px; color: var(--color-mute)">updated {{ fmtDate(p.updated_at) ?? '—' }}</div>
+            </div>
+            <Btn kind="mini" @click="applyPreset(p.name)">apply</Btn>
+            <Btn kind="danger" @click="removePreset(p.name)">delete</Btn>
+          </div>
+          <div v-if="!presets.length" class="helptext">no presets yet — tune your tools then “save current”.</div>
+        </div>
+      </ConsoleCard>
+
+      <ConsoleCard id="tokens" title="cli & api tokens" flush sub="long-lived tokens for the oto cli and ci environments.">
+        <template #actions><Btn kind="mini" icon="plus" @click="newToken">new token</Btn></template>
+        <table class="tbl">
+          <thead><tr><th>label</th><th>created</th><th>last used</th><th style="width: 80px"></th></tr></thead>
+          <tbody>
+            <tr v-for="t in tokens" :key="t.id">
+              <td style="font-weight: 600; color: var(--color-ink)">{{ t.label }}</td>
+              <td class="dim">{{ fmtDate(t.created_at) }}</td>
+              <td class="dim">{{ fmtDate(t.last_used_at) ?? 'never' }}</td>
+              <td style="text-align: right"><Btn kind="danger" @click="revokeToken(t)">revoke</Btn></td>
+            </tr>
+            <tr v-if="!tokens.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no tokens yet</td></tr>
+          </tbody>
+        </table>
+      </ConsoleCard>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.cc-grid { display: flex; flex-direction: column; gap: 12px; }
+.cc-search {
+  font-size: 12px; padding: 5px 10px; border: 1px solid var(--color-hair-classic);
+  border-radius: 8px; background: var(--color-surface); color: var(--color-ink); width: 200px;
+}
+.cc-search:focus { outline: none; border-color: var(--color-ink); }
+</style>

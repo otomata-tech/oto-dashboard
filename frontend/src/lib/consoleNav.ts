@@ -34,9 +34,7 @@ export const NAV: NavGroup[] = [
     { path: '/overview', label: 'overview', icon: 'home' },
   ]},
   { group: 'workspace', level: 'work', items: [
-    { path: '/my-connectors', label: 'my connectors', icon: 'plug' },
     { path: '/connectors', label: 'connectors', icon: 'plug' },
-    { path: '/toolbox', label: 'toolbox', icon: 'wrench' },
     { path: '/doctrine', label: 'doctrine', icon: 'doc' },
   ]},
   { group: 'library', level: 'work', items: [
@@ -88,9 +86,7 @@ export function firstPath(level: NavLevel): string {
 
 export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/overview': { title: 'overview', crumb: 'app.oto.ninja' },
-  '/my-connectors': { title: 'my connectors', crumb: 'workspace' },
   '/connectors': { title: 'connectors', crumb: 'workspace' },
-  '/toolbox': { title: 'toolbox', crumb: 'workspace' },
   '/doctrine': { title: 'doctrine', crumb: 'workspace' },
   '/library/connectors': { title: 'connector library', crumb: 'library' },
   '/library/doctrines': { title: 'doctrine library', crumb: 'library' },
