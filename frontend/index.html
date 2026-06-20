@@ -12,5 +12,18 @@
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
+    <!-- Agent FAQ oto : launcher flottant (KB publique oto-ninja-faq).
+         Console authentifiée → on SELF-HOST le widget (public/agent-widget.js, vendoré
+         depuis le repo memento = source canonique) plutôt que de charger un script tiers
+         dans une origine qui porte les tokens Logto. data-base pointe l'API agent sur
+         memento (le SSE n'est qu'un appel de données, pas du code exécuté ici). -->
+    <script src="/agent-widget.js"
+      data-base="https://me.mento.cc"
+      data-workspace="oto-ninja-faq"
+      data-kb-name="oto — faq"
+      data-title="besoin d'aide ?"
+      data-greeting="posez votre question sur oto : je réponds depuis la faq, et d'elle seule."
+      data-placeholder="votre question…"
+      data-accent="#b8541f"></script>
   </body>
 </html>
