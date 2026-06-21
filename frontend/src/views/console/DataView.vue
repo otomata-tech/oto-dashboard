@@ -5,6 +5,7 @@ import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useDeepLink } from '@/composables/useDeepLink'
 import {
   getNamespaces, createNamespace, deleteNamespace,
   getNamespaceRows, appendNamespaceRow, updateNamespaceRow, deleteNamespaceRow,
@@ -23,6 +24,12 @@ const selected = ref<string | null>(null)
 const rows = ref<DatastoreRow[]>([])
 const rowsLoading = ref(false)
 const rowsError = ref<string | null>(null)
+
+// Namespace ouvert porté par `?ns=<name>` (back/forward + lien direct).
+const dl = useDeepLink('ns', (ns) => {
+  if (ns && ns !== selected.value) open(ns)
+  else if (!ns && selected.value) { selected.value = null; rows.value = [] }
+})
 
 // Édition : id de la row en cours (ou NEW pour l'ajout), brouillon string→string,
 // colonnes ajoutées à la volée (schéma libre).
@@ -74,10 +81,15 @@ async function load() {
   catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
-onMounted(load)
+onMounted(async () => {
+  await load()
+  const ns = dl.read()
+  if (ns) await open(ns)
+})
 
 async function open(ns: string) {
   selected.value = ns
+  dl.set(ns)
   cancelEdit()
   rowsError.value = null
   rowsLoading.value = true
@@ -103,7 +115,7 @@ async function removeNamespace(ns: string) {
   try {
     await deleteNamespace(ns)
     toast(`namespace "${ns}" deleted`)
-    if (selected.value === ns) { selected.value = null; rows.value = [] }
+    if (selected.value === ns) { selected.value = null; rows.value = []; dl.set(null) }
     await load()
   } catch (e) { toast(humanize(e)) }
 }

@@ -5,6 +5,7 @@ import Btn from '@/components/console/Btn.vue'
 import Dot from '@/components/console/Dot.vue'
 import Tag from '@/components/console/Tag.vue'
 import { useToast } from '@/composables/useToast'
+import { useDeepLink } from '@/composables/useDeepLink'
 import { getScoutQueue, claimNextProspect, getProspect, recordAction } from '@/api/console'
 import type { Heat, ScoutQueueItem, ScoutDetail } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -19,6 +20,12 @@ const detail = ref<ScoutDetail | null>(null)
 const error = ref<string | null>(null)
 const loading = ref(false)
 const busy = ref(false)
+
+// Fiche prospect ouverte portée par `?prospect=<fact_id>` (lien direct + retour).
+const dl = useDeepLink('prospect', (id) => {
+  if (id != null && id !== detail.value?.fact_id) open(id)
+  else if (id == null) detail.value = null
+}, { parse: Number })
 
 const HEAT_DOT: Record<Heat, 'terra' | 'saffron' | 'faint'> = { hot: 'terra', warm: 'saffron', cold: 'faint' }
 const HEAT_TAG: Record<Heat, 'terra' | 'saffron' | 'ink'> = { hot: 'terra', warm: 'saffron', cold: 'ink' }
@@ -41,7 +48,7 @@ async function loadQueue() {
 }
 
 async function open(id: number) {
-  try { detail.value = await getProspect(id) }
+  try { detail.value = await getProspect(id); dl.set(id) }
   catch (e) { toast(humanize(e)) }
 }
 
@@ -67,7 +74,11 @@ async function dispose(canal: string, outcome: string) {
   finally { busy.value = false }
 }
 
-onMounted(loadQueue)
+onMounted(async () => {
+  await loadQueue()
+  const id = dl.read()
+  if (id != null) await open(id)
+})
 </script>
 
 <template>

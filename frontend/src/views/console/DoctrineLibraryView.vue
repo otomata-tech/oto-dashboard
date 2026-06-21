@@ -9,6 +9,7 @@ import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useDeepLink } from '@/composables/useDeepLink'
 import { useMe } from '@/composables/useMe'
 import {
   listLibraryDoctrines, getLibraryDoctrine, forkLibraryDoctrine, unpublishDoctrine, getToolRegistry,
@@ -35,6 +36,12 @@ const category = ref<string | null>(null)
 const selected = ref<LibraryDoctrine | null>(null)
 const previewing = ref(false)
 const busy = ref(false)
+
+// Doctrine en preview portée par `?preview=<slug>` (lien direct + retour).
+const dl = useDeepLink('preview', (slug) => {
+  if (slug && selected.value?.slug !== slug) openSlug(slug)
+  else if (!slug && previewing.value) closePreview()
+})
 // Registre d'outils résolu — pour rendre les <tool:slug> en chips + le manifeste
 // « outils référencés », comme l'éditeur de doctrine (cohérence ADR 0014).
 const reg = ref<ToolReg>(buildReg([]))
@@ -53,6 +60,8 @@ async function load() {
 onMounted(async () => {
   await load()
   try { reg.value = buildReg((await getToolRegistry()).tools) } catch { /* registre optionnel */ }
+  const slug = dl.read()
+  if (slug) await openSlug(slug)
 })
 
 const categories = computed(() => {
@@ -70,12 +79,14 @@ function canUnpublish(e: LibraryEntry | LibraryDoctrine): boolean {
     && me.value?.active_org === e.author_org_id && me.value?.org_role === 'org_admin'
 }
 
-async function open(e: LibraryEntry) {
+async function openSlug(slug: string) {
   previewing.value = true
-  try { selected.value = await getLibraryDoctrine(e.slug) }
-  catch (err) { toast(humanize(err)); previewing.value = false }
+  dl.set(slug)
+  try { selected.value = await getLibraryDoctrine(slug) }
+  catch (err) { toast(humanize(err)); previewing.value = false; dl.set(null) }
 }
-function closePreview() { selected.value = null; previewing.value = false }
+function open(e: LibraryEntry) { return openSlug(e.slug) }
+function closePreview() { selected.value = null; previewing.value = false; dl.set(null) }
 
 async function fork(e: LibraryEntry | LibraryDoctrine) {
   if (!me.value?.active_org) { toast('pick an active org first to fork into'); return }
