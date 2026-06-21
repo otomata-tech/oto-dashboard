@@ -36,9 +36,13 @@ export function useAuth() {
     returnTo?: string,
     firstScreen?: 'sign_in' | 'register',
     loginHint?: string,
+    oneTimeToken?: string,
   ): Promise<void> {
     if (returnTo) sessionStorage.setItem('oto-postlogin', returnTo)
-    await logto.signIn({ redirectUri: `${window.location.origin}/callback`, firstScreen, loginHint })
+    // Magic link : l'OTT (one-time-token Logto) passe en extraParams → la custom
+    // UI le consomme et authentifie sans saisie de code. Absent → flow normal.
+    const extraParams = oneTimeToken ? { one_time_token: oneTimeToken } : undefined
+    await logto.signIn({ redirectUri: `${window.location.origin}/callback`, firstScreen, loginHint, extraParams })
   }
 
   async function logout(redirectTo?: string): Promise<void> {

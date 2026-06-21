@@ -24,6 +24,7 @@ const orgName = ref<string | null>(null)
 const errMsg = ref('')
 const errCode = ref('')
 const token = ref('')
+const otl = ref('')  // one-time-token Logto (magic link) — connexion sans saisie de code
 
 function codeOf(e: unknown): string {
   const raw = e instanceof Error ? e.message : String(e)
@@ -33,8 +34,9 @@ function codeOf(e: unknown): string {
 const invitePath = () => `/invite?token=${encodeURIComponent(token.value)}`
 
 // Crée un compte (ou se connecte) avec l'email invité pré-rempli, puis revient ici.
-function createAccount() { login(invitePath(), 'register', preview.value?.email ?? undefined) }
-function signIn() { login(invitePath(), 'sign_in', preview.value?.email ?? undefined) }
+// L'OTT (s'il est présent dans le lien) rend la connexion silencieuse (1 clic, pas de code).
+function createAccount() { login(invitePath(), 'register', preview.value?.email ?? undefined, otl.value || undefined) }
+function signIn() { login(invitePath(), 'sign_in', preview.value?.email ?? undefined, otl.value || undefined) }
 // Mauvais compte connecté : se déconnecter et revenir sur ce lien.
 async function switchAccount() {
   await logout(`${window.location.origin}${invitePath()}`)
@@ -55,7 +57,9 @@ async function accept() {
 }
 
 onMounted(async () => {
-  token.value = new URLSearchParams(window.location.search).get('token') ?? ''
+  const qs = new URLSearchParams(window.location.search)
+  token.value = qs.get('token') ?? ''
+  otl.value = qs.get('otl') ?? ''
   if (!token.value) { state.value = 'error'; errMsg.value = 'this invitation link is missing its token.'; return }
   // Aperçu public d'abord : on accompagne avant tout bounce vers l'auth.
   try {
