@@ -11,14 +11,15 @@ import { humanize } from '@/lib/errors'
 
 const router = useRouter()
 const { isAuthenticated, login, logout } = useAuth()
-const { reload } = useMe()
+const { me, load, reload } = useMe()
 
 // 'loading'  : aperçu en cours
 // 'invited'  : invitation valide, pas connecté → accueil + CTA création de compte
 // 'joining'  : connecté → acceptation en cours
 // 'ok'       : rejoint
 // 'error'    : token invalide/expiré OU échec d'acceptation
-const state = ref<'loading' | 'invited' | 'joining' | 'ok' | 'error'>('loading')
+// 'confirm'  : connecté mais email ≠ email invité → soft-confirm (modèle bearer)
+const state = ref<'loading' | 'invited' | 'confirm' | 'joining' | 'ok' | 'error'>('loading')
 const preview = ref<InvitePreview | null>(null)
 const orgName = ref<string | null>(null)
 const errMsg = ref('')
@@ -70,9 +71,18 @@ onMounted(async () => {
     state.value = 'error'
     return
   }
-  // Connecté → on accepte directement ; sinon on présente l'accueil.
-  if (isAuthenticated.value) await accept()
-  else state.value = 'invited'
+  // Connecté → on accepte ; mais si le compte connecté a un autre email que celui
+  // visé, on demande confirmation (modèle bearer : le jeton suffit, on prévient
+  // juste qu'on n'est pas sur l'adresse invitée).
+  if (isAuthenticated.value) {
+    await load()
+    const mine = (me.value?.email || '').trim().toLowerCase()
+    const invited = (preview.value?.email || '').trim().toLowerCase()
+    if (mine && invited && mine !== invited) state.value = 'confirm'
+    else await accept()
+  } else {
+    state.value = 'invited'
+  }
 })
 </script>
 
@@ -98,6 +108,19 @@ onMounted(async () => {
         <div class="se-cta se-cta-col">
           <Btn @click="createAccount">create my account</Btn>
           <button class="linklike" @click="signIn">already have an account? sign in</button>
+        </div>
+      </template>
+
+      <template v-else-if="state === 'confirm'">
+        <div class="se-eyebrow">heads <Squiggle>up</Squiggle></div>
+        <div class="se-title">another account.</div>
+        <div class="se-body">
+          this invitation was sent to <strong>{{ preview?.email }}</strong>, but you're signed in
+          as <strong>{{ me?.email }}</strong>. continue with this account, or switch.
+        </div>
+        <div class="se-cta se-cta-col">
+          <Btn @click="accept">continue as {{ me?.email }}</Btn>
+          <button class="linklike" @click="switchAccount">switch account</button>
         </div>
       </template>
 
