@@ -22,6 +22,7 @@ jobs:
       - name: Deploy via rsync
         env:
           SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           echo "$SSH_DEPLOY_KEY" > /tmp/key && chmod 600 /tmp/key
-          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no -i /tmp/key" frontend/dist/ root@REDACTED_IP:/opt/oto-dashboard/dist/
+          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no -i /tmp/key" frontend/dist/ "root@$DEPLOY_HOST:/opt/oto-dashboard/dist/"
