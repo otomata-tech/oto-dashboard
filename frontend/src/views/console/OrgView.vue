@@ -8,7 +8,7 @@ import Avatar from '@/components/console/Avatar.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
-import { getMyOrgs, getOrg, setOrgMemberRole, deleteOrgSecret,
+import { getMyOrgs, getOrg, setOrgMemberRole, removeOrgMember, deleteOrgSecret,
   listInvitations, inviteMember, revokeInvitation, uploadOrgLogo, deleteOrgLogo, updateOrg } from '@/api/console'
 import type { Org, OrgDetail, OrgInvitation, OrgRole } from '@/types/api'
 import { fmtDate } from '@/types/api'
@@ -87,6 +87,12 @@ async function toggleRole(sub: string, role: string) {
   try { await setOrgMemberRole(activeOrgId.value!, sub, next); toast('role updated'); detail.value = await getOrg(activeOrgId.value!) }
   catch (e) { toast(humanize(e)) }
 }
+async function removeMember(sub: string, label: string) {
+  if (!await confirmAction({ title: 'remove member', danger: true, confirmLabel: 'remove',
+    message: `remove ${label} from this org? they lose access to its shared keys and tools.` })) return
+  try { await removeOrgMember(activeOrgId.value!, sub); toast('member removed'); detail.value = await getOrg(activeOrgId.value!) }
+  catch (e) { toast(humanize(e)) }
+}
 async function removeSecret(provider: string) {
   if (!await confirmAction({ title: 'remove shared key', danger: true, confirmLabel: 'remove', message: `remove the shared ${provider} key?` })) return
   try { await deleteOrgSecret(activeOrgId.value!, provider); toast('shared key removed'); detail.value = await getOrg(activeOrgId.value!) }
@@ -158,7 +164,7 @@ async function removeLogo() {
       <div class="grid23">
         <ConsoleCard title="members" flush sub="people in your active org. org admins can edit doctrine and shared keys.">
           <table class="tbl">
-            <thead><tr><th>member</th><th>role</th><th>active</th><th v-if="isOrgAdmin" style="width: 90px"></th></tr></thead>
+            <thead><tr><th>member</th><th>role</th><th>active</th><th v-if="isOrgAdmin" style="width: 150px"></th></tr></thead>
             <tbody>
               <tr v-for="m in detail?.members ?? []" :key="m.sub">
                 <td>
@@ -173,7 +179,10 @@ async function removeLogo() {
                 <td><Tag v-if="m.role === 'org_admin'" tone="ink">admin</Tag><Tag v-else>member</Tag></td>
                 <td><Dot :tone="m.active ? 'olive' : 'faint'" :size="7" /></td>
                 <td v-if="isOrgAdmin" style="text-align: right">
-                  <Btn v-if="m.sub !== meSub" kind="mini" @click="toggleRole(m.sub, m.role)">{{ m.role === 'org_admin' ? 'demote' : 'promote' }}</Btn>
+                  <div v-if="m.sub !== meSub" style="display: flex; gap: 6px; justify-content: flex-end">
+                    <Btn kind="mini" @click="toggleRole(m.sub, m.role)">{{ m.role === 'org_admin' ? 'demote' : 'promote' }}</Btn>
+                    <Btn kind="danger" @click="removeMember(m.sub, m.name || m.email || 'this member')">remove</Btn>
+                  </div>
                   <span v-else class="dim" style="font-size: 11px">you</span>
                 </td>
               </tr>
