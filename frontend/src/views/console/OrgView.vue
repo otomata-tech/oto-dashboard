@@ -9,7 +9,7 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
 import { getMyOrgs, getOrg, setOrgMemberRole, deleteOrgSecret,
-  listInvitations, inviteMember, revokeInvitation, uploadOrgLogo, deleteOrgLogo } from '@/api/console'
+  listInvitations, inviteMember, revokeInvitation, uploadOrgLogo, deleteOrgLogo, updateOrg } from '@/api/console'
 import type { Org, OrgDetail, OrgInvitation, OrgRole } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -93,6 +93,27 @@ async function removeSecret(provider: string) {
   catch (e) { toast(humanize(e)) }
 }
 
+async function editOrg() {
+  if (activeOrgId.value == null) return
+  const r = await promptForm({
+    title: 'edit organization',
+    fields: [
+      { key: 'name', label: 'name', value: detail.value?.org.name, required: true },
+      { key: 'description', label: 'description', type: 'textarea',
+        placeholder: 'what this org is for (optional)', value: detail.value?.org.description ?? '' },
+    ],
+    submitLabel: 'save',
+  })
+  if (!r || !r.name?.trim()) return
+  try {
+    await updateOrg(activeOrgId.value, { name: r.name.trim(), description: r.description ?? '' })
+    detail.value = await getOrg(activeOrgId.value)
+    orgs.value = (await getMyOrgs()).orgs
+    await reloadMe()          // rafraîchit le nom dans le badge identité (topbar)
+    toast('organization updated')
+  } catch (e) { toast(humanize(e)) }
+}
+
 function pickLogo() { logoInput.value?.click() }
 async function onLogoFile(e: Event) {
   const input = e.target as HTMLInputElement
@@ -161,6 +182,20 @@ async function removeLogo() {
         </ConsoleCard>
 
         <div style="display: flex; flex-direction: column; gap: 16px">
+          <ConsoleCard title="general" sub="name and description of your active org.">
+            <template v-if="isOrgAdmin" #actions>
+              <Btn kind="mini" icon="pen" @click="editOrg">edit</Btn>
+            </template>
+            <div class="rowlist">
+              <div>
+                <div style="font-weight: 600; font-size: 15px; color: var(--color-ink)">{{ detail?.org.name }}</div>
+                <div v-if="detail?.org.description" style="font-size: 12.5px; color: var(--color-mute); margin-top: 4px; white-space: pre-wrap">{{ detail.org.description }}</div>
+                <div v-else class="helptext" style="margin-top: 4px">
+                  {{ isOrgAdmin ? 'no description yet — add one to tell teammates what this org is for.' : 'no description.' }}
+                </div>
+              </div>
+            </div>
+          </ConsoleCard>
           <ConsoleCard title="your orgs">
             <div class="rowlist">
               <div v-for="o in orgs" :key="o.id" class="rowitem">
