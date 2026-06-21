@@ -311,6 +311,7 @@ export interface UnipileStatus {
 export interface Org {
   id: number
   name: string
+  description?: string | null
   logo_url?: string | null
   member_count?: number
   my_role?: OrgRole

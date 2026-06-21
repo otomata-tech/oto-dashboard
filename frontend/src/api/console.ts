@@ -180,6 +180,9 @@ export const createMyOrg = (name: string) =>
   api<{ org_id: number; name: string; active_org: number; org_role: string }>(
     '/api/me/orgs', { method: 'POST', ...j({ name }) })
 export const getOrg = (id: number) => api<OrgDetail>(`/api/orgs/${id}`)
+export const updateOrg = (id: number, patch: { name?: string; description?: string }) =>
+  api<{ ok: true; org_id: number; name: string; description?: string }>(
+    `/api/orgs/${id}`, { method: 'PATCH', ...j(patch) })
 
 // ── redaction de champs par connecteur (org_admin, ADR 0015) ──
 export const getOrgFieldFilters = (id: number) =>
