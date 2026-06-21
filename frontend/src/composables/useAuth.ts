@@ -1,5 +1,6 @@
 import LogtoClient from '@logto/browser'
 import { ref } from 'vue'
+import { resetAnalytics } from '@/lib/analytics'
 
 // Auth Logto self-hosted (auth.oto.zone) — PKCE, audience = API oto-mcp.
 // Interface stable du scaffold dev-init : initAuth / login / logout / getAccessToken.
@@ -46,6 +47,8 @@ export function useAuth() {
   }
 
   async function logout(redirectTo?: string): Promise<void> {
+    // Coupe le lien identité↔session analytics avant de quitter.
+    resetAnalytics()
     await logto.signOut(redirectTo || window.location.origin)
   }
 

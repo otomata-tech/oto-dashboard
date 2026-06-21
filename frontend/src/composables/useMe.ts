@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { getMe } from '@/api/console'
+import { identifyUser } from '@/lib/analytics'
 import type { Me, Role } from '@/types/api'
 
 // Profil utilisateur partagé (GET /api/me) — chargé une fois, relisible.
@@ -15,6 +16,8 @@ async function load(force = false): Promise<Me | null> {
     try {
       me.value = await getMe()
       error.value = null
+      // Relie la session PostHog à l'alpha user (segmentation rôle/org/accès).
+      if (me.value) identifyUser(me.value)
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)
     } finally {
