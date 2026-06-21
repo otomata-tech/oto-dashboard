@@ -3,6 +3,7 @@
 // en-tête + résumé · content markdown à chips d'outils · manifeste « outils
 // référencés » résolu contre le registre · gouvernance (usage + versions).
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   getDoctrine, getInstruction, putInstruction, deleteInstruction,
   getInstructionVersions, revertInstruction, getToolRegistry, getInstructionUsage,
@@ -22,6 +23,7 @@ import UsageCard from '@/components/console/doctrine/UsageCard.vue'
 import CreateSkillModal from '@/components/console/doctrine/CreateSkillModal.vue'
 
 const BASE_SLUG = 'claude_md'
+const router = useRouter()
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
 
@@ -319,11 +321,19 @@ async function removeSkill(slug: string, label: string) {
         <div class="card pad-sm">
           <div class="card__head">
             <span class="eyebrow">documents</span>
-            <button v-if="canEdit" type="button" class="btn-ghost-sm" @click="modalOpen = true">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-              skill
-            </button>
+            <div class="doc-actions">
+              <button type="button" class="btn-ghost-sm" title="parcourir la médiathèque de doctrines"
+                @click="router.push('/library/doctrines')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
+                bibliothèque
+              </button>
+              <button v-if="canEdit" type="button" class="btn-ghost-sm" @click="modalOpen = true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                skill
+              </button>
+            </div>
           </div>
           <div class="doclist">
             <button v-for="d in docs" :key="d.slug" type="button" class="docrow"
@@ -378,6 +388,7 @@ async function removeSkill(slug: string, label: string) {
 .card.pad-sm { padding: 16px 17px; }
 .card__head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .card__actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.doc-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .eyebrow { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-mute); }
 .dim { font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); }
 
