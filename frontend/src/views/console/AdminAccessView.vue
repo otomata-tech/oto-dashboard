@@ -5,7 +5,7 @@ import { onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Btn from '@/components/console/Btn.vue'
-import { getWaitlist, grantAlphaAccess, adminAlphaInvite, listAlphaInvites, revokeAlphaInvite, resendAlphaInvite } from '@/api/console'
+import { getWaitlist, grantAlphaAccess, rejectAlphaAccess, adminAlphaInvite, listAlphaInvites, revokeAlphaInvite, resendAlphaInvite } from '@/api/console'
 import type { WaitlistEntry, AlphaInvite } from '@/types/api'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
@@ -69,6 +69,21 @@ async function grant(u: WaitlistEntry) {
   try {
     const res = await grantAlphaAccess(u.sub, Number.isFinite(quota) ? quota : undefined)
     toast(res.emailed ? `access granted — ${u.email} emailed` : 'access granted (email off)')
+    await load()
+  } catch (e) { toast(humanize(e)) } finally { busy.value = null }
+}
+
+async function reject(u: WaitlistEntry) {
+  if (!await confirmAction({
+    title: 'reject access request',
+    message: `reject ${u.email || u.sub}? the account is blocked and drops off the waitlist. you can still grant access later.`,
+    confirmLabel: 'reject',
+    danger: true,
+  })) return
+  busy.value = u.sub
+  try {
+    await rejectAlphaAccess(u.sub)
+    toast('access request rejected')
     await load()
   } catch (e) { toast(humanize(e)) } finally { busy.value = null }
 }
@@ -144,7 +159,7 @@ onMounted(load)
     <ConsoleCard flush title="waitlist"
       sub="accounts that signed up but aren't approved yet — oldest first. grant access to let them in.">
       <table class="tbl">
-        <thead><tr><th>account</th><th>joined</th><th style="width: 140px"></th></tr></thead>
+        <thead><tr><th>account</th><th>joined</th><th style="width: 210px"></th></tr></thead>
         <tbody>
           <tr v-for="u in waitlist" :key="u.sub">
             <td>
@@ -152,10 +167,11 @@ onMounted(load)
               <div style="font-size: 11px; color: var(--color-faint)">{{ u.email }}</div>
             </td>
             <td class="dim">{{ u.created_at }}</td>
-            <td style="text-align: right">
+            <td style="text-align: right; white-space: nowrap">
               <Btn kind="mini" :disabled="busy === u.sub" @click="grant(u)">
                 {{ busy === u.sub ? 'granting…' : 'grant access' }}
               </Btn>
+              <Btn kind="mini" :disabled="busy === u.sub" @click="reject(u)" style="margin-left: 6px">reject</Btn>
             </td>
           </tr>
           <tr v-if="!waitlist.length">

@@ -231,6 +231,9 @@ export const getWaitlist = () =>
 export const grantAlphaAccess = (sub: string, quota?: number) =>
   api<{ ok: boolean; sub: string; access_status: string; invite_quota: number; emailed: boolean }>(
     `/api/admin/users/${sub}/access`, { method: 'POST', ...j(quota == null ? {} : { quota }) })
+export const rejectAlphaAccess = (sub: string) =>
+  api<{ ok: boolean; sub: string; access_status: string }>(
+    `/api/admin/users/${sub}/block`, { method: 'POST' })
 export const setUserQuota = (sub: string, quota: number) =>
   api<{ ok: boolean; sub: string; invite_quota: number }>(
     `/api/admin/users/${sub}/quota`, { method: 'PUT', ...j({ quota }) })
