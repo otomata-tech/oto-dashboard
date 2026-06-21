@@ -236,6 +236,8 @@ export const setUserQuota = (sub: string, quota: number) =>
     `/api/admin/users/${sub}/quota`, { method: 'PUT', ...j({ quota }) })
 export const setOrgMemberRole = (id: number, sub: string, role: string) =>
   api(`/api/orgs/${id}/members/${sub}`, { method: 'POST', ...j({ role }) })
+export const removeOrgMember = (id: number, sub: string) =>
+  api(`/api/orgs/${id}/members/${sub}`, { method: 'DELETE' })
 export const deleteOrgSecret = (id: number, provider: string) =>
   api(`/api/orgs/${id}/secrets/${provider}`, { method: 'DELETE' })
 
