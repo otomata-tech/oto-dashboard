@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { onClickOutside } from '@vueuse/core'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
@@ -131,6 +132,21 @@ async function setRole(next: Role) {
   catch (e) { toast(humanize(e)) }
 }
 
+// Dropdown des paliers admin (operator → super), fusionnant les deux anciens
+// boutons. Le palier courant y est marqué (non cliquable) ; la rétrogradation
+// vers member reste un bouton dédié à côté.
+const roleMenu = ref<HTMLElement | null>(null)
+const roleMenuOpen = ref(false)
+onClickOutside(roleMenu, () => { roleMenuOpen.value = false })
+const adminTiers: { role: Role; label: string; hint: string }[] = [
+  { role: 'admin', label: 'operator admin', hint: 'supervises the platform' },
+  { role: 'super_admin', label: 'super admin', hint: 'full power' },
+]
+async function pickRole(next: Role) {
+  roleMenuOpen.value = false
+  await setRole(next)
+}
+
 const grantFor = (provider: string) => detail.value?.grants.find((g) => g.provider === provider)
 const platformKeysFor = (provider: string) => keys.value.filter((k) => k.provider === provider)
 
@@ -205,10 +221,24 @@ async function toggleOrgRole(o: AdminUserOrg) {
           <Btn v-if="canResend" kind="mini" :disabled="resending" @click="resendInvite">
             {{ resending ? 'sending…' : 'resend invite' }}
           </Btn>
-          <!-- gestion des rôles plateforme : super_admin seul ; un bouton par palier sauf le courant -->
+          <!-- gestion des rôles plateforme : super_admin seul. Les deux paliers admin
+               (operator → super) sont fusionnés dans un dropdown ; member reste un bouton. -->
           <template v-if="canManageRoles">
-            <Btn v-if="currentRole !== 'super_admin'" kind="mini" @click="setRole('super_admin')">make super admin</Btn>
-            <Btn v-if="currentRole !== 'admin'" kind="mini" @click="setRole('admin')">make operator admin</Btn>
+            <span ref="roleMenu" class="rolemenu">
+              <Btn kind="mini" icon="chevd" @click="roleMenuOpen = !roleMenuOpen">make admin</Btn>
+              <div v-if="roleMenuOpen" class="rolemenu__pop">
+                <button
+                  v-for="t in adminTiers" :key="t.role" type="button" class="rolemenu__item"
+                  :disabled="currentRole === t.role" @click="pickRole(t.role)"
+                >
+                  <span class="rolemenu__line">
+                    <span class="rolemenu__name">{{ t.label }}</span>
+                    <span v-if="currentRole === t.role" class="rolemenu__cur">current</span>
+                  </span>
+                  <span class="rolemenu__hint">{{ t.hint }}</span>
+                </button>
+              </div>
+            </span>
             <Btn v-if="currentRole !== 'member'" kind="mini" @click="setRole('member')">demote to member</Btn>
           </template>
         </template>
@@ -300,3 +330,26 @@ async function toggleOrgRole(o: AdminUserOrg) {
     </template>
   </div>
 </template>
+
+<style scoped>
+.rolemenu { position: relative; display: inline-flex; }
+.rolemenu__pop {
+  position: absolute; right: 0; top: calc(100% + 6px); width: 200px; background: var(--color-surface);
+  border: 1px solid var(--color-hair); border-radius: 11px;
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.22); overflow: hidden; z-index: 30;
+}
+.rolemenu__item {
+  display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; padding: 8px 12px;
+  border: 0; border-bottom: 1px solid var(--color-hair-soft); background: transparent; cursor: pointer;
+}
+.rolemenu__item:last-child { border-bottom: 0; }
+.rolemenu__item:hover:not(:disabled) { background: var(--color-paper-2); }
+.rolemenu__item:disabled { cursor: default; opacity: 0.55; }
+.rolemenu__line { display: flex; align-items: center; gap: 7px; }
+.rolemenu__name { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--color-ink); }
+.rolemenu__cur {
+  font-family: var(--font-mono); font-size: 8px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--color-mute);
+}
+.rolemenu__hint { font-size: 11px; color: var(--color-mute); }
+</style>
