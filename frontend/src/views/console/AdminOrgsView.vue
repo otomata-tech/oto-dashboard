@@ -7,6 +7,7 @@ import Btn from '@/components/console/Btn.vue'
 import Dot from '@/components/console/Dot.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useDeepLink } from '@/composables/useDeepLink'
 import {
   getAdminOrgs, createOrg, getAdminOrg, addAdminOrgMember, setAdminOrgMemberRole,
   removeAdminOrgMember, putAdminOrgSecret, deleteAdminOrgSecret,
@@ -24,6 +25,12 @@ const selectedId = ref<number | null>(null)
 const catalog = ref<ConnectorMeta[]>([])
 const error = ref<string | null>(null)
 
+// Org sélectionnée portée par `?org=<id>` (lien direct + retour).
+const dl = useDeepLink('org', (id) => {
+  if (id != null && id !== selectedId.value) select(id)
+  else if (id == null && selectedId.value != null) { selectedId.value = null; detail.value = null }
+}, { parse: Number })
+
 // Namespaces grant-only (sensibles) = connecteurs platform_granted du registre.
 const nsOptions = computed(() =>
   [...new Set(catalog.value.filter((c) => c.availability === 'platform_granted').flatMap((c) => c.namespaces))],
@@ -36,11 +43,14 @@ onMounted(async () => {
   try {
     const [, cat] = await Promise.all([loadOrgs(), getConnectors().catch(() => ({ connectors: [] }))])
     catalog.value = cat.connectors
+    const id = dl.read()
+    if (id != null) await select(id)
   } catch (e) { error.value = humanize(e) }
 })
 
 async function select(id: number) {
   selectedId.value = id
+  dl.set(id)
   try { detail.value = await getAdminOrg(id) }
   catch (e) { toast(humanize(e)) }
 }

@@ -8,10 +8,17 @@ import { getMonitoringSummary } from '@/api/console'
 import type { MonitoringSummary } from '@/types/api'
 import { toDayBars, fmtMs } from '@/lib/monitoring'
 import { humanize } from '@/lib/errors'
+import { useDeepLink } from '@/composables/useDeepLink'
 
+const WINDOWS = [7, 30, 90]
 const win = ref(7)
 const summary = ref<MonitoringSummary | null>(null)
 const error = ref<string | null>(null)
+
+// Fenêtre temporelle portée par `?win=<jours>` (lien partageable). 7j = défaut → param effacé.
+const dl = useDeepLink('win', (w) => { if (w != null && WINDOWS.includes(w) && w !== win.value) win.value = w }, { parse: Number })
+const wInit = dl.read()
+if (wInit != null && WINDOWS.includes(wInit)) win.value = wInit
 
 const errRate = computed(() => {
   const s = summary.value
@@ -23,7 +30,7 @@ async function load() {
   try { summary.value = await getMonitoringSummary(win.value) }
   catch (e) { error.value = humanize(e) }
 }
-watch(win, load, { immediate: true })
+watch(win, (w) => { dl.set(w === 7 ? null : w); load() }, { immediate: true })
 </script>
 
 <template>

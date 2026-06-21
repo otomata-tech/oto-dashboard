@@ -13,6 +13,7 @@ import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useDeepLink } from '@/composables/useDeepLink'
 import { buildReg, hasDead, refNames, type ToolReg } from '@/components/console/doctrine/tools'
 import DoctrineContent from '@/components/console/doctrine/DoctrineContent.vue'
 import ReferencedTools from '@/components/console/doctrine/ReferencedTools.vue'
@@ -26,7 +27,13 @@ const { confirmAction } = usePrompt()
 
 const bundle = ref<DoctrineBundle | null>(null)
 const reg = ref<ToolReg>(new Map())
-const activeSlug = ref(BASE_SLUG)
+// Doc actif porté par `?doc=<slug>` (URL = source de vérité). Valeur initiale lue
+// de l'URL pour que loadAll() ouvre le bon doc ; le watcher gère back/forward.
+const dl = useDeepLink('doc', (slug) => {
+  const s = slug || BASE_SLUG
+  if (s !== activeSlug.value) selectDoc(s)
+})
+const activeSlug = ref(dl.read() || BASE_SLUG)
 const body = ref('')           // corps publié (lecture)
 const saved = ref('')          // miroir de body, pour le dirty
 const draft = ref('')          // brouillon (édition)
@@ -93,6 +100,7 @@ onMounted(loadAll)
 
 async function selectDoc(slug: string) {
   activeSlug.value = slug
+  dl.set(slug === BASE_SLUG ? null : slug)
   editing.value = false
   const doc = docs.value.find((d) => d.slug === slug)
   summary.value = doc?.description ?? ''
