@@ -25,7 +25,7 @@ npm run build           # vue-tsc + vite build → frontend/dist
 
 ## État / feuille de route
 
-Squelette validé (login Logto + `GET /api/me` affiché). La migration des features d'`account/` (connecteurs, orgs, doctrine, admin, datastore) se fait écran par écran ; `account/` reste servi en prod jusqu'au cutover (bascule du dist Caddy). Suivi : `otomata#20` + issues de ce repo.
+**Live en prod** : `dashboard.oto.ninja` est servi par ce repo (`/opt/oto-dashboard/dist`, deploy CI `deploy.yml`), `app.oto.ninja` redirige dessus (302). L'ancien `account/` (oto-websites) **a été supprimé et décommissionné** (account.oto.zone, 2026-06-15) — le cutover est **fait**, plus de double-service. La migration des features (connecteurs, orgs, doctrine, admin, datastore) s'est faite écran par écran. Suivi : `otomata#20` + issues de ce repo.
 
 ## Groupes / départements (ADR 0012)
 

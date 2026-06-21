@@ -61,7 +61,7 @@ onMounted(async () => {
   const qs = new URLSearchParams(window.location.search)
   token.value = qs.get('token') ?? ''
   otl.value = qs.get('otl') ?? ''
-  if (!token.value) { state.value = 'error'; errMsg.value = 'this invitation link is missing its token.'; return }
+  if (!token.value) { state.value = 'error'; errMsg.value = 'ce lien d\'invitation n\'a pas de jeton.'; return }
   // Aperçu public d'abord : on accompagne avant tout bounce vers l'auth.
   try {
     preview.value = await previewInvite(token.value)
@@ -92,62 +92,62 @@ onMounted(async () => {
       <span class="o-medallion o-medallion-lg">o</span>
 
       <template v-if="state === 'loading' || state === 'joining'">
-        <div class="se-title">{{ state === 'joining' ? 'joining…' : 'one moment…' }}</div>
-        <div class="se-body">checking your invitation.</div>
+        <div class="se-title">{{ state === 'joining' ? 'on vous fait entrer…' : 'un instant…' }}</div>
+        <div class="se-body">on vérifie votre invitation.</div>
       </template>
 
       <template v-else-if="state === 'invited'">
-        <div class="se-eyebrow">you're <Squiggle>invited</Squiggle></div>
-        <div class="se-title">welcome to oto.</div>
+        <div class="se-eyebrow">vous êtes <Squiggle>invité·e</Squiggle></div>
+        <div class="se-title">bienvenue chez oto.</div>
         <div class="se-body">
-          <template v-if="preview?.inviter">{{ preview.inviter }} invited you</template>
-          <template v-else>you've been invited</template>
-          <template v-if="preview && !preview.referral && preview.org_name"> to join <strong>{{ preview.org_name }}</strong></template>.
-          create your account<template v-if="preview?.email"> as <strong>{{ preview.email }}</strong></template> to get in.
+          <template v-if="preview?.inviter">{{ preview.inviter }} vous invite</template>
+          <template v-else>vous êtes invité·e</template>
+          <template v-if="preview && !preview.referral && preview.org_name"> à rejoindre <strong>{{ preview.org_name }}</strong></template>.
+          créez votre compte<template v-if="preview?.email"> en <strong>{{ preview.email }}</strong></template> pour entrer.
         </div>
         <div class="se-cta se-cta-col">
-          <Btn @click="createAccount">create my account</Btn>
-          <button class="linklike" @click="signIn">already have an account? sign in</button>
+          <Btn @click="createAccount">créer mon compte</Btn>
+          <button class="linklike" @click="signIn">déjà un compte ? se connecter</button>
         </div>
       </template>
 
       <template v-else-if="state === 'confirm'">
-        <div class="se-eyebrow">heads <Squiggle>up</Squiggle></div>
-        <div class="se-title">another account.</div>
+        <div class="se-eyebrow">petite <Squiggle>vérif</Squiggle></div>
+        <div class="se-title">autre compte.</div>
         <div class="se-body">
-          this invitation was sent to <strong>{{ preview?.email }}</strong>, but you're signed in
-          as <strong>{{ me?.email }}</strong>. continue with this account, or switch.
+          cette invitation a été envoyée à <strong>{{ preview?.email }}</strong>, mais vous êtes
+          connecté·e en <strong>{{ me?.email }}</strong>. continuez avec ce compte, ou changez.
         </div>
         <div class="se-cta se-cta-col">
-          <Btn @click="accept">continue as {{ me?.email }}</Btn>
-          <button class="linklike" @click="switchAccount">switch account</button>
+          <Btn @click="accept">continuer en {{ me?.email }}</Btn>
+          <button class="linklike" @click="switchAccount">changer de compte</button>
         </div>
       </template>
 
       <template v-else-if="state === 'ok'">
-        <div class="se-title">welcome <Squiggle>aboard</Squiggle>.</div>
+        <div class="se-title">bienvenue à <Squiggle>bord</Squiggle>.</div>
         <div class="se-body">
-          <template v-if="orgName">you've joined <strong>{{ orgName }}</strong>. it's now your active workspace.</template>
-          <template v-else>your access is open. let's set up your workspace.</template>
+          <template v-if="orgName">vous avez rejoint <strong>{{ orgName }}</strong>. c'est maintenant votre espace actif.</template>
+          <template v-else>votre accès est ouvert. configurons votre espace.</template>
         </div>
         <div class="se-cta">
-          <Btn @click="router.push('/overview')">go to console</Btn>
+          <Btn @click="router.push('/overview')">aller à la console</Btn>
         </div>
       </template>
 
       <template v-else-if="errCode === 'email_mismatch'">
-        <div class="se-title">wrong <Squiggle>account</Squiggle>.</div>
+        <div class="se-title">mauvais <Squiggle>compte</Squiggle>.</div>
         <div class="se-body">{{ errMsg }}</div>
         <div class="se-cta">
-          <Btn @click="switchAccount">sign in with another account</Btn>
+          <Btn @click="switchAccount">se connecter avec un autre compte</Btn>
         </div>
       </template>
 
       <template v-else>
-        <div class="se-title">invitation <Squiggle>problem</Squiggle>.</div>
+        <div class="se-title">invitation <Squiggle>invalide</Squiggle>.</div>
         <div class="se-body">{{ errMsg }}</div>
         <div class="se-cta">
-          <Btn kind="ghost" @click="router.push('/overview')">go to console</Btn>
+          <Btn kind="ghost" @click="router.push('/overview')">aller à la console</Btn>
         </div>
       </template>
     </div>
