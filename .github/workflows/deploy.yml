@@ -1,11 +1,18 @@
-name: Deploy
+name: CI/CD
 
+# test → deploy : le deploy DÉPEND d'un build/type-check vert (`needs: test`). Avant,
+# Deploy et CI tournaient en parallèle sur push main → un type-error déployait quand
+# même. Le job `test` (build + vue-tsc) tourne aussi sur PR (= required check de
+# branch protection) et uploade le dist ; `deploy` le télécharge et rsync (build une
+# seule fois). Cf. otomata-private#39 (revue CI/CD).
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,15 +21,33 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Build
-        run: |
-          cd frontend
-          npm ci
-          npm run build
+      - name: Install
+        run: cd frontend && npm ci
+      - name: Build + type-check
+        run: cd frontend && npm run build
+      - name: Upload dist
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: frontend/dist
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-dashboard
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
       - name: Deploy via rsync
         env:
           SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           echo "$SSH_DEPLOY_KEY" > /tmp/key && chmod 600 /tmp/key
-          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no -i /tmp/key" frontend/dist/ "root@$DEPLOY_HOST:/opt/oto-dashboard/dist/"
+          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no -i /tmp/key" dist/ "root@$DEPLOY_HOST:/opt/oto-dashboard/dist/"
