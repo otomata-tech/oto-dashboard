@@ -76,6 +76,13 @@ export function denyConsent(): void {
 // Efface la décision → le bandeau réapparaît ; l'état effectif reste tel quel
 // jusqu'au nouveau choix.
 export function reopenConsent(): void {
+  // Suspend la capture pendant la ré-ouverture : tant que l'utilisateur n'a pas
+  // re-décidé, on ne collecte rien (le bandeau promet « rien avant accord »).
+  // Re-armé seulement s'il ré-accepte (grantConsent → applyOptIn).
+  if (enabled) {
+    posthog.opt_out_capturing()
+    posthog.stopSessionRecording()
+  }
   localStorage.removeItem(CONSENT_KEY)
   consent.value = null
 }
