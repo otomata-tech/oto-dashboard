@@ -12,19 +12,24 @@ import Tag from '@/components/console/Tag.vue'
 import Toggle from '@/components/console/Toggle.vue'
 import ConnectorTransforms from '@/components/console/ConnectorTransforms.vue'
 import { useToast } from '@/composables/useToast'
+import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
 import {
   getOrgConnectorActivation, setOrgConnectorActivation, clearOrgConnectorActivation,
   setOrgConnectors, getOrgFieldFilters,
+  getConnectors, getOrg, setOrgSecret, deleteOrgSecret,
 } from '@/api/console'
-import type { OrgConnectorActivation, FieldFiltersBundle } from '@/types/api'
+import type { OrgConnectorActivation, FieldFiltersBundle, ConnectorMeta } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
+const { promptForm, confirmAction } = usePrompt()
 const { me } = useMe()
 
 const rows = ref<OrgConnectorActivation[]>([])
 const filters = ref<FieldFiltersBundle | null>(null)
+const meta = ref<Record<string, ConnectorMeta>>({})   // catalogue (secret_kind…)
+const orgSecrets = ref<Set<string>>(new Set())        // connecteurs avec une clé partagée d'org
 const error = ref<string | null>(null)
 const loaded = ref(false)
 const q = ref('')
@@ -49,16 +54,46 @@ const shown = computed(() => {
 async function load() {
   if (activeOrgId.value == null) { loaded.value = true; return }
   try {
-    const [act, ff] = await Promise.all([
+    const [act, ff, cat, org] = await Promise.all([
       getOrgConnectorActivation(activeOrgId.value),
       getOrgFieldFilters(activeOrgId.value).catch(() => null),
+      getConnectors().catch(() => ({ connectors: [] as ConnectorMeta[] })),
+      getOrg(activeOrgId.value).catch(() => null),
     ])
     rows.value = act.connectors
     filters.value = ff
+    meta.value = Object.fromEntries(cat.connectors.map((c) => [c.name, c]))
+    orgSecrets.value = new Set((org?.secrets ?? []).map((s) => s.provider))
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
 onMounted(load)
+
+// Clé partagée d'org : possible pour les connecteurs à clé simple (secret_kind=api_key).
+// Les multi-champs / oauth / cookie ne passent pas par cette voie (clé unique en base).
+const canHaveOrgKey = (name: string) => meta.value[name]?.secret_kind === 'api_key'
+const hasOrgKey = (name: string) => orgSecrets.value.has(name)
+
+async function setKey(r: OrgConnectorActivation) {
+  if (!isOrgAdmin.value) return
+  const res = await promptForm({
+    title: `${r.label} — clé partagée d'org`,
+    description: 'clé du compte de l\'org, héritée par tous les membres (cascade : clé perso > équipe > org > plateforme). stockée chiffrée.',
+    fields: [{ key: 'api_key', label: 'clé api', type: 'password', required: true, placeholder: `colle la clé ${r.label}` }],
+    submitLabel: 'enregistrer',
+  })
+  if (!res || !res.api_key) return
+  try { await setOrgSecret(activeOrgId.value!, r.connector, res.api_key); toast(`${r.label} : clé d'org enregistrée`); await load() }
+  catch (e) { toast(humanize(e)) }
+}
+
+async function removeKey(r: OrgConnectorActivation) {
+  if (!isOrgAdmin.value) return
+  if (!await confirmAction({ title: 'retirer la clé d\'org', danger: true, confirmLabel: 'retirer',
+    message: `retirer la clé partagée ${r.label} ? les membres sans clé perso perdent l'accès.` })) return
+  try { await deleteOrgSecret(activeOrgId.value!, r.connector); toast(`${r.label} : clé d'org retirée`); await load() }
+  catch (e) { toast(humanize(e)) }
+}
 
 // Rédaction par connecteur : schéma déclaré + règles effectives (org sinon défaut).
 function transformsOf(name: string) {
@@ -144,6 +179,19 @@ async function toggleRecommend(r: OrgConnectorActivation) {
             <span class="oclabel">recommandé</span>
             <Toggle :on="r.recommended" :disabled="!isOrgAdmin" @change="toggleRecommend(r)" />
           </div>
+
+          <!-- Clé partagée d'org (connecteurs à clé simple) -->
+          <div v-if="canHaveOrgKey(r.connector)" class="ocfield">
+            <span class="oclabel">clé d'org</span>
+            <div class="ockey">
+              <Tag v-if="hasOrgKey(r.connector)" tone="olive">posée</Tag>
+              <span v-else class="dim" style="font-size: 11.5px">aucune</span>
+              <template v-if="isOrgAdmin">
+                <button class="oclink" @click="setKey(r)">{{ hasOrgKey(r.connector) ? 'remplacer' : 'poser' }}</button>
+                <button v-if="hasOrgKey(r.connector)" class="oclink oclink-danger" @click="removeKey(r)">retirer</button>
+              </template>
+            </div>
+          </div>
         </div>
 
         <!-- Rédaction des champs (éditable ici) -->
@@ -179,4 +227,6 @@ async function toggleRecommend(r: OrgConnectorActivation) {
 .ocseg button:disabled { cursor: not-allowed; opacity: 0.5; }
 .ocnote { font-size: 11px; }
 .oclink { background: none; border: 0; padding: 4px 0; cursor: pointer; font-size: 12px; color: var(--color-cobalt-ink); font-weight: 600; }
+.ockey { display: flex; align-items: center; gap: 8px; min-height: 22px; }
+.oclink-danger { color: var(--color-terra-ink); }
 </style>

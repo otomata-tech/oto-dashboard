@@ -8,7 +8,7 @@ import Avatar from '@/components/console/Avatar.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
-import { getMyOrgs, getOrg, setOrgMemberRole, removeOrgMember, deleteOrgSecret,
+import { getMyOrgs, getOrg, setOrgMemberRole, removeOrgMember,
   listInvitations, inviteMember, revokeInvitation, uploadOrgLogo, deleteOrgLogo, updateOrg } from '@/api/console'
 import type { Org, OrgDetail, OrgInvitation, OrgRole } from '@/types/api'
 import { fmtDate } from '@/types/api'
@@ -103,12 +103,6 @@ async function removeMember(sub: string, label: string) {
   try { await removeOrgMember(activeOrgId.value!, sub); toast('member removed'); detail.value = await getOrg(activeOrgId.value!) }
   catch (e) { toast(humanize(e)) }
 }
-async function removeSecret(provider: string) {
-  if (!await confirmAction({ title: 'remove shared key', danger: true, confirmLabel: 'remove', message: `remove the shared ${provider} key?` })) return
-  try { await deleteOrgSecret(activeOrgId.value!, provider); toast('shared key removed'); detail.value = await getOrg(activeOrgId.value!) }
-  catch (e) { toast(humanize(e)) }
-}
-
 async function editOrg() {
   if (activeOrgId.value == null) return
   const r = await promptForm({
@@ -172,7 +166,7 @@ async function removeLogo() {
 
     <template v-else>
       <div class="grid23">
-        <ConsoleCard title="members" flush sub="people in your active org. org admins can edit doctrine and shared keys.">
+        <ConsoleCard title="members" flush sub="people in your active org. shared keys & connector governance live in « connectors ».">
           <table class="tbl">
             <thead><tr><th>member</th><th>role</th><th>active</th><th v-if="isOrgAdmin" style="width: 150px"></th></tr></thead>
             <tbody>
@@ -270,22 +264,6 @@ async function removeLogo() {
         </div>
       </ConsoleCard>
 
-      <ConsoleCard title="shared keys" flush
-        sub="org-level credentials every member inherits. per-user sessions (linkedin, google) are never shared.">
-        <table class="tbl">
-          <thead><tr><th>provider</th><th>type</th><th>set by</th><th>since</th><th v-if="isOrgAdmin" style="width: 90px"></th></tr></thead>
-          <tbody>
-            <tr v-for="s in detail?.secrets ?? []" :key="s.provider">
-              <td style="font-weight: 600; color: var(--color-ink)">{{ s.provider }}</td>
-              <td><Tag v-if="s.base_url" tone="cobalt">remote bridge</Tag><Tag v-else>api key</Tag></td>
-              <td class="dim">{{ s.set_by ?? '—' }}</td>
-              <td class="dim">{{ fmtDate(s.set_at) ?? '—' }}</td>
-              <td v-if="isOrgAdmin" style="text-align: right"><Btn kind="danger" @click="removeSecret(s.provider)">remove</Btn></td>
-            </tr>
-            <tr v-if="!(detail?.secrets?.length)"><td :colspan="isOrgAdmin ? 5 : 4" class="dim" style="text-align: center; padding: 16px">no shared keys yet</td></tr>
-          </tbody>
-        </table>
-      </ConsoleCard>
     </template>
   </div>
 </template>
