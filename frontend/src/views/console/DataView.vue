@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
+import DataTable from '@/components/console/DataTable.vue'
+import RowDrawer from '@/components/console/RowDrawer.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useDeepLink } from '@/composables/useDeepLink'
@@ -25,56 +27,34 @@ const rows = ref<DatastoreRow[]>([])
 const rowsLoading = ref(false)
 const rowsError = ref<string | null>(null)
 
+const META = new Set(['_id', '_created_at', '_updated_at'])
+
 // Namespace ouvert porté par `?ns=<name>` (back/forward + lien direct).
 const dl = useDeepLink('ns', (ns) => {
   if (ns && ns !== selected.value) open(ns)
   else if (!ns && selected.value) { selected.value = null; rows.value = [] }
 })
 
-// Édition : id de la row en cours (ou NEW pour l'ajout), brouillon string→string,
-// colonnes ajoutées à la volée (schéma libre).
-const NEW = '__new__'
-const editing = ref<string | null>(null)
-const draft = ref<Record<string, string>>({})
-const extraCols = ref<string[]>([])
-const saving = ref(false)
+const current = computed(() => namespaces.value.find((n) => n.namespace === selected.value) || null)
+const readOnly = computed(() => !!current.value?.shared && current.value.permission !== 'write')
 
-const META = new Set(['_id', '_created_at', '_updated_at'])
-
-// Colonnes = union des champs user (ordre de première apparition) + celles ajoutées
-// pendant une édition en cours.
-const columns = computed<string[]>(() => {
+// Colonnes connues du namespace (union des champs user) — sert le formulaire d'ajout.
+const fields = computed<string[]>(() => {
   const seen: string[] = []
   for (const row of rows.value)
     for (const k of Object.keys(row))
       if (!META.has(k) && !seen.includes(k)) seen.push(k)
-  for (const c of extraCols.value) if (!seen.includes(c)) seen.push(c)
   return seen
 })
 
-const current = computed(() => namespaces.value.find((n) => n.namespace === selected.value) || null)
-const readOnly = computed(() => !!current.value?.shared && current.value.permission !== 'write')
+// ── drawer (détail / édition / ajout d'une row) ──────────────────────────────
+const drawerOpen = ref(false)
+const drawerRow = ref<DatastoreRow | null>(null)
+const drawerNew = ref(false)
 
-// Affichage d'une valeur en cellule.
-function fmt(v: unknown): string {
-  if (v === null || v === undefined) return ''
-  if (typeof v === 'object') return JSON.stringify(v)
-  return String(v)
-}
-function fmtDate(v: unknown): string {
-  return v ? String(v).replace('T', ' ').slice(0, 16) : ''
-}
-// String d'input ⇄ valeur. JSON si possible (nombre/bool/null/objet), sinon string.
-function toInput(v: unknown): string {
-  if (v === null || v === undefined) return ''
-  if (typeof v === 'object') return JSON.stringify(v)
-  return String(v)
-}
-function parseVal(s: string): unknown {
-  const t = s.trim()
-  if (t === '') return ''
-  try { return JSON.parse(t) } catch { return s }
-}
+function openRow(row: DatastoreRow) { drawerRow.value = row; drawerNew.value = false; drawerOpen.value = true }
+function openNew() { drawerRow.value = null; drawerNew.value = true; drawerOpen.value = true }
+function closeDrawer() { drawerOpen.value = false; drawerRow.value = null; drawerNew.value = false }
 
 async function load() {
   try { namespaces.value = (await getNamespaces()).namespaces }
@@ -90,7 +70,7 @@ onMounted(async () => {
 async function open(ns: string) {
   selected.value = ns
   dl.set(ns)
-  cancelEdit()
+  closeDrawer()
   rowsError.value = null
   rowsLoading.value = true
   try { rows.value = (await getNamespaceRows(ns)).rows }
@@ -120,67 +100,35 @@ async function removeNamespace(ns: string) {
   } catch (e) { toast(humanize(e)) }
 }
 
-// ── édition ────────────────────────────────────────────────────────────────
-function startEdit(row: DatastoreRow) {
-  editing.value = row._id
-  extraCols.value = []
-  const d: Record<string, string> = {}
-  for (const c of columns.value) d[c] = toInput(row[c])
-  draft.value = d
-}
-function startNew() {
-  editing.value = NEW
-  extraCols.value = []
-  const d: Record<string, string> = {}
-  for (const c of columns.value) d[c] = ''
-  draft.value = d
-}
-function cancelEdit() {
-  editing.value = null
-  draft.value = {}
-  extraCols.value = []
-}
-async function addField() {
-  const name = await promptText('add field', { label: 'field name', required: true, placeholder: 'e.g. status' })
-  if (!name) return
-  if (META.has(name) || name in draft.value) { toast(`field "${name}" already exists`); return }
-  extraCols.value.push(name)
-  draft.value[name] = ''
-}
-async function saveEdit() {
-  if (!selected.value || !editing.value) return
-  saving.value = true
+async function onSave(payload: Record<string, unknown>) {
+  if (!selected.value) return
   try {
-    if (editing.value === NEW) {
-      const payload: Record<string, unknown> = {}
-      for (const [k, v] of Object.entries(draft.value))
-        if (v.trim() !== '') payload[k] = parseVal(v)
+    if (drawerNew.value) {
       const created = await appendNamespaceRow(selected.value, payload)
       rows.value = [created, ...rows.value]
       toast('row added')
-    } else {
-      const payload: Record<string, unknown> = {}
-      for (const [k, v] of Object.entries(draft.value)) payload[k] = parseVal(v)
-      const updated = await updateNamespaceRow(selected.value, editing.value, payload)
+    } else if (drawerRow.value) {
+      const updated = await updateNamespaceRow(selected.value, drawerRow.value._id, payload)
       rows.value = rows.value.map((r) => (r._id === updated._id ? updated : r))
       toast('row saved')
     }
-    cancelEdit()
+    closeDrawer()
   } catch (e) { toast(humanize(e)) }
-  finally { saving.value = false }
 }
 
-async function removeRow(row: DatastoreRow) {
-  if (!selected.value) return
+async function onDelete() {
+  if (!selected.value || !drawerRow.value) return
+  const id = drawerRow.value._id
   const ok = await confirmAction({
     title: 'delete row?', message: 'this row is permanently removed.',
     confirmLabel: 'delete', danger: true,
   })
   if (!ok) return
   try {
-    await deleteNamespaceRow(selected.value, row._id)
-    rows.value = rows.value.filter((r) => r._id !== row._id)
+    await deleteNamespaceRow(selected.value, id)
+    rows.value = rows.value.filter((r) => r._id !== id)
     toast('row deleted')
+    closeDrawer()
   } catch (e) { toast(humanize(e)) }
 }
 </script>
@@ -214,71 +162,18 @@ async function removeRow(row: DatastoreRow) {
         :sub="rowsLoading ? 'loading…' : `${rows.length} row${rows.length === 1 ? '' : 's'}`">
         <template #actions>
           <Tag v-if="readOnly" tone="saffron">read-only</Tag>
-          <template v-if="!readOnly && editing">
-            <Btn kind="mini" icon="plus" @click="addField">field</Btn>
-            <Btn kind="mini" icon="check" :disabled="saving" @click="saveEdit">save</Btn>
-            <Btn kind="ghost" icon="close" @click="cancelEdit">cancel</Btn>
-          </template>
-          <template v-else-if="!readOnly">
-            <Btn kind="mini" icon="plus" @click="startNew">add row</Btn>
-            <Btn kind="danger" icon="trash" @click="removeNamespace(selected)">delete namespace</Btn>
-          </template>
+          <Btn v-else kind="mini" icon="plus" @click="openNew">add row</Btn>
+          <Btn v-if="!readOnly" kind="danger" icon="trash" @click="removeNamespace(selected)">delete namespace</Btn>
         </template>
 
         <p v-if="rowsError" class="helptext" style="color: var(--color-terra-ink); padding: 12px 16px">
           {{ rowsError }}
         </p>
-
-        <div v-else-if="!rowsLoading && !rows.length && editing !== NEW" class="dim" style="text-align: center; padding: 24px">
+        <div v-else-if="!rowsLoading && !rows.length" class="dim" style="text-align: center; padding: 24px">
           no rows yet — add one above, or your agents append with
           <code style="font-size: 11px">data_write("{{ selected }}", row)</code>.
         </div>
-
-        <div v-else class="tbl-scroll">
-          <table class="tbl">
-            <thead>
-              <tr>
-                <th v-for="c in columns" :key="c">{{ c }}</th>
-                <th class="num">updated</th>
-                <th v-if="!readOnly" style="width: 88px"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- ligne d'ajout -->
-              <tr v-if="editing === NEW" class="editing">
-                <td v-for="c in columns" :key="c">
-                  <input v-model="draft[c]" class="cell-input" :placeholder="c" />
-                </td>
-                <td class="num dim">—</td>
-                <td style="text-align: right; white-space: nowrap">
-                  <Btn kind="mini" icon="check" :disabled="saving" @click="saveEdit" />
-                  <Btn kind="ghost" icon="close" @click="cancelEdit" />
-                </td>
-              </tr>
-              <!-- lignes existantes -->
-              <tr v-for="row in rows" :key="row._id" :class="{ editing: editing === row._id }">
-                <template v-if="editing === row._id">
-                  <td v-for="c in columns" :key="c">
-                    <input v-model="draft[c]" class="cell-input" :placeholder="c" />
-                  </td>
-                  <td class="num dim mono">{{ fmtDate(row._updated_at) }}</td>
-                  <td style="text-align: right; white-space: nowrap">
-                    <Btn kind="mini" icon="check" :disabled="saving" @click="saveEdit" />
-                    <Btn kind="ghost" icon="close" @click="cancelEdit" />
-                  </td>
-                </template>
-                <template v-else>
-                  <td v-for="c in columns" :key="c" :title="fmt(row[c])">{{ fmt(row[c]) }}</td>
-                  <td class="num dim mono">{{ fmtDate(row._updated_at) }}</td>
-                  <td v-if="!readOnly" style="text-align: right; white-space: nowrap">
-                    <Btn kind="ghost" icon="pen" :disabled="!!editing" @click="startEdit(row)" />
-                    <Btn kind="danger" icon="trash" :disabled="!!editing" @click="removeRow(row)" />
-                  </td>
-                </template>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <DataTable v-else :rows="rows" @open="openRow" />
       </ConsoleCard>
 
       <ConsoleCard v-else title="pick a namespace">
@@ -303,6 +198,9 @@ async function removeRow(row: DatastoreRow) {
         </div>
       </ConsoleCard>
     </div>
+
+    <RowDrawer :open="drawerOpen" :row="drawerRow" :fields="fields" :is-new="drawerNew"
+      :read-only="readOnly" @save="onSave" @delete="onDelete" @close="closeDrawer" />
   </div>
 </template>
 
@@ -331,29 +229,4 @@ async function removeRow(row: DatastoreRow) {
   color: inherit;
 }
 .ns-item.active { background: var(--color-paper-3); }
-/* table large → scroll horizontal plutôt que de casser la grille */
-.tbl-scroll { overflow-x: auto; }
-.tbl-scroll .tbl td {
-  max-width: 280px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tbl tr.editing { background: var(--color-paper-3); }
-.tbl tr.editing td { overflow: visible; white-space: normal; }
-.cell-input {
-  width: 100%;
-  min-width: 90px;
-  font: inherit;
-  font-size: 12.5px;
-  padding: 4px 6px;
-  border: 1px solid var(--color-hair-soft);
-  border-radius: 5px;
-  background: var(--color-surface);
-  color: var(--color-ink);
-}
-.cell-input:focus {
-  outline: none;
-  border-color: var(--color-cobalt);
-}
 </style>
