@@ -20,7 +20,7 @@ import {
   getMyConnectors, getTools, getPresets, setCredential, deleteApiKey,
   deleteLinkedin, deleteCrunchbase,
   getGoogleStatus, startGoogleOauth, setGoogleDefault, revokeGoogle,
-  getMementoStatus, startMementoOauth, disconnectMemento,
+  getFederatedStatus, startFederatedOauth, disconnectFederated,
   getUnipileStatus, subscribeUnipile, connectUnipile, disconnectUnipile,
   applyPreset as applyPresetApi, savePreset, deletePreset,
   getOrgFieldFilters,
@@ -42,7 +42,7 @@ const catalog = ref<MyConnector[]>([])
 const tools = ref<ToolEntry[]>([])
 const presets = ref<PresetEntry[]>([])
 const google = ref<GoogleOauthStatus | null>(null)
-const memento = ref<MementoStatus | null>(null)
+const fedStatus = ref<Record<string, MementoStatus>>({})
 const unipile = ref<UnipileStatus | null>(null)
 const fieldFilters = ref<FieldFiltersBundle | null>(null)
 const error = ref<string | null>(null)
@@ -89,9 +89,9 @@ const exposedTools = computed(() => tools.value.filter((t) => t.enabled).length)
 
 async function load() {
   try {
-    const [mc, tl, pr, g, m, u, ff] = await Promise.all([
+    const [mc, tl, pr, g, u, ff] = await Promise.all([
       getMyConnectors(), getTools(), getPresets().catch(() => ({ presets: [] })),
-      getGoogleStatus().catch(() => null), getMementoStatus().catch(() => null),
+      getGoogleStatus().catch(() => null),
       getUnipileStatus().catch(() => null),
       activeOrgId.value == null ? Promise.resolve(null) : getOrgFieldFilters(activeOrgId.value).catch(() => null),
     ])
@@ -99,19 +99,16 @@ async function load() {
     tools.value = tl.tools
     presets.value = pr.presets
     google.value = g
-    memento.value = m
     unipile.value = u
     fieldFilters.value = ff
+    await loadFederated()
   } catch (e) { error.value = humanize(e) }
 }
 onMounted(async () => {
-  // Retour des flux OAuth (memento) / hosted-auth (unipile) — toast + poll.
+  // Retour des flux OAuth (mcp fédéré) / hosted-auth (unipile) — toast + poll.
   const sp = new URLSearchParams(window.location.search)
-  const p = sp.get('memento'), up = sp.get('unipile')
+  const up = sp.get('unipile')
   const upCh = (sp.get('channel') || 'linkedin') as keyof UnipileStatus['channels']
-  if (p === 'connected') toast('memento connecté')
-  else if (p === 'error') toast('échec de la connexion memento')
-  if (p || up) window.history.replaceState({}, '', window.location.pathname)
   if (up === 'connected') {
     for (let i = 0; i < 5; i++) {
       unipile.value = await getUnipileStatus().catch(() => unipile.value)
@@ -128,7 +125,17 @@ onMounted(async () => {
     }
     toast(unipile.value?.subscribed ? 'option messagerie activée' : 'activation en cours — rafraîchis dans un instant')
   } else if (up === 'cancel') toast('activation annulée')
-  load()
+  await load()
+  // Retour OAuth d'un mcp fédéré : ?<name>=connected|error (name = connecteur du catalogue).
+  let touched = up != null
+  for (const c of federated.value) {
+    const v = sp.get(c.name)
+    if (!v) continue
+    touched = true
+    if (v === 'connected') toast(`${c.label} connecté`)
+    else if (v === 'error') toast(`échec de la connexion ${c.label}`)
+  }
+  if (touched) window.history.replaceState({}, '', window.location.pathname)
 })
 
 function goto(section: string) {
@@ -183,13 +190,23 @@ async function unlinkGoogle(email: string) {
   try { await revokeGoogle(email); toast('grant revoked'); google.value = await getGoogleStatus() } catch (e) { toast(humanize(e)) }
 }
 
-// ── memento (mcp fédéré) ──
-async function linkMemento() {
-  try { const { auth_url } = await startMementoOauth(); window.location.href = auth_url } catch (e) { toast(humanize(e)) }
+// ── mcp fédéré générique (memento, atlassian…) — câblé par connecteur ──
+async function loadFederated() {
+  const entries = await Promise.all(
+    federated.value.map(async (c) => [c.name, await getFederatedStatus(c.name).catch(() => null)] as const),
+  )
+  fedStatus.value = Object.fromEntries(entries.filter(([, s]) => s !== null)) as Record<string, MementoStatus>
 }
-async function dropMemento() {
-  if (!await confirmAction({ title: 'disconnect memento', danger: true, confirmLabel: 'disconnect', message: 'disconnect your memento workspace? its tools will disappear from your session.' })) return
-  try { await disconnectMemento(); toast('memento disconnected'); memento.value = await getMementoStatus() } catch (e) { toast(humanize(e)) }
+async function linkFederated(name: string) {
+  try { const { auth_url } = await startFederatedOauth(name); window.location.href = auth_url } catch (e) { toast(humanize(e)) }
+}
+async function dropFederated(c: MyConnector) {
+  if (!await confirmAction({ title: `disconnect ${c.label}`, danger: true, confirmLabel: 'disconnect', message: `disconnect your ${c.label}? its tools will disappear from your session.` })) return
+  try {
+    await disconnectFederated(c.name)
+    toast(`${c.label} disconnected`)
+    fedStatus.value = { ...fedStatus.value, [c.name]: await getFederatedStatus(c.name) }
+  } catch (e) { toast(humanize(e)) }
 }
 
 // ── messagerie unipile ──
@@ -312,17 +329,17 @@ async function removePreset(name: string) {
       sub="connect another mcp to your oto — its tools mount into your session, scoped to your own account.">
       <div class="rowlist">
         <div v-for="c in federated" :key="c.name" class="rowitem" style="gap: 12px">
-          <Dot :tone="memento?.connected ? 'olive' : 'faint'" :size="8" />
+          <Dot :tone="fedStatus[c.name]?.connected ? 'olive' : 'faint'" :size="8" />
           <div style="min-width: 0; flex: 1">
             <div style="font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: center">
               {{ c.label }} <Tag tone="cobalt">mcp</Tag>
             </div>
             <div style="font-size: 11.5px; color: var(--color-mute)">
-              {{ memento?.connected ? `connected ${fmtDate(memento.set_at) ?? ''} · ${c.help}` : c.help }}
+              {{ fedStatus[c.name]?.connected ? `connected ${fmtDate(fedStatus[c.name]?.set_at) ?? ''} · ${c.help}` : c.help }}
             </div>
           </div>
-          <Btn v-if="memento?.connected" kind="danger" @click="dropMemento">disconnect</Btn>
-          <Btn v-else kind="mini" @click="linkMemento">connect</Btn>
+          <Btn v-if="fedStatus[c.name]?.connected" kind="danger" @click="dropFederated(c)">disconnect</Btn>
+          <Btn v-else kind="mini" @click="linkFederated(c.name)">connect</Btn>
         </div>
       </div>
     </ConsoleCard>
