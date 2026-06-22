@@ -91,21 +91,32 @@ async function reject(u: WaitlistEntry) {
 async function invite() {
   const r = await promptForm({
     title: 'invite someone to the alpha',
-    description: "send a platform invitation by email. doesn't spend any referral quota — they get their own account and org.",
-    fields: [{ key: 'email', label: 'email', placeholder: 'name@company.com' }],
-    submitLabel: 'send invitation',
+    description: "doesn't spend any referral quota — they get their own account and org. send by email, or get a code to share yourself.",
+    fields: [
+      { key: 'email', label: 'email (optional)', placeholder: 'name@company.com',
+        hint: 'leave blank to get a code to share yourself' },
+      { key: 'delivery', label: 'how', type: 'select', value: 'mail',
+        options: [{ value: 'mail', label: 'send by email' }, { value: 'code', label: 'give me a code to share' }] },
+    ],
+    submitLabel: 'create invitation',
   })
-  if (!r || !r.email) return
+  if (!r) return
+  const sendMail = r.delivery !== 'code'
+  const email = (r.email || '').trim()
+  if (sendMail && !email) { toast('an email is required to send by email'); return }
   inviting.value = true
   try {
-    const res = await adminAlphaInvite(r.email)
+    const res = await adminAlphaInvite(email || null, sendMail)
     if (res.emailed) {
       toast(`invitation sent to ${res.email}`)
     } else {
       await promptForm({
-        title: 'share this invitation link',
-        description: 'email delivery is off on this server — copy and send it yourself.',
-        fields: [{ key: 'url', label: 'invitation link', value: res.invite_url }],
+        title: 'share this invitation yourself',
+        description: 'send this link (or code) to the person — it grants them access.',
+        fields: [
+          { key: 'url', label: 'invitation link', value: res.invite_url },
+          { key: 'code', label: 'code', value: res.code },
+        ],
         submitLabel: 'done',
       })
     }

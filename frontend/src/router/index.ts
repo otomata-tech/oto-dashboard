@@ -23,7 +23,10 @@ const router = createRouter({
     { path: '/my-connectors', redirect: '/connectors' },
     { path: '/toolbox', redirect: '/connectors' },
     // Acceptation d'invitation (hors shell console) — gère sa propre auth.
+    // /invite?token= = lien mail legacy ; /invitation/<carrier>[/<code>] = lien
+    // partageable (referral réutilisable si carrier seul, nominatif si +code).
     { path: '/invite', name: 'invite', component: InviteAcceptView },
+    { path: '/invitation/:carrier/:code?', name: 'invitation', component: InviteAcceptView },
     {
       // Fiche user (admin), sous /platform/users — résolue par le layout vers
       // AdminUserView ; surlignage + niveau hérités de la section users.

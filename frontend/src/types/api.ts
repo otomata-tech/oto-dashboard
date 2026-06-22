@@ -158,15 +158,35 @@ export interface WaitlistEntry {
 }
 
 export interface InvitePreview {
-  email: string
+  email: string | null
   referral: boolean
   inviter: string | null
   org_name: string | null
+  exhausted?: boolean   // lien referral : le porteur n'a plus de budget
+}
+
+// Lien referral réutilisable du compte (à diffuser au réseau).
+export interface ReferralLink {
+  referral_code: string
+  url: string
+  invites_left: number
+  active: boolean
+}
+
+// Résultat d'une émission d'invitation (directe ou alpha).
+export interface InviteResult {
+  ok: boolean
+  email: string | null
+  code: string
+  invite_url: string
+  emailed: boolean
+  invites_left?: number
 }
 
 export interface AlphaInvite {
   id: number
-  email: string
+  email: string | null
+  code?: string | null
   invited_by: string | null
   source: string | null
   created_at: string
@@ -376,7 +396,8 @@ export interface FieldFiltersBundle {
 
 export interface OrgInvitation {
   id: number
-  email: string
+  email: string | null
+  code?: string | null
   org_role: OrgRole
   invited_by?: string | null
   created_at?: string | null

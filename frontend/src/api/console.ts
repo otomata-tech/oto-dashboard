@@ -9,6 +9,7 @@ import type {
   DatastoreRow, NamespaceEntry, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal,
   ScoutQueueItem, ScoutDetail, MementoStatus, MementoWorkspaces, UnipileStatus, WaitlistEntry, AlphaInvite, InvitePreview,
+  ReferralLink, InviteResult,
   FieldRule, FieldFiltersBundle,
 } from '@/types/api'
 
@@ -195,36 +196,42 @@ export const setOrgFieldFilter = (id: number, service: string, rules: FieldRule[
 // ── invitations d'équipe (onboarding SaaS) ──
 export const listInvitations = (id: number) =>
   api<{ invitations: OrgInvitation[] }>(`/api/orgs/${id}/invitations`)
-export const inviteMember = (id: number, email: string, role: OrgRole) =>
-  api<{ ok: boolean; email: string; role: string; emailed: boolean; invite_url: string }>(
-    `/api/orgs/${id}/invitations`, { method: 'POST', ...j({ email, role }) })
+// send_email=false → pas d'envoi, le retour porte le code/lien à partager soi-même.
+export const inviteMember = (id: number, email: string | null, role: OrgRole, sendEmail = true) =>
+  api<InviteResult & { role: string }>(
+    `/api/orgs/${id}/invitations`, { method: 'POST', ...j({ email, role, send_email: sendEmail }) })
 export const revokeInvitation = (id: number, inviteId: number) =>
   api(`/api/orgs/${id}/invitations/${inviteId}`, { method: 'DELETE' })
-// Aperçu public d'une invitation (sans auth — le token est le secret). Alimente
-// la page d'accueil « vous êtes invité·e » avant la création de compte.
+// Aperçus publics (sans auth — le code/token EST le secret). Alimentent la page
+// d'accueil « vous êtes invité·e » avant la création de compte.
 export const previewInvite = (token: string) =>
   apiPublic<InvitePreview>(`/api/invitations/${encodeURIComponent(token)}`)
-export const acceptInvite = (token: string) =>
-  api<{ ok: boolean; referral: boolean; org_id: number | null; org_role: string | null; name: string | null }>(
-    '/api/me/invitations/accept', { method: 'POST', ...j({ token }) })
+export const previewInviteByCode = (code: string) =>
+  apiPublic<InvitePreview>(`/api/invitations/code/${encodeURIComponent(code)}`)
+export const previewReferral = (carrier: string) =>
+  apiPublic<InvitePreview>(`/api/invitations/referral/${encodeURIComponent(carrier)}`)
+// Accept par token mail (legacy), code court nominatif, ou code porteur (referral).
+export const acceptInvite = (payload: { token?: string; code?: string; carrier?: string }) =>
+  api<{ ok: boolean; referral: boolean; org_id: number | null; org_role: string | null; name: string | null; self?: boolean }>(
+    '/api/me/invitations/accept', { method: 'POST', ...j(payload) })
 
 // ── accès plateforme & invitation virale (alpha, ADR 0013) ──
-// Un alpha-user actif dépense une de ses invitations ; l'invité crée sa propre org.
-export const sendAlphaInvite = (email: string) =>
-  api<{ ok: boolean; email: string; emailed: boolean; invite_url: string; invites_left: number }>(
-    '/api/me/alpha-invites', { method: 'POST', ...j({ email }) })
-// Admin : invite un tiers au service par email, SANS entamer de quota referral
-// (l'invité crée sa propre org). Réservé platform admin.
-export const adminAlphaInvite = (email: string) =>
-  api<{ ok: boolean; email: string; emailed: boolean; invite_url: string }>(
-    '/api/admin/alpha-invites', { method: 'POST', ...j({ email }) })
+// Lien referral réutilisable du compte (à diffuser au réseau).
+export const getReferralLink = () =>
+  api<ReferralLink>('/api/me/referral-link')
+// Un alpha-user actif invite quelqu'un (budget débité à l'acceptation). send_email
+// =false → renvoie le code à partager soi-même. L'invité crée sa propre org.
+export const sendAlphaInvite = (email: string | null, sendEmail = true) =>
+  api<InviteResult>('/api/me/alpha-invites', { method: 'POST', ...j({ email, send_email: sendEmail }) })
+// Admin : invite un tiers au service, SANS entamer de quota referral.
+export const adminAlphaInvite = (email: string | null, sendEmail = true) =>
+  api<InviteResult>('/api/admin/alpha-invites', { method: 'POST', ...j({ email, send_email: sendEmail }) })
 export const listAlphaInvites = () =>
   api<{ invitations: AlphaInvite[] }>('/api/admin/alpha-invites')
 export const revokeAlphaInvite = (id: number) =>
   api(`/api/admin/alpha-invites/${id}`, { method: 'DELETE' })
 export const resendAlphaInvite = (email: string) =>
-  api<{ ok: boolean; email: string; emailed: boolean; invite_url: string }>(
-    '/api/admin/alpha-invites/resend', { method: 'POST', ...j({ email }) })
+  api<InviteResult>('/api/admin/alpha-invites/resend', { method: 'POST', ...j({ email }) })
 // Admin : file d'attente + approbation (active + quota) + ajustement de quota.
 export const getWaitlist = () =>
   api<{ waitlist: WaitlistEntry[]; count: number }>('/api/admin/waitlist')

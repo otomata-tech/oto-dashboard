@@ -52,24 +52,34 @@ onMounted(load)
 async function invite() {
   const r = await promptForm({
     title: 'invite a teammate',
-    description: 'they receive an email link to join this org.',
+    description: 'send them an email link, or get a code to share yourself.',
     fields: [
-      { key: 'email', label: 'email', placeholder: 'name@company.com' },
-      { key: 'role', label: 'role', value: 'org_member',
+      { key: 'email', label: 'email (optional)', placeholder: 'name@company.com',
+        hint: 'leave blank to get a code to share yourself' },
+      { key: 'role', label: 'role', type: 'select', value: 'org_member',
         options: [{ value: 'org_member', label: 'member' }, { value: 'org_admin', label: 'admin' }] },
+      { key: 'delivery', label: 'how', type: 'select', value: 'mail',
+        options: [{ value: 'mail', label: 'send by email' }, { value: 'code', label: 'give me a code to share' }] },
     ],
-    submitLabel: 'send invite',
+    submitLabel: 'create invite',
   })
-  if (!r || !r.email) return
+  if (!r) return
+  const sendMail = r.delivery !== 'code'
+  const email = (r.email || '').trim()
+  if (sendMail && !email) { toast('an email is required to send by email'); return }
   const role: OrgRole = r.role === 'org_admin' ? 'org_admin' : 'org_member'
   try {
-    const res = await inviteMember(activeOrgId.value!, r.email, role)
-    toast(res.emailed ? `invite sent to ${res.email}` : 'invite created — share the link')
-    if (!res.emailed) {
+    const res = await inviteMember(activeOrgId.value!, email || null, role, sendMail)
+    if (res.emailed) {
+      toast(`invite sent to ${res.email}`)
+    } else {
       await promptForm({
-        title: 'share this invite link',
-        description: 'email delivery is off on this server — copy and send it yourself.',
-        fields: [{ key: 'url', label: 'invite link', value: res.invite_url }],
+        title: 'share this invite yourself',
+        description: 'send this link (or code) to the person — it joins them to this org.',
+        fields: [
+          { key: 'url', label: 'invite link', value: res.invite_url },
+          { key: 'code', label: 'code', value: res.code },
+        ],
         submitLabel: 'done',
       })
     }

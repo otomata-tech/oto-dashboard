@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import Btn from '@/components/console/Btn.vue'
 import Squiggle from '@/components/console/Squiggle.vue'
 import { useAuth } from '@/composables/useAuth'
 import { useMe } from '@/composables/useMe'
-import { previewInvite, acceptInvite } from '@/api/console'
+import { previewInvite, previewInviteByCode, previewReferral, acceptInvite } from '@/api/console'
 import type { InvitePreview } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
+const route = useRoute()
 const router = useRouter()
 const { isAuthenticated, login, logout } = useAuth()
 const { me, load, reload } = useMe()
@@ -17,36 +18,47 @@ const { me, load, reload } = useMe()
 // 'invited'  : invitation valide, pas connecté → accueil + CTA création de compte
 // 'joining'  : connecté → acceptation en cours
 // 'ok'       : rejoint
-// 'error'    : token invalide/expiré OU échec d'acceptation
+// 'error'    : lien invalide/expiré OU échec d'acceptation
 // 'confirm'  : connecté mais email ≠ email invité → soft-confirm (modèle bearer)
 const state = ref<'loading' | 'invited' | 'confirm' | 'joining' | 'ok' | 'error'>('loading')
 const preview = ref<InvitePreview | null>(null)
 const orgName = ref<string | null>(null)
 const errMsg = ref('')
 const errCode = ref('')
-const token = ref('')
 const otl = ref('')  // one-time-token Logto (magic link) — connexion sans saisie de code
+
+// Forme du lien : token mail legacy (?token=), code court nominatif
+// (/invitation/<carrier>/<code>), ou lien referral réutilisable (/invitation/<carrier>).
+const token = ref('')
+const code = ref('')
+const carrier = ref('')
 
 function codeOf(e: unknown): string {
   const raw = e instanceof Error ? e.message : String(e)
   return raw.includes(' ') ? raw.slice(raw.indexOf(' ') + 1) : raw
 }
 
-const invitePath = () => `/invite?token=${encodeURIComponent(token.value)}`
+// Retour post-login = l'URL courante (préserve carrier/code/token), OTT réinjecté par login().
+const returnTo = () => `${window.location.pathname}${window.location.search}`
+function acceptPayload() {
+  if (token.value) return { token: token.value }
+  if (code.value) return { code: code.value }
+  return { carrier: carrier.value }
+}
 
 // Crée un compte (ou se connecte) avec l'email invité pré-rempli, puis revient ici.
 // L'OTT (s'il est présent dans le lien) rend la connexion silencieuse (1 clic, pas de code).
-function createAccount() { login(invitePath(), 'register', preview.value?.email ?? undefined, otl.value || undefined) }
-function signIn() { login(invitePath(), 'sign_in', preview.value?.email ?? undefined, otl.value || undefined) }
+function createAccount() { login(returnTo(), 'register', preview.value?.email ?? undefined, otl.value || undefined) }
+function signIn() { login(returnTo(), 'sign_in', preview.value?.email ?? undefined, otl.value || undefined) }
 // Mauvais compte connecté : se déconnecter et revenir sur ce lien.
 async function switchAccount() {
-  await logout(`${window.location.origin}${invitePath()}`)
+  await logout(`${window.location.origin}${returnTo()}`)
 }
 
 async function accept() {
   state.value = 'joining'
   try {
-    const r = await acceptInvite(token.value)
+    const r = await acceptInvite(acceptPayload())
     orgName.value = r.name
     await reload()
     state.value = 'ok'
@@ -61,10 +73,18 @@ onMounted(async () => {
   const qs = new URLSearchParams(window.location.search)
   token.value = qs.get('token') ?? ''
   otl.value = qs.get('otl') ?? ''
-  if (!token.value) { state.value = 'error'; errMsg.value = 'ce lien d\'invitation n\'a pas de jeton.'; return }
+  carrier.value = (route.params.carrier as string) ?? ''
+  code.value = (route.params.code as string) ?? ''
+  if (!token.value && !code.value && !carrier.value) {
+    state.value = 'error'; errMsg.value = 'ce lien d\'invitation est incomplet.'; return
+  }
   // Aperçu public d'abord : on accompagne avant tout bounce vers l'auth.
   try {
-    preview.value = await previewInvite(token.value)
+    preview.value = token.value
+      ? await previewInvite(token.value)
+      : code.value
+        ? await previewInviteByCode(code.value)
+        : await previewReferral(carrier.value)
   } catch (e) {
     errCode.value = codeOf(e)
     errMsg.value = humanize(e)
@@ -73,7 +93,8 @@ onMounted(async () => {
   }
   // Connecté → on accepte ; mais si le compte connecté a un autre email que celui
   // visé, on demande confirmation (modèle bearer : le jeton suffit, on prévient
-  // juste qu'on n'est pas sur l'adresse invitée).
+  // juste qu'on n'est pas sur l'adresse invitée). Le lien referral n'a pas d'email
+  // visé → on accepte directement.
   if (isAuthenticated.value) {
     await load()
     const mine = (me.value?.email || '').trim().toLowerCase()
