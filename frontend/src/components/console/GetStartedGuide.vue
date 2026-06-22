@@ -160,7 +160,7 @@ const lvl2Steps = computed(() => [
         </ol>
         <CopyField :value="MCP_URL" />
         <div class="helptext" style="margin-top: 8px">
-          auth runs over oauth against <code>auth.oto.zone</code> — no api key to paste into your client.
+          auth runs over oauth against <code>auth.oto.ninja</code> — no api key to paste into your client.
         </div>
       </div>
     </div>

@@ -9,7 +9,7 @@ import { MCP_URL } from '@/types/api'
     <CopyField :value="MCP_URL" />
     <div class="helptext" style="margin-top: 10px">
       add it as a remote mcp server — your client opens the oauth flow against
-      <code>auth.oto.zone</code> and inherits the tools enabled on your account.
+      <code>auth.oto.ninja</code> and inherits the tools enabled on your account.
     </div>
   </ConsoleCard>
 </template>

@@ -2,7 +2,7 @@ import LogtoClient from '@logto/browser'
 import { ref } from 'vue'
 import { resetAnalytics } from '@/lib/analytics'
 
-// Auth Logto self-hosted (auth.oto.zone) — PKCE, audience = API oto-mcp.
+// Auth Logto self-hosted (auth.oto.ninja, tenant dédié) — PKCE, audience = API oto-mcp.
 // Interface stable du scaffold dev-init : initAuth / login / logout / getAccessToken.
 const endpoint = import.meta.env.VITE_LOGTO_ENDPOINT as string
 const appId = import.meta.env.VITE_LOGTO_APP_ID as string
