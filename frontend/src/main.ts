@@ -6,6 +6,7 @@ import App from './App.vue'
 import router from './router'
 import { useAuth } from './composables/useAuth'
 import { initAnalytics, capturePageview } from './lib/analytics'
+import { initSentry } from './lib/sentry'
 
 // Analytics + session replay (PostHog Cloud EU) — no-op si VITE_POSTHOG_KEY absent.
 initAnalytics()
@@ -20,6 +21,9 @@ void (async () => {
   await initAuth()
 
   const app = createApp(App)
+  // Error tracking front (Sentry) — no-op si VITE_SENTRY_DSN absent. Tôt, pour
+  // capturer aussi les erreurs au montage.
+  initSentry(app)
   app.use(router)
   app.mount('#app')
 })()

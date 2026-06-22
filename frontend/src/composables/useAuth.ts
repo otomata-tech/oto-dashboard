@@ -1,6 +1,7 @@
 import LogtoClient from '@logto/browser'
 import { ref } from 'vue'
 import { resetAnalytics } from '@/lib/analytics'
+import { setSentryUser } from '@/lib/sentry'
 
 // Auth Logto self-hosted (auth.oto.ninja, tenant dédié) — PKCE, audience = API oto-mcp.
 // Interface stable du scaffold dev-init : initAuth / login / logout / getAccessToken.
@@ -76,8 +77,9 @@ export function useAuth() {
   }
 
   async function logout(redirectTo?: string): Promise<void> {
-    // Coupe le lien identité↔session analytics avant de quitter.
+    // Coupe le lien identité↔session analytics + Sentry avant de quitter.
     resetAnalytics()
+    setSentryUser(null)
     await logto.signOut(redirectTo || window.location.origin)
   }
 
