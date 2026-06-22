@@ -105,22 +105,26 @@ org active × équipe active**) vit en **tête de la sidebar** (`ConsoleIdentity
 dans `ConsoleSidebar.vue` à la place de l'ancien brand « oto / console »), **plus dans le
 topbar** (le badge a été retiré le 2026-06-22 : on le cherchait là où on regarde — le menu).
 Il affiche logo org + nom + rôle + équipe, et **s'adapte au niveau** (`useScope().level`) :
-en `org` il se recompose en **bannière org** (logo plus grand, accent saffron) — c'est le
-« le menu s'adapte en mode gérer mon org ». Clic → `IdentityDialog.vue` (modale) :
-- **compte** (email + rôle, **lecture seule** — le sub est fixé par l'OAuth claude.ai, juste
-  un HOWTO « reconnecte le connecteur dans claude.ai » ; édition du profil/avatar = `/account`).
-- **org active** (Perso/orgs/créer) → `setActiveOrg`/`clearActiveOrg`/`createMyOrg`.
-- **équipe active** (groupes de l'org active, visible si org active) → `useGroup`/`clearActiveGroup`,
-  liste via `listGroups`. Toute bascule fait `location.reload()` (vues org/group-scopées).
+en `org` il se recompose en **bannière org** ; affiche **« consultation »** quand l'org/équipe
+vue ≠ la maison. Clic → `IdentityDialog.vue` (« organisation & équipe »).
 
-Erreurs en **toast**. L'identité n'est PAS le level-switch du topbar (axe gouvernance « mon
-espace/org/plateforme », masqué en mobile). Sur mobile, l'identité s'atteint via la drawer.
+**Consultation (view-as) vs maison — ADR 0023 (clé à comprendre).** Choisir une org/équipe
+dans la modale est de la **CONSULTATION** : ça change seulement ce que le **dashboard** affiche,
+**zéro effet MCP**. Mécanique : `lib/viewOrg.ts` pose les headers `X-Oto-Org`/`X-Oto-Group`
+(persistés localStorage, injectés par `api()`/`apiUpload` → `viewHeaders()`) ; le backend
+scope ses vues dessus sans rien persister. `setViewOrg`/`setViewGroup` + `location.reload()`
+(les vues sont org/group-scopées). Changer d'org vue efface l'équipe consultée (invariant).
+- **org maison** (le défaut MCP) se règle par le **seul geste qui touche le MCP** : « définir
+  comme maison » (inline sur la ligne consultée) → `setActiveOrg`/`useGroup` (REST = pose la
+  maison) puis efface la consultation. `me.home_org`/`home_group` = défauts ; `me.active_org`/
+  `active_group` = effectifs (consultation ?? maison). Badge « maison » d'équipe gaté sur
+  `viewingHomeOrg` (la home_group appartient à la maison, pas à une org consultée).
+- **identité d'action de Claude** = `oto_use_org`/`oto_use_group` **dans Claude** (override de
+  session éphémère, retour maison à la conversation suivante). La modale le **rappelle**, elle
+  ne le règle pas. Compte (sub) lecture seule (fixé par l'OAuth claude.ai).
 
-**Découplage clé à comprendre** : changer l'org/équipe ici règle le **défaut des prochaines
-conversations** Claude. Une conversation **déjà ouverte** ne se met pas à jour depuis le
-dashboard (connexion MCP séparée) — sauf via `oto_use_org <org>` **dans** Claude, qui
-recharge la toolbox live (fix backend `refresh_visibility`, cf. `oto-backend/CLAUDE.md`
-§Visibility). Les credentials, eux, basculent toujours immédiatement.
+Erreurs en **toast**. L'identité n'est PAS le level-switch du topbar. Sur mobile, via la drawer.
+Détail backend : `oto-backend/CLAUDE.md` §« Org/équipe : session vs maison vs consultation ».
 
 ## Hub compte (`/account`)
 
