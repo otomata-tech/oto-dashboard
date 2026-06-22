@@ -195,6 +195,11 @@
 }
 .card.flush { padding: 0; overflow: hidden; }
 .card.flush > .card-head { padding: var(--pad-card); padding-bottom: 12px; }
+/* Région padée DANS une carte flush : pour du contenu NON full-bleed (controls,
+   prose, form) qui cohabite avec une table/rowlist. Sans ça, un enfant direct d'une
+   carte flush colle aux bords (footgun récurrent). La table/rowlist, elle, reste
+   enfant direct (full-bleed) ; tout le reste va dans un `.card-body`. Cf. DESIGN.md. */
+.card.flush > .card-body { padding: 0 var(--pad-card) var(--pad-card); }
 .card-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
 .card.flush .card-head { margin-bottom: 0; }
 .card-head .t { font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }

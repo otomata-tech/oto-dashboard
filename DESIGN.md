@@ -50,7 +50,7 @@ Mêmes tokens, intentions opposées. Ne pas transplanter l'un dans l'autre :
 </div>
 ```
 
-- `.card.flush` : padding 0 + `overflow:hidden` pour une carte qui enveloppe une **table** pleine largeur (le head reprend son padding). ⚠️ **Anti-pattern** : ne PAS mettre autre chose qu'une table (ou une liste full-bleed dont les items portent leur propre `padding-inline`) dans une carte `flush` — le contenu colle aux bords (controls, boutons, paragraphes, `.rowitem` qui n'a que du padding vertical). Une carte de controls/recherche/un seul row = carte normale (sans `flush`). Listes type `.ns-item`/`.ws-item` (hover/active pleine largeur) = `flush` OK mais ajouter `padding-inline: var(--pad-card)` aux items.
+- `.card.flush` : padding 0 + `overflow:hidden` pour une carte dont le corps est **UNE** surface full-bleed — une `table.tbl` ou une `.rowlist`/liste d'items pleine largeur (le head reprend son padding). **Règle** : seuls une table/rowlist (et le `#actions` slot, qui est dans le head) vont en enfant direct d'une carte `flush`. **Tout autre contenu** (controls, boutons, prose, form, sous-composant) doit être enveloppé dans **`.card-body`** (`console.css` : `padding: 0 var(--pad-card) var(--pad-card)`), sinon il **colle aux bords** (footgun récurrent — `.rowitem` n'a que du padding vertical, idem). ⚠️ Ne PAS padder à la main un enfant de carte flush (fragile, ré-introduit le footgun) : utiliser `.card-body`. Une carte purement controls/recherche/un seul bloc = **carte normale** (sans `flush`). Listes type `.ns-item`/`.ws-item` (hover/active pleine largeur) = `flush` OK avec `padding-inline: var(--pad-card)` sur les items.
 - Densité réglée par tokens (`--pad-card`, `--fs-body`) ; `.console-root.density-dense` resserre tout (option utilisateur).
 
 ## Grilles

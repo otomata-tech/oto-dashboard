@@ -122,16 +122,18 @@ async function unpublish(e: LibraryEntry | LibraryDoctrine) {
         <Btn kind="mini" :disabled="busy" @click="fork(selected)">fork into my org</Btn>
         <Btn v-if="canUnpublish(selected)" kind="danger" :disabled="busy" @click="unpublish(selected)">unpublish</Btn>
       </template>
-      <div class="dl-meta">
-        <span class="dl-author" :class="selected.author_kind">
-          {{ selected.author_kind === 'otomata' ? 'Otomata' : selected.author_display || 'private creator' }}
-        </span>
-        <Tag v-if="selected.category" tone="saffron">{{ selected.category }}</Tag>
-        <span class="dim">v{{ selected.version }} · updated {{ fmtDate(selected.updated_at) }}</span>
-      </div>
-      <div class="dl-body">
-        <DoctrineContent :text="selected.body_md" :reg="reg" />
-        <ReferencedTools :text="selected.body_md" :reg="reg" />
+      <div class="card-body">
+        <div class="dl-meta">
+          <span class="dl-author" :class="selected.author_kind">
+            {{ selected.author_kind === 'otomata' ? 'Otomata' : selected.author_display || 'private creator' }}
+          </span>
+          <Tag v-if="selected.category" tone="saffron">{{ selected.category }}</Tag>
+          <span class="dim">v{{ selected.version }} · updated {{ fmtDate(selected.updated_at) }}</span>
+        </div>
+        <div class="dl-body">
+          <DoctrineContent :text="selected.body_md" :reg="reg" />
+          <ReferencedTools :text="selected.body_md" :reg="reg" />
+        </div>
       </div>
     </ConsoleCard>
 
@@ -214,9 +216,9 @@ async function unpublish(e: LibraryEntry | LibraryDoctrine) {
 .dl-author.otomata { background: var(--color-ink); color: var(--color-bg); }
 .dl-author.org { background: var(--color-cobalt-soft); color: var(--color-cobalt-ink); }
 
-.dl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; padding: 14px 20px 0; }
+.dl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
 .dl-body {
-  padding: 4px 20px 18px; max-height: 64vh; overflow-y: auto;
+  max-height: 64vh; overflow-y: auto;
 }
 .dl-body :deep(.oto-content) { margin-bottom: 18px; }
 </style>
