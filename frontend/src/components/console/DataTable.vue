@@ -1,21 +1,32 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import {
-  getCoreRowModel, getFilteredRowModel, getSortedRowModel, getPaginationRowModel,
-  useVueTable, type ColumnDef, type SortingState, type Row,
-} from '@tanstack/vue-table'
+import { computed, ref, watch } from 'vue'
 import Btn from './Btn.vue'
 import Icon from './Icon.vue'
 import type { DatastoreRow } from '@/types/api'
-import { cellKind, cellShort, absDate, relDate, sortValue } from '@/lib/cellRender'
+import { cellKind, cellShort, absDate, relDate } from '@/lib/cellRender'
 
-const props = defineProps<{ rows: DatastoreRow[] }>()
-const emit = defineEmits<{ (e: 'open', row: DatastoreRow): void }>()
+// Grille SERVER-DRIVEN : tri/pagination/recherche côté API (le parent fetch).
+// Ce composant n'affiche que la page courante et émet les changements.
+const props = defineProps<{
+  rows: DatastoreRow[]
+  total: number
+  page: number              // 0-based
+  pageSize: number
+  sortField: string | null
+  sortDir: 'asc' | 'desc'
+  search: string
+  loading?: boolean
+}>()
+const emit = defineEmits<{
+  (e: 'open', row: DatastoreRow): void
+  (e: 'update:page', page: number): void
+  (e: 'update:sort', field: string, dir: 'asc' | 'desc'): void
+  (e: 'update:search', q: string): void
+}>()
 
 const META = new Set(['_id', '_created_at', '_updated_at'])
 
-// Colonnes = union des champs user (ordre de 1re apparition) + 1 colonne méta
-// « updated » à la fin, toutes dérivées des rows (schéma libre).
+// Colonnes = champs user de la page courante (ordre de 1re apparition) + « updated ».
 const fields = computed<string[]>(() => {
   const seen: string[] = []
   for (const row of props.rows)
@@ -23,68 +34,31 @@ const fields = computed<string[]>(() => {
       if (!META.has(k) && !seen.includes(k)) seen.push(k)
   return seen
 })
+const columns = computed(() => [...fields.value, '_updated_at'])
 
-const columns = computed<ColumnDef<DatastoreRow>[]>(() => {
-  const cols: ColumnDef<DatastoreRow>[] = fields.value.map((f) => ({
-    id: f,
-    accessorFn: (row) => row[f],
-    header: f,
-    sortingFn: (a: Row<DatastoreRow>, b: Row<DatastoreRow>, id) => {
-      const va = sortValue(a.getValue(id)); const vb = sortValue(b.getValue(id))
-      return va < vb ? -1 : va > vb ? 1 : 0
-    },
-  }))
-  cols.push({
-    id: '_updated_at',
-    accessorFn: (row) => row._updated_at,
-    header: 'updated',
-    sortingFn: (a, b, id) => {
-      const va = sortValue(a.getValue(id)); const vb = sortValue(b.getValue(id))
-      return va < vb ? -1 : va > vb ? 1 : 0
-    },
-  })
-  return cols
-})
+const pageCount = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)))
 
-const sorting = ref<SortingState>([])
-const globalFilter = ref('')
-const pagination = ref({ pageIndex: 0, pageSize: 25 })
-
-function globalFilterFn(row: Row<DatastoreRow>, _id: string, value: string): boolean {
-  const q = String(value).toLowerCase()
-  if (!q) return true
-  return Object.entries(row.original).some(
-    ([k, v]) => !k.startsWith('_') && String(v ?? '').toLowerCase().includes(q),
-  )
+function header(col: string): string { return col === '_updated_at' ? 'updated' : col }
+function sortGlyph(col: string): string {
+  if (props.sortField !== col) return '↕'
+  return props.sortDir === 'desc' ? '↓' : '↑'
+}
+function toggleSort(col: string) {
+  if (props.sortField === col) emit('update:sort', col, props.sortDir === 'desc' ? 'asc' : 'desc')
+  else emit('update:sort', col, 'desc')
+}
+function cellVal(row: DatastoreRow, col: string): unknown {
+  return col === '_updated_at' ? row._updated_at : row[col]
 }
 
-const table = useVueTable({
-  get data() { return props.rows },
-  get columns() { return columns.value },
-  state: {
-    get sorting() { return sorting.value },
-    get globalFilter() { return globalFilter.value },
-    get pagination() { return pagination.value },
-  },
-  onSortingChange: (u) => { sorting.value = typeof u === 'function' ? u(sorting.value) : u },
-  onGlobalFilterChange: (u) => { globalFilter.value = typeof u === 'function' ? u(globalFilter.value) : u },
-  onPaginationChange: (u) => { pagination.value = typeof u === 'function' ? u(pagination.value) : u },
-  globalFilterFn,
-  getCoreRowModel: getCoreRowModel(),
-  getSortedRowModel: getSortedRowModel(),
-  getFilteredRowModel: getFilteredRowModel(),
-  getPaginationRowModel: getPaginationRowModel(),
+// Recherche : local + debounce → émission (le parent refetch & reset la page).
+const searchLocal = ref(props.search)
+let timer: ReturnType<typeof setTimeout> | null = null
+watch(() => props.search, (v) => { searchLocal.value = v })
+watch(searchLocal, (v) => {
+  if (timer) clearTimeout(timer)
+  timer = setTimeout(() => emit('update:search', v), 300)
 })
-
-const headerCols = computed(() => table.getHeaderGroups()[0]?.headers ?? [])
-const filteredCount = computed(() => table.getFilteredRowModel().rows.length)
-const pageCount = computed(() => table.getPageCount())
-const pageIndex = computed(() => pagination.value.pageIndex)
-
-function sortGlyph(id: string): string {
-  const s = sorting.value.find((x) => x.id === id)
-  return !s ? '↕' : s.desc ? '↓' : '↑'
-}
 </script>
 
 <template>
@@ -92,54 +66,44 @@ function sortGlyph(id: string): string {
     <div class="dt-bar">
       <div class="dt-search">
         <Icon name="search" :size="14" />
-        <input v-model="globalFilter" class="dt-search-input" placeholder="search…" />
+        <input v-model="searchLocal" class="dt-search-input" placeholder="search…" />
       </div>
-      <span class="dim dt-count">{{ filteredCount }} / {{ rows.length }}</span>
+      <span class="dim dt-count">{{ total }} row{{ total === 1 ? '' : 's' }}</span>
     </div>
 
     <div class="tbl-scroll">
       <table class="tbl">
         <thead>
           <tr>
-            <th v-for="header in headerCols" :key="header.id"
-              :class="{ num: header.id === '_updated_at' }"
-              class="dt-th" @click="header.column.toggleSorting()">
-              <span class="dt-th-inner">
-                {{ header.column.columnDef.header }}
-                <span class="dt-sort">{{ sortGlyph(header.id) }}</span>
-              </span>
+            <th v-for="col in columns" :key="col" class="dt-th"
+              :class="{ num: col === '_updated_at' }" @click="toggleSort(col)">
+              <span class="dt-th-inner">{{ header(col) }}<span class="dt-sort">{{ sortGlyph(col) }}</span></span>
             </th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in table.getRowModel().rows" :key="row.id"
-            class="dt-row" @click="emit('open', row.original)">
-            <td v-for="cell in row.getVisibleCells()" :key="cell.id"
-              :class="{ num: cell.column.id === '_updated_at' }">
-              <!-- colonne méta updated : relatif + absolu au survol -->
-              <span v-if="cell.column.id === '_updated_at'" class="dim mono"
-                :title="absDate(String(cell.getValue() ?? ''))">
-                {{ relDate(cell.getValue()) }}
+          <tr v-for="row in rows" :key="row._id" class="dt-row" @click="emit('open', row)">
+            <td v-for="col in columns" :key="col" :class="{ num: col === '_updated_at' }">
+              <span v-if="col === '_updated_at'" class="dim mono" :title="absDate(String(cellVal(row, col) ?? ''))">
+                {{ relDate(cellVal(row, col)) }}
               </span>
-              <!-- url → lien cliquable (sans déclencher l'ouverture de la row) -->
-              <a v-else-if="cellKind(cell.getValue()) === 'url'" :href="String(cell.getValue())"
+              <a v-else-if="cellKind(cellVal(row, col)) === 'url'" :href="String(cellVal(row, col))"
                 target="_blank" rel="noopener" class="dt-link" @click.stop>
-                {{ cellShort(cell.getValue()) }}
+                {{ cellShort(cellVal(row, col)) }}
               </a>
-              <!-- date → absolu, relatif au survol -->
-              <span v-else-if="cellKind(cell.getValue()) === 'date'" class="mono"
-                :title="relDate(cell.getValue())">
-                {{ absDate(String(cell.getValue())) }}
+              <span v-else-if="cellKind(cellVal(row, col)) === 'date'" class="mono"
+                :title="relDate(cellVal(row, col))">
+                {{ absDate(String(cellVal(row, col))) }}
               </span>
-              <span v-else-if="cellKind(cell.getValue()) === 'number'" class="num mono">
-                {{ cellShort(cell.getValue()) }}
+              <span v-else-if="cellKind(cellVal(row, col)) === 'number'" class="num mono">
+                {{ cellShort(cellVal(row, col)) }}
               </span>
-              <span v-else :title="cellShort(cell.getValue())">{{ cellShort(cell.getValue()) }}</span>
+              <span v-else :title="cellShort(cellVal(row, col))">{{ cellShort(cellVal(row, col)) }}</span>
             </td>
           </tr>
-          <tr v-if="!table.getRowModel().rows.length">
+          <tr v-if="!rows.length">
             <td :colspan="columns.length" class="dim" style="text-align: center; padding: 16px">
-              no rows match.
+              {{ loading ? 'loading…' : 'no rows match.' }}
             </td>
           </tr>
         </tbody>
@@ -147,9 +111,9 @@ function sortGlyph(id: string): string {
     </div>
 
     <div v-if="pageCount > 1" class="dt-pager">
-      <Btn kind="ghost" :disabled="!table.getCanPreviousPage()" @click="table.previousPage()">‹ prev</Btn>
-      <span class="dim">page {{ pageIndex + 1 }} / {{ pageCount }}</span>
-      <Btn kind="ghost" :disabled="!table.getCanNextPage()" @click="table.nextPage()">next ›</Btn>
+      <Btn kind="ghost" :disabled="page <= 0" @click="emit('update:page', page - 1)">‹ prev</Btn>
+      <span class="dim">page {{ page + 1 }} / {{ pageCount }}</span>
+      <Btn kind="ghost" :disabled="page >= pageCount - 1" @click="emit('update:page', page + 1)">next ›</Btn>
     </div>
   </div>
 </template>

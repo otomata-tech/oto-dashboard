@@ -297,12 +297,20 @@ export interface MementoWorkspaces {
 
 // Datastore (ADR 0016) — un namespace possédé ou partagé.
 export interface NamespaceEntry {
+  id: number          // BIGSERIAL stable — handle de deeplink, survit au renommage
   namespace: string
   url: string
   shared: boolean
   created_at?: string | null
   owner_sub?: string
   permission?: string
+}
+
+// Bénéficiaire d'un partage de namespace (vue propriétaire).
+export interface NamespaceShare {
+  email: string | null
+  permission: string
+  created_at?: string | null
 }
 
 // Une row du datastore : méta à plat (`_id`/`_created_at`/`_updated_at`) + champs

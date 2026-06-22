@@ -6,7 +6,7 @@ import type {
   CreditPack, CreditTransaction, DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
-  DatastoreRow, NamespaceEntry, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
+  DatastoreRow, NamespaceEntry, NamespaceShare, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal,
   ScoutQueueItem, ScoutDetail, MementoStatus, MementoWorkspaces, UnipileStatus, WaitlistEntry, AlphaInvite, InvitePreview,
   ReferralLink, InviteResult,
@@ -151,9 +151,31 @@ export const createNamespace = (namespace: string) =>
   api('/api/datastore/namespaces', { method: 'POST', ...j({ namespace }) })
 export const deleteNamespace = (ns: string) =>
   api(`/api/datastore/namespaces/${encodeURIComponent(ns)}`, { method: 'DELETE' })
-export const getNamespaceRows = (ns: string, limit = 200) =>
-  api<{ rows: DatastoreRow[]; count: number }>(
-    `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows?limit=${limit}`)
+export interface RowQuery {
+  offset?: number; limit?: number; orderBy?: string; orderDir?: 'asc' | 'desc'; q?: string
+}
+export const getNamespaceRows = (ns: string, opts: RowQuery = {}) => {
+  const p = new URLSearchParams()
+  if (opts.offset != null) p.set('offset', String(opts.offset))
+  if (opts.limit != null) p.set('limit', String(opts.limit))
+  if (opts.orderBy) p.set('order_by', opts.orderBy)
+  if (opts.orderDir) p.set('order_dir', opts.orderDir)
+  if (opts.q) p.set('q', opts.q)
+  const qs = p.toString()
+  return api<{ rows: DatastoreRow[]; total: number; offset: number; limit: number }>(
+    `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows${qs ? `?${qs}` : ''}`)
+}
+export const renameNamespace = (ns: string, name: string) =>
+  api<{ ok: boolean; namespace: string }>(
+    `/api/datastore/namespaces/${encodeURIComponent(ns)}`, { method: 'PATCH', ...j({ name }) })
+export const transferNamespace = (ns: string, email: string) =>
+  api(`/api/datastore/namespaces/${encodeURIComponent(ns)}/transfer`, { method: 'POST', ...j({ email }) })
+export const getNamespaceShares = (ns: string) =>
+  api<{ shares: NamespaceShare[] }>(`/api/datastore/namespaces/${encodeURIComponent(ns)}/share`)
+export const shareNamespace = (ns: string, email: string, permission: string) =>
+  api(`/api/datastore/namespaces/${encodeURIComponent(ns)}/share`, { method: 'POST', ...j({ email, permission }) })
+export const unshareNamespace = (ns: string, email: string) =>
+  api(`/api/datastore/namespaces/${encodeURIComponent(ns)}/share`, { method: 'DELETE', ...j({ email }) })
 export const appendNamespaceRow = (ns: string, row: Record<string, unknown>) =>
   api<DatastoreRow>(`/api/datastore/namespaces/${encodeURIComponent(ns)}/rows`,
     { method: 'POST', ...j(row) })

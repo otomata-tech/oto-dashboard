@@ -5,11 +5,12 @@ import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
 import DataTable from '@/components/console/DataTable.vue'
 import RowDrawer from '@/components/console/RowDrawer.vue'
+import ShareDialog from '@/components/console/ShareDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useDeepLink } from '@/composables/useDeepLink'
 import {
-  getNamespaces, createNamespace, deleteNamespace,
+  getNamespaces, createNamespace, deleteNamespace, renameNamespace, transferNamespace,
   getNamespaceRows, appendNamespaceRow, updateNamespaceRow, deleteNamespaceRow,
 } from '@/api/console'
 import type { NamespaceEntry, DatastoreRow } from '@/types/api'
@@ -17,28 +18,37 @@ import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
 const { promptText, confirmAction } = usePrompt()
+const PAGE_SIZE = 25
 
 const namespaces = ref<NamespaceEntry[]>([])
 const error = ref<string | null>(null)
 const loaded = ref(false)
 
-const selected = ref<string | null>(null)
+const selectedId = ref<number | null>(null)
 const rows = ref<DatastoreRow[]>([])
+const total = ref(0)
 const rowsLoading = ref(false)
 const rowsError = ref<string | null>(null)
 
+// État de pagination/tri/recherche — tout côté serveur.
+const page = ref(0)
+const sortField = ref<string | null>('_updated_at')
+const sortDir = ref<'asc' | 'desc'>('desc')
+const search = ref('')
+
 const META = new Set(['_id', '_created_at', '_updated_at'])
 
-// Namespace ouvert porté par `?ns=<name>` (back/forward + lien direct).
-const dl = useDeepLink('ns', (ns) => {
-  if (ns && ns !== selected.value) open(ns)
-  else if (!ns && selected.value) { selected.value = null; rows.value = [] }
-})
+// Deeplink par **id** (stable au renommage) : `?ns=<id>`.
+const dl = useDeepLink<number>('ns', (id) => {
+  if (id != null && id !== selectedId.value) open(id)
+  else if (id == null && selectedId.value != null) { selectedId.value = null; rows.value = [] }
+}, { parse: Number })
 
-const current = computed(() => namespaces.value.find((n) => n.namespace === selected.value) || null)
+const current = computed(() => namespaces.value.find((n) => n.id === selectedId.value) || null)
+const currentName = computed(() => current.value?.namespace ?? null)
 const readOnly = computed(() => !!current.value?.shared && current.value.permission !== 'write')
+const isOwner = computed(() => !!current.value && !current.value.shared)
 
-// Colonnes connues du namespace (union des champs user) — sert le formulaire d'ajout.
 const fields = computed<string[]>(() => {
   const seen: string[] = []
   for (const row of rows.value)
@@ -47,14 +57,16 @@ const fields = computed<string[]>(() => {
   return seen
 })
 
-// ── drawer (détail / édition / ajout d'une row) ──────────────────────────────
+// ── drawer (détail / édition / ajout) ────────────────────────────────────────
 const drawerOpen = ref(false)
 const drawerRow = ref<DatastoreRow | null>(null)
 const drawerNew = ref(false)
-
 function openRow(row: DatastoreRow) { drawerRow.value = row; drawerNew.value = false; drawerOpen.value = true }
 function openNew() { drawerRow.value = null; drawerNew.value = true; drawerOpen.value = true }
 function closeDrawer() { drawerOpen.value = false; drawerRow.value = null; drawerNew.value = false }
+
+// ── partage ──────────────────────────────────────────────────────────────────
+const shareOpen = ref(false)
 
 async function load() {
   try { namespaces.value = (await getNamespaces()).namespaces }
@@ -63,61 +75,118 @@ async function load() {
 }
 onMounted(async () => {
   await load()
-  const ns = dl.read()
-  if (ns) await open(ns)
+  const id = dl.read()
+  if (id != null) await open(id)
 })
 
-async function open(ns: string) {
-  selected.value = ns
-  dl.set(ns)
-  closeDrawer()
-  rowsError.value = null
+async function fetchRows() {
+  const name = currentName.value
+  if (!name) return
   rowsLoading.value = true
-  try { rows.value = (await getNamespaceRows(ns)).rows }
-  catch (e) { rowsError.value = humanize(e); rows.value = [] }
+  rowsError.value = null
+  try {
+    const r = await getNamespaceRows(name, {
+      offset: page.value * PAGE_SIZE, limit: PAGE_SIZE,
+      orderBy: sortField.value ?? undefined, orderDir: sortDir.value,
+      q: search.value || undefined,
+    })
+    rows.value = r.rows
+    total.value = r.total
+  } catch (e) { rowsError.value = humanize(e); rows.value = []; total.value = 0 }
   finally { rowsLoading.value = false }
 }
+
+async function open(id: number) {
+  selectedId.value = id
+  dl.set(id)
+  closeDrawer()
+  page.value = 0; sortField.value = '_updated_at'; sortDir.value = 'desc'; search.value = ''
+  await fetchRows()
+}
+
+function onPage(p: number) { page.value = p; fetchRows() }
+function onSort(field: string, dir: 'asc' | 'desc') { sortField.value = field; sortDir.value = dir; page.value = 0; fetchRows() }
+function onSearch(q: string) { search.value = q; page.value = 0; fetchRows() }
 
 async function create() {
   const ns = await promptText('new namespace', { label: 'name', required: true, placeholder: 'e.g. prospects-q3' })
   if (!ns) return
-  try { await createNamespace(ns); toast(`namespace "${ns}" created`); await load(); await open(ns) }
-  catch (e) { toast(humanize(e)) }
+  try {
+    await createNamespace(ns)
+    toast(`namespace "${ns}" created`)
+    await load()
+    const created = namespaces.value.find((n) => n.namespace === ns)
+    if (created) await open(created.id)
+  } catch (e) { toast(humanize(e)) }
 }
 
-async function removeNamespace(ns: string) {
+async function removeNamespace() {
+  const name = currentName.value
+  if (!name) return
   const ok = await confirmAction({
-    title: `delete "${ns}"?`,
+    title: `delete "${name}"?`,
     message: 'the namespace and all its rows are removed. this cannot be undone.',
     confirmLabel: 'delete', danger: true,
   })
   if (!ok) return
   try {
-    await deleteNamespace(ns)
-    toast(`namespace "${ns}" deleted`)
-    if (selected.value === ns) { selected.value = null; rows.value = []; dl.set(null) }
+    await deleteNamespace(name)
+    toast(`namespace "${name}" deleted`)
+    selectedId.value = null; rows.value = []; dl.set(null)
     await load()
   } catch (e) { toast(humanize(e)) }
 }
 
+async function rename() {
+  const name = currentName.value
+  if (!name) return
+  const next = await promptText('rename namespace', { label: 'new name', required: true, placeholder: name })
+  if (!next || next === name) return
+  try {
+    await renameNamespace(name, next)
+    toast(`renamed to "${next}"`)
+    await load()        // id inchangé → currentName se met à jour, l'URL reste valide
+    await fetchRows()
+  } catch (e) { toast(humanize(e)) }
+}
+
+async function transfer() {
+  const name = currentName.value
+  if (!name) return
+  const email = await promptText('transfer ownership', { label: 'recipient email', required: true, placeholder: 'user@email.com' })
+  if (!email) return
+  const ok = await confirmAction({
+    title: 'transfer ownership?', danger: true, confirmLabel: 'transfer',
+    message: `give "${name}" to ${email}? you keep write access as a shared member.`,
+  })
+  if (!ok) return
+  try {
+    await transferNamespace(name, email)
+    toast(`transferred to ${email}`)
+    await load()        // le ns reste listé (tu passes en partagé), id stable
+    await fetchRows()
+  } catch (e) { toast(humanize(e)) }
+}
+
 async function onSave(payload: Record<string, unknown>) {
-  if (!selected.value) return
+  const name = currentName.value
+  if (!name) return
   try {
     if (drawerNew.value) {
-      const created = await appendNamespaceRow(selected.value, payload)
-      rows.value = [created, ...rows.value]
+      await appendNamespaceRow(name, payload)
       toast('row added')
     } else if (drawerRow.value) {
-      const updated = await updateNamespaceRow(selected.value, drawerRow.value._id, payload)
-      rows.value = rows.value.map((r) => (r._id === updated._id ? updated : r))
+      await updateNamespaceRow(name, drawerRow.value._id, payload)
       toast('row saved')
     }
     closeDrawer()
+    await fetchRows()
   } catch (e) { toast(humanize(e)) }
 }
 
 async function onDelete() {
-  if (!selected.value || !drawerRow.value) return
+  const name = currentName.value
+  if (!name || !drawerRow.value) return
   const id = drawerRow.value._id
   const ok = await confirmAction({
     title: 'delete row?', message: 'this row is permanently removed.',
@@ -125,10 +194,10 @@ async function onDelete() {
   })
   if (!ok) return
   try {
-    await deleteNamespaceRow(selected.value, id)
-    rows.value = rows.value.filter((r) => r._id !== id)
+    await deleteNamespaceRow(name, id)
     toast('row deleted')
     closeDrawer()
+    await fetchRows()
   } catch (e) { toast(humanize(e)) }
 }
 </script>
@@ -145,9 +214,9 @@ async function onDelete() {
           <Btn kind="mini" icon="plus" @click="create">new</Btn>
         </template>
         <div class="rowlist">
-          <button v-for="ns in namespaces" :key="ns.namespace"
-            class="rowitem ns-item" :class="{ active: ns.namespace === selected }"
-            @click="open(ns.namespace)">
+          <button v-for="ns in namespaces" :key="ns.id"
+            class="rowitem ns-item" :class="{ active: ns.id === selectedId }"
+            @click="open(ns.id)">
             <code class="mono" style="font-weight: 600">{{ ns.namespace }}</code>
             <Tag v-if="ns.shared" tone="cobalt">shared · {{ ns.permission || 'read' }}</Tag>
           </button>
@@ -158,22 +227,29 @@ async function onDelete() {
       </ConsoleCard>
 
       <!-- contenu du namespace sélectionné -->
-      <ConsoleCard v-if="selected" :title="selected" flush
-        :sub="rowsLoading ? 'loading…' : `${rows.length} row${rows.length === 1 ? '' : 's'}`">
+      <ConsoleCard v-if="current" :title="currentName || ''" flush
+        :sub="rowsLoading ? 'loading…' : `${total} row${total === 1 ? '' : 's'}`">
         <template #actions>
           <Tag v-if="readOnly" tone="saffron">read-only</Tag>
-          <Btn v-else kind="mini" icon="plus" @click="openNew">add row</Btn>
-          <Btn v-if="!readOnly" kind="danger" icon="trash" @click="removeNamespace(selected)">delete namespace</Btn>
+          <Btn v-if="!readOnly" kind="mini" icon="plus" @click="openNew">add row</Btn>
+          <template v-if="isOwner">
+            <Btn kind="mini" icon="users" @click="shareOpen = true">share</Btn>
+            <Btn kind="mini" icon="pen" @click="rename">rename</Btn>
+            <Btn kind="mini" icon="ext" @click="transfer">transfer</Btn>
+            <Btn kind="danger" icon="trash" @click="removeNamespace">delete</Btn>
+          </template>
         </template>
 
         <p v-if="rowsError" class="helptext" style="color: var(--color-terra-ink); padding: 12px 16px">
           {{ rowsError }}
         </p>
-        <div v-else-if="!rowsLoading && !rows.length" class="dim" style="text-align: center; padding: 24px">
+        <div v-else-if="!rowsLoading && !total && !search" class="dim" style="text-align: center; padding: 24px">
           no rows yet — add one above, or your agents append with
-          <code style="font-size: 11px">data_write("{{ selected }}", row)</code>.
+          <code style="font-size: 11px">data_write("{{ currentName }}", row)</code>.
         </div>
-        <DataTable v-else :rows="rows" @open="openRow" />
+        <DataTable v-else :rows="rows" :total="total" :page="page" :page-size="PAGE_SIZE"
+          :sort-field="sortField" :sort-dir="sortDir" :search="search" :loading="rowsLoading"
+          @open="openRow" @update:page="onPage" @update:sort="onSort" @update:search="onSearch" />
       </ConsoleCard>
 
       <ConsoleCard v-else title="pick a namespace">
@@ -201,6 +277,7 @@ async function onDelete() {
 
     <RowDrawer :open="drawerOpen" :row="drawerRow" :fields="fields" :is-new="drawerNew"
       :read-only="readOnly" @save="onSave" @delete="onDelete" @close="closeDrawer" />
+    <ShareDialog :open="shareOpen" :namespace="currentName" @close="shareOpen = false" />
   </div>
 </template>
 
