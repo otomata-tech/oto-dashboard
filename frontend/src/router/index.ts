@@ -22,6 +22,8 @@ const router = createRouter({
     // redirections pour ne pas casser bookmarks / liens existants.
     { path: '/my-connectors', redirect: '/connectors' },
     { path: '/toolbox', redirect: '/connectors' },
+    // Redaction de champs migrée dans la carte connecteur (onglet transformations).
+    { path: '/org/redaction', redirect: '/connectors' },
     // Acceptation d'invitation (hors shell console) — gère sa propre auth.
     // /invite?token= = lien mail legacy ; /invitation/<carrier>[/<code>] = lien
     // partageable (referral réutilisable si carrier seul, nominatif si +code).

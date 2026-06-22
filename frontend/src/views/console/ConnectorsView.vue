@@ -23,9 +23,11 @@ import {
   getUnipileStatus, subscribeUnipile, connectUnipile, disconnectUnipile,
   getTokens, createToken, deleteToken,
   applyPreset as applyPresetApi, savePreset, deletePreset,
+  getOrgFieldFilters,
 } from '@/api/console'
 import type {
-  ApiToken, ConnectorState, GoogleOauthStatus, MementoStatus, MyConnector, PresetEntry, ToolEntry, UnipileStatus,
+  ApiToken, ConnectorState, FieldFiltersBundle, GoogleOauthStatus, MementoStatus, MyConnector,
+  PresetEntry, ToolEntry, UnipileStatus,
 } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -43,13 +45,32 @@ const google = ref<GoogleOauthStatus | null>(null)
 const memento = ref<MementoStatus | null>(null)
 const unipile = ref<UnipileStatus | null>(null)
 const tokens = ref<ApiToken[]>([])
+const fieldFilters = ref<FieldFiltersBundle | null>(null)
 const error = ref<string | null>(null)
 const q = ref('')
+
+const activeOrgId = computed(() => me.value?.active_org ?? null)
+const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin' || me.value?.role === 'admin')
 
 const nsOf = (toolName: string): string => toolName.split('_')[0] ?? toolName
 function toolsOf(c: MyConnector): ToolEntry[] {
   const ns = new Set(c.namespaces)
   return tools.value.filter((t) => ns.has(nsOf(t.name)))
+}
+
+// Transformations (redaction) du connecteur : schéma déclaré + règles effectives
+// (politique de l'org si posée, sinon défaut serveur).
+function transformsOf(c: MyConnector) {
+  const b = fieldFilters.value
+  return {
+    schema: b?.schemas?.[c.name] ?? [],
+    rules: b?.filters?.[c.name]?.rules ?? b?.defaults?.[c.name]?.rules ?? [],
+    customized: !!b?.filters?.[c.name],
+  }
+}
+async function reloadFieldFilters() {
+  if (activeOrgId.value == null) { fieldFilters.value = null; return }
+  fieldFilters.value = await getOrgFieldFilters(activeOrgId.value).catch(() => null)
 }
 
 // Tri : actifs d'abord, puis masqués, puis désactivés ; à l'intérieur par libellé.
@@ -69,10 +90,11 @@ const exposedTools = computed(() => tools.value.filter((t) => t.enabled).length)
 
 async function load() {
   try {
-    const [mc, tl, pr, g, m, u, t] = await Promise.all([
+    const [mc, tl, pr, g, m, u, t, ff] = await Promise.all([
       getMyConnectors(), getTools(), getPresets().catch(() => ({ presets: [] })),
       getGoogleStatus().catch(() => null), getMementoStatus().catch(() => null),
       getUnipileStatus().catch(() => null), getTokens().catch(() => ({ tokens: [] })),
+      activeOrgId.value == null ? Promise.resolve(null) : getOrgFieldFilters(activeOrgId.value).catch(() => null),
     ])
     catalog.value = mc.connectors
     tools.value = tl.tools
@@ -81,6 +103,7 @@ async function load() {
     memento.value = m
     unipile.value = u
     tokens.value = t.tokens
+    fieldFilters.value = ff
   } catch (e) { error.value = humanize(e) }
 }
 onMounted(async () => {
@@ -249,7 +272,10 @@ async function removePreset(name: string) {
       </template>
       <div class="cc-grid">
         <ConnectorCard v-for="c in shown" :key="c.name" :connector="c" :tools="toolsOf(c)"
-          @configure="configure" @remove="removeKey" @goto="goto" />
+          :field-schema="transformsOf(c).schema" :field-rules="transformsOf(c).rules"
+          :field-filters-customized="transformsOf(c).customized" :action-schema="fieldFilters?.schema ?? []"
+          :org-id="activeOrgId" :is-org-admin="isOrgAdmin"
+          @configure="configure" @remove="removeKey" @goto="goto" @filters-changed="reloadFieldFilters" />
       </div>
       <p v-if="!shown.length" class="helptext" style="text-align: center; padding: 16px">no connector matches “{{ q }}”.</p>
     </ConsoleCard>

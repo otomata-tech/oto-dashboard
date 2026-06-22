@@ -387,11 +387,19 @@ export interface FieldActionSchema {
   label: string
   params: FieldActionParam[]
 }
+// Champ de sortie déclaré d'un connecteur (pilote l'onglet « transformations »).
+export interface ConnectorFieldSchema {
+  name: string
+  label?: string
+  type?: string
+  sensitive?: boolean
+}
 export interface FieldFiltersBundle {
   org_id: number
   filters: Record<string, FieldFilterBlock>   // service -> politique de l'org
   defaults: Record<string, FieldFilterBlock>  // défauts serveur (plancher PII)
   schema: FieldActionSchema[]                 // modes dispo (pilote le formulaire)
+  schemas: Record<string, ConnectorFieldSchema[]>  // champs déclarés par connecteur
 }
 
 export interface OrgInvitation {

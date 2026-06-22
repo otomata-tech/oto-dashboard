@@ -5,12 +5,13 @@
 // sélecteur des 3 états (actif / masqué / désactivé) câblé sur connector_selection
 // (ADR 0019) : active = outils exposés ; paused = installé mais outils cachés de
 // l'agent ; not_selected = désactivé, le défaut.
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import Toggle from './Toggle.vue'
 import Tag from './Tag.vue'
 import Btn from './Btn.vue'
 import ModeTag from './ModeTag.vue'
 import Quota from './Quota.vue'
+import ConnectorTransforms from './ConnectorTransforms.vue'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
@@ -18,16 +19,32 @@ import {
   selectConnector, pauseConnector, unselectConnector, enableTool, disableTool,
 } from '@/api/console'
 import type { ConnectorMode } from '@/lib/consoleTypes'
-import type { ConnectorState, MyConnector, ToolEntry } from '@/types/api'
+import type {
+  ConnectorFieldSchema, ConnectorState, FieldActionSchema, FieldRule, MyConnector, ToolEntry,
+} from '@/types/api'
 
-const props = defineProps<{ connector: MyConnector; tools: ToolEntry[] }>()
+const props = defineProps<{
+  connector: MyConnector
+  tools: ToolEntry[]
+  // Onglet « transformations » (redaction de champs, ADR 0015) — données fournies par le parent.
+  fieldSchema?: ConnectorFieldSchema[]
+  fieldRules?: FieldRule[]
+  fieldFiltersCustomized?: boolean
+  actionSchema?: FieldActionSchema[]
+  orgId?: number | null
+  isOrgAdmin?: boolean
+}>()
 // Le credential des flux dédiés (clé, session) est géré par le parent (formulaire /
 // scroll vers la carte spéciale). La carte signale juste l'intention.
 const emit = defineEmits<{
   (e: 'configure', c: MyConnector): void
   (e: 'remove', c: MyConnector): void
   (e: 'goto', section: string): void
+  (e: 'filters-changed'): void
 }>()
+
+type Tab = 'conn' | 'tools' | 'transforms'
+const tab = ref<Tab>('conn')
 
 const { me } = useMe()
 const { toast } = useToast()
@@ -60,6 +77,11 @@ const keyConfigured = computed(() => !!status.value?.user_key_configured)
 
 const myTools = computed(() => [...props.tools].sort((a, b) => a.name.localeCompare(b.name)))
 const enabledCount = computed(() => myTools.value.filter((t) => t.enabled).length)
+
+// L'onglet transformations n'apparaît que pour les connecteurs concernés par la redaction
+// (schéma déclaré ou règle déjà posée).
+const hasTransforms = computed(() =>
+  (props.fieldSchema?.length ?? 0) > 0 || (props.fieldRules?.length ?? 0) > 0)
 
 async function setState(s: ConnectorState) {
   if (state.value === s) return
@@ -106,8 +128,19 @@ const gotoSection: Record<Conn, string> = {
     </header>
 
     <div v-if="state !== 'not_selected'" class="cc-body">
-      <!-- Face 1 — config de la connexion -->
-      <div class="cc-conn">
+      <!-- Barre d'onglets : connexion / outils / transformations -->
+      <div class="cc-tabs" role="tablist">
+        <button :class="{ on: tab === 'conn' }" @click="tab = 'conn'">connexion</button>
+        <button :class="{ on: tab === 'tools' }" @click="tab = 'tools'">
+          outils <span class="dim">{{ enabledCount }}/{{ myTools.length }}</span>
+        </button>
+        <button v-if="hasTransforms" :class="{ on: tab === 'transforms' }" @click="tab = 'transforms'">
+          transformations
+        </button>
+      </div>
+
+      <!-- Onglet 1 — config de la connexion -->
+      <div v-show="tab === 'conn'" class="cc-conn">
         <template v-if="connKind === 'key'">
           <ModeTag :mode="statusMode" />
           <span v-if="status?.platform_key_label" class="dim cc-pk">{{ status.platform_key_label }}</span>
@@ -128,11 +161,10 @@ const gotoSection: Record<Conn, string> = {
         </template>
       </div>
 
-      <!-- Face 2 — paramétrage des outils -->
-      <div class="cc-tools">
-        <div class="cc-tools-head">
-          <span>tools <span class="dim">{{ enabledCount }}/{{ myTools.length }}</span></span>
-          <span v-if="state === 'paused'" class="dim cc-paused">hidden from your agents</span>
+      <!-- Onglet 2 — paramétrage des outils -->
+      <div v-show="tab === 'tools'" class="cc-tools">
+        <div v-if="state === 'paused'" class="cc-tools-head">
+          <span class="dim cc-paused">hidden from your agents</span>
         </div>
         <div v-for="t in myTools" :key="t.name" class="cc-tool" :class="{ muted: state === 'paused' }">
           <code class="mono cc-tname">{{ t.name }}</code>
@@ -140,6 +172,13 @@ const gotoSection: Record<Conn, string> = {
         </div>
         <p v-if="!myTools.length" class="cc-no-tools dim">no tools loaded for this connector.</p>
       </div>
+
+      <!-- Onglet 3 — transformations (redaction de champs) -->
+      <ConnectorTransforms v-if="hasTransforms" v-show="tab === 'transforms'"
+        :service="connector.name" :fields="fieldSchema ?? []" :rules="fieldRules ?? []"
+        :action-schema="actionSchema ?? []" :customized="fieldFiltersCustomized ?? false"
+        :org-id="orgId ?? null" :is-org-admin="isOrgAdmin ?? false"
+        @changed="emit('filters-changed')" />
     </div>
   </article>
 </template>
@@ -166,7 +205,13 @@ const gotoSection: Record<Conn, string> = {
 .cc-seg button:first-child { border-left: 0; }
 .cc-seg button.on { background: var(--color-ink); color: var(--color-paper); font-weight: 600; }
 .cc-body { padding: 0 14px 14px; }
-.cc-conn { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0 10px; border-top: 1px solid var(--color-hair-soft); }
+.cc-tabs { display: flex; gap: 2px; border-top: 1px solid var(--color-hair-soft); margin-bottom: 8px; }
+.cc-tabs button {
+  font-size: 11.5px; padding: 7px 10px 6px; border: 0; background: transparent; cursor: pointer;
+  color: var(--color-mute); border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.cc-tabs button.on { color: var(--color-ink); border-bottom-color: var(--color-ink); font-weight: 600; }
+.cc-conn { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 0 6px; }
 .cc-pk { font-size: 11px; }
 .cc-quota { min-width: 120px; }
 .cc-actions { margin-left: auto; display: flex; gap: 6px; }
