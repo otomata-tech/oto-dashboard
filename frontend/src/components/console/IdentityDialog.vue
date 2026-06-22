@@ -5,8 +5,8 @@ import Dot from './Dot.vue'
 import Avatar from './Avatar.vue'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
-import { getMyOrgs, setActiveOrg, clearActiveOrg, createMyOrg, listGroups, useGroup, clearActiveGroup } from '@/api/console'
-import { setViewOrg } from '@/lib/viewOrg'
+import { getMyOrgs, setActiveOrg, clearActiveOrg, createMyOrg, listGroups, useGroup } from '@/api/console'
+import { setViewOrg, setViewGroup } from '@/lib/viewOrg'
 import type { Org, GroupListItem } from '@/types/api'
 
 defineProps<{ open: boolean }>()
@@ -52,13 +52,13 @@ function msg(e: unknown, fallback: string) {
 async function pickOrg(o: Org) {
   if (switching.value || o.id === me.value?.active_org) return
   switching.value = true
-  setViewOrg(String(o.id)); location.reload()
+  setViewOrg(String(o.id)); setViewGroup(null); location.reload()   // org change → drop l'équipe
 }
 
 async function pickPerso() {
   if (switching.value || me.value?.active_org == null) return
   switching.value = true
-  setViewOrg('0'); location.reload()
+  setViewOrg('0'); setViewGroup(null); location.reload()
 }
 
 // MAISON (org par défaut des prochaines conversations Claude) : action explicite,
@@ -68,11 +68,13 @@ async function pickPerso() {
 async function setHomeCurrent() {
   if (switching.value) return
   switching.value = true
-  const viewed = me.value?.active_org ?? null
+  const org = me.value?.active_org ?? null
+  const grp = me.value?.active_group ?? null
   try {
-    if (viewed == null) await clearActiveOrg()
-    else await setActiveOrg(viewed)
-    setViewOrg(null); location.reload()
+    if (grp != null) await useGroup(grp)            // REST → équipe maison + org parente
+    else if (org != null) await setActiveOrg(org)   // org maison (efface l'équipe)
+    else await clearActiveOrg()                      // perso
+    setViewOrg(null); setViewGroup(null); location.reload()
   } catch (e) { toast(msg(e, 'échec')); switching.value = false }
 }
 
@@ -84,19 +86,17 @@ async function createOrg() {
   catch (e) { toast(msg(e, 'échec de la création')); switching.value = false }
 }
 
-// Bascule d'équipe : même contrat que l'org (reload, les vues sont group-scopées).
+// Bascule d'équipe = CONSULTATION (view-as), comme l'org : zéro effet MCP.
 async function pickGroup(g: GroupListItem) {
   if (switching.value || g.id === me.value?.active_group) return
   switching.value = true
-  try { await useGroup(g.id); location.reload() }
-  catch (e) { toast(msg(e, 'échec de la bascule')); switching.value = false }
+  setViewGroup(String(g.id)); location.reload()
 }
 
 async function pickNoGroup() {
   if (switching.value || me.value?.active_group == null) return
   switching.value = true
-  try { await clearActiveGroup(); location.reload() }
-  catch (e) { toast(msg(e, 'échec de la bascule')); switching.value = false }
+  setViewGroup(null); location.reload()
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -163,11 +163,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             <Icon v-if="o.id === me?.active_org" name="check" :size="13" class="id-check" />
           </button>
 
-          <!-- Geste explicite (seul à toucher le MCP) : faire de l'org AFFICHÉE le défaut. -->
-          <button v-if="me && me.active_org !== me.home_org" class="id-sethome"
-                  :disabled="switching" @click="setHomeCurrent">
+          <!-- Geste explicite (seul à toucher le MCP) : faire du contexte AFFICHÉ
+               (org + équipe) le défaut des prochaines conversations. -->
+          <button v-if="me && (me.active_org !== me.home_org || me.active_group !== me.home_group)"
+                  class="id-sethome" :disabled="switching" @click="setHomeCurrent">
             <Icon name="home" :size="12" />
-            définir « {{ me.active_org_name || 'Perso' }} » comme org maison
+            définir « {{ me.active_group_name || me.active_org_name || 'Perso' }} » comme maison
           </button>
 
           <form v-if="creating" class="id-newform" @submit.prevent="createOrg">
@@ -186,12 +187,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         <!-- Équipe active (groupe) : seulement si une org est active ; les équipes
              appartiennent à l'org. Bascule = même contrat que l'org (reload). -->
         <section v-if="me?.active_org != null" class="id-sect">
-          <div class="id-sect-head">équipe active</div>
+          <div class="id-sect-head">équipe affichée</div>
           <button class="id-opt" :class="{ on: me?.active_group == null }"
                   :disabled="switching" @click="pickNoGroup">
             <Dot :tone="me?.active_group == null ? 'saffron' : 'faint'" :size="6" />
             <span class="id-opt-name">toute l'org</span>
             <span class="id-opt-tag">aucune équipe</span>
+            <span v-if="me?.home_group == null" class="id-home-badge">maison</span>
             <Icon v-if="me?.active_group == null" name="check" :size="13" class="id-check" />
           </button>
 
@@ -202,6 +204,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             <Dot :tone="g.id === me?.active_group ? 'saffron' : 'faint'" :size="6" />
             <span class="id-opt-name">{{ g.name }}</span>
             <span class="id-opt-tag">{{ g.my_role === 'group_admin' ? 'chef' : 'membre' }}</span>
+            <span v-if="g.id === me?.home_group" class="id-home-badge">maison</span>
             <Icon v-if="g.id === me?.active_group" name="check" :size="13" class="id-check" />
           </button>
           <div v-if="!groupsLoading && !groups.length" class="id-empty">

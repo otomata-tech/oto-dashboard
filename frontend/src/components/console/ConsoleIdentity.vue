@@ -25,9 +25,10 @@ const orgRoleLabel = computed(() =>
 const groupRoleLabel = computed(() =>
   me.value?.group_role === 'group_admin' ? 'chef' : 'membre')
 
-// On « consulte » quand l'org affichée (view-as) ≠ l'org maison (ADR 0023).
+// On « consulte » quand l'org/équipe affichée (view-as) ≠ la maison (ADR 0023).
 const isConsulting = computed(() =>
-  !!me.value && me.value.active_org !== me.value.home_org)
+  !!me.value && (me.value.active_org !== me.value.home_org
+    || me.value.active_group !== me.value.home_group))
 
 // Sous-titre selon le niveau : en org/platform on annonce le mode, sinon le contexte
 // (ou « consultation » si on regarde une org autre que sa maison).

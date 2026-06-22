@@ -1,21 +1,34 @@
-// Org de consultation (view-as, ADR 0023) — état PUREMENT front : quelle org le
-// dashboard affiche. Envoyée au backend en header `X-Oto-Org` ; le backend scope
-// ses lectures/écritures dessus SANS rien persister ni toucher l'identité MCP
-// (org maison / org de session). Persistée en localStorage pour survivre au reload
-// (les vues se re-scopent au reload, pattern existant). Absente = on voit la maison.
-const KEY = 'oto_view_org'
+// Consultation (view-as, ADR 0023) — état PUREMENT front : quelle org ET quelle
+// équipe le dashboard affiche. Envoyées en headers `X-Oto-Org` / `X-Oto-Group` ;
+// le backend scope ses lectures/écritures dessus SANS rien persister ni toucher
+// l'identité MCP (maison / session). Persisté en localStorage (les vues se
+// re-scopent au reload). Absent = on voit la maison.
+const ORG_KEY = 'oto_view_org'
+const GROUP_KEY = 'oto_view_group'
 
-// Valeur stockée : id d'org (">0"), '0' = profil perso, ou null = aucune (→ maison).
+// Org : id (">0"), '0' = perso, null = aucune (→ maison).
 export function getViewOrg(): string | null {
-  return localStorage.getItem(KEY)
+  return localStorage.getItem(ORG_KEY)
 }
-
 export function setViewOrg(value: string | null): void {
-  if (value === null) localStorage.removeItem(KEY)
-  else localStorage.setItem(KEY, value)
+  if (value === null) localStorage.removeItem(ORG_KEY)
+  else localStorage.setItem(ORG_KEY, value)
 }
 
-export function viewOrgHeader(): Record<string, string> {
-  const v = getViewOrg()
-  return v !== null ? { 'X-Oto-Org': v } : {}
+// Équipe : id de groupe (">0"), null = niveau org (pas d'équipe consultée).
+export function getViewGroup(): string | null {
+  return localStorage.getItem(GROUP_KEY)
+}
+export function setViewGroup(value: string | null): void {
+  if (value === null) localStorage.removeItem(GROUP_KEY)
+  else localStorage.setItem(GROUP_KEY, value)
+}
+
+export function viewHeaders(): Record<string, string> {
+  const h: Record<string, string> = {}
+  const o = getViewOrg()
+  if (o !== null) h['X-Oto-Org'] = o
+  const g = getViewGroup()
+  if (g !== null) h['X-Oto-Group'] = g
+  return h
 }

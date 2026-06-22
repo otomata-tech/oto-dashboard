@@ -128,9 +128,11 @@ export interface Me {
   org_role: OrgRole | null
   home_org: number | null            // org MAISON (défaut MCP des nouvelles conversations)
   home_org_name: string | null
-  active_group: number | null
+  active_group: number | null        // équipe EFFECTIVE affichée = consultation ?? maison
   active_group_name: string | null
-  group_role: GroupRole | null         // effectif (escalade org_admin/platform incluse)
+  group_role: GroupRole | null
+  home_group: number | null          // équipe MAISON (défaut MCP)
+  home_group_name: string | null         // effectif (escalade org_admin/platform incluse)
   access: AccessState                  // gate doux alpha (ADR 0013)
   linkedin: SessionState
   crunchbase: SessionState
