@@ -1,4 +1,5 @@
 import { useAuth } from '@/composables/useAuth'
+import { viewOrgHeader } from '@/lib/viewOrg'
 
 // Le backend du dashboard est oto-mcp (REST /api/*) — pas de serveur propre
 // (ADR 0004/0007 : le front ne détient aucun secret, le centre est oto-mcp).
@@ -12,6 +13,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers: {
       Authorization: `Bearer ${token}`,
       ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      ...viewOrgHeader(),   // view-as : scope la consultation (ADR 0023), sans muter l'identité
       ...init.headers,
     },
   })
@@ -42,7 +44,7 @@ export async function apiUpload<T>(path: string, file: File, method = 'POST'): P
   form.append('file', file)
   const resp = await fetch(`${base}${path}`, {
     method,
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}`, ...viewOrgHeader() },
     body: form,
   })
   if (!resp.ok) {

@@ -25,11 +25,16 @@ const orgRoleLabel = computed(() =>
 const groupRoleLabel = computed(() =>
   me.value?.group_role === 'group_admin' ? 'chef' : 'membre')
 
-// Sous-titre selon le niveau : en org/platform on annonce le mode, sinon le contexte.
+// On « consulte » quand l'org affichée (view-as) ≠ l'org maison (ADR 0023).
+const isConsulting = computed(() =>
+  !!me.value && me.value.active_org !== me.value.home_org)
+
+// Sous-titre selon le niveau : en org/platform on annonce le mode, sinon le contexte
+// (ou « consultation » si on regarde une org autre que sa maison).
 const kicker = computed(() => {
   if (level.value === 'org') return 'gérer mon org'
   if (level.value === 'platform') return 'plateforme'
-  return 'votre contexte'
+  return isConsulting.value ? 'consultation' : 'votre contexte'
 })
 </script>
 

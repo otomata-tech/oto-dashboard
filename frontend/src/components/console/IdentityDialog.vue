@@ -6,6 +6,7 @@ import Avatar from './Avatar.vue'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { getMyOrgs, setActiveOrg, clearActiveOrg, createMyOrg, listGroups, useGroup, clearActiveGroup } from '@/api/console'
+import { setViewOrg } from '@/lib/viewOrg'
 import type { Org, GroupListItem } from '@/types/api'
 
 defineProps<{ open: boolean }>()
@@ -44,28 +45,42 @@ function msg(e: unknown, fallback: string) {
   return e instanceof Error && e.message ? e.message : fallback
 }
 
-// Toute bascule recharge la page : les vues du dashboard sont org-scopées
-// (toolbox, doctrine, secrets, billing). L'erreur n'est plus avalée (≠ bug
-// d'origine du catch muet) — on la remonte en toast.
+// CONSULTATION (view-as, ADR 0023) : choisir une org ici change seulement CE QUE
+// LE DASHBOARD AFFICHE — pas l'identité sous laquelle Claude agit (qui se règle
+// dans Claude via oto_use_org). On pose le header de consultation (localStorage)
+// et on recharge ; les vues sont org-scopées. Zéro effet MCP.
 async function pickOrg(o: Org) {
   if (switching.value || o.id === me.value?.active_org) return
   switching.value = true
-  try { await setActiveOrg(o.id); location.reload() }
-  catch (e) { toast(msg(e, 'échec de la bascule')); switching.value = false }
+  setViewOrg(String(o.id)); location.reload()
 }
 
 async function pickPerso() {
   if (switching.value || me.value?.active_org == null) return
   switching.value = true
-  try { await clearActiveOrg(); location.reload() }
-  catch (e) { toast(msg(e, 'échec de la bascule')); switching.value = false }
+  setViewOrg('0'); location.reload()
+}
+
+// MAISON (org par défaut des prochaines conversations Claude) : action explicite,
+// distincte de la consultation. Agit sur l'org actuellement AFFICHÉE : on la pose
+// comme maison côté backend, on efface la consultation (on regarde désormais la
+// maison) et on recharge. C'est le seul geste de cette modale qui touche le MCP.
+async function setHomeCurrent() {
+  if (switching.value) return
+  switching.value = true
+  const viewed = me.value?.active_org ?? null
+  try {
+    if (viewed == null) await clearActiveOrg()
+    else await setActiveOrg(viewed)
+    setViewOrg(null); location.reload()
+  } catch (e) { toast(msg(e, 'échec')); switching.value = false }
 }
 
 async function createOrg() {
   const name = newName.value.trim()
   if (!name || switching.value) return
   switching.value = true
-  try { await createMyOrg(name); location.reload() }
+  try { await createMyOrg(name); setViewOrg(null); location.reload() }
   catch (e) { toast(msg(e, 'échec de la création')); switching.value = false }
 }
 
@@ -94,12 +109,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 <template>
   <Transition name="modal-fade">
     <div v-if="open" class="modal-overlay" @mousedown.self="emit('close')">
-      <div class="modal" role="dialog" aria-modal="true" aria-label="identité MCP">
+      <div class="modal" role="dialog" aria-modal="true" aria-label="organisation & équipe">
         <header class="id-head">
           <span class="id-medallion"><Icon name="plug" :size="15" /></span>
           <div class="id-head-txt">
-            <h3 class="modal-title">identité MCP</h3>
-            <p class="modal-desc">sous quelle identité Claude agit quand il appelle tes outils.</p>
+            <h3 class="modal-title">organisation & équipe</h3>
+            <p class="modal-desc">ce que <strong>ce dashboard</strong> affiche. Pour changer l'org sous laquelle <strong>Claude</strong> agit, dis-lui <code>oto_use_org</code>.</p>
           </div>
           <button class="id-close" aria-label="fermer" @click="emit('close')">
             <Icon name="close" :size="15" />
@@ -122,14 +137,17 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           </p>
         </section>
 
-        <!-- Org active (profil) : modifiable ici -->
+        <!-- Organisation AFFICHÉE (consultation, view-as) : choisir ici re-scope le
+             dashboard seulement — aucun effet sur Claude. Le badge « maison » marque
+             le défaut MCP des prochaines conversations. -->
         <section class="id-sect">
-          <div class="id-sect-head">org active (profil)</div>
+          <div class="id-sect-head">organisation affichée</div>
           <button class="id-opt" :class="{ on: me?.active_org == null }"
                   :disabled="switching" @click="pickPerso">
             <Dot :tone="me?.active_org == null ? 'saffron' : 'faint'" :size="6" />
             <span class="id-opt-name">Perso</span>
             <span class="id-opt-tag">global</span>
+            <span v-if="me?.home_org == null" class="id-home-badge">maison</span>
             <Icon v-if="me?.active_org == null" name="check" :size="13" class="id-check" />
           </button>
 
@@ -141,7 +159,15 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             <Dot v-else :tone="o.id === me?.active_org ? 'saffron' : 'faint'" :size="6" />
             <span class="id-opt-name">{{ o.name }}</span>
             <span class="id-opt-tag">{{ o.my_role === 'org_admin' ? 'admin' : 'member' }}</span>
+            <span v-if="o.id === me?.home_org" class="id-home-badge">maison</span>
             <Icon v-if="o.id === me?.active_org" name="check" :size="13" class="id-check" />
+          </button>
+
+          <!-- Geste explicite (seul à toucher le MCP) : faire de l'org AFFICHÉE le défaut. -->
+          <button v-if="me && me.active_org !== me.home_org" class="id-sethome"
+                  :disabled="switching" @click="setHomeCurrent">
+            <Icon name="home" :size="12" />
+            définir « {{ me.active_org_name || 'Perso' }} » comme org maison
           </button>
 
           <form v-if="creating" class="id-newform" @submit.prevent="createOrg">
@@ -183,18 +209,22 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           </div>
         </section>
 
-        <!-- HOWTO : ce que la bascule fait (et ne fait pas) sur une session Claude ouverte -->
+        <!-- Trois notions distinctes (ADR 0023) : ce qui change quoi. -->
         <section class="id-howto">
-          <div class="id-sect-head">propagation vers Claude</div>
+          <div class="id-sect-head">qui décide de quoi</div>
           <ul class="id-howto-list">
             <li>
-              <strong>prochaines conversations</strong> — elles démarrent sur cette identité.
+              <strong>ici (ce dashboard)</strong> — tu choisis l'org <em>affichée</em>.
+              Consultation pure : aucun effet sur Claude.
             </li>
             <li>
-              <strong>conversation déjà ouverte</strong> — dis à Claude
-              <code>oto_use_org &lt;org&gt;</code> : la toolbox se recharge en direct.
-              <span class="id-howto-sub">(les données/comptes basculent immédiatement ; seule la
-              liste d'outils a besoin de ce signal.)</span>
+              <strong>org maison</strong> — le défaut des <strong>prochaines</strong>
+              conversations Claude. Se règle avec « définir comme org maison » ci-dessus.
+            </li>
+            <li>
+              <strong>dans une conversation Claude</strong> — dis-lui
+              <code>oto_use_org &lt;org&gt;</code> : il agit sous cette org <em>pour cette
+              conversation seulement</em> (éphémère, retour à la maison ensuite).
             </li>
           </ul>
         </section>
@@ -267,6 +297,21 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 .id-opt-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .id-opt-tag { font-family: var(--font-mono); font-size: 10px; color: var(--color-mute); }
 .id-check { color: var(--color-saffron); }
+.id-home-badge {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 1px 6px; border-radius: 5px;
+  background: var(--color-olive-soft); color: var(--color-olive-ink);
+  border: 1px solid var(--color-hair);
+}
+.id-sethome {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  margin-top: 6px; padding: 8px 11px; border-radius: 9px;
+  border: 1px dashed var(--color-hair); background: transparent;
+  font-size: 12px; font-weight: 600; color: var(--color-mute);
+  cursor: pointer; text-align: left;
+}
+.id-sethome:hover:not(:disabled) { border-color: var(--color-saffron); color: var(--color-ink); }
+.id-sethome:disabled { opacity: 0.55; cursor: default; }
 .id-add { color: var(--color-mute); font-weight: 600; }
 .id-add:hover:not(:disabled) { color: var(--color-ink); }
 .id-empty { padding: 9px 11px; font-size: 12px; color: var(--color-mute); }

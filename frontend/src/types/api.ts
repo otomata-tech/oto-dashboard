@@ -122,10 +122,12 @@ export interface Me {
   name: string | null
   avatar_url: string | null
   role: Role
-  active_org: number | null
+  active_org: number | null          // org EFFECTIVE affichée = consultation (view-as) ?? maison
   active_org_name: string | null
   active_org_logo_url: string | null
   org_role: OrgRole | null
+  home_org: number | null            // org MAISON (défaut MCP des nouvelles conversations)
+  home_org_name: string | null
   active_group: number | null
   active_group_name: string | null
   group_role: GroupRole | null         // effectif (escalade org_admin/platform incluse)
