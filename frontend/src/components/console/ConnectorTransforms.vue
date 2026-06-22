@@ -51,21 +51,20 @@ const ruleByField = computed(() => indexRules(props.rules))
 const defaultByField = computed(() => indexRules(props.defaultRules ?? []))
 function ruleFor(name: string): FieldRule | undefined { return ruleByField.value.get(name.toLowerCase()) }
 
-// Champs sous règle mais ABSENTS du schéma déclaré → montrés seulement pour une POLITIQUE
-// d'org (un défaut serveur liste ses variantes de clés en interne — non pertinent à l'écran).
-const declaredKeys = computed(() => new Set(props.fields.map((f) => f.name.toLowerCase())))
-const extraFields = computed(() => {
-  if (!props.customized) return []
-  const out: string[] = []
-  const seen = new Set<string>()
-  for (const r of props.rules) for (const f of r.fields) {
-    const k = f.toLowerCase()
-    if (!declaredKeys.value.has(k) && !seen.has(k)) { seen.add(k); out.push(f) }
-  }
-  return out
-})
+// Clés RÉELLES observées via le dry-run (RedactionPreview) → le schéma d'un connecteur
+// se découvre depuis une vraie réponse, pas une liste devinée.
+const observed = ref<string[]>([])
+function onObserved(keys: string[]) { observed.value = keys }
 
-const hasContent = computed(() => props.fields.length > 0 || extraFields.value.length > 0)
+// Lignes du schéma = champs déclarés ∪ clés observées (dry-run) ∪ champs déjà sous règle.
+const rows = computed<ConnectorFieldSchema[]>(() => {
+  const by = new Map<string, ConnectorFieldSchema>()
+  for (const f of props.fields) by.set(f.name.toLowerCase(), f)
+  for (const k of observed.value) if (!by.has(k.toLowerCase())) by.set(k.toLowerCase(), { name: k })
+  for (const r of props.rules) for (const f of r.fields) if (!by.has(f.toLowerCase())) by.set(f.toLowerCase(), { name: f })
+  return [...by.values()]
+})
+const hasContent = computed(() => rows.value.length > 0)
 
 // Retire `name` de toutes les règles (vide → supprimée).
 function withoutField(name: string): FieldRule[] {
@@ -144,7 +143,8 @@ async function resetToDefault() {
     <div class="ct-head">
       <span class="ct-prov">
         <Tag v-if="customized" tone="saffron">politique org</Tag>
-        <Tag v-else tone="cobalt">défaut serveur</Tag>
+        <Tag v-else-if="rules.length" tone="cobalt">défaut serveur</Tag>
+        <span v-else class="dim">aucune rédaction</span>
       </span>
       <span v-if="canEdit" class="ct-actions">
         <Btn kind="mini" icon="plus" @click="addField">champ</Btn>
@@ -156,8 +156,8 @@ async function resetToDefault() {
       la rédaction se règle au niveau d'une organisation — sélectionne une org active.
     </p>
     <p v-else-if="!hasContent" class="dim ct-note">
-      aucune rédaction sur ce connecteur.<span v-if="canEdit"> ajoute un champ, applique un
-      modèle, ou teste le filtrage sur un échantillon réel ci-dessous.</span>
+      schéma inconnu pour ce connecteur.<span v-if="canEdit"> <strong>teste le filtrage</strong>
+      ci-dessous avec une vraie réponse pour charger son schéma, applique un modèle, ou ajoute un champ.</span>
     </p>
 
     <!-- Modèles 1-clic (rien appliqué par défaut) — tant que pas de politique d'org. -->
@@ -173,7 +173,7 @@ async function resetToDefault() {
         <th>champ</th><th class="ct-state">état</th><th>traitement</th><th v-if="canEdit" class="ct-act"></th>
       </tr></thead>
       <tbody>
-        <tr v-for="f in fields" :key="f.name">
+        <tr v-for="f in rows" :key="f.name">
           <td class="ct-field">
             <code class="mono">{{ f.name }}</code>
             <span v-if="f.label && f.label !== f.name" class="dim ct-label">{{ f.label }}</span>
@@ -193,24 +193,14 @@ async function resetToDefault() {
             <Btn kind="mini" @click="editField(f.name)">éditer</Btn>
           </td>
         </tr>
-        <tr v-for="name in extraFields" :key="'x-' + name">
-          <td class="ct-field"><code class="mono">{{ name }}</code><span class="dim ct-label">hors schéma</span></td>
-          <td class="ct-state">
-            <Toggle :on="!!ruleFor(name)" :disabled="!canEdit" @change="(v) => toggleField(name, v)" />
-          </td>
-          <td>
-            <Tag tone="ink">{{ actionLabel(actionSchema, ruleFor(name)!.action) }}</Tag>
-            <span class="dim ct-opt">{{ ruleSummary(ruleFor(name)!) }}</span>
-          </td>
-          <td v-if="canEdit" class="ct-act"><Btn kind="mini" @click="editField(name)">éditer</Btn></td>
-        </tr>
       </tbody>
     </table>
 
     <button v-if="orgId != null" class="ct-prevtoggle" @click="showPreview = !showPreview">
       {{ showPreview ? '▾' : '▸' }} tester le filtrage (dry-run)
     </button>
-    <RedactionPreview v-if="showPreview && orgId != null" :org-id="orgId" :service="service" :rules="rules" />
+    <RedactionPreview v-if="showPreview && orgId != null" :org-id="orgId" :service="service" :rules="rules"
+      @observed="onObserved" />
 
     <FieldRuleDialog
       :open="editor != null"
