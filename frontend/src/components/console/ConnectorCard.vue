@@ -174,11 +174,11 @@ const gotoSection: Record<Conn, string> = {
       </div>
 
       <!-- Onglet 3 — transformations (redaction de champs) -->
-      <ConnectorTransforms v-if="hasTransforms" v-show="tab === 'transforms'"
+      <!-- Rédaction en LECTURE SEULE côté user — l'édition vit dans /org/connectors (ADR 0022). -->
+      <ConnectorTransforms v-if="hasTransforms" v-show="tab === 'transforms'" readonly
         :service="connector.name" :fields="fieldSchema ?? []" :rules="fieldRules ?? []"
         :action-schema="actionSchema ?? []" :customized="fieldFiltersCustomized ?? false"
-        :org-id="orgId ?? null" :is-org-admin="isOrgAdmin ?? false"
-        @changed="emit('filters-changed')" />
+        :org-id="orgId ?? null" :is-org-admin="isOrgAdmin ?? false" />
     </div>
   </article>
 </template>

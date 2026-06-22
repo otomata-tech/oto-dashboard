@@ -26,6 +26,7 @@ import ActivityView from './ActivityView.vue'
 import BillingView from './BillingView.vue'
 import AccountView from './AccountView.vue'
 import OrgView from './OrgView.vue'
+import OrgConnectorsView from './OrgConnectorsView.vue'
 import GroupsView from './GroupsView.vue'
 import MonitoringView from './MonitoringView.vue'
 import UsageView from './UsageView.vue'
@@ -50,6 +51,7 @@ const VIEWS: Record<string, Component> = {
   '/billing': BillingView,
   '/account': AccountView,
   '/org': OrgView,
+  '/org/connectors': OrgConnectorsView,
   '/org/departments': GroupsView,
   '/platform/monitoring': MonitoringView,
   '/platform/usage': UsageView,

@@ -21,6 +21,7 @@ const props = defineProps<{
   customized: boolean
   orgId: number | null
   isOrgAdmin: boolean
+  readonly?: boolean        // carte user = rédaction en lecture seule (édition au niveau org)
 }>()
 const emit = defineEmits<{ (e: 'changed'): void }>()
 
@@ -28,7 +29,7 @@ const { toast } = useToast()
 const { confirmAction } = usePrompt()
 const { actionLabel, ruleSummary, promptRule, saveRules, clearService } = useFieldFilters()
 
-const canEdit = computed(() => props.isOrgAdmin && props.orgId != null)
+const canEdit = computed(() => !props.readonly && props.isOrgAdmin && props.orgId != null)
 
 // Carte champ feuille (minuscule) → règle effective (miroir de FieldFilter._by_field).
 const ruleByField = computed(() => {

@@ -10,7 +10,7 @@ import type {
   ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal,
   ScoutQueueItem, ScoutDetail, MementoStatus, MementoWorkspaces, UnipileStatus, WaitlistEntry, AlphaInvite, InvitePreview,
   ReferralLink, InviteResult,
-  FieldRule, FieldFiltersBundle,
+  FieldRule, FieldFiltersBundle, OrgConnectorActivation,
 } from '@/types/api'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
@@ -214,6 +214,23 @@ export const getOrgFieldFilters = (id: number) =>
 export const setOrgFieldFilter = (id: number, service: string, rules: FieldRule[] | null, salt?: string) =>
   api<{ ok: boolean; service: string; cleared: boolean; rules: number }>(
     `/api/orgs/${id}/field-filters/${service}`, { method: 'PUT', ...j({ rules, salt }) })
+
+// ── gouvernance connecteurs au niveau org (cockpit /org/connectors, ADR 0022) ──
+// Activation : master plateforme + override d'org + effectif + recommandé, par connecteur.
+export const getOrgConnectorActivation = (id: number) =>
+  api<{ org_id: number; connectors: OrgConnectorActivation[] }>(`/api/orgs/${id}/connectors/activation`)
+// Plafond dur : force ON/OFF un connecteur pour toute l'org (enabled=true borné au master).
+export const setOrgConnectorActivation = (id: number, name: string, enabled: boolean) =>
+  api<{ org_id: number; connector: string; enabled: boolean }>(
+    `/api/orgs/${id}/connectors/${encodeURIComponent(name)}/activation`, { method: 'PUT', ...j({ enabled }) })
+// Supprime l'override d'org → repli sur le master plateforme.
+export const clearOrgConnectorActivation = (id: number, name: string) =>
+  api<{ org_id: number; connector: string; cleared: boolean }>(
+    `/api/orgs/${id}/connectors/${encodeURIComponent(name)}/activation`, { method: 'DELETE' })
+// Recommandation d'org (« org propose ») — baseline consultative de connecteurs.
+export const setOrgConnectors = (id: number, connectors: string[]) =>
+  api<{ org_id: number; recommended: string[] }>(
+    `/api/orgs/${id}/default-connectors`, { method: 'PUT', ...j({ connectors }) })
 
 // ── invitations d'équipe (onboarding SaaS) ──
 export const listInvitations = (id: number) =>

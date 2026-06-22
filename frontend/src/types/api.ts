@@ -83,6 +83,21 @@ export interface ConnectorActivation {
   overrides: { org_id: number; enabled: boolean }[]
 }
 
+// Gouvernance d'activation d'un connecteur, vue côté ORG (cockpit /org/connectors,
+// ADR 0022). master_enabled = master plateforme (null = jamais posé = OFF) ;
+// org_enabled = override de l'org (null = pas d'override) ; effective = ce que voient
+// les membres (override > master > OFF) ; recommended = baseline default_connectors.
+export interface OrgConnectorActivation {
+  connector: string
+  label: string
+  help: string
+  namespaces: string[]
+  master_enabled: boolean | null
+  org_enabled: boolean | null
+  effective: boolean
+  recommended: boolean
+}
+
 // Miroir de access.py::status_for (cascade user > group > org > platform).
 export interface ProviderStatus {
   mode: 'user' | 'group' | 'org' | 'platform' | 'forbidden' | 'over_quota'

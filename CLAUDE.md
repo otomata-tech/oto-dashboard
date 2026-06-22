@@ -67,7 +67,7 @@ provisionné automatiquement à la création du compte oto (côté backend).
 ## Mémoire — datastore + knowledge (ADR 0016)
 
 Groupe nav **« memory »** (`consoleNav.ts`) = deux surfaces de mémoire :
-- **Datastore** (`/console/data`, `DataView.vue`) — stockage tabulaire per-user, **substrat PG natif** (plus Google Sheets) ; liste/crée des namespaces, badge « shared ». `getNamespaces` renvoie des `NamespaceEntry` (objets, pas des strings). Plus de gate Google.
+- **Datastore** (`/console/data`, `DataView.vue`) — stockage tabulaire per-user, **substrat PG natif** (plus Google Sheets). Grille **server-driven** (`DataTable.vue` : tri/recherche/pagination côté API via `getNamespaceRows({offset,limit,order_by,order_dir,q})`, rendu cellules typé `cellRender.ts`) ; clic row → détail/édition (`RowDrawer.vue`). **Deeplink par id** (`?ns=<id>`, `NamespaceEntry.id` BIGSERIAL stable → le **renommage** ne casse pas l'URL). Gestion propriétaire : **share** (`ShareDialog.vue`, par email read/write), **rename** (`renameNamespace`), **transfer** (`transferNamespace`, l'ancien proprio repasse en partage write). `getNamespaces` renvoie des `NamespaceEntry`. Plus de gate Google.
 - **Knowledge** (`/console/knowledge`, `KnowledgeView.vue`) — connexion **Memento opt-in** (réutilise `getMementoStatus`/`startMementoOauth`/`disconnectMemento`, mêmes endpoints que la carte federated mcp de `ConnectorsView`) ; pas de browse des KB (déféré). Retour OAuth `?memento=connected|error`.
 
 ## Bibliothèque — connecteurs & doctrines (groupe nav « library »)
