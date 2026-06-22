@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import Icon from './Icon.vue'
 import Dot from './Dot.vue'
 import Avatar from './Avatar.vue'
@@ -24,6 +24,14 @@ const newName = ref('')
 // Équipes (groupes) de l'org active — chargées seulement si une org est active.
 const groups = ref<GroupListItem[]>([])
 const groupsLoading = ref(false)
+
+// Le contexte AFFICHÉ (org + équipe) est-il déjà la maison ? Et regarde-t-on son
+// org maison ? (les badges « maison » d'équipe n'ont de sens que dans la maison —
+// home_group appartient à home_org, pas à une org consultée).
+const viewedIsHome = computed(() => !!me.value
+  && me.value.active_org === me.value.home_org
+  && me.value.active_group === me.value.home_group)
+const viewingHomeOrg = computed(() => !!me.value && me.value.active_org === me.value.home_org)
 
 async function loadOrgs() {
   loading.value = true
@@ -148,6 +156,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             <span class="id-opt-name">Perso</span>
             <span class="id-opt-tag">global</span>
             <span v-if="me?.home_org == null" class="id-home-badge">maison</span>
+            <span v-else-if="me?.active_org == null && me?.active_group == null && !viewedIsHome"
+                  class="id-sethome-inline" :title="'défaut des prochaines conversations Claude'"
+                  @click.stop="setHomeCurrent">définir maison</span>
             <Icon v-if="me?.active_org == null" name="check" :size="13" class="id-check" />
           </button>
 
@@ -160,15 +171,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             <span class="id-opt-name">{{ o.name }}</span>
             <span class="id-opt-tag">{{ o.my_role === 'org_admin' ? 'admin' : 'member' }}</span>
             <span v-if="o.id === me?.home_org" class="id-home-badge">maison</span>
+            <span v-else-if="o.id === me?.active_org && me?.active_group == null && !viewedIsHome"
+                  class="id-sethome-inline" :title="'défaut des prochaines conversations Claude'"
+                  @click.stop="setHomeCurrent">définir maison</span>
             <Icon v-if="o.id === me?.active_org" name="check" :size="13" class="id-check" />
-          </button>
-
-          <!-- Geste explicite (seul à toucher le MCP) : faire du contexte AFFICHÉ
-               (org + équipe) le défaut des prochaines conversations. -->
-          <button v-if="me && (me.active_org !== me.home_org || me.active_group !== me.home_group)"
-                  class="id-sethome" :disabled="switching" @click="setHomeCurrent">
-            <Icon name="home" :size="12" />
-            définir « {{ me.active_group_name || me.active_org_name || 'Perso' }} » comme maison
           </button>
 
           <form v-if="creating" class="id-newform" @submit.prevent="createOrg">
@@ -193,7 +199,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             <Dot :tone="me?.active_group == null ? 'saffron' : 'faint'" :size="6" />
             <span class="id-opt-name">toute l'org</span>
             <span class="id-opt-tag">aucune équipe</span>
-            <span v-if="me?.home_group == null" class="id-home-badge">maison</span>
+            <span v-if="viewingHomeOrg && me?.home_group == null" class="id-home-badge">maison</span>
             <Icon v-if="me?.active_group == null" name="check" :size="13" class="id-check" />
           </button>
 
@@ -204,7 +210,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             <Dot :tone="g.id === me?.active_group ? 'saffron' : 'faint'" :size="6" />
             <span class="id-opt-name">{{ g.name }}</span>
             <span class="id-opt-tag">{{ g.my_role === 'group_admin' ? 'chef' : 'membre' }}</span>
-            <span v-if="g.id === me?.home_group" class="id-home-badge">maison</span>
+            <span v-if="viewingHomeOrg && g.id === me?.home_group" class="id-home-badge">maison</span>
+            <span v-else-if="g.id === me?.active_group && !viewedIsHome"
+                  class="id-sethome-inline" :title="'défaut des prochaines conversations Claude'"
+                  @click.stop="setHomeCurrent">définir maison</span>
             <Icon v-if="g.id === me?.active_group" name="check" :size="13" class="id-check" />
           </button>
           <div v-if="!groupsLoading && !groups.length" class="id-empty">
@@ -306,15 +315,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
   background: var(--color-olive-soft); color: var(--color-olive-ink);
   border: 1px solid var(--color-hair);
 }
-.id-sethome {
-  display: flex; align-items: center; gap: 6px; width: 100%;
-  margin-top: 6px; padding: 8px 11px; border-radius: 9px;
-  border: 1px dashed var(--color-hair); background: transparent;
-  font-size: 12px; font-weight: 600; color: var(--color-mute);
-  cursor: pointer; text-align: left;
+.id-sethome-inline {
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.02em;
+  padding: 2px 7px; border-radius: 6px; white-space: nowrap;
+  border: 1px dashed var(--color-hair); background: var(--color-surface);
+  color: var(--color-mute); cursor: pointer;
 }
-.id-sethome:hover:not(:disabled) { border-color: var(--color-saffron); color: var(--color-ink); }
-.id-sethome:disabled { opacity: 0.55; cursor: default; }
+.id-sethome-inline:hover { border-color: var(--color-saffron); color: var(--color-ink); }
 .id-add { color: var(--color-mute); font-weight: 600; }
 .id-add:hover:not(:disabled) { color: var(--color-ink); }
 .id-empty { padding: 9px 11px; font-size: 12px; color: var(--color-mute); }
