@@ -17,14 +17,43 @@ const logto = new LogtoClient({
 const isAuthenticated = ref(false)
 const userSub = ref<string | null>(null)
 
+// Purge l'état persistant du SDK Logto (clés `logto:*` en local/sessionStorage).
+// Sert à récupérer d'un state PKCE périmé (reste d'un ancien tenant/appId après une
+// bascule, ou double tentative de login) qui fait échouer handleSignInCallback avec
+// « State mismatched ». Nos propres clés (oto-*) ne sont pas préfixées `logto` → préservées.
+function purgeLogtoStorage(): void {
+  for (const store of [window.localStorage, window.sessionStorage]) {
+    Object.keys(store)
+      .filter((k) => k.startsWith('logto'))
+      .forEach((k) => store.removeItem(k))
+  }
+}
+
 export function useAuth() {
   async function initAuth(): Promise<void> {
     if (window.location.pathname === '/callback') {
-      await logto.handleSignInCallback(window.location.href)
-      // Reprend la destination pré-login (ex. /invite?token=…), sinon racine.
-      const dest = sessionStorage.getItem('oto-postlogin') || '/'
-      sessionStorage.removeItem('oto-postlogin')
-      window.history.replaceState({}, '', dest)
+      try {
+        await logto.handleSignInCallback(window.location.href)
+        sessionStorage.removeItem('oto-auth-retry')
+        // Reprend la destination pré-login (ex. /invite?token=…), sinon racine.
+        const dest = sessionStorage.getItem('oto-postlogin') || '/'
+        sessionStorage.removeItem('oto-postlogin')
+        window.history.replaceState({}, '', dest)
+      } catch {
+        // State PKCE périmé → au lieu de planter sur une LogtoError non catchée, on
+        // purge le storage Logto et on relance UN login propre (le nouveau flow pose
+        // un state frais qui matchera au retour). Garde anti-boucle : si ça échoue
+        // encore après une relance, on abandonne vers le LoginGate (app montée non
+        // authentifiée) plutôt que de boucler. `oto-postlogin` survit (non préfixé logto).
+        purgeLogtoStorage()
+        if (!sessionStorage.getItem('oto-auth-retry')) {
+          sessionStorage.setItem('oto-auth-retry', '1')
+          await logto.signIn({ redirectUri: `${window.location.origin}/callback` })
+          return
+        }
+        sessionStorage.removeItem('oto-auth-retry')
+        window.history.replaceState({}, '', '/')
+      }
     }
     isAuthenticated.value = await logto.isAuthenticated()
     if (isAuthenticated.value) {
