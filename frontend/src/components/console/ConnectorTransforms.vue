@@ -10,6 +10,7 @@ import Tag from './Tag.vue'
 import Btn from './Btn.vue'
 import Toggle from './Toggle.vue'
 import FieldRuleDialog from './FieldRuleDialog.vue'
+import RedactionPreview from './RedactionPreview.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFieldFilters } from '@/composables/useFieldFilters'
@@ -96,16 +97,26 @@ async function toggleField(name: string, on: boolean) {
 }
 
 // --- éditeur (modale dédiée) : règle finement l'action/params d'un champ ---------
-const editor = ref<{ fixedField: string; existing: FieldRule | null } | null>(null)
+const editor = ref<{ fixedField: string | null; existing: FieldRule | null } | null>(null)
+const showPreview = ref(false)
 function editField(name: string) {
   if (!canEdit.value) return
   editor.value = { fixedField: name, existing: ruleFor(name) ?? null }
+}
+function addField() {
+  // champ libre (ex. une clé repérée dans le dry-run) — saisie des champs dans la modale.
+  if (!canEdit.value) return
+  editor.value = { fixedField: null, existing: null }
 }
 async function onSave(rule: FieldRule) {
   const ed = editor.value
   editor.value = null
   if (!ed) return
-  await persist([...withoutField(ed.fixedField), { ...rule, fields: [ed.fixedField] }])
+  if (ed.fixedField) {
+    await persist([...withoutField(ed.fixedField), { ...rule, fields: [ed.fixedField] }])
+  } else {
+    await persist([...props.rules, rule])   // ajout d'un champ libre (rule porte déjà ses fields)
+  }
 }
 
 async function resetToDefault() {
@@ -127,8 +138,9 @@ async function resetToDefault() {
         <Tag v-if="customized" tone="saffron">politique org</Tag>
         <Tag v-else tone="cobalt">défaut serveur</Tag>
       </span>
-      <span v-if="canEdit && customized" class="ct-actions">
-        <Btn kind="mini" @click="resetToDefault">tout réinitialiser</Btn>
+      <span v-if="canEdit" class="ct-actions">
+        <Btn kind="mini" icon="plus" @click="addField">champ</Btn>
+        <Btn v-if="customized" kind="mini" @click="resetToDefault">tout réinitialiser</Btn>
       </span>
     </div>
 
@@ -182,6 +194,11 @@ async function resetToDefault() {
       </tbody>
     </table>
 
+    <button v-if="orgId != null && hasContent" class="ct-prevtoggle" @click="showPreview = !showPreview">
+      {{ showPreview ? '▾' : '▸' }} tester le filtrage (dry-run)
+    </button>
+    <RedactionPreview v-if="showPreview && orgId != null" :org-id="orgId" :service="service" :rules="rules" />
+
     <FieldRuleDialog
       :open="editor != null"
       :service="service"
@@ -212,4 +229,6 @@ async function resetToDefault() {
 .ct-label { font-size: 11px; }
 .ct-opt { font-size: 12px; margin-left: 6px; }
 .ct-act { text-align: right; white-space: nowrap; width: 90px; }
+.ct-prevtoggle { background: none; border: 0; padding: 6px 0 0; cursor: pointer;
+  font-size: 12px; color: var(--color-cobalt-ink); font-weight: 600; text-align: left; }
 </style>

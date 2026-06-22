@@ -221,6 +221,11 @@ export const getOrgFieldFilters = (id: number) =>
 export const setOrgFieldFilter = (id: number, service: string, rules: FieldRule[] | null, salt?: string) =>
   api<{ ok: boolean; service: string; cleared: boolean; rules: number }>(
     `/api/orgs/${id}/field-filters/${service}`, { method: 'PUT', ...j({ rules, salt }) })
+// dry-run : passe un échantillon réel dans le filtre, renvoie la version redactée.
+// rules omis = politique effective du service ; sinon teste ce brouillon.
+export const previewOrgFieldFilter = (id: number, service: string, payload: unknown, rules?: FieldRule[]) =>
+  api<{ org_id: number; service: string; redacted: unknown }>(
+    `/api/orgs/${id}/field-filters/${service}/preview`, { method: 'POST', ...j({ payload, rules }) })
 
 // ── gouvernance connecteurs au niveau org (cockpit /org/connectors, ADR 0022) ──
 // Activation : master plateforme + override d'org + effectif + recommandé, par connecteur.
