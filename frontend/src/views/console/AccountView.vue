@@ -5,6 +5,7 @@ import Btn from '@/components/console/Btn.vue'
 import Avatar from '@/components/console/Avatar.vue'
 import Tag from '@/components/console/Tag.vue'
 import AccountTokensCard from '@/components/console/AccountTokensCard.vue'
+import SecurityCard from '@/components/console/SecurityCard.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
@@ -109,6 +110,8 @@ async function remove() {
         <Btn icon="logout" @click="() => logout()">se déconnecter</Btn>
       </div>
     </ConsoleCard>
+
+    <SecurityCard />
 
     <AccountTokensCard />
   </div>

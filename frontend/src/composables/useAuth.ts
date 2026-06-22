@@ -1,4 +1,4 @@
-import LogtoClient from '@logto/browser'
+import LogtoClient, { UserScope } from '@logto/browser'
 import { ref } from 'vue'
 import { resetAnalytics } from '@/lib/analytics'
 import { setSentryUser } from '@/lib/sentry'
@@ -13,6 +13,10 @@ const logto = new LogtoClient({
   endpoint,
   appId,
   resources: [resource],
+  // `identities` : requis pour l'Account API Logto (/api/my-account/mfa-verifications),
+  // qui alimente la gestion 2FA self-service du dashboard. ⚠️ Ajouter un scope force un
+  // re-consent : un user déjà connecté doit se reconnecter une fois pour l'obtenir.
+  scopes: [UserScope.Identities],
 })
 
 const isAuthenticated = ref(false)
@@ -91,5 +95,14 @@ export function useAuth() {
     return token
   }
 
-  return { isAuthenticated, userSub, initAuth, login, logout, getAccessToken }
+  // Token OPAQUE pour l'OP (Logto lui-même), SANS resource → c'est ce qu'attend
+  // l'Account API (/api/my-account/*). Distinct de getAccessToken(resource) qui vise
+  // oto-mcp. Nécessite le scope `identities` (cf. config LogtoClient).
+  async function getAccountToken(): Promise<string> {
+    const token = await logto.getAccessToken()
+    if (!token) throw new Error('stale_session')
+    return token
+  }
+
+  return { isAuthenticated, userSub, initAuth, login, logout, getAccessToken, getAccountToken }
 }
