@@ -24,6 +24,8 @@ const router = createRouter({
     { path: '/toolbox', redirect: '/connectors' },
     // Redaction de champs migrée dans la carte connecteur (onglet transformations).
     { path: '/org/redaction', redirect: '/connectors' },
+    // Clés plateforme fusionnées dans le cockpit connecteurs plateforme (ADR 0022).
+    { path: '/platform/keys', redirect: '/platform/connectors' },
     // Acceptation d'invitation (hors shell console) — gère sa propre auth.
     // /invite?token= = lien mail legacy ; /invitation/<carrier>[/<code>] = lien
     // partageable (referral réutilisable si carrier seul, nominatif si +code).

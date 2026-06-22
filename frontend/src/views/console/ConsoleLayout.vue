@@ -33,7 +33,6 @@ import UsageView from './UsageView.vue'
 import AdminUsersView from './AdminUsersView.vue'
 import AdminUserView from './AdminUserView.vue'
 import AdminOrgsView from './AdminOrgsView.vue'
-import PlatformKeysView from './PlatformKeysView.vue'
 import AdminConnectorsView from './AdminConnectorsView.vue'
 import AdminAccessView from './AdminAccessView.vue'
 
@@ -57,7 +56,6 @@ const VIEWS: Record<string, Component> = {
   '/platform/usage': UsageView,
   '/platform/users': AdminUsersView,
   '/platform/orgs': AdminOrgsView,
-  '/platform/keys': PlatformKeysView,
   '/platform/connectors': AdminConnectorsView,
   '/platform/access': AdminAccessView,
 }
