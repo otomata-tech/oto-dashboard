@@ -134,6 +134,11 @@ plateforme en lecture seule + `logout`), carte **cli & api tokens** (`AccountTok
 `getTokens`/`createToken`/`deleteToken` — migrés depuis `ConnectorsView`, user-scopés). Pas de
 préférences/langue (aucune infra i18n dans le repo).
 
+## Observabilité (PostHog + Sentry)
+
+- **PostHog** (`src/lib/analytics.ts`) — analytics produit + session replay, **gaté consentement RGPD**, no-op sans `VITE_POSTHOG_KEY`.
+- **Sentry** (`src/lib/sentry.ts` → `@sentry/vue`) — **error tracking JS** : défauts code + erreurs de composant Vue. `initSentry(app)` dans `main.ts` (tôt, avant mount), no-op sans `VITE_SENTRY_DSN` (DSN **public** dans `.env.production`, projet front `oto-dashboard`, région EU `de.sentry.io`). **Pas** de tracing perf ni de replay (PostHog s'en charge) ; `sendDefaultPii=false`. Contexte user = `sub` Logto via `setSentryUser`, posé/effacé au login/logout (à côté d'`identifyUser`/`resetAnalytics`). Distinct du Sentry **backend** (projet `python-starlette`). Doctrine de triage côté oto : `surveillance-erreurs`.
+
 ## Conventions
 
 - API RESTful consommée sous `/api/*` (contrats : `oto-mcp/CLAUDE.md` §REST + `oto-app/docs/ORG_API_CONTRACT.md`)
