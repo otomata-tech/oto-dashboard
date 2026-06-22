@@ -62,6 +62,13 @@ export const startMementoOauth = () => api<{ auth_url: string }>('/api/memento/o
 export const disconnectMemento = () => api('/api/memento/oauth', { method: 'DELETE' })
 export const getMementoWorkspaces = () => api<MementoWorkspaces>('/api/memento/workspaces')
 
+// ── MCP fédéré générique, par connecteur (#40 — atlassian & co.) ──
+// Mêmes routes que memento, paramétrées par le nom du connecteur :
+// /api/<name>/oauth/{status,start} + DELETE /api/<name>/oauth.
+export const getFederatedStatus = (name: string) => api<MementoStatus>(`/api/${name}/oauth/status`)
+export const startFederatedOauth = (name: string) => api<{ auth_url: string }>(`/api/${name}/oauth/start`)
+export const disconnectFederated = (name: string) => api(`/api/${name}/oauth`, { method: 'DELETE' })
+
 // ── unipile (LinkedIn hébergé) — hosted-auth per-user sous la clé partagée ──
 export const getUnipileStatus = () => api<UnipileStatus>('/api/me/unipile')
 export const subscribeUnipile = () => api<{ checkout_url: string }>('/api/me/unipile/subscribe', { method: 'POST' })
