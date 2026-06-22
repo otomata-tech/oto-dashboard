@@ -201,7 +201,7 @@ async function toggleRecommend(r: OrgConnectorActivation) {
         </button>
         <ConnectorTransforms v-if="openId === r.connector"
           :service="r.connector" :fields="transformsOf(r.connector).schema" :rules="transformsOf(r.connector).rules"
-          :default-rules="transformsOf(r.connector).defaultRules"
+          :default-rules="transformsOf(r.connector).defaultRules" :templates="filters?.templates"
           :action-schema="filters?.schema ?? []" :customized="transformsOf(r.connector).customized"
           :org-id="activeOrgId" :is-org-admin="isOrgAdmin" @changed="reloadFilters" />
       </ConsoleCard>

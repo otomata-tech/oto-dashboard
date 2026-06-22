@@ -15,13 +15,14 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFieldFilters } from '@/composables/useFieldFilters'
 import { humanize } from '@/lib/errors'
-import type { ConnectorFieldSchema, FieldActionSchema, FieldRule } from '@/types/api'
+import type { ConnectorFieldSchema, FieldActionSchema, FieldFilterTemplate, FieldRule } from '@/types/api'
 
 const props = defineProps<{
   service: string
   fields: ConnectorFieldSchema[]
-  rules: FieldRule[]                 // effectives (org si customisé, sinon défaut serveur)
-  defaultRules?: FieldRule[]         // défaut serveur (pour restaurer l'action au ON)
+  rules: FieldRule[]                 // effectives (= politique d'org ; vide si rien posé)
+  defaultRules?: FieldRule[]         // (héritage) défaut serveur — vide désormais
+  templates?: Record<string, FieldFilterTemplate>  // jeux applicables en 1 clic
   actionSchema: FieldActionSchema[]
   customized: boolean
   orgId: number | null
@@ -36,8 +37,9 @@ const { actionLabel, ruleSummary, saveRules, clearService } = useFieldFilters()
 
 const canEdit = computed(() => !props.readonly && props.isOrgAdmin && props.orgId != null)
 
-const RECRUITMENT = new Set(['unipile', 'ashby', 'greenhouse', 'lever', 'recruitee', 'teamtailor'])
-const candidateDefault = computed(() => RECRUITMENT.has(props.service) && !props.customized && props.rules.length > 0)
+// Modèles applicables en 1 clic (ex. « anonymisation candidat ») — proposés tant que
+// l'org n'a pas de politique. Rien n'est appliqué par défaut.
+const templateList = computed(() => Object.entries(props.templates ?? {}).map(([key, t]) => ({ key, ...t })))
 
 // Carte champ feuille (minuscule) → règle effective / règle par défaut serveur.
 function indexRules(rules: FieldRule[]): Map<string, FieldRule> {
@@ -78,6 +80,12 @@ async function persist(rules: FieldRule[]) {
     await saveRules(props.orgId!, props.service, rules)
     emit('changed')
   } catch (e) { toast(humanize(e)) }
+}
+
+async function applyTemplate(t: { label: string; rules: FieldRule[] }) {
+  if (!canEdit.value) return
+  await persist(t.rules)
+  toast(`${props.service} : « ${t.label} » appliqué`)
 }
 
 // Interrupteur actif/en-clair par champ.
@@ -147,13 +155,18 @@ async function resetToDefault() {
     <p v-if="orgId == null" class="dim ct-note">
       la rédaction se règle au niveau d'une organisation — sélectionne une org active.
     </p>
-    <p v-else-if="!hasContent" class="dim ct-note">aucun champ déclaré pour ce connecteur.</p>
-
-    <p v-if="candidateDefault" class="ct-cand">
-      <Tag tone="terra">anonymisation candidat</Tag>
-      l'identité est masquée par défaut avant que Claude voie le profil — bascule un champ
-      sur <em>en clair</em> pour le ré-exposer.
+    <p v-else-if="!hasContent" class="dim ct-note">
+      aucune rédaction sur ce connecteur.<span v-if="canEdit"> ajoute un champ, applique un
+      modèle, ou teste le filtrage sur un échantillon réel ci-dessous.</span>
     </p>
+
+    <!-- Modèles 1-clic (rien appliqué par défaut) — tant que pas de politique d'org. -->
+    <div v-if="canEdit && !customized && templateList.length" class="ct-tpl">
+      <span class="dim">modèles :</span>
+      <Btn v-for="t in templateList" :key="t.key" kind="mini" :title="t.hint" @click="applyTemplate(t)">
+        {{ t.label }}
+      </Btn>
+    </div>
 
     <table v-if="hasContent" class="tbl ct-tbl">
       <thead><tr>
@@ -194,7 +207,7 @@ async function resetToDefault() {
       </tbody>
     </table>
 
-    <button v-if="orgId != null && hasContent" class="ct-prevtoggle" @click="showPreview = !showPreview">
+    <button v-if="orgId != null" class="ct-prevtoggle" @click="showPreview = !showPreview">
       {{ showPreview ? '▾' : '▸' }} tester le filtrage (dry-run)
     </button>
     <RedactionPreview v-if="showPreview && orgId != null" :org-id="orgId" :service="service" :rules="rules" />
@@ -216,13 +229,7 @@ async function resetToDefault() {
 .ct-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ct-actions { display: flex; gap: 6px; }
 .ct-note { font-size: 12px; margin: 4px 0; }
-.ct-cand {
-  font-size: 12px; line-height: 1.5; margin: 0; padding: 8px 10px;
-  display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
-  background: var(--color-paper-2); border: 1px solid var(--color-hair-soft); border-radius: 9px;
-  color: var(--color-ink-soft);
-}
-.ct-cand em { font-style: italic; color: var(--color-ink); }
+.ct-tpl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
 .ct-tbl { width: 100%; }
 .ct-state { width: 56px; }
 .ct-field { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

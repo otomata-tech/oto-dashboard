@@ -421,10 +421,16 @@ export interface ConnectorFieldSchema {
   type?: string
   sensitive?: boolean
 }
+export interface FieldFilterTemplate {
+  label: string
+  hint?: string
+  rules: FieldRule[]
+}
 export interface FieldFiltersBundle {
   org_id: number
   filters: Record<string, FieldFilterBlock>   // service -> politique de l'org
-  defaults: Record<string, FieldFilterBlock>  // défauts serveur (plancher PII)
+  defaults: Record<string, FieldFilterBlock>  // défauts serveur (vide : rien par défaut)
+  templates: Record<string, FieldFilterTemplate>  // jeux applicables en 1 clic
   schema: FieldActionSchema[]                 // modes dispo (pilote le formulaire)
   schemas: Record<string, ConnectorFieldSchema[]>  // champs déclarés par connecteur
 }
