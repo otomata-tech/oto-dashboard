@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import Icon from './Icon.vue'
-import Dot from './Dot.vue'
-import Avatar from './Avatar.vue'
-import IdentityDialog from './IdentityDialog.vue'
 import { PAGE_META } from '@/lib/consoleNav'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
@@ -18,10 +15,6 @@ const meta = computed(() =>
   route.name === 'admin-user'
     ? { title: 'user fiche', crumb: 'plateforme' }
     : PAGE_META[String(route.meta.section)] ?? PAGE_META['/overview']!)
-
-// ── badge « identité MCP » : ouvre la modale de choix d'identité (compte + org)
-// La bascule d'org + la création d'espace vivent dans IdentityDialog.
-const identityOpen = ref(false)
 </script>
 
 <template>
@@ -41,26 +34,8 @@ const identityOpen = ref(false)
         <button v-if="me.active_org != null" class="lvl" :class="{ on: level === 'org' }" role="tab" :aria-selected="level === 'org'" @click="goLevel('org')">gérer mon org</button>
         <button v-if="isPlatformOperator(me)" class="lvl plat" :class="{ on: level === 'platform' }" role="tab" :aria-selected="level === 'platform'" @click="goLevel('platform')">gérer la plateforme</button>
       </div>
-      <!-- Badge « identité MCP » : sous quelle identité (compte + org) Claude agit.
-           Clic = modale de choix d'org + HOWTO de propagation vers Claude. -->
-      <button class="id-badge" aria-label="identité MCP" @click="identityOpen = true">
-        <Icon name="plug" :size="13" class="id-badge-ico" />
-        <span class="id-badge-tag">mcp</span>
-        <Avatar
-          v-if="me.active_org_name && me.active_org_logo_url"
-          :src="me.active_org_logo_url"
-          :name="me.active_org_name"
-          :size="16"
-          shape="square"
-        />
-        <Dot v-else :tone="me.active_org_name ? 'saffron' : 'faint'" :size="6" />
-        <span class="id-badge-name">{{ me.active_org_name || 'Perso' }}</span>
-        <Icon name="chevd" :size="11" :style="{ color: 'var(--color-faint)' }" />
-      </button>
     </div>
   </header>
-
-  <IdentityDialog :open="identityOpen" @close="identityOpen = false" />
 
   <!-- Signal franc : hors « mon espace » on AGIT SUR une org / la plateforme -->
   <div v-if="me && level !== 'work'" class="gov-banner" :class="{ platform: level === 'platform' }">
@@ -106,29 +81,10 @@ const identityOpen = ref(false)
 }
 .gov-banner.platform strong { color: #7a2e0e; }
 
-/* ── Badge « identité MCP » ── */
-.id-badge {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 5px 10px 5px 9px; border-radius: 9px;
-  background: var(--color-paper-2); border: 1px solid var(--color-hair);
-  font-size: 12.5px; font-weight: 600; color: var(--color-ink);
-  cursor: pointer; white-space: nowrap;
-}
-.id-badge:hover { border-color: var(--color-saffron); }
-.id-badge-ico { color: var(--color-saffron); }
-.id-badge-tag {
-  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--color-faint);
-  padding-right: 6px; margin-right: -1px; border-right: 1px solid var(--color-hair);
-}
-.id-badge-name { overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
-
 @media (max-width: 820px) {
   /* L'axe gouvernance (mon espace / mon org / plateforme) est un contrôle
-     desktop : sur mobile ses libellés débordent et repoussent le badge sur le
-     côté. On le masque — le badge « identité MCP » reste prioritaire. */
+     desktop : sur mobile ses libellés débordent. On le masque — l'identité
+     org/équipe vit dans le menu (ConsoleIdentity), atteignable via la drawer. */
   .level-switch { display: none; }
-  .id-badge { padding: 5px 9px; }
-  .id-badge-name { max-width: 96px; }
 }
 </style>

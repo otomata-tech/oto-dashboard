@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import Icon from './Icon.vue'
 import Dot from './Dot.vue'
 import Avatar from './Avatar.vue'
+import ConsoleIdentity from './ConsoleIdentity.vue'
 import { NAV } from '@/lib/consoleNav'
 import type { NavLevel } from '@/lib/consoleNav'
 import { useMe, isPlatformOperator, isSuperAdmin } from '@/composables/useMe'
@@ -44,11 +45,7 @@ const visibleGroups = computed(() =>
 <template>
   <aside class="sb" :class="{ open: navOpen }">
     <div class="sb-brand">
-      <span class="o-medallion o-medallion-sm">o</span>
-      <div>
-        <div class="name">oto</div>
-        <div class="env">console</div>
-      </div>
+      <ConsoleIdentity />
       <button class="sb-close" aria-label="fermer le menu" @click="closeNav">
         <Icon name="close" :size="18" />
       </button>

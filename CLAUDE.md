@@ -50,7 +50,9 @@ La carte dérive sa face credential des champs du registre (`ConnectorMeta`) : k
 (`credential_fields`) → formulaire inline (`setCredential`) ; oauth/cookie/hosted →
 elle pointe (`@goto`) vers la carte dédiée ancrée plus bas (`#sessions`/`#google`/
 `#federated`/`#messaging`). Les toggles d'outils par connecteur restent `enableTool`/
-`disableTool`. Les **presets** de toolbox + les **tokens CLI** vivent en bas de la même vue.
+`disableTool`. Les **presets** de toolbox vivent en bas de la même vue. Les **tokens CLI**
+ont migré vers le **hub compte** (`/account`, `AccountTokensCard.vue`) — ils sont
+user-scopés (`/api/me/tokens`), pas org-scopés comme les connecteurs.
 
 ## Fédération MCP (memento, otomata#16)
 
@@ -83,22 +85,37 @@ Deux surfaces de **découverte** (≠ gestion), groupe nav `library` (`consoleNa
   `unpublishDoctrine`. `DoctrineView.vue` ajoute l'action **« publier »** d'un skill (org_admin →
   `publishDoctrine`). Backend : `oto-backend/CLAUDE.md` §REST (capacités `library.*`).
 
-## Identité MCP (topbar)
+## Identité — en-tête du menu (org + équipe active)
 
-Le topbar porte un **badge « identité MCP »** (`ConsoleTopbar.vue` → `IdentityDialog.vue`,
-icône plug) = sous quelle identité Claude agit quand il appelle les outils : **compte
-(sub) × org active**. Clic → modale : compte (email + rôle, **lecture seule** — le sub
-est fixé par l'OAuth claude.ai, pas modifiable au dashboard, juste un HOWTO « reconnecte
-le connecteur dans claude.ai ») + choix de l'**org active** (Perso/orgs/créer) qui écrit
-`active_org` via `setActiveOrg`/`clearActiveOrg`/`createMyOrg` puis `location.reload()`
-(les vues sont org-scopées). Erreurs en **toast** (≠ ancien dropdown au catch muet).
+L'axe **identité** (« qui je suis » = sous quelle identité Claude agit : **compte (sub) ×
+org active × équipe active**) vit en **tête de la sidebar** (`ConsoleIdentity.vue`, monté
+dans `ConsoleSidebar.vue` à la place de l'ancien brand « oto / console »), **plus dans le
+topbar** (le badge a été retiré le 2026-06-22 : on le cherchait là où on regarde — le menu).
+Il affiche logo org + nom + rôle + équipe, et **s'adapte au niveau** (`useScope().level`) :
+en `org` il se recompose en **bannière org** (logo plus grand, accent saffron) — c'est le
+« le menu s'adapte en mode gérer mon org ». Clic → `IdentityDialog.vue` (modale) :
+- **compte** (email + rôle, **lecture seule** — le sub est fixé par l'OAuth claude.ai, juste
+  un HOWTO « reconnecte le connecteur dans claude.ai » ; édition du profil/avatar = `/account`).
+- **org active** (Perso/orgs/créer) → `setActiveOrg`/`clearActiveOrg`/`createMyOrg`.
+- **équipe active** (groupes de l'org active, visible si org active) → `useGroup`/`clearActiveGroup`,
+  liste via `listGroups`. Toute bascule fait `location.reload()` (vues org/group-scopées).
 
-**Découplage clé à comprendre** : changer l'org ici règle le **défaut des prochaines
+Erreurs en **toast**. L'identité n'est PAS le level-switch du topbar (axe gouvernance « mon
+espace/org/plateforme », masqué en mobile). Sur mobile, l'identité s'atteint via la drawer.
+
+**Découplage clé à comprendre** : changer l'org/équipe ici règle le **défaut des prochaines
 conversations** Claude. Une conversation **déjà ouverte** ne se met pas à jour depuis le
 dashboard (connexion MCP séparée) — sauf via `oto_use_org <org>` **dans** Claude, qui
 recharge la toolbox live (fix backend `refresh_visibility`, cf. `oto-backend/CLAUDE.md`
-§Visibility). Les credentials, eux, basculent toujours immédiatement. Le badge n'est PAS
-le level-switch voisin (axe gouvernance « mon espace/org/plateforme », masqué en mobile).
+§Visibility). Les credentials, eux, basculent toujours immédiatement.
+
+## Hub compte (`/account`)
+
+`AccountView.vue` = hub « gérer mon compte » (≠ ancien écran profil seul) : carte **profile**
+(avatar/nom/email, `uploadAvatar`/`deleteAvatar`), carte **compte & accès** (email + rôle
+plateforme en lecture seule + `logout`), carte **cli & api tokens** (`AccountTokensCard.vue`,
+`getTokens`/`createToken`/`deleteToken` — migrés depuis `ConnectorsView`, user-scopés). Pas de
+préférences/langue (aucune infra i18n dans le repo).
 
 ## Conventions
 
@@ -106,3 +123,4 @@ le level-switch voisin (axe gouvernance « mon espace/org/plateforme », masqué
 - Composants dans `components/`, pages dans `views/`
 - Pas de fichier > 500 lignes ; pas de fallback silencieux (lever une erreur)
 - CORS : ajouter le domaine du dashboard à la whitelist oto-mcp (`OTO_MCP_CORS_ORIGINS` / défauts dans `api_routes.py`) avant tout déploiement
+- ⚠️ **Avant push : typecheck PROPRE** (`rm -f frontend/*.tsbuildinfo; cd frontend && npx vue-tsc --noEmit`). Le cache incrémental `tsbuildinfo` ne re-vérifie PAS les fichiers non touchés → un changement de nullabilité dans `types/api.ts` peut casser un consommateur ailleurs (`vue-tsc` local vert) tandis que le **build propre du CI** (job `test`) le rejette. Vécu 2026-06-22 (`AlphaInvite.email` passé nullable → `resendAlphaInvite` cassé).

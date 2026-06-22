@@ -5,8 +5,8 @@ import Dot from './Dot.vue'
 import Avatar from './Avatar.vue'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
-import { getMyOrgs, setActiveOrg, clearActiveOrg, createMyOrg } from '@/api/console'
-import type { Org } from '@/types/api'
+import { getMyOrgs, setActiveOrg, clearActiveOrg, createMyOrg, listGroups, useGroup, clearActiveGroup } from '@/api/console'
+import type { Org, GroupListItem } from '@/types/api'
 
 defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
@@ -20,11 +20,24 @@ const switching = ref(false)
 const creating = ref(false)
 const newName = ref('')
 
+// Équipes (groupes) de l'org active — chargées seulement si une org est active.
+const groups = ref<GroupListItem[]>([])
+const groupsLoading = ref(false)
+
 async function loadOrgs() {
   loading.value = true
   try { orgs.value = (await getMyOrgs()).orgs }
   catch (e) { toast(msg(e, 'impossible de charger tes organisations')) }
   finally { loading.value = false }
+}
+
+async function loadGroups() {
+  const orgId = me.value?.active_org
+  if (orgId == null) { groups.value = []; return }
+  groupsLoading.value = true
+  try { groups.value = (await listGroups(orgId)).groups }
+  catch (e) { toast(msg(e, 'impossible de charger les équipes')) }
+  finally { groupsLoading.value = false }
 }
 
 function msg(e: unknown, fallback: string) {
@@ -56,10 +69,25 @@ async function createOrg() {
   catch (e) { toast(msg(e, 'échec de la création')); switching.value = false }
 }
 
+// Bascule d'équipe : même contrat que l'org (reload, les vues sont group-scopées).
+async function pickGroup(g: GroupListItem) {
+  if (switching.value || g.id === me.value?.active_group) return
+  switching.value = true
+  try { await useGroup(g.id); location.reload() }
+  catch (e) { toast(msg(e, 'échec de la bascule')); switching.value = false }
+}
+
+async function pickNoGroup() {
+  if (switching.value || me.value?.active_group == null) return
+  switching.value = true
+  try { await clearActiveGroup(); location.reload() }
+  catch (e) { toast(msg(e, 'échec de la bascule')); switching.value = false }
+}
+
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') { e.preventDefault(); emit('close') }
 }
-onMounted(() => { window.addEventListener('keydown', onKeydown); loadOrgs() })
+onMounted(() => { window.addEventListener('keydown', onKeydown); loadOrgs(); loadGroups() })
 onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
@@ -127,6 +155,32 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             <Icon name="plus" :size="13" />
             <span class="id-opt-name">nouveau workspace</span>
           </button>
+        </section>
+
+        <!-- Équipe active (groupe) : seulement si une org est active ; les équipes
+             appartiennent à l'org. Bascule = même contrat que l'org (reload). -->
+        <section v-if="me?.active_org != null" class="id-sect">
+          <div class="id-sect-head">équipe active</div>
+          <button class="id-opt" :class="{ on: me?.active_group == null }"
+                  :disabled="switching" @click="pickNoGroup">
+            <Dot :tone="me?.active_group == null ? 'saffron' : 'faint'" :size="6" />
+            <span class="id-opt-name">toute l'org</span>
+            <span class="id-opt-tag">aucune équipe</span>
+            <Icon v-if="me?.active_group == null" name="check" :size="13" class="id-check" />
+          </button>
+
+          <div v-if="groupsLoading" class="id-empty">chargement…</div>
+          <button v-for="g in groups" :key="g.id" class="id-opt"
+                  :class="{ on: g.id === me?.active_group }"
+                  :disabled="switching" @click="pickGroup(g)">
+            <Dot :tone="g.id === me?.active_group ? 'saffron' : 'faint'" :size="6" />
+            <span class="id-opt-name">{{ g.name }}</span>
+            <span class="id-opt-tag">{{ g.my_role === 'group_admin' ? 'chef' : 'membre' }}</span>
+            <Icon v-if="g.id === me?.active_group" name="check" :size="13" class="id-check" />
+          </button>
+          <div v-if="!groupsLoading && !groups.length" class="id-empty">
+            aucune équipe dans cette org.
+          </div>
         </section>
 
         <!-- HOWTO : ce que la bascule fait (et ne fait pas) sur une session Claude ouverte -->

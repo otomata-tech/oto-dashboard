@@ -49,7 +49,7 @@ export const NAV: NavGroup[] = [
     { path: '/scout', label: 'cockpit', icon: 'phone' },
   ]},
   { group: 'account', level: 'work', items: [
-    { path: '/account', label: 'profile', icon: 'user' },
+    { path: '/account', label: 'manage account', icon: 'user' },
     { path: '/activity', label: 'activity', icon: 'pulse' },
     { path: '/billing', label: 'billing & credits', icon: 'card' },
   ]},
@@ -92,7 +92,7 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/data': { title: 'datastore', crumb: 'memory' },
   '/knowledge': { title: 'knowledge', crumb: 'memory' },
   '/scout': { title: 'cockpit', crumb: 'prospection' },
-  '/account': { title: 'profile', crumb: 'account' },
+  '/account': { title: 'manage account', crumb: 'account' },
   '/activity': { title: 'activity', crumb: 'account' },
   '/billing': { title: 'billing & credits', crumb: 'account' },
   '/org': { title: 'organization', crumb: 'gérer mon org' },

@@ -3,8 +3,9 @@
 // Un connecteur = UNE chose à deux faces : config de la connexion (credential) ET
 // paramétrage de ses outils (toolbox). Chaque connecteur est une carte (ConnectorCard)
 // portant les deux + le sélecteur 3 états (actif/masqué/désactivé, ADR 0019). Les flux
-// de connexion à carte dédiée (sessions, google, messagerie unipile, mcp fédéré, tokens
-// cli) restent en bas, ancrés (la carte y pointe). Presets de toolbox tout en bas.
+// de connexion à carte dédiée (sessions, google, messagerie unipile, mcp fédéré) restent
+// en bas, ancrés (la carte y pointe). Presets de toolbox tout en bas. Les tokens CLI ont
+// migré vers le hub compte (/account) — ils sont user-scopés, pas org-scopés.
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import ConnectorCard from '@/components/console/ConnectorCard.vue'
@@ -21,12 +22,11 @@ import {
   getGoogleStatus, startGoogleOauth, setGoogleDefault, revokeGoogle,
   getMementoStatus, startMementoOauth, disconnectMemento,
   getUnipileStatus, subscribeUnipile, connectUnipile, disconnectUnipile,
-  getTokens, createToken, deleteToken,
   applyPreset as applyPresetApi, savePreset, deletePreset,
   getOrgFieldFilters,
 } from '@/api/console'
 import type {
-  ApiToken, ConnectorState, FieldFiltersBundle, GoogleOauthStatus, MementoStatus, MyConnector,
+  ConnectorState, FieldFiltersBundle, GoogleOauthStatus, MementoStatus, MyConnector,
   PresetEntry, ToolEntry, UnipileStatus,
 } from '@/types/api'
 import { fmtDate } from '@/types/api'
@@ -44,7 +44,6 @@ const presets = ref<PresetEntry[]>([])
 const google = ref<GoogleOauthStatus | null>(null)
 const memento = ref<MementoStatus | null>(null)
 const unipile = ref<UnipileStatus | null>(null)
-const tokens = ref<ApiToken[]>([])
 const fieldFilters = ref<FieldFiltersBundle | null>(null)
 const error = ref<string | null>(null)
 const q = ref('')
@@ -90,10 +89,10 @@ const exposedTools = computed(() => tools.value.filter((t) => t.enabled).length)
 
 async function load() {
   try {
-    const [mc, tl, pr, g, m, u, t, ff] = await Promise.all([
+    const [mc, tl, pr, g, m, u, ff] = await Promise.all([
       getMyConnectors(), getTools(), getPresets().catch(() => ({ presets: [] })),
       getGoogleStatus().catch(() => null), getMementoStatus().catch(() => null),
-      getUnipileStatus().catch(() => null), getTokens().catch(() => ({ tokens: [] })),
+      getUnipileStatus().catch(() => null),
       activeOrgId.value == null ? Promise.resolve(null) : getOrgFieldFilters(activeOrgId.value).catch(() => null),
     ])
     catalog.value = mc.connectors
@@ -102,7 +101,6 @@ async function load() {
     google.value = g
     memento.value = m
     unipile.value = u
-    tokens.value = t.tokens
     fieldFilters.value = ff
   } catch (e) { error.value = humanize(e) }
 }
@@ -215,24 +213,6 @@ const unipileChannels = [
   { key: 'twitter', label: 'x / twitter', desc: 'read & send DMs as you' },
 ] as const
 const federated = computed(() => catalog.value.filter((c) => c.secret_kind === 'oauth' && !c.personal_session))
-
-// ── cli tokens ──
-async function newToken() {
-  const r = await promptForm({
-    title: 'new cli token', description: 'long-lived token for the oto cli and ci environments.',
-    fields: [{ key: 'label', label: 'label', value: 'cli', placeholder: 'e.g. cli, ci' }], submitLabel: 'create',
-  })
-  if (!r) return
-  try {
-    const { token } = await createToken(r.label || undefined)
-    tokens.value = (await getTokens()).tokens
-    await promptForm({ title: 'copy this token now', description: 'it is shown only once — store it in your secrets manager.', fields: [{ key: 'token', label: 'token', value: token }], submitLabel: 'done' })
-  } catch (e) { toast(humanize(e)) }
-}
-async function revokeToken(t: ApiToken) {
-  if (!await confirmAction({ title: 'revoke token', danger: true, confirmLabel: 'revoke', message: `revoke "${t.label}"?` })) return
-  try { await deleteToken(t.id); toast('token revoked'); tokens.value = (await getTokens()).tokens } catch (e) { toast(humanize(e)) }
-}
 
 // ── presets de toolbox ──
 async function applyPreset(name: string) {
@@ -376,40 +356,22 @@ async function removePreset(name: string) {
       </div>
     </ConsoleCard>
 
-    <div class="grid2">
-      <ConsoleCard title="presets" sub="saved tool selections — switch your whole toolbox in one move.">
-        <template #actions><Btn kind="mini" icon="plus" @click="saveCurrentPreset">save current</Btn></template>
-        <div class="rowlist">
-          <div v-for="p in presets" :key="p.name" class="rowitem" style="gap: 12px">
-            <div style="min-width: 0; flex: 1">
-              <div style="font-weight: 600; font-size: 13px">{{ p.name }}
-                <span style="font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); margin-left: 4px">{{ p.tool_count }} tools</span>
-              </div>
-              <div style="font-size: 11.5px; color: var(--color-mute)">updated {{ fmtDate(p.updated_at) ?? '—' }}</div>
+    <ConsoleCard title="presets" sub="saved tool selections — switch your whole toolbox in one move.">
+      <template #actions><Btn kind="mini" icon="plus" @click="saveCurrentPreset">save current</Btn></template>
+      <div class="rowlist">
+        <div v-for="p in presets" :key="p.name" class="rowitem" style="gap: 12px">
+          <div style="min-width: 0; flex: 1">
+            <div style="font-weight: 600; font-size: 13px">{{ p.name }}
+              <span style="font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); margin-left: 4px">{{ p.tool_count }} tools</span>
             </div>
-            <Btn kind="mini" @click="applyPreset(p.name)">apply</Btn>
-            <Btn kind="danger" @click="removePreset(p.name)">delete</Btn>
+            <div style="font-size: 11.5px; color: var(--color-mute)">updated {{ fmtDate(p.updated_at) ?? '—' }}</div>
           </div>
-          <div v-if="!presets.length" class="helptext">no presets yet — tune your tools then “save current”.</div>
+          <Btn kind="mini" @click="applyPreset(p.name)">apply</Btn>
+          <Btn kind="danger" @click="removePreset(p.name)">delete</Btn>
         </div>
-      </ConsoleCard>
-
-      <ConsoleCard id="tokens" title="cli & api tokens" flush sub="long-lived tokens for the oto cli and ci environments.">
-        <template #actions><Btn kind="mini" icon="plus" @click="newToken">new token</Btn></template>
-        <table class="tbl">
-          <thead><tr><th>label</th><th>created</th><th>last used</th><th style="width: 80px"></th></tr></thead>
-          <tbody>
-            <tr v-for="t in tokens" :key="t.id">
-              <td style="font-weight: 600; color: var(--color-ink)">{{ t.label }}</td>
-              <td class="dim">{{ fmtDate(t.created_at) }}</td>
-              <td class="dim">{{ fmtDate(t.last_used_at) ?? 'never' }}</td>
-              <td style="text-align: right"><Btn kind="danger" @click="revokeToken(t)">revoke</Btn></td>
-            </tr>
-            <tr v-if="!tokens.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no tokens yet</td></tr>
-          </tbody>
-        </table>
-      </ConsoleCard>
-    </div>
+        <div v-if="!presets.length" class="helptext">no presets yet — tune your tools then “save current”.</div>
+      </div>
+    </ConsoleCard>
   </div>
 </template>
 
