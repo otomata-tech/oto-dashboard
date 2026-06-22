@@ -29,6 +29,7 @@ async function load() {
 }
 
 async function resend(inv: AlphaInvite) {
+  if (!inv.email) { toast('cette invitation n\'a pas d\'email — partagez son code/lien'); return }
   busy.value = `inv:${inv.id}`
   try {
     const res = await resendAlphaInvite(inv.email)
