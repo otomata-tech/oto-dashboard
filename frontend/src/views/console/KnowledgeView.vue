@@ -101,10 +101,12 @@ async function disconnect() {
       <div v-else class="ws-orgs">
         <div v-for="o in orgs" :key="o.org" class="ws-org">
           <div class="ws-org-head">
+            <span class="ws-org-eyebrow">org</span>
             <span class="ws-org-name">{{ o.name }}</span>
             <Tag v-if="o.personal" tone="ink">personal</Tag>
+            <span class="ws-org-count">{{ o.workspaces.length }} KB{{ o.workspaces.length > 1 ? 's' : '' }}</span>
           </div>
-          <div class="rowlist">
+          <div class="rowlist ws-kbs">
             <a v-for="w in o.workspaces" :key="w.slug"
               class="rowitem ws-item" :href="wsLink(w.slug)" target="_blank" rel="noopener">
               <div style="flex: 1; min-width: 0">
@@ -139,16 +141,29 @@ async function disconnect() {
 
 <style scoped>
 .ws-orgs { display: flex; flex-direction: column; }
-.ws-org + .ws-org { border-top: 1px solid var(--color-hair-soft); }
+.ws-org { padding: 4px 0 10px; }
+.ws-org + .ws-org { border-top: 1px solid var(--color-hair); }
 .ws-org-head {
   display: flex; align-items: center; gap: 8px;
-  padding: 10px 16px 4px;
-  font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 12px 16px 6px;
 }
-.ws-org-name { font-weight: 600; color: var(--color-ink-soft); }
+.ws-org-eyebrow {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--color-mute); font-weight: 600;
+}
+.ws-org-name { font-weight: 700; color: var(--color-ink); font-size: 13px; }
+.ws-org-count {
+  margin-left: auto;
+  font-size: 11px; color: var(--color-mute); font-variant-numeric: tabular-nums;
+}
+/* rail vertical : les KB se lisent comme « contenues » dans l'org */
+.ws-kbs {
+  margin-left: 16px;
+  border-left: 2px solid var(--color-hair);
+}
 .ws-item {
   display: flex; align-items: center; gap: 12px;
-  padding-inline: 16px;
+  padding: 9px 16px;
   text-decoration: none; color: inherit; cursor: pointer;
 }
 .ws-item:hover { background: var(--color-paper-3); }
