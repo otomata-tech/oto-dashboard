@@ -313,6 +313,8 @@ export const getAdminOrgs = () => api<{ orgs: AdminOrgSummary[] }>('/api/admin/o
 export const createOrg = (name: string) =>
   api<{ id: number }>('/api/admin/orgs', { method: 'POST', ...j({ name }) })
 export const getAdminOrg = (id: number) => api<OrgDetail>(`/api/admin/orgs/${id}`)
+export const archiveAdminOrg = (id: number) =>
+  api(`/api/admin/orgs/${id}`, { method: 'DELETE' })
 export const addAdminOrgMember = (id: number, target: string, role: OrgRole) =>
   api(`/api/admin/orgs/${id}/members`, { method: 'POST', ...j({ target, role }) })
 export const setAdminOrgMemberRole = (id: number, sub: string, role: OrgRole) =>

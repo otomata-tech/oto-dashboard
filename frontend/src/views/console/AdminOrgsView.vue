@@ -9,7 +9,7 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useDeepLink } from '@/composables/useDeepLink'
 import {
-  getAdminOrgs, createOrg, getAdminOrg, addAdminOrgMember, setAdminOrgMemberRole,
+  getAdminOrgs, createOrg, getAdminOrg, archiveAdminOrg, addAdminOrgMember, setAdminOrgMemberRole,
   removeAdminOrgMember, putAdminOrgSecret, deleteAdminOrgSecret,
   grantOrgEntitlement, revokeOrgEntitlement, getConnectors,
 } from '@/api/console'
@@ -60,6 +60,21 @@ async function newOrg() {
   if (!name) return
   try { const { id } = await createOrg(name); toast(`org "${name}" created`); await loadOrgs(); await select(id) }
   catch (e) { toast(humanize(e)) }
+}
+
+async function archiveOrg() {
+  if (selectedId.value == null || !detail.value) return
+  const name = detail.value.org.name
+  if (!await confirmAction({
+    title: 'archive organization', danger: true, confirmLabel: 'archive',
+    message: `archive "${name}"? it disappears from all listings and its members fall back to their other orgs. reversible in the database.`,
+  })) return
+  try {
+    await archiveAdminOrg(selectedId.value)
+    toast(`org "${name}" archived`)
+    selectedId.value = null; detail.value = null; dl.set(null)
+    await loadOrgs()
+  } catch (e) { toast(humanize(e)) }
 }
 
 async function addMember() {
@@ -165,7 +180,10 @@ async function revokeEnt(e0: OrgEntitlement) {
 
     <template v-if="detail">
       <ConsoleCard flush :title="`${detail.org.name} · members`">
-        <template #actions><Btn kind="mini" icon="plus" @click="addMember">add member</Btn></template>
+        <template #actions>
+          <Btn kind="mini" icon="plus" @click="addMember">add member</Btn>
+          <Btn kind="danger" @click="archiveOrg">archive org</Btn>
+        </template>
         <table class="tbl">
           <thead><tr><th>member</th><th>role</th><th>active</th><th style="width: 140px"></th></tr></thead>
           <tbody>
