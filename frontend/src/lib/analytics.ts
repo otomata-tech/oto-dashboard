@@ -72,6 +72,14 @@ export function denyConsent(): void {
   if (enabled) posthog.opt_out_capturing()
 }
 
+// Retrait/révision du consentement (RGPD : retirer aussi simple que donner).
+// Efface la décision → le bandeau réapparaît ; l'état effectif reste tel quel
+// jusqu'au nouveau choix.
+export function reopenConsent(): void {
+  localStorage.removeItem(CONSENT_KEY)
+  consent.value = null
+}
+
 // Pageview SPA — branché sur router.afterEach (no-op tant qu'opted-out).
 export function capturePageview(): void {
   if (enabled) posthog.capture('$pageview')
