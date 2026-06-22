@@ -36,7 +36,7 @@ onMounted(() => {
         <template v-if="join || otl">
           <div>
             <div style="font-size: 18px; font-weight: 700; letter-spacing: -0.02em">{{ otl ? 'connexion à oto' : 'rejoindre oto' }}</div>
-            <div class="env" style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-faint); margin-top: 3px">alpha · sur invitation</div>
+            <div class="env" style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-faint); margin-top: 3px">{{ otl ? 'alpha · sur invitation' : 'alpha · accès anticipé' }}</div>
           </div>
           <p class="helptext" style="margin: 4px 0 6px">
             {{ otl ? 'connexion en cours…' : 'redirection vers la création de compte…' }}
@@ -52,9 +52,9 @@ onMounted(() => {
             <div class="env" style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-faint); margin-top: 3px">app.oto.ninja</div>
           </div>
           <p class="helptext" style="margin: 4px 0 6px">
-            sign in with your otomata account to manage connectors, doctrine and your org.
+            connectez-vous avec votre compte otomata pour gérer vos connecteurs, votre doctrine et votre org.
           </p>
-          <button class="btn" @click="() => login()">sign in</button>
+          <button class="btn" @click="() => login()">se connecter</button>
         </template>
       </div>
     </section>

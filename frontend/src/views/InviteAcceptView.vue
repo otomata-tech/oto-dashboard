@@ -125,13 +125,14 @@ onMounted(async () => {
       </template>
 
       <template v-else-if="state === 'ok'">
-        <div class="se-title">bienvenue à <Squiggle>bord</Squiggle>.</div>
+        <div class="se-eyebrow">bienvenue</div>
+        <div class="se-title">vous êtes <Squiggle>dans oto</Squiggle>.</div>
         <div class="se-body">
-          <template v-if="orgName">vous avez rejoint <strong>{{ orgName }}</strong>. c'est maintenant votre espace actif.</template>
-          <template v-else>votre accès est ouvert. configurons votre espace.</template>
+          <template v-if="orgName">vous avez rejoint <strong>{{ orgName }}</strong> — c'est votre espace actif. prochaine étape : connecter vos comptes et poser vos clés.</template>
+          <template v-else>votre accès est ouvert. prochaine étape : créer votre espace de travail.</template>
         </div>
         <div class="se-cta">
-          <Btn @click="router.push('/overview')">aller à la console</Btn>
+          <Btn @click="router.push('/overview')">{{ orgName ? 'aller à la console' : 'créer mon espace' }}</Btn>
         </div>
       </template>
 

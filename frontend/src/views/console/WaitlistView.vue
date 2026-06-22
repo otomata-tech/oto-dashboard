@@ -10,10 +10,21 @@ import { useMe } from '@/composables/useMe'
 
 const { me, reload } = useMe()
 const refreshing = ref(false)
+const note = ref('')
 
 async function refresh() {
   refreshing.value = true
-  try { await reload() } finally { refreshing.value = false }
+  note.value = ''
+  try {
+    await reload()
+    // Si l'accès est ouvert, la gate parente bascule (plus de WaitlistView). Sinon,
+    // on le dit explicitement — sinon le bouton semble ne « rien faire ».
+    if (me.value?.access?.status === 'pending') {
+      note.value = 'toujours en attente — on revient vers vous dès l\'ouverture.'
+    }
+  } finally {
+    refreshing.value = false
+  }
 }
 </script>
 
@@ -25,10 +36,12 @@ async function refresh() {
 
     <div class="se-body">
       votre compte<template v-if="me?.email"> (<strong>{{ me.email }}</strong>)</template>
-      est enregistré. on vous écrit dès l'ouverture de votre accès.
+      est enregistré. on vous écrit dès l'ouverture de votre accès — gardez un œil
+      sur votre boîte mail.
     </div>
     <div class="se-body" style="color: var(--color-mute)">
-      un seul compte, un seul coffre — depuis claude, chatgpt, mistral et la cli.
+      votre accès vous ouvrira un coffre de clés chiffré et tout le catalogue
+      d'outils — depuis claude, chatgpt, mistral et la cli.
     </div>
 
     <div class="se-cta">
@@ -36,10 +49,14 @@ async function refresh() {
         {{ refreshing ? 'vérification…' : 'actualiser mon statut' }}
       </Btn>
     </div>
+    <div v-if="note" class="se-body" style="font-size: 13px; color: var(--color-mute); margin-top: 2px">
+      {{ note }}
+    </div>
 
     <div class="wl-hatch">
-      vous avez une <strong>invitation</strong> ? ouvrez le lien reçu par email
-      pour entrer tout de suite.
+      <span class="wl-hatch-key">vous avez une invitation ?</span>
+      ouvrez le lien reçu par email pour <strong>entrer tout de suite</strong>,
+      sans attendre l'approbation.
     </div>
   </div>
 </template>
@@ -50,7 +67,11 @@ async function refresh() {
   color: var(--color-gold-ink, var(--color-mute)); font-weight: 600; margin-bottom: 6px;
 }
 .wl-hatch {
-  margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--color-hair-soft, var(--color-hair));
-  font-size: 13px; line-height: 1.5; color: var(--color-mute); max-width: 380px;
+  margin-top: 22px; max-width: 400px;
+  padding: 14px 16px; border-radius: 12px;
+  background: var(--color-gold-soft, rgba(240, 180, 30, 0.08));
+  border: 1px solid var(--color-gold-ink, rgba(240, 180, 30, 0.35));
+  font-size: 13px; line-height: 1.5; color: var(--color-ink);
 }
+.wl-hatch-key { font-weight: 700; color: var(--color-gold-ink, var(--color-ink)); }
 </style>
