@@ -101,6 +101,7 @@ function transformsOf(name: string) {
   return {
     schema: b?.schemas?.[name] ?? [],
     rules: b?.filters?.[name]?.rules ?? b?.defaults?.[name]?.rules ?? [],
+    defaultRules: b?.defaults?.[name]?.rules ?? [],
     customized: !!b?.filters?.[name],
   }
 }
@@ -148,7 +149,7 @@ async function toggleRecommend(r: OrgConnectorActivation) {
         <div v-if="!isOrgAdmin" class="helptext">lecture seule — seul un admin de l'org peut régler ces leviers.</div>
       </ConsoleCard>
 
-      <ConsoleCard v-for="r in shown" :key="r.connector" :title="r.label" flush
+      <ConsoleCard v-for="r in shown" :key="r.connector" :title="r.label"
         :sub="r.namespaces.join(', ')">
         <template #actions>
           <Tag :tone="r.effective ? 'olive' : 'ink'">{{ r.effective ? 'exposé' : 'masqué' }}</Tag>
@@ -200,6 +201,7 @@ async function toggleRecommend(r: OrgConnectorActivation) {
         </button>
         <ConnectorTransforms v-if="openId === r.connector"
           :service="r.connector" :fields="transformsOf(r.connector).schema" :rules="transformsOf(r.connector).rules"
+          :default-rules="transformsOf(r.connector).defaultRules"
           :action-schema="filters?.schema ?? []" :customized="transformsOf(r.connector).customized"
           :org-id="activeOrgId" :is-org-admin="isOrgAdmin" @changed="reloadFilters" />
       </ConsoleCard>

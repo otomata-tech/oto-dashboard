@@ -1,13 +1,14 @@
 <script setup lang="ts">
 // Onglet « transformations » d'une carte connecteur (rédaction de champs, ADR 0015).
 // Vue CENTRÉE SCHÉMA : on liste les champs que le connecteur peut émettre (schéma
-// déclaré) et la transformation effective de chacun (politique de l'org, sinon défaut
-// serveur). L'org_admin règle ; les autres voient en lecture seule. Le backend porte
-// l'autz — l'UI masque seulement les contrôles. La rédaction elle-même est appliquée
-// à la frontière des tools (FieldRedactionMiddleware), pas côté client.
+// déclaré) et, par champ, un interrupteur actif/en-clair + l'édition de la transformation.
+// La politique d'org écrase le défaut serveur (basculer un champ = matérialiser cette
+// politique). L'org_admin règle ; les autres voient en lecture seule. Le backend porte
+// l'autz ; la rédaction est appliquée à la frontière des tools (FieldRedactionMiddleware).
 import { computed, ref } from 'vue'
 import Tag from './Tag.vue'
 import Btn from './Btn.vue'
+import Toggle from './Toggle.vue'
 import FieldRuleDialog from './FieldRuleDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
@@ -19,6 +20,7 @@ const props = defineProps<{
   service: string
   fields: ConnectorFieldSchema[]
   rules: FieldRule[]                 // effectives (org si customisé, sinon défaut serveur)
+  defaultRules?: FieldRule[]         // défaut serveur (pour restaurer l'action au ON)
   actionSchema: FieldActionSchema[]
   customized: boolean
   orgId: number | null
@@ -33,17 +35,17 @@ const { actionLabel, ruleSummary, saveRules, clearService } = useFieldFilters()
 
 const canEdit = computed(() => !props.readonly && props.isOrgAdmin && props.orgId != null)
 
-// Connecteurs « recrutement » : le défaut serveur = anonymisation candidat (cf. backend
-// field_filter_defaults). On en donne une lecture en clair plutôt qu'une table de variants.
 const RECRUITMENT = new Set(['unipile', 'ashby', 'greenhouse', 'lever', 'recruitee', 'teamtailor'])
 const candidateDefault = computed(() => RECRUITMENT.has(props.service) && !props.customized && props.rules.length > 0)
 
-// Carte champ feuille (minuscule) → règle effective (miroir de FieldFilter._by_field).
-const ruleByField = computed(() => {
+// Carte champ feuille (minuscule) → règle effective / règle par défaut serveur.
+function indexRules(rules: FieldRule[]): Map<string, FieldRule> {
   const m = new Map<string, FieldRule>()
-  for (const r of props.rules) for (const f of r.fields) m.set(f.toLowerCase(), r)
+  for (const r of rules) for (const f of r.fields) m.set(f.toLowerCase(), r)
   return m
-})
+}
+const ruleByField = computed(() => indexRules(props.rules))
+const defaultByField = computed(() => indexRules(props.defaultRules ?? []))
 function ruleFor(name: string): FieldRule | undefined { return ruleByField.value.get(name.toLowerCase()) }
 
 // Champs sous règle mais ABSENTS du schéma déclaré → montrés seulement pour une POLITIQUE
@@ -62,22 +64,6 @@ const extraFields = computed(() => {
 
 const hasContent = computed(() => props.fields.length > 0 || extraFields.value.length > 0)
 
-// --- éditeur (modale dédiée) -------------------------------------------------
-const editor = ref<{ fixedField: string | null; existing: FieldRule | null } | null>(null)
-function openEditor(fixedField: string | null) {
-  if (!canEdit.value) return
-  editor.value = { fixedField, existing: fixedField ? ruleFor(fixedField) ?? null : null }
-}
-async function onSave(rule: FieldRule) {
-  const ed = editor.value
-  editor.value = null
-  if (!ed) return
-  const next = ed.fixedField
-    ? [...withoutField(ed.fixedField), { ...rule, fields: [ed.fixedField] }]
-    : [...props.rules, rule]
-  await persist(next)
-}
-
 // Retire `name` de toutes les règles (vide → supprimée).
 function withoutField(name: string): FieldRule[] {
   const k = name.toLowerCase()
@@ -89,17 +75,37 @@ function withoutField(name: string): FieldRule[] {
 async function persist(rules: FieldRule[]) {
   try {
     await saveRules(props.orgId!, props.service, rules)
-    toast(`${props.service} : transformation enregistrée`)
     emit('changed')
   } catch (e) { toast(humanize(e)) }
 }
 
-// « voir en clair » = lever la transformation d'un champ (l'org override le défaut).
-async function revealField(name: string) {
-  if (!canEdit.value || !ruleFor(name)) return
-  if (!await confirmAction({ title: 'voir en clair', danger: true, confirmLabel: 'voir en clair',
-    message: `Claude verra « ${name} » en clair (transformation retirée).` })) return
-  await persist(withoutField(name))
+// Interrupteur actif/en-clair par champ.
+async function toggleField(name: string, on: boolean) {
+  if (!canEdit.value) return
+  if (on) {
+    // ON → applique la règle par défaut du champ si connue, sinon un masque simple.
+    const d = defaultByField.value.get(name.toLowerCase())
+    const rule: FieldRule = d ? { ...d, fields: [name] } : { fields: [name], action: 'mask' }
+    await persist([...withoutField(name), rule])
+    toast(`${name} : retraité`)
+  } else {
+    // OFF → l'org voit le champ en clair (override du défaut serveur).
+    await persist(withoutField(name))
+    toast(`${name} : en clair`)
+  }
+}
+
+// --- éditeur (modale dédiée) : règle finement l'action/params d'un champ ---------
+const editor = ref<{ fixedField: string; existing: FieldRule | null } | null>(null)
+function editField(name: string) {
+  if (!canEdit.value) return
+  editor.value = { fixedField: name, existing: ruleFor(name) ?? null }
+}
+async function onSave(rule: FieldRule) {
+  const ed = editor.value
+  editor.value = null
+  if (!ed) return
+  await persist([...withoutField(ed.fixedField), { ...rule, fields: [ed.fixedField] }])
 }
 
 async function resetToDefault() {
@@ -121,28 +127,26 @@ async function resetToDefault() {
         <Tag v-if="customized" tone="saffron">politique org</Tag>
         <Tag v-else tone="cobalt">défaut serveur</Tag>
       </span>
-      <span v-if="canEdit" class="ct-actions">
-        <Btn kind="mini" icon="plus" @click="openEditor(null)">champ</Btn>
-        <Btn v-if="customized" kind="mini" @click="resetToDefault">tout réinitialiser</Btn>
+      <span v-if="canEdit && customized" class="ct-actions">
+        <Btn kind="mini" @click="resetToDefault">tout réinitialiser</Btn>
       </span>
     </div>
 
     <p v-if="orgId == null" class="dim ct-note">
       la rédaction se règle au niveau d'une organisation — sélectionne une org active.
     </p>
-    <p v-else-if="!hasContent" class="dim ct-note">
-      aucun champ déclaré pour ce connecteur.<span v-if="canEdit"> ajoute une transformation sur un champ.</span>
-    </p>
+    <p v-else-if="!hasContent" class="dim ct-note">aucun champ déclaré pour ce connecteur.</p>
 
-    <!-- Lecture en clair de l'anonymisation candidat (défaut recrutement). -->
     <p v-if="candidateDefault" class="ct-cand">
       <Tag tone="terra">anonymisation candidat</Tag>
-      l'identité est masquée par défaut avant que Claude voie le profil — règle ci-dessous,
-      champ par champ (<em>voir en clair</em> pour ré-exposer).
+      l'identité est masquée par défaut avant que Claude voie le profil — bascule un champ
+      sur <em>en clair</em> pour le ré-exposer.
     </p>
 
     <table v-if="hasContent" class="tbl ct-tbl">
-      <thead><tr><th>champ</th><th>transformation</th><th>options</th><th v-if="canEdit" class="ct-act"></th></tr></thead>
+      <thead><tr>
+        <th>champ</th><th class="ct-state">état</th><th>traitement</th><th v-if="canEdit" class="ct-act"></th>
+      </tr></thead>
       <tbody>
         <tr v-for="f in fields" :key="f.name">
           <td class="ct-field">
@@ -150,24 +154,30 @@ async function resetToDefault() {
             <span v-if="f.label && f.label !== f.name" class="dim ct-label">{{ f.label }}</span>
             <Tag v-if="f.sensitive" tone="terra">sensible</Tag>
           </td>
+          <td class="ct-state">
+            <Toggle :on="!!ruleFor(f.name)" :disabled="!canEdit" @change="(v) => toggleField(f.name, v)" />
+          </td>
           <td>
-            <Tag v-if="ruleFor(f.name)" tone="ink">{{ actionLabel(actionSchema, ruleFor(f.name)!.action) }}</Tag>
+            <template v-if="ruleFor(f.name)">
+              <Tag tone="ink">{{ actionLabel(actionSchema, ruleFor(f.name)!.action) }}</Tag>
+              <span class="dim ct-opt">{{ ruleSummary(ruleFor(f.name)!) }}</span>
+            </template>
             <span v-else class="dim">en clair</span>
           </td>
-          <td class="dim ct-opt">{{ ruleFor(f.name) ? (ruleSummary(ruleFor(f.name)!) || '—') : '' }}</td>
           <td v-if="canEdit" class="ct-act">
-            <Btn kind="mini" @click="openEditor(f.name)">{{ ruleFor(f.name) ? 'éditer' : 'transformer' }}</Btn>
-            <Btn v-if="ruleFor(f.name)" kind="danger" @click="revealField(f.name)">voir en clair</Btn>
+            <Btn kind="mini" @click="editField(f.name)">éditer</Btn>
           </td>
         </tr>
         <tr v-for="name in extraFields" :key="'x-' + name">
           <td class="ct-field"><code class="mono">{{ name }}</code><span class="dim ct-label">hors schéma</span></td>
-          <td><Tag tone="ink">{{ actionLabel(actionSchema, ruleFor(name)!.action) }}</Tag></td>
-          <td class="dim ct-opt">{{ ruleSummary(ruleFor(name)!) || '—' }}</td>
-          <td v-if="canEdit" class="ct-act">
-            <Btn kind="mini" @click="openEditor(name)">éditer</Btn>
-            <Btn kind="danger" @click="revealField(name)">voir en clair</Btn>
+          <td class="ct-state">
+            <Toggle :on="!!ruleFor(name)" :disabled="!canEdit" @change="(v) => toggleField(name, v)" />
           </td>
+          <td>
+            <Tag tone="ink">{{ actionLabel(actionSchema, ruleFor(name)!.action) }}</Tag>
+            <span class="dim ct-opt">{{ ruleSummary(ruleFor(name)!) }}</span>
+          </td>
+          <td v-if="canEdit" class="ct-act"><Btn kind="mini" @click="editField(name)">éditer</Btn></td>
         </tr>
       </tbody>
     </table>
@@ -197,8 +207,9 @@ async function resetToDefault() {
 }
 .ct-cand em { font-style: italic; color: var(--color-ink); }
 .ct-tbl { width: 100%; }
+.ct-state { width: 56px; }
 .ct-field { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ct-label { font-size: 11px; }
-.ct-opt { font-size: 12px; }
-.ct-act { text-align: right; white-space: nowrap; width: 170px; }
+.ct-opt { font-size: 12px; margin-left: 6px; }
+.ct-act { text-align: right; white-space: nowrap; width: 90px; }
 </style>
