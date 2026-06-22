@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import Btn from './Btn.vue'
 import Icon from './Icon.vue'
+import OtoLoading from './OtoLoading.vue'
 import type { DatastoreRow } from '@/types/api'
 import { cellKind, cellShort, absDate, relDate } from '@/lib/cellRender'
 
@@ -103,7 +104,8 @@ watch(searchLocal, (v) => {
           </tr>
           <tr v-if="!rows.length">
             <td :colspan="columns.length" class="dim" style="text-align: center; padding: 16px">
-              {{ loading ? 'loading…' : 'no rows match.' }}
+              <OtoLoading v-if="loading" label="chargement…" style="justify-content: center" />
+              <template v-else>no rows match.</template>
             </td>
           </tr>
         </tbody>

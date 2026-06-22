@@ -1,16 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, RouterLink } from 'vue-router'
 import Icon from './Icon.vue'
+import OtoMark from './OtoMark.vue'
+import type { MarkState } from '@/lib/mark'
 import { PAGE_META } from '@/lib/consoleNav'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
 
 const route = useRoute()
-const { me } = useMe()
+const { me, error } = useMe()
 const { toggleNav } = useNav()
 const { level, goLevel } = useScope()
+
+// Présence d'Oto : la marque vit dans le topbar. Au repos `static` ; pendant le
+// chargement du profil (boot), elle passe en `think` (« réfléchit »).
+const markState = computed<MarkState>(() => (!me.value && !error.value ? 'think' : 'static'))
+
 const meta = computed(() =>
   route.name === 'admin-user'
     ? { title: 'user fiche', crumb: 'plateforme' }
@@ -22,6 +29,9 @@ const meta = computed(() =>
     <button class="nav-toggle" aria-label="ouvrir le menu" @click="toggleNav">
       <Icon name="menu" :size="18" />
     </button>
+    <RouterLink to="/overview" class="oto-brand" aria-label="Oto · accueil">
+      <OtoMark variant="mono" :state="markState" :size="26" />
+    </RouterLink>
     <div class="topbar-title">
       <h1>{{ meta.title }}</h1>
       <span class="crumb">{{ meta.crumb }}</span>
@@ -50,6 +60,12 @@ const meta = computed(() =>
 </template>
 
 <style scoped>
+/* ── Marque Oto (présence au repos / réfléchit au chargement) ── */
+.oto-brand {
+  display: inline-flex; align-items: center; flex: none;
+  margin-right: 4px; text-decoration: none;
+}
+
 /* ── Niveau de gouvernance : un seul segmented control à 3 crans ── */
 .level-switch {
   display: inline-flex; gap: 2px; padding: 2px;

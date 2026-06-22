@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import Icon from './Icon.vue'
 import Dot from './Dot.vue'
 import Avatar from './Avatar.vue'
+import OtoLoading from './OtoLoading.vue'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { getMyOrgs, setActiveOrg, clearActiveOrg, createMyOrg, listGroups, useGroup } from '@/api/console'
@@ -162,7 +163,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             <Icon v-if="me?.active_org == null" name="check" :size="13" class="id-check" />
           </button>
 
-          <div v-if="loading" class="id-empty">chargement…</div>
+          <div v-if="loading" class="id-empty"><OtoLoading label="chargement…" /></div>
           <button v-for="o in orgs" :key="o.id" class="id-opt"
                   :class="{ on: o.id === me?.active_org }"
                   :disabled="switching" @click="pickOrg(o)">
@@ -203,7 +204,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             <Icon v-if="me?.active_group == null" name="check" :size="13" class="id-check" />
           </button>
 
-          <div v-if="groupsLoading" class="id-empty">chargement…</div>
+          <div v-if="groupsLoading" class="id-empty"><OtoLoading label="chargement…" /></div>
           <button v-for="g in groups" :key="g.id" class="id-opt"
                   :class="{ on: g.id === me?.active_group }"
                   :disabled="switching" @click="pickGroup(g)">
