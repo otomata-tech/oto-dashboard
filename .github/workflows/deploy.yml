@@ -1,10 +1,11 @@
 name: CI/CD
 
-# test → deploy : le deploy DÉPEND d'un build/type-check vert (`needs: test`). Avant,
-# Deploy et CI tournaient en parallèle sur push main → un type-error déployait quand
-# même. Le job `test` (build + vue-tsc) tourne aussi sur PR (= required check de
-# branch protection) et uploade le dist ; `deploy` le télécharge et rsync (build une
-# seule fois). Cf. otomata-private#39 (revue CI/CD).
+# test → deploy : le deploy DÉPEND d'un build/type-check vert (`needs: test`). Le job
+# `test` (build + vue-tsc) tourne aussi sur PR (= required check de branch protection).
+# Le déploiement est build-SERVEUR : la clé CI est épinglée en forced-command
+# (command="/opt/deploy/oto-dashboard.sh") côté otomata-0 — le job `deploy` ne fait que
+# déclencher ce script (git reset + npm build + snapshot + swap + smoke + rollback).
+# Pour changer le déploiement : éditer /opt/deploy/oto-dashboard.sh sur le serveur.
 on:
   pull_request:
     branches: [main]
@@ -25,12 +26,6 @@ jobs:
         run: cd frontend && npm ci
       - name: Build + type-check
         run: cd frontend && npm run build
-      - name: Upload dist
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: dist
-          path: frontend/dist
 
   deploy:
     needs: test
@@ -40,25 +35,11 @@ jobs:
       group: deploy-dashboard
       cancel-in-progress: false
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: dist
-          path: dist
-      - name: Deploy via rsync (+ snapshot, smoke, rollback)
+      - name: Trigger server-side deploy (clé restreinte → /opt/deploy/oto-dashboard.sh)
         env:
           SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
-          set -e
           echo "$SSH_DEPLOY_KEY" > /tmp/key && chmod 600 /tmp/key
-          RSH="ssh -o StrictHostKeyChecking=no -i /tmp/key"
-          BOX="root@$DEPLOY_HOST"; D=/opt/oto-dashboard
-          # #4 snapshot du dist courant pour rollback
-          $RSH "$BOX" "rm -rf $D/dist.prev; cp -a $D/dist $D/dist.prev 2>/dev/null || true"
-          # déploiement
-          rsync -avz --delete -e "$RSH" dist/ "$BOX:$D/dist/"
-          # #3 smoke (200, retry ~15s) → #4 restore si KO
-          $RSH "$BOX" '
-            for i in 1 2 3 4 5; do curl -fsS --max-time 10 https://dashboard.oto.ninja/ -o /dev/null 2>/dev/null && exit 0; sleep 3; done
-            echo "SMOKE KO → rollback dist.prev"; rm -rf '"$D"'/dist; mv '"$D"'/dist.prev '"$D"'/dist; exit 1
-          '
+          ssh -o StrictHostKeyChecking=no -i /tmp/key "root@$DEPLOY_HOST" true
+          rm /tmp/key
