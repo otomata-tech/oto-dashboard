@@ -54,6 +54,19 @@ elle pointe (`@goto`) vers la carte dédiée ancrée plus bas (`#sessions`/`#goo
 ont migré vers le **hub compte** (`/account`, `AccountTokensCard.vue`) — ils sont
 user-scopés (`/api/me/tokens`), pas org-scopés comme les connecteurs.
 
+**Un connecteur = 3 projections par audience (ADR 0022).** La même chose vue de trois sièges,
+une carte par niveau du level-switch :
+- **USER** `/console/connectors` (`ConnectorsView`, ci-dessus) — j'installe / mes clés / mes
+  outils. La **rédaction de champs y est en LECTURE SEULE** (`ConnectorTransforms` prop `readonly`) :
+  l'édition vit au niveau org.
+- **ORG** `/org/connectors` (`OrgConnectorsView`) — ce que l'org propose & impose : **plafond dur**
+  (forcer actif/inactif/hérite, capacité `connectors.activation.{org_list,set_org,clear_org}`, borné
+  au master plateforme), **recommandé** (`setOrgConnectors`), **rédaction ÉDITABLE**. Clé partagée
+  d'org + baseline toolset restent pour l'instant dans `/org` (rapatriement différé).
+- **PLATEFORME** `/platform/connectors` (`AdminConnectorsView`) — master switch + **clé plateforme**
+  (set/remove inline, réservé super_admin ; absorbe l'ex-`/platform/keys`, qui redirige). Entitlements
+  de namespace restent par org dans `/platform/orgs`.
+
 ## Fédération MCP (memento, otomata#16)
 
 `ConnectorsView.vue` porte la carte « federated mcp » (connect/disconnect du compte memento
