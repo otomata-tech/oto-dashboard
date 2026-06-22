@@ -32,6 +32,9 @@ export function initAnalytics(): void {
     api_host: HOST,
     // Pageviews SPA pilotés à la main via le router (capturePageview).
     capture_pageview: false,
+    // Le défaut "if_capture_pageview" couperait $pageleave puisque capture_pageview
+    // est false → Web Analytics perdrait bounce/durée. On le force.
+    capture_pageleave: true,
     // Profil de personne seulement pour les users identifiés (post-login) : pas
     // de profils anonymes parasites, plus propre côté RGPD.
     person_profiles: 'identified_only',
