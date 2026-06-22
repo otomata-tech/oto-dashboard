@@ -44,10 +44,21 @@ jobs:
         with:
           name: dist
           path: dist
-      - name: Deploy via rsync
+      - name: Deploy via rsync (+ snapshot, smoke, rollback)
         env:
           SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
+          set -e
           echo "$SSH_DEPLOY_KEY" > /tmp/key && chmod 600 /tmp/key
-          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no -i /tmp/key" dist/ "root@$DEPLOY_HOST:/opt/oto-dashboard/dist/"
+          RSH="ssh -o StrictHostKeyChecking=no -i /tmp/key"
+          BOX="root@$DEPLOY_HOST"; D=/opt/oto-dashboard
+          # #4 snapshot du dist courant pour rollback
+          $RSH "$BOX" "rm -rf $D/dist.prev; cp -a $D/dist $D/dist.prev 2>/dev/null || true"
+          # déploiement
+          rsync -avz --delete -e "$RSH" dist/ "$BOX:$D/dist/"
+          # #3 smoke (200, retry ~15s) → #4 restore si KO
+          $RSH "$BOX" '
+            for i in 1 2 3 4 5; do curl -fsS --max-time 10 https://dashboard.oto.ninja/ -o /dev/null 2>/dev/null && exit 0; sleep 3; done
+            echo "SMOKE KO → rollback dist.prev"; rm -rf '"$D"'/dist; mv '"$D"'/dist.prev '"$D"'/dist; exit 1
+          '
