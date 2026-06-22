@@ -134,7 +134,6 @@ export interface Me {
   home_group: number | null          // équipe MAISON (défaut MCP)
   home_group_name: string | null         // effectif (escalade org_admin/platform incluse)
   access: AccessState                  // gate doux alpha (ADR 0013)
-  linkedin: SessionState
   crunchbase: SessionState
   memento?: MementoStatus              // fédération MCP (otomata#16) — auto-prompt connexion
   providers: Record<string, ProviderStatus | undefined>

@@ -15,8 +15,8 @@ const connectors = ref<ConnectorMeta[]>([])
 onMounted(async () => {
   try {
     const { connectors: c } = await getConnectors()
-    // Le grid n'affiche que les connecteurs à clé/secret (les sessions perso
-    // sont rendues à part depuis me.linkedin / me.crunchbase).
+    // Le grid n'affiche que les connecteurs à clé/secret (la session perso
+    // crunchbase est rendue à part depuis me.crunchbase).
     connectors.value = c.filter((x) => !x.personal_session && x.secret_kind !== 'none')
   } catch { /* le statut me suffit ; le grid se contente du catalogue dispo */ }
 })
@@ -53,15 +53,6 @@ const cellStyle = 'border: 1px solid var(--color-hair); border-radius: 9px; padd
           <span style="font-weight: 600; font-size: 12.5px">{{ c.label }}</span>
         </div>
         <ModeTag :mode="statusMode(c.name)" />
-      </div>
-      <div :style="cellStyle">
-        <div style="display: flex; align-items: center; gap: 7px">
-          <Dot :tone="me?.linkedin.configured ? 'olive' : 'faint'" :size="7" />
-          <span style="font-weight: 600; font-size: 12.5px">linkedin</span>
-        </div>
-        <Tag :tone="me?.linkedin.configured ? 'olive' : undefined">
-          {{ me?.linkedin.configured ? 'session ok' : 'no session' }}
-        </Tag>
       </div>
       <div :style="cellStyle">
         <div style="display: flex; align-items: center; gap: 7px">

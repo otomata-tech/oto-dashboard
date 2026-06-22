@@ -45,7 +45,6 @@ export const deleteApiKey = (provider: string) =>
   api(`/api/settings/api-keys/${provider}`, { method: 'DELETE' })
 
 // ── sessions ──
-export const deleteLinkedin = () => api('/api/settings/linkedin', { method: 'DELETE' })
 export const deleteCrunchbase = () => api('/api/settings/crunchbase', { method: 'DELETE' })
 
 // ── google ──

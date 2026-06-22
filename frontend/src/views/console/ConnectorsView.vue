@@ -18,7 +18,7 @@ import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
 import {
   getMyConnectors, getTools, getPresets, setCredential, deleteApiKey,
-  deleteLinkedin, deleteCrunchbase,
+  deleteCrunchbase,
   getGoogleStatus, startGoogleOauth, setGoogleDefault, revokeGoogle,
   getFederatedStatus, startFederatedOauth, disconnectFederated,
   getUnipileStatus, subscribeUnipile, connectUnipile, disconnectUnipile,
@@ -169,10 +169,6 @@ async function removeKey(c: MyConnector) {
 }
 
 // ── sessions ──
-async function dropLinkedin() {
-  if (!await confirmAction({ title: 'disconnect LinkedIn', danger: true, confirmLabel: 'disconnect', message: 'disconnect your linkedin session?' })) return
-  try { await deleteLinkedin(); toast('linkedin session removed'); await reload() } catch (e) { toast(humanize(e)) }
-}
 async function dropCrunchbase() {
   if (!await confirmAction({ title: 'disconnect Crunchbase', danger: true, confirmLabel: 'disconnect', message: 'disconnect your crunchbase session?' })) return
   try { await deleteCrunchbase(); toast('crunchbase session removed'); await reload() } catch (e) { toast(humanize(e)) }
@@ -281,17 +277,6 @@ async function removePreset(name: string) {
     <div id="sessions" class="grid2">
       <ConsoleCard title="sessions" sub="per-user browser sessions — never shared with your org.">
         <div class="rowlist">
-          <div class="rowitem" style="gap: 12px">
-            <Dot :tone="me?.linkedin.configured ? 'olive' : 'faint'" :size="8" />
-            <div style="min-width: 0; flex: 1">
-              <div style="font-weight: 600; font-size: 13px">linkedin</div>
-              <div style="font-size: 11.5px; color: var(--color-mute)">
-                {{ me?.linkedin.configured ? `set ${fmtDate(me.linkedin.set_at) ?? ''} · voyager cookies` : 'no session — link via the extension' }}
-              </div>
-            </div>
-            <Btn v-if="me?.linkedin.configured" kind="danger" @click="dropLinkedin">disconnect</Btn>
-            <Btn v-else kind="mini" @click="toast('use the oto companion extension to capture your session')">connect</Btn>
-          </div>
           <div class="rowitem" style="gap: 12px">
             <Dot :tone="me?.crunchbase.configured ? 'olive' : 'faint'" :size="8" />
             <div style="min-width: 0; flex: 1">

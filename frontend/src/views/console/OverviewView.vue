@@ -52,7 +52,6 @@ const userKeysCount = computed(() =>
 )
 const sessionsActive = computed(() => {
   let n = 0
-  if (me.value?.linkedin.configured) n++
   if (me.value?.crunchbase.configured) n++
   if (google.value?.connected) n++
   return n
@@ -136,7 +135,7 @@ onMounted(async () => {
       <template v-else>
         <div :class="summary ? 'grid4' : 'grid3'">
           <Stat label="connectors live" :value="configuredCount" :unit="'/ ' + keyProviders.length" sub="api keys resolvable for your tools" />
-          <Stat label="sessions" :value="sessionsActive" unit="/ 3" sub="linkedin · crunchbase · google" />
+          <Stat label="sessions" :value="sessionsActive" unit="/ 2" sub="crunchbase · google" />
           <Stat v-if="summary" label="calls · 7 days" :value="summary.total_calls.toLocaleString('en-US')" :spark="callsSpark" :sub="`${summary.error_count} errors · ${errRate}%`" />
           <Stat label="active org" :value="me?.active_org_name ?? '—'" :sub="me?.active_org ? `you · ${me.org_role}` : 'no active org'" />
         </div>
