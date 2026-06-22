@@ -7,8 +7,6 @@ import type { Me } from '@/types/api'
 // configurée) — ce n'est pas un fallback silencieux d'une logique métier, juste
 // une intégration opt-in par variable d'env.
 const KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined
-// Domaine d'ingestion EU par défaut (données dans l'UE — cf. compliance RGPD).
-const HOST = (import.meta.env.VITE_POSTHOG_HOST as string | undefined) || 'https://eu.i.posthog.com'
 
 // Consentement RGPD : PostHog démarre 100% éteint (opt-out + replay off) et ne
 // capture rien tant que l'utilisateur n'a pas accepté. Décision persistée nous-
@@ -29,7 +27,10 @@ export function analyticsEnabled(): boolean {
 export function initAnalytics(): void {
   if (!KEY) return
   posthog.init(KEY, {
-    api_host: HOST,
+    // Reverse proxy first-party : dashboard.oto.ninja/ingest → PostHog EU (snippet
+    // Caddy posthog_proxy) — contourne les ad-blockers.
+    api_host: `${location.origin}/ingest`,
+    ui_host: 'https://eu.posthog.com',
     // Pageviews SPA pilotés à la main via le router (capturePageview).
     capture_pageview: false,
     // Le défaut "if_capture_pageview" couperait $pageleave puisque capture_pageview
