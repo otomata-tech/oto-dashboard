@@ -142,7 +142,7 @@ async function toggleRecommend(r: OrgConnectorActivation) {
 
     <template v-else>
       <ConsoleCard title="connecteurs de l'org"
-        sub="ce que ton org propose & impose à ses membres. plafond dur (forcer actif/inactif), recommandation, et rédaction des champs. la plateforme borne : on ne peut pas activer un connecteur qu'elle a coupé.">
+        sub="pour chaque connecteur : ce que tes membres peuvent installer (disponibilité), ce que tu mets en avant (recommandé), la clé partagée de l'org et la rédaction des champs. la plateforme borne — tu ne peux pas exposer un connecteur qu'elle a coupé.">
         <template #actions>
           <input v-model="q" class="cc-search" placeholder="rechercher…" />
         </template>
@@ -151,39 +151,47 @@ async function toggleRecommend(r: OrgConnectorActivation) {
 
       <ConsoleCard v-for="r in shown" :key="r.connector" :title="r.label"
         :sub="r.namespaces.join(', ')">
-        <template #actions>
-          <Tag :tone="r.effective ? 'olive' : 'ink'">{{ r.effective ? 'exposé' : 'masqué' }}</Tag>
+        <!-- Effet en clair AVANT les leviers : ce que vivent tes membres. -->
+        <div class="ocstatus" :class="r.effective ? 'is-on' : 'is-off'">
+          <span class="ocstatus-dot" />
+          <span class="ocstatus-txt">
+            <strong>{{ r.effective ? 'disponible pour tes membres' : 'coupé pour tes membres' }}</strong>
+            <span class="dim"> — {{ r.effective ? 'ils peuvent l\'installer dans leur toolbox' : 'invisible dans leur catalogue' }}</span>
+          </span>
           <Tag v-if="r.recommended" tone="saffron">recommandé</Tag>
-        </template>
+        </div>
 
         <div class="ocrow">
-          <!-- Plafond dur : hérite / forcé ON / forcé OFF -->
+          <!-- Levier 1 : disponibilité (plafond dur) -->
           <div class="ocfield">
-            <span class="oclabel">activation</span>
-            <div class="ocseg" role="radiogroup" aria-label="org activation">
+            <span class="oclabel">disponibilité</span>
+            <span class="ochelp">ce que tes membres peuvent installer</span>
+            <div class="ocseg" role="radiogroup" aria-label="disponibilité">
               <button :class="{ on: actState(r) === 'inherit' }" :disabled="!isOrgAdmin" @click="setActivation(r, 'inherit')">
-                hérite<span class="dim"> ({{ r.master_enabled ? 'on' : 'off' }})</span>
+                hérite<span class="dim"> (plateforme : {{ r.master_enabled ? 'on' : 'off' }})</span>
               </button>
               <button :class="{ on: actState(r) === 'on' }" :disabled="!isOrgAdmin || r.master_enabled !== true"
-                :title="r.master_enabled !== true ? 'désactivé par la plateforme' : ''" @click="setActivation(r, 'on')">
-                forcer on
+                :title="r.master_enabled !== true ? 'la plateforme l\'a coupé' : ''" @click="setActivation(r, 'on')">
+                forcer dispo
               </button>
               <button :class="{ on: actState(r) === 'off' }" :disabled="!isOrgAdmin" @click="setActivation(r, 'off')">
-                forcer off
+                forcer coupé
               </button>
             </div>
-            <span v-if="r.master_enabled !== true" class="dim ocnote">désactivé par la plateforme</span>
+            <span v-if="r.master_enabled !== true" class="dim ocnote">la plateforme l'a coupé — tu ne peux pas l'exposer</span>
           </div>
 
-          <!-- Recommandation (baseline consultative) -->
+          <!-- Levier 2 : recommandation (suggestion douce) -->
           <div class="ocfield">
             <span class="oclabel">recommandé</span>
+            <span class="ochelp">mis en avant (tes membres restent libres)</span>
             <Toggle :on="r.recommended" :disabled="!isOrgAdmin" @change="toggleRecommend(r)" />
           </div>
 
-          <!-- Clé partagée d'org (connecteurs à clé simple) -->
+          <!-- Levier 3 : clé partagée d'org (connecteurs à clé simple) -->
           <div v-if="canHaveOrgKey(r.connector)" class="ocfield">
             <span class="oclabel">clé d'org</span>
+            <span class="ochelp">héritée par les membres sans clé perso</span>
             <div class="ockey">
               <Tag v-if="hasOrgKey(r.connector)" tone="olive">posée</Tag>
               <span v-else class="dim" style="font-size: 11.5px">aucune</span>
@@ -194,9 +202,10 @@ async function toggleRecommend(r: OrgConnectorActivation) {
             </div>
           </div>
 
-          <!-- Abonnement (couche 3, ADR 0024) — add-on payant (ex. unipile) -->
+          <!-- Levier 4 : abonnement (couche 3) — add-on payant (ex. unipile) -->
           <div v-if="r.paid_option" class="ocfield">
             <span class="oclabel">abonnement</span>
+            <span class="ochelp">add-on payant de l'org</span>
             <div class="ockey">
               <Tag v-if="r.subscribed" tone="olive">souscrit</Tag>
               <span v-else class="dim" style="font-size: 11.5px">non souscrit</span>
@@ -225,9 +234,15 @@ async function toggleRecommend(r: OrgConnectorActivation) {
   border-radius: 8px; background: var(--color-surface); color: var(--color-ink); width: 200px;
 }
 .cc-search:focus { outline: none; border-color: var(--color-ink); }
+.ocstatus { display: flex; align-items: center; gap: 9px; padding: 2px 0 12px; font-size: 13px; border-bottom: 1px solid var(--color-hair-soft); margin-bottom: 12px; }
+.ocstatus-dot { width: 8px; height: 8px; border-radius: 999px; flex: none; }
+.ocstatus.is-on .ocstatus-dot { background: var(--color-olive); }
+.ocstatus.is-off .ocstatus-dot { background: var(--color-faint); }
+.ocstatus-txt { flex: 1; min-width: 0; }
 .ocrow { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; padding: 4px 0 8px; }
-.ocfield { display: flex; flex-direction: column; gap: 5px; }
+.ocfield { display: flex; flex-direction: column; gap: 4px; }
 .oclabel { font-size: 11px; font-weight: 600; color: var(--color-mute); text-transform: uppercase; letter-spacing: 0.04em; }
+.ochelp { font-size: 11px; color: var(--color-faint); margin-top: -2px; max-width: 30ch; line-height: 1.35; }
 .ocseg { display: inline-flex; border: 1px solid var(--color-hair-classic); border-radius: 999px; overflow: hidden; }
 .ocseg button {
   font-size: 11.5px; padding: 4px 12px; border: 0; background: transparent; cursor: pointer;
