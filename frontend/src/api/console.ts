@@ -369,6 +369,11 @@ export const grantNamespace = (sub: string, namespace: string) =>
 export const revokeNamespaceGrant = (sub: string, namespace: string) =>
   api(`/api/admin/users/${sub}/namespace-grants/${namespace}`, { method: 'DELETE' })
 
+// option comps (offrir/retirer GRATUITEMENT une option payante — couche abonnement,
+// oto-backend/docs/connector-model.md). entity_type user|org, super_admin only.
+export const setOptionComp = (entity_type: 'user' | 'org', entity_id: string, option: string, on: boolean) =>
+  api('/api/admin/option-comps', { method: 'POST', ...j({ entity_type, entity_id, option, on }) })
+
 // ── admin orgs (cross-org governance) ──
 export const getAdminOrgs = () => api<{ orgs: AdminOrgSummary[] }>('/api/admin/orgs')
 export const createOrg = (name: string) =>

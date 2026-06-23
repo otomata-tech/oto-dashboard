@@ -13,7 +13,7 @@ import { useMe, isSuperAdmin } from '@/composables/useMe'
 import {
   getAdminUser, setUserRole, getPlatformKeys, getConnectors, getMonitoringCalls,
   grantPlatformKey, revokePlatformKey, grantNamespace, revokeNamespaceGrant, resendAlphaInvite,
-  setAdminOrgMemberRole,
+  setAdminOrgMemberRole, setOptionComp,
 } from '@/api/console'
 import type {
   AdminGrant, AdminUserDetail, AdminUserOrg, ConnectorMeta, NamespaceGrant, PlatformKey, ProviderStatus, Role, ToolCall,
@@ -193,6 +193,19 @@ async function revokeNs(g: NamespaceGrant) {
   catch (e) { toast(humanize(e)) }
 }
 
+// Options payantes (couche abonnement, oto-backend/docs/connector-model.md) : offrir
+// GRATUITEMENT l'option à CET user (comp admin user-level), distinct du Stripe payant.
+const PAID_OPTIONS = [{ key: 'unipile', label: 'messagerie hébergée (unipile)' }]
+const optionComped = (opt: string) => detail.value?.option_comps?.includes(opt) ?? false
+async function toggleOption(opt: string) {
+  const on = !optionComped(opt)
+  try {
+    await setOptionComp('user', sub.value, opt, on)
+    toast(on ? `${opt} offert (comp)` : `${opt} retiré`)
+    await loadDetail()
+  } catch (e) { toast(humanize(e)) }
+}
+
 // Bascule le rôle d'org du user (member ↔ org_admin) depuis la fiche admin.
 async function toggleOrgRole(o: AdminUserOrg) {
   const next = o.org_role === 'org_admin' ? 'org_member' : 'org_admin'
@@ -290,6 +303,25 @@ async function toggleOrgRole(o: AdminUserOrg) {
               </td>
             </tr>
             <tr v-if="!providerRows.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no keyed providers</td></tr>
+          </tbody>
+        </table>
+      </ConsoleCard>
+
+      <!-- options payantes : comp admin GRATUIT au niveau user (couche abonnement) -->
+      <ConsoleCard flush title="options payantes"
+        sub="offrir gratuitement une option payante à cet utilisateur (comp admin, distinct du paiement Stripe). débloque l'option même sans org.">
+        <table class="tbl">
+          <thead><tr><th>option</th><th>statut</th><th style="width: 130px"></th></tr></thead>
+          <tbody>
+            <tr v-for="o in PAID_OPTIONS" :key="o.key">
+              <td style="font-weight: 600; color: var(--color-ink)">{{ o.label }}</td>
+              <td><Tag :tone="optionComped(o.key) ? 'olive' : undefined">{{ optionComped(o.key) ? 'offerte (comp)' : 'non offerte' }}</Tag></td>
+              <td style="text-align: right">
+                <Btn :kind="optionComped(o.key) ? 'danger' : 'mini'" @click="toggleOption(o.key)">
+                  {{ optionComped(o.key) ? 'retirer' : 'offrir l\'option' }}
+                </Btn>
+              </td>
+            </tr>
           </tbody>
         </table>
       </ConsoleCard>

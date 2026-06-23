@@ -539,6 +539,7 @@ export interface AdminUserDetail {
   providers: Record<string, ProviderStatus | undefined>
   grants: AdminGrant[]
   namespace_grants: NamespaceGrant[]
+  option_comps: string[]   // options payantes offertes (comp admin) à CET user
 }
 export interface AdminOrgSummary {
   id: number
@@ -684,9 +685,16 @@ export interface ScoutDetail {
 // MCP endpoint public (config, pas un secret) — affiché tel quel.
 export const MCP_URL = (import.meta.env.VITE_LOGTO_AUDIENCE as string) || 'https://mcp.oto.ninja/mcp'
 
+// Accepte les timestamps PG ("YYYY-MM-DD HH:MM:SS", UTC implicite) ET les ISO
+// portant déjà un offset/Z (ex. granted_at = datetime.isoformat() → "…+00:00").
+// On n'ajoute "Z" que si la chaîne n'a pas déjà de zone, sinon "…+00:00Z" = invalide.
+function parseTs(iso: string): Date {
+  const s = iso.replace(' ', 'T')
+  return new Date(/(?:Z|[+-]\d\d:?\d\d)$/.test(s) ? s : s + 'Z')
+}
 export function fmtDate(iso: string | null | undefined): string | null {
-  return iso ? new Date(iso.replace(' ', 'T') + 'Z').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null
+  return iso ? parseTs(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null
 }
 export function fmtDateTime(iso: string | null | undefined): string | null {
-  return iso ? new Date(iso.replace(' ', 'T') + 'Z').toLocaleString('en-US') : null
+  return iso ? parseTs(iso).toLocaleString('en-US') : null
 }
