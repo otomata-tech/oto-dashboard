@@ -15,6 +15,7 @@ import {
   grantPlatformKey, revokePlatformKey, grantNamespace, revokeNamespaceGrant, resendAlphaInvite,
   setAdminOrgMemberRole, setOptionComp,
 } from '@/api/console'
+import { setViewUser } from '@/lib/viewOrg'
 import type {
   AdminGrant, AdminUserDetail, AdminUserOrg, ConnectorMeta, NamespaceGrant, PlatformKey, ProviderStatus, Role, ToolCall,
 } from '@/types/api'
@@ -29,6 +30,15 @@ const { me } = useMe()
 // La gestion des rôles plateforme est réservée au super_admin (le backend rejette
 // de toute façon ; l'UI ne propose pas l'action à un simple opérateur).
 const canManageRoles = computed(() => isSuperAdmin(me.value))
+
+// « Voir en tant que » (ADR 0023, lecture seule) : pose la consultation user + recharge
+// sur le console — tout le dashboard rend alors la vue de ce user. Pas sur soi-même.
+const canViewAs = computed(() => !!detail.value && detail.value.sub !== me.value?.sub)
+function viewAsUser() {
+  if (!detail.value) return
+  setViewUser({ sub: detail.value.sub, name: detail.value.name || detail.value.email || detail.value.sub })
+  window.location.href = '/console'
+}
 
 const sub = computed(() => String(route.params.sub))
 const detail = ref<AdminUserDetail | null>(null)
@@ -234,6 +244,7 @@ async function toggleOrgRole(o: AdminUserOrg) {
           <Btn v-if="canResend" kind="mini" :disabled="resending" @click="resendInvite">
             {{ resending ? 'sending…' : 'resend invite' }}
           </Btn>
+          <Btn v-if="canViewAs" kind="mini" icon="user" @click="viewAsUser">voir en tant que</Btn>
           <!-- gestion des rôles plateforme : super_admin seul. Les deux paliers admin
                (operator → super) sont fusionnés dans un dropdown ; member reste un bouton. -->
           <template v-if="canManageRoles">

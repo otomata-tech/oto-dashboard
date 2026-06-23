@@ -2,6 +2,7 @@
 import { watch } from 'vue'
 import { RouterView } from 'vue-router'
 import ConsentBanner from '@/components/console/ConsentBanner.vue'
+import ViewAsBanner from '@/components/console/ViewAsBanner.vue'
 import { isBusy } from '@/lib/busy'
 import { setFaviconState } from '@/lib/favicon'
 
@@ -12,5 +13,6 @@ watch(isBusy, (busy) => setFaviconState(busy ? 'think' : 'static'), { immediate:
 
 <template>
   <RouterView />
+  <ViewAsBanner />
   <ConsentBanner />
 </template>
