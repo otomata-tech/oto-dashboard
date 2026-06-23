@@ -9,6 +9,7 @@
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import ConnectorCard from '@/components/console/ConnectorCard.vue'
+import DocSections from '@/components/console/DocSections.vue'
 import Stat from '@/components/console/Stat.vue'
 import Dot from '@/components/console/Dot.vue'
 import Tag from '@/components/console/Tag.vue'
@@ -204,6 +205,12 @@ async function dropFederated(c: MyConnector) {
     fedStatus.value = { ...fedStatus.value, [c.name]: await getFederatedStatus(c.name) }
   } catch (e) { toast(humanize(e)) }
 }
+// Doc « how-to » à montrer dans la carte : avant connexion = tout (prérequis +
+// usage) ; une fois connecté, prérequis/setup ne servent plus → garder l'usage.
+function docFor(c: MyConnector) {
+  const secs = c.doc_sections ?? []
+  return fedStatus.value[c.name]?.connected ? secs.filter((s) => s.kind === 'usage') : secs
+}
 
 // ── messagerie unipile ──
 async function activateUnipile() {
@@ -327,11 +334,9 @@ async function removePreset(name: string) {
             <Btn v-if="fedStatus[c.name]?.connected" kind="danger" @click="dropFederated(c)">disconnect</Btn>
             <Btn v-else kind="mini" @click="linkFederated(c.name)">connect</Btn>
           </div>
-          <!-- pré-requis user-facing (ex. Atlassian : autoriser l'URL de callback) — avant connexion -->
-          <div v-if="c.setup_note && !fedStatus[c.name]?.connected"
-            style="font-size: 11px; line-height: 1.55; color: var(--color-mute); padding: 2px 12px 10px 32px; word-break: break-word">
-            ⚠ {{ c.setup_note }}
-          </div>
+          <!-- doc « how-to » user-facing (prérequis/usage) — rendue par DocSections -->
+          <DocSections v-if="docFor(c).length" :sections="docFor(c)"
+            style="padding: 2px 12px 10px 32px" />
         </div>
       </div>
     </ConsoleCard>

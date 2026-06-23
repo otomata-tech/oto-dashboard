@@ -18,11 +18,18 @@ export interface CredentialField {
   label: string
   secret: boolean
 }
+// Section de doc « how-to » d'un connecteur (user-facing, markdown) — rendue
+// partout où le connecteur s'affiche. `kind` = type curé (ordre + icône).
+export interface DocSection {
+  kind: 'prerequisite' | 'setup' | 'usage' | 'note'
+  title: string
+  body_md: string
+}
 export interface ConnectorMeta {
   name: string
   label: string
   help: string
-  setup_note?: string        // pré-requis user-facing affiché à la connexion (ex. Atlassian)
+  doc_sections?: DocSection[]  // doc « how-to » user-facing (prérequis/setup/usage), markdown
   href: string | null
   publisher: string          // éditeur affiché (curé) — catalogue
   logo_url: string | null    // logo éditeur (oto-media), null si absent → placeholder
