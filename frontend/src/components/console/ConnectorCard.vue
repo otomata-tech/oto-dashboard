@@ -118,6 +118,9 @@ async function toggleTool(t: ToolEntry) {
       <div class="cc-id">
         <div class="cc-name">{{ connector.label }}
           <Tag v-if="connector.recommended" tone="cobalt">recommended</Tag>
+          <!-- Posture fédérée (ADR 0024) : login délégué + outils proxifiés, mais
+               toujours sous gouvernance oto (redaction/calllog/billing). -->
+          <Tag v-if="connector.family === 'federated'" tone="saffron" title="mcp fédéré — login délégué, outils proxifiés sous gouvernance oto">fédéré</Tag>
         </div>
         <div class="cc-pub">{{ connector.publisher }} · {{ connector.help }}</div>
       </div>
