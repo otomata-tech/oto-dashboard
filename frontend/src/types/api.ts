@@ -25,6 +25,15 @@ export interface DocSection {
   title: string
   body_md: string
 }
+// Descripteur d'auth unifié (ADR 0024) — source unique du widget credential de
+// la ConnectorCard, quel que soit le mécanisme. `method` pilote le widget rendu ;
+// `cardinality=multi_account` = N comptes liés (Google) ; `fields` = schéma de
+// saisie (vide hors method='secret', où les flux — oauth/cookie/remote — sont dédiés).
+export interface AuthDescriptor {
+  method: 'secret' | 'oauth' | 'cookie' | 'remote' | 'none'
+  cardinality: 'single' | 'multi_account'
+  fields: CredentialField[]
+}
 export interface ConnectorMeta {
   name: string
   label: string
@@ -37,6 +46,7 @@ export interface ConnectorMeta {
   auth_modes: string[]
   personal_session: boolean
   secret_kind: 'api_key' | 'basic_auth' | 'fields' | 'cookie' | 'oauth' | 'refresh_token' | 'none'
+  auth: AuthDescriptor       // ADR 0024 — descripteur d'auth unifié (dérivé de secret_kind/kind)
   namespaces: string[]
   family: string             // axe builder (dérivé) — api|open-data|browser|google|federated|bridge
   category: string           // axe utilisateur (curé) — Prospection|Data FR|…
