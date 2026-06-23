@@ -61,6 +61,7 @@ export type ConnectorState = 'not_selected' | 'active' | 'paused'
 export interface MyConnector extends ConnectorMeta {
   state: ConnectorState
   recommended: boolean       // proposé par l'org active (baseline default_connectors)
+  doctrine_ref_count?: number  // nb de doctrines de l'org qui le référencent (posture doctrine-only, ADR 0024)
 }
 
 // ── bibliothèque publique de doctrines (marketplace, library.*) ──

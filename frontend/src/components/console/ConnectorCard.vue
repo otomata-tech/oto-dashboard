@@ -78,6 +78,10 @@ const statusMode = computed<ConnectorMode>(() => {
 })
 const keyConfigured = computed(() => !!status.value?.user_key_configured)
 
+// Posture « doctrine-only » (ADR 0024) : un connecteur peut être référencé par des
+// doctrines (`<tool:slug>`) sans être connecté — utile à l'écriture de doctrines.
+const docRefCount = computed(() => props.connector.doctrine_ref_count ?? 0)
+
 const myTools = computed(() => [...props.tools].sort((a, b) => a.name.localeCompare(b.name)))
 const enabledCount = computed(() => myTools.value.filter((t) => t.enabled).length)
 
@@ -167,6 +171,10 @@ async function toggleTool(t: ToolEntry) {
         <template v-else-if="connKind === 'unipile'">
           <ConnectorHostedWidget />
         </template>
+        <!-- Posture doctrine-only : référencé par des doctrines même non connecté. -->
+        <div v-if="docRefCount > 0" class="cc-docref dim">
+          ↳ referenced by {{ docRefCount }} doctrine{{ docRefCount > 1 ? 's' : '' }} — connect it to run them
+        </div>
       </div>
 
       <!-- Onglet 2 — paramétrage des outils -->
@@ -220,6 +228,7 @@ async function toggleTool(t: ToolEntry) {
 }
 .cc-tabs button.on { color: var(--color-ink); border-bottom-color: var(--color-ink); font-weight: 600; }
 .cc-conn { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 0 6px; }
+.cc-docref { flex-basis: 100%; font-size: 11px; }
 .cc-pk { font-size: 11px; }
 .cc-quota { min-width: 120px; }
 .cc-actions { margin-left: auto; display: flex; gap: 6px; }
