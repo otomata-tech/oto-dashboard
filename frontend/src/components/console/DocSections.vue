@@ -25,7 +25,12 @@ export default defineComponent({
         if (!p) return
         let m: RegExpMatchArray | null
         if ((m = p.match(/^\[([^\]]+)\]\(([^)]+)\)$/))) {
-          out.push(h('a', { key: `${kp}a${i}`, href: m[2], target: '_blank', rel: 'noopener', class: 'ds-link' }, m[1] ?? ''))
+          // Anti-XSS : n'autoriser QUE http(s) ; tout autre schéma (javascript:, data:…)
+          // → rendu en texte brut, jamais en lien cliquable.
+          const url = m[2] ?? ''
+          out.push(/^https?:\/\//i.test(url)
+            ? h('a', { key: `${kp}a${i}`, href: url, target: '_blank', rel: 'noopener', class: 'ds-link' }, m[1] ?? '')
+            : (m[1] ?? ''))
         } else if ((m = p.match(/^\*\*([^*]+)\*\*$/))) {
           out.push(h('strong', { key: `${kp}b${i}` }, m[1] ?? ''))
         } else if ((m = p.match(/^`([^`]+)`$/))) {
