@@ -20,14 +20,13 @@ import { useMe } from '@/composables/useMe'
 import {
   getMyConnectors, getTools, getPresets, setCredential, deleteApiKey,
   deleteCrunchbase,
-  getGoogleStatus, startGoogleOauth, setGoogleDefault, revokeGoogle,
   getFederatedStatus, startFederatedOauth, disconnectFederated,
   getUnipileStatus, subscribeUnipile, connectUnipile, disconnectUnipile,
   applyPreset as applyPresetApi, savePreset, deletePreset,
   getOrgFieldFilters,
 } from '@/api/console'
 import type {
-  ConnectorState, FieldFiltersBundle, GoogleOauthStatus, MementoStatus, MyConnector,
+  ConnectorState, FieldFiltersBundle, MementoStatus, MyConnector,
   PresetEntry, ToolEntry, UnipileStatus,
 } from '@/types/api'
 import { fmtDate } from '@/types/api'
@@ -42,7 +41,6 @@ const profileLabel = computed(() => me.value?.active_org_name || 'Perso')
 const catalog = ref<MyConnector[]>([])
 const tools = ref<ToolEntry[]>([])
 const presets = ref<PresetEntry[]>([])
-const google = ref<GoogleOauthStatus | null>(null)
 const fedStatus = ref<Record<string, MementoStatus>>({})
 const unipile = ref<UnipileStatus | null>(null)
 const fieldFilters = ref<FieldFiltersBundle | null>(null)
@@ -90,16 +88,14 @@ const exposedTools = computed(() => tools.value.filter((t) => t.enabled).length)
 
 async function load() {
   try {
-    const [mc, tl, pr, g, u, ff] = await Promise.all([
+    const [mc, tl, pr, u, ff] = await Promise.all([
       getMyConnectors(), getTools(), getPresets().catch(() => ({ presets: [] })),
-      getGoogleStatus().catch(() => null),
       getUnipileStatus().catch(() => null),
       activeOrgId.value == null ? Promise.resolve(null) : getOrgFieldFilters(activeOrgId.value).catch(() => null),
     ])
     catalog.value = mc.connectors
     tools.value = tl.tools
     presets.value = pr.presets
-    google.value = g
     unipile.value = u
     fieldFilters.value = ff
     await loadFederated()
@@ -175,17 +171,8 @@ async function dropCrunchbase() {
   try { await deleteCrunchbase(); toast('crunchbase session removed'); await reload() } catch (e) { toast(humanize(e)) }
 }
 
-// ── google ──
-async function linkGoogle() {
-  try { const { auth_url } = await startGoogleOauth(); window.location.href = auth_url } catch (e) { toast(humanize(e)) }
-}
-async function makeDefault(email: string) {
-  try { await setGoogleDefault(email); toast('default account updated'); google.value = await getGoogleStatus() } catch (e) { toast(humanize(e)) }
-}
-async function unlinkGoogle(email: string) {
-  if (!await confirmAction({ title: 'revoke google account', danger: true, confirmLabel: 'revoke', message: `revoke ${email}? tools using it will lose access.` })) return
-  try { await revokeGoogle(email); toast('grant revoked'); google.value = await getGoogleStatus() } catch (e) { toast(humanize(e)) }
-}
+// ── google : le credential OAuth multi-compte est désormais édité INLINE dans la
+// ConnectorCard (ConnectorOAuthAccounts, ADR 0024 B2) — plus de carte ancrée ici. ──
 
 // ── mcp fédéré générique (memento, atlassian…) — câblé par connecteur ──
 async function loadFederated() {
@@ -296,24 +283,6 @@ async function removePreset(name: string) {
             <Btn v-else kind="mini" @click="toast('capture your crunchbase cookies via the extension')">connect</Btn>
           </div>
         </div>
-      </ConsoleCard>
-
-      <ConsoleCard id="google" title="google accounts" sub="oauth grants used by gmail, drive, sheets and calendar tools.">
-        <template #actions><Btn kind="mini" icon="plus" @click="linkGoogle">link account</Btn></template>
-        <div v-if="google?.accounts?.length" class="rowlist">
-          <div v-for="g in google.accounts" :key="g.email || ''" class="rowitem" style="gap: 12px">
-            <Dot tone="olive" :size="8" />
-            <div style="min-width: 0; flex: 1">
-              <div style="font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: center">
-                {{ g.email }} <Tag v-if="g.is_default" tone="saffron">default</Tag>
-              </div>
-              <div style="font-size: 11.5px; color: var(--color-mute)">{{ g.scopes.join(' · ') }} · granted {{ fmtDate(g.granted_at) }}</div>
-            </div>
-            <Btn v-if="!g.is_default" kind="mini" @click="makeDefault(g.email!)">make default</Btn>
-            <Btn kind="danger" @click="unlinkGoogle(g.email!)">revoke</Btn>
-          </div>
-        </div>
-        <div v-else class="helptext">no google account linked yet — link one to unlock gmail, drive & sheets tools.</div>
       </ConsoleCard>
     </div>
 

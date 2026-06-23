@@ -12,6 +12,7 @@ import Btn from './Btn.vue'
 import ModeTag from './ModeTag.vue'
 import Quota from './Quota.vue'
 import ConnectorTransforms from './ConnectorTransforms.vue'
+import ConnectorOAuthAccounts from './ConnectorOAuthAccounts.vue'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
@@ -154,6 +155,10 @@ const gotoSection: Record<Conn, string> = {
         </template>
         <template v-else-if="connKind === 'none'">
           <span class="dim">no credential needed — open data.</span>
+        </template>
+        <!-- OAuth multi-compte (Google) — credential édité INLINE sur la carte (ADR 0024). -->
+        <template v-else-if="connKind === 'google'">
+          <ConnectorOAuthAccounts />
         </template>
         <template v-else>
           <span class="dim">connection managed below</span>
