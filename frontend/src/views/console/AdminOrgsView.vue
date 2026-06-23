@@ -11,7 +11,7 @@ import { useDeepLink } from '@/composables/useDeepLink'
 import {
   getAdminOrgs, createOrg, getAdminOrg, archiveAdminOrg, addAdminOrgMember, setAdminOrgMemberRole,
   removeAdminOrgMember, putAdminOrgSecret, deleteAdminOrgSecret,
-  grantOrgEntitlement, revokeOrgEntitlement, getConnectors,
+  grantOrgEntitlement, revokeOrgEntitlement, getConnectors, setOptionComp,
 } from '@/api/console'
 import type { AdminOrgSummary, ConnectorMeta, OrgDetail, OrgMember, OrgSecret, OrgEntitlement, OrgRole } from '@/types/api'
 import { fmtDate } from '@/types/api'
@@ -147,6 +147,20 @@ async function revokeEnt(e0: OrgEntitlement) {
   try { await revokeOrgEntitlement(selectedId.value, e0.namespace); toast('entitlement revoked'); await refresh() }
   catch (e) { toast(humanize(e)) }
 }
+
+// Options payantes (couche abonnement) : offrir GRATUITEMENT l'option à toute l'org
+// (comp admin org-level), distinct du Stripe payant. Couvre tous les membres de l'org.
+const PAID_OPTIONS = [{ key: 'unipile', label: 'messagerie hébergée (unipile)' }]
+const orgOptionComped = (opt: string) => detail.value?.option_comps?.includes(opt) ?? false
+async function toggleOrgOption(opt: string) {
+  if (selectedId.value == null) return
+  const on = !orgOptionComped(opt)
+  try {
+    await setOptionComp('org', String(selectedId.value), opt, on)
+    toast(on ? `${opt} offert à l'org (comp)` : `${opt} retiré de l'org`)
+    await refresh()
+  } catch (e) { toast(humanize(e)) }
+}
 </script>
 
 <template>
@@ -229,6 +243,18 @@ async function revokeEnt(e0: OrgEntitlement) {
               <Btn kind="danger" @click="revokeEnt(e)">revoke</Btn>
             </div>
             <div v-if="!(detail.entitlements ?? []).length" class="helptext">no entitlements granted.</div>
+          </div>
+        </ConsoleCard>
+
+        <ConsoleCard title="options payantes" sub="offrir gratuitement une option payante à TOUTE l'org (comp admin, distinct du paiement Stripe). couvre tous ses membres.">
+          <div class="rowlist">
+            <div v-for="o in PAID_OPTIONS" :key="o.key" class="rowitem" style="gap: 12px">
+              <div style="min-width: 0; flex: 1; font-weight: 600; color: var(--color-ink)">{{ o.label }}</div>
+              <Tag :tone="orgOptionComped(o.key) ? 'olive' : undefined">{{ orgOptionComped(o.key) ? 'offerte (comp)' : 'non offerte' }}</Tag>
+              <Btn :kind="orgOptionComped(o.key) ? 'danger' : 'mini'" @click="toggleOrgOption(o.key)">
+                {{ orgOptionComped(o.key) ? 'retirer' : 'offrir l\'option' }}
+              </Btn>
+            </div>
           </div>
         </ConsoleCard>
       </div>

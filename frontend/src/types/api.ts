@@ -393,6 +393,7 @@ export interface OrgDetail {
   members: OrgMember[]
   secrets: OrgSecret[]
   entitlements?: OrgEntitlement[]
+  option_comps?: string[]   // options payantes offertes (comp admin) à l'ORG
 }
 // ── redaction de champs par connecteur (FieldFilter, ADR 0015) ──
 export interface FieldRule {
