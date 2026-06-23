@@ -362,6 +362,12 @@ export const grantPlatformKey = (sub: string, keyId: number, daily_quota?: numbe
 export const revokePlatformKey = (sub: string, keyId: number) =>
   api(`/api/admin/users/${sub}/grants/${keyId}`, { method: 'DELETE' })
 
+// platform key grants au niveau ORG (couche 2, partage à tous les membres) — super_admin
+export const grantOrgPlatformKey = (orgId: number, keyId: number, daily_quota?: number) =>
+  api(`/api/admin/orgs/${orgId}/grants/${keyId}`, { method: 'POST', ...j({ daily_quota }) })
+export const revokeOrgPlatformKey = (orgId: number, keyId: number) =>
+  api(`/api/admin/orgs/${orgId}/grants/${keyId}`, { method: 'DELETE' })
+
 // namespace grants per-user (controlled namespaces)
 export const getNamespaceGrants = () => api<{ grants: NamespaceGrant[] }>('/api/admin/namespace-grants')
 export const grantNamespace = (sub: string, namespace: string) =>

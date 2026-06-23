@@ -12,8 +12,9 @@ import {
   getAdminOrgs, createOrg, getAdminOrg, archiveAdminOrg, addAdminOrgMember, setAdminOrgMemberRole,
   removeAdminOrgMember, putAdminOrgSecret, deleteAdminOrgSecret,
   grantOrgEntitlement, revokeOrgEntitlement, getConnectors, setOptionComp,
+  getPlatformKeys, grantOrgPlatformKey, revokeOrgPlatformKey,
 } from '@/api/console'
-import type { AdminOrgSummary, ConnectorMeta, OrgDetail, OrgMember, OrgSecret, OrgEntitlement, OrgRole } from '@/types/api'
+import type { AdminGrant, AdminOrgSummary, ConnectorMeta, OrgDetail, OrgMember, OrgSecret, OrgEntitlement, OrgRole, PlatformKey } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
@@ -23,6 +24,7 @@ const orgs = ref<AdminOrgSummary[]>([])
 const detail = ref<OrgDetail | null>(null)
 const selectedId = ref<number | null>(null)
 const catalog = ref<ConnectorMeta[]>([])
+const pkeys = ref<PlatformKey[]>([])
 const error = ref<string | null>(null)
 
 // Org sélectionnée portée par `?org=<id>` (lien direct + retour).
@@ -41,8 +43,13 @@ async function refresh() { if (selectedId.value != null) detail.value = await ge
 
 onMounted(async () => {
   try {
-    const [, cat] = await Promise.all([loadOrgs(), getConnectors().catch(() => ({ connectors: [] }))])
+    const [, cat, pk] = await Promise.all([
+      loadOrgs(),
+      getConnectors().catch(() => ({ connectors: [] })),
+      getPlatformKeys().catch(() => ({ platform_keys: [] })),
+    ])
     catalog.value = cat.connectors
+    pkeys.value = pk.platform_keys
     const id = dl.read()
     if (id != null) await select(id)
   } catch (e) { error.value = humanize(e) }
@@ -161,6 +168,33 @@ async function toggleOrgOption(opt: string) {
     await refresh()
   } catch (e) { toast(humanize(e)) }
 }
+
+// Clé plateforme partagée à TOUTE l'org (couche 2) : tous les membres l'utilisent
+// (métré per-membre, jamais révélée), sans grant per-user. Distinct du BYO d'org.
+async function grantOrgKey() {
+  if (selectedId.value == null) return
+  if (!pkeys.value.length) { toast('aucune clé plateforme — créez-en une dans platform · connectors'); return }
+  const r = await promptForm({
+    title: 'partager une clé plateforme à l\'org',
+    description: 'tous les membres de l\'org utiliseront cette clé plateforme (métré per-membre, jamais révélée).',
+    fields: [
+      { key: 'key', label: 'clé plateforme', type: 'select', required: true,
+        options: pkeys.value.map((k) => ({ value: String(k.id), label: `${k.provider}/${k.label}` })) },
+      { key: 'quota', label: 'quota/jour par membre', placeholder: 'vide = défaut provider' },
+    ],
+    submitLabel: 'partager',
+  })
+  if (!r) return
+  const quota = r.quota ? Math.max(1, Number(r.quota)) : undefined
+  try { await grantOrgPlatformKey(selectedId.value, Number(r.key), quota); toast('clé partagée à l\'org'); await refresh() }
+  catch (e) { toast(humanize(e)) }
+}
+async function revokeOrgKey(g: AdminGrant) {
+  if (selectedId.value == null) return
+  if (!await confirmAction({ title: 'retirer le partage', danger: true, confirmLabel: 'retirer', message: `retirer ${g.provider}/${g.label} de l'org ?` })) return
+  try { await revokeOrgPlatformKey(selectedId.value, g.platform_key_id); toast('partage retiré'); await refresh() }
+  catch (e) { toast(humanize(e)) }
+}
 </script>
 
 <template>
@@ -255,6 +289,18 @@ async function toggleOrgOption(opt: string) {
                 {{ orgOptionComped(o.key) ? 'retirer' : 'offrir l\'option' }}
               </Btn>
             </div>
+          </div>
+        </ConsoleCard>
+
+        <ConsoleCard title="clés plateforme partagées" sub="prêter une clé plateforme à TOUTE l'org (métré per-membre, jamais révélée). distinct du « shared keys » BYO ci-dessus (où l'org pose SA clé).">
+          <template #actions><Btn kind="mini" icon="plus" @click="grantOrgKey">partager une clé</Btn></template>
+          <div class="rowlist">
+            <div v-for="g in (detail.platform_grants ?? [])" :key="g.platform_key_id" class="rowitem" style="gap: 12px">
+              <div style="min-width: 0; flex: 1"><Tag tone="saffron">{{ g.provider }}/{{ g.label }}</Tag></div>
+              <span class="dim" style="font-size: 11px">{{ g.daily_quota ? `${g.daily_quota}/j` : '∞' }}</span>
+              <Btn kind="danger" @click="revokeOrgKey(g)">retirer</Btn>
+            </div>
+            <div v-if="!(detail.platform_grants ?? []).length" class="helptext">aucune clé plateforme partagée.</div>
           </div>
         </ConsoleCard>
       </div>
