@@ -193,6 +193,15 @@ async function toggleRecommend(r: OrgConnectorActivation) {
               </template>
             </div>
           </div>
+
+          <!-- Abonnement (couche 3, ADR 0024) — add-on payant (ex. unipile) -->
+          <div v-if="r.paid_option" class="ocfield">
+            <span class="oclabel">abonnement</span>
+            <div class="ockey">
+              <Tag v-if="r.subscribed" tone="olive">souscrit</Tag>
+              <span v-else class="dim" style="font-size: 11.5px">non souscrit</span>
+            </div>
+          </div>
         </div>
 
         <!-- Rédaction des champs (éditable ici) -->

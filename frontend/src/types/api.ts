@@ -115,6 +115,8 @@ export interface OrgConnectorActivation {
   org_enabled: boolean | null
   effective: boolean
   recommended: boolean
+  paid_option?: string | null   // add-on payant (couche 3, ADR 0024) ; null = pas d'option payante
+  subscribed?: boolean          // l'org a souscrit l'option (comp admin ou abonnement Stripe)
 }
 
 // Miroir de access.py::status_for (cascade user > group > org > platform).
