@@ -2,32 +2,26 @@
 // Connecteurs — surface UNIFIÉE (fusion ex-/connectors + ex-/toolbox + ex-/my-connectors).
 // Un connecteur = UNE chose à deux faces : config de la connexion (credential) ET
 // paramétrage de ses outils (toolbox). Chaque connecteur est une carte (ConnectorCard)
-// portant les deux + le sélecteur 3 états (actif/masqué/désactivé, ADR 0019). Les flux
-// de connexion à carte dédiée (sessions, google, messagerie unipile, mcp fédéré) restent
-// en bas, ancrés (la carte y pointe). Presets de toolbox tout en bas. Les tokens CLI ont
-// migré vers le hub compte (/account) — ils sont user-scopés, pas org-scopés.
+// portant les deux + le sélecteur 3 états (actif/masqué/désactivé, ADR 0019). Tous les
+// flux de connexion (clé, oauth, session, hosted, mcp fédéré) sont rendus INLINE sur la
+// carte du connecteur (ADR 0024 R1) — plus de cartes ancrées. Presets de toolbox tout en
+// bas. Les tokens CLI ont migré vers le hub compte (/account, user-scopés).
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import ConnectorCard from '@/components/console/ConnectorCard.vue'
-import DocSections from '@/components/console/DocSections.vue'
 import Stat from '@/components/console/Stat.vue'
-import Dot from '@/components/console/Dot.vue'
-import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
 import {
   getMyConnectors, getTools, getPresets, setCredential, deleteApiKey,
-  deleteCrunchbase,
-  getFederatedStatus, startFederatedOauth, disconnectFederated,
-  getUnipileStatus, subscribeUnipile, connectUnipile, disconnectUnipile,
   applyPreset as applyPresetApi, savePreset, deletePreset,
   getOrgFieldFilters,
 } from '@/api/console'
 import type {
-  ConnectorState, FieldFiltersBundle, MementoStatus, MyConnector,
-  PresetEntry, ToolEntry, UnipileStatus,
+  ConnectorState, FieldFiltersBundle, MyConnector,
+  PresetEntry, ToolEntry,
 } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -41,8 +35,6 @@ const profileLabel = computed(() => me.value?.active_org_name || 'Perso')
 const catalog = ref<MyConnector[]>([])
 const tools = ref<ToolEntry[]>([])
 const presets = ref<PresetEntry[]>([])
-const fedStatus = ref<Record<string, MementoStatus>>({})
-const unipile = ref<UnipileStatus | null>(null)
 const fieldFilters = ref<FieldFiltersBundle | null>(null)
 const error = ref<string | null>(null)
 const q = ref('')
@@ -88,58 +80,31 @@ const exposedTools = computed(() => tools.value.filter((t) => t.enabled).length)
 
 async function load() {
   try {
-    const [mc, tl, pr, u, ff] = await Promise.all([
+    const [mc, tl, pr, ff] = await Promise.all([
       getMyConnectors(), getTools(), getPresets().catch(() => ({ presets: [] })),
-      getUnipileStatus().catch(() => null),
       activeOrgId.value == null ? Promise.resolve(null) : getOrgFieldFilters(activeOrgId.value).catch(() => null),
     ])
     catalog.value = mc.connectors
     tools.value = tl.tools
     presets.value = pr.presets
-    unipile.value = u
     fieldFilters.value = ff
-    await loadFederated()
   } catch (e) { error.value = humanize(e) }
 }
 onMounted(async () => {
-  // Retour des flux OAuth (mcp fédéré) / hosted-auth (unipile) — toast + poll.
-  const sp = new URLSearchParams(window.location.search)
-  const up = sp.get('unipile')
-  const upCh = (sp.get('channel') || 'linkedin') as keyof UnipileStatus['channels']
-  if (up === 'connected') {
-    for (let i = 0; i < 5; i++) {
-      unipile.value = await getUnipileStatus().catch(() => unipile.value)
-      if (unipile.value?.channels?.[upCh]?.connected) break
-      await new Promise((r) => setTimeout(r, 1200))
-    }
-    toast(unipile.value?.channels?.[upCh]?.connected ? `${upCh} connecté via unipile` : 'connexion en cours — rafraîchis dans un instant')
-  } else if (up === 'failed') toast(`échec de la connexion ${upCh}`)
-  else if (up === 'subscribed') {
-    for (let i = 0; i < 5; i++) {
-      unipile.value = await getUnipileStatus().catch(() => unipile.value)
-      if (unipile.value?.subscribed) break
-      await new Promise((r) => setTimeout(r, 1200))
-    }
-    toast(unipile.value?.subscribed ? 'option messagerie activée' : 'activation en cours — rafraîchis dans un instant')
-  } else if (up === 'cancel') toast('activation annulée')
   await load()
-  // Retour du flux OAuth Google (callback → ?google=connected). Le widget inline
-  // recharge son propre statut au mount ; ici juste la confirmation.
-  let touched = up != null
-  if (sp.get('google') === 'connected') { touched = true; toast('compte Google connecté') }
-  for (const c of federated.value) {
-    const v = sp.get(c.name)
-    if (!v) continue
-    touched = true
-    if (v === 'connected') toast(`${c.label} connecté`)
-    else if (v === 'error') toast(`échec de la connexion ${c.label}`)
+  // Retour d'un flux de connexion (oauth google/fédéré, hosted unipile) :
+  // ?<x>=connected|error|subscribed. Les widgets inline rechargent leur propre statut
+  // au mount ; ici juste la confirmation + nettoyage de l'URL.
+  const sp = new URLSearchParams(window.location.search)
+  let touched = false
+  for (const [k, v] of sp.entries()) {
+    if (k === 'channel') continue
+    if (v === 'connected' || v === 'subscribed') { toast(`${k} connecté`); touched = true }
+    else if (v === 'error' || v === 'failed') { toast(`échec de la connexion ${k}`); touched = true }
+    else if (v === 'cancel') touched = true
   }
   if (touched) window.history.replaceState({}, '', window.location.pathname)
 })
-
-function goto(section: string) {
-  document.getElementById(section)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
 
 // ── credential keyé (générique, ADR 0011) ──
 async function configure(c: MyConnector) {
@@ -167,61 +132,9 @@ async function removeKey(c: MyConnector) {
   catch (e) { toast(humanize(e)) }
 }
 
-// ── sessions ──
-async function dropCrunchbase() {
-  if (!await confirmAction({ title: 'disconnect Crunchbase', danger: true, confirmLabel: 'disconnect', message: 'disconnect your crunchbase session?' })) return
-  try { await deleteCrunchbase(); toast('crunchbase session removed'); await reload() } catch (e) { toast(humanize(e)) }
-}
-
-// ── google : le credential OAuth multi-compte est désormais édité INLINE dans la
-// ConnectorCard (ConnectorOAuthAccounts, ADR 0024 B2) — plus de carte ancrée ici. ──
-
-// ── mcp fédéré générique (memento, atlassian…) — câblé par connecteur ──
-async function loadFederated() {
-  const entries = await Promise.all(
-    federated.value.map(async (c) => [c.name, await getFederatedStatus(c.name).catch(() => null)] as const),
-  )
-  fedStatus.value = Object.fromEntries(entries.filter(([, s]) => s !== null)) as Record<string, MementoStatus>
-}
-async function linkFederated(name: string) {
-  try { const { auth_url } = await startFederatedOauth(name); window.location.href = auth_url } catch (e) { toast(humanize(e)) }
-}
-async function dropFederated(c: MyConnector) {
-  if (!await confirmAction({ title: `disconnect ${c.label}`, danger: true, confirmLabel: 'disconnect', message: `disconnect your ${c.label}? its tools will disappear from your session.` })) return
-  try {
-    await disconnectFederated(c.name)
-    toast(`${c.label} disconnected`)
-    fedStatus.value = { ...fedStatus.value, [c.name]: await getFederatedStatus(c.name) }
-  } catch (e) { toast(humanize(e)) }
-}
-// Doc « how-to » à montrer dans la carte : avant connexion = tout (prérequis +
-// usage) ; une fois connecté, prérequis/setup ne servent plus → garder l'usage.
-function docFor(c: MyConnector) {
-  const secs = c.doc_sections ?? []
-  return fedStatus.value[c.name]?.connected ? secs.filter((s) => s.kind === 'usage') : secs
-}
-
-// ── messagerie unipile ──
-async function activateUnipile() {
-  try { const { checkout_url } = await subscribeUnipile(); window.location.href = checkout_url } catch (e) { toast(humanize(e)) }
-}
-async function linkUnipile(channel: string) {
-  try { const { url } = await connectUnipile(channel); window.location.href = url } catch (e) { toast(humanize(e)) }
-}
-async function dropUnipile(channel: string) {
-  if (!await confirmAction({ title: `disconnect ${channel} (unipile)`, danger: true, confirmLabel: 'disconnect', message: `disconnect your ${channel}? the unipile tools will stop acting as you on this channel.` })) return
-  try { await disconnectUnipile(channel); toast(`${channel} disconnected`); unipile.value = await getUnipileStatus() } catch (e) { toast(humanize(e)) }
-}
-const hasUnipile = computed(() => catalog.value.some((c) => c.name === 'unipile'))
-const unipileChannels = [
-  { key: 'linkedin', label: 'linkedin', desc: 'search, scrape & message as you' },
-  { key: 'whatsapp', label: 'whatsapp', desc: 'read & send messages as you' },
-  { key: 'telegram', label: 'telegram', desc: 'read & send messages as you' },
-  { key: 'instagram', label: 'instagram', desc: 'read & send DMs as you' },
-  { key: 'messenger', label: 'messenger', desc: 'read & send messages as you' },
-  { key: 'twitter', label: 'x / twitter', desc: 'read & send DMs as you' },
-] as const
-const federated = computed(() => catalog.value.filter((c) => c.secret_kind === 'oauth' && !c.personal_session))
+// Les flux de connexion non-keyés (session crunchbase, mcp fédéré, hosted unipile)
+// sont désormais rendus INLINE par des widgets auto-suffisants dans la ConnectorCard
+// (ADR 0024 R1) — plus de cartes ancrées ni de handlers ici.
 
 // ── presets de toolbox ──
 async function applyPreset(name: string) {
@@ -264,82 +177,11 @@ async function removePreset(name: string) {
           :field-schema="transformsOf(c).schema" :field-rules="transformsOf(c).rules"
           :field-filters-customized="transformsOf(c).customized" :action-schema="fieldFilters?.schema ?? []"
           :org-id="activeOrgId" :is-org-admin="isOrgAdmin"
-          @configure="configure" @remove="removeKey" @goto="goto" @filters-changed="reloadFieldFilters" />
+          @configure="configure" @remove="removeKey" @filters-changed="reloadFieldFilters" />
       </div>
       <p v-if="!shown.length" class="helptext" style="text-align: center; padding: 16px">no connector matches “{{ q }}”.</p>
     </ConsoleCard>
 
-    <!-- ── flux de connexion à carte dédiée (ancrés ; les cartes y pointent) ── -->
-    <div id="sessions" class="grid2">
-      <ConsoleCard title="sessions" sub="per-user browser sessions — never shared with your org.">
-        <div class="rowlist">
-          <div class="rowitem" style="gap: 12px">
-            <Dot :tone="me?.crunchbase.configured ? 'olive' : 'faint'" :size="8" />
-            <div style="min-width: 0; flex: 1">
-              <div style="font-weight: 600; font-size: 13px">crunchbase</div>
-              <div style="font-size: 11.5px; color: var(--color-mute)">
-                {{ me?.crunchbase.configured ? `set ${fmtDate(me.crunchbase.set_at) ?? ''}` : 'no session — company funding & profiles' }}
-              </div>
-            </div>
-            <Btn v-if="me?.crunchbase.configured" kind="danger" @click="dropCrunchbase">disconnect</Btn>
-            <Btn v-else kind="mini" @click="toast('capture your crunchbase cookies via the extension')">connect</Btn>
-          </div>
-        </div>
-      </ConsoleCard>
-    </div>
-
-    <ConsoleCard v-if="federated.length" id="federated" title="federated mcp"
-      sub="connect another mcp to your oto — its tools mount into your session, scoped to your own account.">
-      <div class="rowlist">
-        <div v-for="c in federated" :key="c.name">
-          <div class="rowitem" style="gap: 12px">
-            <Dot :tone="fedStatus[c.name]?.connected ? 'olive' : 'faint'" :size="8" />
-            <div style="min-width: 0; flex: 1">
-              <div style="font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: center">
-                {{ c.label }} <Tag tone="cobalt">mcp</Tag>
-              </div>
-              <div style="font-size: 11.5px; color: var(--color-mute)">
-                {{ fedStatus[c.name]?.connected ? `connected ${fmtDate(fedStatus[c.name]?.set_at) ?? ''} · ${c.help}` : c.help }}
-              </div>
-            </div>
-            <Btn v-if="fedStatus[c.name]?.connected" kind="danger" @click="dropFederated(c)">disconnect</Btn>
-            <Btn v-else kind="mini" @click="linkFederated(c.name)">connect</Btn>
-          </div>
-          <!-- doc « how-to » user-facing (prérequis/usage) — rendue par DocSections -->
-          <DocSections v-if="docFor(c).length" :sections="docFor(c)"
-            style="padding: 2px 12px 10px 32px" />
-        </div>
-      </div>
-    </ConsoleCard>
-
-    <ConsoleCard v-if="hasUnipile" id="messaging" title="messaging (unipile)"
-      sub="a paid add-on — hosted login (no cookie, no extension) for linkedin & whatsapp; the unipile tools then act as you. degressive €15 / €10 / €7 per connected account per month. mcp call credits apply on top.">
-      <template #actions>
-        <Btn v-if="!unipile?.subscribed" kind="mini" @click="activateUnipile">activate · from €15/mo</Btn>
-      </template>
-      <div class="rowlist">
-        <div v-for="c in unipileChannels" :key="c.key" class="rowitem" style="gap: 12px">
-          <Dot :tone="unipile?.channels?.[c.key]?.connected ? 'olive' : (unipile?.subscribed ? 'saffron' : 'faint')" :size="8" />
-          <div style="min-width: 0; flex: 1">
-            <div style="font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: center">
-              {{ c.label }} <Tag tone="cobalt">hosted</Tag>
-              <Tag v-if="unipile?.channels?.[c.key]?.connected" tone="olive">connected</Tag>
-            </div>
-            <div style="font-size: 11.5px; color: var(--color-mute)">
-              {{ !unipile?.subscribed
-                ? 'activate the option above to connect'
-                : (unipile?.channels?.[c.key]?.connected
-                  ? `connected ${fmtDate(unipile?.channels?.[c.key]?.connected_at ?? null) ?? ''} · ${c.desc}`
-                  : `option active — link your ${c.label} to start`) }}
-            </div>
-          </div>
-          <template v-if="unipile?.subscribed">
-            <Btn v-if="unipile?.channels?.[c.key]?.connected" kind="danger" @click="dropUnipile(c.key)">disconnect</Btn>
-            <Btn v-else kind="mini" @click="linkUnipile(c.key)">connect</Btn>
-          </template>
-        </div>
-      </div>
-    </ConsoleCard>
 
     <ConsoleCard title="presets" sub="saved tool selections — switch your whole toolbox in one move.">
       <template #actions><Btn kind="mini" icon="plus" @click="saveCurrentPreset">save current</Btn></template>

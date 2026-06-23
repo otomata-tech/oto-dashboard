@@ -13,6 +13,9 @@ import ModeTag from './ModeTag.vue'
 import Quota from './Quota.vue'
 import ConnectorTransforms from './ConnectorTransforms.vue'
 import ConnectorOAuthAccounts from './ConnectorOAuthAccounts.vue'
+import ConnectorFederatedWidget from './ConnectorFederatedWidget.vue'
+import ConnectorSessionWidget from './ConnectorSessionWidget.vue'
+import ConnectorHostedWidget from './ConnectorHostedWidget.vue'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
@@ -35,12 +38,11 @@ const props = defineProps<{
   orgId?: number | null
   isOrgAdmin?: boolean
 }>()
-// Le credential des flux dédiés (clé, session) est géré par le parent (formulaire /
-// scroll vers la carte spéciale). La carte signale juste l'intention.
+// Le credential keyé reste géré par le parent (formulaire). Les flux non-keyés
+// (oauth/session/hosted) sont rendus INLINE par des widgets auto-suffisants.
 const emit = defineEmits<{
   (e: 'configure', c: MyConnector): void
   (e: 'remove', c: MyConnector): void
-  (e: 'goto', section: string): void
   (e: 'filters-changed'): void
 }>()
 
@@ -100,11 +102,6 @@ async function toggleTool(t: ToolEntry) {
     else { await enableTool(t.name); t.enabled = true }
   } catch (e) { toast(humanize(e)) }
 }
-
-// Cible « gérer la connexion » des flux à carte dédiée (session/google/memento/unipile).
-const gotoSection: Record<Conn, string> = {
-  key: '', session: 'sessions', google: 'google', memento: 'federated', unipile: 'messaging', none: '',
-}
 </script>
 
 <template>
@@ -156,13 +153,19 @@ const gotoSection: Record<Conn, string> = {
         <template v-else-if="connKind === 'none'">
           <span class="dim">no credential needed — open data.</span>
         </template>
-        <!-- OAuth multi-compte (Google) — credential édité INLINE sur la carte (ADR 0024). -->
+        <!-- Tous les flux d'auth sont édités INLINE sur la carte (ADR 0024) — plus de
+             carte ancrée : un widget par méthode, dérivé de connKind. -->
         <template v-else-if="connKind === 'google'">
           <ConnectorOAuthAccounts />
         </template>
-        <template v-else>
-          <span class="dim">connection managed below</span>
-          <Btn kind="link" @click="emit('goto', gotoSection[connKind])">manage ↓</Btn>
+        <template v-else-if="connKind === 'memento'">
+          <ConnectorFederatedWidget :connector="connector" />
+        </template>
+        <template v-else-if="connKind === 'session'">
+          <ConnectorSessionWidget :connector="connector" />
+        </template>
+        <template v-else-if="connKind === 'unipile'">
+          <ConnectorHostedWidget />
         </template>
       </div>
 
