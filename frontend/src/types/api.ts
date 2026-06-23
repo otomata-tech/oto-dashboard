@@ -22,6 +22,7 @@ export interface ConnectorMeta {
   name: string
   label: string
   help: string
+  setup_note?: string        // pré-requis user-facing affiché à la connexion (ex. Atlassian)
   href: string | null
   publisher: string          // éditeur affiché (curé) — catalogue
   logo_url: string | null    // logo éditeur (oto-media), null si absent → placeholder

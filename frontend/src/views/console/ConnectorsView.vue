@@ -313,18 +313,25 @@ async function removePreset(name: string) {
     <ConsoleCard v-if="federated.length" id="federated" title="federated mcp"
       sub="connect another mcp to your oto — its tools mount into your session, scoped to your own account.">
       <div class="rowlist">
-        <div v-for="c in federated" :key="c.name" class="rowitem" style="gap: 12px">
-          <Dot :tone="fedStatus[c.name]?.connected ? 'olive' : 'faint'" :size="8" />
-          <div style="min-width: 0; flex: 1">
-            <div style="font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: center">
-              {{ c.label }} <Tag tone="cobalt">mcp</Tag>
+        <div v-for="c in federated" :key="c.name">
+          <div class="rowitem" style="gap: 12px">
+            <Dot :tone="fedStatus[c.name]?.connected ? 'olive' : 'faint'" :size="8" />
+            <div style="min-width: 0; flex: 1">
+              <div style="font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: center">
+                {{ c.label }} <Tag tone="cobalt">mcp</Tag>
+              </div>
+              <div style="font-size: 11.5px; color: var(--color-mute)">
+                {{ fedStatus[c.name]?.connected ? `connected ${fmtDate(fedStatus[c.name]?.set_at) ?? ''} · ${c.help}` : c.help }}
+              </div>
             </div>
-            <div style="font-size: 11.5px; color: var(--color-mute)">
-              {{ fedStatus[c.name]?.connected ? `connected ${fmtDate(fedStatus[c.name]?.set_at) ?? ''} · ${c.help}` : c.help }}
-            </div>
+            <Btn v-if="fedStatus[c.name]?.connected" kind="danger" @click="dropFederated(c)">disconnect</Btn>
+            <Btn v-else kind="mini" @click="linkFederated(c.name)">connect</Btn>
           </div>
-          <Btn v-if="fedStatus[c.name]?.connected" kind="danger" @click="dropFederated(c)">disconnect</Btn>
-          <Btn v-else kind="mini" @click="linkFederated(c.name)">connect</Btn>
+          <!-- pré-requis user-facing (ex. Atlassian : autoriser l'URL de callback) — avant connexion -->
+          <div v-if="c.setup_note && !fedStatus[c.name]?.connected"
+            style="font-size: 11px; line-height: 1.55; color: var(--color-mute); padding: 2px 12px 10px 32px; word-break: break-word">
+            ⚠ {{ c.setup_note }}
+          </div>
         </div>
       </div>
     </ConsoleCard>
