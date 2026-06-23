@@ -66,6 +66,16 @@ const connKind = computed<Conn>(() => {
   if (c.secret_kind === 'cookie' || c.personal_session) return 'session'
   return 'none'
 })
+// Libellé de la méthode d'auth (couche Authentification, ADR 0024) — nomme le flux.
+const AUTH_LABEL: Record<Conn, string> = {
+  key: 'authentification · clé api',
+  google: 'authentification · oauth (multi-compte)',
+  memento: 'authentification · mcp fédéré',
+  session: 'authentification · session',
+  unipile: 'authentification · hébergé',
+  none: 'authentification · open data (aucune)',
+}
+const authLabel = computed(() => AUTH_LABEL[connKind.value])
 
 // Statut de résolution de la clé (cascade user > group > org > platform) pour les
 // connecteurs keyés — alimente le tag de source + le quota.
@@ -144,8 +154,9 @@ async function toggleTool(t: ToolEntry) {
         </button>
       </div>
 
-      <!-- Onglet 1 — config de la connexion -->
+      <!-- Onglet 1 — config de la connexion (couche Authentification, ADR 0024) -->
       <div v-show="tab === 'conn'" class="cc-conn">
+        <span class="cc-authkind">{{ authLabel }}</span>
         <template v-if="connKind === 'key'">
           <ModeTag :mode="statusMode" />
           <span v-if="status?.platform_key_label" class="dim cc-pk">{{ status.platform_key_label }}</span>
@@ -231,6 +242,7 @@ async function toggleTool(t: ToolEntry) {
 }
 .cc-tabs button.on { color: var(--color-ink); border-bottom-color: var(--color-ink); font-weight: 600; }
 .cc-conn { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 0 6px; }
+.cc-authkind { flex-basis: 100%; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-faint); }
 .cc-docref { flex-basis: 100%; font-size: 11px; }
 .cc-pk { font-size: 11px; }
 .cc-quota { min-width: 120px; }
