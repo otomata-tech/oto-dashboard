@@ -123,8 +123,10 @@ onMounted(async () => {
     toast(unipile.value?.subscribed ? 'option messagerie activée' : 'activation en cours — rafraîchis dans un instant')
   } else if (up === 'cancel') toast('activation annulée')
   await load()
-  // Retour OAuth d'un mcp fédéré : ?<name>=connected|error (name = connecteur du catalogue).
+  // Retour du flux OAuth Google (callback → ?google=connected). Le widget inline
+  // recharge son propre statut au mount ; ici juste la confirmation.
   let touched = up != null
+  if (sp.get('google') === 'connected') { touched = true; toast('compte Google connecté') }
   for (const c of federated.value) {
     const v = sp.get(c.name)
     if (!v) continue
