@@ -7,6 +7,7 @@ import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
+import DocSections from '@/components/console/DocSections.vue'
 import { getMyConnectors, selectConnector } from '@/api/console'
 import type { MyConnector } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -59,6 +60,9 @@ const filtered = computed(() => {
 
 // Monogramme de repli quand pas de logo (1ʳᵉ lettre du label).
 const monogram = (c: MyConnector) => (c.label || c.name).charAt(0).toUpperCase()
+// En découverte on ne montre que l'usage (« ce que ça fait ») ; les prérequis/setup
+// restent au moment de connecter (carte de connexion).
+const usageOf = (c: MyConnector) => (c.doc_sections ?? []).filter((s) => s.kind === 'usage')
 const familyTone = (f: string): 'olive' | 'saffron' | 'cobalt' | 'ink' =>
   f === 'open-data' ? 'olive' : f === 'federated' || f === 'bridge' ? 'cobalt' : 'ink'
 
@@ -95,6 +99,7 @@ const familyTone = (f: string): 'olive' | 'saffron' | 'cobalt' | 'ink' =>
           </div>
         </div>
         <p class="lib-help">{{ c.help || '—' }}</p>
+        <DocSections v-if="usageOf(c).length" :sections="usageOf(c)" style="margin: 2px 0 8px" />
         <div class="lib-tags">
           <Tag tone="saffron">{{ c.category }}</Tag>
           <Tag :tone="familyTone(c.family)">{{ c.family }}</Tag>
