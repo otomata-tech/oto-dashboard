@@ -63,6 +63,11 @@ une carte par niveau du level-switch :
   (forcer actif/inactif/hérite, capacité `connectors.activation.{org_list,set_org,clear_org}`, borné
   au master plateforme), **recommandé** (`setOrgConnectors`), **rédaction ÉDITABLE**. Clé partagée
   d'org + baseline toolset restent pour l'instant dans `/org` (rapatriement différé).
+  > **Rédaction des champs** (`ConnectorTransforms.vue`) : sur **tout** connecteur (plus gaté sur un
+  > schéma curé). Le schéma affiché = **observé** (capture passive backend, cf. `oto-backend/docs/redaction.md`)
+  > ∪ curé ∪ champs sous règle ; **rien par défaut** + **modèles 1-clic** (anonymisation candidat/bancaire) ;
+  > **toggle actif/en-clair + éditer** par champ (`FieldRuleDialog.vue`) ; **dry-run** (`RedactionPreview.vue`)
+  > pour voir avant→après sur un échantillon réel.
 - **PLATEFORME** `/platform/connectors` (`AdminConnectorsView`) — master switch + **clé plateforme**
   (set/remove inline, réservé super_admin ; absorbe l'ex-`/platform/keys`, qui redirige). Entitlements
   de namespace restent par org dans `/platform/orgs`.
