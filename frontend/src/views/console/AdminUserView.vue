@@ -213,12 +213,13 @@ const optionComped = (opt: string) => detail.value?.option_comps?.includes(opt) 
 // user-level : offrir/retirer le comp À CET utilisateur, indépendant de l'org).
 function optionStatus(opt: string): { text: string; tone?: 'olive' | 'saffron' } {
   if (optionComped(opt)) return { text: 'offerte (comp user)', tone: 'olive' }
-  const u = opt === 'unipile' ? detail.value?.unipile : undefined
-  if (u) {
-    if (u.option_source.org_comp) return { text: 'offerte via org (comp)', tone: 'olive' }
-    if (u.option_source.org_subscription)
-      return { text: `abonnée via org (${u.option_source.org_subscription.status})`, tone: 'olive' }
-    if (u.byo) return { text: 'clé BYO (paie en direct)', tone: 'olive' }
+  if (opt === 'unipile') {
+    // EFFECTIF toutes orgs confondues : débloqué via un comp/abonnement/BYO de l'une de ses orgs.
+    const orgs = detail.value?.unipile_orgs ?? []
+    if (orgs.some((u) => u.option_source?.org_comp)) return { text: 'offerte via org (comp)', tone: 'olive' }
+    const subOrg = orgs.find((u) => u.option_source?.org_subscription)
+    if (subOrg) return { text: `abonnée via org (${subOrg.option_source!.org_subscription!.status})`, tone: 'olive' }
+    if (orgs.some((u) => u.byo)) return { text: 'clé BYO (paie en direct)', tone: 'olive' }
   }
   return { text: 'non offerte' }
 }
