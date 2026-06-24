@@ -7,15 +7,17 @@
 import { computed, ref } from 'vue'
 import ConnectorCardShell from './ConnectorCardShell.vue'
 import ConnectorTransforms from './ConnectorTransforms.vue'
+import ConnectorEmail from './ConnectorEmail.vue'
 import Tag from './Tag.vue'
 import Toggle from './Toggle.vue'
-import type { ConnectorMeta, FieldFiltersBundle, OrgConnectorActivation } from '@/types/api'
+import type { ConnectorMeta, EmailSettingsBundle, FieldFiltersBundle, OrgConnectorActivation } from '@/types/api'
 
 const props = defineProps<{
   activation: OrgConnectorActivation
   meta?: ConnectorMeta
   hasOrgKey: boolean
   filters: FieldFiltersBundle | null
+  email: EmailSettingsBundle | null
   orgId: number | null
   isOrgAdmin: boolean
 }>()
@@ -25,6 +27,7 @@ const emit = defineEmits<{
   (e: 'set-key'): void
   (e: 'remove-key'): void
   (e: 'filters-changed'): void
+  (e: 'email-changed'): void
 }>()
 
 const r = computed(() => props.activation)
@@ -47,7 +50,13 @@ const tf = computed(() => {
   }
 })
 
-const open = ref(false)   // rédaction dépliée
+const open = ref(false)       // rédaction dépliée
+const openEmail = ref(false)  // expéditeurs & envoi dépliés
+
+// Email = feature ORG seulement pour les connecteurs d'envoi (transport dérivé).
+const isEmail = computed(() => ['scaleway', 'resend'].includes(r.value.connector))
+const emailBlock = computed(() => props.email?.settings?.[r.value.connector] ?? null)
+const emailTransport = computed(() => props.email?.transports?.[r.value.connector] ?? r.value.connector)
 </script>
 
 <template>
@@ -109,6 +118,17 @@ const open = ref(false)   // rédaction dépliée
       :default-rules="tf.defaultRules" :templates="filters?.templates"
       :action-schema="filters?.schema ?? []" :customized="tf.customized"
       :org-id="orgId" :is-org-admin="isOrgAdmin" @changed="emit('filters-changed')" />
+
+    <!-- Expéditeurs & envoi (connecteurs d'envoi seulement — transport dérivé) -->
+    <template v-if="isEmail && email && orgId != null">
+      <button class="oclink" @click="openEmail = !openEmail">
+        {{ openEmail ? '▾' : '▸' }} expéditeurs &amp; envoi
+      </button>
+      <ConnectorEmail v-if="openEmail"
+        :connector="r.connector" :block="emailBlock" :transport="emailTransport"
+        :quiet-default="email.quiet_hours_default" :resend-key-set="email.resend_key_set"
+        :org-id="orgId" :is-org-admin="isOrgAdmin" @changed="emit('email-changed')" />
+    </template>
   </ConnectorCardShell>
 </template>
 

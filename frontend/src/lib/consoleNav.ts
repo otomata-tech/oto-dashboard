@@ -57,7 +57,6 @@ export const NAV: NavGroup[] = [
   { group: 'organization', level: 'org', items: [
     { path: '/org', label: 'members & secrets', icon: 'users' },
     { path: '/org/connectors', label: 'connectors', icon: 'plug' },
-    { path: '/org/email', label: 'email & envoi', icon: 'mail' },
     { path: '/org/departments', label: 'departments', icon: 'users' },
   ]},
   // ── Gérer la plateforme : réservé opérateur plateforme ─────────────────────
@@ -98,7 +97,6 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/billing': { title: 'billing & credits', crumb: 'account' },
   '/org': { title: 'organization', crumb: 'gérer mon org' },
   '/org/connectors': { title: 'org connectors', crumb: 'gérer mon org' },
-  '/org/email': { title: 'email & envoi', crumb: 'gérer mon org' },
   '/org/departments': { title: 'departments', crumb: 'gérer mon org' },
   '/platform/monitoring': { title: 'mcp monitoring', crumb: 'plateforme' },
   '/platform/usage': { title: 'usage & déroulés', crumb: 'plateforme' },

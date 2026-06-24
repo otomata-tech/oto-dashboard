@@ -9,15 +9,21 @@
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import ConnectorOrgCard from '@/components/console/ConnectorOrgCard.vue'
+import Tag from '@/components/console/Tag.vue'
+import Btn from '@/components/console/Btn.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
 import {
   getOrgConnectorActivation, setOrgConnectorActivation, clearOrgConnectorActivation,
-  getOrgFieldFilters,
+  getOrgFieldFilters, getOrgEmailSettings, listScheduledEmails, cancelScheduledEmail,
   getConnectors, getOrg, setOrgSecret, deleteOrgSecret,
 } from '@/api/console'
-import type { OrgConnectorActivation, FieldFiltersBundle, ConnectorMeta } from '@/types/api'
+import type {
+  OrgConnectorActivation, FieldFiltersBundle, ConnectorMeta,
+  EmailSettingsBundle, ScheduledEmail,
+} from '@/types/api'
+import { fmtDateTime } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
@@ -26,6 +32,7 @@ const { me } = useMe()
 
 const rows = ref<OrgConnectorActivation[]>([])
 const filters = ref<FieldFiltersBundle | null>(null)
+const emailBundle = ref<EmailSettingsBundle | null>(null)
 const meta = ref<Record<string, ConnectorMeta>>({})   // catalogue (secret_kind…)
 const orgSecrets = ref<Set<string>>(new Set())        // connecteurs avec une clé partagée d'org
 const error = ref<string | null>(null)
@@ -45,20 +52,34 @@ const shown = computed(() => {
 async function load() {
   if (activeOrgId.value == null) { loaded.value = true; return }
   try {
-    const [act, ff, cat, org] = await Promise.all([
+    const [act, ff, em, cat, org] = await Promise.all([
       getOrgConnectorActivation(activeOrgId.value),
       getOrgFieldFilters(activeOrgId.value).catch(() => null),
+      getOrgEmailSettings(activeOrgId.value).catch(() => null),
       getConnectors().catch(() => ({ connectors: [] as ConnectorMeta[] })),
       getOrg(activeOrgId.value).catch(() => null),
     ])
     rows.value = act.connectors
     filters.value = ff
+    emailBundle.value = em
     meta.value = Object.fromEntries(cat.connectors.map((c) => [c.name, c]))
     orgSecrets.value = new Set((org?.secrets ?? []).map((s) => s.provider))
+    await loadScheduled()
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
 onMounted(load)
+
+async function reloadEmail() {
+  if (activeOrgId.value == null) return
+  emailBundle.value = await getOrgEmailSettings(activeOrgId.value).catch(() => emailBundle.value)
+  await loadScheduled()
+}
+
+// L'encart « envois programmés » n'a de sens que si au moins un connecteur email a
+// des expéditeurs (sinon rien ne peut partir).
+const hasEmailSenders = computed(() =>
+  Object.values(emailBundle.value?.settings ?? {}).some((b) => (b.senders?.length ?? 0) > 0))
 
 // Clé partagée d'org : a-t-on une clé posée pour ce connecteur ? (le « peut-on en
 // poser une » — secret_kind=api_key — est dérivé dans la carte depuis meta.)
@@ -102,6 +123,37 @@ async function setAvailable(r: OrgConnectorActivation, on: boolean) {
     await load()
   } catch (e) { toast(humanize(e)) }
 }
+
+// ── envois programmés (carton unique en pied de vue) ──────────────────────
+type SchedFilter = 'pending' | 'sent' | 'failed' | 'all'
+const SCHED_FILTERS: SchedFilter[] = ['pending', 'sent', 'failed', 'all']
+const schedFilter = ref<SchedFilter>('pending')
+const scheduled = ref<ScheduledEmail[]>([])
+const schedLoaded = ref(false)
+
+async function loadScheduled() {
+  if (activeOrgId.value == null) { schedLoaded.value = true; return }
+  schedLoaded.value = false
+  try {
+    const res = await listScheduledEmails(activeOrgId.value, schedFilter.value)
+    scheduled.value = res.scheduled_emails
+  } catch (e) { toast(humanize(e)) }
+  finally { schedLoaded.value = true }
+}
+function setSchedFilter(f: SchedFilter) { schedFilter.value = f; loadScheduled() }
+
+async function cancelScheduled(eid: number) {
+  if (activeOrgId.value == null) return
+  if (!await confirmAction({
+    title: 'annuler l\'envoi', danger: true, confirmLabel: 'annuler l\'envoi',
+    message: 'cet email programmé ne partira pas. confirmer ?',
+  })) return
+  try {
+    await cancelScheduledEmail(activeOrgId.value, eid)
+    toast('envoi annulé')
+    await loadScheduled()
+  } catch (e) { toast(humanize(e)) }
+}
 </script>
 
 <template>
@@ -124,12 +176,37 @@ async function setAvailable(r: OrgConnectorActivation, on: boolean) {
       <div class="occards">
         <ConnectorOrgCard v-for="r in shown" :key="r.connector"
           :activation="r" :meta="meta[r.connector]" :has-org-key="hasOrgKey(r.connector)"
-          :filters="filters" :org-id="activeOrgId" :is-org-admin="isOrgAdmin"
+          :filters="filters" :email="emailBundle" :org-id="activeOrgId" :is-org-admin="isOrgAdmin"
           @set-available="(on) => setAvailable(r, on)"
           @set-key="() => setKey(r)" @remove-key="() => removeKey(r)"
-          @filters-changed="reloadFilters" />
+          @filters-changed="reloadFilters" @email-changed="reloadEmail" />
       </div>
       <p v-if="loaded && !shown.length" class="helptext" style="text-align: center; padding: 16px">aucun connecteur.</p>
+
+      <!-- Envois programmés — carton unique en pied (tous connecteurs email confondus) -->
+      <ConsoleCard v-if="hasEmailSenders" title="envois programmés"
+        sub="emails différés (programmés ou retenus par la fenêtre calme)">
+        <template #actions>
+          <div class="seg">
+            <button v-for="f in SCHED_FILTERS" :key="f"
+              :class="{ on: schedFilter === f }" @click="setSchedFilter(f)">{{ f }}</button>
+          </div>
+        </template>
+        <div v-if="schedLoaded && scheduled.length" class="rowlist">
+          <div v-for="m in scheduled" :key="m.id" class="rowitem">
+            <div class="oc-sched-txt">
+              <span class="oc-sched-subj">{{ m.subject || '(sans objet)' }}</span>
+              <span class="oc-dim">{{ m.to_email || '—' }} · {{ fmtDateTime(m.scheduled_at) }}</span>
+            </div>
+            <span class="oc-spacer" />
+            <Tag :tone="m.status === 'failed' ? 'terra' : m.status === 'sent' ? 'olive' : 'saffron'">{{ m.status }}</Tag>
+            <Btn v-if="m.status === 'pending'" kind="danger" @click="cancelScheduled(m.id)">annuler</Btn>
+          </div>
+        </div>
+        <p v-else-if="schedLoaded" class="helptext" style="padding: 6px 0">
+          {{ schedFilter === 'pending' ? 'rien de programmé pour le moment.' : 'aucun email dans ce filtre.' }}
+        </p>
+      </ConsoleCard>
     </template>
   </div>
 </template>
@@ -142,4 +219,9 @@ async function setAvailable(r: OrgConnectorActivation, on: boolean) {
 .cc-search:focus { outline: none; border-color: var(--color-ink); }
 /* Grille de cartes org (mêmes cartes que la vue user — ConnectorOrgCard). */
 .occards { display: flex; flex-direction: column; gap: 12px; }
+/* Lignes du carton « envois programmés ». */
+.oc-sched-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.oc-sched-subj { font-size: 13px; color: var(--color-ink); }
+.oc-dim { font-size: 11.5px; color: var(--color-faint); }
+.oc-spacer { flex: 1; }
 </style>

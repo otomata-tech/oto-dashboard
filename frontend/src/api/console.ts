@@ -11,7 +11,7 @@ import type {
   ScoutQueueItem, ScoutDetail, MementoStatus, MementoWorkspaces, UnipileStatus, ConnectorIdentity, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
   ReferralLink, InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
-  EmailSettings, EmailSender, QuietHours, ScheduledEmail,
+  EmailSettingsBundle, EmailSender, QuietHours, ScheduledEmail,
 } from '@/types/api'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
@@ -228,18 +228,21 @@ export const updateOrg = (id: number, patch: { name?: string; description?: stri
   api<{ ok: true; org_id: number; name: string; description?: string }>(
     `/api/orgs/${id}`, { method: 'PATCH', ...j(patch) })
 
-// ── email & envoi de l'org (ADR 0009) — expéditeurs, fenêtre calme, file ──
-// GET = membre ; PUT = org_admin. Le PUT fait un MERGE JSONB : passer `senders`
-// SEUL ou `quiet_hours` SEUL est ok ; les DEUX absents → 400 nothing_to_set. Le PUT
-// de `senders` REMPLACE toute la liste (toujours envoyer la liste complète).
+// ── email & envoi de l'org — par CONNECTEUR (scaleway hébergé / resend BYOK) ──
+// GET = bundle keyé par connecteur (membre) ; PUT = org_admin, ciblé sur UN
+// connecteur. Le PUT fait un MERGE JSONB : passer `senders` SEUL ou `quiet_hours`
+// SEUL est ok ; les DEUX absents → 400 nothing_to_set ; `quiet_hours` &
+// `clear_quiet_hours` exclusifs. Le PUT de `senders` REMPLACE la liste de CE
+// connecteur (toujours envoyer la liste complète). Le transport DÉRIVE du connecteur.
 export const getOrgEmailSettings = (id: number) =>
-  api<EmailSettings>(`/api/orgs/${id}/email-settings`)
+  api<EmailSettingsBundle>(`/api/orgs/${id}/email-settings`)
 export const setOrgEmailSettings = (
   id: number,
+  connector: string,
   patch: { senders?: EmailSender[]; quiet_hours?: QuietHours; clear_quiet_hours?: boolean },
 ) =>
   api<{ ok: boolean; org_id: number; senders?: EmailSender[]; count?: number; quiet_hours?: QuietHours | null }>(
-    `/api/orgs/${id}/email-settings`, { method: 'PUT', ...j(patch) })
+    `/api/orgs/${id}/email-settings/${encodeURIComponent(connector)}`, { method: 'PUT', ...j(patch) })
 export const listScheduledEmails = (id: number, status = 'pending') =>
   api<{ scheduled_emails: ScheduledEmail[] }>(
     `/api/orgs/${id}/scheduled-emails?status=${encodeURIComponent(status)}`)

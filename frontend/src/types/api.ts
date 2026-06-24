@@ -740,27 +740,34 @@ export interface ScoutDetail {
   actions: ScoutAction[]
 }
 
-// ── email & envoi de l'org (ADR 0009, /org/email) ──
+// ── email & envoi de l'org, PAR CONNECTEUR (ADR 0009, carte connecteur ORG) ──
 // Adresses expéditrices déclarées par l'org pour `email_send` + fenêtre calme
 // (heures où l'envoi est différé) + file d'envois programmés.
 export interface EmailSender {
   email: string
   name?: string
   reply_to?: string
-  transport: 'mailer' | 'resend'
+  // plus de `transport` : le transport DÉRIVE du connecteur (cf. EmailSettingsBundle.transports).
 }
 export interface QuietHours {
   tz: string
   start: number   // heure 0..23
   end: number     // heure 0..23 (wrap minuit ok : start=22/end=7)
 }
-export interface EmailSettings {
-  org_id: number
+// Réglages email d'UN connecteur (expéditeurs + fenêtre calme propre).
+export interface EmailBlock {
   senders: EmailSender[]
-  quiet_hours: QuietHours
-  quiet_hours_default: boolean   // true = pas de fenêtre custom (défaut plateforme)
-  transports: string[]
-  resend_key_set: boolean        // le transport=resend exige la clé d'org
+  quiet_hours?: QuietHours        // absente = défaut plateforme à l'envoi
+}
+// Bundle keyé par connecteur (scaleway = hébergé, resend = BYOK) — le transport
+// se déduit du connecteur (transports[connector]).
+export interface EmailSettingsBundle {
+  org_id: number
+  settings: Record<string, EmailBlock>
+  connectors: string[]
+  transports: Record<string, string>
+  quiet_hours_default: QuietHours
+  resend_key_set: boolean         // le connecteur resend exige la clé d'org
 }
 // Colonnes réelles de db.list_scheduled_emails (sans le HTML).
 export interface ScheduledEmail {
