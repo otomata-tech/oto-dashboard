@@ -1,11 +1,11 @@
 <script setup lang="ts">
 // Cockpit connecteurs de l'ORG (/org/connectors, ADR 0022) — la projection « org »
-// du connecteur : ce que l'org propose & impose à ses membres. Trois leviers par
-// connecteur : plafond dur (override d'activation on/off/hérite), recommandation
-// (baseline default_connectors), et rédaction de champs (éditable ici ; lecture
-// seule côté carte user). Le backend porte l'autz (org_admin) — l'UI masque les
-// contrôles. La clé partagée d'org et la baseline toolset restent pour l'instant
-// dans /org (rapatriement ultérieur).
+// du connecteur : ce que l'org propose & impose à ses membres. Leviers par connecteur :
+// disponibilité (BINAIRE, bornée par la plateforme = plancher dur : on ne peut PAS
+// forcer ce que la plateforme a coupé), clé partagée d'org, abonnement (add-on payant),
+// et rédaction de champs (éditable ici — feature ORG ; absente de la carte user). Le
+// backend porte l'autz (org_admin) — l'UI masque les contrôles. « Recommandé » retiré
+// (inerte aujourd'hui ; backend gardé pour plus tard).
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
@@ -16,7 +16,7 @@ import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
 import {
   getOrgConnectorActivation, setOrgConnectorActivation, clearOrgConnectorActivation,
-  setOrgConnectors, getOrgFieldFilters,
+  getOrgFieldFilters,
   getConnectors, getOrg, setOrgSecret, deleteOrgSecret,
 } from '@/api/console'
 import type { OrgConnectorActivation, FieldFiltersBundle, ConnectorMeta } from '@/types/api'
@@ -37,12 +37,6 @@ const openId = ref<string | null>(null)   // connecteur dont la rédaction est d
 
 const activeOrgId = computed(() => me.value?.active_org ?? null)
 const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin' || me.value?.role === 'admin')
-
-// override d'org : null → 'inherit' (suit le master) ; true → 'on' ; false → 'off'.
-type ActState = 'inherit' | 'on' | 'off'
-function actState(r: OrgConnectorActivation): ActState {
-  return r.org_enabled === null ? 'inherit' : (r.org_enabled ? 'on' : 'off')
-}
 
 const shown = computed(() => {
   const needle = q.value.trim().toLowerCase()
@@ -110,23 +104,15 @@ async function reloadFilters() {
   filters.value = await getOrgFieldFilters(activeOrgId.value).catch(() => filters.value)
 }
 
-async function setActivation(r: OrgConnectorActivation, next: ActState) {
-  if (!isOrgAdmin.value || actState(r) === next) return
+// Disponibilité = BINAIRE, bornée par la plateforme (plancher dur). Personne ne peut
+// FORCER un connecteur que la plateforme a coupé → si master off, aucun levier.
+// on = hérite (la plateforme l'expose, donc dispo) ; off = override « coupé pour mes membres ».
+async function setAvailable(r: OrgConnectorActivation, on: boolean) {
+  if (!isOrgAdmin.value || r.master_enabled !== true) return
   try {
-    if (next === 'inherit') await clearOrgConnectorActivation(activeOrgId.value!, r.connector)
-    else await setOrgConnectorActivation(activeOrgId.value!, r.connector, next === 'on')
-    toast(`${r.label} : ${next === 'inherit' ? 'suit la plateforme' : (next === 'on' ? 'forcé actif' : 'forcé inactif')}`)
-    await load()
-  } catch (e) { toast(humanize(e)) }
-}
-
-async function toggleRecommend(r: OrgConnectorActivation) {
-  if (!isOrgAdmin.value) return
-  const names = new Set(rows.value.filter((x) => x.recommended).map((x) => x.connector))
-  if (r.recommended) names.delete(r.connector); else names.add(r.connector)
-  try {
-    await setOrgConnectors(activeOrgId.value!, [...names])
-    toast(`${r.label} : ${r.recommended ? 'retiré des' : 'ajouté aux'} recommandés`)
+    if (on) await clearOrgConnectorActivation(activeOrgId.value!, r.connector)
+    else await setOrgConnectorActivation(activeOrgId.value!, r.connector, false)
+    toast(`${r.label} : ${on ? 'disponible pour tes membres' : 'coupé pour tes membres'}`)
     await load()
   } catch (e) { toast(humanize(e)) }
 }
@@ -142,7 +128,7 @@ async function toggleRecommend(r: OrgConnectorActivation) {
 
     <template v-else>
       <ConsoleCard title="connecteurs de l'org"
-        sub="pour chaque connecteur : ce que tes membres peuvent installer (disponibilité), ce que tu mets en avant (recommandé), la clé partagée de l'org et la rédaction des champs. la plateforme borne — tu ne peux pas exposer un connecteur qu'elle a coupé.">
+        sub="pour chaque connecteur : ce que tes membres peuvent installer (disponibilité), la clé partagée de l'org et la rédaction des champs. la plateforme borne — tu ne peux pas exposer un connecteur qu'elle a coupé.">
         <template #actions>
           <input v-model="q" class="cc-search" placeholder="rechercher…" />
         </template>
@@ -158,37 +144,19 @@ async function toggleRecommend(r: OrgConnectorActivation) {
             <strong>{{ r.effective ? 'disponible pour tes membres' : 'coupé pour tes membres' }}</strong>
             <span class="dim"> — {{ r.effective ? 'ils peuvent l\'installer dans leur toolbox' : 'invisible dans leur catalogue' }}</span>
           </span>
-          <Tag v-if="r.recommended" tone="saffron">recommandé</Tag>
         </div>
 
         <div class="ocrow">
-          <!-- Levier 1 : disponibilité (plafond dur) -->
+          <!-- Levier 1 : disponibilité — BINAIRE, bornée par la plateforme (plancher dur) -->
           <div class="ocfield">
             <span class="oclabel">disponibilité</span>
             <span class="ochelp">ce que tes membres peuvent installer</span>
-            <div class="ocseg" role="radiogroup" aria-label="disponibilité">
-              <button :class="{ on: actState(r) === 'inherit' }" :disabled="!isOrgAdmin" @click="setActivation(r, 'inherit')">
-                hérite<span class="dim"> (plateforme : {{ r.master_enabled ? 'on' : 'off' }})</span>
-              </button>
-              <button :class="{ on: actState(r) === 'on' }" :disabled="!isOrgAdmin || r.master_enabled !== true"
-                :title="r.master_enabled !== true ? 'la plateforme l\'a coupé' : ''" @click="setActivation(r, 'on')">
-                forcer dispo
-              </button>
-              <button :class="{ on: actState(r) === 'off' }" :disabled="!isOrgAdmin" @click="setActivation(r, 'off')">
-                forcer coupé
-              </button>
-            </div>
-            <span v-if="r.master_enabled !== true" class="dim ocnote">la plateforme l'a coupé — tu ne peux pas l'exposer</span>
+            <Toggle v-if="r.master_enabled === true" :on="r.effective" :disabled="!isOrgAdmin"
+              @change="setAvailable(r, !r.effective)" />
+            <span v-else class="dim ocnote">coupé par la plateforme — tu ne peux pas l'exposer</span>
           </div>
 
-          <!-- Levier 2 : recommandation (suggestion douce) -->
-          <div class="ocfield">
-            <span class="oclabel">recommandé</span>
-            <span class="ochelp">mis en avant (tes membres restent libres)</span>
-            <Toggle :on="r.recommended" :disabled="!isOrgAdmin" @change="toggleRecommend(r)" />
-          </div>
-
-          <!-- Levier 3 : clé partagée d'org (connecteurs à clé simple) -->
+          <!-- Levier 2 : clé partagée d'org (connecteurs à clé simple) -->
           <div v-if="canHaveOrgKey(r.connector)" class="ocfield">
             <span class="oclabel">clé d'org</span>
             <span class="ochelp">héritée par les membres sans clé perso</span>
@@ -202,7 +170,7 @@ async function toggleRecommend(r: OrgConnectorActivation) {
             </div>
           </div>
 
-          <!-- Levier 4 : abonnement (couche 3) — add-on payant (ex. unipile) -->
+          <!-- Levier 3 : abonnement (couche 3) — add-on payant (ex. unipile) -->
           <div v-if="r.paid_option" class="ocfield">
             <span class="oclabel">abonnement</span>
             <span class="ochelp">add-on payant de l'org</span>
