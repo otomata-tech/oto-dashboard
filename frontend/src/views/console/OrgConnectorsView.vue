@@ -153,7 +153,11 @@ async function addAccess(r: OrgConnectorActivation) {
     submitLabel: 'autoriser',
   })
   if (!res?.principal) return
-  const [ptype, pid] = String(res.principal).split(':', 2)
+  const raw = String(res.principal)
+  const i = raw.indexOf(':')
+  const ptype = raw.slice(0, i)
+  const pid = raw.slice(i + 1)
+  if (!ptype || !pid) return
   try { await setConnectorAccess(activeOrgId.value!, r.connector, ptype, pid); toast(`${r.label} : accès réservé`); await reloadAcl() }
   catch (e) { toast(humanize(e)) }
 }
