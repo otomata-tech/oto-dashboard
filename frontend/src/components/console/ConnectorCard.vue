@@ -9,9 +9,7 @@ import { computed, ref } from 'vue'
 import Toggle from './Toggle.vue'
 import Tag from './Tag.vue'
 import Btn from './Btn.vue'
-import ModeTag from './ModeTag.vue'
 import Quota from './Quota.vue'
-import ConnectorTransforms from './ConnectorTransforms.vue'
 import ConnectorOAuthAccounts from './ConnectorOAuthAccounts.vue'
 import ConnectorFederatedWidget from './ConnectorFederatedWidget.vue'
 import ConnectorSessionWidget from './ConnectorSessionWidget.vue'
@@ -23,30 +21,20 @@ import {
   selectConnector, pauseConnector, unselectConnector, enableTool, disableTool,
 } from '@/api/console'
 import type { ConnectorMode } from '@/lib/consoleTypes'
-import type {
-  ConnectorFieldSchema, ConnectorState, FieldActionSchema, FieldRule, MyConnector, ToolEntry,
-} from '@/types/api'
+import type { ConnectorState, MyConnector, ToolEntry } from '@/types/api'
 
 const props = defineProps<{
   connector: MyConnector
   tools: ToolEntry[]
-  // Onglet « transformations » (redaction de champs, ADR 0015) — données fournies par le parent.
-  fieldSchema?: ConnectorFieldSchema[]
-  fieldRules?: FieldRule[]
-  fieldFiltersCustomized?: boolean
-  actionSchema?: FieldActionSchema[]
-  orgId?: number | null
-  isOrgAdmin?: boolean
 }>()
 // Le credential keyé reste géré par le parent (formulaire). Les flux non-keyés
 // (oauth/session/hosted) sont rendus INLINE par des widgets auto-suffisants.
 const emit = defineEmits<{
   (e: 'configure', c: MyConnector): void
   (e: 'remove', c: MyConnector): void
-  (e: 'filters-changed'): void
 }>()
 
-type Tab = 'conn' | 'tools' | 'transforms'
+type Tab = 'conn' | 'tools'
 const tab = ref<Tab>('conn')
 
 const { me } = useMe()
@@ -88,17 +76,23 @@ const statusMode = computed<ConnectorMode>(() => {
 })
 const keyConfigured = computed(() => !!status.value?.user_key_configured)
 
+// Quelle clé est RÉSOLUE pour ce connecteur (perso / équipe / org / plateforme), en
+// clair — retour user : « on ne sait pas si on a la clé plateforme, org ou perso ».
+const KEY_SOURCE: Record<ConnectorMode, string> = {
+  user: 'ta clé perso',
+  group: 'la clé de ton équipe',
+  org: 'la clé de ton org',
+  platform: 'la clé plateforme oto',
+  none: 'aucune — à configurer',
+}
+const keySource = computed(() => KEY_SOURCE[statusMode.value])
+
 // Posture « doctrine-only » (ADR 0024) : un connecteur peut être référencé par des
 // doctrines (`<tool:slug>`) sans être connecté — utile à l'écriture de doctrines.
 const docRefCount = computed(() => props.connector.doctrine_ref_count ?? 0)
 
 const myTools = computed(() => [...props.tools].sort((a, b) => a.name.localeCompare(b.name)))
 const enabledCount = computed(() => myTools.value.filter((t) => t.enabled).length)
-
-// L'onglet transformations n'apparaît que pour les connecteurs concernés par la redaction
-// (schéma déclaré ou règle déjà posée).
-const hasTransforms = computed(() =>
-  (props.fieldSchema?.length ?? 0) > 0 || (props.fieldRules?.length ?? 0) > 0)
 
 async function setState(s: ConnectorState) {
   if (state.value === s) return
@@ -127,7 +121,6 @@ async function toggleTool(t: ToolEntry) {
       </div>
       <div class="cc-id">
         <div class="cc-name">{{ connector.label }}
-          <Tag v-if="connector.recommended" tone="cobalt">recommended</Tag>
           <!-- Posture fédérée (ADR 0024) : login délégué + outils proxifiés, mais
                toujours sous gouvernance oto (redaction/calllog/billing). -->
           <Tag v-if="connector.family === 'federated'" tone="saffron" title="mcp fédéré — login délégué, outils proxifiés sous gouvernance oto">fédéré</Tag>
@@ -149,17 +142,13 @@ async function toggleTool(t: ToolEntry) {
         <button :class="{ on: tab === 'tools' }" @click="tab = 'tools'">
           outils <span class="dim">{{ enabledCount }}/{{ myTools.length }}</span>
         </button>
-        <button v-if="hasTransforms" :class="{ on: tab === 'transforms' }" @click="tab = 'transforms'">
-          transformations
-        </button>
       </div>
 
       <!-- Onglet 1 — config de la connexion (couche Authentification, ADR 0024) -->
       <div v-show="tab === 'conn'" class="cc-conn">
         <span class="cc-authkind">{{ authLabel }}</span>
         <template v-if="connKind === 'key'">
-          <ModeTag :mode="statusMode" />
-          <span v-if="status?.platform_key_label" class="dim cc-pk">{{ status.platform_key_label }}</span>
+          <span class="cc-keysrc">clé utilisée : <strong>{{ keySource }}</strong><span v-if="statusMode === 'platform' && status?.platform_key_label" class="dim"> ({{ status.platform_key_label }})</span></span>
           <Quota v-if="status?.quota_daily" class="cc-quota"
             :used="status.quota_used_today" :total="status.quota_daily" label="" />
           <span class="cc-actions">
@@ -203,12 +192,6 @@ async function toggleTool(t: ToolEntry) {
         <p v-if="!myTools.length" class="cc-no-tools dim">no tools loaded for this connector.</p>
       </div>
 
-      <!-- Onglet 3 — transformations (redaction de champs) -->
-      <!-- Rédaction en LECTURE SEULE côté user — l'édition vit dans /org/connectors (ADR 0022). -->
-      <ConnectorTransforms v-if="hasTransforms" v-show="tab === 'transforms'" readonly
-        :service="connector.name" :fields="fieldSchema ?? []" :rules="fieldRules ?? []"
-        :action-schema="actionSchema ?? []" :customized="fieldFiltersCustomized ?? false"
-        :org-id="orgId ?? null" :is-org-admin="isOrgAdmin ?? false" />
     </div>
   </article>
 </template>
@@ -244,7 +227,7 @@ async function toggleTool(t: ToolEntry) {
 .cc-conn { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 0 6px; }
 .cc-authkind { flex-basis: 100%; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-faint); }
 .cc-docref { flex-basis: 100%; font-size: 11px; }
-.cc-pk { font-size: 11px; }
+.cc-keysrc { font-size: 12px; }
 .cc-quota { min-width: 120px; }
 .cc-actions { margin-left: auto; display: flex; gap: 6px; }
 .cc-tools { display: flex; flex-direction: column; gap: 5px; }

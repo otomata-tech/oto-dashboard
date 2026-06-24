@@ -17,11 +17,9 @@ import { useMe } from '@/composables/useMe'
 import {
   getMyConnectors, getTools, getPresets, setCredential, deleteApiKey,
   applyPreset as applyPresetApi, savePreset, deletePreset,
-  getOrgFieldFilters,
 } from '@/api/console'
 import type {
-  ConnectorState, FieldFiltersBundle, MyConnector,
-  PresetEntry, ToolEntry,
+  ConnectorState, MyConnector, PresetEntry, ToolEntry,
 } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -35,32 +33,13 @@ const profileLabel = computed(() => me.value?.active_org_name || 'Perso')
 const catalog = ref<MyConnector[]>([])
 const tools = ref<ToolEntry[]>([])
 const presets = ref<PresetEntry[]>([])
-const fieldFilters = ref<FieldFiltersBundle | null>(null)
 const error = ref<string | null>(null)
 const q = ref('')
-
-const activeOrgId = computed(() => me.value?.active_org ?? null)
-const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin' || me.value?.role === 'admin')
 
 const nsOf = (toolName: string): string => toolName.split('_')[0] ?? toolName
 function toolsOf(c: MyConnector): ToolEntry[] {
   const ns = new Set(c.namespaces)
   return tools.value.filter((t) => ns.has(nsOf(t.name)))
-}
-
-// Transformations (redaction) du connecteur : schéma déclaré + règles effectives
-// (politique de l'org si posée, sinon défaut serveur).
-function transformsOf(c: MyConnector) {
-  const b = fieldFilters.value
-  return {
-    schema: b?.schemas?.[c.name] ?? [],
-    rules: b?.filters?.[c.name]?.rules ?? b?.defaults?.[c.name]?.rules ?? [],
-    customized: !!b?.filters?.[c.name],
-  }
-}
-async function reloadFieldFilters() {
-  if (activeOrgId.value == null) { fieldFilters.value = null; return }
-  fieldFilters.value = await getOrgFieldFilters(activeOrgId.value).catch(() => null)
 }
 
 // Tri : actifs d'abord, puis masqués, puis désactivés ; à l'intérieur par libellé.
@@ -80,14 +59,12 @@ const exposedTools = computed(() => tools.value.filter((t) => t.enabled).length)
 
 async function load() {
   try {
-    const [mc, tl, pr, ff] = await Promise.all([
+    const [mc, tl, pr] = await Promise.all([
       getMyConnectors(), getTools(), getPresets().catch(() => ({ presets: [] })),
-      activeOrgId.value == null ? Promise.resolve(null) : getOrgFieldFilters(activeOrgId.value).catch(() => null),
     ])
     catalog.value = mc.connectors
     tools.value = tl.tools
     presets.value = pr.presets
-    fieldFilters.value = ff
   } catch (e) { error.value = humanize(e) }
 }
 onMounted(async () => {
@@ -174,10 +151,7 @@ async function removePreset(name: string) {
       </template>
       <div class="cc-grid">
         <ConnectorCard v-for="c in shown" :key="c.name" :connector="c" :tools="toolsOf(c)"
-          :field-schema="transformsOf(c).schema" :field-rules="transformsOf(c).rules"
-          :field-filters-customized="transformsOf(c).customized" :action-schema="fieldFilters?.schema ?? []"
-          :org-id="activeOrgId" :is-org-admin="isOrgAdmin"
-          @configure="configure" @remove="removeKey" @filters-changed="reloadFieldFilters" />
+          @configure="configure" @remove="removeKey" />
       </div>
       <p v-if="!shown.length" class="helptext" style="text-align: center; padding: 16px">no connector matches “{{ q }}”.</p>
     </ConsoleCard>

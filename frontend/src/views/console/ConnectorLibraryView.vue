@@ -103,7 +103,6 @@ const familyTone = (f: string): 'olive' | 'saffron' | 'cobalt' | 'ink' =>
         <div class="lib-tags">
           <Tag tone="saffron">{{ c.category }}</Tag>
           <Tag :tone="familyTone(c.family)">{{ c.family }}</Tag>
-          <span v-if="c.recommended" class="lib-flag lib-flag-proposed">proposed by org</span>
           <span v-if="c.availability === 'platform_granted'" class="lib-flag">grant-only</span>
         </div>
         <div class="lib-foot">
