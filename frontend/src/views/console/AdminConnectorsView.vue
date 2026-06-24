@@ -14,8 +14,9 @@ import { useMe } from '@/composables/useMe'
 import {
   getAdminConnectors, setConnectorActivation,
   getConnectors, getPlatformKeys, createPlatformKey, deletePlatformKey,
+  getUnipilePlatformSeats,
 } from '@/api/console'
-import type { ConnectorActivation, ConnectorMeta, PlatformKey } from '@/types/api'
+import type { ConnectorActivation, ConnectorMeta, PlatformKey, UnipileSeat } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
@@ -27,6 +28,8 @@ const isSuperAdmin = computed(() => me.value?.role === 'super_admin')
 const connectors = ref<ConnectorActivation[]>([])
 const meta = ref<Record<string, ConnectorMeta>>({})
 const keys = ref<PlatformKey[]>([])
+const seats = ref<UnipileSeat[]>([])
+const seatsConfigured = ref(false)
 const error = ref<string | null>(null)
 const q = ref('')
 
@@ -52,8 +55,19 @@ async function load() {
     meta.value = Object.fromEntries(cat.connectors.map((c) => [c.name, c]))
     keys.value = k.platform_keys
   } catch (e) { error.value = humanize(e) }
+  // Sièges de la clé plateforme unipile — réservé super_admin (révèle l'ownership
+  // cross-user) ; best-effort, n'empêche pas le reste de la page.
+  if (isSuperAdmin.value) {
+    try {
+      const s = await getUnipilePlatformSeats()
+      seats.value = s.seats
+      seatsConfigured.value = s.configured
+    } catch { /* pas de clé plateforme ou 403 → carte masquée */ }
+  }
 }
 onMounted(load)
+
+const orphanCount = computed(() => seats.value.filter((s) => s.orphan).length)
 
 async function toggle(c: ConnectorActivation) {
   const next = c.enabled !== true
@@ -142,6 +156,39 @@ async function removeKey(k: PlatformKey) {
         <strong>platform grant</strong> (quota-metered) → forbidden. no key and no grant = no access until one is set.
         grant a platform key to a user from their fiche in « users ».
       </div>
+    </ConsoleCard>
+
+    <ConsoleCard v-if="isSuperAdmin && seatsConfigured" title="unipile platform key · seats"
+      :sub="`accounts living on the shared unipile instance, reconciled with their oto owner. an orphan account belongs to no oto user (a churned user) and still bills ~€5/mo.${orphanCount ? ` ${orphanCount} orphan(s).` : ''}`">
+      <table class="tbl">
+        <thead><tr><th>account</th><th>channel</th><th>owner</th><th>status</th></tr></thead>
+        <tbody>
+          <tr v-for="s in seats" :key="s.account_id">
+            <td>
+              <div style="font-weight: 600; color: var(--color-ink)">{{ s.name || '—' }}</div>
+              <code class="mono" style="font-size: 11px; color: var(--color-faint)">{{ s.account_id }}</code>
+            </td>
+            <td style="font-size: 12px">{{ (s.type || '').toLowerCase() }}</td>
+            <td>
+              <template v-if="s.orphan">
+                <span style="font-weight: 600; color: var(--color-terra-ink)">orphan</span>
+                <span class="dim" style="font-size: 11px"> · no oto user</span>
+              </template>
+              <template v-else>
+                <div style="font-size: 12.5px; color: var(--color-ink)">{{ s.owner_email }}</div>
+                <div v-if="s.org_name" class="dim" style="font-size: 11px">{{ s.org_name }}</div>
+              </template>
+            </td>
+            <td style="font-size: 11px"
+              :style="{ color: s.status && s.status.toUpperCase() === 'OK' ? 'var(--color-ink)' : 'var(--color-terra-ink)' }">
+              {{ s.status }}
+            </td>
+          </tr>
+          <tr v-if="!seats.length">
+            <td colspan="4" class="dim" style="text-align: center; padding: 16px">no accounts on the platform instance</td>
+          </tr>
+        </tbody>
+      </table>
     </ConsoleCard>
   </div>
 </template>

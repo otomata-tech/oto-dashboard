@@ -385,6 +385,20 @@ export interface ConnectorIdentity {
   channel: string | null    // canal (unipile : LINKEDIN/…) ; null hors multi-canal
 }
 
+// Siège de la clé plateforme unipile : un compte de l'instance partagée + son
+// propriétaire oto (orphan = présent sur l'instance, mappé à aucun user).
+export interface UnipileSeat {
+  account_id: string
+  name: string | null
+  type: string | null
+  status: string
+  owner_sub: string | null
+  owner_email: string | null
+  org_id: number | null
+  org_name: string | null
+  orphan: boolean
+}
+
 // ── orgs ──
 export interface Org {
   id: number

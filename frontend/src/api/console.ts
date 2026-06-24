@@ -8,7 +8,7 @@ import type {
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
   DatastoreRow, NamespaceEntry, NamespaceShare, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal,
-  ScoutQueueItem, ScoutDetail, MementoStatus, MementoWorkspaces, UnipileStatus, ConnectorIdentity, WaitlistEntry, AlphaInvite, InvitePreview,
+  ScoutQueueItem, ScoutDetail, MementoStatus, MementoWorkspaces, UnipileStatus, ConnectorIdentity, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
   ReferralLink, InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
 } from '@/types/api'
@@ -84,6 +84,11 @@ export const getConnectorIdentities = (connector: string) =>
 export const setConnectorIdentity = (connector: string, identity_id: string) =>
   api(`/api/connectors/${encodeURIComponent(connector)}/identities/default`,
     { method: 'PUT', ...j({ identity_id }) })
+
+// ── admin : sièges de la clé plateforme unipile (réconciliation owners) ──
+export const getUnipilePlatformSeats = () =>
+  api<{ configured: boolean; instance_dsn: string | null; seats: UnipileSeat[]; orphan_count: number }>(
+    '/api/admin/unipile/seats')
 
 // ── cli tokens ──
 export const getTokens = () => api<{ tokens: ApiToken[] }>('/api/me/tokens')
