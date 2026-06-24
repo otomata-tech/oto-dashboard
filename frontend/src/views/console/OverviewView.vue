@@ -52,7 +52,7 @@ const userKeysCount = computed(() =>
 )
 const sessionsActive = computed(() => {
   let n = 0
-  if (me.value?.crunchbase.configured) n++
+  if (me.value?.crunchbase?.configured) n++
   if (google.value?.connected) n++
   return n
 })

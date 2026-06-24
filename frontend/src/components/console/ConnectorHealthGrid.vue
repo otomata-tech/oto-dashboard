@@ -56,11 +56,11 @@ const cellStyle = 'border: 1px solid var(--color-hair); border-radius: 9px; padd
       </div>
       <div :style="cellStyle">
         <div style="display: flex; align-items: center; gap: 7px">
-          <Dot :tone="me?.crunchbase.configured ? 'olive' : 'faint'" :size="7" />
+          <Dot :tone="me?.crunchbase?.configured ? 'olive' : 'faint'" :size="7" />
           <span style="font-weight: 600; font-size: 12.5px">crunchbase</span>
         </div>
-        <Tag :tone="me?.crunchbase.configured ? 'olive' : undefined">
-          {{ me?.crunchbase.configured ? 'session ok' : 'no session' }}
+        <Tag :tone="me?.crunchbase?.configured ? 'olive' : undefined">
+          {{ me?.crunchbase?.configured ? 'session ok' : 'no session' }}
         </Tag>
       </div>
     </div>
