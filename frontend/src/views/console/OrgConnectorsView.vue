@@ -18,10 +18,11 @@ import {
   getOrgConnectorActivation, setOrgConnectorActivation, clearOrgConnectorActivation,
   getOrgFieldFilters, getOrgEmailSettings, listScheduledEmails, cancelScheduledEmail,
   getConnectors, getOrg, setOrgSecret, deleteOrgSecret,
+  getConnectorAcl, setConnectorAccess, clearConnectorAccess, listGroups,
 } from '@/api/console'
 import type {
   OrgConnectorActivation, FieldFiltersBundle, ConnectorMeta,
-  EmailSettingsBundle, ScheduledEmail,
+  EmailSettingsBundle, ScheduledEmail, ConnectorAclEntry, GroupListItem, OrgMember,
 } from '@/types/api'
 import { fmtDateTime } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -35,6 +36,9 @@ const filters = ref<FieldFiltersBundle | null>(null)
 const emailBundle = ref<EmailSettingsBundle | null>(null)
 const meta = ref<Record<string, ConnectorMeta>>({})   // catalogue (secret_kind…)
 const orgSecrets = ref<Set<string>>(new Set())        // connecteurs avec une clé partagée d'org
+const acl = ref<ConnectorAclEntry[]>([])              // RBAC connecteur (ADR 0025)
+const groups = ref<GroupListItem[]>([])               // départements de l'org (picker)
+const members = ref<OrgMember[]>([])                  // membres de l'org (picker)
 const error = ref<string | null>(null)
 const loaded = ref(false)
 const q = ref('')
@@ -52,18 +56,23 @@ const shown = computed(() => {
 async function load() {
   if (activeOrgId.value == null) { loaded.value = true; return }
   try {
-    const [act, ff, em, cat, org] = await Promise.all([
+    const [act, ff, em, cat, org, aclRes, grps] = await Promise.all([
       getOrgConnectorActivation(activeOrgId.value),
       getOrgFieldFilters(activeOrgId.value).catch(() => null),
       getOrgEmailSettings(activeOrgId.value).catch(() => null),
       getConnectors().catch(() => ({ connectors: [] as ConnectorMeta[] })),
       getOrg(activeOrgId.value).catch(() => null),
+      getConnectorAcl(activeOrgId.value).catch(() => ({ access: [] as ConnectorAclEntry[] })),
+      listGroups(activeOrgId.value).catch(() => ({ groups: [] as GroupListItem[] })),
     ])
     rows.value = act.connectors
     filters.value = ff
     emailBundle.value = em
     meta.value = Object.fromEntries(cat.connectors.map((c) => [c.name, c]))
     orgSecrets.value = new Set((org?.secrets ?? []).map((s) => s.provider))
+    acl.value = aclRes.access
+    groups.value = grps.groups
+    members.value = org?.members ?? []
     await loadScheduled()
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
@@ -124,6 +133,36 @@ async function setAvailable(r: OrgConnectorActivation, on: boolean) {
   } catch (e) { toast(humanize(e)) }
 }
 
+// ── RBAC connecteur interne à l'org (ADR 0025) ────────────────────────────
+const aclFor = (connector: string) => acl.value.filter((e) => e.connector === connector)
+async function reloadAcl() {
+  if (activeOrgId.value == null) return
+  acl.value = (await getConnectorAcl(activeOrgId.value).catch(() => ({ access: acl.value }))).access
+}
+async function addAccess(r: OrgConnectorActivation) {
+  if (!isOrgAdmin.value) return
+  const opts = [
+    ...groups.value.map((g) => ({ value: `group:${g.id}`, label: `équipe · ${g.name}` })),
+    ...members.value.map((m) => ({ value: `user:${m.sub}`, label: `membre · ${m.name || m.email || m.sub}` })),
+  ]
+  if (!opts.length) { toast('crée d\'abord un département ou ajoute des membres'); return }
+  const res = await promptForm({
+    title: `${r.label} — réserver l'accès`,
+    description: 'ajoute un département ou un membre autorisé. dès le 1er ajout, le connecteur devient RÉSERVÉ (invisible + bloqué pour les autres, même avec leur propre clé).',
+    fields: [{ key: 'principal', label: 'autoriser', type: 'select', required: true, options: opts }],
+    submitLabel: 'autoriser',
+  })
+  if (!res?.principal) return
+  const [ptype, pid] = String(res.principal).split(':', 2)
+  try { await setConnectorAccess(activeOrgId.value!, r.connector, ptype, pid); toast(`${r.label} : accès réservé`); await reloadAcl() }
+  catch (e) { toast(humanize(e)) }
+}
+async function removeAccess(r: OrgConnectorActivation, ptype: string, pid: string) {
+  if (!isOrgAdmin.value) return
+  try { await clearConnectorAccess(activeOrgId.value!, r.connector, ptype, pid); await reloadAcl() }
+  catch (e) { toast(humanize(e)) }
+}
+
 // ── envois programmés (carton unique en pied de vue) ──────────────────────
 type SchedFilter = 'pending' | 'sent' | 'failed' | 'all'
 const SCHED_FILTERS: SchedFilter[] = ['pending', 'sent', 'failed', 'all']
@@ -177,8 +216,10 @@ async function cancelScheduled(eid: number) {
         <ConnectorOrgCard v-for="r in shown" :key="r.connector"
           :activation="r" :meta="meta[r.connector]" :has-org-key="hasOrgKey(r.connector)"
           :filters="filters" :email="emailBundle" :org-id="activeOrgId" :is-org-admin="isOrgAdmin"
+          :acl="aclFor(r.connector)" :groups="groups" :members="members"
           @set-available="(on) => setAvailable(r, on)"
           @set-key="() => setKey(r)" @remove-key="() => removeKey(r)"
+          @add-access="() => addAccess(r)" @remove-access="(pt, pid) => removeAccess(r, pt, pid)"
           @filters-changed="reloadFilters" @email-changed="reloadEmail" />
       </div>
       <p v-if="loaded && !shown.length" class="helptext" style="text-align: center; padding: 16px">aucun connecteur.</p>

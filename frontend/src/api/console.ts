@@ -2,7 +2,7 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, ApiToken, BillingBalance, ConnectorActivation, ConnectorMeta, MyConnector,
+  AdminUser, AdminUserDetail, AdminOrgSummary, ApiToken, BillingBalance, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
   CreditPack, CreditTransaction, DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
@@ -275,6 +275,15 @@ export const setOrgConnectorActivation = (id: number, name: string, enabled: boo
 export const clearOrgConnectorActivation = (id: number, name: string) =>
   api<{ org_id: number; connector: string; cleared: boolean }>(
     `/api/orgs/${id}/connectors/${encodeURIComponent(name)}/activation`, { method: 'DELETE' })
+// RBAC connecteur interne à l'org (ADR 0025) : réserver un connecteur à des départements/membres.
+export const getConnectorAcl = (id: number) =>
+  api<{ org_id: number; access: ConnectorAclEntry[]; restricted: string[] }>(`/api/orgs/${id}/connectors/acl`)
+export const setConnectorAccess = (id: number, connector: string, principal_type: string, principal_id: string) =>
+  api(`/api/orgs/${id}/connectors/${encodeURIComponent(connector)}/access`,
+    { method: 'POST', ...j({ principal_type, principal_id }) })
+export const clearConnectorAccess = (id: number, connector: string, principal_type: string, principal_id: string) =>
+  api(`/api/orgs/${id}/connectors/${encodeURIComponent(connector)}/access?principal_type=${principal_type}&principal_id=${encodeURIComponent(principal_id)}`,
+    { method: 'DELETE' })
 // Recommandation d'org (« org propose ») — baseline consultative de connecteurs.
 export const setOrgConnectors = (id: number, connectors: string[]) =>
   api<{ org_id: number; recommended: string[] }>(

@@ -119,6 +119,16 @@ export interface OrgConnectorActivation {
   subscribed?: boolean          // l'org a souscrit l'option (comp admin ou abonnement Stripe)
 }
 
+// RBAC connecteur interne à l'org (ADR 0025) : une entrée = un principal (département
+// ou membre) autorisé sur un connecteur. ≥1 entrée pour un connecteur ⟹ il est réservé.
+export interface ConnectorAclEntry {
+  connector: string
+  principal_type: 'group' | 'user'
+  principal_id: string           // group_id (en texte) ou sub
+  granted_by?: string | null
+  granted_at?: string
+}
+
 // Miroir de access.py::status_for (cascade user > group > org > platform).
 export interface ProviderStatus {
   mode: 'user' | 'group' | 'org' | 'platform' | 'forbidden' | 'over_quota'

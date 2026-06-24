@@ -10,7 +10,7 @@ import ConnectorTransforms from './ConnectorTransforms.vue'
 import ConnectorEmail from './ConnectorEmail.vue'
 import Tag from './Tag.vue'
 import Toggle from './Toggle.vue'
-import type { ConnectorMeta, EmailSettingsBundle, FieldFiltersBundle, OrgConnectorActivation } from '@/types/api'
+import type { ConnectorAclEntry, ConnectorMeta, EmailSettingsBundle, FieldFiltersBundle, GroupListItem, OrgConnectorActivation, OrgMember } from '@/types/api'
 
 const props = defineProps<{
   activation: OrgConnectorActivation
@@ -20,6 +20,9 @@ const props = defineProps<{
   email: EmailSettingsBundle | null
   orgId: number | null
   isOrgAdmin: boolean
+  acl?: ConnectorAclEntry[]        // ACL de CE connecteur (RBAC org, ADR 0025) ; vide = ouvert
+  groups?: GroupListItem[]         // départements de l'org (pour libeller les principals groupe)
+  members?: OrgMember[]            // membres de l'org (pour libeller les principals user)
 }>()
 
 const emit = defineEmits<{
@@ -28,7 +31,21 @@ const emit = defineEmits<{
   (e: 'remove-key'): void
   (e: 'filters-changed'): void
   (e: 'email-changed'): void
+  (e: 'add-access'): void
+  (e: 'remove-access', principalType: string, principalId: string): void
 }>()
+
+// RBAC org (ADR 0025) : ≥1 principal ⟹ connecteur RÉSERVÉ ; sinon ouvert à toute l'org.
+const aclEntries = computed(() => props.acl ?? [])
+const restricted = computed(() => aclEntries.value.length > 0)
+function principalLabel(e: ConnectorAclEntry): string {
+  if (e.principal_type === 'group') {
+    const g = props.groups?.find((x) => String(x.id) === String(e.principal_id))
+    return g ? `équipe · ${g.name}` : `équipe #${e.principal_id}`
+  }
+  const m = props.members?.find((x) => x.sub === e.principal_id)
+  return m?.name || m?.email || e.principal_id
+}
 
 const r = computed(() => props.activation)
 const subtitle = computed(() =>
@@ -109,6 +126,24 @@ const emailTransport = computed(() => props.email?.transports?.[r.value.connecto
       </div>
     </div>
 
+    <!-- Levier 4 : accès (RBAC org, ADR 0025) — réserver à des départements/membres -->
+    <div class="ocaccess">
+      <span class="oclabel">accès</span>
+      <template v-if="!restricted">
+        <span class="dim ocstate">ouvert à toute l'org</span>
+        <button v-if="isOrgAdmin" class="oclink" @click="emit('add-access')">restreindre…</button>
+      </template>
+      <template v-else>
+        <span class="ocstate"><strong>réservé</strong> à</span>
+        <span v-for="e in aclEntries" :key="e.principal_type + e.principal_id" class="occhip">
+          {{ principalLabel(e) }}
+          <button v-if="isOrgAdmin" class="occhip-x" title="retirer"
+            @click="emit('remove-access', e.principal_type, e.principal_id)">×</button>
+        </span>
+        <button v-if="isOrgAdmin" class="oclink" @click="emit('add-access')">+ ajouter</button>
+      </template>
+    </div>
+
     <!-- Rédaction des champs (éditable ici — feature ORG) -->
     <button class="oclink" @click="open = !open">
       {{ open ? '▾' : '▸' }} rédaction des champs
@@ -146,4 +181,9 @@ const emailTransport = computed(() => props.email?.transports?.[r.value.connecto
 .oclink { background: none; border: 0; padding: 4px 0; cursor: pointer; font-size: 12px; color: var(--color-cobalt-ink); font-weight: 600; }
 .ockey { display: flex; align-items: center; gap: 8px; min-height: 22px; }
 .oclink-danger { color: var(--color-terra-ink); }
+.ocaccess { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 0 4px; border-top: 1px solid var(--color-hair-soft); }
+.ocstate { font-size: 12px; }
+.occhip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 2px 4px 2px 9px; border-radius: 999px; background: var(--color-saffron-soft); color: var(--color-saffron-ink); }
+.occhip-x { border: 0; background: none; cursor: pointer; color: inherit; font-size: 14px; line-height: 1; padding: 0 2px; opacity: 0.7; }
+.occhip-x:hover { opacity: 1; }
 </style>
