@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch, type Component } from 'vue'
+import { computed, watch, defineAsyncComponent, type Component } from 'vue'
 import { useRoute } from 'vue-router'
 import ConsoleSidebar from '@/components/console/ConsoleSidebar.vue'
 import ConsoleTopbar from '@/components/console/ConsoleTopbar.vue'
@@ -14,50 +14,33 @@ import { useAuth } from '@/composables/useAuth'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 
-import OverviewView from './OverviewView.vue'
-import ConnectorsView from './ConnectorsView.vue'
-import ConnectorLibraryView from './ConnectorLibraryView.vue'
-import DoctrineView from './DoctrineView.vue'
-import DoctrineLibraryView from './DoctrineLibraryView.vue'
-import DataView from './DataView.vue'
-import KnowledgeView from './KnowledgeView.vue'
-import ScoutView from './ScoutView.vue'
-import ActivityView from './ActivityView.vue'
-import BillingView from './BillingView.vue'
-import AccountView from './AccountView.vue'
-import OrgView from './OrgView.vue'
-import OrgConnectorsView from './OrgConnectorsView.vue'
-import GroupsView from './GroupsView.vue'
-import MonitoringView from './MonitoringView.vue'
-import UsageView from './UsageView.vue'
-import AdminUsersView from './AdminUsersView.vue'
-import AdminUserView from './AdminUserView.vue'
-import AdminOrgsView from './AdminOrgsView.vue'
-import AdminConnectorsView from './AdminConnectorsView.vue'
-import AdminAccessView from './AdminAccessView.vue'
+// Vues splittées par route : chaque écran = son propre chunk, chargé à la demande
+// (le chargement initial ne tire que le shell + la vue courante, pas toute la console).
+const OverviewView = defineAsyncComponent(() => import('./OverviewView.vue'))
+const AdminUserView = defineAsyncComponent(() => import('./AdminUserView.vue'))
 
 // Keyé par path canonique (= meta.section porté par chaque route, cf. consoleNav).
 const VIEWS: Record<string, Component> = {
   '/overview': OverviewView,
-  '/connectors': ConnectorsView,
-  '/library/connectors': ConnectorLibraryView,
-  '/doctrine': DoctrineView,
-  '/library/doctrines': DoctrineLibraryView,
-  '/data': DataView,
-  '/knowledge': KnowledgeView,
-  '/scout': ScoutView,
-  '/activity': ActivityView,
-  '/billing': BillingView,
-  '/account': AccountView,
-  '/org': OrgView,
-  '/org/connectors': OrgConnectorsView,
-  '/org/departments': GroupsView,
-  '/platform/monitoring': MonitoringView,
-  '/platform/usage': UsageView,
-  '/platform/users': AdminUsersView,
-  '/platform/orgs': AdminOrgsView,
-  '/platform/connectors': AdminConnectorsView,
-  '/platform/access': AdminAccessView,
+  '/connectors': defineAsyncComponent(() => import('./ConnectorsView.vue')),
+  '/library/connectors': defineAsyncComponent(() => import('./ConnectorLibraryView.vue')),
+  '/doctrine': defineAsyncComponent(() => import('./DoctrineView.vue')),
+  '/library/doctrines': defineAsyncComponent(() => import('./DoctrineLibraryView.vue')),
+  '/data': defineAsyncComponent(() => import('./DataView.vue')),
+  '/knowledge': defineAsyncComponent(() => import('./KnowledgeView.vue')),
+  '/scout': defineAsyncComponent(() => import('./ScoutView.vue')),
+  '/activity': defineAsyncComponent(() => import('./ActivityView.vue')),
+  '/billing': defineAsyncComponent(() => import('./BillingView.vue')),
+  '/account': defineAsyncComponent(() => import('./AccountView.vue')),
+  '/org': defineAsyncComponent(() => import('./OrgView.vue')),
+  '/org/connectors': defineAsyncComponent(() => import('./OrgConnectorsView.vue')),
+  '/org/departments': defineAsyncComponent(() => import('./GroupsView.vue')),
+  '/platform/monitoring': defineAsyncComponent(() => import('./MonitoringView.vue')),
+  '/platform/usage': defineAsyncComponent(() => import('./UsageView.vue')),
+  '/platform/users': defineAsyncComponent(() => import('./AdminUsersView.vue')),
+  '/platform/orgs': defineAsyncComponent(() => import('./AdminOrgsView.vue')),
+  '/platform/connectors': defineAsyncComponent(() => import('./AdminConnectorsView.vue')),
+  '/platform/access': defineAsyncComponent(() => import('./AdminAccessView.vue')),
 }
 
 const route = useRoute()
