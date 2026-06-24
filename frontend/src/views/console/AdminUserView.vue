@@ -207,6 +207,21 @@ async function revokeNs(g: NamespaceGrant) {
 // GRATUITEMENT l'option à CET user (comp admin user-level), distinct du Stripe payant.
 const PAID_OPTIONS = [{ key: 'unipile', label: 'messagerie hébergée (unipile)' }]
 const optionComped = (opt: string) => detail.value?.option_comps?.includes(opt) ?? false
+// Statut EFFECTIF de l'option (pas seulement le comp user) : pour unipile, refléter
+// le comp d'ORG / l'abonnement Stripe / le BYO — sinon « non offerte » ment quand
+// l'utilisateur est en réalité débloqué via son org (le bouton, lui, reste le levier
+// user-level : offrir/retirer le comp À CET utilisateur, indépendant de l'org).
+function optionStatus(opt: string): { text: string; tone?: 'olive' | 'saffron' } {
+  if (optionComped(opt)) return { text: 'offerte (comp user)', tone: 'olive' }
+  const u = opt === 'unipile' ? detail.value?.unipile : undefined
+  if (u) {
+    if (u.option_source.org_comp) return { text: 'offerte via org (comp)', tone: 'olive' }
+    if (u.option_source.org_subscription)
+      return { text: `abonnée via org (${u.option_source.org_subscription.status})`, tone: 'olive' }
+    if (u.byo) return { text: 'clé BYO (paie en direct)', tone: 'olive' }
+  }
+  return { text: 'non offerte' }
+}
 async function toggleOption(opt: string) {
   const on = !optionComped(opt)
   try {
@@ -346,7 +361,7 @@ async function toggleOrgRole(o: AdminUserOrg) {
           <tbody>
             <tr v-for="o in PAID_OPTIONS" :key="o.key">
               <td style="font-weight: 600; color: var(--color-ink)">{{ o.label }}</td>
-              <td><Tag :tone="optionComped(o.key) ? 'olive' : undefined">{{ optionComped(o.key) ? 'offerte (comp)' : 'non offerte' }}</Tag></td>
+              <td><Tag :tone="optionStatus(o.key).tone">{{ optionStatus(o.key).text }}</Tag></td>
               <td style="text-align: right">
                 <Btn :kind="optionComped(o.key) ? 'danger' : 'mini'" @click="toggleOption(o.key)">
                   {{ optionComped(o.key) ? 'retirer' : 'offrir l\'option' }}
