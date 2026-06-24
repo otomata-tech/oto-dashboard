@@ -1,10 +1,14 @@
 name: CI/CD
 
 # test → deploy : le deploy DÉPEND d'un build/type-check vert (`needs: test`). Le job
-# `test` (build + vue-tsc) tourne aussi sur PR (= required check de branch protection).
-# Le déploiement est build-SERVEUR : la clé CI est épinglée en forced-command
-# (command="/opt/deploy/oto-dashboard.sh") côté otomata-0 — le job `deploy` ne fait que
-# déclencher ce script (git reset + npm build + snapshot + swap + smoke + rollback).
+# `test` (build + vue-tsc) tourne sur runner hosted GitHub, aussi sur PR (= required
+# check de branch protection).
+# Le job `deploy` tourne sur un RUNNER SELF-HOSTED installé sur otomata-0 (label
+# `otomata-0`, user non-root `gha-runner`) : pas de SSH entrant depuis Internet (le
+# port 22 est filtré par CrowdSec et droppait les IP des runners GitHub hosted). Le
+# runner n'a qu'un sudo NOPASSWD sur /opt/deploy/oto-dashboard.sh (moindre privilège,
+# équivalent de l'ancien forced-command) → il ne peut QUE déclencher ce script
+# (git reset + npm build + snapshot + swap + smoke + rollback).
 # Pour changer le déploiement : éditer /opt/deploy/oto-dashboard.sh sur le serveur.
 on:
   pull_request:
@@ -30,16 +34,10 @@ jobs:
   deploy:
     needs: test
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, otomata-0]
     concurrency:
       group: deploy-dashboard
       cancel-in-progress: false
     steps:
-      - name: Trigger server-side deploy (clé restreinte → /opt/deploy/oto-dashboard.sh)
-        env:
-          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-        run: |
-          echo "$SSH_DEPLOY_KEY" > /tmp/key && chmod 600 /tmp/key
-          ssh -o StrictHostKeyChecking=no -i /tmp/key "root@$DEPLOY_HOST" true
-          rm /tmp/key
+      - name: Deploy (build serveur via script root-restreint)
+        run: sudo /opt/deploy/oto-dashboard.sh
