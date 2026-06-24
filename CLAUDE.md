@@ -140,6 +140,14 @@ scope ses vues dessus sans rien persister. `setViewOrg`/`setViewGroup` + `locati
 Erreurs en **toast**. L'identité n'est PAS le level-switch du topbar. Sur mobile, via la drawer.
 Détail backend : `oto-backend/CLAUDE.md` §« Org/équipe : session vs maison vs consultation ».
 
+**« Voir en tant que » (consultation USER, lecture seule).** Bouton sur la fiche admin
+(`AdminUserView.vue`) → `setViewUser` (`lib/viewOrg.ts`) pose le header `X-Oto-View-As=<sub>` +
+recharge sur `/console` → tout le dashboard rend la vue de ce user (sa maison suit). Bandeau
+permanent `ViewAsBanner.vue` (monté dans `App.vue`) « tu vois en tant que X — quitter ». Entrer
+efface la consultation org/équipe ; pas sur soi-même ; mutations rejetées backend (read-only).
+REST-only, zéro effet MCP. ⚠️ **L'état d'un tiers (fiche admin) est calculé contre SON org
+persistée, pas `current_org`** (qui renverrait le contexte du requérant) — cf. backend §ADR 0023.
+
 ## Hub compte (`/account`)
 
 `AccountView.vue` = hub « gérer mon compte » (≠ ancien écran profil seul) : carte **profile**
