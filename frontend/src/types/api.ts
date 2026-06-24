@@ -732,6 +732,46 @@ export interface ScoutDetail {
   actions: ScoutAction[]
 }
 
+// ── email & envoi de l'org (ADR 0009, /org/email) ──
+// Adresses expéditrices déclarées par l'org pour `email_send` + fenêtre calme
+// (heures où l'envoi est différé) + file d'envois programmés.
+export interface EmailSender {
+  email: string
+  name?: string
+  reply_to?: string
+  transport: 'mailer' | 'resend'
+}
+export interface QuietHours {
+  tz: string
+  start: number   // heure 0..23
+  end: number     // heure 0..23 (wrap minuit ok : start=22/end=7)
+}
+export interface EmailSettings {
+  org_id: number
+  senders: EmailSender[]
+  quiet_hours: QuietHours
+  quiet_hours_default: boolean   // true = pas de fenêtre custom (défaut plateforme)
+  transports: string[]
+  resend_key_set: boolean        // le transport=resend exige la clé d'org
+}
+// Colonnes réelles de db.list_scheduled_emails (sans le HTML).
+export interface ScheduledEmail {
+  id: number
+  org_id?: number
+  to_email?: string
+  subject?: string
+  from_email?: string
+  from_name?: string
+  transport?: string
+  status: string                 // pending | sent | failed | cancelled
+  scheduled_at: string
+  attempts?: number
+  sent_at?: string | null
+  error?: string | null
+  created_at?: string
+  created_by?: string
+}
+
 // MCP endpoint public (config, pas un secret) — affiché tel quel.
 export const MCP_URL = (import.meta.env.VITE_LOGTO_AUDIENCE as string) || 'https://mcp.oto.ninja/mcp'
 

@@ -11,6 +11,7 @@ import type {
   ScoutQueueItem, ScoutDetail, MementoStatus, MementoWorkspaces, UnipileStatus, ConnectorIdentity, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
   ReferralLink, InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
+  EmailSettings, EmailSender, QuietHours, ScheduledEmail,
 } from '@/types/api'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
@@ -226,6 +227,25 @@ export const getOrg = (id: number) => api<OrgDetail>(`/api/orgs/${id}`)
 export const updateOrg = (id: number, patch: { name?: string; description?: string }) =>
   api<{ ok: true; org_id: number; name: string; description?: string }>(
     `/api/orgs/${id}`, { method: 'PATCH', ...j(patch) })
+
+// ── email & envoi de l'org (ADR 0009) — expéditeurs, fenêtre calme, file ──
+// GET = membre ; PUT = org_admin. Le PUT fait un MERGE JSONB : passer `senders`
+// SEUL ou `quiet_hours` SEUL est ok ; les DEUX absents → 400 nothing_to_set. Le PUT
+// de `senders` REMPLACE toute la liste (toujours envoyer la liste complète).
+export const getOrgEmailSettings = (id: number) =>
+  api<EmailSettings>(`/api/orgs/${id}/email-settings`)
+export const setOrgEmailSettings = (
+  id: number,
+  patch: { senders?: EmailSender[]; quiet_hours?: QuietHours; clear_quiet_hours?: boolean },
+) =>
+  api<{ ok: boolean; org_id: number; senders?: EmailSender[]; count?: number; quiet_hours?: QuietHours | null }>(
+    `/api/orgs/${id}/email-settings`, { method: 'PUT', ...j(patch) })
+export const listScheduledEmails = (id: number, status = 'pending') =>
+  api<{ scheduled_emails: ScheduledEmail[] }>(
+    `/api/orgs/${id}/scheduled-emails?status=${encodeURIComponent(status)}`)
+export const cancelScheduledEmail = (id: number, eid: number) =>
+  api<{ ok: boolean; cancelled: number }>(
+    `/api/orgs/${id}/scheduled-emails/${eid}`, { method: 'DELETE' })
 
 // ── redaction de champs par connecteur (org_admin, ADR 0015) ──
 export const getOrgFieldFilters = (id: number) =>

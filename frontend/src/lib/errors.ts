@@ -24,6 +24,14 @@ const MESSAGES: Record<string, string> = {
   missing_bearer: 'not authenticated',
   email_mismatch: 'this invitation was sent to a different email — sign in with the account that received it',
   invalid_or_expired: 'this invitation is invalid, expired, or already used',
+  // email & envoi de l'org (ADR 0009)
+  bad_sender_email: 'invalid sender address',
+  duplicate_sender: 'that sender address is already in the list',
+  unknown_transport: 'unknown transport (use mailer or resend)',
+  bad_tz: 'unknown timezone',
+  bad_quiet_hours: 'quiet hours must be two different hours between 0 and 23',
+  nothing_to_set: 'nothing to save',
+  unknown_scheduled_email: 'this email is gone, already sent, or already cancelled',
 }
 
 export function humanize(e: unknown): string {
