@@ -96,9 +96,10 @@ const emailTransport = computed(() => props.email?.transports?.[r.value.connecto
       <div class="ocfield">
         <span class="oclabel">disponibilité</span>
         <span class="ochelp">ce que tes membres peuvent installer</span>
-        <Toggle v-if="r.master_enabled === true" :on="r.effective" :disabled="!isOrgAdmin"
+        <!-- Le backend ne liste que les connecteurs activés par la plateforme
+             (master ON ou grant-only accordé) → plus de cas « coupé par la plateforme ». -->
+        <Toggle :on="r.effective" :disabled="!isOrgAdmin"
           @change="emit('set-available', !r.effective)" />
-        <span v-else class="dim ocnote">coupé par la plateforme — tu ne peux pas l'exposer</span>
       </div>
 
       <!-- Levier 2 : clé partagée d'org (connecteurs à clé simple) -->
@@ -177,7 +178,6 @@ const emailTransport = computed(() => props.email?.transports?.[r.value.connecto
 .ocfield { display: flex; flex-direction: column; gap: 4px; }
 .oclabel { font-size: 11px; font-weight: 600; color: var(--color-mute); text-transform: uppercase; letter-spacing: 0.04em; }
 .ochelp { font-size: 11px; color: var(--color-faint); margin-top: -2px; max-width: 30ch; line-height: 1.35; }
-.ocnote { font-size: 11px; }
 .oclink { background: none; border: 0; padding: 4px 0; cursor: pointer; font-size: 12px; color: var(--color-cobalt-ink); font-weight: 600; }
 .ockey { display: flex; align-items: center; gap: 8px; min-height: 22px; }
 .oclink-danger { color: var(--color-terra-ink); }
