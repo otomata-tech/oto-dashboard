@@ -371,7 +371,18 @@ export interface UnipileChannel {
 }
 export interface UnipileStatus {
   subscribed: boolean       // option payée (abonnement actif) — gate l'étape « connecter »
+  mode?: string             // user|group|org|platform|over_quota|forbidden (origine de la clé)
+  byo?: boolean             // clé propre (user/groupe/org), pas la clé plateforme
   channels: { linkedin: UnipileChannel; whatsapp: UnipileChannel; telegram: UnipileChannel; instagram: UnipileChannel; messenger: UnipileChannel; twitter: UnipileChannel }
+}
+
+// Identité connectée d'un connecteur (sélecteur générique, ADR 0024).
+export interface ConnectorIdentity {
+  id: string
+  label: string | null
+  status: string
+  is_default: boolean
+  channel: string | null    // canal (unipile : LINKEDIN/…) ; null hors multi-canal
 }
 
 // ── orgs ──

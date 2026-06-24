@@ -7,16 +7,18 @@ import { onMounted, ref } from 'vue'
 import Btn from './Btn.vue'
 import Dot from './Dot.vue'
 import Tag from './Tag.vue'
-import { getUnipileStatus, subscribeUnipile, connectUnipile, disconnectUnipile } from '@/api/console'
+import { getUnipileStatus, subscribeUnipile, connectUnipile, disconnectUnipile,
+  getConnectorIdentities, setConnectorIdentity } from '@/api/console'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
 import { fmtDate } from '@/types/api'
-import type { UnipileStatus } from '@/types/api'
+import type { UnipileStatus, ConnectorIdentity } from '@/types/api'
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
 const unipile = ref<UnipileStatus | null>(null)
+const identities = ref<ConnectorIdentity[]>([])
 const loading = ref(true)
 
 const channels = [
@@ -28,8 +30,24 @@ const channels = [
   { key: 'twitter', label: 'x / twitter', desc: 'read & send DMs as you' },
 ] as const
 
-async function refresh() { unipile.value = await getUnipileStatus().catch(() => null) }
+async function refresh() {
+  unipile.value = await getUnipileStatus().catch(() => null)
+  // BYO (clé propre) → la clé peut porter plusieurs comptes : on liste pour permettre
+  // de CHOISIR lequel piloter (vs hosted-auth aveugle). Revente → liste vide (gardée).
+  identities.value = unipile.value?.byo
+    ? await getConnectorIdentities('unipile').then(r => r.identities).catch(() => [])
+    : []
+}
 onMounted(async () => { await refresh(); loading.value = false })
+
+// Identités d'un canal (ex. les comptes LinkedIn de la clé d'équipe).
+function idsFor(channelKey: string): ConnectorIdentity[] {
+  return identities.value.filter(i => (i.channel || '').toLowerCase() === channelKey)
+}
+async function pick(id: string) {
+  try { await setConnectorIdentity('unipile', id); toast('account selected'); await refresh() }
+  catch (e) { toast(humanize(e)) }
+}
 
 async function activate() {
   try { const { checkout_url } = await subscribeUnipile(); window.location.href = checkout_url } catch (e) { toast(humanize(e)) }
@@ -49,25 +67,38 @@ async function drop(channel: string) {
       <span class="dim hw-sub">paid add-on — hosted login (no cookie/extension); the tools then act as you. degressive €15 / €10 / €7 per connected account / month.</span>
       <Btn v-if="!loading && !unipile?.subscribed" kind="mini" @click="activate">activate · from €15/mo</Btn>
     </div>
-    <div v-for="c in channels" :key="c.key" class="hw-row">
-      <Dot :tone="unipile?.channels?.[c.key]?.connected ? 'olive' : (unipile?.subscribed ? 'saffron' : 'faint')" :size="8" />
-      <div class="hw-id">
-        <div class="hw-name">{{ c.label }}
-          <Tag tone="cobalt">hosted</Tag>
-          <Tag v-if="unipile?.channels?.[c.key]?.connected" tone="olive">connected</Tag>
+    <div v-for="c in channels" :key="c.key" class="hw-channel">
+      <div class="hw-row">
+        <Dot :tone="unipile?.channels?.[c.key]?.connected ? 'olive' : (unipile?.subscribed ? 'saffron' : 'faint')" :size="8" />
+        <div class="hw-id">
+          <div class="hw-name">{{ c.label }}
+            <Tag tone="cobalt">hosted</Tag>
+            <Tag v-if="unipile?.channels?.[c.key]?.connected" tone="olive">connected</Tag>
+          </div>
+          <div class="hw-desc">
+            {{ !unipile?.subscribed
+              ? 'activate the option to connect'
+              : (unipile?.channels?.[c.key]?.connected
+                ? `connected ${fmtDate(unipile?.channels?.[c.key]?.connected_at ?? null) ?? ''} · ${c.desc}`
+                : `link your ${c.label} to start`) }}
+          </div>
         </div>
-        <div class="hw-desc">
-          {{ !unipile?.subscribed
-            ? 'activate the option to connect'
-            : (unipile?.channels?.[c.key]?.connected
-              ? `connected ${fmtDate(unipile?.channels?.[c.key]?.connected_at ?? null) ?? ''} · ${c.desc}`
-              : `link your ${c.label} to start`) }}
+        <template v-if="unipile?.subscribed">
+          <Btn v-if="unipile?.channels?.[c.key]?.connected" kind="danger" @click="drop(c.key)">disconnect</Btn>
+          <Btn v-else kind="mini" @click="link(c.key)">connect</Btn>
+        </template>
+      </div>
+      <!-- BYO : la clé porte plusieurs comptes → choisir lequel piloter (ADR 0024) -->
+      <div v-if="idsFor(c.key).length" class="hw-picker">
+        <div v-for="idn in idsFor(c.key)" :key="idn.id" class="hw-acct">
+          <Dot :tone="idn.is_default ? 'olive' : 'faint'" :size="7" />
+          <span class="hw-acct-name">{{ idn.label || idn.id }}
+            <Tag v-if="idn.is_default" tone="saffron">active</Tag>
+            <span v-if="idn.status && idn.status.toUpperCase() !== 'OK'" class="dim hw-acct-st">· {{ idn.status }}</span>
+          </span>
+          <Btn v-if="!idn.is_default" kind="mini" @click="pick(idn.id)">use this account</Btn>
         </div>
       </div>
-      <template v-if="unipile?.subscribed">
-        <Btn v-if="unipile?.channels?.[c.key]?.connected" kind="danger" @click="drop(c.key)">disconnect</Btn>
-        <Btn v-else kind="mini" @click="link(c.key)">connect</Btn>
-      </template>
     </div>
   </div>
 </template>
@@ -76,8 +107,13 @@ async function drop(channel: string) {
 .hw { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .hw-head { display: flex; align-items: baseline; gap: 10px; justify-content: space-between; }
 .hw-sub { font-size: 11.5px; }
-.hw-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--color-hair-soft); }
+.hw-channel { display: flex; flex-direction: column; border-bottom: 1px solid var(--color-hair-soft); }
+.hw-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
 .hw-id { min-width: 0; flex: 1; }
 .hw-name { font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: center; }
 .hw-desc { font-size: 11.5px; color: var(--color-mute); }
+.hw-picker { display: flex; flex-direction: column; gap: 4px; padding: 2px 0 6px 18px; }
+.hw-acct { display: flex; align-items: center; gap: 8px; }
+.hw-acct-name { flex: 1; min-width: 0; font-size: 12px; display: flex; gap: 6px; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hw-acct-st { font-size: 11px; }
 </style>

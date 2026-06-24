@@ -8,7 +8,7 @@ import type {
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
   DatastoreRow, NamespaceEntry, NamespaceShare, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal,
-  ScoutQueueItem, ScoutDetail, MementoStatus, MementoWorkspaces, UnipileStatus, WaitlistEntry, AlphaInvite, InvitePreview,
+  ScoutQueueItem, ScoutDetail, MementoStatus, MementoWorkspaces, UnipileStatus, ConnectorIdentity, WaitlistEntry, AlphaInvite, InvitePreview,
   ReferralLink, InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
 } from '@/types/api'
@@ -75,6 +75,15 @@ export const connectUnipile = (channel: string) =>
   api<{ url: string }>('/api/me/unipile/connect', { method: 'POST', ...j({ channel }) })
 export const disconnectUnipile = (channel: string) =>
   api(`/api/me/unipile?channel=${encodeURIComponent(channel)}`, { method: 'DELETE' })
+
+// ── sélecteur d'identité connectée générique (ADR 0024) — choisir parmi les
+// comptes d'une clé (BYO unipile : LinkedIn de l'équipe ; Google : multi-compte) ──
+export const getConnectorIdentities = (connector: string) =>
+  api<{ connector: string; supported: boolean; identities: ConnectorIdentity[] }>(
+    `/api/connectors/${encodeURIComponent(connector)}/identities`)
+export const setConnectorIdentity = (connector: string, identity_id: string) =>
+  api(`/api/connectors/${encodeURIComponent(connector)}/identities/default`,
+    { method: 'PUT', ...j({ identity_id }) })
 
 // ── cli tokens ──
 export const getTokens = () => api<{ tokens: ApiToken[] }>('/api/me/tokens')
