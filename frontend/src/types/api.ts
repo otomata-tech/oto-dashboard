@@ -580,16 +580,24 @@ export interface AdminUserDetail {
   grants: AdminGrant[]
   namespace_grants: NamespaceGrant[]
   option_comps: string[]   // options payantes offertes (comp admin) à CET user
-  unipile?: AdminUserUnipile   // détail messagerie : canaux connectés + abonnement + source
+  unipile_orgs?: AdminUserUnipileOrg[]   // messagerie PAR ORG (l'option est per-org)
 }
-// État messagerie Unipile vu côté admin = le UnipileStatus user-facing + la SOURCE
-// de l'option (comp user / comp org / abonnement Stripe org).
-export interface AdminUserUnipile extends UnipileStatus {
+// État messagerie Unipile d'un user POUR UNE org donnée (un bloc par org dont il est
+// membre ; un user peut appartenir à N orgs, l'option/abonnement est par org). org_id
+// null = bloc « hors de ses orgs » (comptes orphelins), subscribed/option_source null.
+export interface AdminUserUnipileOrg {
+  org_id: number | null
+  org_name: string | null
+  is_active: boolean
+  subscribed: boolean | null
+  mode?: string | null
+  byo?: boolean | null
+  channels: UnipileStatus['channels']
   option_source: {
     user_comp: boolean
     org_comp: boolean
     org_subscription: { status: string; quantity: number } | null
-  }
+  } | null
 }
 export interface AdminOrgSummary {
   id: number

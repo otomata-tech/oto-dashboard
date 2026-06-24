@@ -17,7 +17,7 @@ import {
 } from '@/api/console'
 import { setViewUser } from '@/lib/viewOrg'
 import type {
-  AdminGrant, AdminUserDetail, AdminUserOrg, AdminUserUnipile, ConnectorMeta, NamespaceGrant, PlatformKey, ProviderStatus, Role, ToolCall, UnipileStatus,
+  AdminGrant, AdminUserDetail, AdminUserOrg, AdminUserUnipileOrg, ConnectorMeta, NamespaceGrant, PlatformKey, ProviderStatus, Role, ToolCall, UnipileStatus,
 } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -243,11 +243,12 @@ const UNIPILE_CHANNELS: { key: keyof UnipileStatus['channels']; label: string }[
 const unipileModeLabel = (m?: string) =>
   m === 'user' ? 'perso' : m === 'org' ? 'org' : m === 'group' ? 'équipe'
     : m === 'platform' ? 'plateforme oto' : m
-function unipileSourceLabel(u: AdminUserUnipile): string {
+function unipileSourceLabel(u: AdminUserUnipileOrg): string {
   if (u.byo) return "clé BYO — l'utilisateur paie en direct"
-  if (u.option_source.user_comp) return 'option offerte (comp user)'
-  if (u.option_source.org_comp) return 'option offerte (comp org)'
-  if (u.option_source.org_subscription) return `abonnement Stripe de l'org (${u.option_source.org_subscription.status})`
+  const s = u.option_source
+  if (s?.user_comp) return 'option offerte (comp user)'
+  if (s?.org_comp) return 'option offerte (comp org)'
+  if (s?.org_subscription) return `abonnement Stripe (${s.org_subscription.status})`
   return u.subscribed ? 'option active' : 'aucune option active'
 }
 
@@ -372,33 +373,36 @@ async function toggleOrgRole(o: AdminUserOrg) {
         </table>
       </ConsoleCard>
 
-      <!-- messagerie Unipile (lecture seule) -->
+      <!-- messagerie Unipile (lecture seule) — un bloc PAR ORG (l'option est per-org) -->
       <ConsoleCard title="messagerie (Unipile)"
-        sub="canaux hébergés connectés par l'utilisateur + abonnement et sa source. lecture seule.">
-        <template v-if="detail.unipile">
-          <div class="rowitem" style="gap: 8px; flex-wrap: wrap; border-bottom: 0">
-            <Tag :tone="detail.unipile.subscribed ? 'olive' : undefined">
-              {{ detail.unipile.subscribed ? 'abonné' : 'non abonné' }}
-            </Tag>
-            <Tag v-if="detail.unipile.mode && detail.unipile.mode !== 'forbidden'"
-              :tone="detail.unipile.mode === 'platform' ? 'saffron' : 'cobalt'">
-              clé : {{ unipileModeLabel(detail.unipile.mode) }}
-            </Tag>
-            <span class="dim" style="font-size: 12px">{{ unipileSourceLabel(detail.unipile) }}</span>
-          </div>
-          <div class="rowlist">
+        sub="canaux hébergés + abonnement, PAR org dont l'utilisateur est membre (l'option/abonnement est par org). lecture seule.">
+        <template v-if="detail.unipile_orgs && detail.unipile_orgs.length">
+          <div v-for="(uo, i) in detail.unipile_orgs" :key="uo.org_id ?? `orphan-${i}`"
+            class="rowlist"
+            :style="i ? 'border-top: 1px solid var(--color-hair-soft); margin-top: 8px; padding-top: 4px' : ''">
+            <div class="rowitem" style="gap: 8px; flex-wrap: wrap; border-bottom: 0">
+              <span style="font-weight: 700; font-size: 13px; color: var(--color-ink)">{{ uo.org_name || '—' }}</span>
+              <Tag v-if="uo.is_active" tone="saffron">maison</Tag>
+              <Tag v-if="uo.subscribed !== null" :tone="uo.subscribed ? 'olive' : undefined">
+                {{ uo.subscribed ? 'abonné' : 'non abonné' }}
+              </Tag>
+              <Tag v-if="uo.mode && uo.mode !== 'forbidden'" :tone="uo.mode === 'platform' ? 'saffron' : 'cobalt'">
+                clé : {{ unipileModeLabel(uo.mode) }}
+              </Tag>
+              <span v-if="uo.org_id !== null" class="dim" style="font-size: 12px">{{ unipileSourceLabel(uo) }}</span>
+            </div>
             <div v-for="c in UNIPILE_CHANNELS" :key="c.key" class="rowitem" style="gap: 10px">
-              <Dot :tone="detail.unipile.channels[c.key]?.connected ? 'olive' : 'faint'" :size="8" />
+              <Dot :tone="uo.channels[c.key]?.connected ? 'olive' : 'faint'" :size="8" />
               <span style="flex: 1; min-width: 0; font-weight: 600; font-size: 13px">{{ c.label }}</span>
-              <template v-if="detail.unipile.channels[c.key]?.connected">
+              <template v-if="uo.channels[c.key]?.connected">
                 <Tag tone="olive">connecté</Tag>
-                <span class="dim" style="font-size: 11px">{{ fmtDate(detail.unipile.channels[c.key].connected_at) }}</span>
+                <span class="dim" style="font-size: 11px">{{ fmtDate(uo.channels[c.key].connected_at) }}</span>
               </template>
               <span v-else class="dim" style="font-size: 11px">non connecté</span>
             </div>
           </div>
         </template>
-        <div v-else class="helptext">aucune donnée messagerie.</div>
+        <div v-else class="helptext">membre d'aucune org — pas de messagerie.</div>
       </ConsoleCard>
 
       <!-- namespaces débloqués -->
