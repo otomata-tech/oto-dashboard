@@ -17,7 +17,7 @@ import {
 } from '@/api/console'
 import { setViewUser } from '@/lib/viewOrg'
 import type {
-  AdminGrant, AdminUserDetail, AdminUserOrg, ConnectorMeta, NamespaceGrant, PlatformKey, ProviderStatus, Role, ToolCall,
+  AdminGrant, AdminUserDetail, AdminUserOrg, AdminUserUnipile, ConnectorMeta, NamespaceGrant, PlatformKey, ProviderStatus, Role, ToolCall, UnipileStatus,
 } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -216,6 +216,26 @@ async function toggleOption(opt: string) {
   } catch (e) { toast(humanize(e)) }
 }
 
+// Messagerie Unipile (lecture seule) — mêmes canaux que ConnectorHostedWidget.
+const UNIPILE_CHANNELS: { key: keyof UnipileStatus['channels']; label: string }[] = [
+  { key: 'linkedin', label: 'linkedin' },
+  { key: 'whatsapp', label: 'whatsapp' },
+  { key: 'telegram', label: 'telegram' },
+  { key: 'instagram', label: 'instagram' },
+  { key: 'messenger', label: 'messenger' },
+  { key: 'twitter', label: 'x / twitter' },
+]
+const unipileModeLabel = (m?: string) =>
+  m === 'user' ? 'perso' : m === 'org' ? 'org' : m === 'group' ? 'équipe'
+    : m === 'platform' ? 'plateforme oto' : m
+function unipileSourceLabel(u: AdminUserUnipile): string {
+  if (u.byo) return "clé BYO — l'utilisateur paie en direct"
+  if (u.option_source.user_comp) return 'option offerte (comp user)'
+  if (u.option_source.org_comp) return 'option offerte (comp org)'
+  if (u.option_source.org_subscription) return `abonnement Stripe de l'org (${u.option_source.org_subscription.status})`
+  return u.subscribed ? 'option active' : 'aucune option active'
+}
+
 // Bascule le rôle d'org du user (member ↔ org_admin) depuis la fiche admin.
 async function toggleOrgRole(o: AdminUserOrg) {
   const next = o.org_role === 'org_admin' ? 'org_member' : 'org_admin'
@@ -335,6 +355,35 @@ async function toggleOrgRole(o: AdminUserOrg) {
             </tr>
           </tbody>
         </table>
+      </ConsoleCard>
+
+      <!-- messagerie Unipile (lecture seule) -->
+      <ConsoleCard title="messagerie (Unipile)"
+        sub="canaux hébergés connectés par l'utilisateur + abonnement et sa source. lecture seule.">
+        <template v-if="detail.unipile">
+          <div class="rowitem" style="gap: 8px; flex-wrap: wrap; border-bottom: 0">
+            <Tag :tone="detail.unipile.subscribed ? 'olive' : undefined">
+              {{ detail.unipile.subscribed ? 'abonné' : 'non abonné' }}
+            </Tag>
+            <Tag v-if="detail.unipile.mode && detail.unipile.mode !== 'forbidden'"
+              :tone="detail.unipile.mode === 'platform' ? 'saffron' : 'cobalt'">
+              clé : {{ unipileModeLabel(detail.unipile.mode) }}
+            </Tag>
+            <span class="dim" style="font-size: 12px">{{ unipileSourceLabel(detail.unipile) }}</span>
+          </div>
+          <div class="rowlist">
+            <div v-for="c in UNIPILE_CHANNELS" :key="c.key" class="rowitem" style="gap: 10px">
+              <Dot :tone="detail.unipile.channels[c.key]?.connected ? 'olive' : 'faint'" :size="8" />
+              <span style="flex: 1; min-width: 0; font-weight: 600; font-size: 13px">{{ c.label }}</span>
+              <template v-if="detail.unipile.channels[c.key]?.connected">
+                <Tag tone="olive">connecté</Tag>
+                <span class="dim" style="font-size: 11px">{{ fmtDate(detail.unipile.channels[c.key].connected_at) }}</span>
+              </template>
+              <span v-else class="dim" style="font-size: 11px">non connecté</span>
+            </div>
+          </div>
+        </template>
+        <div v-else class="helptext">aucune donnée messagerie.</div>
       </ConsoleCard>
 
       <!-- namespaces débloqués -->

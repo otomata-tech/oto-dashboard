@@ -580,6 +580,16 @@ export interface AdminUserDetail {
   grants: AdminGrant[]
   namespace_grants: NamespaceGrant[]
   option_comps: string[]   // options payantes offertes (comp admin) à CET user
+  unipile?: AdminUserUnipile   // détail messagerie : canaux connectés + abonnement + source
+}
+// État messagerie Unipile vu côté admin = le UnipileStatus user-facing + la SOURCE
+// de l'option (comp user / comp org / abonnement Stripe org).
+export interface AdminUserUnipile extends UnipileStatus {
+  option_source: {
+    user_comp: boolean
+    org_comp: boolean
+    org_subscription: { status: string; quantity: number } | null
+  }
 }
 export interface AdminOrgSummary {
   id: number
