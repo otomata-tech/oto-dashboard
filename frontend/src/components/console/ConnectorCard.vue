@@ -10,6 +10,7 @@ import Toggle from './Toggle.vue'
 import Tag from './Tag.vue'
 import Btn from './Btn.vue'
 import Quota from './Quota.vue'
+import ConnectorCardShell from './ConnectorCardShell.vue'
 import ConnectorOAuthAccounts from './ConnectorOAuthAccounts.vue'
 import ConnectorFederatedWidget from './ConnectorFederatedWidget.vue'
 import ConnectorSessionWidget from './ConnectorSessionWidget.vue'
@@ -40,7 +41,6 @@ const tab = ref<Tab>('conn')
 const { me } = useMe()
 const { toast } = useToast()
 
-const monogram = computed(() => (props.connector.label || props.connector.name).charAt(0).toUpperCase())
 const state = computed<ConnectorState>(() => props.connector.state)
 
 // Face credential : d'où vient la connexion de ce connecteur. Dérivée des champs du
@@ -113,39 +113,36 @@ async function toggleTool(t: ToolEntry) {
 </script>
 
 <template>
-  <article class="cc-card" :class="{ off: state === 'not_selected' }">
-    <header class="cc-head">
-      <div class="cc-logo">
-        <img v-if="connector.logo_url" :src="connector.logo_url" :alt="connector.label" loading="lazy" />
-        <span v-else class="cc-mono">{{ monogram }}</span>
-      </div>
-      <div class="cc-id">
-        <div class="cc-name">{{ connector.label }}
-          <!-- Posture fédérée (ADR 0024) : login délégué + outils proxifiés, mais
-               toujours sous gouvernance oto (redaction/calllog/billing). -->
-          <Tag v-if="connector.family === 'federated'" tone="saffron" title="mcp fédéré — login délégué, outils proxifiés sous gouvernance oto">fédéré</Tag>
-        </div>
-        <div class="cc-pub">{{ connector.publisher }} · {{ connector.help }}</div>
-      </div>
+  <ConnectorCardShell
+    :label="connector.label"
+    :logo-url="connector.logo_url"
+    :subtitle="`${connector.publisher} · ${connector.help}`"
+    :off="state === 'not_selected'"
+    :collapsed="state === 'not_selected'">
+    <template #badges>
+      <!-- Posture fédérée (ADR 0024) : login délégué + outils proxifiés, mais
+           toujours sous gouvernance oto (redaction/calllog/billing). -->
+      <Tag v-if="connector.family === 'federated'" tone="saffron" title="mcp fédéré — login délégué, outils proxifiés sous gouvernance oto">fédéré</Tag>
+    </template>
+    <template #header-right>
       <!-- Sélecteur des 3 états : actif | masqué | désactivé (défaut) -->
       <div class="cc-seg" role="radiogroup" aria-label="connector state">
         <button :class="{ on: state === 'active' }" @click="setState('active')">active</button>
         <button :class="{ on: state === 'paused' }" @click="setState('paused')">hidden</button>
         <button :class="{ on: state === 'not_selected' }" @click="setState('not_selected')">off</button>
       </div>
-    </header>
+    </template>
 
-    <div v-if="state !== 'not_selected'" class="cc-body">
-      <!-- Barre d'onglets : connexion / outils / transformations -->
-      <div class="cc-tabs" role="tablist">
-        <button :class="{ on: tab === 'conn' }" @click="tab = 'conn'">connexion</button>
-        <button :class="{ on: tab === 'tools' }" @click="tab = 'tools'">
-          outils <span class="dim">{{ enabledCount }}/{{ myTools.length }}</span>
-        </button>
-      </div>
+    <!-- Corps : onglets connexion / outils -->
+    <div class="cc-tabs" role="tablist">
+      <button :class="{ on: tab === 'conn' }" @click="tab = 'conn'">connexion</button>
+      <button :class="{ on: tab === 'tools' }" @click="tab = 'tools'">
+        outils <span class="dim">{{ enabledCount }}/{{ myTools.length }}</span>
+      </button>
+    </div>
 
-      <!-- Onglet 1 — config de la connexion (couche Authentification, ADR 0024) -->
-      <div v-show="tab === 'conn'" class="cc-conn">
+    <!-- Onglet 1 — config de la connexion (couche Authentification, ADR 0024) -->
+    <div v-show="tab === 'conn'" class="cc-conn">
         <span class="cc-authkind">{{ authLabel }}</span>
         <template v-if="connKind === 'key'">
           <span class="cc-keysrc">clé utilisée : <strong>{{ keySource }}</strong><span v-if="statusMode === 'platform' && status?.platform_key_label" class="dim"> ({{ status.platform_key_label }})</span></span>
@@ -191,25 +188,11 @@ async function toggleTool(t: ToolEntry) {
         </div>
         <p v-if="!myTools.length" class="cc-no-tools dim">no tools loaded for this connector.</p>
       </div>
-
-    </div>
-  </article>
+  </ConnectorCardShell>
 </template>
 
 <style scoped>
-.cc-card { border: 1px solid var(--color-hair); border-radius: 12px; background: var(--color-paper); overflow: hidden; }
-.cc-card.off { background: var(--color-surface); opacity: 0.78; }
-.cc-head { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
-.cc-logo {
-  width: 36px; height: 36px; border-radius: 9px; flex: 0 0 auto; overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--color-hair); background: var(--color-surface);
-}
-.cc-logo img { width: 100%; height: 100%; object-fit: contain; }
-.cc-mono { font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: var(--color-ink-soft); }
-.cc-id { flex: 1; min-width: 0; }
-.cc-name { font-weight: 600; font-size: 14px; line-height: 1.2; display: flex; gap: 8px; align-items: center; }
-.cc-pub { font-size: 11.5px; color: var(--color-faint); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Le chrome (carte/header/logo/nom) vit dans ConnectorCardShell. Ici : le corps user. */
 .cc-seg { display: inline-flex; border: 1px solid var(--color-hair-classic); border-radius: 999px; overflow: hidden; flex: 0 0 auto; }
 .cc-seg button {
   font-size: 11px; padding: 4px 10px; border: 0; background: transparent; cursor: pointer;
@@ -217,7 +200,6 @@ async function toggleTool(t: ToolEntry) {
 }
 .cc-seg button:first-child { border-left: 0; }
 .cc-seg button.on { background: var(--color-ink); color: var(--color-paper); font-weight: 600; }
-.cc-body { padding: 0 14px 14px; }
 .cc-tabs { display: flex; gap: 2px; border-top: 1px solid var(--color-hair-soft); margin-bottom: 8px; }
 .cc-tabs button {
   font-size: 11.5px; padding: 7px 10px 6px; border: 0; background: transparent; cursor: pointer;
