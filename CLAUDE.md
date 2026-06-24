@@ -46,23 +46,32 @@ deux + un **sélecteur 3 états** câblé sur `connector_selection` (ADR 0019, `
 - **hidden / masqué** (`state=paused`) — installé mais outils cachés de l'agent.
 - **off / désactivé** (`not_selected`) — **le défaut**, connecteur non installé.
 
-La carte dérive sa face credential des champs du registre (`ConnectorMeta`) : keyé
-(`credential_fields`) → formulaire inline (`setCredential`) ; oauth/cookie/hosted →
-elle pointe (`@goto`) vers la carte dédiée ancrée plus bas (`#sessions`/`#google`/
-`#federated`/`#messaging`). Les toggles d'outils par connecteur restent `enableTool`/
-`disableTool`. Les **presets** de toolbox vivent en bas de la même vue. Les **tokens CLI**
-ont migré vers le **hub compte** (`/account`, `AccountTokensCard.vue`) — ils sont
-user-scopés (`/api/me/tokens`), pas org-scopés comme les connecteurs.
+La carte dérive sa face credential des champs du registre (`ConnectorMeta`) : **tous les
+flux d'auth sont édités INLINE sur la carte** (ADR 0024) — keyé (`credential_fields`) →
+formulaire (`setCredential`) ; oauth/cookie/hosted/fédéré → widget dédié inline
+(`ConnectorOAuthAccounts`/`ConnectorSessionWidget`/`ConnectorHostedWidget`/`ConnectorFederatedWidget`,
+dérivés de `connKind`). **Plus de cartes ancrées** `#sessions`/`#google`/`#federated`/`#messaging`.
+La carte dit en clair **quelle clé résout** (`status.mode` → « ta clé perso / la clé de ton org /
+la clé plateforme oto »). Les toggles d'outils restent `enableTool`/`disableTool`. Les **presets**
+de toolbox vivent en bas de la même vue. Les **tokens CLI** ont migré vers le **hub compte**
+(`/account`, `AccountTokensCard.vue`) — user-scopés (`/api/me/tokens`).
+
+> **Carte = shell partagé (ADR 0024 §3).** `ConnectorCardShell.vue` porte le chrome commun
+> (logo/nom/badges/corps) ; la projection USER le remplit via `ConnectorCard` (connexion +
+> outils), la projection ORG via `ConnectorOrgCard` (gouvernance). Même identité visuelle.
 
 **Un connecteur = 3 projections par audience (ADR 0022).** La même chose vue de trois sièges,
 une carte par niveau du level-switch :
 - **USER** `/console/connectors` (`ConnectorsView`, ci-dessus) — j'installe / mes clés / mes
-  outils. La **rédaction de champs y est en LECTURE SEULE** (`ConnectorTransforms` prop `readonly`) :
-  l'édition vit au niveau org.
-- **ORG** `/org/connectors` (`OrgConnectorsView`) — ce que l'org propose & impose : **plafond dur**
-  (forcer actif/inactif/hérite, capacité `connectors.activation.{org_list,set_org,clear_org}`, borné
-  au master plateforme), **recommandé** (`setOrgConnectors`), **rédaction ÉDITABLE**. Clé partagée
-  d'org + baseline toolset restent pour l'instant dans `/org` (rapatriement différé).
+  outils. **La rédaction de champs N'Y EST PLUS** : c'est une feature ORG, retirée de la carte
+  user le 2026-06-24.
+- **ORG** `/org/connectors` (`OrgConnectorsView` → `ConnectorOrgCard`) — ce que l'org propose &
+  impose : **disponibilité BINAIRE** (un seul toggle « disponible / coupé pour mes membres »,
+  capacité `connectors.activation.{org_list,set_org,clear_org}`) **bornée par la plateforme =
+  plancher DUR** : master off → aucun levier (« coupé par la plateforme »). **Pas de « forcer
+  dispo »** (on n'expose jamais ce que la plateforme a coupé) ni de **« recommandé »** (retiré le
+  2026-06-24 — inerte côté membre ; backend `setOrgConnectors` gardé). **Rédaction ÉDITABLE**.
+  Clé partagée d'org + baseline toolset restent pour l'instant dans `/org` (rapatriement différé).
   > **Rédaction des champs** (`ConnectorTransforms.vue`) : sur **tout** connecteur (plus gaté sur un
   > schéma curé). Le schéma affiché = **observé** (capture passive backend, cf. `oto-backend/docs/redaction.md`)
   > ∪ curé ∪ champs sous règle ; **rien par défaut** + **modèles 1-clic** (anonymisation candidat/bancaire) ;
