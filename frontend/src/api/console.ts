@@ -8,10 +8,11 @@ import type {
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
   DatastoreRow, NamespaceEntry, NamespaceShare, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal,
-  ScoutQueueItem, ScoutDetail, MementoStatus, MementoWorkspaces, UnipileStatus, ConnectorIdentity, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
+  MementoStatus, MementoWorkspaces, UnipileStatus, ConnectorIdentity, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
   ReferralLink, InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
   EmailSettingsBundle, EmailSender, QuietHours, ScheduledEmail,
+  FactKind, FactRow,
 } from '@/types/api'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
@@ -207,6 +208,19 @@ export const updateNamespaceRow = (ns: string, rowId: string, patch: Record<stri
 export const deleteNamespaceRow = (ns: string, rowId: string) =>
   api(`/api/datastore/namespaces/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`,
     { method: 'DELETE' })
+
+// ── fact graph (substrat typé, ADR 0008/0018) — capacités facts.* ──
+// Le datastore reste libre ; les facts sont TYPÉS (schéma par kind) → la vue
+// Fact graph rend des fiches lisibles depuis `describe_kinds` (rôles de champ).
+export const getFactKinds = () => api<{ kinds: FactKind[] }>('/api/facts/kinds')
+export const getFacts = (kind: string, limit = 200) =>
+  api<{ kind: string; facts: FactRow[]; count: number }>(
+    `/api/facts?kind=${encodeURIComponent(kind)}&limit=${limit}`)
+export const getFact = (id: number) =>
+  api<FactRow & { kind: string; incoming: unknown[] }>(`/api/facts/item/${id}`)
+export const writeFact = (kind: string, fields: Record<string, unknown>, id?: number) =>
+  api<{ id: number; kind: string; data: Record<string, unknown> }>(
+    '/api/facts', { method: 'POST', ...j(id != null ? { kind, fields, id } : { kind, fields }) })
 
 // ── orgs (self-service) ──
 export const getMyOrgs = () => api<{ orgs: Org[] }>('/api/me/orgs')
@@ -496,11 +510,5 @@ export const getMyCalls = (params: { limit?: number; tool?: string; errors?: boo
   return api<{ calls: ToolCall[] }>(`/api/me/calls${qs ? `?${qs}` : ''}`)
 }
 
-// ── scout (harnais prospection, ADR 0008) ──
-export const getScoutQueue = (limit = 50) =>
-  api<{ items: ScoutQueueItem[]; count: number }>(`/api/scout/queue?limit=${limit}`)
-export const claimNextProspect = () =>
-  api<{ prospect: ScoutQueueItem | null }>('/api/scout/claim-next', { method: 'POST' })
-export const getProspect = (id: number) => api<ScoutDetail>(`/api/scout/prospects/${id}`)
-export const recordAction = (id: number, canal: string, outcome: string, note?: string) =>
-  api<ScoutDetail>(`/api/scout/prospects/${id}/actions`, { method: 'POST', ...j({ canal, outcome, note }) })
+// (Le cockpit scout /api/scout/* a été RETIRÉ — ADR 0027. La prospection passe
+// désormais par le substrat typé générique : capacités facts.* + vue « Fact graph ».)
