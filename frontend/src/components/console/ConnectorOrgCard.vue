@@ -79,6 +79,7 @@ const emailTransport = computed(() => props.email?.transports?.[r.value.connecto
 <template>
   <ConnectorCardShell :label="r.label" :logo-url="meta?.logo_url" :subtitle="subtitle">
     <template #badges>
+      <Tag v-if="meta?.category" tone="ink">{{ meta.category }}</Tag>
       <Tag v-if="isFederated" tone="saffron" title="mcp fédéré — login délégué, outils proxifiés sous gouvernance oto">fédéré</Tag>
     </template>
 

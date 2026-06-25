@@ -9,6 +9,7 @@
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import ConnectorCard from '@/components/console/ConnectorCard.vue'
+import CategoryChips from '@/components/console/CategoryChips.vue'
 import Stat from '@/components/console/Stat.vue'
 import Btn from '@/components/console/Btn.vue'
 import { useToast } from '@/composables/useToast'
@@ -35,6 +36,7 @@ const tools = ref<ToolEntry[]>([])
 const presets = ref<PresetEntry[]>([])
 const error = ref<string | null>(null)
 const q = ref('')
+const category = ref<string | null>(null)
 
 const nsOf = (toolName: string): string => toolName.split('_')[0] ?? toolName
 function toolsOf(c: MyConnector): ToolEntry[] {
@@ -47,6 +49,7 @@ const ORDER: Record<ConnectorState, number> = { active: 0, paused: 1, not_select
 const shown = computed(() => {
   const needle = q.value.trim().toLowerCase()
   return catalog.value
+    .filter((c) => !category.value || c.category === category.value)
     .filter((c) => !needle
       || c.label.toLowerCase().includes(needle)
       || c.name.toLowerCase().includes(needle)
@@ -149,6 +152,7 @@ async function removePreset(name: string) {
       <template #actions>
         <input v-model="q" class="cc-search" placeholder="search connectors…" />
       </template>
+      <CategoryChips :values="catalog.map((c) => c.category)" v-model="category" style="margin-bottom: 12px" />
       <div class="cc-grid">
         <ConnectorCard v-for="c in shown" :key="c.name" :connector="c" :tools="toolsOf(c)"
           @configure="configure" @remove="removeKey" />

@@ -8,6 +8,8 @@ import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Toggle from '@/components/console/Toggle.vue'
 import Btn from '@/components/console/Btn.vue'
+import Tag from '@/components/console/Tag.vue'
+import CategoryChips from '@/components/console/CategoryChips.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
@@ -32,16 +34,21 @@ const seats = ref<UnipileSeat[]>([])
 const seatsConfigured = ref(false)
 const error = ref<string | null>(null)
 const q = ref('')
+const category = ref<string | null>(null)
 
 // Un connecteur peut porter une clé plateforme si son provider est platform-éligible
 // (auth_modes inclut 'platform') — les byo-only la refuseraient.
 const platformEligible = (name: string) => !!meta.value[name]?.auth_modes?.includes('platform')
 const keysOf = (name: string) => keys.value.filter((k) => k.provider === name)
+// Catégorie d'un connecteur = celle du registre (les lignes d'activation ne la portent pas).
+const catOf = (name: string) => meta.value[name]?.category ?? ''
 
 const shown = computed(() => {
   const needle = q.value.trim().toLowerCase()
-  return connectors.value.filter((c) => !needle
-    || c.connector.toLowerCase().includes(needle) || c.label.toLowerCase().includes(needle))
+  return connectors.value
+    .filter((c) => !category.value || catOf(c.connector) === category.value)
+    .filter((c) => !needle
+      || c.connector.toLowerCase().includes(needle) || c.label.toLowerCase().includes(needle))
 })
 
 async function load() {
@@ -115,8 +122,9 @@ async function removeKey(k: PlatformKey) {
       <template #actions>
         <input v-model="q" class="cc-search" placeholder="search…" />
       </template>
+      <CategoryChips :values="connectors.map((c) => catOf(c.connector))" v-model="category" style="margin-bottom: 12px" />
       <table class="tbl">
-        <thead><tr><th>connector</th><th>platform key</th><th>master</th><th style="width: 60px"></th></tr></thead>
+        <thead><tr><th>connector</th><th>category</th><th>platform key</th><th>master</th><th style="width: 60px"></th></tr></thead>
         <tbody>
           <tr v-for="c in shown" :key="c.connector">
             <td>
@@ -124,6 +132,10 @@ async function removeKey(k: PlatformKey) {
               <div style="font-size: 11px; color: var(--color-faint)">
                 {{ c.connector }} · <code class="mono">{{ c.namespaces.join(', ') }}</code>
               </div>
+            </td>
+            <td>
+              <Tag v-if="catOf(c.connector)" tone="ink">{{ catOf(c.connector) }}</Tag>
+              <span v-else class="dim" style="font-size: 11px">—</span>
             </td>
             <td>
               <template v-if="platformEligible(c.connector)">
@@ -144,7 +156,7 @@ async function removeKey(k: PlatformKey) {
             <td style="text-align: right"><Toggle :on="c.enabled === true" @change="toggle(c)" /></td>
           </tr>
           <tr v-if="!shown.length">
-            <td colspan="4" class="dim" style="text-align: center; padding: 16px">no connectors</td>
+            <td colspan="5" class="dim" style="text-align: center; padding: 16px">no connectors</td>
           </tr>
         </tbody>
       </table>

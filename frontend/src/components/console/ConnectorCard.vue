@@ -43,16 +43,20 @@ const { toast } = useToast()
 
 const state = computed<ConnectorState>(() => props.connector.state)
 
-// Face credential : d'où vient la connexion de ce connecteur. Dérivée des champs du
-// registre (ConnectorMeta) — aucune branche par nom de connecteur côté backend.
+// Face credential : quel widget rendre. DÉRIVÉE du descripteur d'auth unifié
+// (ADR 0024) — source unique côté backend (`Connector.auth`), zéro branche par
+// nom de connecteur ici. `method` pilote le flux ; `cardinality=multi_account`
+// distingue l'oauth multi-compte (google) de l'oauth fédéré single (memento).
 type Conn = 'key' | 'session' | 'google' | 'memento' | 'unipile' | 'none'
 const connKind = computed<Conn>(() => {
-  const c = props.connector
-  if (c.name === 'unipile') return 'unipile'
-  if ((c.credential_fields?.length ?? 0) > 0) return 'key'
-  if (c.secret_kind === 'oauth') return c.personal_session ? 'google' : 'memento'
-  if (c.secret_kind === 'cookie' || c.personal_session) return 'session'
-  return 'none'
+  const a = props.connector.auth
+  switch (a.method) {
+    case 'hosted': return 'unipile'
+    case 'cookie': return 'session'
+    case 'oauth': return a.cardinality === 'multi_account' ? 'google' : 'memento'
+    case 'secret': return 'key'
+    default: return 'none'   // none + remote (bridge, credential détenu par l'org)
+  }
 })
 // Libellé de la méthode d'auth (couche Authentification, ADR 0024) — nomme le flux.
 const AUTH_LABEL: Record<Conn, string> = {
@@ -120,6 +124,9 @@ async function toggleTool(t: ToolEntry) {
     :off="state === 'not_selected'"
     :collapsed="state === 'not_selected'">
     <template #badges>
+      <!-- Catégorie métier curée (registre `category`, ADR 0011) — axe de lecture
+           commun aux 3 projections de connecteur. -->
+      <Tag v-if="connector.category" tone="ink">{{ connector.category }}</Tag>
       <!-- Posture fédérée (ADR 0024) : login délégué + outils proxifiés, mais
            toujours sous gouvernance oto (redaction/calllog/billing). -->
       <Tag v-if="connector.family === 'federated'" tone="saffron" title="mcp fédéré — login délégué, outils proxifiés sous gouvernance oto">fédéré</Tag>

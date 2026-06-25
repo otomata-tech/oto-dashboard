@@ -9,6 +9,7 @@
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import ConnectorOrgCard from '@/components/console/ConnectorOrgCard.vue'
+import CategoryChips from '@/components/console/CategoryChips.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import { useToast } from '@/composables/useToast'
@@ -42,13 +43,19 @@ const members = ref<OrgMember[]>([])                  // membres de l'org (picke
 const error = ref<string | null>(null)
 const loaded = ref(false)
 const q = ref('')
+const category = ref<string | null>(null)
 
 const activeOrgId = computed(() => me.value?.active_org ?? null)
 const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin' || me.value?.role === 'admin')
 
+// Catégorie d'un connecteur = celle du registre (les lignes d'activation ne la
+// portent pas) ; sert au filtre par chips et au tag de carte.
+const catOf = (connector: string) => meta.value[connector]?.category ?? ''
+
 const shown = computed(() => {
   const needle = q.value.trim().toLowerCase()
   return rows.value
+    .filter((r) => !category.value || catOf(r.connector) === category.value)
     .filter((r) => !needle || r.connector.toLowerCase().includes(needle) || r.label.toLowerCase().includes(needle))
     .sort((a, b) => Number(b.effective) - Number(a.effective) || a.label.localeCompare(b.label))
 })
@@ -213,7 +220,8 @@ async function cancelScheduled(eid: number) {
         <template #actions>
           <input v-model="q" class="cc-search" placeholder="rechercher…" />
         </template>
-        <div v-if="!isOrgAdmin" class="helptext">lecture seule — seul un admin de l'org peut régler ces leviers.</div>
+        <CategoryChips :values="rows.map((r) => catOf(r.connector))" v-model="category" />
+        <div v-if="!isOrgAdmin" class="helptext" style="margin-top: 10px">lecture seule — seul un admin de l'org peut régler ces leviers.</div>
       </ConsoleCard>
 
       <div class="occards">

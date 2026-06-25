@@ -7,6 +7,7 @@ import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
+import CategoryChips from '@/components/console/CategoryChips.vue'
 import DocSections from '@/components/console/DocSections.vue'
 import { getMyConnectors, selectConnector } from '@/api/console'
 import type { MyConnector } from '@/types/api'
@@ -35,13 +36,6 @@ async function install(c: MyConnector) {
   catch (e) { error.value = humanize(e) }
   finally { busy.value = null }
 }
-
-// Catégories présentes, ordonnées par nb de connecteurs.
-const categories = computed(() => {
-  const counts = new Map<string, number>()
-  for (const c of catalog.value) counts.set(c.category, (counts.get(c.category) ?? 0) + 1)
-  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([name, n]) => ({ name, n }))
-})
 
 const filtered = computed(() => {
   const needle = q.value.trim().toLowerCase()
@@ -74,13 +68,7 @@ const familyTone = (f: string): 'olive' | 'saffron' | 'cobalt' | 'ink' =>
       sub="browse every connector oto can drive — search, filter by category, then connect from your workspace.">
       <div class="lib-controls">
         <input v-model="q" class="inp" placeholder="search connectors, publishers, namespaces…" />
-        <div class="chips">
-          <button class="chip" :class="{ on: category === null }" @click="category = null">all</button>
-          <button v-for="c in categories" :key="c.name" class="chip"
-            :class="{ on: category === c.name }" @click="category = c.name">
-            {{ c.name }} <span class="chip-n">{{ c.n }}</span>
-          </button>
-        </div>
+        <CategoryChips :values="catalog.map((c) => c.category)" v-model="category" />
       </div>
     </ConsoleCard>
 
@@ -128,15 +116,6 @@ const familyTone = (f: string): 'olive' | 'saffron' | 'cobalt' | 'ink' =>
 <style scoped>
 .lib-controls { display: flex; flex-direction: column; gap: 12px; }
 .lib-controls .inp { width: 100%; max-width: 420px; }
-.chips { display: flex; flex-wrap: wrap; gap: 7px; }
-.chip {
-  font-size: 12px; padding: 4px 11px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--color-hair); background: var(--color-surface);
-  color: var(--color-ink-soft); transition: all var(--t-fast) var(--ease-out);
-}
-.chip:hover { border-color: var(--color-ink-soft); }
-.chip.on { background: var(--color-ink); color: var(--color-bg); border-color: var(--color-ink); }
-.chip-n { opacity: 0.55; font-variant-numeric: tabular-nums; }
 
 .lib-card {
   display: flex; flex-direction: column; gap: 10px; padding: 16px;

@@ -30,7 +30,7 @@ export interface DocSection {
 // `cardinality=multi_account` = N comptes liés (Google) ; `fields` = schéma de
 // saisie (vide hors method='secret', où les flux — oauth/cookie/remote — sont dédiés).
 export interface AuthDescriptor {
-  method: 'secret' | 'oauth' | 'cookie' | 'remote' | 'none'
+  method: 'secret' | 'oauth' | 'cookie' | 'remote' | 'hosted' | 'none'
   cardinality: 'single' | 'multi_account'
   fields: CredentialField[]
 }
