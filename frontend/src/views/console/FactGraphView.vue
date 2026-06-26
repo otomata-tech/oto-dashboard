@@ -24,7 +24,14 @@ const currentKind = computed(() => kinds.value.find((k) => k.kind === selectedKi
 function roleNames(role: string): string[] {
   return (currentKind.value?.fields ?? []).filter((f) => f.role === role).map((f) => f.name)
 }
-const titleField = computed(() => roleNames('title')[0] ?? null)
+// titre : rôle `title`, sinon repli sur un champ « nom » courant, sinon #id.
+const TITLE_FALLBACK = ['raison_sociale', 'nom', 'titre', 'title', 'numero', 'libelle', 'label']
+const titleField = computed(() => {
+  const fs = currentKind.value?.fields ?? []
+  const byRole = fs.find((f) => f.role === 'title')
+  if (byRole) return byRole.name
+  return TITLE_FALLBACK.find((n) => fs.some((f) => f.name === n)) ?? null
+})
 const statusField = computed(() => roleNames('status')[0] ?? null)
 const priorityField = computed(() => roleNames('priority')[0] ?? null)
 const badgeFields = computed(() => roleNames('badge'))
@@ -33,6 +40,16 @@ const subtitleFields = computed(() => [...roleNames('subtitle'), ...roleNames('m
 const contactFields = computed(() => [...roleNames('contact'), ...roleNames('link')])
 const qualifFields = computed(() =>
   (currentKind.value?.fields ?? []).filter((f) => f.role === 'qualif' || f.role === 'note'),
+)
+// champs SANS rôle de rendu (kinds legacy : entreprise/contact/action/compta) →
+// rendus génériquement en clé:valeur pour qu'aucune fiche ne soit vide.
+const KNOWN_ROLES = new Set([
+  'title', 'subtitle', 'meta', 'badge', 'metric', 'status', 'priority', 'contact', 'link', 'qualif', 'note',
+])
+const genericFields = computed(() =>
+  (currentKind.value?.fields ?? []).filter(
+    (f) => !KNOWN_ROLES.has(f.role ?? '') && f.name !== titleField.value,
+  ),
 )
 
 function labelOf(name: string): string {
@@ -179,6 +196,13 @@ onMounted(loadKinds)
                 <div class="fg-qualif-label">{{ qf.label }}</div>
                 <p class="fg-qualif-text">{{ str(f.data[qf.name]) }}</p>
               </div>
+
+              <!-- champs sans rôle (kinds legacy) : rendu générique clé:valeur -->
+              <div v-if="genericFields.some((gf) => present(f, gf.name))" class="fg-generic">
+                <span v-for="gf in genericFields.filter((gf) => present(f, gf.name))" :key="gf.name" class="fg-gen">
+                  <span class="dim">{{ gf.label }}:</span> {{ str(f.data[gf.name]) }}
+                </span>
+              </div>
             </article>
           </div>
         </div>
@@ -265,4 +289,6 @@ onMounted(loadKinds)
   line-height: 1.55;
   white-space: pre-wrap;
 }
+.fg-generic { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12.5px; }
+.fg-gen { white-space: nowrap; }
 </style>
