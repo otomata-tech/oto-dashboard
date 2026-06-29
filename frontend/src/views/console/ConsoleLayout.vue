@@ -39,6 +39,7 @@ const VIEWS: Record<string, Component> = {
   '/platform/usage': defineAsyncComponent(() => import('./UsageView.vue')),
   '/platform/users': defineAsyncComponent(() => import('./AdminUsersView.vue')),
   '/platform/orgs': defineAsyncComponent(() => import('./AdminOrgsView.vue')),
+  '/platform/objects': defineAsyncComponent(() => import('./AdminObjectsView.vue')),
   '/platform/connectors': defineAsyncComponent(() => import('./AdminConnectorsView.vue')),
   '/platform/access': defineAsyncComponent(() => import('./AdminAccessView.vue')),
 }

@@ -6,7 +6,7 @@ import type {
   CreditPack, CreditTransaction, DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
-  ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
+  ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ResourceEntry, Role, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal,
   MementoStatus, MementoWorkspaces, UnipileStatus, ConnectorIdentity, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
   ReferralLink, InviteResult,
@@ -169,8 +169,9 @@ export const startCheckout = (pack_id: string) =>
 // ── datastore ──
 export const getNamespaces = () => api<{ namespaces: NamespaceEntry[] }>('/api/datastore/namespaces')
 export const getNamespaceUrl = (ns: string) => api<{ url: string }>(`/api/datastore/namespaces/${ns}/url`)
-export const createNamespace = (namespace: string) =>
-  api('/api/datastore/namespaces', { method: 'POST', ...j({ namespace }) })
+// owner optionnel (ADR 0030) : { type:'org'|'group', id } pour un classeur d'équipe.
+export const createNamespace = (namespace: string, owner?: { type: string; id: string | number }) =>
+  api('/api/datastore/namespaces', { method: 'POST', ...j(owner ? { namespace, owner } : { namespace }) })
 export const deleteNamespace = (ns: string) =>
   api(`/api/datastore/namespaces/${encodeURIComponent(ns)}`, { method: 'DELETE' })
 export interface RowQuery {
@@ -200,6 +201,17 @@ export const shareNamespace = (ns: string, email: string, permission: string) =>
   api(`/api/datastore/namespaces/${encodeURIComponent(ns)}/share`, { method: 'POST', ...j({ email, permission }) })
 export const unshareNamespace = (ns: string, email: string) =>
   api(`/api/datastore/namespaces/${encodeURIComponent(ns)}/share`, { method: 'DELETE', ...j({ email }) })
+
+// ── object-browser admin : gouvernance générique des ressources (ADR 0030) ──
+// Une seule capacité `oto_resource` (POST /api/resources) op-aware.
+export const listResources = (resource_type: string) =>
+  api<{ resource_type: string; resources: ResourceEntry[] }>(
+    '/api/resources', { method: 'POST', ...j({ op: 'list', resource_type }) })
+export const transferResource = (resource_type: string, resource_id: string, new_owner_email: string) =>
+  api('/api/resources', { method: 'POST', ...j({ op: 'transfer', resource_type, resource_id, new_owner_email }) })
+export const getResource = (resource_type: string, resource_id: string) =>
+  api<ResourceEntry & { grants: NamespaceShare[] }>(
+    '/api/resources', { method: 'POST', ...j({ op: 'get', resource_type, resource_id }) })
 export const appendNamespaceRow = (ns: string, row: Record<string, unknown>) =>
   api<DatastoreRow>(`/api/datastore/namespaces/${encodeURIComponent(ns)}/rows`,
     { method: 'POST', ...j(row) })

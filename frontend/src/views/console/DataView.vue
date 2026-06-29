@@ -8,6 +8,7 @@ import RowDrawer from '@/components/console/RowDrawer.vue'
 import ShareDialog from '@/components/console/ShareDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useMe } from '@/composables/useMe'
 import { useDeepLink } from '@/composables/useDeepLink'
 import {
   getNamespaces, createNamespace, deleteNamespace, renameNamespace, transferNamespace,
@@ -18,7 +19,8 @@ import { humanize } from '@/lib/errors'
 import { rowsToCsv, downloadCsv } from '@/lib/csv'
 
 const { toast } = useToast()
-const { promptText, confirmAction } = usePrompt()
+const { promptText, promptForm, confirmAction } = usePrompt()
+const { me } = useMe()
 const PAGE_SIZE = 25
 
 const namespaces = ref<NamespaceEntry[]>([])
@@ -49,8 +51,9 @@ const dl = useDeepLink<number>('ns', (id) => {
 
 const current = computed(() => namespaces.value.find((n) => n.id === selectedId.value) || null)
 const currentName = computed(() => current.value?.namespace ?? null)
-const readOnly = computed(() => !!current.value?.shared && current.value.permission !== 'write')
-const isOwner = computed(() => !!current.value && !current.value.shared)
+// ADR 0030 : droits dérivés du payload (owner-match ∪ grant ∪ gouvernance).
+const readOnly = computed(() => !!current.value && current.value.can_write === false)
+const canGovern = computed(() => !!current.value?.can_govern)
 
 const fields = computed<string[]>(() => {
   const seen: string[] = []
@@ -142,10 +145,28 @@ async function exportCsv() {
 }
 
 async function create() {
-  const ns = await promptText('new namespace', { label: 'name', required: true, placeholder: 'e.g. prospects-q3' })
-  if (!ns) return
+  const activeOrg = me.value?.active_org
+  const orgName = me.value?.active_org_name || 'mon org'
+  // Avec une org active, on propose le scope : perso (défaut) ou classeur d'org.
+  const fields = [
+    { key: 'name', label: 'name', required: true, placeholder: 'e.g. prospects-q3' },
+  ]
+  if (activeOrg) {
+    fields.push({
+      key: 'scope', label: 'owner', type: 'select', value: 'user',
+      options: [
+        { value: 'user', label: 'personal (just me)' },
+        { value: 'org', label: `org classeur (${orgName})` },
+      ],
+    } as never)
+  }
+  const res = await promptForm({ title: 'new namespace', fields, submitLabel: 'create' })
+  if (!res || !res.name) return
+  const ns = res.name.trim()
+  const owner = res.scope === 'org' && activeOrg
+    ? { type: 'org', id: activeOrg } : undefined
   try {
-    await createNamespace(ns)
+    await createNamespace(ns, owner)
     toast(`namespace "${ns}" created`)
     await load()
     const created = namespaces.value.find((n) => n.namespace === ns)
@@ -251,7 +272,9 @@ async function onDelete() {
             class="rowitem ns-item" :class="{ active: ns.id === selectedId }"
             @click="open(ns.id)">
             <code class="mono" style="font-weight: 600">{{ ns.namespace }}</code>
-            <Tag v-if="ns.shared" tone="cobalt">shared · {{ ns.permission || 'read' }}</Tag>
+            <Tag v-if="ns.owner_type === 'org'" tone="cobalt">org</Tag>
+            <Tag v-else-if="ns.owner_type === 'group'" tone="cobalt">team</Tag>
+            <Tag v-else-if="ns.shared" tone="cobalt">shared · {{ ns.permission || 'read' }}</Tag>
           </button>
           <div v-if="loaded && !namespaces.length" class="dim" style="text-align: center; padding: 16px">
             no namespaces yet — create one to let your agents store rows.
@@ -268,7 +291,7 @@ async function onDelete() {
             {{ exporting ? 'exporting…' : 'export csv' }}
           </Btn>
           <Btn v-if="!readOnly" kind="mini" icon="plus" @click="openNew">add row</Btn>
-          <template v-if="isOwner">
+          <template v-if="canGovern">
             <Btn kind="mini" icon="users" @click="shareOpen = true">share</Btn>
             <Btn kind="mini" icon="pen" @click="rename">rename</Btn>
             <Btn kind="mini" icon="ext" @click="transfer">transfer</Btn>

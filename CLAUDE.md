@@ -67,11 +67,19 @@ une carte par niveau du level-switch :
   user le 2026-06-24.
 - **ORG** `/org/connectors` (`OrgConnectorsView` → `ConnectorOrgCard`) — ce que l'org propose &
   impose : **disponibilité BINAIRE** (un seul toggle « disponible / coupé pour mes membres »,
-  capacité `connectors.activation.{org_list,set_org,clear_org}`) **bornée par la plateforme =
-  plancher DUR** : master off → aucun levier (« coupé par la plateforme »). **Pas de « forcer
-  dispo »** (on n'expose jamais ce que la plateforme a coupé) ni de **« recommandé »** (retiré le
-  2026-06-24 — inerte côté membre ; backend `setOrgConnectors` gardé). **Rédaction ÉDITABLE**.
-  Clé partagée d'org + baseline toolset restent pour l'instant dans `/org` (rapatriement différé).
+  capacité `connectors.activation.{org_list,set_org,clear_org}`). **La vue ne liste QUE les
+  connecteurs activés par la plateforme** (master ON, ou grant-only accordé à l'org) — invariant
+  cohérent avec la surface USER (`_org_list` filtre, corrigé 2026-06-24) ; **plus de carte « coupé
+  par la plateforme » inerte** (jamais de levier inerte). **Pas de « forcer dispo »** ni de
+  **« recommandé »** (retiré le 2026-06-24). **Rédaction ÉDITABLE**. Clé partagée d'org + baseline
+  toolset restent pour l'instant dans `/org` (rapatriement différé).
+  > **Email géré PAR CONNECTEUR** (`ConnectorEmail.vue`, accordéon « expéditeurs & envoi » dans
+  > `ConnectorOrgCard`, pour `scaleway`+`resend`) : expéditeurs + fenêtre calme par connecteur (le
+  > transport en dérive, lecture seule). Réutilise les primitives `components/console/config/`
+  > (`ConfigPanel`/`ConfigSection`/`EditableCollection`) — template de config réutilisable, à
+  > adopter par les autres cartes au fil de l'eau. Encart « envois programmés » en pied de vue.
+  > Backend : `oto-backend/CLAUDE.md` §Email (scaleway grant-only Otomata / resend BYOK ; issue #64
+  > = vérif de domaine par org). **Pas de page autonome `/org/email`** (supprimée).
   > **Rédaction des champs** (`ConnectorTransforms.vue`) : sur **tout** connecteur (plus gaté sur un
   > schéma curé). Le schéma affiché = **observé** (capture passive backend, cf. `oto-backend/docs/redaction.md`)
   > ∪ curé ∪ champs sous règle ; **rien par défaut** + **modèles 1-clic** (anonymisation candidat/bancaire) ;
@@ -80,6 +88,15 @@ une carte par niveau du level-switch :
 - **PLATEFORME** `/platform/connectors` (`AdminConnectorsView`) — master switch + **clé plateforme**
   (set/remove inline, réservé super_admin ; absorbe l'ex-`/platform/keys`, qui redirige). Entitlements
   de namespace restent par org dans `/platform/orgs`.
+
+**Object-browser admin (ADR 0030).** `/platform/objects` (`AdminObjectsView`) = projection
+PLATEFORME des **objets possédés** (généralise le level-switch à tout objet, pas que les
+connecteurs). v1 = `datastore_namespace` : liste owner + nb rows + transfert (via `oto_resource`
+op-aware, `POST /api/resources`). **Plan gouvernance only** — jamais le contenu des lignes
+(lecture = view-as audité). Pensé pour se **dériver** du registre de capacités
+(`GET /api/admin/capabilities`, JSON Schema des Input) — l'ossature accueille les autres types
+sans réécriture. Réutilise `DataTable`/conventions admin existantes (pas de framework admin tiers,
+TanStack présent mais inutilisé).
 
 ## Fédération MCP (memento, otomata#16)
 
@@ -94,7 +111,7 @@ provisionné automatiquement à la création du compte oto (côté backend).
 ## Mémoire — datastore + knowledge (ADR 0016)
 
 Groupe nav **« memory »** (`consoleNav.ts`) = deux surfaces de mémoire :
-- **Datastore** (`/console/data`, `DataView.vue`) — stockage tabulaire per-user, **substrat PG natif** (plus Google Sheets). Grille **server-driven** (`DataTable.vue` : tri/recherche/pagination côté API via `getNamespaceRows({offset,limit,order_by,order_dir,q})`, rendu cellules typé `cellRender.ts`) ; clic row → détail/édition (`RowDrawer.vue`). **Deeplink par id** (`?ns=<id>`, `NamespaceEntry.id` BIGSERIAL stable → le **renommage** ne casse pas l'URL). Gestion propriétaire : **share** (`ShareDialog.vue`, par email read/write), **rename** (`renameNamespace`), **transfer** (`transferNamespace`, l'ancien proprio repasse en partage write). `getNamespaces` renvoie des `NamespaceEntry`. Plus de gate Google.
+- **Datastore** (`/console/data`, `DataView.vue`) — stockage tabulaire, **substrat PG natif** (plus Google Sheets). Grille **server-driven** (`DataTable.vue` : tri/recherche/pagination côté API via `getNamespaceRows({offset,limit,order_by,order_dir,q})`, rendu cellules typé `cellRender.ts`) ; clic row → détail/édition (`RowDrawer.vue`). **Deeplink par id** (`?ns=<id>`, `NamespaceEntry.id` BIGSERIAL stable → le **renommage** ne casse pas l'URL). **Ownership ADR 0030** : les droits viennent du payload (`can_write`/`can_govern`/`owner_type`), plus de `isOwner` dérivé du flag `shared` ; read-only = `can_write===false`, boutons share/rename/transfer/delete gatés par `can_govern`. **org-owned activé** : la création propose un scope (perso / classeur d'org active) via `promptForm` select → `createNamespace(ns, {type:'org', id})` ; badge « org »/« team » sur la liste. **share** (`ShareDialog.vue`), **rename**, **transfer** (l'ancien proprio repasse en grant write). Plus de gate Google.
 - **Knowledge** (`/console/knowledge`, `KnowledgeView.vue`) — connexion **Memento opt-in** (réutilise `getMementoStatus`/`startMementoOauth`/`disconnectMemento`, mêmes endpoints que la carte federated mcp de `ConnectorsView`) ; pas de browse des KB (déféré). Retour OAuth `?memento=connected|error`.
 
 ## Bibliothèque — connecteurs & doctrines (groupe nav « library »)

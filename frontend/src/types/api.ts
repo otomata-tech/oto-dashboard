@@ -344,21 +344,40 @@ export interface MementoWorkspaces {
   pinned: MementoWorkspace[]
 }
 
-// Datastore (ADR 0016) — un namespace possédé ou partagé.
+// Datastore (ADR 0016 + primitive d'ownership ADR 0030) — un namespace possédé ou partagé.
 export interface NamespaceEntry {
   id: number          // BIGSERIAL stable — handle de deeplink, survit au renommage
   namespace: string
   url: string
   shared: boolean
   created_at?: string | null
-  owner_sub?: string
+  owner_type?: 'user' | 'org' | 'group'
+  owner_id?: string
+  owner_sub?: string  // legacy (≈ owner_id quand user)
   permission?: string
+  can_write?: boolean   // ADR 0030 : droit d'écriture effectif (owner-match ∪ grant write)
+  can_govern?: boolean  // ADR 0030 : droit de gouvernance (transfert/partage/suppression)
+  is_personal?: boolean // classeur perso (owner_type=user, owner_id=sub)
 }
 
 // Bénéficiaire d'un partage de namespace (vue propriétaire).
 export interface NamespaceShare {
   email: string | null
   permission: string
+  principal_type?: string
+  principal_id?: string
+  created_at?: string | null
+}
+
+// Object-browser admin (ADR 0030) — une ressource possédée, plan gouvernance.
+export interface ResourceEntry {
+  resource_type: string
+  resource_id: string
+  namespace?: string
+  owner_type?: string
+  owner_id?: string
+  owner_label?: string | null
+  row_count?: number
   created_at?: string | null
 }
 
