@@ -6,7 +6,7 @@ import type {
   CreditPack, CreditTransaction, DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
-  DatastoreRow, NamespaceEntry, NamespaceShare, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
+  ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, Role, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal,
   MementoStatus, MementoWorkspaces, UnipileStatus, ConnectorIdentity, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
   ReferralLink, InviteResult,
@@ -175,6 +175,7 @@ export const deleteNamespace = (ns: string) =>
   api(`/api/datastore/namespaces/${encodeURIComponent(ns)}`, { method: 'DELETE' })
 export interface RowQuery {
   offset?: number; limit?: number; orderBy?: string; orderDir?: 'asc' | 'desc'; q?: string
+  filters?: ColumnFilter[]
 }
 export const getNamespaceRows = (ns: string, opts: RowQuery = {}) => {
   const p = new URLSearchParams()
@@ -183,6 +184,7 @@ export const getNamespaceRows = (ns: string, opts: RowQuery = {}) => {
   if (opts.orderBy) p.set('order_by', opts.orderBy)
   if (opts.orderDir) p.set('order_dir', opts.orderDir)
   if (opts.q) p.set('q', opts.q)
+  if (opts.filters?.length) p.set('filters', JSON.stringify(opts.filters))
   const qs = p.toString()
   return api<{ rows: DatastoreRow[]; total: number; offset: number; limit: number }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows${qs ? `?${qs}` : ''}`)

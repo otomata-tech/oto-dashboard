@@ -13,8 +13,9 @@ import {
   getNamespaces, createNamespace, deleteNamespace, renameNamespace, transferNamespace,
   getNamespaceRows, appendNamespaceRow, updateNamespaceRow, deleteNamespaceRow,
 } from '@/api/console'
-import type { NamespaceEntry, DatastoreRow } from '@/types/api'
+import type { NamespaceEntry, DatastoreRow, ColumnFilter } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { rowsToCsv, downloadCsv } from '@/lib/csv'
 
 const { toast } = useToast()
 const { promptText, confirmAction } = usePrompt()
@@ -30,11 +31,13 @@ const total = ref(0)
 const rowsLoading = ref(false)
 const rowsError = ref<string | null>(null)
 
-// État de pagination/tri/recherche — tout côté serveur.
+// État de pagination/tri/recherche/filtres — tout côté serveur.
 const page = ref(0)
 const sortField = ref<string | null>('_updated_at')
 const sortDir = ref<'asc' | 'desc'>('desc')
 const search = ref('')
+const filters = ref<ColumnFilter[]>([])
+const exporting = ref(false)
 
 const META = new Set(['_id', '_created_at', '_updated_at'])
 
@@ -89,6 +92,7 @@ async function fetchRows() {
       offset: page.value * PAGE_SIZE, limit: PAGE_SIZE,
       orderBy: sortField.value ?? undefined, orderDir: sortDir.value,
       q: search.value || undefined,
+      filters: filters.value.length ? filters.value : undefined,
     })
     rows.value = r.rows
     total.value = r.total
@@ -100,13 +104,42 @@ async function open(id: number) {
   selectedId.value = id
   dl.set(id)
   closeDrawer()
-  page.value = 0; sortField.value = '_updated_at'; sortDir.value = 'desc'; search.value = ''
+  page.value = 0; sortField.value = '_updated_at'; sortDir.value = 'desc'; search.value = ''; filters.value = []
   await fetchRows()
 }
 
 function onPage(p: number) { page.value = p; fetchRows() }
 function onSort(field: string, dir: 'asc' | 'desc') { sortField.value = field; sortDir.value = dir; page.value = 0; fetchRows() }
 function onSearch(q: string) { search.value = q; page.value = 0; fetchRows() }
+function onFilters(f: ColumnFilter[]) { filters.value = f; page.value = 0; fetchRows() }
+
+// Export CSV du jeu FILTRÉ (mêmes tri/recherche/filtres), paginé pour couvrir tout
+// le vivier (la page UI plafonne à PAGE_SIZE ; l'API à 500/req).
+async function exportCsv() {
+  const name = currentName.value
+  if (!name || exporting.value) return
+  exporting.value = true
+  try {
+    const all: DatastoreRow[] = []
+    const STEP = 500
+    for (let off = 0; ; off += STEP) {
+      const r = await getNamespaceRows(name, {
+        offset: off, limit: STEP,
+        orderBy: sortField.value ?? undefined, orderDir: sortDir.value,
+        q: search.value || undefined,
+        filters: filters.value.length ? filters.value : undefined,
+      })
+      all.push(...r.rows)
+      if (off + STEP >= r.total || !r.rows.length) break
+    }
+    const META = new Set(['_created_at'])
+    const cols: string[] = []
+    for (const row of all) for (const k of Object.keys(row)) if (!META.has(k) && !cols.includes(k)) cols.push(k)
+    downloadCsv(`${name}.csv`, rowsToCsv(all as Record<string, unknown>[], cols))
+    toast(`${all.length} row${all.length === 1 ? '' : 's'} exported`)
+  } catch (e) { toast(humanize(e)) }
+  finally { exporting.value = false }
+}
 
 async function create() {
   const ns = await promptText('new namespace', { label: 'name', required: true, placeholder: 'e.g. prospects-q3' })
@@ -231,6 +264,9 @@ async function onDelete() {
         :sub="rowsLoading ? 'loading…' : `${total} row${total === 1 ? '' : 's'}`">
         <template #actions>
           <Tag v-if="readOnly" tone="saffron">read-only</Tag>
+          <Btn kind="mini" icon="doc" :disabled="exporting || !total" @click="exportCsv">
+            {{ exporting ? 'exporting…' : 'export csv' }}
+          </Btn>
           <Btn v-if="!readOnly" kind="mini" icon="plus" @click="openNew">add row</Btn>
           <template v-if="isOwner">
             <Btn kind="mini" icon="users" @click="shareOpen = true">share</Btn>
@@ -243,13 +279,14 @@ async function onDelete() {
         <p v-if="rowsError" class="helptext" style="color: var(--color-terra-ink); padding: 12px 16px">
           {{ rowsError }}
         </p>
-        <div v-else-if="!rowsLoading && !total && !search" class="dim" style="text-align: center; padding: 24px">
+        <div v-else-if="!rowsLoading && !total && !search && !filters.length" class="dim" style="text-align: center; padding: 24px">
           no rows yet — add one above, or your agents append with
           <code style="font-size: 11px">data_write("{{ currentName }}", row)</code>.
         </div>
         <DataTable v-else :rows="rows" :total="total" :page="page" :page-size="PAGE_SIZE"
-          :sort-field="sortField" :sort-dir="sortDir" :search="search" :loading="rowsLoading"
-          @open="openRow" @update:page="onPage" @update:sort="onSort" @update:search="onSearch" />
+          :sort-field="sortField" :sort-dir="sortDir" :search="search" :filters="filters" :loading="rowsLoading"
+          @open="openRow" @update:page="onPage" @update:sort="onSort" @update:search="onSearch"
+          @update:filters="onFilters" />
       </ConsoleCard>
 
       <ConsoleCard v-else title="pick a namespace">

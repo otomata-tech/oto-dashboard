@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import Btn from './Btn.vue'
 import Icon from './Icon.vue'
 import OtoLoading from './OtoLoading.vue'
-import type { DatastoreRow } from '@/types/api'
+import ColumnFilterCell from './ColumnFilterCell.vue'
+import type { ColumnFilter, DatastoreRow } from '@/types/api'
 import { cellKind, cellShort, absDate, relDate } from '@/lib/cellRender'
+import { buildFilters, columnFilterKind, defaultOp, type ColFilterState, type FilterKind } from '@/lib/datastoreFilters'
 
-// Grille SERVER-DRIVEN : tri/pagination/recherche côté API (le parent fetch).
+// Grille SERVER-DRIVEN : tri/pagination/recherche/filtres côté API (le parent fetch).
 // Ce composant n'affiche que la page courante et émet les changements.
 const props = defineProps<{
   rows: DatastoreRow[]
@@ -16,6 +18,7 @@ const props = defineProps<{
   sortField: string | null
   sortDir: 'asc' | 'desc'
   search: string
+  filters: ColumnFilter[]
   loading?: boolean
 }>()
 const emit = defineEmits<{
@@ -23,6 +26,7 @@ const emit = defineEmits<{
   (e: 'update:page', page: number): void
   (e: 'update:sort', field: string, dir: 'asc' | 'desc'): void
   (e: 'update:search', q: string): void
+  (e: 'update:filters', filters: ColumnFilter[]): void
 }>()
 
 const META = new Set(['_id', '_created_at', '_updated_at'])
@@ -60,6 +64,37 @@ watch(searchLocal, (v) => {
   if (timer) clearTimeout(timer)
   timer = setTimeout(() => emit('update:search', v), 300)
 })
+
+// ── filtres par colonne (server-side via le parent) ──────────────────────────
+const showFilters = ref(false)
+// État local par champ user (source de vérité des inputs). On NE reseed PAS depuis
+// props.filters à chaque refetch (éviter les sauts de curseur) — seulement un reset
+// externe (changement de namespace → props.filters=[]) vide l'état.
+const local = reactive<Record<string, ColFilterState>>({})
+const kindCache = new Map<string, FilterKind>()
+function colKind(field: string): FilterKind {
+  let k = kindCache.get(field)
+  if (!k) { k = columnFilterKind(props.rows, field); kindCache.set(field, k) }
+  return k
+}
+function modelFor(field: string): ColFilterState {
+  return local[field] ?? { op: defaultOp(colKind(field)), value: '' }
+}
+let ftimer: ReturnType<typeof setTimeout> | null = null
+function onCell(field: string, v: ColFilterState) {
+  local[field] = v
+  if (ftimer) clearTimeout(ftimer)
+  ftimer = setTimeout(() => emit('update:filters', buildFilters(local)), 300)
+}
+function clearFilters() {
+  for (const k of Object.keys(local)) delete local[k]
+  emit('update:filters', [])
+}
+const activeFilterCount = computed(() => buildFilters(local).length)
+watch(() => props.rows, () => kindCache.clear())  // colonnes/typage peuvent changer de namespace
+watch(() => props.filters, (f) => {
+  if (!f.length && Object.keys(local).length) for (const k of Object.keys(local)) delete local[k]
+})
 </script>
 
 <template>
@@ -69,6 +104,12 @@ watch(searchLocal, (v) => {
         <Icon name="search" :size="14" />
         <input v-model="searchLocal" class="dt-search-input" placeholder="search…" />
       </div>
+      <button class="dt-filter-toggle" :class="{ on: showFilters || activeFilterCount }"
+        :title="showFilters ? 'hide column filters' : 'filter by column'"
+        @click="showFilters = !showFilters">
+        filters<span v-if="activeFilterCount" class="dt-filter-badge">{{ activeFilterCount }}</span>
+      </button>
+      <button v-if="activeFilterCount" class="dt-filter-clear" @click="clearFilters">clear</button>
       <span class="dim dt-count">{{ total }} row{{ total === 1 ? '' : 's' }}</span>
     </div>
 
@@ -79,6 +120,12 @@ watch(searchLocal, (v) => {
             <th v-for="col in columns" :key="col" class="dt-th"
               :class="{ num: col === '_updated_at' }" @click="toggleSort(col)">
               <span class="dt-th-inner">{{ header(col) }}<span class="dt-sort">{{ sortGlyph(col) }}</span></span>
+            </th>
+          </tr>
+          <tr v-if="showFilters" class="dt-filter-row">
+            <th v-for="col in columns" :key="col">
+              <ColumnFilterCell v-if="col !== '_updated_at'" :field="col" :kind="colKind(col)"
+                :model-value="modelFor(col)" @update:model-value="onCell(col, $event)" />
             </th>
           </tr>
         </thead>
@@ -128,6 +175,19 @@ watch(searchLocal, (v) => {
   color: var(--color-ink); outline: none;
 }
 .dt-count { font-size: 11px; white-space: nowrap; }
+.dt-filter-toggle, .dt-filter-clear {
+  font: inherit; font-size: 11px; cursor: pointer; border: 1px solid var(--color-hair);
+  background: var(--color-surface); color: var(--color-mute); border-radius: 6px;
+  padding: 2px 8px; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+}
+.dt-filter-toggle.on { color: var(--color-cobalt); border-color: var(--color-cobalt); }
+.dt-filter-clear { border-color: transparent; color: var(--color-faint); }
+.dt-filter-clear:hover { color: var(--color-terra-ink); }
+.dt-filter-badge {
+  font-size: 10px; background: var(--color-cobalt); color: var(--color-paper);
+  border-radius: 8px; padding: 0 5px; line-height: 1.5;
+}
+.dt-filter-row th { padding: 4px var(--cell-pad, 8px) 6px; vertical-align: top; }
 .tbl-scroll { overflow-x: auto; }
 .dt-th { cursor: pointer; user-select: none; white-space: nowrap; }
 .dt-th-inner { display: inline-flex; align-items: center; gap: 4px; }

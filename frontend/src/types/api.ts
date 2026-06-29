@@ -371,6 +371,18 @@ export interface DatastoreRow {
   [field: string]: unknown
 }
 
+// Filtre par colonne de la vue tableau datastore (oto-dashboard#18). Combinés AND,
+// appliqués server-side. Miroir de db._DS_FILTER_OPS.
+export type FilterOp =
+  | 'contains' | 'eq' | 'ne' | 'in'
+  | 'gt' | 'gte' | 'lt' | 'lte'
+  | 'empty' | 'not_empty'
+export interface ColumnFilter {
+  field: string
+  op: FilterOp
+  value: string | string[]
+}
+
 // Unipile (LinkedIn & WhatsApp hébergés) — l'user connecte SES comptes (account_id
 // per-user PAR CANAL) sous la clé Unipile partagée de l'org, sous un abonnement
 // commun. channels.<canal>.connected=false → doit faire le hosted-auth de ce canal.
