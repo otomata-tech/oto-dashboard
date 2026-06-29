@@ -36,6 +36,7 @@ export const NAV: NavGroup[] = [
   { group: 'workspace', level: 'work', items: [
     { path: '/connectors', label: 'connectors', icon: 'plug' },
     { path: '/doctrine', label: 'doctrine', icon: 'doc' },
+    { path: '/agent-context', label: 'agent context', icon: 'bolt' },
   ]},
   { group: 'library', level: 'work', items: [
     { path: '/library/connectors', label: 'connector library', icon: 'plug' },

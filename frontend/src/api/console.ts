@@ -2,7 +2,7 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, ApiToken, BillingBalance, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, ApiToken, BillingBalance, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
   CreditPack, CreditTransaction, DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
@@ -109,6 +109,8 @@ export const deletePreset = (name: string) => api(`/api/me/presets/${name}`, { m
 
 // ── doctrine / instructions ──
 export const getDoctrine = () => api<DoctrineBundle>('/api/me/instructions')
+// Contexte agent (otomata-private#49) : instructions serveur + doctrine + outils visibles.
+export const getAgentContext = () => api<AgentContext>('/api/me/agent-context')
 export const getInstruction = (slug: string, version?: number) =>
   api<InstructionDetail>(`/api/me/instructions/${slug}${version ? `?version=${version}` : ''}`)
 export const putInstruction = (slug: string, body_md: string, title?: string, description?: string) =>

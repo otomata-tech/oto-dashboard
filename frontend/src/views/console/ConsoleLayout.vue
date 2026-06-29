@@ -25,6 +25,7 @@ const VIEWS: Record<string, Component> = {
   '/connectors': defineAsyncComponent(() => import('./ConnectorsView.vue')),
   '/library/connectors': defineAsyncComponent(() => import('./ConnectorLibraryView.vue')),
   '/doctrine': defineAsyncComponent(() => import('./DoctrineView.vue')),
+  '/agent-context': defineAsyncComponent(() => import('./AgentContextView.vue')),
   '/library/doctrines': defineAsyncComponent(() => import('./DoctrineLibraryView.vue')),
   '/data': defineAsyncComponent(() => import('./DataView.vue')),
   '/facts': defineAsyncComponent(() => import('./FactGraphView.vue')),

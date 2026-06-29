@@ -295,6 +295,35 @@ export interface DoctrineBundle {
   instructions: InstructionMeta[]
 }
 
+// ── contexte agent (otomata-private#49) : ce que le Claude de l'user reçoit ──
+export interface AgentDoctrine {
+  org_id: number | null
+  org: string | null
+  doctrine: string
+  group_id: number | null
+  group: string | null
+  group_doctrine: string
+  doctrines: { slug: string; title: string; description: string; scope: string }[]
+  referenced_tools: { name: string; description?: string }[]
+}
+export interface AgentToolNamespace {
+  namespace: string
+  visible: number
+  total: number
+}
+export interface AgentToolsView {
+  available: boolean
+  total_visible?: number
+  total_hidden?: number
+  namespaces?: AgentToolNamespace[]
+}
+export interface AgentContext {
+  org_id: number | null
+  instructions: string
+  doctrine: AgentDoctrine
+  tools: AgentToolsView
+}
+
 // ── google / datastore / tokens ──
 export interface GoogleAccount {
   email: string | null
