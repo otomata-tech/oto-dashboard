@@ -324,6 +324,26 @@ export interface AgentContext {
   tools: AgentToolsView
 }
 
+// ── Projets (couche d'organisation, ADR 0030) ──
+export type ProjectLinkType = 'tableau' | 'procedure' | 'connecteur' | 'base'
+export interface ProjectLink {
+  target_type: ProjectLinkType
+  target_ref: string
+  label?: string | null
+  created_at?: string | null
+}
+export interface Project {
+  id: number
+  name: string
+  brief_md: string
+  owner_type: string
+  owner_id: string
+  created_at?: string | null
+  updated_at?: string | null
+  archived_at?: string | null
+  links?: ProjectLink[]
+}
+
 // ── google / datastore / tokens ──
 export interface GoogleAccount {
   email: string | null

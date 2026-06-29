@@ -22,6 +22,7 @@ const AdminUserView = defineAsyncComponent(() => import('./AdminUserView.vue'))
 // Keyé par path canonique (= meta.section porté par chaque route, cf. consoleNav).
 const VIEWS: Record<string, Component> = {
   '/overview': OverviewView,
+  '/projects': defineAsyncComponent(() => import('./ProjectsView.vue')),
   '/connectors': defineAsyncComponent(() => import('./ConnectorsView.vue')),
   '/library/connectors': defineAsyncComponent(() => import('./ConnectorLibraryView.vue')),
   '/doctrine': defineAsyncComponent(() => import('./DoctrineView.vue')),
