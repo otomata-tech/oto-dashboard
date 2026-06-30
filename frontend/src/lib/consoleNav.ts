@@ -36,11 +36,11 @@ export const NAV: NavGroup[] = [
   { group: 'workspace', level: 'work', items: [
     { path: '/projects', label: 'projects', icon: 'home' },
     { path: '/connectors', label: 'connectors', icon: 'plug' },
-    { path: '/doctrine', label: 'doctrine', icon: 'doc' },
+    { path: '/doctrine', label: 'procédures', icon: 'doc' },
     { path: '/agent-context', label: 'agent context', icon: 'bolt' },
   ]},
   { group: 'memory', level: 'work', items: [
-    { path: '/data', label: 'datastore', icon: 'db' },
+    { path: '/data', label: 'données', icon: 'db' },
     { path: '/knowledge', label: 'knowledge', icon: 'book' },
   ]},
   { group: 'account', level: 'work', items: [
@@ -78,8 +78,8 @@ export function levelOf(path: string): NavLevel {
 export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/overview': { title: 'overview', crumb: 'app.oto.ninja' },
   '/connectors': { title: 'connectors', crumb: 'workspace' },
-  '/doctrine': { title: 'doctrine', crumb: 'workspace' },
-  '/data': { title: 'datastore', crumb: 'memory' },
+  '/doctrine': { title: 'procédures', crumb: 'workspace' },
+  '/data': { title: 'données', crumb: 'memory' },
   '/knowledge': { title: 'knowledge', crumb: 'memory' },
   '/account': { title: 'manage account', crumb: 'account' },
   '/activity': { title: 'activity', crumb: 'account' },
