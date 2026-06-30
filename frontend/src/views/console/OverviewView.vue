@@ -12,15 +12,14 @@ import McpEndpointCard from '@/components/console/McpEndpointCard.vue'
 import StateEmpty from '@/components/console/StateEmpty.vue'
 import Squiggle from '@/components/console/Squiggle.vue'
 import InviteFriendCard from '@/components/console/InviteFriendCard.vue'
-import GetStartedGuide from '@/components/console/GetStartedGuide.vue'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { getConnectors, getDoctrine, getGoogleStatus, getMonitoringSummary } from '@/api/console'
 import type { ConnectorMeta, GoogleOauthStatus, MonitoringSummary } from '@/types/api'
 import { toDayBars } from '@/lib/monitoring'
 import { humanize } from '@/lib/errors'
 
-type Variant = 'status' | 'activity' | 'onboarding'
-const VARIANT_LABEL: Record<Variant, string> = { status: 'status', activity: 'activity', onboarding: 'get started' }
+type Variant = 'status' | 'activity'
+const VARIANT_LABEL: Record<Variant, string> = { status: 'status', activity: 'activity' }
 const explicitPref = localStorage.getItem('oto.overview') as Variant | null
 const variant = ref<Variant>(explicitPref || 'status')
 function setVariant(v: Variant) { variant.value = v; localStorage.setItem('oto.overview', v) }
@@ -103,9 +102,6 @@ onMounted(async () => {
   doctrineExists.value = (await soft(getDoctrine(), null))?.doctrine.exists ?? false
   if (isAdmin.value) summary.value = await soft(getMonitoringSummary(7), null)
   loaded.value = true
-  // Compte neuf / non configuré, sans préférence explicite → on ouvre le tutorial
-  // « get started » par défaut (sans le persister : un clic d'onglet, lui, colle).
-  if (!explicitPref && userKeysCount.value === 0) variant.value = 'onboarding'
 })
 </script>
 
@@ -118,7 +114,7 @@ onMounted(async () => {
         <span class="eyebrow">studio open · all systems nominal</span>
       </div>
       <div class="seg">
-        <button v-for="v in (['status', 'activity', 'onboarding'] as Variant[])" :key="v"
+        <button v-for="v in (['status', 'activity'] as Variant[])" :key="v"
           :class="{ on: variant === v }" @click="setVariant(v)">{{ VARIANT_LABEL[v] }}</button>
       </div>
     </div>
@@ -131,7 +127,7 @@ onMounted(async () => {
         showing up here — calls, quotas, errors, the lot.
         <template #cta>
           <Btn @click="router.push('/connectors')">add a key</Btn>
-          <Btn kind="ghost" @click="setVariant('onboarding')">see onboarding</Btn>
+          <Btn kind="ghost" @click="router.push('/projects')">open your projects</Btn>
         </template>
       </StateEmpty>
       <template v-else>
@@ -173,7 +169,7 @@ onMounted(async () => {
                 </div>
               </div>
             </div>
-            <Btn v-else kind="mini" @click="setVariant('onboarding')">review setup →</Btn>
+            <Btn v-else kind="mini" @click="router.push('/connectors')">review setup →</Btn>
           </ConsoleCard>
         </div>
       </template>
@@ -215,11 +211,6 @@ onMounted(async () => {
           <McpEndpointCard />
         </div>
       </template>
-    </template>
-
-    <!-- ── get started (tutorial permanent, 2 niveaux) ── -->
-    <template v-else>
-      <GetStartedGuide :connectors-configured="userKeysCount > 0" :doctrine-exists="doctrineExists" />
     </template>
   </div>
 </template>

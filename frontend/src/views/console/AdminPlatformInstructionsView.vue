@@ -1,9 +1,9 @@
 <script setup lang="ts">
-// Édition des blocs d'instructions PLATEFORME (#50) — secret sauce (A) + onboarding
-// (B). Ces blocs sont injectés à TOUS les comptes au handshake MCP et inviolables
-// par l'org. Réservé à l'admin plateforme (le backend l'impose ; l'UI vit sous
-// /platform). Bloc A = posture + boucle d'usage (toujours injecté). Bloc B =
-// amorce d'onboarding + catalogue de namespaces (injecté tant que pas onboarded).
+// Édition du bloc d'instructions PLATEFORME (#50) — secret sauce (A). Injecté à TOUS
+// les comptes au handshake MCP, inviolable par l'org. Réservé à l'admin plateforme (le
+// backend l'impose ; l'UI vit sous /platform). Bloc A = posture + boucle d'usage +
+// catalogue de namespaces dérivé, toujours injecté. (L'onboarding n'est plus un bloc :
+// c'est un projet « Découverte », ADR 0032 §7.)
 import { onMounted, reactive, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
@@ -18,13 +18,8 @@ const { toast } = useToast()
 const META: Record<string, { title: string; sub: string; tag: string }> = {
   secret_sauce: {
     title: 'bloc A · secret sauce',
-    sub: 'posture + boucle d’usage. toujours injecté, en tête du contexte de chaque agent.',
+    sub: 'posture + boucle d’usage + catalogue de namespaces (dérivé, ajouté automatiquement). toujours injecté, en tête du contexte de chaque agent.',
     tag: 'toujours injecté',
-  },
-  onboarding: {
-    title: 'bloc B · onboarding',
-    sub: 'amorce oto_onboarding() + catalogue de namespaces (dérivé, ajouté automatiquement). injecté uniquement tant que le compte n’est pas onboarded.',
-    tag: 'si non onboarded',
   },
 }
 

@@ -165,9 +165,6 @@ export interface Me {
   memento?: MementoStatus              // fédération MCP (otomata#16) — auto-prompt connexion
   providers: Record<string, ProviderStatus | undefined>
   billing: BillingBalance | null    // wallet de credits de l'org active (null si pas d'org)
-  // Onboarding = un projet « Découverte » (ADR 0032 §7 B5c) ; discovery_project_id
-  // null tant qu'il n'a pas été créé (au 1er oto_onboarding côté agent).
-  onboarding?: { onboarded: boolean; updated_at: string | null; discovery_project_id?: number | null }
 }
 
 // ── billing (credits d'appel par org, paiement Stripe) ──
@@ -325,7 +322,7 @@ export interface AgentContext {
 
 // ── Blocs d'instructions plateforme A/B (#50) — édités par l'admin plateforme ──
 export interface PlatformInstrBlock {
-  key: string                   // 'secret_sauce' (bloc A) | 'onboarding' (bloc B)
+  key: string                   // 'secret_sauce' (bloc A)
   body_md: string               // contenu effectif (override DB, ou le seed si jamais édité)
   updated_at: string | null
   updated_by: string | null

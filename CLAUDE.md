@@ -103,10 +103,16 @@ TanStack présent mais inutilisé).
 `ConnectorsView.vue` porte la carte « federated mcp » (connect/disconnect du compte memento
 per-user, OAuth via `/api/memento/oauth/*`). Depuis 2026-06-17 la fédération memento est
 **systématique** côté oto-mcp (connecteur `self_serve`, monté d'office) → la carte s'affiche
-pour **tous** les users (plus seulement les entitled). `OverviewView` ajoute une étape
-d'onboarding « connect your knowledge base » (auto-prompt) tant que `me.memento.connected` est
-faux. `Me.memento` (`{connected, set_at}`) vient de `GET /api/me`. Le compte memento est
+pour **tous** les users (plus seulement les entitled). La carte « next step » d'`OverviewView`
+inclut une étape « connect your knowledge base » tant que `me.memento.connected` est faux.
+`Me.memento` (`{connected, set_at}`) vient de `GET /api/me`. Le compte memento est
 provisionné automatiquement à la création du compte oto (côté backend).
+
+> **Onboarding = un projet (ADR 0032 §7, 2026-07-01).** Plus d'écran « get started » ni de
+> mode d'accueil spécial : le composant `GetStartedGuide.vue` et la variante `onboarding`
+> d'`OverviewView` ont été retirés. L'accueil est le projet « Découverte » (sous `/projects`),
+> semé à la création de l'org perso. `Me.onboarding` retiré ; la fiche « situation avec oto »
+> (profil) vit côté agent via `oto_profile`, plus dans le dashboard.
 
 ## Projets (couche d'organisation, ADR 0030 + modèle produit 2026-06-27)
 
