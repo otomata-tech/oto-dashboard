@@ -148,6 +148,8 @@ export const uploadProjectFile = (id: number, file: File) =>
   apiUpload<{ ok: boolean; file: ProjectFile }>(`/api/me/projects/${id}/files`, file)
 export const deleteProjectFile = (id: number, fileId: number) =>
   api(`/api/me/projects/${id}/files/${fileId}`, { method: 'DELETE' })
+export const setProjectFilePublic = (id: number, fileId: number, isPublic: boolean) =>
+  api<{ ok: boolean; file: ProjectFile }>(`/api/me/projects/${id}/files/${fileId}/public`, { method: 'POST', ...j({ public: isPublic }) })
 
 // Docs (incrément 3) — pages markdown d'un projet, op-aware oto_doc
 const docsApi = <T>(body: Record<string, unknown>) =>

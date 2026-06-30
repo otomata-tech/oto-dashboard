@@ -15,7 +15,7 @@ import {
   getResource, shareResource, unshareResource, transferResource,
   getNamespaces, getConnectors, getDoctrine, getMementoWorkspaces,
   getConnectorIdentities,
-  listProjectFiles, uploadProjectFile, deleteProjectFile,
+  listProjectFiles, uploadProjectFile, deleteProjectFile, setProjectFilePublic,
 } from '@/api/console'
 import type { Project, ProjectLink, ProjectLinkType, ProjectActivity, NamespaceShare, ConnectorIdentity, ProjectFile } from '@/types/api'
 import { fmtDate } from '@/types/api'
@@ -90,6 +90,16 @@ async function removeFile(f: ProjectFile) {
     await deleteProjectFile(projectId, f.id)
     files.value = files.value.filter((x) => x.id !== f.id)
     await loadActivity()
+  } catch (e) { toast(humanize(e)) }
+}
+async function toggleFilePublic(f: ProjectFile) {
+  try {
+    const { file: row } = await setProjectFilePublic(projectId, f.id, !f.public)
+    files.value = files.value.map((x) => (x.id === f.id ? row : x))
+    if (row.public && row.public_url) {
+      await navigator.clipboard.writeText(row.public_url).catch(() => {})
+      toast('Lien public copié.')
+    }
   } catch (e) { toast(humanize(e)) }
 }
 async function loadGrants() {
@@ -371,11 +381,14 @@ async function transfer() {
           </div>
           <div v-for="f in files" :key="f.id" class="pj-link" style="align-items: flex-start">
             <div style="flex: 1; min-width: 0">
-              <a v-if="f.download_url" :href="f.download_url" target="_blank" rel="noopener" style="color: var(--color-ink)">{{ f.title || f.filename }}</a>
+              <a v-if="f.public && f.public_url" :href="f.public_url" target="_blank" rel="noopener" style="color: var(--color-ink)">{{ f.title || f.filename }}</a>
+              <a v-else-if="f.download_url" :href="f.download_url" target="_blank" rel="noopener" style="color: var(--color-ink)">{{ f.title || f.filename }}</a>
               <span v-else style="color: var(--color-ink)">{{ f.title || f.filename }}</span>
               <span class="dim" style="font-size: 11px; margin-left: 6px">{{ fmtSize(f.size_bytes) }}</span>
+              <Tag v-if="f.public" tone="cobalt" title="Partagé publiquement — accessible par lien">public</Tag>
               <div v-if="f.description" class="dim" style="font-size: 11px; margin-top: 2px">{{ f.description }}</div>
             </div>
+            <button class="pj-x" :title="f.public ? 'Rendre privé' : 'Partager publiquement (copie le lien)'" @click="toggleFilePublic(f)">{{ f.public ? '🔓' : '🔗' }}</button>
             <button class="pj-x" @click="removeFile(f)">✕</button>
           </div>
           <p v-if="!files.length" class="dim" style="font-size: 12px">aucun fichier brut — PDF, HTML… via « + déposer ».</p>

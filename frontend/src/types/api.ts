@@ -369,6 +369,8 @@ export interface ProjectFile {
   title?: string | null
   description?: string | null
   summary?: string | null
+  public?: boolean
+  public_url?: string | null     // lien permanent quand public (ADR 0032 §3, B4b)
   created_at?: string | null
   download_url?: string | null
 }
