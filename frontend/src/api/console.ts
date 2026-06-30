@@ -148,6 +148,9 @@ export const unlinkProject = (id: number, target_type: ProjectLinkType, target_r
   projectsApi<{ ok: boolean; links: ProjectLink[] }>({ op: 'unlink', project_id: id, target_type, target_ref })
 export const getProjectActivity = (id: number) =>
   projectsApi<{ id: number; activity: ProjectActivity[] }>({ op: 'activity', project_id: id })
+// « Reprendre dans Claude » — blob copier-coller qui pré-écrit oto_use_project (B5b).
+export const projectHandoff = (id: number) =>
+  projectsApi<{ id: number; markdown: string }>({ op: 'handoff', project_id: id })
 
 // Fichiers bruts d'un projet — carte « Autre document » (ADR 0032 §3, B4a).
 export const listProjectFiles = (id: number) =>

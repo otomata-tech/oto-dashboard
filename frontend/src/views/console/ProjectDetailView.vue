@@ -10,7 +10,7 @@ import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
 import ProjectDocs from '@/components/console/ProjectDocs.vue'
 import {
-  getProject, updateProject, archiveProject, copyProject, setProjectTemplate,
+  getProject, updateProject, archiveProject, copyProject, setProjectTemplate, projectHandoff,
   linkProject, unlinkProject, getProjectActivity,
   getResource, shareResource, unshareResource, transferResource,
   getNamespaces, getConnectors, getDoctrine, getMementoWorkspaces,
@@ -150,6 +150,15 @@ async function toggleTemplate() {
   try {
     project.value = { ...project.value, ...(await setProjectTemplate(projectId, next)) }
     toast(next ? 'publié comme modèle' : 'retiré des modèles')
+  } catch (e) { toast(humanize(e)) }
+}
+
+// « Reprendre dans Claude » (B5b) : récupère le blob copier-coller et le met au presse-papier.
+async function handoff() {
+  try {
+    const { markdown } = await projectHandoff(projectId)
+    await navigator.clipboard.writeText(markdown)
+    toast('texte copié — colle-le dans Claude pour reprendre le projet')
   } catch (e) { toast(humanize(e)) }
 }
 
@@ -307,6 +316,7 @@ async function transfer() {
         <ConsoleCard :title="project.name"
           :sub="project.owner_type === 'org' ? 'projet d\'org — partagé avec l\'équipe' : 'projet perso'">
           <template #actions>
+            <Btn kind="mini" @click="handoff">Reprendre dans Claude</Btn>
             <Btn kind="mini" @click="copy">Copier ce projet</Btn>
             <Btn kind="mini" @click="toggleTemplate">{{ project.is_template ? 'Retirer des modèles' : 'Publier comme modèle' }}</Btn>
             <Btn kind="mini" @click="share">Partager</Btn>
