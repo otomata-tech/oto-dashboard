@@ -11,15 +11,21 @@ import type { ConnectorMeta, ConnectorMode, DotTone } from '@/lib/consoleTypes'
 
 const { me } = useMe()
 const connectors = ref<ConnectorMeta[]>([])
+const sessions = ref<ConnectorMeta[]>([])
 
 onMounted(async () => {
   try {
     const { connectors: c } = await getConnectors()
-    // Le grid n'affiche que les connecteurs à clé/secret (la session perso
-    // crunchbase est rendue à part depuis me.crunchbase).
+    // Deux familles : keyés/secret (ModeTag) et sessions navigateur (brevo/crunchbase,
+    // personal_session) rendues à part — état dérivé de me.providers[name].
     connectors.value = c.filter((x) => !x.personal_session && x.secret_kind !== 'none')
+    sessions.value = c.filter((x) => x.personal_session)
   } catch { /* le statut me suffit ; le grid se contente du catalogue dispo */ }
 })
+
+function sessionOn(name: string): boolean {
+  return !!me.value?.providers?.[name]?.user_key_configured
+}
 
 function statusMode(name: string): ConnectorMode {
   const p = me.value?.providers?.[name]
@@ -54,13 +60,13 @@ const cellStyle = 'border: 1px solid var(--color-hair); border-radius: 9px; padd
         </div>
         <ModeTag :mode="statusMode(c.name)" />
       </div>
-      <div :style="cellStyle">
+      <div v-for="s in sessions" :key="s.name" :style="cellStyle">
         <div style="display: flex; align-items: center; gap: 7px">
-          <Dot :tone="me?.crunchbase?.configured ? 'olive' : 'faint'" :size="7" />
-          <span style="font-weight: 600; font-size: 12.5px">crunchbase</span>
+          <Dot :tone="sessionOn(s.name) ? 'olive' : 'faint'" :size="7" />
+          <span style="font-weight: 600; font-size: 12.5px">{{ s.label }}</span>
         </div>
-        <Tag :tone="me?.crunchbase?.configured ? 'olive' : undefined">
-          {{ me?.crunchbase?.configured ? 'session ok' : 'no session' }}
+        <Tag :tone="sessionOn(s.name) ? 'olive' : undefined">
+          {{ sessionOn(s.name) ? 'session ok' : 'no session' }}
         </Tag>
       </div>
     </div>

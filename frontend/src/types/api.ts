@@ -138,13 +138,9 @@ export interface ProviderStatus {
   platform_key_label: string | null
   quota_used_today: number
   quota_daily: number | null
-}
-
-export interface SessionState {
-  configured: boolean
-  set_at?: string | null
-  user_agent?: string | null
-  browser_profile?: boolean
+  // Connecteurs à session navigateur (cookie/personal_session : brevo, crunchbase) —
+  // quand la session a été posée (Live View Browserbase). Absent pour les keyés.
+  session_set_at?: string | null
 }
 
 export interface Me {
@@ -165,7 +161,6 @@ export interface Me {
   home_group: number | null          // équipe MAISON (défaut MCP)
   home_group_name: string | null         // effectif (escalade org_admin/platform incluse)
   access: AccessState                  // gate doux alpha (ADR 0013)
-  crunchbase: SessionState
   memento?: MementoStatus              // fédération MCP (otomata#16) — auto-prompt connexion
   providers: Record<string, ProviderStatus | undefined>
   billing: BillingBalance | null    // wallet de credits de l'org active (null si pas d'org)

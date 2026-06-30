@@ -51,8 +51,10 @@ const userKeysCount = computed(() =>
   keyProviders.value.filter((c) => me.value?.providers?.[c.name]?.user_key_configured).length,
 )
 const sessionsActive = computed(() => {
-  let n = 0
-  if (me.value?.crunchbase?.configured) n++
+  // Sessions navigateur (brevo/crunchbase, personal_session) configurées + Google.
+  let n = catalog.value.filter(
+    (c) => c.personal_session && me.value?.providers?.[c.name]?.user_key_configured,
+  ).length
   if (google.value?.connected) n++
   return n
 })

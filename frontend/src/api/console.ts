@@ -46,8 +46,10 @@ export const setCredential = (provider: string, fields: Record<string, string>) 
 export const deleteApiKey = (provider: string) =>
   api(`/api/settings/api-keys/${provider}`, { method: 'DELETE' })
 
-// ── sessions ──
-export const deleteCrunchbase = () => api('/api/settings/crunchbase', { method: 'DELETE' })
+// ── sessions navigateur (brevo, crunchbase) ──
+// La pose se fait dans Claude (Live View Browserbase, `<name>_connect_start`) ; le
+// dashboard ne gère que la déconnexion, via le DELETE générique `deleteApiKey(name)`
+// (le credential session vit dans le même coffre que les clés). Plus de route dédiée.
 
 // ── google ──
 export const getGoogleStatus = () => api<GoogleOauthStatus>('/api/google/oauth/status')
