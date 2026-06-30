@@ -46,10 +46,19 @@ export const setCredential = (provider: string, fields: Record<string, string>) 
 export const deleteApiKey = (provider: string) =>
   api(`/api/settings/api-keys/${provider}`, { method: 'DELETE' })
 
-// ── sessions navigateur (brevo, crunchbase) ──
-// La pose se fait dans Claude (Live View Browserbase, `<name>_connect_start`) ; le
-// dashboard ne gère que la déconnexion, via le DELETE générique `deleteApiKey(name)`
-// (le credential session vit dans le même coffre que les clés). Plus de route dédiée.
+// ── sessions navigateur (brevo, crunchbase) — Live View Browserbase ──
+// Connexion DEPUIS le dashboard : `start` ouvre un navigateur distant et renvoie
+// l'URL de Live View (affichée en iframe, l'user se logue) + le couple context/session ;
+// `finalize` vérifie le login sur la session vivante et persiste le Context (credential).
+// Déconnexion = DELETE générique `deleteApiKey(name)` (même coffre que les clés).
+export const startConnectorSession = (name: string) =>
+  api<{ live_view_url: string; context_id: string; session_id: string }>(
+    `/api/me/connectors/${encodeURIComponent(name)}/session/start`, { method: 'POST' })
+export const finalizeConnectorSession = (
+  name: string, ctx: { context_id: string; session_id: string },
+) =>
+  api<{ connected: boolean }>(
+    `/api/me/connectors/${encodeURIComponent(name)}/session/finalize`, { method: 'POST', ...j(ctx) })
 
 // ── google ──
 export const getGoogleStatus = () => api<GoogleOauthStatus>('/api/google/oauth/status')
