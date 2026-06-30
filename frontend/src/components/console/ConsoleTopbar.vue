@@ -5,14 +5,16 @@ import Icon from './Icon.vue'
 import OtoMark from './OtoMark.vue'
 import type { MarkState } from '@/lib/mark'
 import { PAGE_META } from '@/lib/consoleNav'
-import { useMe, isPlatformOperator } from '@/composables/useMe'
+import { useMe } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
 
 const route = useRoute()
 const { me, error } = useMe()
 const { toggleNav } = useNav()
-const { level, goLevel } = useScope()
+// `level` est dérivé de la route — il pilote encore le bandeau de gouvernance
+// ci-dessous. Le choix du niveau, lui, a migré dans le menu profil (sidebar).
+const { level } = useScope()
 
 // Présence d'Oto : la marque vit dans le topbar. Au repos `static` ; pendant le
 // chargement du profil (boot), elle passe en `think` (« réfléchit »).
@@ -36,15 +38,6 @@ const meta = computed(() =>
       <h1>{{ meta.title }}</h1>
       <span class="crumb">{{ meta.crumb }}</span>
     </div>
-    <div v-if="me" class="right">
-      <!-- Niveau de gouvernance : échelle d'élévation à 3 crans (chaque cran révélé
-           selon les droits). Axe « QUOI je fais » — orthogonal au pill « profil actif ». -->
-      <div class="level-switch" role="tablist" aria-label="niveau">
-        <button class="lvl" :class="{ on: level === 'work' }" role="tab" :aria-selected="level === 'work'" @click="goLevel('work')">mon espace</button>
-        <button v-if="me.active_org != null" class="lvl" :class="{ on: level === 'org' }" role="tab" :aria-selected="level === 'org'" @click="goLevel('org')">gérer mon org</button>
-        <button v-if="isPlatformOperator(me)" class="lvl plat" :class="{ on: level === 'platform' }" role="tab" :aria-selected="level === 'platform'" @click="goLevel('platform')">gérer la plateforme</button>
-      </div>
-    </div>
   </header>
 
   <!-- Signal franc : hors « mon espace » on AGIT SUR une org / la plateforme -->
@@ -66,22 +59,6 @@ const meta = computed(() =>
   margin-right: 4px; text-decoration: none;
 }
 
-/* ── Niveau de gouvernance : un seul segmented control à 3 crans ── */
-.level-switch {
-  display: inline-flex; gap: 2px; padding: 2px;
-  background: var(--color-paper-2); border: 1px solid var(--color-hair);
-  border-radius: 9px;
-}
-.lvl {
-  border: 0; background: transparent; cursor: pointer;
-  padding: 5px 10px; border-radius: 7px;
-  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.02em;
-  font-weight: 600; color: var(--color-mute); white-space: nowrap;
-}
-.lvl:hover { color: var(--color-ink); }
-.lvl.on { background: var(--color-surface); color: var(--color-ink); box-shadow: 0 1px 2px rgb(0 0 0 / 0.06); }
-.lvl.plat.on { color: var(--color-saffron); }
-
 /* ── Bandeau de gouvernance ── */
 .gov-banner {
   display: flex; align-items: center; gap: 7px;
@@ -96,11 +73,4 @@ const meta = computed(() =>
   border-bottom-color: color-mix(in srgb, var(--color-saffron) 45%, var(--color-hair));
 }
 .gov-banner.platform strong { color: #7a2e0e; }
-
-@media (max-width: 820px) {
-  /* L'axe gouvernance (mon espace / mon org / plateforme) est un contrôle
-     desktop : sur mobile ses libellés débordent. On le masque — l'identité
-     org/équipe vit dans le menu (ConsoleIdentity), atteignable via la drawer. */
-  .level-switch { display: none; }
-}
 </style>

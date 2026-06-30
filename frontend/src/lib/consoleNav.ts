@@ -74,11 +74,6 @@ export function groupOfPath(path: string): NavGroup | undefined {
 export function levelOf(path: string): NavLevel {
   return groupOfPath(path)?.level ?? 'work'
 }
-// Première section atteignable d'un niveau (cible du switch de niveau).
-export function firstPath(level: NavLevel): string {
-  const g = NAV.find((x) => x.level === level)
-  return g?.items[0]?.path ?? '/overview'
-}
 
 export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/overview': { title: 'overview', crumb: 'app.oto.ninja' },
