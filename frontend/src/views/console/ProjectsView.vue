@@ -95,8 +95,11 @@ async function archive() {
   catch (e) { toast(humanize(e)) }
 }
 
-// ── liens : picker des vraies entités (incrément 6) ──
-async function entitiesFor(type: ProjectLinkType): Promise<{ value: string; label: string }[]> {
+// ── liens : formulaire « Lier une entité » à vrais sélecteurs (type → entité) ──
+// La référence n'est plus saisie à la main (id/slug/nom) : on choisit le type, puis
+// l'entité dans la liste réelle de ce type. Le nom affiché se pré-remplit du libellé.
+type LinkOption = { value: string; label: string }
+async function entitiesFor(type: ProjectLinkType): Promise<LinkOption[]> {
   if (type === 'tableau') return (await getNamespaces()).namespaces.map((n) => ({ value: String(n.id), label: n.namespace }))
   if (type === 'connecteur') return (await getConnectors()).connectors.map((c) => ({ value: c.name, label: c.label || c.name }))
   if (type === 'procedure') return ((await getDoctrine()).instructions ?? []).map((i) => ({ value: i.slug, label: i.title }))
@@ -106,21 +109,42 @@ async function entitiesFor(type: ProjectLinkType): Promise<{ value: string; labe
     .filter((x) => !seen.has(x.slug) && seen.add(x.slug))
     .map((x) => ({ value: x.slug, label: x.name }))
 }
-async function addLinkOf(type: ProjectLinkType) {
-  if (!selected.value) return
-  let opts: { value: string; label: string }[]
-  try { opts = await entitiesFor(type) } catch (e) { toast(humanize(e)); return }
-  if (!opts.length) { toast('aucune entité de ce type à lier'); return }
-  const r = await promptForm({
-    title: `Lier — ${LINK_GROUPS.find((g) => g.type === type)?.label}`,
-    fields: [{ key: 'ref', label: 'Entité', type: 'select', required: true, options: opts }],
-    submitLabel: 'Lier',
-  })
-  if (!r) return
-  const label = opts.find((o) => o.value === r.ref)?.label
+
+const linking = ref(false)
+const linkType = ref<ProjectLinkType | ''>('')
+const linkRef = ref('')
+const linkLabel = ref('')
+const linkLabelEdited = ref(false)
+const linkOpts = ref<LinkOption[]>([])
+const linkLoading = ref(false)
+
+function startLinking() {
+  linking.value = true
+  linkType.value = ''; linkRef.value = ''; linkLabel.value = ''
+  linkLabelEdited.value = false; linkOpts.value = []
+}
+function cancelLinking() { linking.value = false }
+
+async function onTypeChange() {
+  linkRef.value = ''; linkLabel.value = ''; linkLabelEdited.value = false; linkOpts.value = []
+  const t = linkType.value
+  if (!t) return
+  linkLoading.value = true
+  try { linkOpts.value = await entitiesFor(t) }
+  catch (e) { toast(humanize(e)) }
+  finally { linkLoading.value = false }
+}
+function onRefChange() {
+  if (!linkLabelEdited.value) linkLabel.value = linkOpts.value.find((o) => o.value === linkRef.value)?.label ?? ''
+}
+async function submitLink() {
+  const t = linkType.value
+  if (!selected.value || !t || !linkRef.value) return
+  const label = linkLabel.value.trim() || linkOpts.value.find((o) => o.value === linkRef.value)?.label
   try {
-    const { links } = await linkProject(selected.value.id, type, String(r.ref), label)
+    const { links } = await linkProject(selected.value.id, t, linkRef.value, label)
     selected.value = { ...selected.value, links }; await loadActivity()
+    linking.value = false
   } catch (e) { toast(humanize(e)) }
 }
 async function removeLink(l: ProjectLink) {
@@ -203,17 +227,46 @@ async function transfer() {
 
         <ProjectDocs :project-id="selected.id" @changed="loadActivity" />
 
-        <div class="subh">Entités liées</div>
-        <div v-for="g in LINK_GROUPS" :key="g.type" class="pj-linkgroup">
-          <div style="display: flex; align-items: center; margin: 2px 0">
-            <span class="dim" style="font-size: 11px; font-weight: 700">{{ g.label }}</span>
-            <button class="pj-x" style="margin-left: auto" @click="addLinkOf(g.type)">+ lier</button>
-          </div>
-          <div v-for="l in linksByType[g.type] || []" :key="l.target_ref" class="pj-link">
-            <span style="flex: 1; color: var(--color-ink)">{{ l.label || l.target_ref }}</span>
-            <button class="pj-x" @click="removeLink(l)">✕</button>
+        <div class="subh" style="display: flex; align-items: center">
+          <span>Entités liées</span>
+          <button v-if="!linking" class="pj-x" style="margin-left: auto" @click="startLinking">+ lier</button>
+        </div>
+
+        <div v-if="linking" class="pj-linkform">
+          <label class="pj-fld">
+            <span class="pj-fld__lbl">Type</span>
+            <select v-model="linkType" class="pj-input" @change="onTypeChange">
+              <option value="" disabled>choisir…</option>
+              <option v-for="g in LINK_GROUPS" :key="g.type" :value="g.type">{{ g.label }}</option>
+            </select>
+          </label>
+          <label class="pj-fld">
+            <span class="pj-fld__lbl">Entité</span>
+            <select v-model="linkRef" class="pj-input" :disabled="!linkType || linkLoading" @change="onRefChange">
+              <option value="" disabled>{{ linkLoading ? 'chargement…' : !linkType ? 'choisis un type' : linkOpts.length ? 'choisir…' : 'aucune entité de ce type' }}</option>
+              <option v-for="o in linkOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
+          </label>
+          <label class="pj-fld">
+            <span class="pj-fld__lbl">Nom affiché <span class="dim" style="font-weight: 400; text-transform: none; letter-spacing: 0">(optionnel)</span></span>
+            <input v-model="linkLabel" class="pj-input" placeholder="(optionnel — par défaut le nom de l'entité)" @input="linkLabelEdited = true" />
+          </label>
+          <div class="pj-linkform__act">
+            <button class="pj-x" @click="cancelLinking">annuler</button>
+            <Btn kind="mini" :disabled="!linkRef" @click="submitLink">Lier</Btn>
           </div>
         </div>
+
+        <div v-for="g in LINK_GROUPS" :key="g.type" class="pj-linkgroup">
+          <template v-if="linksByType[g.type]?.length">
+            <div class="dim" style="font-size: 11px; font-weight: 700; margin: 2px 0">{{ g.label }}</div>
+            <div v-for="l in linksByType[g.type]" :key="l.target_ref" class="pj-link">
+              <span style="flex: 1; color: var(--color-ink)">{{ l.label || l.target_ref }}</span>
+              <button class="pj-x" @click="removeLink(l)">✕</button>
+            </div>
+          </template>
+        </div>
+        <p v-if="!(selected.links?.length)" class="dim" style="font-size: 12px">aucune entité liée — utilise « + lier ».</p>
 
         <div class="subh">Partage</div>
         <p v-if="!grants.length" class="dim" style="font-size: 12px">non partagé.</p>
@@ -247,6 +300,12 @@ async function transfer() {
 .pj-list li:hover { background: #faf9f7; }
 .pj-list li.on { background: var(--color-paper-3, #f5f1e8); box-shadow: inset 3px 0 0 var(--color-ink, #2a2a2a); }
 .pj-brief { width: 100%; border: 1px solid var(--color-hair-soft, #cfcfcf); border-radius: 8px; padding: 9px 11px; font: inherit; font-size: 13px; line-height: 1.5; resize: vertical; background: #fff; color: var(--color-ink, #2a2a2a); }
+.pj-linkform { display: flex; flex-direction: column; gap: 9px; padding: 11px 12px; margin-bottom: 10px; border: 1px solid var(--color-hair-soft, #e0ddd6); border-radius: 9px; background: #faf9f7; }
+.pj-fld { display: flex; flex-direction: column; gap: 4px; }
+.pj-fld__lbl { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--color-faint, #9a9a9a); }
+.pj-input { width: 100%; border: 1px solid var(--color-hair-soft, #cfcfcf); border-radius: 7px; padding: 7px 9px; font: inherit; font-size: 13px; background: #fff; color: var(--color-ink, #2a2a2a); }
+.pj-input:disabled { opacity: .55; cursor: not-allowed; }
+.pj-linkform__act { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 2px; }
 .pj-linkgroup { margin-bottom: 6px; }
 .pj-link { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--color-hair-soft, #ececec); }
 .pj-act { display: flex; gap: 8px; padding: 3px 0; font-size: 12px; color: var(--color-ink-soft, #4a463d); }
