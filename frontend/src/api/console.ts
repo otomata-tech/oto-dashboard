@@ -3,7 +3,7 @@
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
   AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, ApiToken, BillingBalance, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
-  Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, Doc, DocKind, ProjectActivity,
+  Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, ProjectActivity,
   CreditPack, CreditTransaction, DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
@@ -131,6 +131,14 @@ export const unlinkProject = (id: number, target_type: ProjectLinkType, target_r
   projectsApi<{ ok: boolean; links: ProjectLink[] }>({ op: 'unlink', project_id: id, target_type, target_ref })
 export const getProjectActivity = (id: number) =>
   projectsApi<{ id: number; activity: ProjectActivity[] }>({ op: 'activity', project_id: id })
+
+// Fichiers bruts d'un projet — carte « Autre document » (ADR 0032 §3, B4a).
+export const listProjectFiles = (id: number) =>
+  api<{ files: ProjectFile[] }>(`/api/me/projects/${id}/files`)
+export const uploadProjectFile = (id: number, file: File) =>
+  apiUpload<{ ok: boolean; file: ProjectFile }>(`/api/me/projects/${id}/files`, file)
+export const deleteProjectFile = (id: number, fileId: number) =>
+  api(`/api/me/projects/${id}/files/${fileId}`, { method: 'DELETE' })
 
 // Docs (incrément 3) — pages markdown d'un projet, op-aware oto_doc
 const docsApi = <T>(body: Record<string, unknown>) =>

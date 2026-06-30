@@ -359,6 +359,19 @@ export interface Project {
   archived_at?: string | null
   links?: ProjectLink[]
 }
+// Fichier brut d'un projet — carte « Autre document » (ADR 0032 §3, B4a). Blob
+// durable en Object Storage ; `download_url` = lien signé expirant (jamais la clé S3).
+export interface ProjectFile {
+  id: number
+  filename: string
+  mime?: string | null
+  size_bytes?: number | null
+  title?: string | null
+  description?: string | null
+  summary?: string | null
+  created_at?: string | null
+  download_url?: string | null
+}
 export type DocKind = 'doc' | 'note' | 'source'
 export interface Doc {
   id: number

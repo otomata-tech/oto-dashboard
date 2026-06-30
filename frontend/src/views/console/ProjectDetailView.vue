@@ -14,8 +14,10 @@ import {
   linkProject, unlinkProject, getProjectActivity,
   getResource, shareResource, unshareResource, transferResource,
   getNamespaces, getConnectors, getDoctrine, getMementoWorkspaces,
+  getConnectorIdentities,
+  listProjectFiles, uploadProjectFile, deleteProjectFile,
 } from '@/api/console'
-import type { Project, ProjectLink, ProjectLinkType, ProjectActivity, NamespaceShare } from '@/types/api'
+import type { Project, ProjectLink, ProjectLinkType, ProjectActivity, NamespaceShare, ConnectorIdentity, ProjectFile } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
@@ -31,6 +33,9 @@ const project = ref<Project | null>(null)
 const briefDraft = ref('')
 const grants = ref<NamespaceShare[]>([])
 const activity = ref<ProjectActivity[]>([])
+const files = ref<ProjectFile[]>([])
+const fileInput = ref<HTMLInputElement | null>(null)
+const uploading = ref(false)
 const loaded = ref(false)
 const error = ref<string | null>(null)
 
@@ -52,9 +57,40 @@ async function load() {
   try {
     project.value = await getProject(projectId)
     briefDraft.value = project.value.brief_md ?? ''
-    await Promise.all([loadGrants(), loadActivity()])
+    await Promise.all([loadGrants(), loadActivity(), loadFiles()])
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
+}
+async function loadFiles() {
+  try { files.value = (await listProjectFiles(projectId)).files }
+  catch (e) { toast(humanize(e)) }
+}
+function fmtSize(n?: number | null): string {
+  if (!n) return ''
+  if (n < 1024) return `${n} o`
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} Ko`
+  return `${(n / (1024 * 1024)).toFixed(1)} Mo`
+}
+async function onFilePick(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  uploading.value = true
+  try {
+    const { file: row } = await uploadProjectFile(projectId, file)
+    files.value = [row, ...files.value]
+    await loadActivity()
+  } catch (err) { toast(humanize(err)) }
+  finally { uploading.value = false; if (fileInput.value) fileInput.value.value = '' }
+}
+async function removeFile(f: ProjectFile) {
+  if (!(await confirmAction({ title: 'Supprimer ce fichier ?',
+    message: `Supprimer « ${f.title || f.filename} » ?` }))) return
+  try {
+    await deleteProjectFile(projectId, f.id)
+    files.value = files.value.filter((x) => x.id !== f.id)
+    await loadActivity()
+  } catch (e) { toast(humanize(e)) }
 }
 async function loadGrants() {
   try { grants.value = (await getResource('project', String(projectId))).grants }
@@ -136,6 +172,47 @@ async function submitLink() {
     linking.value = false
   } catch (e) { toast(humanize(e)) }
 }
+// ── surcharge connecteur préfaite par projet (ADR 0032 §4, B2) ──
+// Un connecteur lié peut être reconfiguré POUR CE PROJET : quelle identité (compte) +
+// instructions de surcharge en prose. Préfait ici, lu par l'agent au chargement du projet.
+const cfgRef = ref<string | null>(null)       // target_ref du connecteur en cours d'édition
+const cfgIdentity = ref('')
+const cfgInstructions = ref('')
+const cfgIdentities = ref<ConnectorIdentity[]>([])
+const cfgIdentitiesSupported = ref(false)
+const cfgLoading = ref(false)
+const cfgSaving = ref(false)
+
+async function openConfig(l: ProjectLink) {
+  cfgRef.value = l.target_ref
+  cfgIdentity.value = l.config?.identity_id ?? ''
+  cfgInstructions.value = l.config?.instructions_md ?? ''
+  cfgIdentities.value = []; cfgIdentitiesSupported.value = false
+  cfgLoading.value = true
+  try {
+    const r = await getConnectorIdentities(l.target_ref)
+    cfgIdentitiesSupported.value = r.supported
+    cfgIdentities.value = r.identities
+  } catch { /* identité non gérée par ce connecteur — on garde juste les instructions */ }
+  finally { cfgLoading.value = false }
+}
+function closeConfig() { cfgRef.value = null }
+
+async function saveConfig(l: ProjectLink) {
+  if (!project.value) return
+  const config = {
+    identity_id: cfgIdentity.value || undefined,
+    instructions_md: cfgInstructions.value.trim() || undefined,
+  }
+  cfgSaving.value = true
+  try {
+    const { links } = await linkProject(projectId, 'connecteur', l.target_ref, l.label ?? undefined, l.role ?? undefined, config)
+    project.value = { ...project.value, links }; await loadActivity()
+    cfgRef.value = null; toast('surcharge enregistrée')
+  } catch (e) { toast(humanize(e)) }
+  finally { cfgSaving.value = false }
+}
+
 async function removeLink(l: ProjectLink) {
   if (!project.value) return
   if (!await confirmAction({ title: 'Délier', danger: true, confirmLabel: 'Délier',
@@ -247,19 +324,61 @@ async function transfer() {
           <div v-for="g in LINK_GROUPS" :key="g.type" class="pj-linkgroup">
             <template v-if="linksByType[g.type]?.length">
               <div class="dim" style="font-size: 11px; font-weight: 700; margin: 2px 0">{{ g.label }}</div>
-              <div v-for="l in linksByType[g.type]" :key="l.target_ref" class="pj-link" style="align-items: flex-start">
-                <div style="flex: 1; min-width: 0">
-                  <div style="display: flex; align-items: center; gap: 6px">
-                    <span style="color: var(--color-ink)">{{ l.label || l.target_ref }}</span>
-                    <Tag v-if="l.cross_project" tone="saffron" title="Cette entité est aussi liée par un autre projet — éviter les modifications brutales">partagé</Tag>
+              <div v-for="l in linksByType[g.type]" :key="l.target_ref" class="pj-linkwrap">
+                <div class="pj-link" style="align-items: flex-start">
+                  <div style="flex: 1; min-width: 0">
+                    <div style="display: flex; align-items: center; gap: 6px">
+                      <span style="color: var(--color-ink)">{{ l.label || l.target_ref }}</span>
+                      <Tag v-if="l.cross_project" tone="saffron" title="Cette entité est aussi liée par un autre projet — éviter les modifications brutales">partagé</Tag>
+                      <Tag v-if="g.type === 'connecteur' && (l.config?.identity_id || l.config?.instructions_md)" tone="olive" title="Connecteur reconfiguré pour ce projet">surchargé</Tag>
+                    </div>
+                    <div v-if="l.role" class="dim" style="font-size: 11px; margin-top: 2px">{{ l.role }}</div>
+                    <div v-if="g.type === 'connecteur' && l.config?.instructions_md" class="dim pj-cfg-note" style="margin-top: 2px">↳ {{ l.config.instructions_md }}</div>
                   </div>
-                  <div v-if="l.role" class="dim" style="font-size: 11px; margin-top: 2px">{{ l.role }}</div>
+                  <button v-if="g.type === 'connecteur'" class="pj-x" @click="cfgRef === l.target_ref ? closeConfig() : openConfig(l)">configurer</button>
+                  <button class="pj-x" @click="removeLink(l)">✕</button>
                 </div>
-                <button class="pj-x" @click="removeLink(l)">✕</button>
+
+                <div v-if="g.type === 'connecteur' && cfgRef === l.target_ref" class="pj-cfgform">
+                  <p class="dim" style="font-size: 11px; margin: 0 0 2px">Surcharge de ce connecteur <b>pour ce projet</b> — préparée ici, appliquée par l'agent au chargement du projet.</p>
+                  <label v-if="cfgIdentitiesSupported && cfgIdentities.length" class="pj-fld">
+                    <span class="pj-fld__lbl">Identité (compte)</span>
+                    <select v-model="cfgIdentity" class="pj-input">
+                      <option value="">(défaut du compte)</option>
+                      <option v-for="idn in cfgIdentities" :key="idn.id" :value="idn.id">{{ idn.label || idn.id }}{{ idn.channel ? ` · ${idn.channel}` : '' }}</option>
+                    </select>
+                  </label>
+                  <p v-else-if="cfgLoading" class="dim" style="font-size: 11px">chargement des identités…</p>
+                  <label class="pj-fld">
+                    <span class="pj-fld__lbl">Instructions de surcharge <span class="dim" style="font-weight: 400; text-transform: none; letter-spacing: 0">(prose, optionnel)</span></span>
+                    <textarea v-model="cfgInstructions" class="pj-input" rows="3" placeholder="ex. ne filtrer les accords que par thème mutuelle"></textarea>
+                  </label>
+                  <div class="pj-linkform__act">
+                    <button class="pj-x" @click="closeConfig">annuler</button>
+                    <Btn kind="mini" :disabled="cfgSaving" @click="saveConfig(l)">Enregistrer</Btn>
+                  </div>
+                </div>
               </div>
             </template>
           </div>
           <p v-if="!(project.links?.length)" class="dim" style="font-size: 12px">aucune entité liée — utilise « + lier ».</p>
+
+          <div class="subh" style="display: flex; align-items: center">
+            <span>Autre document</span>
+            <input ref="fileInput" type="file" style="display: none" @change="onFilePick" />
+            <button v-if="!uploading" class="pj-x" style="margin-left: auto" @click="fileInput?.click()">+ déposer</button>
+            <span v-else class="dim" style="margin-left: auto; font-size: 11px">envoi…</span>
+          </div>
+          <div v-for="f in files" :key="f.id" class="pj-link" style="align-items: flex-start">
+            <div style="flex: 1; min-width: 0">
+              <a v-if="f.download_url" :href="f.download_url" target="_blank" rel="noopener" style="color: var(--color-ink)">{{ f.title || f.filename }}</a>
+              <span v-else style="color: var(--color-ink)">{{ f.title || f.filename }}</span>
+              <span class="dim" style="font-size: 11px; margin-left: 6px">{{ fmtSize(f.size_bytes) }}</span>
+              <div v-if="f.description" class="dim" style="font-size: 11px; margin-top: 2px">{{ f.description }}</div>
+            </div>
+            <button class="pj-x" @click="removeFile(f)">✕</button>
+          </div>
+          <p v-if="!files.length" class="dim" style="font-size: 12px">aucun fichier brut — PDF, HTML… via « + déposer ».</p>
         </ConsoleCard>
       </div>
 
@@ -301,6 +420,10 @@ async function transfer() {
 .pj-input:disabled { opacity: .55; cursor: not-allowed; }
 .pj-linkform__act { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 2px; }
 .pj-linkgroup { margin-bottom: 6px; }
+.pj-linkwrap { border-bottom: 1px solid var(--color-hair-soft, #ececec); }
+.pj-linkwrap .pj-link { border-bottom: none; }
+.pj-cfg-note { font-size: 11px; font-style: italic; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pj-cfgform { display: flex; flex-direction: column; gap: 9px; padding: 10px 11px 11px; margin: 2px 0 8px; border: 1px solid var(--color-hair-soft, #e0ddd6); border-radius: 9px; background: #faf9f7; }
 .pj-link { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--color-hair-soft, #ececec); }
 .pj-act { display: flex; gap: 8px; padding: 3px 0; font-size: 12px; color: var(--color-ink-soft, #4a463d); }
 .pj-x { border: 1px solid var(--color-hair-soft, #cfcfcf); background: #fff; border-radius: 6px; padding: 2px 7px; font-size: 11px; color: var(--color-ink-soft, #6b6b6b); cursor: pointer; }
