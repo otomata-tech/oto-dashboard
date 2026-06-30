@@ -319,6 +319,16 @@ export interface AgentContext {
   tools: AgentToolsView
 }
 
+// ── Blocs d'instructions plateforme A/B (#50) — édités par l'admin plateforme ──
+export interface PlatformInstrBlock {
+  key: string                   // 'secret_sauce' (bloc A) | 'onboarding' (bloc B)
+  body_md: string               // contenu effectif (override DB, ou le seed si jamais édité)
+  updated_at: string | null
+  updated_by: string | null
+  is_seed: boolean              // true = jamais édité, body_md = le défaut du code
+  default_md: string            // le défaut du code (bouton « rétablir »)
+}
+
 // ── Projets (couche d'organisation, ADR 0030) ──
 export type ProjectLinkType = 'tableau' | 'procedure' | 'connecteur' | 'base'
 export interface ProjectLink {

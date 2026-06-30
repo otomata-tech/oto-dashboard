@@ -63,6 +63,7 @@ export const NAV: NavGroup[] = [
     { path: '/platform/orgs', label: 'orgs', icon: 'building' },
     { path: '/platform/objects', label: 'objects', icon: 'db' },
     { path: '/platform/connectors', label: 'connectors & keys', icon: 'plug' },
+    { path: '/platform/instructions', label: 'server instructions', icon: 'doc' },
   ]},
 ]
 
@@ -98,4 +99,5 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/platform/orgs': { title: 'organizations', crumb: 'plateforme' },
   '/platform/objects': { title: 'owned objects', crumb: 'plateforme' },
   '/platform/connectors': { title: 'platform connectors', crumb: 'plateforme' },
+  '/platform/instructions': { title: 'server instructions', crumb: 'plateforme' },
 }

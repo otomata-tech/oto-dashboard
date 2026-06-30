@@ -8,7 +8,7 @@ import type {
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
   ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ResourceEntry, Role, ToolCall, ToolEntry,
-  ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal,
+  ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   MementoStatus, MementoWorkspaces, UnipileStatus, ConnectorIdentity, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
   ReferralLink, InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
@@ -536,6 +536,14 @@ export const getUsageSignals = (signal?: string, target?: string) => {
   const qs = q.toString()
   return api<{ signals: UsageSignal[] }>(`/api/admin/usage/signals${qs ? `?${qs}` : ''}`)
 }
+
+// ── instructions plateforme A/B (#50, admin plateforme) ──
+export const getPlatformInstructions = () =>
+  api<{ blocks: PlatformInstrBlock[]; keys: string[] }>('/api/admin/platform-instructions')
+export const setPlatformInstruction = (key: string, body_md: string) =>
+  api<PlatformInstrBlock>(
+    `/api/admin/platform-instructions/${encodeURIComponent(key)}`,
+    { method: 'PUT', ...j({ body_md }) })
 
 // Activité de l'utilisateur courant (ses propres appels) — per-user, pas admin.
 export const getMyCalls = (params: { limit?: number; tool?: string; errors?: boolean; days?: number } = {}) => {

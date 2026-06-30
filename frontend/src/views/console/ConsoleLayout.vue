@@ -41,6 +41,7 @@ const VIEWS: Record<string, Component> = {
   '/platform/objects': defineAsyncComponent(() => import('./AdminObjectsView.vue')),
   '/platform/connectors': defineAsyncComponent(() => import('./AdminConnectorsView.vue')),
   '/platform/access': defineAsyncComponent(() => import('./AdminAccessView.vue')),
+  '/platform/instructions': defineAsyncComponent(() => import('./AdminPlatformInstructionsView.vue')),
 }
 
 const route = useRoute()
