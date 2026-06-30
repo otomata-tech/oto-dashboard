@@ -4,14 +4,15 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
-import { listDocs, createDoc, updateDoc, deleteDoc, getDocRevisions } from '@/api/console'
-import type { Doc, DocKind, DocRevision } from '@/types/api'
+import { listDocs, createDoc, updateDoc, deleteDoc, getDocRevisions,
+  requestDocChange, listDocChanges, resolveDocChange } from '@/api/console'
+import type { Doc, DocKind, DocRevision, DocChangeRequest } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 
-const props = defineProps<{ projectId: number }>()
+const props = defineProps<{ projectId: number; readOnly?: boolean }>()
 const emit = defineEmits<{ changed: [] }>()
 const { toast } = useToast()
 const { promptForm, confirmAction } = usePrompt()
@@ -21,6 +22,7 @@ const selectedId = ref<number | null>(null)
 const draft = ref<{ title: string; body_md: string; kind: DocKind } | null>(null)
 const revisions = ref<DocRevision[]>([])
 const showHistory = ref(false)
+const changeRequests = ref<DocChangeRequest[]>([])   // demandes en attente (owner) — gap #4b
 
 const selected = computed(() => docs.value.find((d) => d.id === selectedId.value) ?? null)
 const topLevel = computed(() => docs.value.filter((d) => d.parent_id == null))
@@ -42,6 +44,37 @@ function open(d: Doc) {
   selectedId.value = d.id
   draft.value = { title: d.title, body_md: d.body_md, kind: d.kind }
   showHistory.value = false; revisions.value = []
+  changeRequests.value = []
+  if (!props.readOnly) loadRequests(d.id)
+}
+async function loadRequests(id: number) {
+  try { changeRequests.value = (await listDocChanges(id)).requests }
+  catch { /* lecture seule ou pas de droit : on n'affiche rien */ }
+}
+async function proposeChange() {
+  if (!selected.value || !draft.value) return
+  const r = await promptForm({
+    title: 'Proposer une modification',
+    fields: [{ key: 'message', label: 'Message au propriétaire (optionnel)' }],
+    submitLabel: 'Envoyer la demande',
+  })
+  if (!r) return
+  try {
+    await requestDocChange(selected.value.id, {
+      title: draft.value.title, body_md: draft.value.body_md, message: String(r.message || '') })
+    toast('demande de modification envoyée')
+  } catch (e) { toast(humanize(e)) }
+}
+async function resolveRequest(req: DocChangeRequest, accept: boolean) {
+  const id = selected.value?.id
+  if (!id) return
+  if (accept && !await confirmAction({ title: 'Accepter cette modification',
+    message: 'Le contenu proposé remplacera la version actuelle (conservée dans l\'historique).' })) return
+  try {
+    await resolveDocChange(id, req.id, accept)
+    await load(); const d = docs.value.find((x) => x.id === id); if (d) open(d)
+    emit('changed'); toast(accept ? 'modification appliquée' : 'demande refusée')
+  } catch (e) { toast(humanize(e)) }
 }
 async function toggleHistory() {
   if (!selected.value) return
@@ -119,14 +152,27 @@ async function remove(d: Doc) {
         <select v-model="draft.kind" class="doc-kind">
           <option value="doc">doc</option><option value="note">note agent</option><option value="source">source</option>
         </select>
-        <button class="pj-x" title="sous-page" @click="addDoc(selected.id)">+ sous-page</button>
+        <button v-if="!readOnly" class="pj-x" title="sous-page" @click="addDoc(selected.id)">+ sous-page</button>
         <button class="pj-x" @click="toggleHistory">{{ showHistory ? 'masquer l\'historique' : 'historique' }}</button>
-        <button class="pj-x" @click="remove(selected)">supprimer</button>
+        <button v-if="!readOnly" class="pj-x" @click="remove(selected)">supprimer</button>
       </div>
       <textarea v-model="draft.body_md" class="pj-brief" rows="8" placeholder="Contenu de la page (markdown)…"></textarea>
       <div style="margin-top: 6px">
-        <Btn kind="mini" @click="save">Enregistrer</Btn>
-        <span v-if="dirty" class="dim" style="font-size: 11px; margin-left: 8px">modifié</span>
+        <Btn v-if="!readOnly" kind="mini" @click="save">Enregistrer</Btn>
+        <Btn v-else kind="mini" @click="proposeChange">Proposer une modif</Btn>
+        <span v-if="dirty" class="dim" style="font-size: 11px; margin-left: 8px">{{ readOnly ? 'tu es en lecture seule — propose une modif' : 'modifié' }}</span>
+      </div>
+
+      <div v-if="!readOnly && changeRequests.length" class="doc-history">
+        <div class="dim" style="font-size: 11px; font-weight: 700; margin-bottom: 4px">Demandes de modification ({{ changeRequests.length }})</div>
+        <div v-for="req in changeRequests" :key="req.id" class="doc-rev" style="align-items: flex-start">
+          <div style="flex: 1; min-width: 0">
+            <span class="dim" style="font-size: 11px">{{ req.requested_by || '—' }} · {{ fmtDate(req.created_at) }}</span>
+            <div v-if="req.message" style="font-size: 12px; color: var(--color-ink-soft)">{{ req.message }}</div>
+          </div>
+          <button class="pj-x" @click="resolveRequest(req, true)">accepter</button>
+          <button class="pj-x" @click="resolveRequest(req, false)">refuser</button>
+        </div>
       </div>
 
       <div v-if="showHistory" class="doc-history">

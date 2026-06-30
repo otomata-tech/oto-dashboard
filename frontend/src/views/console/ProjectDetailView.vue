@@ -51,6 +51,7 @@ const linksByType = computed(() => {
   return out
 })
 const briefDirty = computed(() => !!project.value && briefDraft.value !== (project.value.brief_md ?? ''))
+const readOnly = computed(() => project.value?.can_write === false)   // #4b — proposer une modif au lieu d'éditer
 
 async function load() {
   if (!Number.isFinite(projectId)) { error.value = 'Projet introuvable.'; loaded.value = true; return }
@@ -332,7 +333,7 @@ async function transfer() {
             <span v-if="briefDirty" class="dim" style="font-size: 11px; margin-left: 8px">modifié</span>
           </div>
 
-          <ProjectDocs :project-id="project.id" @changed="loadActivity" />
+          <ProjectDocs :project-id="project.id" :read-only="readOnly" @changed="loadActivity" />
 
           <div class="subh" style="display: flex; align-items: center">
             <span>Entités liées</span>

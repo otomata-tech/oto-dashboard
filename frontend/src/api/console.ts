@@ -3,10 +3,11 @@
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
   AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, ApiToken, BillingBalance, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
-  Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, ProjectActivity,
+  Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity,
   CreditPack, CreditTransaction, DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
+  MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
   ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ResourceEntry, Role, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   MementoStatus, MementoWorkspaces, UnipileStatus, ConnectorIdentity, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
@@ -174,6 +175,13 @@ export const updateDoc = (doc_id: number, fields: { title?: string; body_md?: st
 export const deleteDoc = (doc_id: number) => docsApi<{ ok: boolean }>({ op: 'delete', doc_id })
 export const getDocRevisions = (doc_id: number) =>
   docsApi<{ doc_id: number; revisions: DocRevision[] }>({ op: 'revisions', doc_id })
+// Demandes de modif (gap #4b) — propose (lecture seule) / liste / tranche (owner).
+export const requestDocChange = (doc_id: number, fields: { body_md?: string; title?: string; message?: string }) =>
+  docsApi<{ ok: boolean; request: DocChangeRequest }>({ op: 'request_change', doc_id, ...fields })
+export const listDocChanges = (doc_id: number) =>
+  docsApi<{ doc_id: number; requests: DocChangeRequest[] }>({ op: 'list_changes', doc_id })
+export const resolveDocChange = (doc_id: number, request_id: number, accept: boolean) =>
+  docsApi<{ ok: boolean; accepted: boolean }>({ op: 'resolve_change', doc_id, request_id, accept })
 export const getInstruction = (slug: string, version?: number) =>
   api<InstructionDetail>(`/api/me/instructions/${slug}${version ? `?version=${version}` : ''}`)
 export const putInstruction = (slug: string, body_md: string, title?: string, description?: string) =>
@@ -547,6 +555,12 @@ export const clearConnectorOverride = (connector: string, org_id: number) =>
 // ── monitoring (admin) ──
 export const getMonitoringSummary = (days: number) =>
   api<MonitoringSummary>(`/api/admin/monitoring/summary?days=${days}`)
+export const getMonitoringRest = (days: number) =>
+  api<MonitoringRestStats>(`/api/admin/monitoring/rest?days=${days}`)
+export const getMonitoringConnectors = (days: number) =>
+  api<MonitoringConnectorStats>(`/api/admin/monitoring/connectors?days=${days}`)
+export const getMonitoringFunnel = (days: number) =>
+  api<ActivationFunnel>(`/api/admin/monitoring/funnel?days=${days}`)
 export const getMonitoringCalls = (params: { limit?: number; sub?: string; tool?: string; errors?: boolean; days?: number } = {}) => {
   const q = new URLSearchParams()
   if (params.limit) q.set('limit', String(params.limit))

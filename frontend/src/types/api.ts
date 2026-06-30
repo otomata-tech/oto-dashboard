@@ -358,6 +358,7 @@ export interface Project {
   owner_type: string
   owner_id: string
   is_template?: boolean          // publié comme modèle copiable (ADR 0032 §7 B5a)
+  can_write?: boolean            // droit d'écriture effectif (#4b) ; false → lecture seule
   created_at?: string | null
   updated_at?: string | null
   archived_at?: string | null
@@ -395,6 +396,17 @@ export interface DocRevision {
   title: string
   body_md: string
   edited_by?: string | null
+  created_at?: string | null
+}
+// Demande de modif d'un Doc (gap #4b) — proposée par un utilisateur en lecture seule.
+export interface DocChangeRequest {
+  id: number
+  doc_id: number
+  requested_by?: string | null
+  proposed_title?: string | null
+  proposed_body_md: string
+  message?: string | null
+  status: 'pending' | 'accepted' | 'rejected'
   created_at?: string | null
 }
 export interface ProjectActivity {
@@ -806,6 +818,42 @@ export interface MonitoringToolStat {
   calls: number
   errors: number
   avg_ms: number | null
+  p95_ms?: number | null
+}
+
+// ── lentilles par kind (ADR 0017, « un seul flux ») ──
+export interface MonitoringRouteStat {
+  route: string
+  calls: number
+  errors: number
+  avg_ms: number | null
+  p95_ms: number | null
+}
+export interface MonitoringRestStats {
+  since_days: number
+  total_calls: number
+  error_count: number
+  active_users: number
+  by_route: MonitoringRouteStat[]
+}
+export interface ConnectorFailureStat {
+  provider: string
+  failures: number
+  users_affected: number
+  last_at: string | null
+}
+export interface MonitoringConnectorStats {
+  since_days: number
+  total_failures: number
+  by_provider: ConnectorFailureStat[]
+}
+export interface ActivationFunnel {
+  window_days: number
+  total_accounts: number
+  active: number
+  rest_only: number
+  never_active: number
+  blocked_by_connector: number
 }
 export interface MonitoringUserStat {
   sub: string | null
