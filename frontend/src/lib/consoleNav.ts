@@ -45,7 +45,6 @@ export const NAV: NavGroup[] = [
   ]},
   { group: 'memory', level: 'work', items: [
     { path: '/data', label: 'datastore', icon: 'db' },
-    { path: '/facts', label: 'fact graph', icon: 'chart' },
     { path: '/knowledge', label: 'knowledge', icon: 'book' },
   ]},
   { group: 'account', level: 'work', items: [
@@ -91,7 +90,6 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/library/connectors': { title: 'connector library', crumb: 'library' },
   '/library/doctrines': { title: 'doctrine library', crumb: 'library' },
   '/data': { title: 'datastore', crumb: 'memory' },
-  '/facts': { title: 'fact graph', crumb: 'memory' },
   '/knowledge': { title: 'knowledge', crumb: 'memory' },
   '/account': { title: 'manage account', crumb: 'account' },
   '/activity': { title: 'activity', crumb: 'account' },
