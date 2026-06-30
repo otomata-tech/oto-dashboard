@@ -3,7 +3,7 @@
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
   AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, ApiToken, BillingBalance, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
-  Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, ProjectActivity,
+  Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, ProjectActivity,
   CreditPack, CreditTransaction, DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
@@ -161,6 +161,8 @@ export const createDoc = (project_id: number, title: string,
 export const updateDoc = (doc_id: number, fields: { title?: string; body_md?: string; kind?: DocKind }) =>
   docsApi<Doc>({ op: 'update', doc_id, ...fields })
 export const deleteDoc = (doc_id: number) => docsApi<{ ok: boolean }>({ op: 'delete', doc_id })
+export const getDocRevisions = (doc_id: number) =>
+  docsApi<{ doc_id: number; revisions: DocRevision[] }>({ op: 'revisions', doc_id })
 export const getInstruction = (slug: string, version?: number) =>
   api<InstructionDetail>(`/api/me/instructions/${slug}${version ? `?version=${version}` : ''}`)
 export const putInstruction = (slug: string, body_md: string, title?: string, description?: string) =>

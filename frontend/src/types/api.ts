@@ -385,6 +385,14 @@ export interface Doc {
   created_at?: string | null
   updated_at?: string | null
 }
+// Version antérieure d'un Doc (ADR 0032 §3, B4c) — snapshot avant une mise à jour.
+export interface DocRevision {
+  id: number
+  title: string
+  body_md: string
+  edited_by?: string | null
+  created_at?: string | null
+}
 export interface ProjectActivity {
   sub: string | null
   action: string
