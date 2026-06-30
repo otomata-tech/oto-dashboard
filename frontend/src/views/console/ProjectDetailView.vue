@@ -101,13 +101,14 @@ const linking = ref(false)
 const linkType = ref<ProjectLinkType | ''>('')
 const linkRef = ref('')
 const linkLabel = ref('')
+const linkRole = ref('')
 const linkLabelEdited = ref(false)
 const linkOpts = ref<LinkOption[]>([])
 const linkLoading = ref(false)
 
 function startLinking() {
   linking.value = true
-  linkType.value = ''; linkRef.value = ''; linkLabel.value = ''
+  linkType.value = ''; linkRef.value = ''; linkLabel.value = ''; linkRole.value = ''
   linkLabelEdited.value = false; linkOpts.value = []
 }
 function cancelLinking() { linking.value = false }
@@ -128,8 +129,9 @@ async function submitLink() {
   const t = linkType.value
   if (!project.value || !t || !linkRef.value) return
   const label = linkLabel.value.trim() || linkOpts.value.find((o) => o.value === linkRef.value)?.label
+  const role = linkRole.value.trim() || undefined
   try {
-    const { links } = await linkProject(projectId, t, linkRef.value, label)
+    const { links } = await linkProject(projectId, t, linkRef.value, label, role)
     project.value = { ...project.value, links }; await loadActivity()
     linking.value = false
   } catch (e) { toast(humanize(e)) }
@@ -232,6 +234,10 @@ async function transfer() {
               <span class="pj-fld__lbl">Nom affiché <span class="dim" style="font-weight: 400; text-transform: none; letter-spacing: 0">(optionnel)</span></span>
               <input v-model="linkLabel" class="pj-input" placeholder="(optionnel — par défaut le nom de l'entité)" @input="linkLabelEdited = true" />
             </label>
+            <label class="pj-fld">
+              <span class="pj-fld__lbl">Rôle <span class="dim" style="font-weight: 400; text-transform: none; letter-spacing: 0">(optionnel)</span></span>
+              <input v-model="linkRole" class="pj-input" placeholder="pourquoi cette entité est ici / ce qu'elle apporte au projet" />
+            </label>
             <div class="pj-linkform__act">
               <button class="pj-x" @click="cancelLinking">annuler</button>
               <Btn kind="mini" :disabled="!linkRef" @click="submitLink">Lier</Btn>
@@ -241,8 +247,14 @@ async function transfer() {
           <div v-for="g in LINK_GROUPS" :key="g.type" class="pj-linkgroup">
             <template v-if="linksByType[g.type]?.length">
               <div class="dim" style="font-size: 11px; font-weight: 700; margin: 2px 0">{{ g.label }}</div>
-              <div v-for="l in linksByType[g.type]" :key="l.target_ref" class="pj-link">
-                <span style="flex: 1; color: var(--color-ink)">{{ l.label || l.target_ref }}</span>
+              <div v-for="l in linksByType[g.type]" :key="l.target_ref" class="pj-link" style="align-items: flex-start">
+                <div style="flex: 1; min-width: 0">
+                  <div style="display: flex; align-items: center; gap: 6px">
+                    <span style="color: var(--color-ink)">{{ l.label || l.target_ref }}</span>
+                    <Tag v-if="l.cross_project" tone="saffron" title="Cette entité est aussi liée par un autre projet — éviter les modifications brutales">partagé</Tag>
+                  </div>
+                  <div v-if="l.role" class="dim" style="font-size: 11px; margin-top: 2px">{{ l.role }}</div>
+                </div>
                 <button class="pj-x" @click="removeLink(l)">✕</button>
               </div>
             </template>

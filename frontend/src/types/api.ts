@@ -325,6 +325,8 @@ export interface ProjectLink {
   target_type: ProjectLinkType
   target_ref: string
   label?: string | null
+  role?: string | null          // pourquoi cette entité est dans le projet (ADR 0032 §2)
+  cross_project?: boolean        // dérivé : la même entité est liée par ≥1 autre projet
   created_at?: string | null
 }
 export interface Project {

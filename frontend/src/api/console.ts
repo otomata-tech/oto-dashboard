@@ -125,8 +125,8 @@ export const updateProject = (id: number, fields: { name?: string; brief_md?: st
   projectsApi<Project>({ op: 'update', project_id: id, ...fields })
 export const archiveProject = (id: number) =>
   projectsApi<{ ok: boolean }>({ op: 'archive', project_id: id })
-export const linkProject = (id: number, target_type: ProjectLinkType, target_ref: string, label?: string) =>
-  projectsApi<{ ok: boolean; links: ProjectLink[] }>({ op: 'link', project_id: id, target_type, target_ref, label })
+export const linkProject = (id: number, target_type: ProjectLinkType, target_ref: string, label?: string, role?: string) =>
+  projectsApi<{ ok: boolean; links: ProjectLink[] }>({ op: 'link', project_id: id, target_type, target_ref, label, role })
 export const unlinkProject = (id: number, target_type: ProjectLinkType, target_ref: string) =>
   projectsApi<{ ok: boolean; links: ProjectLink[] }>({ op: 'unlink', project_id: id, target_type, target_ref })
 export const getProjectActivity = (id: number) =>
