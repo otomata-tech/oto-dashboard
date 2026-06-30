@@ -18,6 +18,7 @@ import { useNav } from '@/composables/useNav'
 // (le chargement initial ne tire que le shell + la vue courante, pas toute la console).
 const OverviewView = defineAsyncComponent(() => import('./OverviewView.vue'))
 const AdminUserView = defineAsyncComponent(() => import('./AdminUserView.vue'))
+const ProjectDetailView = defineAsyncComponent(() => import('./ProjectDetailView.vue'))
 
 // Keyé par path canonique (= meta.section porté par chaque route, cf. consoleNav).
 const VIEWS: Record<string, Component> = {
@@ -59,12 +60,15 @@ watch(() => route.fullPath, () => closeNav())
 
 const section = computed(() => String(route.meta.section || '/overview'))
 const current = computed(() => {
-  if (route.name === 'admin-user') return AdminUserView   // fiche /platform/users/:sub
+  if (route.name === 'admin-user') return AdminUserView          // fiche /platform/users/:sub
+  if (route.name === 'project-detail') return ProjectDetailView  // page /projects/:id
   return VIEWS[section.value] ?? OverviewView
 })
-// Clé de remount : la route complète pour la fiche (change de :sub → remount),
+// Clé de remount : la route complète pour une page de détail (change d'id → remount),
 // sinon la section.
-const viewKey = computed(() => (route.name === 'admin-user' ? route.fullPath : section.value))
+const viewKey = computed(() =>
+  route.name === 'admin-user' || route.name === 'project-detail' ? route.fullPath : section.value,
+)
 </script>
 
 <template>

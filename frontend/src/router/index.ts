@@ -39,6 +39,14 @@ const router = createRouter({
       component: ConsoleLayout,
       meta: { section: '/platform/users', level: 'platform' },
     },
+    {
+      // Page dédiée d'un projet (objet de premier rang, ADR 0030) — résolue par le
+      // layout vers ProjectDetailView ; surlignage + niveau hérités de /projects.
+      path: '/projects/:id',
+      name: 'project-detail',
+      component: ConsoleLayout,
+      meta: { section: '/projects', level: 'work' },
+    },
     ...sectionRoutes,
     {
       // Le retour PKCE est traité par initAuth() avant le mount du router
