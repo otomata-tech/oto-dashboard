@@ -77,6 +77,10 @@ const examplePrompts = [
   'list my available connectors and what each one can do.',
 ]
 
+// Projet « Découverte » (ADR 0032 §7 B5c) : onboarding = un projet. Présent une fois
+// créé (au 1er oto_onboarding côté agent) → on propose de l'ouvrir.
+const discoveryProjectId = computed(() => me.value?.onboarding?.discovery_project_id ?? null)
+
 // ── coches dérivées de l'état réel ─────────────────────────────────────────
 const mementoConnected = computed(() => !!me.value?.memento?.connected)
 const hasOrg = computed(() => me.value?.active_org != null)
@@ -136,6 +140,12 @@ const lvl2Steps = computed(() => [
         you configure it once, here ; your assistant uses it everywhere.
       </p>
     </div>
+  </ConsoleCard>
+
+  <!-- ── projet « Découverte » (onboarding = un projet, ADR 0032 §7 B5c) ── -->
+  <ConsoleCard v-if="discoveryProjectId" title="ton projet « Découverte »"
+    sub="ton point d'entrée — son brief guide tes premiers pas. ouvre-le ici, ou « charge le projet Découverte » dans ton assistant.">
+    <Btn kind="mini" @click="router.push(`/projects/${discoveryProjectId}`)">ouvrir le projet →</Btn>
   </ConsoleCard>
 
   <!-- ── level 1 : get running ── -->
