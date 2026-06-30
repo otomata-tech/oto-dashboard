@@ -5,6 +5,7 @@
 // ProjectDetailView ; toute mutation passe par linkProject/unlinkProject et remonte la
 // liste fraîche au parent (`update:links`) + signale l'activité (`changed`).
 import { computed, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import Tag from '@/components/console/Tag.vue'
 import Icon from '@/components/console/Icon.vue'
 import {
@@ -195,7 +196,7 @@ async function removeLink(l: ProjectLink) {
             <span class="ent__ico"><Icon :name="TYPE_ICON[l.target_type] || 'doc'" :size="15" /></span>
             <div class="ent__body">
               <div class="ent__top">
-                <component :is="entityHref(l) ? 'RouterLink' : 'span'" :to="entityHref(l) || undefined"
+                <component :is="entityHref(l) ? RouterLink : 'span'" :to="entityHref(l) || undefined"
                   class="ent__name" :class="{ 'ent__name--link': entityHref(l) }">
                   {{ l.label || l.target_ref }}
                   <Icon v-if="entityHref(l)" name="ext" :size="11" class="ent__go" />
