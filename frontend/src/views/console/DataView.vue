@@ -9,6 +9,7 @@ import RowDrawer from '@/components/console/RowDrawer.vue'
 import ShareDialog from '@/components/console/ShareDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useTransferOwnership } from '@/composables/useTransferOwnership'
 import { useMe } from '@/composables/useMe'
 import { useDeepLink } from '@/composables/useDeepLink'
 import {
@@ -21,6 +22,7 @@ import { rowsToCsv, downloadCsv } from '@/lib/csv'
 
 const { toast } = useToast()
 const { promptText, promptForm, confirmAction } = usePrompt()
+const { pickTarget } = useTransferOwnership()
 const { me } = useMe()
 const PAGE_SIZE = 25
 
@@ -213,16 +215,11 @@ async function rename() {
 async function transfer() {
   const name = currentName.value
   if (!name) return
-  const email = await promptText('transfer ownership', { label: 'recipient email', required: true, placeholder: 'user@email.com' })
-  if (!email) return
-  const ok = await confirmAction({
-    title: 'transfer ownership?', danger: true, confirmLabel: 'transfer',
-    message: `give "${name}" to ${email}? you keep write access as a shared member.`,
-  })
-  if (!ok) return
+  const target = await pickTarget(name)   // une de tes orgs, ou un autre utilisateur
+  if (!target) return
   try {
-    await transferNamespace(name, email)
-    toast(`transferred to ${email}`)
+    await transferNamespace(name, target)
+    toast('transféré (tu gardes l\'accès en écriture)')
     await load()        // le ns reste listé (tu passes en partagé), id stable
     await fetchRows()
   } catch (e) { toast(humanize(e)) }

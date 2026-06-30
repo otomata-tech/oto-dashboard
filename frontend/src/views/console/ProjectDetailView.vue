@@ -19,11 +19,13 @@ import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
 import { usePrompt, type PromptField } from '@/composables/usePrompt'
+import { useTransferOwnership } from '@/composables/useTransferOwnership'
 
 const route = useRoute()
 const router = useRouter()
 const { toast } = useToast()
 const { promptForm, confirmAction } = usePrompt()
+const { pickTarget } = useTransferOwnership()
 
 const projectId = Number(route.params.id)
 const project = ref<Project | null>(null)
@@ -176,11 +178,9 @@ async function revoke(g: NamespaceShare) {
 }
 async function transfer() {
   if (!project.value) return
-  const r = await promptForm({ title: 'Transférer la propriété',
-    description: "L'ancien propriétaire garde l'accès en écriture.",
-    fields: [{ key: 'email', label: 'Nouveau propriétaire (email oto)', required: true }], submitLabel: 'Transférer' })
-  if (!r) return
-  try { await transferResource('project', String(projectId), String(r.email)); toast('transféré'); await Promise.all([load(), loadGrants()]) }
+  const target = await pickTarget(project.value.name || `projet #${projectId}`)
+  if (!target) return
+  try { await transferResource('project', String(projectId), target); toast('transféré'); await Promise.all([load(), loadGrants()]) }
   catch (e) { toast(humanize(e)) }
 }
 </script>

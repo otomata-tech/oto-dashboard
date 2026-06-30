@@ -54,7 +54,7 @@ async function transfer(r: ResourceEntry) {
   })
   if (!ok) return
   try {
-    await transferResource(type.value, r.resource_id, email)
+    await transferResource(type.value, r.resource_id, { email })
     toast(`transferred to ${email}`)
     await load()
   } catch (e) { toast(humanize(e)) }

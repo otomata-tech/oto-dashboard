@@ -272,8 +272,9 @@ export const getNamespaceRows = (ns: string, opts: RowQuery = {}) => {
 export const renameNamespace = (ns: string, name: string) =>
   api<{ ok: boolean; namespace: string }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}`, { method: 'PATCH', ...j({ name }) })
-export const transferNamespace = (ns: string, email: string) =>
-  api(`/api/datastore/namespaces/${encodeURIComponent(ns)}/transfer`, { method: 'POST', ...j({ email }) })
+export const transferNamespace = (ns: string, target: { email?: string; org_id?: number }) =>
+  api(`/api/datastore/namespaces/${encodeURIComponent(ns)}/transfer`, {
+    method: 'POST', ...j({ email: target.email, new_owner_org: target.org_id }) })
 export const getNamespaceShares = (ns: string) =>
   api<{ shares: NamespaceShare[] }>(`/api/datastore/namespaces/${encodeURIComponent(ns)}/share`)
 export const shareNamespace = (ns: string, email: string, permission: string) =>
@@ -286,8 +287,10 @@ export const unshareNamespace = (ns: string, email: string) =>
 export const listResources = (resource_type: string) =>
   api<{ resource_type: string; resources: ResourceEntry[] }>(
     '/api/resources', { method: 'POST', ...j({ op: 'list', resource_type }) })
-export const transferResource = (resource_type: string, resource_id: string, new_owner_email: string) =>
-  api('/api/resources', { method: 'POST', ...j({ op: 'transfer', resource_type, resource_id, new_owner_email }) })
+export const transferResource = (resource_type: string, resource_id: string, target: { email?: string; org_id?: number }) =>
+  api('/api/resources', { method: 'POST', ...j({
+    op: 'transfer', resource_type, resource_id,
+    new_owner_email: target.email, new_owner_org: target.org_id }) })
 export const getResource = (resource_type: string, resource_id: string) =>
   api<ResourceEntry & { grants: NamespaceShare[] }>(
     '/api/resources', { method: 'POST', ...j({ op: 'get', resource_type, resource_id }) })
