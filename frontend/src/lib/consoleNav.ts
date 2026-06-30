@@ -39,10 +39,6 @@ export const NAV: NavGroup[] = [
     { path: '/doctrine', label: 'doctrine', icon: 'doc' },
     { path: '/agent-context', label: 'agent context', icon: 'bolt' },
   ]},
-  { group: 'library', level: 'work', items: [
-    { path: '/library/connectors', label: 'connector library', icon: 'plug' },
-    { path: '/library/doctrines', label: 'doctrine library', icon: 'book' },
-  ]},
   { group: 'memory', level: 'work', items: [
     { path: '/data', label: 'datastore', icon: 'db' },
     { path: '/facts', label: 'fact graph', icon: 'chart' },
@@ -88,8 +84,6 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/overview': { title: 'overview', crumb: 'app.oto.ninja' },
   '/connectors': { title: 'connectors', crumb: 'workspace' },
   '/doctrine': { title: 'doctrine', crumb: 'workspace' },
-  '/library/connectors': { title: 'connector library', crumb: 'library' },
-  '/library/doctrines': { title: 'doctrine library', crumb: 'library' },
   '/data': { title: 'datastore', crumb: 'memory' },
   '/facts': { title: 'fact graph', crumb: 'memory' },
   '/knowledge': { title: 'knowledge', crumb: 'memory' },

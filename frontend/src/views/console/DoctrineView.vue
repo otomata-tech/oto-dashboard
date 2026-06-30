@@ -323,7 +323,7 @@ async function removeSkill(slug: string, label: string) {
             <span class="eyebrow">documents</span>
             <div class="doc-actions">
               <button type="button" class="btn-ghost-sm" title="parcourir la médiathèque de doctrines"
-                @click="router.push('/library/doctrines')">
+                @click="router.push('/doctrine?tab=marketplace')">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
                 bibliothèque

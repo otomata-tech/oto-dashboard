@@ -114,20 +114,32 @@ Groupe nav **« memory »** (`consoleNav.ts`) = deux surfaces de mémoire :
 - **Datastore** (`/console/data`, `DataView.vue`) — stockage tabulaire, **substrat PG natif** (plus Google Sheets). Grille **server-driven** (`DataTable.vue` : tri/recherche/pagination côté API via `getNamespaceRows({offset,limit,order_by,order_dir,q})`, rendu cellules typé `cellRender.ts`) ; clic row → détail/édition (`RowDrawer.vue`). **Deeplink par id** (`?ns=<id>`, `NamespaceEntry.id` BIGSERIAL stable → le **renommage** ne casse pas l'URL). **Ownership ADR 0030** : les droits viennent du payload (`can_write`/`can_govern`/`owner_type`), plus de `isOwner` dérivé du flag `shared` ; read-only = `can_write===false`, boutons share/rename/transfer/delete gatés par `can_govern`. **org-owned activé** : la création propose un scope (perso / classeur d'org active) via `promptForm` select → `createNamespace(ns, {type:'org', id})` ; badge « org »/« team » sur la liste. **share** (`ShareDialog.vue`), **rename**, **transfer** (l'ancien proprio repasse en grant write). Plus de gate Google.
 - **Knowledge** (`/console/knowledge`, `KnowledgeView.vue`) — connexion **Memento opt-in** (réutilise `getMementoStatus`/`startMementoOauth`/`disconnectMemento`, mêmes endpoints que la carte federated mcp de `ConnectorsView`) ; pas de browse des KB (déféré). Retour OAuth `?memento=connected|error`.
 
-## Bibliothèque — connecteurs & doctrines (groupe nav « library »)
+## Connecteurs & doctrines — point d'entrée à onglets (découverte fusionnée)
 
-Deux surfaces de **découverte** (≠ gestion), groupe nav `library` (`consoleNav.ts`) :
-- **Connector library** (`/console/connector-library`, `ConnectorLibraryView.vue`) — catalogue
-  navigable de tous les connecteurs : logo de l'éditeur (`ConnectorMeta.logo_url`, monogramme de
-  repli) + `publisher`, recherche (nom/éditeur/namespace), filtres par `category`, tags `family`.
-  Données = `getConnectors()` (même `/api/connectors` que la vitrine). La connexion d'un credential
-  reste sur `/console/connectors`.
-- **Doctrine library** (`/console/doctrine-library`, `DoctrineLibraryView.vue`) — marketplace de
-  doctrines publiques : chaque entrée a un **auteur** (badge « Otomata » ou nom de l'org créatrice),
-  recherche + filtres auteur/topic, preview markdown, **fork** dans l'org active (org_admin),
-  unpublish conditionnel. API `listLibraryDoctrines`/`getLibraryDoctrine`/`forkLibraryDoctrine`/
-  `unpublishDoctrine`. `DoctrineView.vue` ajoute l'action **« publier »** d'un skill (org_admin →
-  `publishDoctrine`). Backend : `oto-backend/CLAUDE.md` §REST (capacités `library.*`).
+Le groupe nav « library » a **disparu** : les bibliothèques (découverte) sont fusionnées
+en **onglets** des pages de gestion `/connectors` et `/doctrine`, chacune devenue un
+**point d'entrée unique** à onglets (`SubTabs.vue`, état porté par `?tab=` via `useDeepLink`).
+Onglet par défaut = `mine` (`?tab` absent = URL propre). Les ex-routes `/library/connectors`
+et `/library/doctrines` **redirigent** vers `…?tab=marketplace` (`router/index.ts`).
+
+- **`/connectors`** = host `ConnectorsHubView.vue`, 3 onglets :
+  - `mine` — `ConnectorsView.vue` (projection USER inchangée : connexion + outils + presets).
+  - `shared` (« partagés ») — `ConnectorsSharedView.vue`, **lentille de consommation lecture
+    seule** : connecteurs résolus par une **clé partagée** d'org/équipe, dérivés **sans fetch
+    dédié** de `me.providers[name].mode ∈ {org, group}` (cascade `access.resolve_credential`).
+    La gestion reste dans `mine`.
+  - `marketplace` — `ConnectorLibraryView.vue` (catalogue navigable, ex-connector library).
+- **`/doctrine`** = host `DoctrineHubView.vue`, 2 onglets :
+  - `mine` — `DoctrineView.vue` (doctrine de base + skills de l'org/équipe, édition/versions/usage).
+  - `marketplace` — `DoctrineLibraryView.vue` : doctrines publiques avec **auteur** (badge
+    « Otomata » ou org créatrice), recherche + filtres auteur/topic, preview markdown,
+    **fork** dans l'org active (org_admin), unpublish conditionnel. API `listLibraryDoctrines`/
+    `getLibraryDoctrine`/`forkLibraryDoctrine`/`unpublishDoctrine`. `DoctrineView.vue` garde
+    l'action **« publier »** d'un skill (org_admin → `publishDoctrine`). Backend :
+    `oto-backend/CLAUDE.md` §REST (capacités `library.*`).
+
+Les hosts montent leurs panneaux en `v-if` (lazy `defineAsyncComponent`, chunks préservés) ;
+chaque panneau garde son propre deep-link (`?doc=`, `?preview=`) qui coexiste avec `?tab=`.
 
 ## Identité — en-tête du menu (org + équipe active)
 

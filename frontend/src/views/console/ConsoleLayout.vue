@@ -23,11 +23,9 @@ const AdminUserView = defineAsyncComponent(() => import('./AdminUserView.vue'))
 const VIEWS: Record<string, Component> = {
   '/overview': OverviewView,
   '/projects': defineAsyncComponent(() => import('./ProjectsView.vue')),
-  '/connectors': defineAsyncComponent(() => import('./ConnectorsView.vue')),
-  '/library/connectors': defineAsyncComponent(() => import('./ConnectorLibraryView.vue')),
-  '/doctrine': defineAsyncComponent(() => import('./DoctrineView.vue')),
+  '/connectors': defineAsyncComponent(() => import('./ConnectorsHubView.vue')),
+  '/doctrine': defineAsyncComponent(() => import('./DoctrineHubView.vue')),
   '/agent-context': defineAsyncComponent(() => import('./AgentContextView.vue')),
-  '/library/doctrines': defineAsyncComponent(() => import('./DoctrineLibraryView.vue')),
   '/data': defineAsyncComponent(() => import('./DataView.vue')),
   '/facts': defineAsyncComponent(() => import('./FactGraphView.vue')),
   '/knowledge': defineAsyncComponent(() => import('./KnowledgeView.vue')),

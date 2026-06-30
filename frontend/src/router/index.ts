@@ -22,6 +22,10 @@ const router = createRouter({
     // redirections pour ne pas casser bookmarks / liens existants.
     { path: '/my-connectors', redirect: '/connectors' },
     { path: '/toolbox', redirect: '/connectors' },
+    // Bibliothèques fusionnées en onglet « marketplace » des pages connecteurs /
+    // doctrine (point d'entrée unique) : l'ex-groupe nav « library » a disparu.
+    { path: '/library/connectors', redirect: '/connectors?tab=marketplace' },
+    { path: '/library/doctrines', redirect: '/doctrine?tab=marketplace' },
     // Redaction de champs migrée dans la carte connecteur (onglet transformations).
     { path: '/org/redaction', redirect: '/connectors' },
     // Clés plateforme fusionnées dans le cockpit connecteurs plateforme (ADR 0022).
