@@ -127,11 +127,19 @@ export const getAgentContext = () => api<AgentContext>('/api/me/agent-context')
 const projectsApi = <T>(body: Record<string, unknown>) =>
   api<T>('/api/me/projects', { method: 'POST', ...j(body) })
 export const listProjects = () => projectsApi<{ projects: Project[] }>({ op: 'list' })
+// Modèles (templates) copiables visibles par l'acteur — bibliothèque (ADR 0032 §7 B5a).
+export const listProjectTemplates = () => projectsApi<{ projects: Project[] }>({ op: 'list_templates' })
 export const getProject = (id: number) => projectsApi<Project>({ op: 'get', project_id: id })
 export const createProject = (name: string, brief_md = '', owner?: { owner_type: 'org'; owner_id: string }) =>
   projectsApi<Project>({ op: 'create', name, brief_md, ...(owner ?? {}) })
-export const updateProject = (id: number, fields: { name?: string; brief_md?: string }) =>
+export const updateProject = (id: number, fields: { name?: string; brief_md?: string; is_template?: boolean }) =>
   projectsApi<Project>({ op: 'update', project_id: id, ...fields })
+// Copie profonde d'un projet (le sien ou un modèle) → nouveau projet dans l'org active (B5a).
+export const copyProject = (id: number, name: string) =>
+  projectsApi<Project & { copied_from: number; links: ProjectLink[] }>({ op: 'copy', project_id: id, name })
+// Publier / retirer un projet comme modèle copiable (B5a).
+export const setProjectTemplate = (id: number, is_template: boolean) =>
+  projectsApi<Project>({ op: 'update', project_id: id, is_template })
 export const archiveProject = (id: number) =>
   projectsApi<{ ok: boolean }>({ op: 'archive', project_id: id })
 export const linkProject = (id: number, target_type: ProjectLinkType, target_ref: string, label?: string, role?: string, config?: ConnectorLinkConfig) =>

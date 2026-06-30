@@ -354,6 +354,7 @@ export interface Project {
   brief_md: string
   owner_type: string
   owner_id: string
+  is_template?: boolean          // publié comme modèle copiable (ADR 0032 §7 B5a)
   created_at?: string | null
   updated_at?: string | null
   archived_at?: string | null

@@ -10,7 +10,7 @@ import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
 import ProjectDocs from '@/components/console/ProjectDocs.vue'
 import {
-  getProject, updateProject, archiveProject,
+  getProject, updateProject, archiveProject, copyProject, setProjectTemplate,
   linkProject, unlinkProject, getProjectActivity,
   getResource, shareResource, unshareResource, transferResource,
   getNamespaces, getConnectors, getDoctrine, getMementoWorkspaces,
@@ -126,6 +126,31 @@ async function archive() {
     message: `Archiver « ${project.value.name} » ?` })) return
   try { await archiveProject(projectId); toast('projet archivé'); router.push('/projects') }
   catch (e) { toast(humanize(e)) }
+}
+
+// ── modèle (template) : copier ce projet / le publier comme modèle (ADR 0032 §7 B5a) ──
+async function copy() {
+  if (!project.value) return
+  const res = await promptForm({
+    title: 'Copier ce projet', submitLabel: 'Copier',
+    fields: [{ key: 'name', label: 'Nom de la copie', type: 'text',
+               value: `Copie de ${project.value.name}`, required: true }],
+  })
+  if (!res) return
+  try {
+    const copy = await copyProject(projectId, String(res.name).trim())
+    toast('projet copié')
+    router.push(`/projects/${copy.id}`)
+  } catch (e) { toast(humanize(e)) }
+}
+
+async function toggleTemplate() {
+  if (!project.value) return
+  const next = !project.value.is_template
+  try {
+    project.value = { ...project.value, ...(await setProjectTemplate(projectId, next)) }
+    toast(next ? 'publié comme modèle' : 'retiré des modèles')
+  } catch (e) { toast(humanize(e)) }
 }
 
 // ── liens : formulaire « Lier une entité » à vrais sélecteurs (type → entité) ──
@@ -282,6 +307,8 @@ async function transfer() {
         <ConsoleCard :title="project.name"
           :sub="project.owner_type === 'org' ? 'projet d\'org — partagé avec l\'équipe' : 'projet perso'">
           <template #actions>
+            <Btn kind="mini" @click="copy">Copier ce projet</Btn>
+            <Btn kind="mini" @click="toggleTemplate">{{ project.is_template ? 'Retirer des modèles' : 'Publier comme modèle' }}</Btn>
             <Btn kind="mini" @click="share">Partager</Btn>
             <Btn kind="mini" @click="transfer">Transférer</Btn>
             <Btn kind="danger" @click="archive">Archiver</Btn>
