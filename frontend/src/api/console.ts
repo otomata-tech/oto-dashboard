@@ -128,6 +128,9 @@ export const getAgentContext = () => api<AgentContext>('/api/me/agent-context')
 const projectsApi = <T>(body: Record<string, unknown>) =>
   api<T>('/api/me/projects', { method: 'POST', ...j(body) })
 export const listProjects = () => projectsApi<{ projects: Project[] }>({ op: 'list' })
+// Base de connaissance d'org = zone Documents (remplace Memento) — résout/crée le projet KB.
+export const getKbProject = () =>
+  api<{ project_id: number; name: string; brief_md: string }>('/api/me/kb', { method: 'POST', ...j({ op: 'get' }) })
 // Modèles (templates) copiables visibles par l'acteur — bibliothèque (ADR 0032 §7 B5a).
 export const listProjectTemplates = () => projectsApi<{ projects: Project[] }>({ op: 'list_templates' })
 export const getProject = (id: number) => projectsApi<Project>({ op: 'get', project_id: id })
