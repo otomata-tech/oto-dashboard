@@ -5,20 +5,16 @@
 // sélecteurs) + partage + activité. Consomme oto_project / oto_doc / oto_resource.
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import ConsoleCard from '@/components/console/ConsoleCard.vue'
-import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
-import Icon from '@/components/console/Icon.vue'
 import ProjectDocs from '@/components/console/ProjectDocs.vue'
+import ProjectEntities from '@/components/console/ProjectEntities.vue'
 import {
   getProject, updateProject, archiveProject, copyProject, setProjectTemplate, projectHandoff,
-  linkProject, unlinkProject, getProjectActivity,
+  getProjectActivity,
   getResource, shareResource, unshareResource, transferResource,
-  getNamespaces, getConnectors, getDoctrine, getMementoWorkspaces,
-  getConnectorIdentities,
   listProjectFiles, uploadProjectFile, deleteProjectFile, setProjectFilePublic,
 } from '@/api/console'
-import type { Project, ProjectLink, ProjectLinkType, ProjectActivity, NamespaceShare, ConnectorIdentity, ProjectFile } from '@/types/api'
+import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
@@ -40,34 +36,12 @@ const uploading = ref(false)
 const loaded = ref(false)
 const error = ref<string | null>(null)
 
-const LINK_GROUPS: { type: ProjectLinkType; label: string; icon: string }[] = [
-  { type: 'tableau', label: 'Tableaux', icon: 'db' },
-  { type: 'procedure', label: 'Procédures', icon: 'doc' },
-  { type: 'connecteur', label: 'Connecteurs', icon: 'plug' },
-  { type: 'base', label: 'Bases de connaissances', icon: 'book' },
-]
-const TYPE_ICON: Record<string, string> = Object.fromEntries(LINK_GROUPS.map((g) => [g.type, g.icon]))
-
-// Deep-link vers l'entité liée dans le dashboard (navigable). `target_ref` = id de
-// namespace (tableau) / slug de doctrine (procédure) / nom de connecteur / slug de
-// base. Connecteur & base n'ont pas de deep-link fin → on renvoie vers leur section.
-function entityHref(l: ProjectLink): string | null {
-  const ref = encodeURIComponent(l.target_ref)
-  switch (l.target_type) {
-    case 'tableau': return `/data?ns=${ref}`
-    case 'procedure': return `/doctrine?tab=mine&doc=${ref}`
-    case 'connecteur': return '/connectors?tab=mine'
-    case 'base': return '/documents'
-    default: return null
-  }
-}
-const linksByType = computed(() => {
-  const out: Record<string, ProjectLink[]> = {}
-  for (const l of project.value?.links ?? []) (out[l.target_type] ??= []).push(l)
-  return out
-})
 const briefDirty = computed(() => !!project.value && briefDraft.value !== (project.value.brief_md ?? ''))
 const readOnly = computed(() => project.value?.can_write === false)   // #4b — proposer une modif au lieu d'éditer
+// MAJ de la liste d'entités remontée par <ProjectEntities> après lier/délier/surcharger.
+function onLinksUpdate(links: ProjectLink[]) {
+  if (project.value) project.value = { ...project.value, links }
+}
 
 async function load() {
   if (!Number.isFinite(projectId)) { error.value = 'Projet introuvable.'; loaded.value = true; return }
@@ -179,111 +153,6 @@ async function handoff() {
   } catch (e) { toast(humanize(e)) }
 }
 
-// ── liens : formulaire « Lier une entité » à vrais sélecteurs (type → entité) ──
-// La référence n'est plus saisie à la main (id/slug/nom) : on choisit le type, puis
-// l'entité dans la liste réelle de ce type. Le nom affiché se pré-remplit du libellé.
-type LinkOption = { value: string; label: string }
-async function entitiesFor(type: ProjectLinkType): Promise<LinkOption[]> {
-  if (type === 'tableau') return (await getNamespaces()).namespaces.map((n) => ({ value: String(n.id), label: n.namespace }))
-  if (type === 'connecteur') return (await getConnectors()).connectors.map((c) => ({ value: c.name, label: c.label || c.name }))
-  if (type === 'procedure') return ((await getDoctrine()).instructions ?? []).map((i) => ({ value: i.slug, label: i.title }))
-  const w = await getMementoWorkspaces()
-  const seen = new Set<string>()
-  return [...w.orgs.flatMap((o) => o.workspaces), ...w.shared, ...w.pinned]
-    .filter((x) => !seen.has(x.slug) && seen.add(x.slug))
-    .map((x) => ({ value: x.slug, label: x.name }))
-}
-
-const linking = ref(false)
-const linkType = ref<ProjectLinkType | ''>('')
-const linkRef = ref('')
-const linkLabel = ref('')
-const linkRole = ref('')
-const linkLabelEdited = ref(false)
-const linkOpts = ref<LinkOption[]>([])
-const linkLoading = ref(false)
-
-function startLinking() {
-  linking.value = true
-  linkType.value = ''; linkRef.value = ''; linkLabel.value = ''; linkRole.value = ''
-  linkLabelEdited.value = false; linkOpts.value = []
-}
-function cancelLinking() { linking.value = false }
-
-async function onTypeChange() {
-  linkRef.value = ''; linkLabel.value = ''; linkLabelEdited.value = false; linkOpts.value = []
-  const t = linkType.value
-  if (!t) return
-  linkLoading.value = true
-  try { linkOpts.value = await entitiesFor(t) }
-  catch (e) { toast(humanize(e)) }
-  finally { linkLoading.value = false }
-}
-function onRefChange() {
-  if (!linkLabelEdited.value) linkLabel.value = linkOpts.value.find((o) => o.value === linkRef.value)?.label ?? ''
-}
-async function submitLink() {
-  const t = linkType.value
-  if (!project.value || !t || !linkRef.value) return
-  const label = linkLabel.value.trim() || linkOpts.value.find((o) => o.value === linkRef.value)?.label
-  const role = linkRole.value.trim() || undefined
-  try {
-    const { links } = await linkProject(projectId, t, linkRef.value, label, role)
-    project.value = { ...project.value, links }; await loadActivity()
-    linking.value = false
-  } catch (e) { toast(humanize(e)) }
-}
-// ── surcharge connecteur préfaite par projet (ADR 0032 §4, B2) ──
-// Un connecteur lié peut être reconfiguré POUR CE PROJET : quelle identité (compte) +
-// instructions de surcharge en prose. Préfait ici, lu par l'agent au chargement du projet.
-const cfgRef = ref<string | null>(null)       // target_ref du connecteur en cours d'édition
-const cfgIdentity = ref('')
-const cfgInstructions = ref('')
-const cfgIdentities = ref<ConnectorIdentity[]>([])
-const cfgIdentitiesSupported = ref(false)
-const cfgLoading = ref(false)
-const cfgSaving = ref(false)
-
-async function openConfig(l: ProjectLink) {
-  cfgRef.value = l.target_ref
-  cfgIdentity.value = l.config?.identity_id ?? ''
-  cfgInstructions.value = l.config?.instructions_md ?? ''
-  cfgIdentities.value = []; cfgIdentitiesSupported.value = false
-  cfgLoading.value = true
-  try {
-    const r = await getConnectorIdentities(l.target_ref)
-    cfgIdentitiesSupported.value = r.supported
-    cfgIdentities.value = r.identities
-  } catch { /* identité non gérée par ce connecteur — on garde juste les instructions */ }
-  finally { cfgLoading.value = false }
-}
-function closeConfig() { cfgRef.value = null }
-
-async function saveConfig(l: ProjectLink) {
-  if (!project.value) return
-  const config = {
-    identity_id: cfgIdentity.value || undefined,
-    instructions_md: cfgInstructions.value.trim() || undefined,
-  }
-  cfgSaving.value = true
-  try {
-    const { links } = await linkProject(projectId, 'connecteur', l.target_ref, l.label ?? undefined, l.role ?? undefined, config)
-    project.value = { ...project.value, links }; await loadActivity()
-    cfgRef.value = null; toast('surcharge enregistrée')
-  } catch (e) { toast(humanize(e)) }
-  finally { cfgSaving.value = false }
-}
-
-async function removeLink(l: ProjectLink) {
-  if (!project.value) return
-  if (!await confirmAction({ title: 'Délier', danger: true, confirmLabel: 'Délier',
-    message: `Délier ${l.label || l.target_ref} ?` })) return
-  try {
-    const { links } = await unlinkProject(projectId, l.target_type, l.target_ref)
-    project.value = { ...project.value, links }; await loadActivity()
-  } catch (e) { toast(humanize(e)) }
-}
-
 // ── partage / transfert (oto_resource) ──
 async function share() {
   if (!project.value) return
@@ -318,200 +187,170 @@ async function transfer() {
 
 <template>
   <div class="content-inner fadein">
-    <RouterLink to="/projects" class="pjd-back">← projets</RouterLink>
+    <RouterLink to="/projects" class="wk-back">← projets</RouterLink>
 
-    <ConsoleCard v-if="error" sub="ce projet n'a pas pu être chargé.">
-      <p class="dim" style="font-size: 13px">{{ error }}</p>
-    </ConsoleCard>
-    <ConsoleCard v-else-if="!loaded" sub="chargement…">
-      <p class="dim" style="font-size: 13px">chargement du projet…</p>
-    </ConsoleCard>
+    <div v-if="error" class="surface-card"><p class="dim" style="font-size: 13px">{{ error }}</p></div>
+    <div v-else-if="!loaded" class="surface-card"><p class="dim" style="font-size: 13px">chargement du projet…</p></div>
 
-    <div v-else-if="project" class="pjd-grid">
-      <!-- colonne principale : brief + docs + entités liées -->
-      <div class="pjd-main">
-        <ConsoleCard :title="project.name"
-          :sub="project.owner_type === 'org' ? 'projet d\'org — partagé avec l\'équipe' : 'projet perso'">
-          <template #actions>
-            <Btn kind="mini" @click="handoff">Reprendre dans Claude</Btn>
-            <Btn kind="mini" @click="copy">Copier ce projet</Btn>
-            <Btn kind="mini" @click="toggleTemplate">{{ project.is_template ? 'Retirer des modèles' : 'Publier comme modèle' }}</Btn>
-            <Btn kind="mini" @click="share">Partager</Btn>
-            <Btn kind="mini" @click="transfer">Transférer</Btn>
-            <Btn kind="danger" @click="archive">Archiver</Btn>
-          </template>
-
-          <div class="subh">Brief — point d'entrée</div>
-          <textarea v-model="briefDraft" class="pj-brief" rows="6"
-            placeholder="Le but du projet, le contexte, ce que l'agent doit savoir au démarrage…"></textarea>
-          <div style="margin-top: 6px">
-            <Btn kind="mini" @click="saveBrief">Enregistrer le brief</Btn>
-            <span v-if="briefDirty" class="dim" style="font-size: 11px; margin-left: 8px">modifié</span>
+    <template v-else-if="project">
+      <!-- en-tête de page -->
+      <header class="wk-head">
+        <div class="wk-head__id">
+          <span class="card-eb">{{ project.owner_type === 'org' ? "projet d'org · partagé avec l'équipe" : 'projet perso' }}</span>
+          <div class="wk-title">{{ project.name }}</div>
+          <div class="wk-status">
+            <span class="wk-dot"></span> actif
+            <Tag v-if="project.is_template" tone="saffron" title="Publié comme modèle copiable">modèle</Tag>
+            <Tag v-if="readOnly" tone="cobalt" title="Tu es en lecture seule sur ce projet">lecture</Tag>
           </div>
+        </div>
+        <div class="wk-head__act">
+          <button class="btn-resume" @click="handoff">reprendre dans claude →</button>
+          <button class="btn-soft" @click="copy">copier</button>
+          <button v-if="!readOnly" class="btn-soft" @click="toggleTemplate">{{ project.is_template ? 'retirer des modèles' : 'publier comme modèle' }}</button>
+          <button v-if="!readOnly" class="btn-soft" @click="share">partager</button>
+          <button v-if="!readOnly" class="btn-soft" @click="transfer">transférer</button>
+          <button v-if="!readOnly" class="btn-soft btn-soft--danger" @click="archive">archiver</button>
+        </div>
+      </header>
 
-          <ProjectDocs :project-id="project.id" :read-only="readOnly" @changed="loadActivity" />
+      <!-- grille atelier | méta -->
+      <div class="wk-grid">
+        <!-- colonne atelier : brief + pages + entités liées -->
+        <div class="wk-col">
 
-          <div class="subh" style="display: flex; align-items: center">
-            <span>Entités liées</span>
-            <button v-if="!linking" class="pj-x" style="margin-left: auto" @click="startLinking">+ lier</button>
-          </div>
-
-          <div v-if="linking" class="pj-linkform">
-            <label class="pj-fld">
-              <span class="pj-fld__lbl">Type</span>
-              <select v-model="linkType" class="pj-input" @change="onTypeChange">
-                <option value="" disabled>choisir…</option>
-                <option v-for="g in LINK_GROUPS" :key="g.type" :value="g.type">{{ g.label }}</option>
-              </select>
-            </label>
-            <label class="pj-fld">
-              <span class="pj-fld__lbl">Entité</span>
-              <select v-model="linkRef" class="pj-input" :disabled="!linkType || linkLoading" @change="onRefChange">
-                <option value="" disabled>{{ linkLoading ? 'chargement…' : !linkType ? 'choisis un type' : linkOpts.length ? 'choisir…' : 'aucune entité de ce type' }}</option>
-                <option v-for="o in linkOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
-              </select>
-            </label>
-            <label class="pj-fld">
-              <span class="pj-fld__lbl">Nom affiché <span class="dim" style="font-weight: 400; text-transform: none; letter-spacing: 0">(optionnel)</span></span>
-              <input v-model="linkLabel" class="pj-input" placeholder="(optionnel — par défaut le nom de l'entité)" @input="linkLabelEdited = true" />
-            </label>
-            <label class="pj-fld">
-              <span class="pj-fld__lbl">Rôle <span class="dim" style="font-weight: 400; text-transform: none; letter-spacing: 0">(optionnel)</span></span>
-              <input v-model="linkRole" class="pj-input" placeholder="pourquoi cette entité est ici / ce qu'elle apporte au projet" />
-            </label>
-            <div class="pj-linkform__act">
-              <button class="pj-x" @click="cancelLinking">annuler</button>
-              <Btn kind="mini" :disabled="!linkRef" @click="submitLink">Lier</Btn>
+          <!-- brief -->
+          <section class="surface-card">
+            <div class="card-eb-row">
+              <span class="card-eb">brief — point d'entrée de l'agent</span>
+              <span class="card-eb-hint">md</span>
             </div>
-          </div>
+            <textarea v-model="briefDraft" class="wk-brief" rows="5" :readonly="readOnly"
+              placeholder="Le but du projet, le contexte, ce que l'agent doit savoir au démarrage…"></textarea>
+            <div v-if="!readOnly" class="wk-brief-act">
+              <button class="btn-soft" @click="saveBrief">enregistrer le brief</button>
+              <span class="dim" style="font-size: 11px">{{ briefDirty ? 'modifié' : 'enregistré' }}</span>
+            </div>
+          </section>
 
-          <div v-for="g in LINK_GROUPS" :key="g.type" class="pj-linkgroup">
-            <template v-if="linksByType[g.type]?.length">
-              <div class="pj-grouphd"><Icon :name="g.icon" :size="13" /><span>{{ g.label }}</span></div>
-              <div v-for="l in linksByType[g.type]" :key="l.target_ref" class="pj-linkwrap">
-                <div class="pj-link pj-entity">
-                  <span class="pj-entity__ico"><Icon :name="TYPE_ICON[l.target_type] || 'doc'" :size="15" /></span>
-                  <div class="pj-entity__body">
-                    <div class="pj-entity__top">
-                      <component :is="entityHref(l) ? 'RouterLink' : 'span'" :to="entityHref(l) || undefined"
-                        class="pj-entity__name" :class="{ 'pj-entity__name--link': entityHref(l) }">
-                        {{ l.label || l.target_ref }}
-                        <Icon v-if="entityHref(l)" name="ext" :size="11" class="pj-entity__go" />
-                      </component>
-                      <Tag v-if="l.cross_project" tone="saffron" title="Cette entité est aussi liée par un autre projet — éviter les modifications brutales">partagé</Tag>
-                      <Tag v-if="g.type === 'connecteur' && (l.config?.identity_id || l.config?.instructions_md)" tone="olive" title="Connecteur reconfiguré pour ce projet">surchargé</Tag>
-                    </div>
-                    <div v-if="l.role" class="dim" style="font-size: 11px; margin-top: 2px">{{ l.role }}</div>
-                    <div v-if="g.type === 'connecteur' && l.config?.instructions_md" class="dim pj-cfg-note" style="margin-top: 2px">↳ {{ l.config.instructions_md }}</div>
-                  </div>
-                  <button v-if="g.type === 'connecteur'" class="pj-x" @click="cfgRef === l.target_ref ? closeConfig() : openConfig(l)">configurer</button>
-                  <button class="pj-x" title="Délier" @click="removeLink(l)">✕</button>
-                </div>
+          <!-- pages (ProjectDocs porte son propre en-tête « Pages ») -->
+          <section class="surface-card">
+            <ProjectDocs :project-id="project.id" :read-only="readOnly" @changed="loadActivity" />
+          </section>
 
-                <div v-if="g.type === 'connecteur' && cfgRef === l.target_ref" class="pj-cfgform">
-                  <p class="dim" style="font-size: 11px; margin: 0 0 2px">Surcharge de ce connecteur <b>pour ce projet</b> — préparée ici, appliquée par l'agent au chargement du projet.</p>
-                  <label v-if="cfgIdentitiesSupported && cfgIdentities.length" class="pj-fld">
-                    <span class="pj-fld__lbl">Identité (compte)</span>
-                    <select v-model="cfgIdentity" class="pj-input">
-                      <option value="">(défaut du compte)</option>
-                      <option v-for="idn in cfgIdentities" :key="idn.id" :value="idn.id">{{ idn.label || idn.id }}{{ idn.channel ? ` · ${idn.channel}` : '' }}</option>
-                    </select>
-                  </label>
-                  <p v-else-if="cfgLoading" class="dim" style="font-size: 11px">chargement des identités…</p>
-                  <label class="pj-fld">
-                    <span class="pj-fld__lbl">Instructions de surcharge <span class="dim" style="font-weight: 400; text-transform: none; letter-spacing: 0">(prose, optionnel)</span></span>
-                    <textarea v-model="cfgInstructions" class="pj-input" rows="3" placeholder="ex. ne filtrer les accords que par thème mutuelle"></textarea>
-                  </label>
-                  <div class="pj-linkform__act">
-                    <button class="pj-x" @click="closeConfig">annuler</button>
-                    <Btn kind="mini" :disabled="cfgSaving" @click="saveConfig(l)">Enregistrer</Btn>
-                  </div>
-                </div>
+          <!-- entités liées -->
+          <ProjectEntities :project-id="project.id" :links="project.links ?? []" :read-only="readOnly"
+            @update:links="onLinksUpdate" @changed="loadActivity" />
+        </div>
+
+        <!-- colonne méta : partage + autres documents + activité -->
+        <div class="wk-col">
+
+          <!-- partage -->
+          <section class="surface-card">
+            <div class="card-eb-row">
+              <span class="card-eb">partage</span>
+              <button v-if="!readOnly" class="btn-soft btn-soft--xs" @click="share">+ inviter</button>
+            </div>
+            <p v-if="!grants.length" class="dim" style="font-size: 12px">non partagé.</p>
+            <div v-for="g in grants" :key="(g.email || '') + g.permission" class="meta-row">
+              <span class="meta-row__main">{{ g.email || g.principal_id }}</span>
+              <Tag :tone="g.permission === 'write' ? 'olive' : 'cobalt'">{{ g.permission === 'write' ? 'édition' : 'lecture' }}</Tag>
+              <button v-if="!readOnly" class="ent__lnk" title="Retirer l'accès" @click="revoke(g)">✕</button>
+            </div>
+          </section>
+
+          <!-- autres documents -->
+          <section class="surface-card">
+            <div class="card-eb-row">
+              <span class="card-eb">autres documents</span>
+              <input ref="fileInput" type="file" style="display: none" @change="onFilePick" />
+              <button v-if="!readOnly && !uploading" class="btn-soft btn-soft--xs" @click="fileInput?.click()">+ déposer</button>
+              <span v-else-if="uploading" class="dim" style="font-size: 11px">envoi…</span>
+            </div>
+            <p v-if="!files.length" class="dim" style="font-size: 12px">aucun fichier brut — PDF, HTML…</p>
+            <div v-for="f in files" :key="f.id" class="meta-row meta-row--file">
+              <div class="meta-row__main">
+                <a v-if="f.public && f.public_url" :href="f.public_url" target="_blank" rel="noopener" class="file-link">{{ f.title || f.filename }}</a>
+                <a v-else-if="f.download_url" :href="f.download_url" target="_blank" rel="noopener" class="file-link">{{ f.title || f.filename }}</a>
+                <span v-else class="file-link">{{ f.title || f.filename }}</span>
+                <span class="dim" style="font-size: 10.5px; margin-left: 6px">{{ fmtSize(f.size_bytes) }}</span>
+                <Tag v-if="f.public" tone="cobalt" title="Partagé publiquement — accessible par lien">public</Tag>
+                <div v-if="f.description" class="dim" style="font-size: 11px; margin-top: 2px">{{ f.description }}</div>
               </div>
-            </template>
-          </div>
-          <p v-if="!(project.links?.length)" class="dim" style="font-size: 12px">aucune entité liée — utilise « + lier ».</p>
-
-          <div class="subh" style="display: flex; align-items: center">
-            <span>Autre document</span>
-            <input ref="fileInput" type="file" style="display: none" @change="onFilePick" />
-            <button v-if="!uploading" class="pj-x" style="margin-left: auto" @click="fileInput?.click()">+ déposer</button>
-            <span v-else class="dim" style="margin-left: auto; font-size: 11px">envoi…</span>
-          </div>
-          <div v-for="f in files" :key="f.id" class="pj-link" style="align-items: flex-start">
-            <div style="flex: 1; min-width: 0">
-              <a v-if="f.public && f.public_url" :href="f.public_url" target="_blank" rel="noopener" style="color: var(--color-ink)">{{ f.title || f.filename }}</a>
-              <a v-else-if="f.download_url" :href="f.download_url" target="_blank" rel="noopener" style="color: var(--color-ink)">{{ f.title || f.filename }}</a>
-              <span v-else style="color: var(--color-ink)">{{ f.title || f.filename }}</span>
-              <span class="dim" style="font-size: 11px; margin-left: 6px">{{ fmtSize(f.size_bytes) }}</span>
-              <Tag v-if="f.public" tone="cobalt" title="Partagé publiquement — accessible par lien">public</Tag>
-              <div v-if="f.description" class="dim" style="font-size: 11px; margin-top: 2px">{{ f.description }}</div>
+              <button v-if="!readOnly" class="ent__lnk" :title="f.public ? 'Rendre privé' : 'Partager publiquement (copie le lien)'" @click="toggleFilePublic(f)">{{ f.public ? '🔓' : '🔗' }}</button>
+              <button v-if="!readOnly" class="ent__lnk" title="Supprimer" @click="removeFile(f)">✕</button>
             </div>
-            <button class="pj-x" :title="f.public ? 'Rendre privé' : 'Partager publiquement (copie le lien)'" @click="toggleFilePublic(f)">{{ f.public ? '🔓' : '🔗' }}</button>
-            <button class="pj-x" @click="removeFile(f)">✕</button>
-          </div>
-          <p v-if="!files.length" class="dim" style="font-size: 12px">aucun fichier brut — PDF, HTML… via « + déposer ».</p>
-        </ConsoleCard>
-      </div>
+          </section>
 
-      <!-- aside : partage + activité -->
-      <div class="pjd-aside">
-        <ConsoleCard title="Partage">
-          <p v-if="!grants.length" class="dim" style="font-size: 12px">non partagé.</p>
-          <div v-for="g in grants" :key="(g.email || '') + g.permission" class="pj-link">
-            <span style="flex: 1; color: var(--color-ink)">{{ g.email || g.principal_id }}</span>
-            <Tag :tone="g.permission === 'write' ? 'olive' : 'cobalt'">{{ g.permission === 'write' ? 'édition' : 'lecture' }}</Tag>
-            <button class="pj-x" @click="revoke(g)">✕</button>
-          </div>
-        </ConsoleCard>
-
-        <ConsoleCard title="Activité">
-          <p v-if="!activity.length" class="dim" style="font-size: 12px">aucune activité.</p>
-          <div v-for="(a, i) in activity" :key="i" class="pj-act">
-            <span class="dim" style="font-size: 11px; width: 92px; flex: none">{{ fmtDate(a.created_at) }}</span>
-            <span style="flex: 1"><b style="font-weight: 600">{{ a.action }}</b>
-              <span v-if="a.detail" class="dim"> · {{ a.detail }}</span></span>
-          </div>
-        </ConsoleCard>
+          <!-- activité -->
+          <section class="surface-card">
+            <span class="card-eb">activité</span>
+            <p v-if="!activity.length" class="dim" style="font-size: 12px; margin-top: 8px">aucune activité.</p>
+            <div v-else class="wk-acts">
+              <div v-for="(a, i) in activity" :key="i" class="wk-act">
+                <span class="wk-act__t">{{ fmtDate(a.created_at) }}</span>
+                <span class="wk-act__b"><strong>{{ a.action }}</strong><span v-if="a.detail" class="dim"> · {{ a.detail }}</span></span>
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 
 <style scoped>
-.pjd-back { display: inline-block; margin-bottom: 10px; font-size: 12.5px; color: var(--color-ink-soft, #6b6b6b); text-decoration: none; }
-.pjd-back:hover { color: var(--color-ink, #2a2a2a); }
-.pjd-grid { display: grid; grid-template-columns: 1fr 320px; gap: 12px; align-items: start; }
-@media (max-width: 900px) { .pjd-grid { grid-template-columns: 1fr; } }
-.pjd-aside { display: flex; flex-direction: column; gap: 12px; }
-.pj-brief { width: 100%; border: 1px solid var(--color-hair-soft, #cfcfcf); border-radius: 8px; padding: 9px 11px; font: inherit; font-size: 13px; line-height: 1.5; resize: vertical; background: #fff; color: var(--color-ink, #2a2a2a); }
-.pj-linkform { display: flex; flex-direction: column; gap: 9px; padding: 11px 12px; margin-bottom: 10px; border: 1px solid var(--color-hair-soft, #e0ddd6); border-radius: 9px; background: #faf9f7; }
-.pj-fld { display: flex; flex-direction: column; gap: 4px; }
-.pj-fld__lbl { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--color-faint, #9a9a9a); }
-.pj-input { width: 100%; border: 1px solid var(--color-hair-soft, #cfcfcf); border-radius: 7px; padding: 7px 9px; font: inherit; font-size: 13px; background: #fff; color: var(--color-ink, #2a2a2a); }
-.pj-input:disabled { opacity: .55; cursor: not-allowed; }
-.pj-linkform__act { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 2px; }
-.pj-linkgroup { margin-bottom: 10px; }
-.pj-grouphd { display: flex; align-items: center; gap: 6px; margin: 4px 0 3px; font-size: 11px; font-weight: 700; letter-spacing: .03em; color: var(--color-faint, #9a9a9a); }
-.pj-grouphd svg { color: var(--color-faint, #9a9a9a); }
-.pj-linkwrap { border-bottom: 1px solid var(--color-hair-soft, #ececec); }
-.pj-linkwrap:last-child { border-bottom: none; }
-.pj-linkwrap .pj-link { border-bottom: none; }
-/* Ligne d'entité liée : icône de type + nom navigable + actions */
-.pj-entity { align-items: flex-start; gap: 9px; padding: 7px 6px; border-radius: 7px; }
-.pj-entity:hover { background: var(--color-paper-2, #f7f5f1); }
-.pj-entity__ico { flex: none; display: grid; place-items: center; width: 26px; height: 26px; margin-top: 1px; border-radius: 7px; color: var(--color-ink-soft, #6b6b6b); background: var(--color-paper-2, #f1efe9); border: 1px solid var(--color-hair-soft, #e0ddd6); }
-.pj-entity__body { flex: 1; min-width: 0; }
-.pj-entity__top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.pj-entity__name { display: inline-flex; align-items: center; gap: 4px; color: var(--color-ink, #2a2a2a); font-weight: 600; font-size: 13px; text-decoration: none; }
-.pj-entity__name--link { color: var(--color-cobalt, #2f5fbf); cursor: pointer; }
-.pj-entity__name--link:hover { text-decoration: underline; }
-.pj-entity__go { opacity: .55; flex: none; }
-.pj-entity__name--link:hover .pj-entity__go { opacity: 1; }
-.pj-cfg-note { font-size: 11px; font-style: italic; white-space: pre-wrap; overflow-wrap: anywhere; }
-.pj-cfgform { display: flex; flex-direction: column; gap: 9px; padding: 10px 11px 11px; margin: 2px 0 8px; border: 1px solid var(--color-hair-soft, #e0ddd6); border-radius: 9px; background: #faf9f7; }
-.pj-link { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--color-hair-soft, #ececec); }
-.pj-act { display: flex; gap: 8px; padding: 3px 0; font-size: 12px; color: var(--color-ink-soft, #4a463d); }
-.pj-x { border: 1px solid var(--color-hair-soft, #cfcfcf); background: #fff; border-radius: 6px; padding: 2px 7px; font-size: 11px; color: var(--color-ink-soft, #6b6b6b); cursor: pointer; }
-.subh { margin: 16px 0 6px; font-size: 11px; color: var(--color-faint, #9a9a9a); text-transform: uppercase; letter-spacing: .05em; }
+/* ── chrome de page ── */
+.wk-back { display: inline-block; margin-bottom: 14px; font-size: 12.5px; color: var(--color-mute); text-decoration: none; }
+.wk-back:hover { color: var(--color-ink); }
+.wk-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.wk-head__id { flex: 1; min-width: 240px; }
+.wk-title { font-size: 27px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.06; margin-top: 5px; color: var(--color-ink); }
+.wk-status { display: flex; align-items: center; gap: 7px; margin-top: 7px; font-size: 12.5px; color: var(--color-mute); }
+.wk-dot { display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: var(--color-olive); }
+.wk-head__act { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* ── boutons ── */
+.btn-resume { display: inline-flex; align-items: center; gap: 7px; background: var(--color-ink); color: var(--color-bg); border: 1px solid var(--color-ink); border-radius: 999px; padding: 7px 15px; font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; text-transform: lowercase; cursor: pointer; transition: transform 180ms var(--ease-out); }
+.btn-resume:hover { transform: translateY(-1px); }
+.btn-soft { display: inline-flex; align-items: center; background: var(--color-surface); color: var(--color-ink-soft); border: 1px solid var(--color-hair); border-radius: 7px; padding: 5px 11px; font-family: var(--font-sans); font-size: 11.5px; font-weight: 600; text-transform: lowercase; cursor: pointer; transition: background 180ms; }
+.btn-soft:hover { background: var(--color-paper-2); }
+.btn-soft:disabled { opacity: .5; cursor: not-allowed; }
+.btn-soft--xs { padding: 4px 9px; font-size: 11px; }
+.btn-soft--danger { color: var(--color-terra-ink); border-color: var(--color-terra-soft); }
+
+/* ── grille atelier | méta ── */
+.wk-grid { display: grid; grid-template-columns: 1fr 280px; gap: 14px; align-items: start; }
+@media (max-width: 900px) { .wk-grid { grid-template-columns: 1fr; } }
+.wk-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+/* ── carte-surface ── */
+.surface-card { background: var(--color-surface); border: 1px solid var(--color-hair); border-radius: 12px; padding: 18px; }
+.card-eb { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--color-mute); }
+.card-eb-hint { font-family: var(--font-mono); font-size: 9.5px; color: var(--color-faint); }
+.card-eb-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+
+/* ── brief ── */
+.wk-brief { width: 100%; margin-top: 0; border: 1px solid var(--color-hair); border-radius: 10px; padding: 11px 13px; font-family: var(--font-sans); font-size: 13.5px; line-height: 1.6; color: var(--color-ink-soft); background: var(--color-surface); resize: vertical; box-sizing: border-box; }
+.wk-brief-act { display: flex; align-items: center; gap: 9px; margin-top: 8px; }
+
+/* ── colonne méta : actions inline (partagées avec les cartes d'entité) ── */
+.ent__lnk { background: none; border: 0; padding: 0; font-family: var(--font-sans); font-size: 11px; color: var(--color-mute); cursor: pointer; }
+.ent__lnk:hover { color: var(--color-ink); text-decoration: underline; }
+
+/* ── colonne méta : lignes partage / fichiers / activité ── */
+.meta-row { display: flex; align-items: center; gap: 9px; padding: 7px 0; border-bottom: 1px solid var(--color-hair-soft); }
+.meta-row:last-child { border-bottom: none; }
+.meta-row--file { align-items: flex-start; }
+.meta-row__main { flex: 1; min-width: 0; font-size: 12.5px; color: var(--color-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta-row--file .meta-row__main { white-space: normal; }
+.file-link { font-size: 12.5px; color: var(--color-ink); font-weight: 500; }
+.file-link:hover { text-decoration: underline; }
+.wk-acts { margin-top: 9px; display: flex; flex-direction: column; }
+.wk-act { display: flex; gap: 9px; padding: 5px 0; border-bottom: 1px solid var(--color-hair-soft); }
+.wk-act:last-child { border-bottom: none; }
+.wk-act__t { font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); width: 64px; flex: none; }
+.wk-act__b { font-size: 12px; color: var(--color-ink-soft); }
+.wk-act__b strong { font-weight: 600; color: var(--color-ink); }
 </style>
