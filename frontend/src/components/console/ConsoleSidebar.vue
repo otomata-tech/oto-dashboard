@@ -1,16 +1,27 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import Icon from './Icon.vue'
 import Dot from './Dot.vue'
 import ConsoleIdentity from './ConsoleIdentity.vue'
 import ConsoleUserMenu from './ConsoleUserMenu.vue'
 import { NAV } from '@/lib/consoleNav'
+import { listProjects } from '@/api/console'
+import type { Project } from '@/types/api'
 import { useMe, isPlatformOperator, isSuperAdmin } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
 
 const route = useRoute()
+
+// Projet en exergue (ADR 0032 §1 / réunion 30/06) : les 5 derniers projets affichés
+// directement sous l'entrée « projects ». La liste est déjà triée par récence côté
+// backend. Best-effort : la sidebar reste fonctionnelle si le fetch échoue.
+const recentProjects = ref<Project[]>([])
+onMounted(async () => {
+  try { recentProjects.value = (await listProjects()).projects.slice(0, 5) }
+  catch { /* no-op */ }
+})
 const { me } = useMe()
 const { navOpen, closeNav } = useNav()
 // Niveau dérivé de la route : il filtre les groupes de nav ci-dessous. Le CHOIX
@@ -54,6 +65,18 @@ const visibleGroups = computed(() =>
           <span v-if="it.warn" class="warn-dot"><Dot tone="saffron" :size="7" /></span>
           <span v-else-if="it.count" class="count">{{ it.count }}</span>
         </RouterLink>
+        <template v-if="g.group === 'workspace' && recentProjects.length">
+          <RouterLink
+            v-for="p in recentProjects"
+            :key="`p${p.id}`"
+            class="sb-item sb-subitem"
+            :class="{ on: route.fullPath === `/projects/${p.id}` }"
+            :to="`/projects/${p.id}`"
+            @click="closeNav"
+          >
+            <span class="ic"></span>{{ p.name }}
+          </RouterLink>
+        </template>
       </div>
     </nav>
     <div class="sb-foot">
@@ -64,6 +87,9 @@ const visibleGroups = computed(() =>
 </template>
 
 <style scoped>
-/* Plus de styles spécifiques ici : le menu profil (pied) porte les siens
-   (ConsoleUserMenu), le reste du chrome sidebar vit dans console.css. */
+/* Projet en exergue : sous-liens des 5 derniers projets sous l'entrée « projects ».
+   Le reste du chrome sidebar vit dans console.css. */
+.sb-subitem { padding-left: 30px; font-size: 12.5px; color: var(--color-ink-soft, #6b6b6b); }
+.sb-subitem .ic { width: 15px; }
+.sb-subitem.on { color: var(--color-ink, #2a2a2a); font-weight: 600; }
 </style>
