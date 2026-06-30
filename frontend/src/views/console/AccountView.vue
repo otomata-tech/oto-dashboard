@@ -6,6 +6,7 @@ import Avatar from '@/components/console/Avatar.vue'
 import Tag from '@/components/console/Tag.vue'
 import AccountTokensCard from '@/components/console/AccountTokensCard.vue'
 import SecurityCard from '@/components/console/SecurityCard.vue'
+import AgentContextCard from '@/components/console/AgentContextCard.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
@@ -112,6 +113,8 @@ async function remove() {
     </ConsoleCard>
 
     <SecurityCard />
+
+    <AgentContextCard />
 
     <AccountTokensCard />
   </div>

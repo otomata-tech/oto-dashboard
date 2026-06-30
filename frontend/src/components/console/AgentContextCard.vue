@@ -1,12 +1,12 @@
 <script setup lang="ts">
-// Vue « contexte agent » (otomata-private#49) — transparence : ce que le Claude
-// de l'utilisateur reçoit d'oto au handshake, en 3 couches étiquetées par
-// PROVENANCE (plateforme-statique / org-éditable / dérivé). Lecture seule ;
-// l'édition de la couche org se fait dans l'écran doctrine.
+// Carte « contexte agent » (otomata-private#49) — transparence : ce que le Claude
+// de l'utilisateur reçoit d'oto au handshake, en 3 couches étiquetées par PROVENANCE
+// (plateforme-statique / org-éditable / dérivé). Lecture seule ; l'édition de la
+// couche org se fait dans l'écran doctrine. Vit comme section de la page Account.
 import { computed, onMounted, ref } from 'vue'
-import ConsoleCard from '@/components/console/ConsoleCard.vue'
-import Tag from '@/components/console/Tag.vue'
-import Btn from '@/components/console/Btn.vue'
+import ConsoleCard from './ConsoleCard.vue'
+import Tag from './Tag.vue'
+import Btn from './Btn.vue'
 import { getAgentContext } from '@/api/console'
 import type { AgentContext } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -36,20 +36,21 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="content-inner fadein">
-    <ConsoleCard title="agent context"
-      sub="exactement ce que ton Claude reçoit d'oto à la connexion. trois couches : instructions de la plateforme, doctrine de ton org, et les outils visibles sous ton org active.">
-      <p v-if="error" class="dim" style="font-size: 13px">{{ error }}</p>
-      <p v-else-if="!loaded" class="dim" style="font-size: 13px">chargement…</p>
-    </ConsoleCard>
+  <ConsoleCard title="agent context" flush
+    sub="exactement ce que ton Claude reçoit d'oto à la connexion : instructions de la plateforme, doctrine de ton org, et les outils visibles sous ton org active. lecture seule.">
+    <p v-if="error" class="dim" style="font-size: 13px; padding: 0 16px 12px">{{ error }}</p>
+    <p v-else-if="!loaded" class="dim" style="font-size: 13px; padding: 0 16px 12px">chargement…</p>
 
-    <template v-if="loaded && !error && ctx">
+    <template v-else-if="ctx">
       <!-- Couche 1 — instructions serveur (plateforme, statique) -->
-      <ConsoleCard title="server instructions"
-        sub="injectées au handshake MCP. posture + bootstrap + boucle d'usage + catalogue de namespaces dérivé du registre.">
-        <template #actions>
+      <section class="ctx-layer">
+        <header class="ctx-head">
+          <div>
+            <div class="ctx-title">server instructions</div>
+            <div class="ctx-sub">injectées au handshake MCP. posture + bootstrap + boucle d'usage + catalogue de namespaces dérivé du registre.</div>
+          </div>
           <Tag tone="cobalt">plateforme · statique</Tag>
-        </template>
+        </header>
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px">
           <Btn kind="mini" @click="showInstructions = !showInstructions">
             {{ showInstructions ? 'masquer' : 'voir le texte intégral' }}
@@ -57,14 +58,17 @@ onMounted(load)
           <span class="dim" style="font-size: 12px">{{ ctx.instructions.length }} caractères</span>
         </div>
         <pre v-if="showInstructions" class="ctx-pre">{{ ctx.instructions }}</pre>
-      </ConsoleCard>
+      </section>
 
       <!-- Couche 2 — doctrine de l'org (éditable) -->
-      <ConsoleCard title="org doctrine"
-        sub="la prose opératoire de ton org (workflows, règles, vocabulaire), servie en début de session. c'est ta couche personnalisable.">
-        <template #actions>
+      <section class="ctx-layer">
+        <header class="ctx-head">
+          <div>
+            <div class="ctx-title">org doctrine</div>
+            <div class="ctx-sub">la prose opératoire de ton org (workflows, règles, vocabulaire), servie en début de session. c'est ta couche personnalisable.</div>
+          </div>
           <Tag tone="olive">{{ doctrine?.org || 'aucune org active' }}</Tag>
-        </template>
+        </header>
         <div v-if="!doctrine?.org_id" class="dim" style="font-size: 13px">
           aucune org active → ton agent démarre généraliste, sans doctrine métier.
         </div>
@@ -91,19 +95,20 @@ onMounted(load)
             rien d'écrit pour l'instant — l'agent ne reçoit que les instructions plateforme + les outils.
           </p>
         </template>
-      </ConsoleCard>
+      </section>
 
       <!-- Couche 3 — outils visibles (dérivé) -->
-      <ConsoleCard title="visible tools" flush
-        sub="les outils que ton agent voit RÉELLEMENT sous ton org active (après activation des connecteurs + tes presets). le catalogue ci-dessus liste tout le possible ; ceci est ton sous-ensemble effectif.">
-        <template #actions>
+      <section class="ctx-layer">
+        <header class="ctx-head">
+          <div>
+            <div class="ctx-title">visible tools</div>
+            <div class="ctx-sub">les outils que ton agent voit RÉELLEMENT sous ton org active (après activation des connecteurs + tes presets) — ton sous-ensemble effectif du catalogue.</div>
+          </div>
           <Tag v-if="tools?.available" tone="olive">
             {{ tools.total_visible }} visibles · {{ tools.total_hidden }} masqués
           </Tag>
-        </template>
-        <p v-if="!tools?.available" class="dim" style="font-size: 13px; padding: 0 16px 12px">
-          calcul de visibilité indisponible.
-        </p>
+        </header>
+        <p v-if="!tools?.available" class="dim" style="font-size: 13px">calcul de visibilité indisponible.</p>
         <table v-else class="tbl">
           <thead><tr><th>namespace</th><th style="width: 120px">visibles</th><th style="width: 90px"></th></tr></thead>
           <tbody>
@@ -116,12 +121,20 @@ onMounted(load)
             </tr>
           </tbody>
         </table>
-      </ConsoleCard>
+      </section>
     </template>
-  </div>
+  </ConsoleCard>
 </template>
 
 <style scoped>
+.ctx-layer { padding: 14px 16px; border-top: 1px solid var(--color-hair-soft); }
+.ctx-layer:first-child { border-top: 0; }
+.ctx-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  margin-bottom: 10px;
+}
+.ctx-title { font-weight: 600; font-size: 14px; color: var(--color-ink); }
+.ctx-sub { font-size: 12px; color: var(--color-mute); line-height: 1.5; margin-top: 2px; }
 .ctx-pre {
   white-space: pre-wrap;
   word-break: break-word;
