@@ -4,6 +4,7 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
 import DataTable from '@/components/console/DataTable.vue'
+import DatastoreCards from '@/components/console/DatastoreCards.vue'
 import RowDrawer from '@/components/console/RowDrawer.vue'
 import ShareDialog from '@/components/console/ShareDialog.vue'
 import { useToast } from '@/composables/useToast'
@@ -54,6 +55,11 @@ const currentName = computed(() => current.value?.namespace ?? null)
 // ADR 0030 : droits dérivés du payload (owner-match ∪ grant ∪ gouvernance).
 const readOnly = computed(() => !!current.value && current.value.can_write === false)
 const canGovern = computed(() => !!current.value?.can_govern)
+// Mode typé (ADR 0032 §6, B6b) : un namespace à schéma s'affiche en FICHES par
+// défaut (rendu via les rôles), avec bascule vers le tableau plat.
+const isTyped = computed(() => !!current.value?.schema?.fields?.length)
+const cardView = ref(true)
+const pageCount = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 
 const fields = computed<string[]>(() => {
   const seen: string[] = []
@@ -288,6 +294,9 @@ async function onDelete() {
         :sub="rowsLoading ? 'loading…' : `${total} row${total === 1 ? '' : 's'}`">
         <template #actions>
           <Tag v-if="readOnly" tone="saffron">read-only</Tag>
+          <Btn v-if="isTyped" kind="mini" @click="cardView = !cardView">
+            {{ cardView ? 'vue table' : 'vue fiches' }}
+          </Btn>
           <Btn kind="mini" icon="doc" :disabled="exporting || !total" @click="exportCsv">
             {{ exporting ? 'exporting…' : 'export csv' }}
           </Btn>
@@ -316,6 +325,14 @@ async function onDelete() {
           no rows yet — add one above, or your agents append with
           <code style="font-size: 11px">data_write("{{ currentName }}", row)</code>.
         </div>
+        <template v-else-if="isTyped && cardView">
+          <DatastoreCards :rows="rows" :schema="current.schema!" @open="openRow" />
+          <div v-if="pageCount > 1" class="ds-pager">
+            <button class="pj-x" :disabled="page <= 0" @click="onPage(page - 1)">‹ préc.</button>
+            <span class="dim" style="font-size: 12px">page {{ page + 1 }} / {{ pageCount }}</span>
+            <button class="pj-x" :disabled="page >= pageCount - 1" @click="onPage(page + 1)">suiv. ›</button>
+          </div>
+        </template>
         <DataTable v-else :rows="rows" :total="total" :page="page" :page-size="PAGE_SIZE"
           :sort-field="sortField" :sort-dir="sortDir" :search="search" :filters="filters" :loading="rowsLoading"
           @open="openRow" @update:page="onPage" @update:sort="onSort" @update:search="onSearch"
@@ -361,6 +378,9 @@ async function onDelete() {
 .ds-schema { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--color-hair-soft, #e6e6e3); }
 .ds-field { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
 .ds-role { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--color-olive-ink, #5a6a3a); background: var(--color-olive-soft, #eef0e6); border-radius: 4px; padding: 1px 5px; }
+.ds-pager { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 16px; }
+.ds-pager .pj-x { border: 1px solid var(--color-hair-soft, #cfcfcf); background: #fff; border-radius: 6px; padding: 4px 10px; font-size: 12px; color: var(--color-ink-soft, #6b6b6b); cursor: pointer; }
+.ds-pager .pj-x:disabled { opacity: .4; cursor: default; }
 @media (max-width: 720px) {
   .data-layout { grid-template-columns: 1fr; }
 }
