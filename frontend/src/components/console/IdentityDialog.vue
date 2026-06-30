@@ -6,7 +6,7 @@ import Avatar from './Avatar.vue'
 import OtoLoading from './OtoLoading.vue'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
-import { getMyOrgs, setActiveOrg, clearActiveOrg, createMyOrg, listGroups, useGroup } from '@/api/console'
+import { getMyOrgs, setActiveOrg, createMyOrg, listGroups, useGroup } from '@/api/console'
 import { setViewOrg, setViewGroup } from '@/lib/viewOrg'
 import type { Org, GroupListItem } from '@/types/api'
 
@@ -64,12 +64,6 @@ async function pickOrg(o: Org) {
   setViewOrg(String(o.id)); setViewGroup(null); location.reload()   // org change → drop l'équipe
 }
 
-async function pickPerso() {
-  if (switching.value || me.value?.active_org == null) return
-  switching.value = true
-  setViewOrg('0'); setViewGroup(null); location.reload()
-}
-
 // MAISON (org par défaut des prochaines conversations Claude) : action explicite,
 // distincte de la consultation. Agit sur l'org actuellement AFFICHÉE : on la pose
 // comme maison côté backend, on efface la consultation (on regarde désormais la
@@ -82,7 +76,6 @@ async function setHomeCurrent() {
   try {
     if (grp != null) await useGroup(grp)            // REST → équipe maison + org parente
     else if (org != null) await setActiveOrg(org)   // org maison (efface l'équipe)
-    else await clearActiveOrg()                      // perso
     setViewOrg(null); setViewGroup(null); location.reload()
   } catch (e) { toast(msg(e, 'échec')); switching.value = false }
 }
@@ -151,18 +144,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
              le défaut MCP des prochaines conversations. -->
         <section class="id-sect">
           <div class="id-sect-head">organisation affichée</div>
-          <button class="id-opt" :class="{ on: me?.active_org == null }"
-                  :disabled="switching" @click="pickPerso">
-            <Dot :tone="me?.active_org == null ? 'saffron' : 'faint'" :size="6" />
-            <span class="id-opt-name">Perso</span>
-            <span class="id-opt-tag">global</span>
-            <span v-if="me?.home_org == null" class="id-home-badge">maison</span>
-            <span v-else-if="me?.active_org == null && me?.active_group == null && !viewedIsHome"
-                  class="id-sethome-inline" :title="'défaut des prochaines conversations Claude'"
-                  @click.stop="setHomeCurrent">définir maison</span>
-            <Icon v-if="me?.active_org == null" name="check" :size="13" class="id-check" />
-          </button>
-
           <div v-if="loading" class="id-empty"><OtoLoading label="chargement…" /></div>
           <button v-for="o in orgs" :key="o.id" class="id-opt"
                   :class="{ on: o.id === me?.active_org }"

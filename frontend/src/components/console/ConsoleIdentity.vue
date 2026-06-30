@@ -16,7 +16,7 @@ const { level } = useScope()
 
 const open = ref(false)
 
-const orgName = computed(() => me.value?.active_org_name || 'Perso')
+const orgName = computed(() => me.value?.active_org_name || '…')
 const hasLogo = computed(() => !!(me.value?.active_org_name && me.value?.active_org_logo_url))
 
 const orgRoleLabel = computed(() =>
