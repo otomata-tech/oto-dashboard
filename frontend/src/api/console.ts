@@ -3,7 +3,7 @@
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
   AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, ApiToken, BillingBalance, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
-  Project, ProjectLink, ProjectLinkType,
+  Project, ProjectLink, ProjectLinkType, Doc, DocKind, ProjectActivity,
   CreditPack, CreditTransaction, DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
@@ -128,6 +128,19 @@ export const linkProject = (id: number, target_type: ProjectLinkType, target_ref
   projectsApi<{ ok: boolean; links: ProjectLink[] }>({ op: 'link', project_id: id, target_type, target_ref, label })
 export const unlinkProject = (id: number, target_type: ProjectLinkType, target_ref: string) =>
   projectsApi<{ ok: boolean; links: ProjectLink[] }>({ op: 'unlink', project_id: id, target_type, target_ref })
+export const getProjectActivity = (id: number) =>
+  projectsApi<{ id: number; activity: ProjectActivity[] }>({ op: 'activity', project_id: id })
+
+// Docs (incrément 3) — pages markdown d'un projet, op-aware oto_doc
+const docsApi = <T>(body: Record<string, unknown>) =>
+  api<T>('/api/me/docs', { method: 'POST', ...j(body) })
+export const listDocs = (project_id: number) => docsApi<{ project_id: number; docs: Doc[] }>({ op: 'list', project_id })
+export const createDoc = (project_id: number, title: string,
+  opts?: { parent_id?: number | null; body_md?: string; kind?: DocKind }) =>
+  docsApi<Doc>({ op: 'create', project_id, title, ...(opts ?? {}) })
+export const updateDoc = (doc_id: number, fields: { title?: string; body_md?: string; kind?: DocKind }) =>
+  docsApi<Doc>({ op: 'update', doc_id, ...fields })
+export const deleteDoc = (doc_id: number) => docsApi<{ ok: boolean }>({ op: 'delete', doc_id })
 export const getInstruction = (slug: string, version?: number) =>
   api<InstructionDetail>(`/api/me/instructions/${slug}${version ? `?version=${version}` : ''}`)
 export const putInstruction = (slug: string, body_md: string, title?: string, description?: string) =>
@@ -231,6 +244,10 @@ export const transferResource = (resource_type: string, resource_id: string, new
 export const getResource = (resource_type: string, resource_id: string) =>
   api<ResourceEntry & { grants: NamespaceShare[] }>(
     '/api/resources', { method: 'POST', ...j({ op: 'get', resource_type, resource_id }) })
+export const shareResource = (resource_type: string, resource_id: string, email: string, permission: 'read' | 'write' = 'write') =>
+  api<{ ok: boolean }>('/api/resources', { method: 'POST', ...j({ op: 'share', resource_type, resource_id, email, permission }) })
+export const unshareResource = (resource_type: string, resource_id: string, email: string) =>
+  api<{ ok: boolean }>('/api/resources', { method: 'POST', ...j({ op: 'unshare', resource_type, resource_id, email }) })
 export const appendNamespaceRow = (ns: string, row: Record<string, unknown>) =>
   api<DatastoreRow>(`/api/datastore/namespaces/${encodeURIComponent(ns)}/rows`,
     { method: 'POST', ...j(row) })

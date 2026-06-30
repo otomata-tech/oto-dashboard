@@ -343,6 +343,30 @@ export interface Project {
   archived_at?: string | null
   links?: ProjectLink[]
 }
+export type DocKind = 'doc' | 'note' | 'source'
+export interface Doc {
+  id: number
+  project_id: number
+  parent_id: number | null
+  title: string
+  body_md: string
+  kind: DocKind
+  created_at?: string | null
+  updated_at?: string | null
+}
+export interface ProjectActivity {
+  sub: string | null
+  action: string
+  detail: string | null
+  created_at: string | null
+}
+export interface ResourceGrant {
+  principal_type: string
+  principal_id: string
+  email?: string | null
+  permission: string
+  granted_at?: string | null
+}
 
 // ── google / datastore / tokens ──
 export interface GoogleAccount {
