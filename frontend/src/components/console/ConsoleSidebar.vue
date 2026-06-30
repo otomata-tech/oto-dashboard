@@ -52,22 +52,21 @@ const visibleGroups = computed(() =>
     <nav class="sb-nav">
       <div v-for="(g, gi) in visibleGroups" :key="gi" class="sb-group">
         <div v-if="g.group" class="sb-group-label">{{ g.group }}</div>
-        <RouterLink
-          v-for="it in g.items"
-          :key="it.path"
-          class="sb-item"
-          :class="{ on: route.meta.section === it.path }"
-          :to="it.path"
-          @click="closeNav"
-        >
-          <span class="ic"><Icon :name="it.icon" :size="15" /></span>
-          {{ it.label }}
-          <span v-if="it.warn" class="warn-dot"><Dot tone="saffron" :size="7" /></span>
-          <span v-else-if="it.count" class="count">{{ it.count }}</span>
-        </RouterLink>
-        <template v-if="g.group === 'workspace' && recentProjects.length">
+        <template v-for="it in g.items" :key="it.path">
           <RouterLink
-            v-for="p in recentProjects"
+            class="sb-item"
+            :class="{ on: route.meta.section === it.path }"
+            :to="it.path"
+            @click="closeNav"
+          >
+            <span class="ic"><Icon :name="it.icon" :size="15" /></span>
+            {{ it.label }}
+            <span v-if="it.warn" class="warn-dot"><Dot tone="saffron" :size="7" /></span>
+            <span v-else-if="it.count" class="count">{{ it.count }}</span>
+          </RouterLink>
+          <!-- Projet en exergue : les 5 derniers projets juste sous l'entrée « projects ». -->
+          <RouterLink
+            v-for="p in (it.path === '/projects' ? recentProjects : [])"
             :key="`p${p.id}`"
             class="sb-item sb-subitem"
             :class="{ on: route.fullPath === `/projects/${p.id}` }"
