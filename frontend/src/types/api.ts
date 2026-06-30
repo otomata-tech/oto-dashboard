@@ -470,6 +470,19 @@ export interface NamespaceEntry {
   can_write?: boolean   // ADR 0030 : droit d'écriture effectif (owner-match ∪ grant write)
   can_govern?: boolean  // ADR 0030 : droit de gouvernance (transfert/partage/suppression)
   is_personal?: boolean // classeur perso (owner_type=user, owner_id=sub)
+  schema?: DatastoreSchema | null  // mode typé optionnel (ADR 0032 §6 / 0029) ; null = table libre
+}
+
+// Schéma typé d'un namespace (ADR 0032 §6 / 0029, B6) — champs + rôles de rendu.
+export type DatastoreFieldRole = 'title' | 'badge' | 'metric' | 'status' | 'qualif' | 'note'
+export interface DatastoreField {
+  key: string
+  label?: string
+  type?: 'text' | 'number' | 'date' | 'bool' | 'json'
+  role?: DatastoreFieldRole
+}
+export interface DatastoreSchema {
+  fields?: DatastoreField[]
 }
 
 // Bénéficiaire d'un partage de namespace (vue propriétaire).

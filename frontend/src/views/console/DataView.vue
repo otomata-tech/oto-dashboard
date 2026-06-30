@@ -275,6 +275,7 @@ async function onDelete() {
             <Tag v-if="ns.owner_type === 'org'" tone="cobalt">org</Tag>
             <Tag v-else-if="ns.owner_type === 'group'" tone="cobalt">team</Tag>
             <Tag v-else-if="ns.shared" tone="cobalt">shared · {{ ns.permission || 'read' }}</Tag>
+            <Tag v-if="ns.schema?.fields?.length" tone="olive">typé</Tag>
           </button>
           <div v-if="loaded && !namespaces.length" class="dim" style="text-align: center; padding: 16px">
             no namespaces yet — create one to let your agents store rows.
@@ -298,6 +299,15 @@ async function onDelete() {
             <Btn kind="danger" icon="trash" @click="removeNamespace">delete</Btn>
           </template>
         </template>
+
+        <div v-if="current.schema?.fields?.length" class="ds-schema">
+          <span class="dim" style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em">schéma typé</span>
+          <span v-for="f in current.schema.fields" :key="f.key" class="ds-field">
+            <code class="mono">{{ f.label || f.key }}</code>
+            <span v-if="f.role" class="ds-role">{{ f.role }}</span>
+          </span>
+          <span class="dim" style="font-size: 11px">— déclaré par l'agent (<code style="font-size: 11px">data_set_schema</code>)</span>
+        </div>
 
         <p v-if="rowsError" class="helptext" style="color: var(--color-terra-ink); padding: 12px 16px">
           {{ rowsError }}
@@ -348,6 +358,9 @@ async function onDelete() {
   gap: var(--gap, 16px);
   align-items: start;
 }
+.ds-schema { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--color-hair-soft, #e6e6e3); }
+.ds-field { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
+.ds-role { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--color-olive-ink, #5a6a3a); background: var(--color-olive-soft, #eef0e6); border-radius: 4px; padding: 1px 5px; }
 @media (max-width: 720px) {
   .data-layout { grid-template-columns: 1fr; }
 }
