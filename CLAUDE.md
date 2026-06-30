@@ -108,6 +108,19 @@ d'onboarding « connect your knowledge base » (auto-prompt) tant que `me.mement
 faux. `Me.memento` (`{connected, set_at}`) vient de `GET /api/me`. Le compte memento est
 provisionné automatiquement à la création du compte oto (côté backend).
 
+## Projets (couche d'organisation, ADR 0030 + modèle produit 2026-06-27)
+
+Groupe nav **workspace** → `/projects` (`ProjectsView.vue`, **index grille**) + page dédiée
+**`/projects/:id`** (`ProjectDetailView.vue`, route résolue par `ConsoleLayout` via
+`route.name==='project-detail'`, `viewKey=fullPath` → remount sur `:id`, même patron que
+`admin-user`). Un projet = brief (point d'entrée) + **pages markdown arborescentes**
+(`ProjectDocs.vue`, capacité `oto_doc`) + **entités liées** (tableau/procédure/connecteur/base,
+picker des vraies entités via `getNamespaces`/`getConnectors`/`getDoctrine`/`getMementoWorkspaces`)
++ **partage/transfert** (`oto_resource` resource_type=`project`, réutilise `getResource`/
+`shareResource`/`transferResource`) + **journal d'activité**. API client : `*Project*`/`*Doc*`
+dans `api/console.ts` (POST op-aware `/api/me/{projects,docs}`). Backend : `oto-backend/CLAUDE.md`
+§Projet. Non faits : MCP-App rendu, édition temps réel, pré-set vendable.
+
 ## Mémoire — datastore + knowledge (ADR 0016)
 
 Groupe nav **« memory »** (`consoleNav.ts`) = deux surfaces de mémoire :
