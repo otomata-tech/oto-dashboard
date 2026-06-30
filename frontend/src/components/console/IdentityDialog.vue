@@ -152,10 +152,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             <Dot v-else :tone="o.id === me?.active_org ? 'saffron' : 'faint'" :size="6" />
             <span class="id-opt-name">{{ o.name }}</span>
             <span class="id-opt-tag">{{ o.my_role === 'org_admin' ? 'admin' : 'member' }}</span>
-            <span v-if="o.id === me?.home_org" class="id-home-badge">maison</span>
+            <span v-if="o.id === me?.home_org" class="id-home-badge">défaut MCP</span>
             <span v-else-if="o.id === me?.active_org && me?.active_group == null && !viewedIsHome"
                   class="id-sethome-inline" :title="'défaut des prochaines conversations Claude'"
-                  @click.stop="setHomeCurrent">définir maison</span>
+                  @click.stop="setHomeCurrent">définir défaut MCP</span>
             <Icon v-if="o.id === me?.active_org" name="check" :size="13" class="id-check" />
           </button>
 
@@ -181,7 +181,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             <Dot :tone="me?.active_group == null ? 'saffron' : 'faint'" :size="6" />
             <span class="id-opt-name">toute l'org</span>
             <span class="id-opt-tag">aucune équipe</span>
-            <span v-if="viewingHomeOrg && me?.home_group == null" class="id-home-badge">maison</span>
+            <span v-if="viewingHomeOrg && me?.home_group == null" class="id-home-badge">défaut MCP</span>
             <Icon v-if="me?.active_group == null" name="check" :size="13" class="id-check" />
           </button>
 
@@ -192,10 +192,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             <Dot :tone="g.id === me?.active_group ? 'saffron' : 'faint'" :size="6" />
             <span class="id-opt-name">{{ g.name }}</span>
             <span class="id-opt-tag">{{ g.my_role === 'group_admin' ? 'chef' : 'membre' }}</span>
-            <span v-if="viewingHomeOrg && g.id === me?.home_group" class="id-home-badge">maison</span>
+            <span v-if="viewingHomeOrg && g.id === me?.home_group" class="id-home-badge">défaut MCP</span>
             <span v-else-if="g.id === me?.active_group && !viewedIsHome"
                   class="id-sethome-inline" :title="'défaut des prochaines conversations Claude'"
-                  @click.stop="setHomeCurrent">définir maison</span>
+                  @click.stop="setHomeCurrent">définir défaut MCP</span>
             <Icon v-if="g.id === me?.active_group" name="check" :size="13" class="id-check" />
           </button>
           <div v-if="!groupsLoading && !groups.length" class="id-empty">
@@ -212,8 +212,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
               Consultation pure : aucun effet sur Claude.
             </li>
             <li>
-              <strong>org maison</strong> — le défaut des <strong>prochaines</strong>
-              conversations Claude. Se règle avec « définir comme org maison » ci-dessus.
+              <strong>défaut MCP</strong> — l'org par défaut des <strong>prochaines</strong>
+              conversations Claude. Se règle avec « définir défaut MCP » ci-dessus.
             </li>
             <li>
               <strong>dans une conversation Claude</strong> — dis-lui

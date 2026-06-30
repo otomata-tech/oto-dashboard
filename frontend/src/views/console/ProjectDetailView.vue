@@ -8,6 +8,7 @@ import { useRoute, useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
+import Icon from '@/components/console/Icon.vue'
 import ProjectDocs from '@/components/console/ProjectDocs.vue'
 import {
   getProject, updateProject, archiveProject, copyProject, setProjectTemplate, projectHandoff,
@@ -39,12 +40,27 @@ const uploading = ref(false)
 const loaded = ref(false)
 const error = ref<string | null>(null)
 
-const LINK_GROUPS: { type: ProjectLinkType; label: string }[] = [
-  { type: 'tableau', label: 'Tableaux' },
-  { type: 'procedure', label: 'Procédures' },
-  { type: 'connecteur', label: 'Connecteurs' },
-  { type: 'base', label: 'Bases de connaissances' },
+const LINK_GROUPS: { type: ProjectLinkType; label: string; icon: string }[] = [
+  { type: 'tableau', label: 'Tableaux', icon: 'db' },
+  { type: 'procedure', label: 'Procédures', icon: 'doc' },
+  { type: 'connecteur', label: 'Connecteurs', icon: 'plug' },
+  { type: 'base', label: 'Bases de connaissances', icon: 'book' },
 ]
+const TYPE_ICON: Record<string, string> = Object.fromEntries(LINK_GROUPS.map((g) => [g.type, g.icon]))
+
+// Deep-link vers l'entité liée dans le dashboard (navigable). `target_ref` = id de
+// namespace (tableau) / slug de doctrine (procédure) / nom de connecteur / slug de
+// base. Connecteur & base n'ont pas de deep-link fin → on renvoie vers leur section.
+function entityHref(l: ProjectLink): string | null {
+  const ref = encodeURIComponent(l.target_ref)
+  switch (l.target_type) {
+    case 'tableau': return `/data?ns=${ref}`
+    case 'procedure': return `/doctrine?tab=mine&doc=${ref}`
+    case 'connecteur': return '/connectors?tab=mine'
+    case 'base': return '/documents'
+    default: return null
+  }
+}
 const linksByType = computed(() => {
   const out: Record<string, ProjectLink[]> = {}
   for (const l of project.value?.links ?? []) (out[l.target_type] ??= []).push(l)
@@ -371,12 +387,17 @@ async function transfer() {
 
           <div v-for="g in LINK_GROUPS" :key="g.type" class="pj-linkgroup">
             <template v-if="linksByType[g.type]?.length">
-              <div class="dim" style="font-size: 11px; font-weight: 700; margin: 2px 0">{{ g.label }}</div>
+              <div class="pj-grouphd"><Icon :name="g.icon" :size="13" /><span>{{ g.label }}</span></div>
               <div v-for="l in linksByType[g.type]" :key="l.target_ref" class="pj-linkwrap">
-                <div class="pj-link" style="align-items: flex-start">
-                  <div style="flex: 1; min-width: 0">
-                    <div style="display: flex; align-items: center; gap: 6px">
-                      <span style="color: var(--color-ink)">{{ l.label || l.target_ref }}</span>
+                <div class="pj-link pj-entity">
+                  <span class="pj-entity__ico"><Icon :name="TYPE_ICON[l.target_type] || 'doc'" :size="15" /></span>
+                  <div class="pj-entity__body">
+                    <div class="pj-entity__top">
+                      <component :is="entityHref(l) ? 'RouterLink' : 'span'" :to="entityHref(l) || undefined"
+                        class="pj-entity__name" :class="{ 'pj-entity__name--link': entityHref(l) }">
+                        {{ l.label || l.target_ref }}
+                        <Icon v-if="entityHref(l)" name="ext" :size="11" class="pj-entity__go" />
+                      </component>
                       <Tag v-if="l.cross_project" tone="saffron" title="Cette entité est aussi liée par un autre projet — éviter les modifications brutales">partagé</Tag>
                       <Tag v-if="g.type === 'connecteur' && (l.config?.identity_id || l.config?.instructions_md)" tone="olive" title="Connecteur reconfiguré pour ce projet">surchargé</Tag>
                     </div>
@@ -384,7 +405,7 @@ async function transfer() {
                     <div v-if="g.type === 'connecteur' && l.config?.instructions_md" class="dim pj-cfg-note" style="margin-top: 2px">↳ {{ l.config.instructions_md }}</div>
                   </div>
                   <button v-if="g.type === 'connecteur'" class="pj-x" @click="cfgRef === l.target_ref ? closeConfig() : openConfig(l)">configurer</button>
-                  <button class="pj-x" @click="removeLink(l)">✕</button>
+                  <button class="pj-x" title="Délier" @click="removeLink(l)">✕</button>
                 </div>
 
                 <div v-if="g.type === 'connecteur' && cfgRef === l.target_ref" class="pj-cfgform">
@@ -470,9 +491,23 @@ async function transfer() {
 .pj-input { width: 100%; border: 1px solid var(--color-hair-soft, #cfcfcf); border-radius: 7px; padding: 7px 9px; font: inherit; font-size: 13px; background: #fff; color: var(--color-ink, #2a2a2a); }
 .pj-input:disabled { opacity: .55; cursor: not-allowed; }
 .pj-linkform__act { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 2px; }
-.pj-linkgroup { margin-bottom: 6px; }
+.pj-linkgroup { margin-bottom: 10px; }
+.pj-grouphd { display: flex; align-items: center; gap: 6px; margin: 4px 0 3px; font-size: 11px; font-weight: 700; letter-spacing: .03em; color: var(--color-faint, #9a9a9a); }
+.pj-grouphd svg { color: var(--color-faint, #9a9a9a); }
 .pj-linkwrap { border-bottom: 1px solid var(--color-hair-soft, #ececec); }
+.pj-linkwrap:last-child { border-bottom: none; }
 .pj-linkwrap .pj-link { border-bottom: none; }
+/* Ligne d'entité liée : icône de type + nom navigable + actions */
+.pj-entity { align-items: flex-start; gap: 9px; padding: 7px 6px; border-radius: 7px; }
+.pj-entity:hover { background: var(--color-paper-2, #f7f5f1); }
+.pj-entity__ico { flex: none; display: grid; place-items: center; width: 26px; height: 26px; margin-top: 1px; border-radius: 7px; color: var(--color-ink-soft, #6b6b6b); background: var(--color-paper-2, #f1efe9); border: 1px solid var(--color-hair-soft, #e0ddd6); }
+.pj-entity__body { flex: 1; min-width: 0; }
+.pj-entity__top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pj-entity__name { display: inline-flex; align-items: center; gap: 4px; color: var(--color-ink, #2a2a2a); font-weight: 600; font-size: 13px; text-decoration: none; }
+.pj-entity__name--link { color: var(--color-cobalt, #2f5fbf); cursor: pointer; }
+.pj-entity__name--link:hover { text-decoration: underline; }
+.pj-entity__go { opacity: .55; flex: none; }
+.pj-entity__name--link:hover .pj-entity__go { opacity: 1; }
 .pj-cfg-note { font-size: 11px; font-style: italic; white-space: pre-wrap; overflow-wrap: anywhere; }
 .pj-cfgform { display: flex; flex-direction: column; gap: 9px; padding: 10px 11px 11px; margin: 2px 0 8px; border: 1px solid var(--color-hair-soft, #e0ddd6); border-radius: 9px; background: #faf9f7; }
 .pj-link { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--color-hair-soft, #ececec); }
