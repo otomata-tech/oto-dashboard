@@ -5,7 +5,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
 import { listDocs, createDoc, updateDoc, deleteDoc, getDocRevisions,
-  requestDocChange, listDocChanges, resolveDocChange } from '@/api/console'
+  requestDocChange, listDocChanges, resolveDocChange, setDocPublic } from '@/api/console'
 import type { Doc, DocKind, DocRevision, DocChangeRequest } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -63,6 +63,20 @@ async function proposeChange() {
     await requestDocChange(selected.value.id, {
       title: draft.value.title, body_md: draft.value.body_md, message: String(r.message || '') })
     toast('demande de modification envoyée')
+  } catch (e) { toast(humanize(e)) }
+}
+async function toggleDocPublic() {
+  const d = selected.value
+  if (!d) return
+  try {
+    const r = await setDocPublic(d.id, !d.public)
+    const updated = { ...d, public: r.public, public_url: r.public_url }
+    const idx = docs.value.findIndex((x) => x.id === d.id)
+    if (idx >= 0) docs.value[idx] = updated
+    if (r.public && r.public_url) {
+      await navigator.clipboard.writeText(r.public_url).catch(() => {})
+      toast('lien public copié')
+    } else { toast('partage public retiré') }
   } catch (e) { toast(humanize(e)) }
 }
 async function resolveRequest(req: DocChangeRequest, accept: boolean) {
@@ -154,6 +168,7 @@ async function remove(d: Doc) {
         </select>
         <button v-if="!readOnly" class="pj-x" title="sous-page" @click="addDoc(selected.id)">+ sous-page</button>
         <button class="pj-x" @click="toggleHistory">{{ showHistory ? 'masquer l\'historique' : 'historique' }}</button>
+        <button v-if="!readOnly" class="pj-x" :title="selected.public ? 'lien public actif' : 'partager publiquement'" @click="toggleDocPublic">{{ selected.public ? 'rendre privé' : 'partager' }}</button>
         <button v-if="!readOnly" class="pj-x" @click="remove(selected)">supprimer</button>
       </div>
       <textarea v-model="draft.body_md" class="pj-brief" rows="8" placeholder="Contenu de la page (markdown)…"></textarea>

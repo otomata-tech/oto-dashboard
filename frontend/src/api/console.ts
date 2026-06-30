@@ -182,6 +182,9 @@ export const listDocChanges = (doc_id: number) =>
   docsApi<{ doc_id: number; requests: DocChangeRequest[] }>({ op: 'list_changes', doc_id })
 export const resolveDocChange = (doc_id: number, request_id: number, accept: boolean) =>
   docsApi<{ ok: boolean; accepted: boolean }>({ op: 'resolve_change', doc_id, request_id, accept })
+// Partage public d'un doc (#4a) — renvoie public + public_url (lien de lecture).
+export const setDocPublic = (doc_id: number, isPublic: boolean) =>
+  docsApi<{ ok: boolean; public: boolean; public_url: string | null }>({ op: 'set_public', doc_id, public: isPublic })
 export const getInstruction = (slug: string, version?: number) =>
   api<InstructionDetail>(`/api/me/instructions/${slug}${version ? `?version=${version}` : ''}`)
 export const putInstruction = (slug: string, body_md: string, title?: string, description?: string) =>

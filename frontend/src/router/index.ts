@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import ConsoleLayout from '../views/console/ConsoleLayout.vue'
 import InviteAcceptView from '../views/InviteAcceptView.vue'
+import PublicDocView from '../views/PublicDocView.vue'
 import { NAV } from '@/lib/consoleNav'
 
 // Une route par section, dérivée de NAV : le `path` EST l'identité, le layout
@@ -35,6 +36,8 @@ const router = createRouter({
     // partageable (referral réutilisable si carrier seul, nominatif si +code).
     { path: '/invite', name: 'invite', component: InviteAcceptView },
     { path: '/invitation/:carrier/:code?', name: 'invitation', component: InviteAcceptView },
+    // Viewer public d'un document partagé (#4a) — sans auth, hors shell console.
+    { path: '/p/d/:token', name: 'public-doc', component: PublicDocView },
     {
       // Fiche user (admin), sous /platform/users — résolue par le layout vers
       // AdminUserView ; surlignage + niveau hérités de la section users.

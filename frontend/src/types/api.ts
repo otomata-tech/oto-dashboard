@@ -387,6 +387,8 @@ export interface Doc {
   title: string
   body_md: string
   kind: DocKind
+  public?: boolean               // partagé publiquement (#4a)
+  public_url?: string | null     // lien public de lecture quand partagé
   created_at?: string | null
   updated_at?: string | null
 }
