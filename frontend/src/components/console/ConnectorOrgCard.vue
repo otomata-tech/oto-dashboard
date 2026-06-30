@@ -33,6 +33,7 @@ const emit = defineEmits<{
   (e: 'email-changed'): void
   (e: 'add-access'): void
   (e: 'remove-access', principalType: string, principalId: string): void
+  (e: 'force-member'): void
 }>()
 
 // RBAC org (ADR 0025) : ≥1 principal ⟹ connecteur RÉSERVÉ ; sinon ouvert à toute l'org.
@@ -144,6 +145,9 @@ const emailTransport = computed(() => props.email?.transports?.[r.value.connecto
         </span>
         <button v-if="isOrgAdmin" class="oclink" @click="emit('add-access')">+ ajouter</button>
       </template>
+      <!-- Forcer (ADR 0031) : pousser le connecteur dans la toolbox d'un membre (allow). -->
+      <button v-if="isOrgAdmin" class="oclink" @click="emit('force-member')"
+        title="pousser ce connecteur dans la toolbox d'un membre (il le voit sans l'activer ; reste masquable)">pousser à un membre…</button>
     </div>
 
     <!-- Rédaction des champs (éditable ici — feature ORG) -->

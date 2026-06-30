@@ -3,7 +3,7 @@
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
   AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, ApiToken, BillingBalance, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
-  Project, ProjectLink, ProjectLinkType, Doc, DocKind, ProjectActivity,
+  Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, Doc, DocKind, ProjectActivity,
   CreditPack, CreditTransaction, DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
@@ -125,8 +125,8 @@ export const updateProject = (id: number, fields: { name?: string; brief_md?: st
   projectsApi<Project>({ op: 'update', project_id: id, ...fields })
 export const archiveProject = (id: number) =>
   projectsApi<{ ok: boolean }>({ op: 'archive', project_id: id })
-export const linkProject = (id: number, target_type: ProjectLinkType, target_ref: string, label?: string, role?: string) =>
-  projectsApi<{ ok: boolean; links: ProjectLink[] }>({ op: 'link', project_id: id, target_type, target_ref, label, role })
+export const linkProject = (id: number, target_type: ProjectLinkType, target_ref: string, label?: string, role?: string, config?: ConnectorLinkConfig) =>
+  projectsApi<{ ok: boolean; links: ProjectLink[] }>({ op: 'link', project_id: id, target_type, target_ref, label, role, config })
 export const unlinkProject = (id: number, target_type: ProjectLinkType, target_ref: string) =>
   projectsApi<{ ok: boolean; links: ProjectLink[] }>({ op: 'unlink', project_id: id, target_type, target_ref })
 export const getProjectActivity = (id: number) =>
@@ -336,6 +336,10 @@ export const setConnectorAccess = (id: number, connector: string, principal_type
 export const clearConnectorAccess = (id: number, connector: string, principal_type: string, principal_id: string) =>
   api(`/api/orgs/${id}/connectors/${encodeURIComponent(connector)}/access?principal_type=${principal_type}&principal_id=${encodeURIComponent(principal_id)}`,
     { method: 'DELETE' })
+// Forcer un connecteur dans la toolbox d'un membre (ADR 0031) — override positif (allow).
+export const forceConnectorForMember = (id: number, connector: string, member: string) =>
+  api<{ ok: boolean; tools_forced: number }>(
+    `/api/orgs/${id}/connectors/${encodeURIComponent(connector)}/force`, { method: 'POST', ...j({ member }) })
 // Recommandation d'org (« org propose ») — baseline consultative de connecteurs.
 export const setOrgConnectors = (id: number, connectors: string[]) =>
   api<{ org_id: number; recommended: string[] }>(

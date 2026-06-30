@@ -19,7 +19,7 @@ import {
   getOrgConnectorActivation, setOrgConnectorActivation, clearOrgConnectorActivation,
   getOrgFieldFilters, getOrgEmailSettings, listScheduledEmails, cancelScheduledEmail,
   getConnectors, getOrg, setOrgSecret, deleteOrgSecret,
-  getConnectorAcl, setConnectorAccess, clearConnectorAccess, listGroups,
+  getConnectorAcl, setConnectorAccess, clearConnectorAccess, forceConnectorForMember, listGroups,
 } from '@/api/console'
 import type {
   OrgConnectorActivation, FieldFiltersBundle, ConnectorMeta,
@@ -173,6 +173,20 @@ async function removeAccess(r: OrgConnectorActivation, ptype: string, pid: strin
   try { await clearConnectorAccess(activeOrgId.value!, r.connector, ptype, pid); await reloadAcl() }
   catch (e) { toast(humanize(e)) }
 }
+async function forceForMember(r: OrgConnectorActivation) {
+  if (!isOrgAdmin.value) return
+  const opts = members.value.map((m) => ({ value: m.sub, label: m.name || m.email || m.sub }))
+  if (!opts.length) { toast('ajoute d\'abord des membres à l\'org'); return }
+  const res = await promptForm({
+    title: `${r.label} — pousser à un membre`,
+    description: 'le connecteur apparaît dans la toolbox du membre (sans qu\'il l\'active). il reste libre de le masquer.',
+    fields: [{ key: 'member', label: 'membre', type: 'select', required: true, options: opts }],
+    submitLabel: 'pousser',
+  })
+  if (!res?.member) return
+  try { await forceConnectorForMember(activeOrgId.value!, r.connector, String(res.member)); toast(`${r.label} : poussé au membre`) }
+  catch (e) { toast(humanize(e)) }
+}
 
 // ── envois programmés (carton unique en pied de vue) ──────────────────────
 type SchedFilter = 'pending' | 'sent' | 'failed' | 'all'
@@ -232,6 +246,7 @@ async function cancelScheduled(eid: number) {
           @set-available="(on) => setAvailable(r, on)"
           @set-key="() => setKey(r)" @remove-key="() => removeKey(r)"
           @add-access="() => addAccess(r)" @remove-access="(pt, pid) => removeAccess(r, pt, pid)"
+          @force-member="() => forceForMember(r)"
           @filters-changed="reloadFilters" @email-changed="reloadEmail" />
       </div>
       <p v-if="loaded && !shown.length" class="helptext" style="text-align: center; padding: 16px">aucun connecteur.</p>

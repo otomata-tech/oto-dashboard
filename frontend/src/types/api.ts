@@ -51,6 +51,7 @@ export interface ConnectorMeta {
   family: string             // axe builder (dérivé) — api|open-data|browser|google|federated|bridge
   category: string           // axe utilisateur (curé) — Prospection|Data FR|…
   credential_fields: CredentialField[]
+  free_tier: { daily_quota: number } | null   // ADR 0031 — clé plateforme offerte (quota gratuit/jour/user)
 }
 
 // État de sélection marketplace d'un connecteur pour le membre (ADR 0019).
@@ -331,11 +332,19 @@ export interface PlatformInstrBlock {
 
 // ── Projets (couche d'organisation, ADR 0030) ──
 export type ProjectLinkType = 'tableau' | 'procedure' | 'connecteur' | 'base'
+// Surcharge contextuelle PRÉFAITE d'un connecteur dans un projet (ADR 0032 §4, B2) :
+// quel compte agir + instructions de surcharge en prose, posées au montage du projet,
+// lues par l'agent au chargement — jamais déclarées à la volée.
+export interface ConnectorLinkConfig {
+  identity_id?: string
+  instructions_md?: string
+}
 export interface ProjectLink {
   target_type: ProjectLinkType
   target_ref: string
   label?: string | null
   role?: string | null          // pourquoi cette entité est dans le projet (ADR 0032 §2)
+  config?: ConnectorLinkConfig | null   // surcharge préfaite du lien (connecteur, ADR 0032 §4)
   cross_project?: boolean        // dérivé : la même entité est liée par ≥1 autre projet
   created_at?: string | null
 }
