@@ -7,7 +7,8 @@ const ORG_KEY = 'oto_view_org'
 const GROUP_KEY = 'oto_view_group'
 const USER_KEY = 'oto_view_user'
 
-// Org : id (">0"), '0' = perso, null = aucune (→ maison).
+// Org : id (">0") d'une org consultée ; null = aucune consultation (→ maison).
+// (Plus de perso : tout user est toujours dans une org.)
 export function getViewOrg(): string | null {
   return localStorage.getItem(ORG_KEY)
 }

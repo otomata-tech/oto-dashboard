@@ -6,7 +6,6 @@ import ConsoleTopbar from '@/components/console/ConsoleTopbar.vue'
 import PromptDialog from '@/components/console/PromptDialog.vue'
 import StateError from '@/components/console/StateError.vue'
 import SkeletonOverview from '@/components/console/SkeletonOverview.vue'
-import WelcomeOrg from './WelcomeOrg.vue'
 import WaitlistView from './WaitlistView.vue'
 import LoginGate from './LoginGate.vue'
 import { useToast } from '@/composables/useToast'
@@ -80,7 +79,6 @@ const viewKey = computed(() =>
         <div class="content">
           <StateError v-if="error" :message="error" @retry="load(true)" />
           <WaitlistView v-else-if="me && me.access?.status === 'pending' && !isPlatformOperator(me)" />
-          <WelcomeOrg v-else-if="me && me.active_org == null && !isPlatformOperator(me)" />
           <component :is="current" v-else-if="me" :key="viewKey" />
           <SkeletonOverview v-else />
         </div>
