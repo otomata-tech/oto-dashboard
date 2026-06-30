@@ -29,7 +29,6 @@ const VIEWS: Record<string, Component> = {
   '/agent-context': defineAsyncComponent(() => import('./AgentContextView.vue')),
   '/library/doctrines': defineAsyncComponent(() => import('./DoctrineLibraryView.vue')),
   '/data': defineAsyncComponent(() => import('./DataView.vue')),
-  '/facts': defineAsyncComponent(() => import('./FactGraphView.vue')),
   '/knowledge': defineAsyncComponent(() => import('./KnowledgeView.vue')),
   '/activity': defineAsyncComponent(() => import('./ActivityView.vue')),
   '/billing': defineAsyncComponent(() => import('./BillingView.vue')),

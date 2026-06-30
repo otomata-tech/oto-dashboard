@@ -816,9 +816,6 @@ export interface RunCall {
   duration_ms: number | null
 }
 
-// (Types scout retirés — ADR 0027 : le cockpit prospection sort, remplacé par le
-// substrat typé générique — cf. Fact* ci-dessous + la vue « Fact graph ».)
-
 // ── email & envoi de l'org, PAR CONNECTEUR (ADR 0009, carte connecteur ORG) ──
 // Adresses expéditrices déclarées par l'org pour `email_send` + fenêtre calme
 // (heures où l'envoi est différé) + file d'envois programmés.
@@ -864,31 +861,6 @@ export interface ScheduledEmail {
   error?: string | null
   created_at?: string
   created_by?: string
-}
-
-// ── Fact graph (substrat typé, ADR 0008/0018) ──
-// Un kind décrit son schéma (champs + rôle de rendu) → la vue Fact graph rend des
-// fiches lisibles sans schéma codé en dur (« theme data model » côté backend).
-export type FactRole =
-  | 'title' | 'subtitle' | 'meta' | 'badge' | 'metric'
-  | 'status' | 'priority' | 'contact' | 'link' | 'qualif' | 'note'
-export interface FactField {
-  name: string
-  type: string
-  required: boolean
-  role: FactRole | null
-  label: string
-}
-export interface FactKind {
-  kind: string
-  domain: string
-  label: string
-  fields: FactField[]
-}
-export interface FactRow {
-  id: number
-  data: Record<string, unknown>
-  created_at?: string
 }
 
 // MCP endpoint public (config, pas un secret) — affiché tel quel.
