@@ -3,28 +3,36 @@
 // un volet de liste). Charge un seul projet par id de route, remonté par le layout
 // quand :id change (viewKey = fullPath). Brief + pages/Docs + entités liées (vrais
 // sélecteurs) + partage + activité. Consomme oto_project / oto_doc / oto_resource.
-import { computed, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Tag from '@/components/console/Tag.vue'
 import ProjectDocs from '@/components/console/ProjectDocs.vue'
 import ProjectEntities from '@/components/console/ProjectEntities.vue'
+import Dropzone from '@/components/console/Dropzone.vue'
+import ProjectShareDialog from '@/components/console/ProjectShareDialog.vue'
+import NameDialog from '@/components/console/NameDialog.vue'
+// Unovis est lourd (~d3) : on l'isole dans son propre chunk, chargé seulement
+// quand le projet a de l'activité (v-if ci-dessous) → vue projet de base légère.
+const ActivityChart = defineAsyncComponent(() => import('@/components/console/ActivityChart.vue'))
 import {
   getProject, updateProject, archiveProject, copyProject, setProjectTemplate, projectHandoff,
-  getProjectActivity,
+  getProjectActivity, listDocs,
   getResource, shareResource, unshareResource, transferResource,
   listProjectFiles, uploadProjectFile, deleteProjectFile, setProjectFilePublic,
+  publishProjectShare, unpublishProjectShare,
 } from '@/api/console'
 import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { encryptForShare } from '@/lib/crypto'
 import { useToast } from '@/composables/useToast'
-import { usePrompt, type PromptField } from '@/composables/usePrompt'
+import { usePrompt } from '@/composables/usePrompt'
 import { useTransferOwnership } from '@/composables/useTransferOwnership'
 
 const route = useRoute()
 const router = useRouter()
 const { toast } = useToast()
-const { promptForm, confirmAction } = usePrompt()
+const { confirmAction } = usePrompt()
 const { pickTarget } = useTransferOwnership()
 
 const projectId = Number(route.params.id)
@@ -33,10 +41,17 @@ const briefDraft = ref('')
 const grants = ref<NamespaceShare[]>([])
 const activity = ref<ProjectActivity[]>([])
 const files = ref<ProjectFile[]>([])
-const fileInput = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
+const shareOpen = ref(false)
+const copyOpen = ref(false)
 const loaded = ref(false)
 const error = ref<string | null>(null)
+// Partage public CHIFFRÉ (zero-knowledge) : le lien COMPLET (avec la clé en fragment)
+// n'existe que côté navigateur. On le mémorise en localStorage pour le ré-afficher à la
+// revisite ; sinon on ne peut que re-publier (rotation de clé → nouveau lien).
+const publicLink = ref<string | null>(null)
+const publishing = ref(false)
+const pshareStoreKey = `oto:pshare:${projectId}`
 
 const briefDirty = computed(() => !!project.value && briefDraft.value !== (project.value.brief_md ?? ''))
 const readOnly = computed(() => project.value?.can_write === false)   // #4b — proposer une modif au lieu d'éditer
@@ -50,6 +65,8 @@ async function load() {
   try {
     project.value = await getProject(projectId)
     briefDraft.value = project.value.brief_md ?? ''
+    // Ré-affiche le lien public complet mémorisé localement (si toujours partagé).
+    publicLink.value = project.value.public_shared ? localStorage.getItem(pshareStoreKey) : null
     await Promise.all([loadGrants(), loadActivity(), loadFiles()])
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
@@ -64,17 +81,14 @@ function fmtSize(n?: number | null): string {
   if (n < 1024 * 1024) return `${Math.round(n / 1024)} Ko`
   return `${(n / (1024 * 1024)).toFixed(1)} Mo`
 }
-async function onFilePick(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
+async function onDropFile(file: File) {
   uploading.value = true
   try {
     const { file: row } = await uploadProjectFile(projectId, file)
     files.value = [row, ...files.value]
     await loadActivity()
   } catch (err) { toast(humanize(err)) }
-  finally { uploading.value = false; if (fileInput.value) fileInput.value.value = '' }
+  finally { uploading.value = false }
 }
 async function removeFile(f: ProjectFile) {
   if (!(await confirmAction({ title: 'Supprimer ce fichier ?',
@@ -122,19 +136,13 @@ async function archive() {
 }
 
 // ── modèle (template) : copier ce projet / le publier comme modèle (ADR 0032 §7 B5a) ──
-async function copy() {
-  if (!project.value) return
-  const res = await promptForm({
-    title: 'Copier ce projet', submitLabel: 'Copier',
-    fields: [{ key: 'name', label: 'Nom de la copie', type: 'text',
-               value: `Copie de ${project.value.name}`, required: true }],
-  })
-  if (!res) return
+function copy() { if (project.value) copyOpen.value = true }
+async function doCopy(name: string) {
   try {
-    const copy = await copyProject(projectId, String(res.name).trim())
+    const c = await copyProject(projectId, name)
     toast('projet copié')
-    router.push(`/projects/${copy.id}`)
-  } catch (e) { toast(humanize(e)) }
+    router.push(`/projects/${c.id}`)
+  } catch (e) { toast(humanize(e)); throw e }
 }
 
 async function toggleTemplate() {
@@ -156,20 +164,13 @@ async function handoff() {
 }
 
 // ── partage / transfert (oto_resource) ──
-async function share() {
-  if (!project.value) return
-  const fields: PromptField[] = [
-    { key: 'email', label: 'Email (utilisateur oto)', required: true },
-    { key: 'permission', label: 'Droit', type: 'select',
-      options: [{ value: 'write', label: 'édition' }, { value: 'read', label: 'lecture' }] },
-  ]
-  const r = await promptForm({ title: 'Partager le projet', fields, submitLabel: 'Partager' })
-  if (!r) return
+// Le form validé (email vérifié) vit dans <ProjectShareDialog> ; ici on ne fait
+// que l'appel réseau. On toast + relance en erreur pour garder le dialog ouvert.
+async function doShare(payload: { email: string; permission: 'read' | 'write' }) {
   try {
-    await shareResource('project', String(projectId), String(r.email),
-      (r.permission as 'read' | 'write') || 'write')
+    await shareResource('project', String(projectId), payload.email, payload.permission)
     toast('partagé'); await loadGrants()
-  } catch (e) { toast(humanize(e)) }
+  } catch (e) { toast(humanize(e)); throw e }
 }
 async function revoke(g: NamespaceShare) {
   if (!g.email) return
@@ -182,6 +183,53 @@ async function transfer() {
   if (!target) return
   try { await transferResource('project', String(projectId), target); toast('transféré'); await Promise.all([load(), loadGrants()]) }
   catch (e) { toast(humanize(e)) }
+}
+
+// ── partage PUBLIC CHIFFRÉ (zero-knowledge, ADR 0032 §3) ──
+// Chiffre un snapshot { brief + pages } DANS le navigateur avec une clé neuve, n'envoie
+// que le ciphertext au backend, et met la clé dans le fragment du lien. La plateforme
+// ne peut pas lire le projet partagé. Re-publier fait tourner la clé (ancien lien caduc).
+async function publishPublic() {
+  if (!project.value || publishing.value) return
+  publishing.value = true
+  try {
+    const { docs } = await listDocs(projectId)
+    const snapshot = {
+      v: 1,
+      name: project.value.name,
+      brief_md: project.value.brief_md ?? '',
+      docs: docs.map((d) => ({ id: d.id, parent_id: d.parent_id, title: d.title, body_md: d.body_md, kind: d.kind })),
+      shared_at: new Date().toISOString(),
+    }
+    const { ciphertext, keyFragment } = await encryptForShare(snapshot)
+    const { token, public_base_url } = await publishProjectShare(projectId, ciphertext)
+    const url = `${public_base_url}/p/p/${token}#${keyFragment}`
+    localStorage.setItem(pshareStoreKey, url)
+    publicLink.value = url
+    project.value = { ...project.value, public_shared: true }
+    await navigator.clipboard.writeText(url).catch(() => {})
+    toast('lien public chiffré copié — la clé ne quitte jamais ce navigateur')
+    await loadActivity()
+  } catch (e) { toast(humanize(e)) }
+  finally { publishing.value = false }
+}
+async function unpublishPublic() {
+  if (!project.value) return
+  if (!await confirmAction({ title: 'Retirer le partage public',
+    message: 'Le lien public deviendra immédiatement inaccessible. Continuer ?', confirmLabel: 'Retirer' })) return
+  try {
+    await unpublishProjectShare(projectId)
+    localStorage.removeItem(pshareStoreKey)
+    publicLink.value = null
+    project.value = { ...project.value, public_shared: false }
+    toast('partage public retiré')
+    await loadActivity()
+  } catch (e) { toast(humanize(e)) }
+}
+async function copyPublicLink() {
+  if (!publicLink.value) return
+  await navigator.clipboard.writeText(publicLink.value).catch(() => {})
+  toast('lien copié')
 }
 </script>
 
@@ -208,7 +256,7 @@ async function transfer() {
           <button class="btn-resume" @click="handoff">reprendre dans claude →</button>
           <button class="btn-soft" @click="copy">copier</button>
           <button v-if="!readOnly" class="btn-soft" @click="toggleTemplate">{{ project.is_template ? 'retirer des modèles' : 'publier comme modèle' }}</button>
-          <button v-if="!readOnly" class="btn-soft" @click="share">partager</button>
+          <button v-if="!readOnly" class="btn-soft" @click="shareOpen = true">partager</button>
           <button v-if="!readOnly" class="btn-soft" @click="transfer">transférer</button>
           <button v-if="!readOnly" class="btn-soft btn-soft--danger" @click="archive">archiver</button>
         </div>
@@ -250,7 +298,7 @@ async function transfer() {
           <section class="surface-card">
             <div class="card-eb-row">
               <span class="card-eb">partage</span>
-              <button v-if="!readOnly" class="btn-soft btn-soft--xs" @click="share">+ inviter</button>
+              <button v-if="!readOnly" class="btn-soft btn-soft--xs" @click="shareOpen = true">+ inviter</button>
             </div>
             <p v-if="!grants.length" class="dim" style="font-size: 12px">non partagé.</p>
             <div v-for="g in grants" :key="(g.email || '') + g.permission" class="meta-row">
@@ -260,14 +308,46 @@ async function transfer() {
             </div>
           </section>
 
+          <!-- partage public chiffré (zero-knowledge, ADR 0032 §3) -->
+          <section class="surface-card">
+            <div class="card-eb-row">
+              <span class="card-eb">lien public · chiffré</span>
+              <Tag v-if="project.public_shared" tone="olive" title="Un lien public chiffré est actif">actif</Tag>
+            </div>
+            <p class="dim" style="font-size: 11.5px; line-height: 1.5; margin-bottom: 9px">
+              Publie un instantané en lecture seule (brief + pages) derrière un lien.
+              Le contenu est <strong>chiffré dans ton navigateur</strong> : la clé vit dans le lien,
+              oto ne peut pas le lire.
+            </p>
+            <template v-if="project.public_shared">
+              <div v-if="publicLink" class="pshare-link">
+                <input class="pshare-input" :value="publicLink" readonly @focus="($event.target as HTMLInputElement).select()" />
+                <button class="btn-soft btn-soft--xs" @click="copyPublicLink">copier</button>
+              </div>
+              <p v-else class="dim" style="font-size: 11px; margin-bottom: 8px">
+                Lien actif, mais sa clé n'a été affichée qu'à la publication (sur un autre appareil ?).
+                Re-publie pour obtenir un nouveau lien.
+              </p>
+              <div class="pshare-act">
+                <button v-if="!readOnly" class="btn-soft btn-soft--xs" :disabled="publishing" @click="publishPublic">re-publier</button>
+                <button v-if="!readOnly" class="btn-soft btn-soft--xs btn-soft--danger" @click="unpublishPublic">retirer</button>
+              </div>
+            </template>
+            <button v-else-if="!readOnly" class="btn-soft btn-soft--xs" :disabled="publishing" @click="publishPublic">
+              {{ publishing ? 'chiffrement…' : 'partager par lien chiffré' }}
+            </button>
+            <p v-else class="dim" style="font-size: 12px">non partagé publiquement.</p>
+          </section>
+
           <!-- autres documents -->
           <section class="surface-card">
             <div class="card-eb-row">
               <span class="card-eb">autres documents</span>
-              <input ref="fileInput" type="file" style="display: none" @change="onFilePick" />
-              <button v-if="!readOnly && !uploading" class="btn-soft btn-soft--xs" @click="fileInput?.click()">+ déposer</button>
-              <span v-else-if="uploading" class="dim" style="font-size: 11px">envoi…</span>
             </div>
+            <Dropzone v-if="!readOnly" class="mb-3" :busy="uploading" :max-size-mb="25"
+              accept=".pdf,.html,.htm,.txt,.md,.csv,.json,image/*"
+              label="déposer un document" hint="PDF, HTML, image… — glisser-déposer ou cliquer · max 25 Mo"
+              @select="onDropFile" @error="toast" />
             <p v-if="!files.length" class="dim" style="font-size: 12px">aucun fichier brut — PDF, HTML…</p>
             <div v-for="f in files" :key="f.id" class="meta-row meta-row--file">
               <div class="meta-row__main">
@@ -286,6 +366,7 @@ async function transfer() {
           <!-- activité -->
           <section class="surface-card">
             <span class="card-eb">activité</span>
+            <ActivityChart v-if="activity.length" :activity="activity" :days="14" />
             <p v-if="!activity.length" class="dim" style="font-size: 12px; margin-top: 8px">aucune activité.</p>
             <div v-else class="wk-acts">
               <div v-for="(a, i) in activity" :key="i" class="wk-act">
@@ -296,6 +377,10 @@ async function transfer() {
           </section>
         </div>
       </div>
+
+      <ProjectShareDialog v-model:open="shareOpen" :project-name="project.name" :on-confirm="doShare" />
+      <NameDialog v-model:open="copyOpen" title="copier ce projet" label="nom de la copie"
+        :initial="'Copie de ' + project.name" submit-label="copier" :on-confirm="doCopy" />
     </template>
   </div>
 </template>
@@ -353,4 +438,9 @@ async function transfer() {
 .wk-act__t { font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); width: 64px; flex: none; }
 .wk-act__b { font-size: 12px; color: var(--color-ink-soft); }
 .wk-act__b strong { font-weight: 600; color: var(--color-ink); }
+
+/* ── lien public chiffré ── */
+.pshare-link { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+.pshare-input { flex: 1; min-width: 0; border: 1px solid var(--color-hair); border-radius: 7px; padding: 5px 8px; font-family: var(--font-mono); font-size: 10.5px; color: var(--color-ink-soft); background: var(--color-paper-2); }
+.pshare-act { display: flex; gap: 7px; }
 </style>

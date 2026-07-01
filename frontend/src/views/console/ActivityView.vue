@@ -2,7 +2,8 @@
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Dot from '@/components/console/Dot.vue'
-import DayBars from '@/components/console/DayBars.vue'
+import { defineAsyncComponent } from 'vue'
+const CallsBarChart = defineAsyncComponent(() => import('@/components/console/CallsBarChart.vue'))
 import ErrLabel from '@/components/console/ErrLabel.vue'
 import { getMyCalls } from '@/api/console'
 import type { ToolCall } from '@/types/api'
@@ -48,7 +49,7 @@ onMounted(async () => {
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
     <ConsoleCard title="calls · last 14 days" sub="your tool calls across all clients. terra segments are failures.">
-      <DayBars :days="bars" :height="96" />
+      <CallsBarChart :days="bars" :height="96" />
     </ConsoleCard>
 
     <ConsoleCard flush title="call log">

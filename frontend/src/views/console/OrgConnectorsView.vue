@@ -12,8 +12,10 @@ import ConnectorOrgCard from '@/components/console/ConnectorOrgCard.vue'
 import CategoryChips from '@/components/console/CategoryChips.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
+import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useFormDialog } from '@/composables/useFormDialog'
 import { useMe } from '@/composables/useMe'
 import {
   getOrgConnectorActivation, setOrgConnectorActivation, clearOrgConnectorActivation,
@@ -29,7 +31,8 @@ import { fmtDateTime } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
-const { promptForm, confirmAction } = usePrompt()
+const { confirmAction } = usePrompt()
+const { formDialog, formDialogOpen, openForm } = useFormDialog()
 const { me } = useMe()
 
 const rows = ref<OrgConnectorActivation[]>([])
@@ -101,17 +104,18 @@ const hasEmailSenders = computed(() =>
 // poser une » — secret_kind=api_key — est dérivé dans la carte depuis meta.)
 const hasOrgKey = (name: string) => orgSecrets.value.has(name)
 
-async function setKey(r: OrgConnectorActivation) {
+function setKey(r: OrgConnectorActivation) {
   if (!isOrgAdmin.value) return
-  const res = await promptForm({
+  openForm({
     title: `${r.label} — clé partagée d'org`,
     description: 'clé du compte de l\'org, héritée par tous les membres (cascade : clé perso > équipe > org > plateforme). stockée chiffrée.',
     fields: [{ key: 'api_key', label: 'clé api', type: 'password', required: true, placeholder: `colle la clé ${r.label}` }],
     submitLabel: 'enregistrer',
+    onConfirm: async (v) => {
+      try { await setOrgSecret(activeOrgId.value!, r.connector, v.api_key ?? ''); toast(`${r.label} : clé d'org enregistrée`); await load() }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!res || !res.api_key) return
-  try { await setOrgSecret(activeOrgId.value!, r.connector, res.api_key); toast(`${r.label} : clé d'org enregistrée`); await load() }
-  catch (e) { toast(humanize(e)) }
 }
 
 async function removeKey(r: OrgConnectorActivation) {
@@ -146,46 +150,48 @@ async function reloadAcl() {
   if (activeOrgId.value == null) return
   acl.value = (await getConnectorAcl(activeOrgId.value).catch(() => ({ access: acl.value }))).access
 }
-async function addAccess(r: OrgConnectorActivation) {
+function addAccess(r: OrgConnectorActivation) {
   if (!isOrgAdmin.value) return
   const opts = [
     ...groups.value.map((g) => ({ value: `group:${g.id}`, label: `équipe · ${g.name}` })),
     ...members.value.map((m) => ({ value: `user:${m.sub}`, label: `membre · ${m.name || m.email || m.sub}` })),
   ]
   if (!opts.length) { toast('crée d\'abord un département ou ajoute des membres'); return }
-  const res = await promptForm({
+  openForm({
     title: `${r.label} — réserver l'accès`,
     description: 'ajoute un département ou un membre autorisé. dès le 1er ajout, le connecteur devient RÉSERVÉ (invisible + bloqué pour les autres, même avec leur propre clé).',
     fields: [{ key: 'principal', label: 'autoriser', type: 'select', required: true, options: opts }],
     submitLabel: 'autoriser',
+    onConfirm: async (v) => {
+      const raw = String(v.principal)
+      const i = raw.indexOf(':')
+      const ptype = raw.slice(0, i)
+      const pid = raw.slice(i + 1)
+      if (!ptype || !pid) { toast('sélection invalide'); throw new Error('invalid principal') }
+      try { await setConnectorAccess(activeOrgId.value!, r.connector, ptype, pid); toast(`${r.label} : accès réservé`); await reloadAcl() }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!res?.principal) return
-  const raw = String(res.principal)
-  const i = raw.indexOf(':')
-  const ptype = raw.slice(0, i)
-  const pid = raw.slice(i + 1)
-  if (!ptype || !pid) return
-  try { await setConnectorAccess(activeOrgId.value!, r.connector, ptype, pid); toast(`${r.label} : accès réservé`); await reloadAcl() }
-  catch (e) { toast(humanize(e)) }
 }
 async function removeAccess(r: OrgConnectorActivation, ptype: string, pid: string) {
   if (!isOrgAdmin.value) return
   try { await clearConnectorAccess(activeOrgId.value!, r.connector, ptype, pid); await reloadAcl() }
   catch (e) { toast(humanize(e)) }
 }
-async function forceForMember(r: OrgConnectorActivation) {
+function forceForMember(r: OrgConnectorActivation) {
   if (!isOrgAdmin.value) return
   const opts = members.value.map((m) => ({ value: m.sub, label: m.name || m.email || m.sub }))
   if (!opts.length) { toast('ajoute d\'abord des membres à l\'org'); return }
-  const res = await promptForm({
+  openForm({
     title: `${r.label} — pousser à un membre`,
     description: 'le connecteur apparaît dans la toolbox du membre (sans qu\'il l\'active). il reste libre de le masquer.',
     fields: [{ key: 'member', label: 'membre', type: 'select', required: true, options: opts }],
     submitLabel: 'pousser',
+    onConfirm: async (v) => {
+      try { await forceConnectorForMember(activeOrgId.value!, r.connector, String(v.member)); toast(`${r.label} : poussé au membre`) }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!res?.member) return
-  try { await forceConnectorForMember(activeOrgId.value!, r.connector, String(res.member)); toast(`${r.label} : poussé au membre`) }
-  catch (e) { toast(humanize(e)) }
 }
 
 // ── envois programmés (carton unique en pied de vue) ──────────────────────
@@ -276,6 +282,10 @@ async function cancelScheduled(eid: number) {
         </p>
       </ConsoleCard>
     </template>
+
+    <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
+      :title="formDialog.title" :description="formDialog.description"
+      :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
   </div>
 </template>
 

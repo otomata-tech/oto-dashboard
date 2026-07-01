@@ -3,8 +3,10 @@ import { onMounted, ref } from 'vue'
 import ConsoleCard from './ConsoleCard.vue'
 import Btn from './Btn.vue'
 import Tag from './Tag.vue'
+import FormDialog from './FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useFormDialog } from '@/composables/useFormDialog'
 import {
   listMfaFactors, generateTotpSecret, bindTotp, generateBackupCodes,
   renameFactor, deleteFactor, AccountApiError, type MfaFactor,
@@ -13,7 +15,8 @@ import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
-const { confirmAction, promptForm } = usePrompt()
+const { confirmAction } = usePrompt()
+const { formDialog, formDialogOpen, openForm } = useFormDialog()
 
 const factors = ref<MfaFactor[]>([])
 const loading = ref(true)
@@ -73,22 +76,25 @@ async function backupCodes() {
   busy.value = true
   try {
     const { codes } = await generateBackupCodes()
-    await promptForm({
+    openForm({
       title: 'codes de secours',
       description: 'note-les maintenant et garde-les en lieu sûr — ils ne seront plus affichés. ils remplacent tout lot précédent.',
-      fields: [{ key: 'codes', label: 'codes', value: (codes || []).join('\n'), type: 'textarea' }],
+      fields: [{ key: 'codes', label: 'codes', initial: (codes || []).join('\n'), type: 'textarea' }],
       submitLabel: 'c\'est noté',
+      onConfirm: async () => { await reload() },
     })
-    await reload()
   } catch (e) { toast(humanize(e)) } finally { busy.value = false }
 }
 
-async function rename(f: MfaFactor) {
-  const r = await promptForm({
-    title: 'renommer le facteur', fields: [{ key: 'name', label: 'nom', value: f.name || '' }], submitLabel: 'renommer',
+function rename(f: MfaFactor) {
+  openForm({
+    title: 'renommer le facteur',
+    fields: [{ key: 'name', label: 'nom', initial: f.name || '' }],
+    submitLabel: 'renommer',
+    onConfirm: async (v) => {
+      try { await renameFactor(f.id, v.name || ''); await reload() } catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  try { await renameFactor(f.id, r.name || ''); await reload() } catch (e) { toast(humanize(e)) }
 }
 
 async function remove(f: MfaFactor) {
@@ -149,6 +155,10 @@ onMounted(reload)
     <p v-if="!needsReconnect" class="helptext" style="padding: 10px 2px 0">
       la <strong>passkey</strong> se configure à la <strong>connexion</strong> (écran « configurer le MFA ») ; elle apparaît ensuite ici, où tu peux la renommer ou la retirer.
     </p>
+
+    <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
+      :title="formDialog.title" :description="formDialog.description"
+      :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
   </ConsoleCard>
 </template>
 

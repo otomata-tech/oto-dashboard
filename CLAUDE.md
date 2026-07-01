@@ -124,6 +124,17 @@ picker des vraies entités via `getNamespaces`/`getConnectors`/`getDoctrine`/`ge
 dans `api/console.ts` (POST op-aware `/api/me/{projects,docs}`). Backend : `oto-backend/CLAUDE.md`
 §Projet. Non faits : MCP-App rendu, édition temps réel, pré-set vendable.
 
+> **Partage public CHIFFRÉ (ADR 0032 §3, zero-knowledge).** `ProjectDetailView` porte une carte
+> « lien public · chiffré » : à la publication, le navigateur assemble un snapshot (brief + pages
+> via `listDocs`), le **chiffre** (`lib/crypto.ts`, WebCrypto AES-256-GCM, clé neuve) et n'envoie
+> que le ciphertext (`publishProjectShare`) ; la clé part dans le **fragment** du lien
+> (`/p/p/<token>#<clé>`), copié au presse-papier. Le lien complet est mémorisé en `localStorage`
+> (`oto:pshare:<id>`) pour le ré-afficher (la clé n'existe QUE côté client → sinon re-publier).
+> Viewer public `PublicProjectView.vue` (route `/p/p/:token`, hors shell, sans auth) : lit la clé
+> du hash, `getPublicProjectShare` → `decryptShare` → rend brief + arbre de pages (`MarkdownView`).
+> `Project.public_shared`/`public_shared_at` viennent du `get` backend. Pendant chiffré du viewer
+> public de doc (#4a, `PublicDocView` / `/p/d/:token`).
+
 ## Mémoire — datastore + knowledge (ADR 0016)
 
 Groupe nav **« memory »** (`consoleNav.ts`) = deux surfaces de mémoire :

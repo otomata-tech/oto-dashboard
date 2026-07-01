@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
@@ -7,11 +8,12 @@ import DataTable from '@/components/console/DataTable.vue'
 import DatastoreCards from '@/components/console/DatastoreCards.vue'
 import RowDrawer from '@/components/console/RowDrawer.vue'
 import ShareDialog from '@/components/console/ShareDialog.vue'
+import NameDialog from '@/components/console/NameDialog.vue'
+import NamespaceCreateDialog from '@/components/console/NamespaceCreateDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useTransferOwnership } from '@/composables/useTransferOwnership'
 import { useMe } from '@/composables/useMe'
-import { useDeepLink } from '@/composables/useDeepLink'
 import {
   getNamespaces, createNamespace, deleteNamespace, renameNamespace, transferNamespace,
   getNamespaceRows, appendNamespaceRow, updateNamespaceRow, deleteNamespaceRow,
@@ -21,9 +23,11 @@ import { humanize } from '@/lib/errors'
 import { rowsToCsv, downloadCsv } from '@/lib/csv'
 
 const { toast } = useToast()
-const { promptText, promptForm, confirmAction } = usePrompt()
+const { confirmAction } = usePrompt()
 const { pickTarget } = useTransferOwnership()
 const { me } = useMe()
+const route = useRoute()
+const router = useRouter()
 const PAGE_SIZE = 25
 
 const namespaces = ref<NamespaceEntry[]>([])
@@ -46,11 +50,28 @@ const exporting = ref(false)
 
 const META = new Set(['_id', '_created_at', '_updated_at'])
 
-// Deeplink par **id** (stable au renommage) : `?ns=<id>`.
-const dl = useDeepLink<number>('ns', (id) => {
-  if (id != null && id !== selectedId.value) open(id)
-  else if (id == null && selectedId.value != null) { selectedId.value = null; rows.value = [] }
-}, { parse: Number })
+// Sélection pilotée par le CHEMIN `/data/:id` (id stable au renommage, ADR 0032).
+// `:id` est résolu par id OU nom (les liens posés côté agent portent le nom en
+// target_ref) ; l'ancien `?ns=` reste accepté et normalisé vers le chemin.
+const selParam = computed(() => {
+  const p = route.params.id
+  if (typeof p === 'string' && p) return p
+  const q = route.query.ns
+  return typeof q === 'string' && q ? q : null
+})
+async function applySelection(raw: string | null) {
+  if (!raw) { selectedId.value = null; rows.value = []; return }
+  const ns = namespaces.value.find((n) => String(n.id) === raw || n.namespace === raw)
+  if (!ns) { selectedId.value = null; rows.value = []; return }
+  // Normalise l'URL vers le chemin canonique par id (venant d'un nom ou d'un `?ns=`).
+  if (String(route.params.id) !== String(ns.id)) void router.replace(`/data/${ns.id}`)
+  if (ns.id === selectedId.value) return
+  selectedId.value = ns.id
+  closeDrawer()
+  page.value = 0; sortField.value = '_updated_at'; sortDir.value = 'desc'; search.value = ''; filters.value = []
+  await fetchRows()
+}
+watch(selParam, (v) => { void applySelection(v) })
 
 const current = computed(() => namespaces.value.find((n) => n.id === selectedId.value) || null)
 const currentName = computed(() => current.value?.namespace ?? null)
@@ -81,6 +102,10 @@ function closeDrawer() { drawerOpen.value = false; drawerRow.value = null; drawe
 
 // ── partage ──────────────────────────────────────────────────────────────────
 const shareOpen = ref(false)
+// ── création / renommage (dialogs validés) ────────────────────────────────────
+const createOpen = ref(false)
+const renameOpen = ref(false)
+const activeOrgName = computed(() => (me.value?.active_org ? (me.value?.active_org_name || 'mon org') : null))
 
 async function load() {
   try { namespaces.value = (await getNamespaces()).namespaces }
@@ -89,8 +114,7 @@ async function load() {
 }
 onMounted(async () => {
   await load()
-  const id = dl.read()
-  if (id != null) await open(id)
+  await applySelection(selParam.value)
 })
 
 async function fetchRows() {
@@ -111,13 +135,8 @@ async function fetchRows() {
   finally { rowsLoading.value = false }
 }
 
-async function open(id: number) {
-  selectedId.value = id
-  dl.set(id)
-  closeDrawer()
-  page.value = 0; sortField.value = '_updated_at'; sortDir.value = 'desc'; search.value = ''; filters.value = []
-  await fetchRows()
-}
+// Un clic navigue vers le chemin ; le watcher de `selParam` applique la sélection.
+function open(id: number) { void router.push(`/data/${id}`) }
 
 function onPage(p: number) { page.value = p; fetchRows() }
 function onSort(field: string, dir: 'asc' | 'desc') { sortField.value = field; sortDir.value = dir; page.value = 0; fetchRows() }
@@ -152,34 +171,16 @@ async function exportCsv() {
   finally { exporting.value = false }
 }
 
-async function create() {
+async function doCreate(payload: { name: string; scope: 'user' | 'org' }) {
   const activeOrg = me.value?.active_org
-  const orgName = me.value?.active_org_name || 'mon org'
-  // Avec une org active, on propose le scope : perso (défaut) ou classeur d'org.
-  const fields = [
-    { key: 'name', label: 'name', required: true, placeholder: 'e.g. prospects-q3' },
-  ]
-  if (activeOrg) {
-    fields.push({
-      key: 'scope', label: 'owner', type: 'select', value: 'user',
-      options: [
-        { value: 'user', label: 'personal (just me)' },
-        { value: 'org', label: `org classeur (${orgName})` },
-      ],
-    } as never)
-  }
-  const res = await promptForm({ title: 'new namespace', fields, submitLabel: 'create' })
-  if (!res || !res.name) return
-  const ns = res.name.trim()
-  const owner = res.scope === 'org' && activeOrg
-    ? { type: 'org', id: activeOrg } : undefined
+  const owner = payload.scope === 'org' && activeOrg ? { type: 'org', id: activeOrg } : undefined
   try {
-    await createNamespace(ns, owner)
-    toast(`namespace "${ns}" created`)
+    await createNamespace(payload.name, owner)
+    toast(`namespace "${payload.name}" created`)
     await load()
-    const created = namespaces.value.find((n) => n.namespace === ns)
+    const created = namespaces.value.find((n) => n.namespace === payload.name)
     if (created) await open(created.id)
-  } catch (e) { toast(humanize(e)) }
+  } catch (e) { toast(humanize(e)); throw e }
 }
 
 async function removeNamespace() {
@@ -194,22 +195,20 @@ async function removeNamespace() {
   try {
     await deleteNamespace(name)
     toast(`namespace "${name}" deleted`)
-    selectedId.value = null; rows.value = []; dl.set(null)
+    selectedId.value = null; rows.value = []; void router.replace('/data')
     await load()
   } catch (e) { toast(humanize(e)) }
 }
 
-async function rename() {
+async function doRename(next: string) {
   const name = currentName.value
-  if (!name) return
-  const next = await promptText('rename namespace', { label: 'new name', required: true, placeholder: name })
-  if (!next || next === name) return
+  if (!name || next === name) return
   try {
     await renameNamespace(name, next)
     toast(`renamed to "${next}"`)
     await load()        // id inchangé → currentName se met à jour, l'URL reste valide
     await fetchRows()
-  } catch (e) { toast(humanize(e)) }
+  } catch (e) { toast(humanize(e)); throw e }
 }
 
 async function transfer() {
@@ -268,7 +267,7 @@ async function onDelete() {
       <ConsoleCard title="namespaces" flush
         sub="tabular storage your agents read &amp; write through data_* tools.">
         <template #actions>
-          <Btn kind="mini" icon="plus" @click="create">new</Btn>
+          <Btn kind="mini" icon="plus" @click="createOpen = true">new</Btn>
         </template>
         <div class="rowlist">
           <button v-for="ns in namespaces" :key="ns.id"
@@ -300,7 +299,7 @@ async function onDelete() {
           <Btn v-if="!readOnly" kind="mini" icon="plus" @click="openNew">add row</Btn>
           <template v-if="canGovern">
             <Btn kind="mini" icon="users" @click="shareOpen = true">share</Btn>
-            <Btn kind="mini" icon="pen" @click="rename">rename</Btn>
+            <Btn kind="mini" icon="pen" @click="renameOpen = true">rename</Btn>
             <Btn kind="mini" icon="ext" @click="transfer">transfer</Btn>
             <Btn kind="danger" icon="trash" @click="removeNamespace">delete</Btn>
           </template>
@@ -362,6 +361,9 @@ async function onDelete() {
     <RowDrawer :open="drawerOpen" :row="drawerRow" :fields="fields" :is-new="drawerNew"
       :read-only="readOnly" @save="onSave" @delete="onDelete" @close="closeDrawer" />
     <ShareDialog :open="shareOpen" :namespace="currentName" @close="shareOpen = false" />
+    <NamespaceCreateDialog v-model:open="createOpen" :org-name="activeOrgName" :on-confirm="doCreate" />
+    <NameDialog v-model:open="renameOpen" title="renommer le namespace" label="nouveau nom"
+      :initial="currentName ?? ''" submit-label="renommer" :on-confirm="doRename" />
   </div>
 </template>
 

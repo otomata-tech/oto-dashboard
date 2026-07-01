@@ -7,8 +7,10 @@ import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import Dot from '@/components/console/Dot.vue'
 import ErrLabel from '@/components/console/ErrLabel.vue'
+import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
-import { usePrompt, type PromptField } from '@/composables/usePrompt'
+import { usePrompt } from '@/composables/usePrompt'
+import { useFormDialog, type FormDialogField } from '@/composables/useFormDialog'
 import { useMe, isSuperAdmin } from '@/composables/useMe'
 import {
   getAdminUser, setUserRole, getPlatformKeys, getConnectors, getMonitoringCalls,
@@ -24,7 +26,10 @@ import { humanize } from '@/lib/errors'
 
 const route = useRoute()
 const { toast } = useToast()
-const { promptForm, confirmAction } = usePrompt()
+const { confirmAction } = usePrompt()
+const { formDialog, formDialogOpen, openForm } = useFormDialog()
+// Dialog séparé pour la révélation du lien d'invitation (ouvert depuis resendInvite).
+const { formDialog: revealDialog, formDialogOpen: revealOpen, openForm: openReveal } = useFormDialog()
 const { me } = useMe()
 
 // La gestion des rôles plateforme est réservée au super_admin (le backend rejette
@@ -108,11 +113,12 @@ async function resendInvite() {
     if (res.emailed) {
       toast(`invitation re-sent to ${res.email}`)
     } else {
-      await promptForm({
+      openReveal({
         title: 'share this invitation link',
         description: 'email delivery is off on this server — copy and send it yourself.',
-        fields: [{ key: 'url', label: 'invitation link', value: res.invite_url }],
+        fields: [{ key: 'url', label: 'invitation link', initial: res.invite_url }],
         submitLabel: 'done',
+        onConfirm: async () => {},
       })
     }
     await loadDetail()
@@ -160,42 +166,44 @@ async function pickRole(next: Role) {
 const grantFor = (provider: string) => detail.value?.grants.find((g) => g.provider === provider)
 const platformKeysFor = (provider: string) => keys.value.filter((k) => k.provider === provider)
 
-async function grantKey(provider: string) {
+function grantKey(provider: string) {
   const pool = platformKeysFor(provider)
   if (!pool.length) { toast(`no platform key for ${provider} — create one in platform keys first`); return }
-  const fields: PromptField[] = []
+  const fields: FormDialogField[] = []
   if (pool.length > 1) {
     fields.push({ key: 'key', label: 'platform key', type: 'select', required: true,
       options: pool.map((k) => ({ value: String(k.id), label: `${k.provider}/${k.label}` })) })
   }
   fields.push({ key: 'quota', label: 'daily quota', placeholder: 'blank = provider default', hint: 'max calls per day' })
-  const r = await promptForm({
+  openForm({
     title: `grant ${provider}`, description: `lend the shared ${provider} platform key to this user (quota-metered, key never revealed).`,
     fields, submitLabel: 'grant',
+    onConfirm: async (v) => {
+      const keyId = pool.length > 1 ? Number(v.key) : pool[0]!.id
+      const quota = v.quota ? Math.max(1, Number(v.quota)) : undefined
+      try { await grantPlatformKey(sub.value, keyId, quota); toast(`${provider} granted`); await loadDetail() }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  const keyId = pool.length > 1 ? Number(r.key) : pool[0]!.id
-  const quota = r.quota ? Math.max(1, Number(r.quota)) : undefined
-  try { await grantPlatformKey(sub.value, keyId, quota); toast(`${provider} granted`); await loadDetail() }
-  catch (e) { toast(humanize(e)) }
 }
 async function revokeKey(g: AdminGrant) {
   if (!await confirmAction({ title: 'revoke grant', danger: true, confirmLabel: 'revoke', message: `revoke ${g.provider}/${g.label}?` })) return
   try { await revokePlatformKey(sub.value, g.platform_key_id); toast('grant revoked'); await loadDetail() }
   catch (e) { toast(humanize(e)) }
 }
-async function grantNs() {
-  const r = await promptForm({
+function grantNs() {
+  openForm({
     title: 'grant a namespace', description: 'unlock a controlled (deny-by-default) namespace for this user.',
     fields: nsOptions.value.length
       ? [{ key: 'ns', label: 'namespace', type: 'select', required: true, placeholder: 'choose a namespace',
           options: nsOptions.value.map((n) => ({ value: n, label: n })) }]
       : [{ key: 'ns', label: 'namespace', required: true, hint: 'no controlled namespace in catalog — type one' }],
     submitLabel: 'grant',
+    onConfirm: async (v) => {
+      try { await grantNamespace(sub.value, v.ns ?? ''); toast(`granted ${v.ns}`); await loadDetail() }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  try { await grantNamespace(sub.value, r.ns ?? ''); toast(`granted ${r.ns}`); await loadDetail() }
-  catch (e) { toast(humanize(e)) }
 }
 async function revokeNs(g: NamespaceGrant) {
   if (!await confirmAction({ title: 'revoke namespace grant', danger: true, confirmLabel: 'revoke', message: `revoke ${g.namespace}?` })) return
@@ -437,6 +445,13 @@ async function toggleOrgRole(o: AdminUserOrg) {
         </table>
       </ConsoleCard>
     </template>
+
+    <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
+      :title="formDialog.title" :description="formDialog.description"
+      :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
+    <FormDialog v-if="revealDialog" v-model:open="revealOpen"
+      :title="revealDialog.title" :description="revealDialog.description"
+      :fields="revealDialog.fields" :submit-label="revealDialog.submitLabel" :on-confirm="revealDialog.onConfirm" />
   </div>
 </template>
 

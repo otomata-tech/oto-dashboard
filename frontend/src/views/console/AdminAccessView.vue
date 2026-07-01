@@ -5,14 +5,19 @@ import { onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Btn from '@/components/console/Btn.vue'
+import FormDialog from '@/components/console/FormDialog.vue'
 import { getWaitlist, grantAlphaAccess, rejectAlphaAccess, adminAlphaInvite, listAlphaInvites, revokeAlphaInvite, resendAlphaInvite } from '@/api/console'
 import type { WaitlistEntry, AlphaInvite } from '@/types/api'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useFormDialog } from '@/composables/useFormDialog'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
-const { promptForm, confirmAction } = usePrompt()
+const { confirmAction } = usePrompt()
+const { formDialog, formDialogOpen, openForm } = useFormDialog()
+// Dialog séparé pour la révélation lien/code (évite la course de fermeture du 1er).
+const { formDialog: revealDialog, formDialogOpen: revealOpen, openForm: openReveal } = useFormDialog()
 const waitlist = ref<WaitlistEntry[]>([])
 const invites = ref<AlphaInvite[]>([])
 const error = ref<string | null>(null)
@@ -36,11 +41,12 @@ async function resend(inv: AlphaInvite) {
     if (res.emailed) {
       toast(`invitation re-sent to ${res.email}`)
     } else {
-      await promptForm({
+      openReveal({
         title: 'share this invitation link',
         description: 'email delivery is off on this server — copy and send it yourself.',
-        fields: [{ key: 'url', label: 'invitation link', value: res.invite_url }],
+        fields: [{ key: 'url', label: 'invitation link', initial: res.invite_url }],
         submitLabel: 'done',
+        onConfirm: async () => {},
       })
     }
     await load()
@@ -57,21 +63,22 @@ async function revoke(inv: AlphaInvite) {
   } catch (e) { toast(humanize(e)) } finally { busy.value = null }
 }
 
-async function grant(u: WaitlistEntry) {
-  const r = await promptForm({
+function grant(u: WaitlistEntry) {
+  openForm({
     title: `grant alpha access`,
     description: `${u.email || u.sub} gets platform access + an invitation quota, and is emailed.`,
-    fields: [{ key: 'quota', label: 'invitation quota', value: '3' }],
+    fields: [{ key: 'quota', label: 'invitation quota', initial: '3' }],
     submitLabel: 'grant access',
+    onConfirm: async (v) => {
+      const quota = Number(v.quota)
+      busy.value = u.sub
+      try {
+        const res = await grantAlphaAccess(u.sub, Number.isFinite(quota) ? quota : undefined)
+        toast(res.emailed ? `access granted — ${u.email} emailed` : 'access granted (email off)')
+        await load()
+      } catch (e) { toast(humanize(e)); throw e } finally { busy.value = null }
+    },
   })
-  if (!r) return
-  const quota = Number(r.quota)
-  busy.value = u.sub
-  try {
-    const res = await grantAlphaAccess(u.sub, Number.isFinite(quota) ? quota : undefined)
-    toast(res.emailed ? `access granted — ${u.email} emailed` : 'access granted (email off)')
-    await load()
-  } catch (e) { toast(humanize(e)) } finally { busy.value = null }
 }
 
 async function reject(u: WaitlistEntry) {
@@ -89,40 +96,42 @@ async function reject(u: WaitlistEntry) {
   } catch (e) { toast(humanize(e)) } finally { busy.value = null }
 }
 
-async function invite() {
-  const r = await promptForm({
+function invite() {
+  openForm({
     title: 'invite someone to the alpha',
     description: "doesn't spend any referral quota — they get their own account and org. send by email, or get a code to share yourself.",
     fields: [
       { key: 'email', label: 'email (optional)', placeholder: 'name@company.com',
         hint: 'leave blank to get a code to share yourself' },
-      { key: 'delivery', label: 'how', type: 'select', value: 'mail',
+      { key: 'delivery', label: 'how', type: 'select', initial: 'mail',
         options: [{ value: 'mail', label: 'send by email' }, { value: 'code', label: 'give me a code to share' }] },
     ],
     submitLabel: 'create invitation',
+    onConfirm: async (v) => {
+      const sendMail = v.delivery !== 'code'
+      const email = (v.email || '').trim()
+      if (sendMail && !email) { toast('an email is required to send by email'); throw new Error('email required') }
+      inviting.value = true
+      try {
+        const res = await adminAlphaInvite(email || null, sendMail)
+        if (res.emailed) {
+          toast(`invitation sent to ${res.email}`)
+        } else {
+          openReveal({
+            title: 'share this invitation yourself',
+            description: 'send this link (or code) to the person — it grants them access.',
+            fields: [
+              { key: 'url', label: 'invitation link', initial: res.invite_url },
+              { key: 'code', label: 'code', initial: res.code },
+            ],
+            submitLabel: 'done',
+            onConfirm: async () => {},
+          })
+        }
+        await load()
+      } catch (e) { toast(humanize(e)); throw e } finally { inviting.value = false }
+    },
   })
-  if (!r) return
-  const sendMail = r.delivery !== 'code'
-  const email = (r.email || '').trim()
-  if (sendMail && !email) { toast('an email is required to send by email'); return }
-  inviting.value = true
-  try {
-    const res = await adminAlphaInvite(email || null, sendMail)
-    if (res.emailed) {
-      toast(`invitation sent to ${res.email}`)
-    } else {
-      await promptForm({
-        title: 'share this invitation yourself',
-        description: 'send this link (or code) to the person — it grants them access.',
-        fields: [
-          { key: 'url', label: 'invitation link', value: res.invite_url },
-          { key: 'code', label: 'code', value: res.code },
-        ],
-        submitLabel: 'done',
-      })
-    }
-    await load()
-  } catch (e) { toast(humanize(e)) } finally { inviting.value = false }
 }
 
 onMounted(load)
@@ -192,5 +201,12 @@ onMounted(load)
         </tbody>
       </table>
     </ConsoleCard>
+
+    <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
+      :title="formDialog.title" :description="formDialog.description"
+      :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
+    <FormDialog v-if="revealDialog" v-model:open="revealOpen"
+      :title="revealDialog.title" :description="revealDialog.description"
+      :fields="revealDialog.fields" :submit-label="revealDialog.submitLabel" :on-confirm="revealDialog.onConfirm" />
   </div>
 </template>

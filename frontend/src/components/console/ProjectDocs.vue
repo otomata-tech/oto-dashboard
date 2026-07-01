@@ -4,6 +4,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
+import FormDialog from '@/components/console/FormDialog.vue'
 import { listDocs, createDoc, updateDoc, deleteDoc, getDocRevisions,
   requestDocChange, listDocChanges, resolveDocChange, setDocPublic } from '@/api/console'
 import type { Doc, DocKind, DocRevision, DocChangeRequest } from '@/types/api'
@@ -11,11 +12,13 @@ import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useFormDialog } from '@/composables/useFormDialog'
 
 const props = defineProps<{ projectId: number; readOnly?: boolean }>()
 const emit = defineEmits<{ changed: [] }>()
 const { toast } = useToast()
-const { promptForm, confirmAction } = usePrompt()
+const { confirmAction } = usePrompt()
+const { formDialog, formDialogOpen, openForm } = useFormDialog()
 
 const docs = ref<Doc[]>([])
 const selectedId = ref<number | null>(null)
@@ -51,19 +54,22 @@ async function loadRequests(id: number) {
   try { changeRequests.value = (await listDocChanges(id)).requests }
   catch { /* lecture seule ou pas de droit : on n'affiche rien */ }
 }
-async function proposeChange() {
+function proposeChange() {
   if (!selected.value || !draft.value) return
-  const r = await promptForm({
+  const doc = selected.value
+  const d = draft.value
+  openForm({
     title: 'Proposer une modification',
     fields: [{ key: 'message', label: 'Message au propriétaire (optionnel)' }],
     submitLabel: 'Envoyer la demande',
+    onConfirm: async (v) => {
+      try {
+        await requestDocChange(doc.id, {
+          title: d.title, body_md: d.body_md, message: String(v.message || '') })
+        toast('demande de modification envoyée')
+      } catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  try {
-    await requestDocChange(selected.value.id, {
-      title: draft.value.title, body_md: draft.value.body_md, message: String(r.message || '') })
-    toast('demande de modification envoyée')
-  } catch (e) { toast(humanize(e)) }
 }
 async function toggleDocPublic() {
   const d = selected.value
@@ -113,14 +119,15 @@ async function restoreRevision(r: DocRevision) {
   } catch (e) { toast(humanize(e)) }
 }
 
-async function addDoc(parent_id: number | null) {
-  const r = await promptForm({
+function addDoc(parent_id: number | null) {
+  openForm({
     title: parent_id ? 'Nouvelle sous-page' : 'Nouvelle page',
     fields: [{ key: 'title', label: 'Titre', required: true }], submitLabel: 'Créer',
+    onConfirm: async (v) => {
+      try { const d = await createDoc(props.projectId, String(v.title), { parent_id }); await load(); open(d); emit('changed') }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  try { const d = await createDoc(props.projectId, String(r.title), { parent_id }); await load(); open(d); emit('changed') }
-  catch (e) { toast(humanize(e)) }
 }
 async function save() {
   if (!selected.value || !draft.value) return
@@ -202,6 +209,10 @@ async function remove(d: Doc) {
         </div>
       </div>
     </div>
+
+    <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
+      :title="formDialog.title" :description="formDialog.description"
+      :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
   </div>
 </template>
 

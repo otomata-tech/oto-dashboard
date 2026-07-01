@@ -245,6 +245,7 @@ export interface PresetEntry {
 
 // ── doctrine / instructions ──
 export interface InstructionMeta {
+  id: number
   slug: string
   title: string
   description: string
@@ -310,7 +311,7 @@ export interface PlatformInstrBlock {
 }
 
 // ── Projets (couche d'organisation, ADR 0030) ──
-export type ProjectLinkType = 'tableau' | 'procedure' | 'connecteur' | 'base'
+export type ProjectLinkType = 'tableau' | 'procedure' | 'connecteur' | 'base' | 'page'
 // Surcharge contextuelle PRÉFAITE d'un connecteur dans un projet (ADR 0032 §4, B2) :
 // quel compte agir + instructions de surcharge en prose, posées au montage du projet,
 // lues par l'agent au chargement — jamais déclarées à la volée.
@@ -335,6 +336,8 @@ export interface Project {
   owner_id: string
   is_template?: boolean          // publié comme modèle copiable (ADR 0032 §7 B5a)
   can_write?: boolean            // droit d'écriture effectif (#4b) ; false → lecture seule
+  public_shared?: boolean        // partage public CHIFFRÉ actif (ADR 0032 §3, zero-knowledge)
+  public_shared_at?: string | null  // horodatage de la dernière (re)publication chiffrée
   created_at?: string | null
   updated_at?: string | null
   archived_at?: string | null
