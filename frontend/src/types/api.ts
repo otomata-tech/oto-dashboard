@@ -266,6 +266,7 @@ export interface PresetEntry {
 
 // ── doctrine / instructions ──
 export interface InstructionMeta {
+  id: number
   slug: string
   title: string
   description: string

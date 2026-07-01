@@ -70,10 +70,10 @@ const router = createRouter({
       meta: { section: '/data', level: 'work' },
     },
     {
-      // Procédure/doctrine ciblée `/doctrine/:slug` (le slug EST l'identité, ADR 0032) —
-      // section '/doctrine' → DoctrineHubView (onglet mine). La vue lit `:slug` et
-      // absorbe l'ancien `?doc=` en le normalisant vers ce chemin.
-      path: '/doctrine/:slug',
+      // Procédure/doctrine ciblée `/doctrine/:id` (id surrogate stable, ADR 0032 —
+      // « stop using slug ») — section '/doctrine' → DoctrineHubView (onglet mine). La
+      // vue résout `:id` par id OU slug (back-compat liens/`?doc=`), normalise vers l'id.
+      path: '/doctrine/:id',
       name: 'doctrine-detail',
       component: ConsoleLayout,
       meta: { section: '/doctrine', level: 'work' },
