@@ -322,6 +322,7 @@ export interface ConnectorLinkConfig {
 export interface ProjectLink {
   target_type: ProjectLinkType
   target_ref: string
+  identity_ref?: string | null  // connecteur : identité (compte) du binding — clé de multiplicité (#57)
   label?: string | null
   role?: string | null          // pourquoi cette entité est dans le projet (ADR 0032 §2)
   config?: ConnectorLinkConfig | null   // surcharge préfaite du lien (connecteur, ADR 0032 §4)

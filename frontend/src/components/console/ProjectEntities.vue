@@ -81,16 +81,23 @@ const linkRole = ref('')
 const linkLabelEdited = ref(false)
 const linkOpts = ref<LinkOption[]>([])
 const linkLoading = ref(false)
+// Multi-binding (#57) : pour un CONNECTEUR, on choisit aussi l'IDENTITÉ (compte) — c'est
+// la clé du binding. Lier le même connecteur avec une autre identité = 2e binding.
+const linkIdentity = ref('')
+const linkIdentities = ref<ConnectorIdentity[]>([])
+const linkIdentityLoading = ref(false)
 
 function startLinking() {
   linking.value = true
   linkType.value = ''; linkRef.value = ''; linkLabel.value = ''; linkRole.value = ''
   linkLabelEdited.value = false; linkOpts.value = []
+  linkIdentity.value = ''; linkIdentities.value = []
 }
 function cancelLinking() { linking.value = false }
 
 async function onTypeChange() {
   linkRef.value = ''; linkLabel.value = ''; linkLabelEdited.value = false; linkOpts.value = []
+  linkIdentity.value = ''; linkIdentities.value = []
   const t = linkType.value
   if (!t) return
   linkLoading.value = true
@@ -98,55 +105,55 @@ async function onTypeChange() {
   catch (e) { toast(humanize(e)) }
   finally { linkLoading.value = false }
 }
-function onRefChange() {
+async function onRefChange() {
   if (!linkLabelEdited.value) linkLabel.value = linkOpts.value.find((o) => o.value === linkRef.value)?.label ?? ''
+  linkIdentity.value = ''; linkIdentities.value = []
+  if (linkType.value === 'connecteur' && linkRef.value) {
+    linkIdentityLoading.value = true
+    try { const r = await getConnectorIdentities(linkRef.value); linkIdentities.value = r.supported ? r.identities : [] }
+    catch { linkIdentities.value = [] }
+    finally { linkIdentityLoading.value = false }
+  }
 }
 async function submitLink() {
   const t = linkType.value
   if (!t || !linkRef.value) return
-  const label = linkLabel.value.trim() || linkOpts.value.find((o) => o.value === linkRef.value)?.label
+  let label = linkLabel.value.trim() || linkOpts.value.find((o) => o.value === linkRef.value)?.label
   const role = linkRole.value.trim() || undefined
+  const identity_ref = t === 'connecteur' ? (linkIdentity.value || undefined) : undefined
+  // Défaut de libellé : « connecteur · compte » quand une identité est choisie (lisible).
+  if (t === 'connecteur' && identity_ref && !linkLabelEdited.value) {
+    const idn = linkIdentities.value.find((i) => i.id === identity_ref)
+    if (idn) label = `${label} · ${idn.label || idn.id}`
+  }
   try {
-    const { links } = await linkProject(props.projectId, t, linkRef.value, label, role)
+    const { links } = await linkProject(props.projectId, t, linkRef.value, label, role, undefined, identity_ref)
     emit('update:links', links); emit('changed')
     linking.value = false
   } catch (e) { toast(humanize(e)) }
 }
 
-// ── surcharge connecteur préfaite par projet (ADR 0032 §4, B2) ──
-const cfgRef = ref<string | null>(null)       // target_ref du connecteur en cours d'édition
-const cfgIdentity = ref('')
+// ── surcharge d'un BINDING connecteur (#57) : l'identité est la CLÉ (choisie au lien) ;
+// ici on n'édite que les instructions. Un binding = (target_ref, identity_ref).
+function bindingKey(l: ProjectLink): string { return `${l.target_ref}|${l.identity_ref ?? ''}` }
+const cfgRef = ref<string | null>(null)       // bindingKey du binding en cours d'édition
 const cfgInstructions = ref('')
-const cfgIdentities = ref<ConnectorIdentity[]>([])
-const cfgIdentitiesSupported = ref(false)
-const cfgLoading = ref(false)
 const cfgSaving = ref(false)
-// connecteur dont on édite la surcharge (formulaire rendu pleine largeur sous la grille)
-const cfgLink = computed(() => props.links.find((l) => l.target_type === 'connecteur' && l.target_ref === cfgRef.value) ?? null)
+const cfgLink = computed(() => props.links.find((l) => l.target_type === 'connecteur' && bindingKey(l) === cfgRef.value) ?? null)
 
-async function openConfig(l: ProjectLink) {
-  cfgRef.value = l.target_ref
-  cfgIdentity.value = l.config?.identity_id ?? ''
+function openConfig(l: ProjectLink) {
+  cfgRef.value = bindingKey(l)
   cfgInstructions.value = l.config?.instructions_md ?? ''
-  cfgIdentities.value = []; cfgIdentitiesSupported.value = false
-  cfgLoading.value = true
-  try {
-    const r = await getConnectorIdentities(l.target_ref)
-    cfgIdentitiesSupported.value = r.supported
-    cfgIdentities.value = r.identities
-  } catch { /* identité non gérée par ce connecteur — on garde juste les instructions */ }
-  finally { cfgLoading.value = false }
 }
 function closeConfig() { cfgRef.value = null }
 
 async function saveConfig(l: ProjectLink) {
-  const config = {
-    identity_id: cfgIdentity.value || undefined,
-    instructions_md: cfgInstructions.value.trim() || undefined,
-  }
   cfgSaving.value = true
   try {
-    const { links } = await linkProject(props.projectId, 'connecteur', l.target_ref, l.label ?? undefined, l.role ?? undefined, config)
+    // Re-lie le MÊME binding (identity_ref inchangé) → met à jour ses instructions.
+    const { links } = await linkProject(props.projectId, 'connecteur', l.target_ref,
+      l.label ?? undefined, l.role ?? undefined,
+      { instructions_md: cfgInstructions.value.trim() || undefined }, l.identity_ref ?? undefined)
     emit('update:links', links); emit('changed')
     cfgRef.value = null; toast('surcharge enregistrée')
   } catch (e) { toast(humanize(e)) }
@@ -157,7 +164,7 @@ async function removeLink(l: ProjectLink) {
   if (!await confirmAction({ title: 'Délier', danger: true, confirmLabel: 'Délier',
     message: `Délier ${l.label || l.target_ref} ?` })) return
   try {
-    const { links } = await unlinkProject(props.projectId, l.target_type, l.target_ref)
+    const { links } = await unlinkProject(props.projectId, l.target_type, l.target_ref, l.identity_ref ?? undefined)
     emit('update:links', links); emit('changed')
   } catch (e) { toast(humanize(e)) }
 }
@@ -189,6 +196,13 @@ async function removeLink(l: ProjectLink) {
           <option v-for="o in linkOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
         </select>
       </label>
+      <label v-if="linkType === 'connecteur' && linkRef && (linkIdentities.length || linkIdentityLoading)" class="pj-fld">
+        <span class="pj-fld__lbl">Identité (compte) <span class="dim" style="font-weight: 400; text-transform: none; letter-spacing: 0">— lier N fois pour N comptes</span></span>
+        <select v-model="linkIdentity" class="pj-input" :disabled="linkIdentityLoading">
+          <option value="">{{ linkIdentityLoading ? 'chargement…' : '(défaut du compte)' }}</option>
+          <option v-for="idn in linkIdentities" :key="idn.id" :value="idn.id">{{ idn.label || idn.id }}{{ idn.channel ? ` · ${idn.channel}` : '' }}</option>
+        </select>
+      </label>
       <label class="pj-fld">
         <span class="pj-fld__lbl">Nom affiché <span class="dim" style="font-weight: 400; text-transform: none; letter-spacing: 0">(optionnel)</span></span>
         <input v-model="linkLabel" class="pj-input" placeholder="(optionnel — par défaut le nom de l'entité)" @input="linkLabelEdited = true" />
@@ -207,7 +221,7 @@ async function removeLink(l: ProjectLink) {
       <template v-if="linksByType[g.type]?.length">
         <div class="ent-grouphd"><Icon :name="g.icon" :size="13" /><span>{{ g.label }}</span></div>
         <div class="ent-grid">
-          <div v-for="l in linksByType[g.type]" :key="l.target_ref" class="ent">
+          <div v-for="l in linksByType[g.type]" :key="bindingKey(l)" class="ent">
             <span class="ent__ico"><Icon :name="TYPE_ICON[l.target_type] || 'doc'" :size="15" /></span>
             <div class="ent__body">
               <div class="ent__top">
@@ -219,12 +233,13 @@ async function removeLink(l: ProjectLink) {
                   <Icon v-if="entityHref(l)" name="ext" :size="11" class="ent__go" />
                 </component>
                 <Tag v-if="l.cross_project" tone="saffron" title="Cette entité est aussi liée par un autre projet — éviter les modifications brutales">partagé</Tag>
-                <Tag v-if="g.type === 'connecteur' && (l.config?.identity_id || l.config?.instructions_md)" tone="olive" title="Connecteur reconfiguré pour ce projet">surchargé</Tag>
+                <Tag v-if="g.type === 'connecteur' && l.config?.instructions_md" tone="olive" title="Instructions de surcharge pour ce projet">surchargé</Tag>
               </div>
+              <div v-if="g.type === 'connecteur' && l.identity_ref" class="ent__ident" title="Compte utilisé par ce binding">compte : {{ l.identity_ref }}</div>
               <div v-if="l.role" class="ent__role">{{ l.role }}</div>
               <div v-if="g.type === 'connecteur' && l.config?.instructions_md" class="ent__cfg">↳ {{ l.config.instructions_md }}</div>
               <div v-if="!readOnly" class="ent__act">
-                <button v-if="g.type === 'connecteur'" class="ent__lnk" @click="cfgRef === l.target_ref ? closeConfig() : openConfig(l)">{{ cfgRef === l.target_ref ? 'fermer' : 'configurer' }}</button>
+                <button v-if="g.type === 'connecteur'" class="ent__lnk" @click="cfgRef === bindingKey(l) ? closeConfig() : openConfig(l)">{{ cfgRef === bindingKey(l) ? 'fermer' : 'configurer' }}</button>
                 <button class="ent__lnk" @click="removeLink(l)">délier</button>
               </div>
             </div>
@@ -235,15 +250,7 @@ async function removeLink(l: ProjectLink) {
 
     <!-- surcharge connecteur : formulaire pleine largeur sous la grille -->
     <div v-if="cfgLink" class="pj-cfgform">
-      <p class="dim" style="font-size: 11px; margin: 0 0 2px">Surcharge de <b>{{ cfgLink.label || cfgLink.target_ref }}</b> <b>pour ce projet</b> — préparée ici, appliquée par l'agent au chargement du projet.</p>
-      <label v-if="cfgIdentitiesSupported && cfgIdentities.length" class="pj-fld">
-        <span class="pj-fld__lbl">Identité (compte)</span>
-        <select v-model="cfgIdentity" class="pj-input">
-          <option value="">(défaut du compte)</option>
-          <option v-for="idn in cfgIdentities" :key="idn.id" :value="idn.id">{{ idn.label || idn.id }}{{ idn.channel ? ` · ${idn.channel}` : '' }}</option>
-        </select>
-      </label>
-      <p v-else-if="cfgLoading" class="dim" style="font-size: 11px">chargement des identités…</p>
+      <p class="dim" style="font-size: 11px; margin: 0 0 2px">Surcharge de <b>{{ cfgLink.label || cfgLink.target_ref }}</b><template v-if="cfgLink.identity_ref"> (compte {{ cfgLink.identity_ref }})</template> <b>pour ce projet</b> — l'identité est fixée au lien ; délie + relie pour en changer.</p>
       <label class="pj-fld">
         <span class="pj-fld__lbl">Instructions de surcharge <span class="dim" style="font-weight: 400; text-transform: none; letter-spacing: 0">(prose, optionnel)</span></span>
         <textarea v-model="cfgInstructions" class="pj-input" rows="3" placeholder="ex. ne filtrer les accords que par thème mutuelle"></textarea>
@@ -280,6 +287,7 @@ async function removeLink(l: ProjectLink) {
 .ent__name--link:hover { text-decoration: underline; }
 .ent__go { opacity: .55; flex: none; }
 .ent__name--link:hover .ent__go { opacity: 1; }
+.ent__ident { font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); margin-top: 3px; overflow-wrap: anywhere; }
 .ent__role { font-size: 11px; color: var(--color-mute); font-style: italic; margin-top: 3px; line-height: 1.4; }
 .ent__cfg { font-size: 10.5px; color: var(--color-olive-ink); margin-top: 4px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
 .ent__act { display: flex; gap: 11px; margin-top: 6px; }

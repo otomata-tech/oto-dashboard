@@ -145,10 +145,10 @@ export const setProjectTemplate = (id: number, is_template: boolean) =>
   projectsApi<Project>({ op: 'update', project_id: id, is_template })
 export const archiveProject = (id: number) =>
   projectsApi<{ ok: boolean }>({ op: 'archive', project_id: id })
-export const linkProject = (id: number, target_type: ProjectLinkType, target_ref: string, label?: string, role?: string, config?: ConnectorLinkConfig) =>
-  projectsApi<{ ok: boolean; links: ProjectLink[] }>({ op: 'link', project_id: id, target_type, target_ref, label, role, config })
-export const unlinkProject = (id: number, target_type: ProjectLinkType, target_ref: string) =>
-  projectsApi<{ ok: boolean; links: ProjectLink[] }>({ op: 'unlink', project_id: id, target_type, target_ref })
+export const linkProject = (id: number, target_type: ProjectLinkType, target_ref: string, label?: string, role?: string, config?: ConnectorLinkConfig, identity_ref?: string) =>
+  projectsApi<{ ok: boolean; links: ProjectLink[] }>({ op: 'link', project_id: id, target_type, target_ref, label, role, config, identity_ref })
+export const unlinkProject = (id: number, target_type: ProjectLinkType, target_ref: string, identity_ref?: string) =>
+  projectsApi<{ ok: boolean; links: ProjectLink[] }>({ op: 'unlink', project_id: id, target_type, target_ref, identity_ref })
 export const getProjectActivity = (id: number) =>
   projectsApi<{ id: number; activity: ProjectActivity[] }>({ op: 'activity', project_id: id })
 // « Reprendre dans Claude » — blob copier-coller qui pré-écrit oto_use_project (B5b).
