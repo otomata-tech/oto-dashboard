@@ -36,8 +36,8 @@ const TYPE_ICON: Record<string, string> = Object.fromEntries(LINK_GROUPS.map((g)
 function entityHref(l: ProjectLink): string | null {
   const ref = encodeURIComponent(l.target_ref)
   switch (l.target_type) {
-    case 'tableau': return `/data?ns=${ref}`
-    case 'procedure': return `/doctrine?tab=mine&doc=${ref}`
+    case 'tableau': return `/data/${ref}`
+    case 'procedure': return `/doctrine/${ref}`
     case 'connecteur': return '/connectors?tab=mine'
     case 'base': return '/documents'
     default: return null

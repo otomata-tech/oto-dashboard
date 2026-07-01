@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
@@ -11,7 +12,6 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useTransferOwnership } from '@/composables/useTransferOwnership'
 import { useMe } from '@/composables/useMe'
-import { useDeepLink } from '@/composables/useDeepLink'
 import {
   getNamespaces, createNamespace, deleteNamespace, renameNamespace, transferNamespace,
   getNamespaceRows, appendNamespaceRow, updateNamespaceRow, deleteNamespaceRow,
@@ -24,6 +24,8 @@ const { toast } = useToast()
 const { promptText, promptForm, confirmAction } = usePrompt()
 const { pickTarget } = useTransferOwnership()
 const { me } = useMe()
+const route = useRoute()
+const router = useRouter()
 const PAGE_SIZE = 25
 
 const namespaces = ref<NamespaceEntry[]>([])
@@ -46,11 +48,28 @@ const exporting = ref(false)
 
 const META = new Set(['_id', '_created_at', '_updated_at'])
 
-// Deeplink par **id** (stable au renommage) : `?ns=<id>`.
-const dl = useDeepLink<number>('ns', (id) => {
-  if (id != null && id !== selectedId.value) open(id)
-  else if (id == null && selectedId.value != null) { selectedId.value = null; rows.value = [] }
-}, { parse: Number })
+// Sélection pilotée par le CHEMIN `/data/:id` (id stable au renommage, ADR 0032).
+// `:id` est résolu par id OU nom (les liens posés côté agent portent le nom en
+// target_ref) ; l'ancien `?ns=` reste accepté et normalisé vers le chemin.
+const selParam = computed(() => {
+  const p = route.params.id
+  if (typeof p === 'string' && p) return p
+  const q = route.query.ns
+  return typeof q === 'string' && q ? q : null
+})
+async function applySelection(raw: string | null) {
+  if (!raw) { selectedId.value = null; rows.value = []; return }
+  const ns = namespaces.value.find((n) => String(n.id) === raw || n.namespace === raw)
+  if (!ns) { selectedId.value = null; rows.value = []; return }
+  // Normalise l'URL vers le chemin canonique par id (venant d'un nom ou d'un `?ns=`).
+  if (String(route.params.id) !== String(ns.id)) void router.replace(`/data/${ns.id}`)
+  if (ns.id === selectedId.value) return
+  selectedId.value = ns.id
+  closeDrawer()
+  page.value = 0; sortField.value = '_updated_at'; sortDir.value = 'desc'; search.value = ''; filters.value = []
+  await fetchRows()
+}
+watch(selParam, (v) => { void applySelection(v) })
 
 const current = computed(() => namespaces.value.find((n) => n.id === selectedId.value) || null)
 const currentName = computed(() => current.value?.namespace ?? null)
@@ -89,8 +108,7 @@ async function load() {
 }
 onMounted(async () => {
   await load()
-  const id = dl.read()
-  if (id != null) await open(id)
+  await applySelection(selParam.value)
 })
 
 async function fetchRows() {
@@ -111,13 +129,8 @@ async function fetchRows() {
   finally { rowsLoading.value = false }
 }
 
-async function open(id: number) {
-  selectedId.value = id
-  dl.set(id)
-  closeDrawer()
-  page.value = 0; sortField.value = '_updated_at'; sortDir.value = 'desc'; search.value = ''; filters.value = []
-  await fetchRows()
-}
+// Un clic navigue vers le chemin ; le watcher de `selParam` applique la sélection.
+function open(id: number) { void router.push(`/data/${id}`) }
 
 function onPage(p: number) { page.value = p; fetchRows() }
 function onSort(field: string, dir: 'asc' | 'desc') { sortField.value = field; sortDir.value = dir; page.value = 0; fetchRows() }
@@ -194,7 +207,7 @@ async function removeNamespace() {
   try {
     await deleteNamespace(name)
     toast(`namespace "${name}" deleted`)
-    selectedId.value = null; rows.value = []; dl.set(null)
+    selectedId.value = null; rows.value = []; void router.replace('/data')
     await load()
   } catch (e) { toast(humanize(e)) }
 }

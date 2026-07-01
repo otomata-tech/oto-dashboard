@@ -56,6 +56,24 @@ const router = createRouter({
       component: ConsoleLayout,
       meta: { section: '/projects', level: 'work' },
     },
+    {
+      // Tableau datastore ciblé `/data/:id` (id stable au renommage, ADR 0032) —
+      // section '/data' → DataView. La vue résout `:id` par id OU nom (liens agent) et
+      // absorbe l'ancien `?ns=` en le normalisant vers ce chemin.
+      path: '/data/:id',
+      name: 'data-detail',
+      component: ConsoleLayout,
+      meta: { section: '/data', level: 'work' },
+    },
+    {
+      // Procédure/doctrine ciblée `/doctrine/:slug` (le slug EST l'identité, ADR 0032) —
+      // section '/doctrine' → DoctrineHubView (onglet mine). La vue lit `:slug` et
+      // absorbe l'ancien `?doc=` en le normalisant vers ce chemin.
+      path: '/doctrine/:slug',
+      name: 'doctrine-detail',
+      component: ConsoleLayout,
+      meta: { section: '/doctrine', level: 'work' },
+    },
     ...sectionRoutes,
     {
       // Le retour PKCE est traité par initAuth() avant le mount du router
