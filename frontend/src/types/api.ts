@@ -17,6 +17,7 @@ export interface CredentialField {
   name: string
   label: string
   secret: boolean
+  help?: string              // aide de saisie (ex. « ex. https://eu1.make.com »)
 }
 // Section de doc « how-to » d'un connecteur (user-facing, markdown) — rendue
 // partout où le connecteur s'affiche. `kind` = type curé (ordre + icône).
@@ -37,7 +38,8 @@ export interface AuthDescriptor {
 export interface ConnectorMeta {
   name: string
   label: string
-  help: string
+  help: string               // blurb d'une ligne (sous-titre)
+  description: string        // description user-facing (2-3 phrases, curée — fallback help)
   doc_sections?: DocSection[]  // doc « how-to » user-facing (prérequis/setup/usage), markdown
   href: string | null
   publisher: string          // éditeur affiché (curé) — catalogue
