@@ -262,11 +262,11 @@ async function publishMcp() {
     submitLabel: 'Publier',
   })
   if (!r) return
-  const tools = (r.tools || '').split(/[\n,]/).map((t) => t.trim()).filter(Boolean)
+  const tools = (r.tools ?? '').split(/[\n,]/).map((t) => t.trim()).filter(Boolean)
   mcpBusy.value = true
   try {
     const updated = await publishProjectMcp(projectId, {
-      mcp_slug: r.slug.trim(), mcp_access: r.access as 'anonymous' | 'org', mcp_tools: tools })
+      mcp_slug: (r.slug ?? '').trim(), mcp_access: (r.access ?? 'anonymous') as 'anonymous' | 'org', mcp_tools: tools })
     project.value = { ...project.value, ...updated }
     toast('endpoint MCP publié')
     await loadActivity()
