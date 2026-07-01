@@ -2,9 +2,9 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, ApiToken, BillingBalance, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity,
-  CreditPack, CreditTransaction, DoctrineBundle,
+  DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
@@ -84,7 +84,6 @@ export const disconnectFederated = (name: string) => api(`/api/${name}/oauth`, {
 
 // ── unipile (LinkedIn hébergé) — hosted-auth per-user sous la clé partagée ──
 export const getUnipileStatus = () => api<UnipileStatus>('/api/me/unipile')
-export const subscribeUnipile = () => api<{ checkout_url: string }>('/api/me/unipile/subscribe', { method: 'POST' })
 export const connectUnipile = (channel: string) =>
   api<{ url: string }>('/api/me/unipile/connect', { method: 'POST', ...j({ channel }) })
 export const disconnectUnipile = (channel: string) =>
@@ -249,14 +248,6 @@ export const forkLibraryDoctrine = (slug: string, new_slug?: string) =>
     '/api/me/doctrines/fork', { method: 'POST', ...j({ slug, new_slug }) })
 export const unpublishDoctrine = (id: number) =>
   api(`/api/me/doctrines/library/${id}`, { method: 'DELETE' })
-
-// ── billing (credits d'appel par org, recharge Stripe) ──
-export const getBillingBalance = () => api<BillingBalance & { org_id: number }>('/api/me/billing')
-export const getBillingTransactions = () =>
-  api<{ org_id: number; transactions: CreditTransaction[] }>('/api/me/billing/transactions')
-export const getBillingPacks = () => api<{ packs: CreditPack[] }>('/api/billing/packs')
-export const startCheckout = (pack_id: string) =>
-  api<{ checkout_url: string }>('/api/me/billing/checkout', { method: 'POST', ...j({ pack_id }) })
 
 // ── datastore ──
 export const getNamespaces = () => api<{ namespaces: NamespaceEntry[] }>('/api/datastore/namespaces')

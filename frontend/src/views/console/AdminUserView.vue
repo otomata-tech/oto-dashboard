@@ -211,23 +211,21 @@ async function revokeNs(g: NamespaceGrant) {
   catch (e) { toast(humanize(e)) }
 }
 
-// Options payantes (couche abonnement, oto-backend/docs/connector-model.md) : offrir
-// GRATUITEMENT l'option à CET user (comp admin user-level), distinct du Stripe payant.
+// Options de connecteur (couche 3, oto-backend/docs/connector-model.md) : accorder
+// l'option à CET user (comp admin user-level). Plus de paiement.
 const PAID_OPTIONS = [{ key: 'unipile', label: 'messagerie hébergée (unipile)' }]
 const optionComped = (opt: string) => detail.value?.option_comps?.includes(opt) ?? false
 // Statut EFFECTIF de l'option (pas seulement le comp user) : pour unipile, refléter
-// le comp d'ORG / l'abonnement Stripe / le BYO — sinon « non offerte » ment quand
-// l'utilisateur est en réalité débloqué via son org (le bouton, lui, reste le levier
-// user-level : offrir/retirer le comp À CET utilisateur, indépendant de l'org).
+// le comp d'ORG / le BYO — sinon « non offerte » ment quand l'utilisateur est en
+// réalité débloqué via son org (le bouton, lui, reste le levier user-level :
+// offrir/retirer le comp À CET utilisateur, indépendant de l'org).
 function optionStatus(opt: string): { text: string; tone?: 'olive' | 'saffron' } {
   if (optionComped(opt)) return { text: 'offerte (comp user)', tone: 'olive' }
   if (opt === 'unipile') {
-    // EFFECTIF toutes orgs confondues : débloqué via un comp/abonnement/BYO de l'une de ses orgs.
+    // EFFECTIF toutes orgs confondues : débloqué via un comp/BYO de l'une de ses orgs.
     const orgs = detail.value?.unipile_orgs ?? []
     if (orgs.some((u) => u.option_source?.org_comp)) return { text: 'offerte via org (comp)', tone: 'olive' }
-    const subOrg = orgs.find((u) => u.option_source?.org_subscription)
-    if (subOrg) return { text: `abonnée via org (${subOrg.option_source!.org_subscription!.status})`, tone: 'olive' }
-    if (orgs.some((u) => u.byo)) return { text: 'clé BYO (paie en direct)', tone: 'olive' }
+    if (orgs.some((u) => u.byo)) return { text: 'clé BYO (instance propre)', tone: 'olive' }
   }
   return { text: 'non offerte' }
 }
@@ -253,11 +251,10 @@ const unipileModeLabel = (m?: string) =>
   m === 'user' ? 'perso' : m === 'org' ? 'org' : m === 'group' ? 'équipe'
     : m === 'platform' ? 'plateforme oto' : m
 function unipileSourceLabel(u: AdminUserUnipileOrg): string {
-  if (u.byo) return "clé BYO — l'utilisateur paie en direct"
+  if (u.byo) return "clé BYO — instance Unipile propre"
   const s = u.option_source
   if (s?.user_comp) return 'option offerte (comp user)'
   if (s?.org_comp) return 'option offerte (comp org)'
-  if (s?.org_subscription) return `abonnement Stripe (${s.org_subscription.status})`
   return u.subscribed ? 'option active' : 'aucune option active'
 }
 
@@ -363,9 +360,9 @@ async function toggleOrgRole(o: AdminUserOrg) {
         </table>
       </ConsoleCard>
 
-      <!-- options payantes : comp admin GRATUIT au niveau user (couche abonnement) -->
-      <ConsoleCard flush title="options payantes"
-        sub="offrir gratuitement une option payante à cet utilisateur (comp admin, distinct du paiement Stripe). débloque l'option même sans org.">
+      <!-- options de connecteur : comp admin au niveau user (couche 3) -->
+      <ConsoleCard flush title="options de connecteur"
+        sub="accorder une option de connecteur à cet utilisateur (comp admin). débloque l'option même sans org.">
         <table class="tbl">
           <thead><tr><th>option</th><th>statut</th><th style="width: 130px"></th></tr></thead>
           <tbody>
@@ -374,7 +371,7 @@ async function toggleOrgRole(o: AdminUserOrg) {
               <td><Tag :tone="optionStatus(o.key).tone">{{ optionStatus(o.key).text }}</Tag></td>
               <td style="text-align: right">
                 <Btn :kind="optionComped(o.key) ? 'danger' : 'mini'" @click="toggleOption(o.key)">
-                  {{ optionComped(o.key) ? 'retirer' : 'offrir l\'option' }}
+                  {{ optionComped(o.key) ? 'retirer' : 'accorder l\'option' }}
                 </Btn>
               </td>
             </tr>
@@ -384,7 +381,7 @@ async function toggleOrgRole(o: AdminUserOrg) {
 
       <!-- messagerie Unipile (lecture seule) — un bloc PAR ORG (l'option est per-org) -->
       <ConsoleCard title="messagerie (Unipile)"
-        sub="canaux hébergés + abonnement, PAR org dont l'utilisateur est membre (l'option/abonnement est par org). lecture seule.">
+        sub="canaux hébergés + option, PAR org dont l'utilisateur est membre (l'option est par org). lecture seule.">
         <template v-if="detail.unipile_orgs && detail.unipile_orgs.length">
           <div v-for="(uo, i) in detail.unipile_orgs" :key="uo.org_id ?? `orphan-${i}`"
             class="rowlist"
@@ -393,7 +390,7 @@ async function toggleOrgRole(o: AdminUserOrg) {
               <span style="font-weight: 700; font-size: 13px; color: var(--color-ink)">{{ uo.org_name || '—' }}</span>
               <Tag v-if="uo.is_active" tone="saffron">maison</Tag>
               <Tag v-if="uo.subscribed !== null" :tone="uo.subscribed ? 'olive' : undefined">
-                {{ uo.subscribed ? 'abonné' : 'non abonné' }}
+                {{ uo.subscribed ? 'option active' : 'option inactive' }}
               </Tag>
               <Tag v-if="uo.mode && uo.mode !== 'forbidden'" :tone="uo.mode === 'platform' ? 'saffron' : 'cobalt'">
                 clé : {{ unipileModeLabel(uo.mode) }}

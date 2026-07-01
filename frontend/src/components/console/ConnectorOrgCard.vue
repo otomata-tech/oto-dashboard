@@ -2,7 +2,7 @@
 // Carte connecteur — projection ORG (ADR 0022 §org, ADR 0024 §3). MÊME shell visuel
 // que la carte user (`ConnectorCardShell`) ; le corps porte la gouvernance d'org :
 // disponibilité (BINAIRE, bornée par la plateforme = plancher dur), clé partagée d'org,
-// abonnement (add-on payant), et rédaction des champs (éditable — feature ORG).
+// option de connecteur (couche 3), et rédaction des champs (éditable — feature ORG).
 // Présentation pure : les actions remontent à la vue (qui détient fetch + reload).
 import { computed, ref } from 'vue'
 import ConnectorCardShell from './ConnectorCardShell.vue'
@@ -118,13 +118,13 @@ const emailTransport = computed(() => props.email?.transports?.[r.value.connecto
         </div>
       </div>
 
-      <!-- Levier 3 : abonnement (couche 3) — add-on payant (ex. unipile) -->
+      <!-- Levier 3 : option de connecteur (couche 3) — ex. messagerie hébergée unipile -->
       <div v-if="r.paid_option" class="ocfield">
-        <span class="oclabel">abonnement</span>
-        <span class="ochelp">add-on payant de l'org</span>
+        <span class="oclabel">option</span>
+        <span class="ochelp">option de connecteur (accordée par un admin)</span>
         <div class="ockey">
-          <Tag v-if="r.subscribed" tone="olive">souscrit</Tag>
-          <span v-else class="dim" style="font-size: 11.5px">non souscrit</span>
+          <Tag v-if="r.subscribed" tone="olive">activée</Tag>
+          <span v-else class="dim" style="font-size: 11.5px">non activée</span>
         </div>
       </div>
     </div>

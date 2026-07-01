@@ -171,8 +171,8 @@ async function revokeEnt(e0: OrgEntitlement) {
   catch (e) { toast(humanize(e)) }
 }
 
-// Options payantes (couche abonnement) : offrir GRATUITEMENT l'option à toute l'org
-// (comp admin org-level), distinct du Stripe payant. Couvre tous les membres de l'org.
+// Options de connecteur (couche 3) : accorder l'option à toute l'org (comp admin
+// org-level). Plus de paiement. Couvre tous les membres de l'org.
 const PAID_OPTIONS = [{ key: 'unipile', label: 'messagerie hébergée (unipile)' }]
 const orgOptionComped = (opt: string) => detail.value?.option_comps?.includes(opt) ?? false
 async function toggleOrgOption(opt: string) {
@@ -298,13 +298,13 @@ async function revokeOrgKey(g: AdminGrant) {
           </div>
         </ConsoleCard>
 
-        <ConsoleCard title="options payantes" sub="offrir gratuitement une option payante à TOUTE l'org (comp admin, distinct du paiement Stripe). couvre tous ses membres.">
+        <ConsoleCard title="options de connecteur" sub="accorder une option de connecteur à TOUTE l'org (comp admin). couvre tous ses membres.">
           <div class="rowlist">
             <div v-for="o in PAID_OPTIONS" :key="o.key" class="rowitem" style="gap: 12px">
               <div style="min-width: 0; flex: 1; font-weight: 600; color: var(--color-ink)">{{ o.label }}</div>
               <Tag :tone="orgOptionComped(o.key) ? 'olive' : undefined">{{ orgOptionComped(o.key) ? 'offerte (comp)' : 'non offerte' }}</Tag>
               <Btn :kind="orgOptionComped(o.key) ? 'danger' : 'mini'" @click="toggleOrgOption(o.key)">
-                {{ orgOptionComped(o.key) ? 'retirer' : 'offrir l\'option' }}
+                {{ orgOptionComped(o.key) ? 'retirer' : 'accorder l\'option' }}
               </Btn>
             </div>
           </div>
