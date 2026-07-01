@@ -5,6 +5,7 @@ import Dot from '@/components/console/Dot.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import Avatar from '@/components/console/Avatar.vue'
+import Dropzone from '@/components/console/Dropzone.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
@@ -24,7 +25,6 @@ const detail = ref<OrgDetail | null>(null)
 const invites = ref<OrgInvitation[]>([])
 const error = ref<string | null>(null)
 const loaded = ref(false)
-const logoInput = ref<HTMLInputElement | null>(null)
 const logoBusy = ref(false)
 
 const isOrgAdmin = computed(() => detail.value?.org.my_role === 'org_admin')
@@ -124,14 +124,10 @@ async function editOrg() {
   } catch (e) { toast(humanize(e)) }
 }
 
-function pickLogo() { logoInput.value?.click() }
-async function onLogoFile(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = ''
-  if (!file || activeOrgId.value == null) return
+async function onLogoDrop(file: File) {
+  if (activeOrgId.value == null) return
   try {
-    validateImage(file)
+    validateImage(file) // miroir backend (png/jpeg/webp ≤ 2 Mo) — le Dropzone pré-valide déjà
     logoBusy.value = true
     await uploadOrgLogo(activeOrgId.value, file)
     detail.value = await getOrg(activeOrgId.value)
@@ -226,10 +222,14 @@ async function removeLogo() {
           <ConsoleCard v-if="isOrgAdmin" title="branding" sub="logo shown across the dashboard for this org. png, jpeg or webp · up to 2 MB.">
             <div style="display: flex; align-items: center; gap: 16px">
               <Avatar :src="detail?.org.logo_url" :name="detail?.org.name" :size="56" shape="square" />
-              <div style="display: flex; gap: 10px; flex-wrap: wrap">
-                <input ref="logoInput" type="file" :accept="IMAGE_ACCEPT_ATTR" style="display: none" @change="onLogoFile" />
-                <Btn icon="pen" :disabled="logoBusy" @click="pickLogo">{{ detail?.org.logo_url ? 'change logo' : 'upload logo' }}</Btn>
-                <Btn v-if="detail?.org.logo_url" kind="danger" :disabled="logoBusy" @click="removeLogo">remove</Btn>
+              <div style="flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 8px">
+                <Dropzone :accept="IMAGE_ACCEPT_ATTR" :max-size-mb="2" :busy="logoBusy"
+                  :label="detail?.org.logo_url ? 'changer le logo' : 'déposer un logo'"
+                  hint="png, jpeg ou webp · glisser-déposer ou cliquer · max 2 Mo"
+                  @select="onLogoDrop" @error="toast" />
+                <div v-if="detail?.org.logo_url">
+                  <Btn kind="danger" :disabled="logoBusy" @click="removeLogo">remove logo</Btn>
+                </div>
               </div>
             </div>
           </ConsoleCard>
