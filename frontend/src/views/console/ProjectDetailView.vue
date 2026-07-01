@@ -10,6 +10,7 @@ import ProjectDocs from '@/components/console/ProjectDocs.vue'
 import ProjectEntities from '@/components/console/ProjectEntities.vue'
 import Dropzone from '@/components/console/Dropzone.vue'
 import ProjectShareDialog from '@/components/console/ProjectShareDialog.vue'
+import NameDialog from '@/components/console/NameDialog.vue'
 // Unovis est lourd (~d3) : on l'isole dans son propre chunk, chargé seulement
 // quand le projet a de l'activité (v-if ci-dessous) → vue projet de base légère.
 const ActivityChart = defineAsyncComponent(() => import('@/components/console/ActivityChart.vue'))
@@ -29,7 +30,7 @@ import { useTransferOwnership } from '@/composables/useTransferOwnership'
 const route = useRoute()
 const router = useRouter()
 const { toast } = useToast()
-const { promptForm, confirmAction } = usePrompt()
+const { confirmAction } = usePrompt()
 const { pickTarget } = useTransferOwnership()
 
 const projectId = Number(route.params.id)
@@ -40,6 +41,7 @@ const activity = ref<ProjectActivity[]>([])
 const files = ref<ProjectFile[]>([])
 const uploading = ref(false)
 const shareOpen = ref(false)
+const copyOpen = ref(false)
 const loaded = ref(false)
 const error = ref<string | null>(null)
 
@@ -124,19 +126,13 @@ async function archive() {
 }
 
 // ── modèle (template) : copier ce projet / le publier comme modèle (ADR 0032 §7 B5a) ──
-async function copy() {
-  if (!project.value) return
-  const res = await promptForm({
-    title: 'Copier ce projet', submitLabel: 'Copier',
-    fields: [{ key: 'name', label: 'Nom de la copie', type: 'text',
-               value: `Copie de ${project.value.name}`, required: true }],
-  })
-  if (!res) return
+function copy() { if (project.value) copyOpen.value = true }
+async function doCopy(name: string) {
   try {
-    const copy = await copyProject(projectId, String(res.name).trim())
+    const c = await copyProject(projectId, name)
     toast('projet copié')
-    router.push(`/projects/${copy.id}`)
-  } catch (e) { toast(humanize(e)) }
+    router.push(`/projects/${c.id}`)
+  } catch (e) { toast(humanize(e)); throw e }
 }
 
 async function toggleTemplate() {
@@ -295,6 +291,8 @@ async function transfer() {
       </div>
 
       <ProjectShareDialog v-model:open="shareOpen" :project-name="project.name" :on-confirm="doShare" />
+      <NameDialog v-model:open="copyOpen" title="copier ce projet" label="nom de la copie"
+        :initial="'Copie de ' + project.name" submit-label="copier" :on-confirm="doCopy" />
     </template>
   </div>
 </template>

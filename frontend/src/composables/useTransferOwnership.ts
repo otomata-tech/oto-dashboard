@@ -4,7 +4,7 @@
 // promptForm. Renvoie la cible choisie (le caller fait l'appel API adéquat selon le
 // type de ressource), ou null si annulé / rien de valide.
 import { getMyOrgs } from '@/api/console'
-import { usePrompt } from '@/composables/usePrompt'
+import { useFormPrompt } from '@/composables/useFormPrompt'
 
 export interface TransferTarget {
   email?: string
@@ -12,21 +12,23 @@ export interface TransferTarget {
 }
 
 export function useTransferOwnership() {
-  const { promptForm } = usePrompt()
+  const { promptFormDialog } = useFormPrompt()
 
   async function pickTarget(resourceLabel: string): Promise<TransferTarget | null> {
     const orgs = (await getMyOrgs().catch(() => ({ orgs: [] }))).orgs
-    const r = await promptForm({
+    const r = await promptFormDialog({
       title: 'transférer la propriété',
       description: `donne « ${resourceLabel} » à une de tes orgs, ou à un autre utilisateur. tu gardes l'accès en écriture.`,
+      submitLabel: 'transférer',
       fields: [
         {
           key: 'target',
           label: 'destinataire',
           type: 'select',
-          value: '',
+          initial: 'user',
+          // reka Select refuse une option value="" → sentinel 'user' pour « autre utilisateur ».
           options: [
-            { value: '', label: '— un autre utilisateur (e-mail ci-dessous) —' },
+            { value: 'user', label: 'un autre utilisateur (e-mail ci-dessous)' },
             ...orgs.map((o) => ({ value: `org:${o.id}`, label: `org · ${o.name}` })),
           ],
         },
@@ -36,10 +38,9 @@ export function useTransferOwnership() {
           placeholder: 'user@email.com',
         },
       ],
-      submitLabel: 'transférer',
     })
     if (!r) return null
-    if (r.target?.startsWith('org:')) return { org_id: Number(r.target.slice(4)) }
+    if (r.target && r.target.startsWith('org:')) return { org_id: Number(r.target.slice(4)) }
     const email = (r.email || '').trim()
     return email ? { email } : null
   }
