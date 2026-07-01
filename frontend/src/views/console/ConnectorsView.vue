@@ -12,6 +12,8 @@ import ConnectorCard from '@/components/console/ConnectorCard.vue'
 import CategoryChips from '@/components/console/CategoryChips.vue'
 import Stat from '@/components/console/Stat.vue'
 import Btn from '@/components/console/Btn.vue'
+import NameDialog from '@/components/console/NameDialog.vue'
+import CredentialFieldsDialog from '@/components/console/CredentialFieldsDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
@@ -26,7 +28,12 @@ import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
-const { promptForm, promptText, confirmAction } = usePrompt()
+const { confirmAction } = usePrompt()
+
+// dialogs validés (credential keyé + nom de preset)
+const credOpen = ref(false)
+const credConnector = ref<MyConnector | null>(null)
+const presetOpen = ref(false)
 const { me, reload } = useMe()
 
 const profileLabel = computed(() => me.value?.active_org_name || 'Perso')
@@ -87,24 +94,17 @@ onMounted(async () => {
 })
 
 // ── credential keyé (générique, ADR 0011) ──
-async function configure(c: MyConnector) {
-  const fields = c.credential_fields ?? []
-  if (!fields.length) return
-  const single = fields.length === 1
-  const r = await promptForm({
-    title: single ? `${c.label} api key` : `connect ${c.label}`,
-    description: single
-      ? `your ${c.label} key — stored encrypted; yours overrides the org and platform keys.`
-      : `your ${c.label} credentials — stored encrypted, used to act on your behalf.`,
-    fields: fields.map((f) => ({
-      key: f.name, label: f.label.toLowerCase(), type: f.secret ? 'password' : undefined,
-      required: true, placeholder: single ? `paste your ${c.label} key` : undefined,
-    })),
-    submitLabel: single ? 'save' : 'connect',
-  })
-  if (!r) return
-  try { await setCredential(c.name, r); toast(`${c.label} ${single ? 'key saved' : 'connected'}`); await reload() }
-  catch (e) { toast(humanize(e)) }
+function configure(c: MyConnector) {
+  if (!(c.credential_fields ?? []).length) return
+  credConnector.value = c
+  credOpen.value = true
+}
+async function doSetCredential(values: Record<string, string>) {
+  const c = credConnector.value
+  if (!c) return
+  const single = (c.credential_fields ?? []).length === 1
+  try { await setCredential(c.name, values); toast(`${c.label} ${single ? 'key saved' : 'connected'}`); await reload() }
+  catch (e) { toast(humanize(e)); throw e }
 }
 async function removeKey(c: MyConnector) {
   if (!await confirmAction({ title: 'remove key', danger: true, confirmLabel: 'remove', message: `remove your ${c.label} key?` })) return
@@ -120,10 +120,8 @@ async function removeKey(c: MyConnector) {
 async function applyPreset(name: string) {
   try { await applyPresetApi(name); tools.value = (await getTools()).tools; toast(`preset "${name}" applied`) } catch (e) { toast(humanize(e)) }
 }
-async function saveCurrentPreset() {
-  const name = await promptText('save preset', { label: 'preset name', required: true, placeholder: 'e.g. prospection', hint: 'snapshots your current tool selection' })
-  if (!name) return
-  try { await savePreset(name); presets.value = (await getPresets()).presets; toast(`preset "${name}" saved`) } catch (e) { toast(humanize(e)) }
+async function doSavePreset(name: string) {
+  try { await savePreset(name); presets.value = (await getPresets()).presets; toast(`preset "${name}" saved`) } catch (e) { toast(humanize(e)); throw e }
 }
 async function removePreset(name: string) {
   if (!await confirmAction({ title: 'delete preset', danger: true, confirmLabel: 'delete', message: `delete preset "${name}"?` })) return
@@ -162,7 +160,7 @@ async function removePreset(name: string) {
 
 
     <ConsoleCard title="presets" sub="saved tool selections — switch your whole toolbox in one move.">
-      <template #actions><Btn kind="mini" icon="plus" @click="saveCurrentPreset">save current</Btn></template>
+      <template #actions><Btn kind="mini" icon="plus" @click="presetOpen = true">save current</Btn></template>
       <div class="rowlist">
         <div v-for="p in presets" :key="p.name" class="rowitem" style="gap: 12px">
           <div style="min-width: 0; flex: 1">
@@ -177,6 +175,15 @@ async function removePreset(name: string) {
         <div v-if="!presets.length" class="helptext">no presets yet — tune your tools then “save current”.</div>
       </div>
     </ConsoleCard>
+
+    <CredentialFieldsDialog v-if="credConnector" v-model:open="credOpen"
+      :label="credConnector.label"
+      :fields="credConnector.credential_fields ?? []"
+      :single="(credConnector.credential_fields ?? []).length === 1"
+      :on-confirm="doSetCredential" />
+    <NameDialog v-model:open="presetOpen" title="save preset" label="preset name"
+      description="capture ta sélection d'outils actuelle sous un nom réutilisable."
+      placeholder="e.g. prospection" submit-label="enregistrer" :on-confirm="doSavePreset" />
   </div>
 </template>
 

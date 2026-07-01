@@ -7,8 +7,10 @@ import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import Dot from '@/components/console/Dot.vue'
 import ErrLabel from '@/components/console/ErrLabel.vue'
+import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
-import { usePrompt, type PromptField } from '@/composables/usePrompt'
+import { usePrompt } from '@/composables/usePrompt'
+import { useFormDialog, type FormDialogField } from '@/composables/useFormDialog'
 import { useMe, isSuperAdmin } from '@/composables/useMe'
 import {
   getAdminUser, setUserRole, getPlatformKeys, getConnectors, getMonitoringCalls,
@@ -24,7 +26,10 @@ import { humanize } from '@/lib/errors'
 
 const route = useRoute()
 const { toast } = useToast()
-const { promptForm, confirmAction } = usePrompt()
+const { confirmAction } = usePrompt()
+const { formDialog, formDialogOpen, openForm } = useFormDialog()
+// Dialog séparé pour la révélation du lien d'invitation (ouvert depuis resendInvite).
+const { formDialog: revealDialog, formDialogOpen: revealOpen, openForm: openReveal } = useFormDialog()
 const { me } = useMe()
 
 // La gestion des rôles plateforme est réservée au super_admin (le backend rejette
@@ -108,11 +113,12 @@ async function resendInvite() {
     if (res.emailed) {
       toast(`invitation re-sent to ${res.email}`)
     } else {
-      await promptForm({
+      openReveal({
         title: 'share this invitation link',
         description: 'email delivery is off on this server — copy and send it yourself.',
-        fields: [{ key: 'url', label: 'invitation link', value: res.invite_url }],
+        fields: [{ key: 'url', label: 'invitation link', initial: res.invite_url }],
         submitLabel: 'done',
+        onConfirm: async () => {},
       })
     }
     await loadDetail()
@@ -160,42 +166,44 @@ async function pickRole(next: Role) {
 const grantFor = (provider: string) => detail.value?.grants.find((g) => g.provider === provider)
 const platformKeysFor = (provider: string) => keys.value.filter((k) => k.provider === provider)
 
-async function grantKey(provider: string) {
+function grantKey(provider: string) {
   const pool = platformKeysFor(provider)
   if (!pool.length) { toast(`no platform key for ${provider} — create one in platform keys first`); return }
-  const fields: PromptField[] = []
+  const fields: FormDialogField[] = []
   if (pool.length > 1) {
     fields.push({ key: 'key', label: 'platform key', type: 'select', required: true,
       options: pool.map((k) => ({ value: String(k.id), label: `${k.provider}/${k.label}` })) })
   }
   fields.push({ key: 'quota', label: 'daily quota', placeholder: 'blank = provider default', hint: 'max calls per day' })
-  const r = await promptForm({
+  openForm({
     title: `grant ${provider}`, description: `lend the shared ${provider} platform key to this user (quota-metered, key never revealed).`,
     fields, submitLabel: 'grant',
+    onConfirm: async (v) => {
+      const keyId = pool.length > 1 ? Number(v.key) : pool[0]!.id
+      const quota = v.quota ? Math.max(1, Number(v.quota)) : undefined
+      try { await grantPlatformKey(sub.value, keyId, quota); toast(`${provider} granted`); await loadDetail() }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  const keyId = pool.length > 1 ? Number(r.key) : pool[0]!.id
-  const quota = r.quota ? Math.max(1, Number(r.quota)) : undefined
-  try { await grantPlatformKey(sub.value, keyId, quota); toast(`${provider} granted`); await loadDetail() }
-  catch (e) { toast(humanize(e)) }
 }
 async function revokeKey(g: AdminGrant) {
   if (!await confirmAction({ title: 'revoke grant', danger: true, confirmLabel: 'revoke', message: `revoke ${g.provider}/${g.label}?` })) return
   try { await revokePlatformKey(sub.value, g.platform_key_id); toast('grant revoked'); await loadDetail() }
   catch (e) { toast(humanize(e)) }
 }
-async function grantNs() {
-  const r = await promptForm({
+function grantNs() {
+  openForm({
     title: 'grant a namespace', description: 'unlock a controlled (deny-by-default) namespace for this user.',
     fields: nsOptions.value.length
       ? [{ key: 'ns', label: 'namespace', type: 'select', required: true, placeholder: 'choose a namespace',
           options: nsOptions.value.map((n) => ({ value: n, label: n })) }]
       : [{ key: 'ns', label: 'namespace', required: true, hint: 'no controlled namespace in catalog — type one' }],
     submitLabel: 'grant',
+    onConfirm: async (v) => {
+      try { await grantNamespace(sub.value, v.ns ?? ''); toast(`granted ${v.ns}`); await loadDetail() }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  try { await grantNamespace(sub.value, r.ns ?? ''); toast(`granted ${r.ns}`); await loadDetail() }
-  catch (e) { toast(humanize(e)) }
 }
 async function revokeNs(g: NamespaceGrant) {
   if (!await confirmAction({ title: 'revoke namespace grant', danger: true, confirmLabel: 'revoke', message: `revoke ${g.namespace}?` })) return
@@ -203,23 +211,21 @@ async function revokeNs(g: NamespaceGrant) {
   catch (e) { toast(humanize(e)) }
 }
 
-// Options payantes (couche abonnement, oto-backend/docs/connector-model.md) : offrir
-// GRATUITEMENT l'option à CET user (comp admin user-level), distinct du Stripe payant.
+// Options de connecteur (couche 3, oto-backend/docs/connector-model.md) : accorder
+// l'option à CET user (comp admin user-level). Plus de paiement.
 const PAID_OPTIONS = [{ key: 'unipile', label: 'messagerie hébergée (unipile)' }]
 const optionComped = (opt: string) => detail.value?.option_comps?.includes(opt) ?? false
 // Statut EFFECTIF de l'option (pas seulement le comp user) : pour unipile, refléter
-// le comp d'ORG / l'abonnement Stripe / le BYO — sinon « non offerte » ment quand
-// l'utilisateur est en réalité débloqué via son org (le bouton, lui, reste le levier
-// user-level : offrir/retirer le comp À CET utilisateur, indépendant de l'org).
+// le comp d'ORG / le BYO — sinon « non offerte » ment quand l'utilisateur est en
+// réalité débloqué via son org (le bouton, lui, reste le levier user-level :
+// offrir/retirer le comp À CET utilisateur, indépendant de l'org).
 function optionStatus(opt: string): { text: string; tone?: 'olive' | 'saffron' } {
   if (optionComped(opt)) return { text: 'offerte (comp user)', tone: 'olive' }
   if (opt === 'unipile') {
-    // EFFECTIF toutes orgs confondues : débloqué via un comp/abonnement/BYO de l'une de ses orgs.
+    // EFFECTIF toutes orgs confondues : débloqué via un comp/BYO de l'une de ses orgs.
     const orgs = detail.value?.unipile_orgs ?? []
     if (orgs.some((u) => u.option_source?.org_comp)) return { text: 'offerte via org (comp)', tone: 'olive' }
-    const subOrg = orgs.find((u) => u.option_source?.org_subscription)
-    if (subOrg) return { text: `abonnée via org (${subOrg.option_source!.org_subscription!.status})`, tone: 'olive' }
-    if (orgs.some((u) => u.byo)) return { text: 'clé BYO (paie en direct)', tone: 'olive' }
+    if (orgs.some((u) => u.byo)) return { text: 'clé BYO (instance propre)', tone: 'olive' }
   }
   return { text: 'non offerte' }
 }
@@ -245,11 +251,10 @@ const unipileModeLabel = (m?: string) =>
   m === 'user' ? 'perso' : m === 'org' ? 'org' : m === 'group' ? 'équipe'
     : m === 'platform' ? 'plateforme oto' : m
 function unipileSourceLabel(u: AdminUserUnipileOrg): string {
-  if (u.byo) return "clé BYO — l'utilisateur paie en direct"
+  if (u.byo) return "clé BYO — instance Unipile propre"
   const s = u.option_source
   if (s?.user_comp) return 'option offerte (comp user)'
   if (s?.org_comp) return 'option offerte (comp org)'
-  if (s?.org_subscription) return `abonnement Stripe (${s.org_subscription.status})`
   return u.subscribed ? 'option active' : 'aucune option active'
 }
 
@@ -355,9 +360,9 @@ async function toggleOrgRole(o: AdminUserOrg) {
         </table>
       </ConsoleCard>
 
-      <!-- options payantes : comp admin GRATUIT au niveau user (couche abonnement) -->
-      <ConsoleCard flush title="options payantes"
-        sub="offrir gratuitement une option payante à cet utilisateur (comp admin, distinct du paiement Stripe). débloque l'option même sans org.">
+      <!-- options de connecteur : comp admin au niveau user (couche 3) -->
+      <ConsoleCard flush title="options de connecteur"
+        sub="accorder une option de connecteur à cet utilisateur (comp admin). débloque l'option même sans org.">
         <table class="tbl">
           <thead><tr><th>option</th><th>statut</th><th style="width: 130px"></th></tr></thead>
           <tbody>
@@ -366,7 +371,7 @@ async function toggleOrgRole(o: AdminUserOrg) {
               <td><Tag :tone="optionStatus(o.key).tone">{{ optionStatus(o.key).text }}</Tag></td>
               <td style="text-align: right">
                 <Btn :kind="optionComped(o.key) ? 'danger' : 'mini'" @click="toggleOption(o.key)">
-                  {{ optionComped(o.key) ? 'retirer' : 'offrir l\'option' }}
+                  {{ optionComped(o.key) ? 'retirer' : 'accorder l\'option' }}
                 </Btn>
               </td>
             </tr>
@@ -376,7 +381,7 @@ async function toggleOrgRole(o: AdminUserOrg) {
 
       <!-- messagerie Unipile (lecture seule) — un bloc PAR ORG (l'option est per-org) -->
       <ConsoleCard title="messagerie (Unipile)"
-        sub="canaux hébergés + abonnement, PAR org dont l'utilisateur est membre (l'option/abonnement est par org). lecture seule.">
+        sub="canaux hébergés + option, PAR org dont l'utilisateur est membre (l'option est par org). lecture seule.">
         <template v-if="detail.unipile_orgs && detail.unipile_orgs.length">
           <div v-for="(uo, i) in detail.unipile_orgs" :key="uo.org_id ?? `orphan-${i}`"
             class="rowlist"
@@ -385,7 +390,7 @@ async function toggleOrgRole(o: AdminUserOrg) {
               <span style="font-weight: 700; font-size: 13px; color: var(--color-ink)">{{ uo.org_name || '—' }}</span>
               <Tag v-if="uo.is_active" tone="saffron">maison</Tag>
               <Tag v-if="uo.subscribed !== null" :tone="uo.subscribed ? 'olive' : undefined">
-                {{ uo.subscribed ? 'abonné' : 'non abonné' }}
+                {{ uo.subscribed ? 'option active' : 'option inactive' }}
               </Tag>
               <Tag v-if="uo.mode && uo.mode !== 'forbidden'" :tone="uo.mode === 'platform' ? 'saffron' : 'cobalt'">
                 clé : {{ unipileModeLabel(uo.mode) }}
@@ -440,6 +445,13 @@ async function toggleOrgRole(o: AdminUserOrg) {
         </table>
       </ConsoleCard>
     </template>
+
+    <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
+      :title="formDialog.title" :description="formDialog.description"
+      :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
+    <FormDialog v-if="revealDialog" v-model:open="revealOpen"
+      :title="revealDialog.title" :description="revealDialog.description"
+      :fields="revealDialog.fields" :submit-label="revealDialog.submitLabel" :on-confirm="revealDialog.onConfirm" />
   </div>
 </template>
 

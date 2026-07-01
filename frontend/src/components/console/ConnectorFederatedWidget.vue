@@ -3,7 +3,7 @@
 // (fin de la carte ancrée #federated). Auto-suffisant : charge son propre statut,
 // connect/disconnect via les routes génériques /api/<name>/oauth/*, + doc « how-to ».
 // On fédère le LOGIN du MCP tiers ; ses outils sont proxifiés et restent sous la
-// gouvernance oto (redaction/calllog/billing).
+// gouvernance oto (redaction/calllog).
 import { onMounted, ref, computed } from 'vue'
 import Btn from './Btn.vue'
 import Dot from './Dot.vue'

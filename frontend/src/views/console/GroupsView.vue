@@ -10,8 +10,10 @@ import Dot from '@/components/console/Dot.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import GroupDoctrineCard from '@/components/console/GroupDoctrineCard.vue'
+import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useFormDialog } from '@/composables/useFormDialog'
 import { useDeepLink } from '@/composables/useDeepLink'
 import { useMe } from '@/composables/useMe'
 import {
@@ -24,7 +26,8 @@ import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
-const { confirmAction, promptForm } = usePrompt()
+const { confirmAction } = usePrompt()
+const { formDialog, formDialogOpen, openForm } = useFormDialog()
 const { me, reload } = useMe()
 
 const groups = ref<GroupListItem[]>([])
@@ -72,8 +75,8 @@ async function refresh() {
   if (selectedId.value != null) await select(selectedId.value)
 }
 
-async function create() {
-  const r = await promptForm({
+function create() {
+  openForm({
     title: 'new department',
     description: 'a group inside your org, with its own team lead, doctrine, toolset and shared keys.',
     fields: [
@@ -81,13 +84,14 @@ async function create() {
       { key: 'description', label: 'description', type: 'textarea', placeholder: 'what this team does (optional)' },
     ],
     submitLabel: 'create',
+    onConfirm: async (v) => {
+      try {
+        const g = await createGroup(activeOrgId.value!, (v.name ?? ''), v.description || '')
+        toast(`department "${g.name}" created`)
+        await load(); await select(g.group_id)
+      } catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r || !r.name) return
-  try {
-    const g = await createGroup(activeOrgId.value!, r.name, r.description || '')
-    toast(`department "${g.name}" created`)
-    await load(); await select(g.group_id)
-  } catch (e) { toast(humanize(e)) }
 }
 
 async function switchTo(id: number) {
@@ -99,21 +103,22 @@ async function leaveActive() {
   catch (e) { toast(humanize(e)) }
 }
 
-async function addMember() {
-  const r = await promptForm({
+function addMember() {
+  openForm({
     title: 'add to department',
     description: 'the person must already be a member of the org.',
     fields: [
       { key: 'target', label: 'email or sub', placeholder: 'name@company.com', required: true },
-      { key: 'role', label: 'role', type: 'select', value: 'group_member',
+      { key: 'role', label: 'role', type: 'select', initial: 'group_member',
         options: [{ value: 'group_member', label: 'member' }, { value: 'group_admin', label: 'team lead' }] },
     ],
     submitLabel: 'add',
+    onConfirm: async (v) => {
+      const role: GroupRole = v.role === 'group_admin' ? 'group_admin' : 'group_member'
+      try { await addGroupMember(selectedId.value!, (v.target ?? ''), role); toast('member added'); await select(selectedId.value!) }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r || !r.target) return
-  const role: GroupRole = r.role === 'group_admin' ? 'group_admin' : 'group_member'
-  try { await addGroupMember(selectedId.value!, r.target, role); toast('member added'); await select(selectedId.value!) }
-  catch (e) { toast(humanize(e)) }
 }
 async function toggleMemberRole(sub: string, role: GroupRole) {
   const next: GroupRole = role === 'group_admin' ? 'group_member' : 'group_admin'
@@ -126,8 +131,8 @@ async function removeMember(sub: string) {
   catch (e) { toast(humanize(e)) }
 }
 
-async function addSecret() {
-  const r = await promptForm({
+function addSecret() {
+  openForm({
     title: 'shared key',
     description: 'an org-shareable provider key for this department — resolves before the org key for its members.',
     fields: [
@@ -136,10 +141,11 @@ async function addSecret() {
       { key: 'base_url', label: 'base url', placeholder: 'remote connectors only (optional)' },
     ],
     submitLabel: 'save key',
+    onConfirm: async (v) => {
+      try { await setGroupSecret(selectedId.value!, (v.provider ?? ''), (v.api_key ?? ''), v.base_url || undefined); toast('shared key saved'); await select(selectedId.value!) }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r || !r.provider || !r.api_key) return
-  try { await setGroupSecret(selectedId.value!, r.provider, r.api_key, r.base_url || undefined); toast('shared key saved'); await select(selectedId.value!) }
-  catch (e) { toast(humanize(e)) }
 }
 async function removeSecret(provider: string) {
   if (!await confirmAction({ title: 'remove shared key', danger: true, confirmLabel: 'remove', message: `remove the shared ${provider} key?` })) return
@@ -147,18 +153,19 @@ async function removeSecret(provider: string) {
   catch (e) { toast(humanize(e)) }
 }
 
-async function editPreset() {
+function editPreset() {
   const current = (detail.value?.default_tools ?? []).join('\n')
-  const r = await promptForm({
+  openForm({
     title: 'toolset preset',
     description: 'one tool name per line — the default visible toolset for this team. personal toggles still win; grant-only tools are never revealed. leave empty to keep nobody visible by default.',
-    fields: [{ key: 'tools', label: 'tools', type: 'textarea', value: current, placeholder: 'serper_web_search\nfr_search\n…' }],
+    fields: [{ key: 'tools', label: 'tools', type: 'textarea', initial: current, placeholder: 'serper_web_search\nfr_search\n…' }],
     submitLabel: 'set preset',
+    onConfirm: async (v) => {
+      const tools = (v.tools || '').split(/[\s,]+/).map(s => s.trim()).filter(Boolean)
+      try { await setGroupPreset(selectedId.value!, tools); toast('preset set'); await select(selectedId.value!) }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  const tools = (r.tools || '').split(/[\s,]+/).map(s => s.trim()).filter(Boolean)
-  try { await setGroupPreset(selectedId.value!, tools); toast('preset set'); await select(selectedId.value!) }
-  catch (e) { toast(humanize(e)) }
 }
 async function clearPreset() {
   if (!await confirmAction({ title: 'clear preset', confirmLabel: 'clear', message: 'remove the toolset baseline (members keep their default visibility)?' })) return
@@ -166,18 +173,19 @@ async function clearPreset() {
   catch (e) { toast(humanize(e)) }
 }
 
-async function rename() {
-  const r = await promptForm({
+function rename() {
+  openForm({
     title: 'edit department',
     fields: [
-      { key: 'name', label: 'name', value: detail.value?.group.name, required: true },
-      { key: 'description', label: 'description', type: 'textarea', value: detail.value?.group.description },
+      { key: 'name', label: 'name', initial: detail.value?.group.name, required: true },
+      { key: 'description', label: 'description', type: 'textarea', initial: detail.value?.group.description },
     ],
     submitLabel: 'save',
+    onConfirm: async (v) => {
+      try { await updateGroup(selectedId.value!, { name: (v.name ?? ''), description: v.description || '' }); toast('saved'); await refresh() }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r || !r.name) return
-  try { await updateGroup(selectedId.value!, { name: r.name, description: r.description || '' }); toast('saved'); await refresh() }
-  catch (e) { toast(humanize(e)) }
 }
 async function removeGroup() {
   if (!await confirmAction({ title: 'delete department', danger: true, confirmLabel: 'delete', message: 'delete this department? members, doctrine, preset and shared keys are purged. members stay in the org.' })) return
@@ -301,5 +309,9 @@ async function removeGroup() {
         <GroupDoctrineCard :group-id="detail.group.id" :can-edit="canManage" />
       </template>
     </template>
+
+    <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
+      :title="formDialog.title" :description="formDialog.description"
+      :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
   </div>
 </template>

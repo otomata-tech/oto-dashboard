@@ -31,9 +31,6 @@ npm run build           # vue-tsc + vite build → frontend/dist
 
 Section `/console/groups` (`GroupsView.vue` + `GroupDoctrineCard.vue`) : départements d'une org avec **chef d'équipe** (`group_admin`). Un membre bascule son **groupe actif** (`useGroup` → `PUT /api/me/active-group`) ; le chef (ou un org_admin) gère membres, **secrets partagés** (résolus avant ceux de l'org), **preset de toolset** (baseline de visibilité) et **doctrine** de groupe. Hiérarchie de droits côté backend (`roles.py`, escalade descendante) — l'UI masque seulement les contrôles. `Me` porte `active_group`/`active_group_name`/`group_role` ; `ProviderStatus.mode` peut valoir `group` (libellé « team key »). Contrats : `oto-backend/docs/groups-and-roles.md`.
 
-## Billing / credits (paiement Stripe)
-
-Section `/console/billing` (`BillingView.vue`) : portefeuille de credits d'appel **par org active**. 1 appel MCP = 1 credit ; chaque org reçoit un stock de base gratuit, puis recharge par **packs Stripe** (paiement ponctuel — `POST /api/me/billing/checkout` → redirect `checkout_url`). Soft : le solde peut être négatif, l'appel n'est jamais bloqué (drapeau `low`). Le solde vit dans `me.billing` (`{balance, low, base_granted}`, `null` si pas d'org active) — pas de fetch dédié pour l'afficher. Packs/historique via `getBillingPacks`/`getBillingTransactions`. Retour de Checkout : `?status=success|cancel` → toast + `reload()` du `me`. Achat ouvert à tout membre (recharge le wallet partagé). Backend : `oto-backend/CLAUDE.md` §Billing.
 ## Connecteurs — surface unifiée (connexion + outils, 3 états)
 
 Section unique `/console/connectors` (`ConnectorsView.vue`) : **fusion** des ex-écrans
@@ -126,6 +123,17 @@ picker des vraies entités via `getNamespaces`/`getConnectors`/`getDoctrine`/`ge
 `shareResource`/`transferResource`) + **journal d'activité**. API client : `*Project*`/`*Doc*`
 dans `api/console.ts` (POST op-aware `/api/me/{projects,docs}`). Backend : `oto-backend/CLAUDE.md`
 §Projet. Non faits : MCP-App rendu, édition temps réel, pré-set vendable.
+
+> **Partage public CHIFFRÉ (ADR 0032 §3, zero-knowledge).** `ProjectDetailView` porte une carte
+> « lien public · chiffré » : à la publication, le navigateur assemble un snapshot (brief + pages
+> via `listDocs`), le **chiffre** (`lib/crypto.ts`, WebCrypto AES-256-GCM, clé neuve) et n'envoie
+> que le ciphertext (`publishProjectShare`) ; la clé part dans le **fragment** du lien
+> (`/p/p/<token>#<clé>`), copié au presse-papier. Le lien complet est mémorisé en `localStorage`
+> (`oto:pshare:<id>`) pour le ré-afficher (la clé n'existe QUE côté client → sinon re-publier).
+> Viewer public `PublicProjectView.vue` (route `/p/p/:token`, hors shell, sans auth) : lit la clé
+> du hash, `getPublicProjectShare` → `decryptShare` → rend brief + arbre de pages (`MarkdownView`).
+> `Project.public_shared`/`public_shared_at` viennent du `get` backend. Pendant chiffré du viewer
+> public de doc (#4a, `PublicDocView` / `/p/d/:token`).
 
 ## Mémoire — datastore + knowledge (ADR 0016)
 

@@ -2,7 +2,8 @@
 import { computed, ref, watch } from 'vue'
 import Btn from './Btn.vue'
 import Icon from './Icon.vue'
-import { usePrompt } from '@/composables/usePrompt'
+import FormDialog from './FormDialog.vue'
+import { useFormDialog } from '@/composables/useFormDialog'
 import type { DatastoreRow } from '@/types/api'
 import { cellKind, absDate } from '@/lib/cellRender'
 
@@ -19,7 +20,7 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const { promptText } = usePrompt()
+const { formDialog, formDialogOpen, openForm } = useFormDialog()
 const META = new Set(['_id', '_created_at', '_updated_at'])
 
 const draft = ref<Record<string, string>>({})
@@ -56,11 +57,17 @@ watch(() => [props.open, props.row], () => {
   draft.value = d
 }, { immediate: true })
 
-async function addField() {
-  const name = await promptText('add field', { label: 'field name', required: true, placeholder: 'e.g. status' })
-  if (!name || META.has(name) || name in draft.value) return
-  extra.value.push(name)
-  draft.value[name] = ''
+function addField() {
+  openForm({
+    title: 'add field',
+    fields: [{ key: 'value', label: 'field name', required: true, placeholder: 'e.g. status' }],
+    onConfirm: async (v) => {
+      const name = v.value
+      if (!name || META.has(name) || name in draft.value) return
+      extra.value.push(name)
+      draft.value[name] = ''
+    },
+  })
 }
 
 function save() {
@@ -129,6 +136,10 @@ const title = computed(() => props.isNew ? 'new row' : (props.row?._id ?? 'row')
           <Btn kind="ghost" @click="emit('close')">{{ readOnly ? 'close' : 'cancel' }}</Btn>
           <Btn v-if="!readOnly" kind="mini" icon="check" @click="save">save</Btn>
         </footer>
+
+        <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
+          :title="formDialog.title" :description="formDialog.description"
+          :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
       </div>
     </div>
   </Transition>

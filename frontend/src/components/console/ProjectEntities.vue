@@ -27,6 +27,7 @@ const LINK_GROUPS: { type: ProjectLinkType; label: string; icon: string }[] = [
   { type: 'procedure', label: 'Procédures', icon: 'doc' },
   { type: 'connecteur', label: 'Connecteurs', icon: 'plug' },
   { type: 'base', label: 'Bases de connaissances', icon: 'book' },
+  { type: 'page', label: 'Pages memento', icon: 'doc' },
 ]
 const TYPE_ICON: Record<string, string> = Object.fromEntries(LINK_GROUPS.map((g) => [g.type, g.icon]))
 
@@ -36,12 +37,21 @@ const TYPE_ICON: Record<string, string> = Object.fromEntries(LINK_GROUPS.map((g)
 function entityHref(l: ProjectLink): string | null {
   const ref = encodeURIComponent(l.target_ref)
   switch (l.target_type) {
-    case 'tableau': return `/data?ns=${ref}`
-    case 'procedure': return `/doctrine?tab=mine&doc=${ref}`
+    case 'tableau': return `/data/${ref}`
+    case 'procedure': return `/doctrine/${ref}`
     case 'connecteur': return '/connectors?tab=mine'
     case 'base': return '/documents'
+    case 'page': return l.target_ref   // URL memento complète (lien externe, cf. hrefInfo)
     default: return null
   }
+}
+// Résout l'élément + attributs du lien : `<a>` externe pour une URL http(s) (page
+// memento), `RouterLink` interne sinon, `span` si non navigable. Une seule source.
+function hrefInfo(l: ProjectLink): { el: unknown; to?: string; href?: string } {
+  const h = entityHref(l)
+  if (!h) return { el: 'span' }
+  if (/^https?:\/\//i.test(h)) return { el: 'a', href: h }
+  return { el: RouterLink, to: h }
 }
 const linksByType = computed(() => {
   const out: Record<string, ProjectLink[]> = {}
@@ -54,7 +64,8 @@ type LinkOption = { value: string; label: string }
 async function entitiesFor(type: ProjectLinkType): Promise<LinkOption[]> {
   if (type === 'tableau') return (await getNamespaces()).namespaces.map((n) => ({ value: String(n.id), label: n.namespace }))
   if (type === 'connecteur') return (await getConnectors()).connectors.map((c) => ({ value: c.name, label: c.label || c.name }))
-  if (type === 'procedure') return ((await getDoctrine()).instructions ?? []).map((i) => ({ value: i.slug, label: i.title }))
+  if (type === 'procedure') return ((await getDoctrine()).instructions ?? []).map((i) => ({ value: String(i.id), label: i.title }))
+  if (type === 'page') return []   // page memento = saisie d'URL (pas de picker), cf. template
   const w = await getMementoWorkspaces()
   const seen = new Set<string>()
   return [...w.orgs.flatMap((o) => o.workspaces), ...w.shared, ...w.pinned]
@@ -167,7 +178,11 @@ async function removeLink(l: ProjectLink) {
           <option v-for="g in LINK_GROUPS" :key="g.type" :value="g.type">{{ g.label }}</option>
         </select>
       </label>
-      <label class="pj-fld">
+      <label v-if="linkType === 'page'" class="pj-fld">
+        <span class="pj-fld__lbl">URL de la page</span>
+        <input v-model="linkRef" class="pj-input" type="url" inputmode="url" placeholder="https://…/page memento" />
+      </label>
+      <label v-else class="pj-fld">
         <span class="pj-fld__lbl">Entité</span>
         <select v-model="linkRef" class="pj-input" :disabled="!linkType || linkLoading" @change="onRefChange">
           <option value="" disabled>{{ linkLoading ? 'chargement…' : !linkType ? 'choisis un type' : linkOpts.length ? 'choisir…' : 'aucune entité de ce type' }}</option>
@@ -196,8 +211,10 @@ async function removeLink(l: ProjectLink) {
             <span class="ent__ico"><Icon :name="TYPE_ICON[l.target_type] || 'doc'" :size="15" /></span>
             <div class="ent__body">
               <div class="ent__top">
-                <component :is="entityHref(l) ? RouterLink : 'span'" :to="entityHref(l) || undefined"
-                  class="ent__name" :class="{ 'ent__name--link': entityHref(l) }">
+                <component :is="hrefInfo(l).el" :to="hrefInfo(l).to" :href="hrefInfo(l).href"
+                  :target="hrefInfo(l).href ? '_blank' : undefined"
+                  :rel="hrefInfo(l).href ? 'noopener noreferrer' : undefined"
+                  class="ent__name" :class="{ 'ent__name--link': !!entityHref(l) }">
                   {{ l.label || l.target_ref }}
                   <Icon v-if="entityHref(l)" name="ext" :size="11" class="ent__go" />
                 </component>

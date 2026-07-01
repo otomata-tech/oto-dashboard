@@ -45,7 +45,6 @@ export const NAV: NavGroup[] = [
   { group: 'account', level: 'work', items: [
     { path: '/account', label: 'manage account', icon: 'user' },
     { path: '/activity', label: 'activity', icon: 'pulse' },
-    { path: '/billing', label: 'billing & credits', icon: 'card' },
   ]},
   // ── Gérer mon org : agir SUR l'organisation active ─────────────────────────
   { group: 'organization', level: 'org', items: [
@@ -82,7 +81,6 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/documents': { title: 'documents', crumb: 'memory' },
   '/account': { title: 'manage account', crumb: 'account' },
   '/activity': { title: 'activity', crumb: 'account' },
-  '/billing': { title: 'billing & credits', crumb: 'account' },
   '/org': { title: 'organization', crumb: 'gérer mon org' },
   '/org/connectors': { title: 'org connectors', crumb: 'gérer mon org' },
   '/org/departments': { title: 'departments', crumb: 'gérer mon org' },

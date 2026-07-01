@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import ConsoleSidebar from '@/components/console/ConsoleSidebar.vue'
 import ConsoleTopbar from '@/components/console/ConsoleTopbar.vue'
 import PromptDialog from '@/components/console/PromptDialog.vue'
+import FormPromptHost from '@/components/console/FormPromptHost.vue'
 import StateError from '@/components/console/StateError.vue'
 import SkeletonOverview from '@/components/console/SkeletonOverview.vue'
 import WaitlistView from './WaitlistView.vue'
@@ -29,7 +30,6 @@ const VIEWS: Record<string, Component> = {
   '/documents': defineAsyncComponent(() => import('./DocumentsView.vue')),
   '/knowledge': defineAsyncComponent(() => import('./KnowledgeView.vue')),
   '/activity': defineAsyncComponent(() => import('./ActivityView.vue')),
-  '/billing': defineAsyncComponent(() => import('./BillingView.vue')),
   '/account': defineAsyncComponent(() => import('./AccountView.vue')),
   '/org': defineAsyncComponent(() => import('./OrgView.vue')),
   '/org/connectors': defineAsyncComponent(() => import('./OrgConnectorsView.vue')),
@@ -87,5 +87,6 @@ const viewKey = computed(() =>
     </div>
     <div v-if="message" class="toast">{{ message }}</div>
     <PromptDialog />
+    <FormPromptHost />
   </div>
 </template>

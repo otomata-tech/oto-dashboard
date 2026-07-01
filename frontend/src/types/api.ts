@@ -116,8 +116,8 @@ export interface OrgConnectorActivation {
   org_enabled: boolean | null
   effective: boolean
   recommended: boolean
-  paid_option?: string | null   // add-on payant (couche 3, ADR 0024) ; null = pas d'option payante
-  subscribed?: boolean          // l'org a souscrit l'option (comp admin ou abonnement Stripe)
+  paid_option?: string | null   // option de connecteur (couche 3, ADR 0024) ; null = pas d'option
+  subscribed?: boolean          // l'org a l'option débloquée (comp admin)
 }
 
 // RBAC connecteur interne à l'org (ADR 0025) : une entrée = un principal (département
@@ -164,27 +164,6 @@ export interface Me {
   access: AccessState                  // gate doux alpha (ADR 0013)
   memento?: MementoStatus              // fédération MCP (otomata#16) — auto-prompt connexion
   providers: Record<string, ProviderStatus | undefined>
-  billing: BillingBalance | null    // wallet de credits de l'org active (null si pas d'org)
-}
-
-// ── billing (credits d'appel par org, paiement Stripe) ──
-export interface BillingBalance {
-  balance: number           // credits d'appel restants ; peut être négatif (soft)
-  low: boolean              // solde bas/négatif → alerte UI
-  base_granted: boolean     // le stock de base gratuit a été crédité
-}
-export interface CreditPack {
-  pack_id: string
-  calls: number
-  amount_cents: number
-  label: string
-}
-export interface CreditTransaction {
-  id: number
-  delta: number             // >0 = recharge/don, <0 = ajustement
-  reason: string            // 'stripe' | 'base_grant' | 'admin_adjust'
-  stripe_event_id: string | null
-  created_at: string
 }
 
 // Accès plateforme alpha (ADR 0013) : status = gate doux, invites_left = budget
@@ -266,6 +245,7 @@ export interface PresetEntry {
 
 // ── doctrine / instructions ──
 export interface InstructionMeta {
+  id: number
   slug: string
   title: string
   description: string
@@ -331,7 +311,7 @@ export interface PlatformInstrBlock {
 }
 
 // ── Projets (couche d'organisation, ADR 0030) ──
-export type ProjectLinkType = 'tableau' | 'procedure' | 'connecteur' | 'base'
+export type ProjectLinkType = 'tableau' | 'procedure' | 'connecteur' | 'base' | 'page'
 // Surcharge contextuelle PRÉFAITE d'un connecteur dans un projet (ADR 0032 §4, B2) :
 // quel compte agir + instructions de surcharge en prose, posées au montage du projet,
 // lues par l'agent au chargement — jamais déclarées à la volée.
@@ -356,6 +336,8 @@ export interface Project {
   owner_id: string
   is_template?: boolean          // publié comme modèle copiable (ADR 0032 §7 B5a)
   can_write?: boolean            // droit d'écriture effectif (#4b) ; false → lecture seule
+  public_shared?: boolean        // partage public CHIFFRÉ actif (ADR 0032 §3, zero-knowledge)
+  public_shared_at?: string | null  // horodatage de la dernière (re)publication chiffrée
   created_at?: string | null
   updated_at?: string | null
   archived_at?: string | null
@@ -551,7 +533,7 @@ export interface UnipileChannel {
   connected_at: string | null
 }
 export interface UnipileStatus {
-  subscribed: boolean       // option payée (abonnement actif) — gate l'étape « connecter »
+  subscribed: boolean       // option débloquée (BYO ou comp admin) — gate l'étape « connecter »
   mode?: string             // user|group|org|platform|over_quota|forbidden (origine de la clé)
   byo?: boolean             // clé propre (user/groupe/org), pas la clé plateforme
   channels: { linkedin: UnipileChannel; whatsapp: UnipileChannel; telegram: UnipileChannel; instagram: UnipileChannel; messenger: UnipileChannel; twitter: UnipileChannel }
@@ -760,11 +742,11 @@ export interface AdminUserDetail {
   providers: Record<string, ProviderStatus | undefined>
   grants: AdminGrant[]
   namespace_grants: NamespaceGrant[]
-  option_comps: string[]   // options payantes offertes (comp admin) à CET user
+  option_comps: string[]   // options de connecteur offertes (comp admin) à CET user
   unipile_orgs?: AdminUserUnipileOrg[]   // messagerie PAR ORG (l'option est per-org)
 }
 // État messagerie Unipile d'un user POUR UNE org donnée (un bloc par org dont il est
-// membre ; un user peut appartenir à N orgs, l'option/abonnement est par org). org_id
+// membre ; un user peut appartenir à N orgs, l'option est par org). org_id
 // null = bloc « hors de ses orgs » (comptes orphelins), subscribed/option_source null.
 export interface AdminUserUnipileOrg {
   org_id: number | null
@@ -777,7 +759,6 @@ export interface AdminUserUnipileOrg {
   option_source: {
     user_comp: boolean
     org_comp: boolean
-    org_subscription: { status: string; quantity: number } | null
   } | null
 }
 export interface AdminOrgSummary {

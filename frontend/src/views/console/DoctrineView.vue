@@ -2,8 +2,8 @@
 // Écran doctrine (ADR 0014) : la doctrine comme objet structuré et vivant —
 // en-tête + résumé · content markdown à chips d'outils · manifeste « outils
 // référencés » résolu contre le registre · gouvernance (usage + versions).
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   getDoctrine, getInstruction, putInstruction, deleteInstruction,
   getInstructionVersions, revertInstruction, getToolRegistry, getInstructionUsage,
@@ -14,7 +14,6 @@ import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
-import { useDeepLink } from '@/composables/useDeepLink'
 import { buildReg, hasDead, refNames, type ToolReg } from '@/components/console/doctrine/tools'
 import DoctrineContent from '@/components/console/doctrine/DoctrineContent.vue'
 import ReferencedTools from '@/components/console/doctrine/ReferencedTools.vue'
@@ -29,13 +28,28 @@ const { confirmAction } = usePrompt()
 
 const bundle = ref<DoctrineBundle | null>(null)
 const reg = ref<ToolReg>(new Map())
-// Doc actif porté par `?doc=<slug>` (URL = source de vérité). Valeur initiale lue
-// de l'URL pour que loadAll() ouvre le bon doc ; le watcher gère back/forward.
-const dl = useDeepLink('doc', (slug) => {
-  const s = slug || BASE_SLUG
-  if (s !== activeSlug.value) selectDoc(s)
+// Doc actif porté par le CHEMIN `/doctrine/:id` (URL = source de vérité, ADR 0032 —
+// « stop using slug »). Le param est résolu par id OU slug (back-compat des liens/
+// bookmarks slug + `?doc=`), puis l'URL est normalisée vers l'id. En interne on garde
+// le slug (l'API doctrine reste slug-keyée ; la migration profonde = barreaux suivants).
+// Doctrine de base = pas d'id → `/doctrine`.
+const route = useRoute()
+const routeParam = computed<string | null>(() => {
+  const p = route.params.id
+  if (typeof p === 'string' && p) return p
+  const q = route.query.doc
+  return typeof q === 'string' && q ? q : null
 })
-const activeSlug = ref(dl.read() || BASE_SLUG)
+function resolveToSlug(raw: string | null): string {
+  if (!raw) return BASE_SLUG
+  const d = docs.value.find((x) => String(x.id) === raw || x.slug === raw)
+  return d ? d.slug : raw
+}
+const activeSlug = ref(BASE_SLUG)
+watch(routeParam, () => {
+  const s = resolveToSlug(routeParam.value)
+  if (s !== activeSlug.value) void selectDoc(s)
+})
 const body = ref('')           // corps publié (lecture)
 const saved = ref('')          // miroir de body, pour le dirty
 const draft = ref('')          // brouillon (édition)
@@ -60,12 +74,12 @@ const isReadonly = computed(() => !canEdit.value)
 const docs = computed(() => {
   const b = bundle.value
   const base = {
-    slug: BASE_SLUG, title: 'doctrine de base', type: 'base' as const,
+    id: 0, slug: BASE_SLUG, title: 'doctrine de base', type: 'base' as const,
     description: 'le socle que l\'agent charge en premier.',
     version: b?.doctrine.version ?? 0, exists: b?.doctrine.exists ?? false,
   }
   const skills = (b?.instructions ?? []).map((i) => ({
-    slug: i.slug, title: i.title, type: 'skill' as const,
+    id: i.id, slug: i.slug, title: i.title, type: 'skill' as const,
     description: i.description, version: i.version, exists: true,
   }))
   return [base, ...skills]
@@ -91,7 +105,7 @@ async function loadAll() {
     const [b, r] = await Promise.all([getDoctrine(), getToolRegistry().catch(() => ({ tools: [] }))])
     bundle.value = b
     reg.value = buildReg(r.tools)
-    if (b.org_id != null) await selectDoc(activeSlug.value)
+    if (b.org_id != null) await selectDoc(resolveToSlug(routeParam.value))
   } catch (e) {
     error.value = humanize(e)
   } finally {
@@ -102,7 +116,9 @@ onMounted(loadAll)
 
 async function selectDoc(slug: string) {
   activeSlug.value = slug
-  dl.set(slug === BASE_SLUG ? null : slug)
+  const d = docs.value.find((x) => x.slug === slug)
+  const target = (slug === BASE_SLUG || !d || !d.id) ? '/doctrine' : `/doctrine/${d.id}`
+  if (route.path !== target) void router.replace(target)
   editing.value = false
   const doc = docs.value.find((d) => d.slug === slug)
   summary.value = doc?.description ?? ''

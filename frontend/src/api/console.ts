@@ -2,9 +2,9 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, ApiToken, BillingBalance, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity,
-  CreditPack, CreditTransaction, DoctrineBundle,
+  DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
@@ -84,7 +84,6 @@ export const disconnectFederated = (name: string) => api(`/api/${name}/oauth`, {
 
 // ── unipile (LinkedIn hébergé) — hosted-auth per-user sous la clé partagée ──
 export const getUnipileStatus = () => api<UnipileStatus>('/api/me/unipile')
-export const subscribeUnipile = () => api<{ checkout_url: string }>('/api/me/unipile/subscribe', { method: 'POST' })
 export const connectUnipile = (channel: string) =>
   api<{ url: string }>('/api/me/unipile/connect', { method: 'POST', ...j({ channel }) })
 export const disconnectUnipile = (channel: string) =>
@@ -166,6 +165,19 @@ export const deleteProjectFile = (id: number, fileId: number) =>
 export const setProjectFilePublic = (id: number, fileId: number, isPublic: boolean) =>
   api<{ ok: boolean; file: ProjectFile }>(`/api/me/projects/${id}/files/${fileId}/public`, { method: 'POST', ...j({ public: isPublic }) })
 
+// Partage public CHIFFRÉ d'un projet (ADR 0032 §3, zero-knowledge) — le `ciphertext`
+// est chiffré côté navigateur (lib/crypto), le backend ne stocke QUE lui. Renvoie le
+// token public + la base d'URL du dashboard (le front y appose le fragment de clé).
+export const publishProjectShare = (id: number, ciphertext: string) =>
+  api<{ ok: boolean; token: string; public_base_url: string }>(
+    `/api/me/projects/${id}/public-share`, { method: 'POST', ...j({ ciphertext }) })
+export const unpublishProjectShare = (id: number) =>
+  api<{ ok: boolean }>(`/api/me/projects/${id}/public-share`, { method: 'DELETE' })
+// Lecture publique (sans auth) du snapshot chiffré par token — déchiffré côté navigateur.
+export const getPublicProjectShare = (token: string) =>
+  apiPublic<{ ciphertext: string; updated_at?: string | null }>(
+    `/api/public/projects/${encodeURIComponent(token)}`)
+
 // Docs (incrément 3) — pages markdown d'un projet, op-aware oto_doc
 const docsApi = <T>(body: Record<string, unknown>) =>
   api<T>('/api/me/docs', { method: 'POST', ...j(body) })
@@ -236,14 +248,6 @@ export const forkLibraryDoctrine = (slug: string, new_slug?: string) =>
     '/api/me/doctrines/fork', { method: 'POST', ...j({ slug, new_slug }) })
 export const unpublishDoctrine = (id: number) =>
   api(`/api/me/doctrines/library/${id}`, { method: 'DELETE' })
-
-// ── billing (credits d'appel par org, recharge Stripe) ──
-export const getBillingBalance = () => api<BillingBalance & { org_id: number }>('/api/me/billing')
-export const getBillingTransactions = () =>
-  api<{ org_id: number; transactions: CreditTransaction[] }>('/api/me/billing/transactions')
-export const getBillingPacks = () => api<{ packs: CreditPack[] }>('/api/billing/packs')
-export const startCheckout = (pack_id: string) =>
-  api<{ checkout_url: string }>('/api/me/billing/checkout', { method: 'POST', ...j({ pack_id }) })
 
 // ── datastore ──
 export const getNamespaces = () => api<{ namespaces: NamespaceEntry[] }>('/api/datastore/namespaces')

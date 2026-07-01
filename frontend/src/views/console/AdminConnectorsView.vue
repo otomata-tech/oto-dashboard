@@ -10,8 +10,10 @@ import Toggle from '@/components/console/Toggle.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
 import CategoryChips from '@/components/console/CategoryChips.vue'
+import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useFormDialog } from '@/composables/useFormDialog'
 import { useMe } from '@/composables/useMe'
 import {
   getAdminConnectors, setConnectorActivation,
@@ -22,7 +24,8 @@ import type { ConnectorActivation, ConnectorMeta, PlatformKey, UnipileSeat } fro
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
-const { promptForm, confirmAction } = usePrompt()
+const { confirmAction } = usePrompt()
+const { formDialog, formDialogOpen, openForm } = useFormDialog()
 const { me } = useMe()
 // Les clés plateforme sont sensibles → mutation réservée au super_admin (l'opérateur
 // `admin` voit l'activation + les clés en lecture, mais ne les pose/retire pas).
@@ -89,20 +92,21 @@ async function toggle(c: ConnectorActivation) {
   } catch (e) { toast(humanize(e)) }
 }
 
-async function setKey(c: ConnectorActivation) {
-  const r = await promptForm({
+function setKey(c: ConnectorActivation) {
+  openForm({
     title: `${c.label} — platform key`,
     description: 'studio-owned key, lent to users via grants with a daily quota. shown only once.',
+    submitLabel: 'save',
     fields: [
-      { key: 'label', label: 'label', value: 'prod', required: true,
+      { key: 'label', label: 'label', initial: 'prod', required: true,
         hint: 're-posting the same label rotates the key' },
       { key: 'api_key', label: 'api key', type: 'password', required: true, placeholder: 'paste the key' },
     ],
-    submitLabel: 'save',
+    onConfirm: async (v) => {
+      try { await createPlatformKey(c.connector, v.label ?? '', v.api_key ?? ''); toast(`${c.connector}/${v.label} saved`); await load() }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  try { await createPlatformKey(c.connector, r.label ?? '', r.api_key ?? ''); toast(`${c.connector}/${r.label} saved`); await load() }
-  catch (e) { toast(humanize(e)) }
 }
 
 async function removeKey(k: PlatformKey) {
@@ -202,6 +206,10 @@ async function removeKey(k: PlatformKey) {
         </tbody>
       </table>
     </ConsoleCard>
+
+    <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
+      :title="formDialog.title" :description="formDialog.description"
+      :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
   </div>
 </template>
 
