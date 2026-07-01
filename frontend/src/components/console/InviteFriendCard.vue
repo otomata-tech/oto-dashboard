@@ -5,16 +5,19 @@
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
+import FormDialog from '@/components/console/FormDialog.vue'
 import { getReferralLink, sendAlphaInvite } from '@/api/console'
 import type { ReferralLink } from '@/types/api'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
-import { usePrompt } from '@/composables/usePrompt'
+import { useFormDialog } from '@/composables/useFormDialog'
 import { humanize } from '@/lib/errors'
 
 const { me, reload } = useMe()
 const { toast } = useToast()
-const { promptForm } = usePrompt()
+const { formDialog, formDialogOpen, openForm } = useFormDialog()
+// Dialog séparé pour la révélation lien/code (évite la course de fermeture du 1er).
+const { formDialog: revealDialog, formDialogOpen: revealOpen, openForm: openReveal } = useFormDialog()
 
 const referral = ref<ReferralLink | null>(null)
 const left = computed(() => referral.value?.invites_left ?? me.value?.access.invites_left ?? 0)
@@ -28,43 +31,45 @@ async function copy(text: string, label = 'lien copié') {
   catch { toast('copie impossible — sélectionnez le lien à la main') }
 }
 
-async function invite() {
+function invite() {
   if (left.value <= 0) return
-  const r = await promptForm({
+  openForm({
     title: 'inviter quelqu\'un',
     description: `il crée son propre compte. il vous reste ${left.value} invitation${left.value === 1 ? '' : 's'}.`,
     fields: [
       { key: 'email', label: 'email (optionnel)', placeholder: 'prenom@entreprise.com',
         hint: 'laissez vide pour obtenir un code à partager vous-même' },
-      { key: 'delivery', label: 'comment', type: 'select', value: 'mail',
+      { key: 'delivery', label: 'comment', type: 'select', initial: 'mail',
         options: [
           { value: 'mail', label: 'envoyer l\'invitation par mail' },
           { value: 'code', label: 'me donner un code à partager' },
         ] },
     ],
     submitLabel: 'créer l\'invitation',
+    onConfirm: async (v) => {
+      const sendMail = v.delivery !== 'code'
+      const email = (v.email || '').trim()
+      if (sendMail && !email) { toast('un email est requis pour l\'envoi par mail'); throw new Error('email required') }
+      try {
+        const res = await sendAlphaInvite(email || null, sendMail)
+        if (res.emailed) {
+          toast(`invitation envoyée à ${res.email}`)
+        } else {
+          openReveal({
+            title: 'à partager vous-même',
+            description: 'transmettez ce lien (ou ce code) à la personne — il vaut une invitation.',
+            fields: [
+              { key: 'url', label: 'lien d\'invitation', initial: res.invite_url },
+              { key: 'code', label: 'code', initial: res.code },
+            ],
+            submitLabel: 'fermer',
+            onConfirm: async () => {},
+          })
+        }
+        await reload()
+      } catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  const sendMail = r.delivery !== 'code'
-  const email = (r.email || '').trim()
-  if (sendMail && !email) { toast('un email est requis pour l\'envoi par mail'); return }
-  try {
-    const res = await sendAlphaInvite(email || null, sendMail)
-    if (res.emailed) {
-      toast(`invitation envoyée à ${res.email}`)
-    } else {
-      await promptForm({
-        title: 'à partager vous-même',
-        description: 'transmettez ce lien (ou ce code) à la personne — il vaut une invitation.',
-        fields: [
-          { key: 'url', label: 'lien d\'invitation', value: res.invite_url },
-          { key: 'code', label: 'code', value: res.code },
-        ],
-        submitLabel: 'fermer',
-      })
-    }
-    await reload()
-  } catch (e) { toast(humanize(e)) }
 }
 </script>
 
@@ -84,6 +89,13 @@ async function invite() {
       <Btn :disabled="left <= 0" @click="invite">inviter par email ou code</Btn>
       <span class="dim">{{ left }} restante{{ left === 1 ? '' : 's' }}</span>
     </div>
+
+    <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
+      :title="formDialog.title" :description="formDialog.description"
+      :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
+    <FormDialog v-if="revealDialog" v-model:open="revealOpen"
+      :title="revealDialog.title" :description="revealDialog.description"
+      :fields="revealDialog.fields" :submit-label="revealDialog.submitLabel" :on-confirm="revealDialog.onConfirm" />
   </ConsoleCard>
 </template>
 

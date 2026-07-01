@@ -6,7 +6,9 @@ import Stat from '@/components/console/Stat.vue'
 import Dot from '@/components/console/Dot.vue'
 import Btn from '@/components/console/Btn.vue'
 import Quota from '@/components/console/Quota.vue'
-import DayBars from '@/components/console/DayBars.vue'
+import { defineAsyncComponent } from 'vue'
+// Unovis lourd → chunk async (les blocs monitoring ne s'affichent qu'aux admins).
+const CallsBarChart = defineAsyncComponent(() => import('@/components/console/CallsBarChart.vue'))
 import ConnectorHealthGrid from '@/components/console/ConnectorHealthGrid.vue'
 import McpEndpointCard from '@/components/console/McpEndpointCard.vue'
 import StateEmpty from '@/components/console/StateEmpty.vue'
@@ -146,7 +148,7 @@ onMounted(async () => {
           <template #actions>
             <RouterLink class="linklike" to="/platform/monitoring">monitoring →</RouterLink>
           </template>
-          <DayBars :days="bars" />
+          <CallsBarChart :days="bars" />
         </ConsoleCard>
         <div class="grid23">
           <ConsoleCard v-if="platformQuotas.length" title="shared quotas" sub="platform keys you use, with today's burn.">
@@ -190,7 +192,7 @@ onMounted(async () => {
           <Stat label="top tool" :value="summary.by_tool[0]?.tool_name ?? '—'" :sub="`${summary.by_tool[0]?.calls ?? 0} calls`" />
         </div>
         <ConsoleCard title="calls · last 7 days" sub="terra segments are failures.">
-          <DayBars :days="bars" />
+          <CallsBarChart :days="bars" />
         </ConsoleCard>
         <div class="grid23">
           <ConsoleCard title="recent · top tools" flush>
