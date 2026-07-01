@@ -221,6 +221,9 @@ export interface AlphaInvite {
 export interface ToolEntry {
   name: string
   enabled: boolean
+  // 1ʳᵉ ligne de docstring (champ MCP `description`), fusionnée depuis le registre
+  // résolu (ADR 0014, `/api/me/tools/registry`) pour l'afficher dans la carte.
+  description?: string
 }
 // Entrée du registre résolu (ADR 0014). `source` = native (in-process oto) ou
 // federated (MCP tiers monté) ; `mcp` = nom du connecteur fédéré le cas échéant.

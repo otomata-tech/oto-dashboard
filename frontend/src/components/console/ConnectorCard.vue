@@ -192,7 +192,10 @@ async function toggleTool(t: ToolEntry) {
           <span class="dim cc-paused">hidden from your agents</span>
         </div>
         <div v-for="t in myTools" :key="t.name" class="cc-tool" :class="{ muted: state === 'paused' }">
-          <code class="mono cc-tname">{{ t.name }}</code>
+          <div class="cc-tmeta">
+            <code class="mono cc-tname">{{ t.name }}</code>
+            <span v-if="t.description" class="cc-tdesc dim">{{ t.description }}</span>
+          </div>
           <Toggle :on="t.enabled && state === 'active'" @change="toggleTool(t)" />
         </div>
         <p v-if="!myTools.length" class="cc-no-tools dim">no tools loaded for this connector.</p>
@@ -224,8 +227,10 @@ async function toggleTool(t: ToolEntry) {
 .cc-tools { display: flex; flex-direction: column; gap: 5px; }
 .cc-tools-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 600; margin-bottom: 2px; }
 .cc-paused { font-weight: 400; }
-.cc-tool { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--color-hair-soft); }
+.cc-tool { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--color-hair-soft); }
 .cc-tool.muted .cc-tname { color: var(--color-faint); }
+.cc-tmeta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .cc-tname { font-size: 12px; color: var(--color-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-tdesc { font-size: 11px; line-height: 1.35; color: var(--color-mute); }
 .cc-no-tools { font-size: 12px; margin: 4px 0 0; }
 </style>

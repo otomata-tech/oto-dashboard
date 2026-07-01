@@ -18,7 +18,7 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
 import {
-  getMyConnectors, getTools, getPresets, setCredential, deleteApiKey,
+  getMyConnectors, getTools, getToolRegistry, getPresets, setCredential, deleteApiKey,
   applyPreset as applyPresetApi, savePreset, deletePreset,
 } from '@/api/console'
 import type {
@@ -69,11 +69,16 @@ const exposedTools = computed(() => tools.value.filter((t) => t.enabled).length)
 
 async function load() {
   try {
-    const [mc, tl, pr] = await Promise.all([
-      getMyConnectors(), getTools(), getPresets().catch(() => ({ presets: [] })),
+    const [mc, tl, reg, pr] = await Promise.all([
+      getMyConnectors(), getTools(),
+      // Registre résolu (ADR 0014) = source des descriptions ; best-effort (l'état
+      // enabled/disabled de la toolbox ne dépend pas de lui).
+      getToolRegistry().catch(() => ({ tools: [], count: 0 })),
+      getPresets().catch(() => ({ presets: [] })),
     ])
     catalog.value = mc.connectors
-    tools.value = tl.tools
+    const desc = new Map(reg.tools.map((t) => [t.name, t.description]))
+    tools.value = tl.tools.map((t) => ({ ...t, description: desc.get(t.name) }))
     presets.value = pr.presets
   } catch (e) { error.value = humanize(e) }
 }
