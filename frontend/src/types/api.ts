@@ -342,6 +342,11 @@ export interface Project {
   can_write?: boolean            // droit d'écriture effectif (#4b) ; false → lecture seule
   public_shared?: boolean        // partage public CHIFFRÉ actif (ADR 0032 §3, zero-knowledge)
   public_shared_at?: string | null  // horodatage de la dernière (re)publication chiffrée
+  // Publication en endpoint MCP dédié `<mcp_slug>.mcp.oto.cx` (ADR 0032, amende #44).
+  mcp_slug?: string | null
+  mcp_access?: 'off' | 'anonymous' | 'org'   // off = non publié ; anonymous = sans login ; org = JWT + org épinglée
+  mcp_tools?: string[]                        // allowlist figée du preset exposé
+  mcp_url?: string | null                     // URL dérivée `https://<slug>.mcp.oto.cx/mcp` (null si off)
   created_at?: string | null
   updated_at?: string | null
   archived_at?: string | null
