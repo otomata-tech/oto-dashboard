@@ -30,6 +30,8 @@ jobs:
         run: cd frontend && npm ci
       - name: Build + type-check
         run: cd frontend && npm run build
+      - name: Unit tests (vitest)
+        run: cd frontend && npm run test
 
   deploy:
     needs: test
