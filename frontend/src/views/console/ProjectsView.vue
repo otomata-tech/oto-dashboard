@@ -7,21 +7,31 @@ import { useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
+import ProjectNameDialog from '@/components/console/ProjectNameDialog.vue'
 import { listProjects, listProjectTemplates, createProject, copyProject } from '@/api/console'
 import type { Project } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
-import { usePrompt } from '@/composables/usePrompt'
 
 const router = useRouter()
 const { toast } = useToast()
-const { promptForm } = usePrompt()
 
 const projects = ref<Project[]>([])
 const templates = ref<Project[]>([])
 const loaded = ref(false)
 const error = ref<string | null>(null)
+
+// Dialog de nom validé (partagé création / copie de modèle), config posée à l'ouverture.
+interface NameDialogConfig {
+  title: string
+  description?: string
+  initial: string
+  submitLabel: string
+  onConfirm: (name: string) => Promise<void>
+}
+const nameOpen = ref(false)
+const nameConfig = ref<NameDialogConfig | null>(null)
 
 async function load() {
   try {
@@ -35,15 +45,18 @@ async function load() {
 onMounted(load)
 
 // Copie un modèle dans l'org active (ADR 0032 §7 B5a) → on ouvre la copie.
-async function useTemplate(t: Project) {
-  const r = await promptForm({
-    title: `Utiliser « ${t.name} »`, description: 'Copie ce modèle dans un nouveau projet (l\'original reste intact).',
-    fields: [{ key: 'name', label: 'Nom du projet', type: 'text', value: t.name, required: true }],
+function useTemplate(t: Project) {
+  nameConfig.value = {
+    title: `Utiliser « ${t.name} »`,
+    description: 'Copie ce modèle dans un nouveau projet (l\'original reste intact).',
+    initial: t.name,
     submitLabel: 'Copier',
-  })
-  if (!r) return
-  try { const p = await copyProject(t.id, String(r.name).trim()); toast('projet créé depuis le modèle'); openProject(p.id) }
-  catch (e) { toast(humanize(e)) }
+    onConfirm: async (name) => {
+      try { const p = await copyProject(t.id, name); toast('projet créé depuis le modèle'); openProject(p.id) }
+      catch (e) { toast(humanize(e)); throw e }
+    },
+  }
+  nameOpen.value = true
 }
 
 function openProject(id: number) { router.push(`/projects/${id}`) }
@@ -53,15 +66,18 @@ function briefSnippet(p: Project): string {
   return s.length > 140 ? s.slice(0, 140) + '…' : s
 }
 
-async function create() {
-  const r = await promptForm({
-    title: 'Nouveau projet', description: 'Un conteneur de travail (un but + ses entités).',
-    fields: [{ key: 'name', label: 'Nom', required: true, placeholder: 'Prospection Marseille' }],
+function create() {
+  nameConfig.value = {
+    title: 'Nouveau projet',
+    description: 'Un conteneur de travail (un but + ses entités).',
+    initial: '',
     submitLabel: 'Créer',
-  })
-  if (!r) return
-  try { const p = await createProject(String(r.name)); toast('projet créé'); openProject(p.id) }
-  catch (e) { toast(humanize(e)) }
+    onConfirm: async (name) => {
+      try { const p = await createProject(name); toast('projet créé'); openProject(p.id) }
+      catch (e) { toast(humanize(e)); throw e }
+    },
+  }
+  nameOpen.value = true
 }
 </script>
 
@@ -103,6 +119,11 @@ async function create() {
         </div>
       </div>
     </ConsoleCard>
+
+    <ProjectNameDialog v-if="nameConfig" v-model:open="nameOpen"
+      :title="nameConfig.title" :description="nameConfig.description"
+      :initial="nameConfig.initial" :submit-label="nameConfig.submitLabel"
+      :on-confirm="nameConfig.onConfirm" placeholder="Prospection Marseille" />
   </div>
 </template>
 
