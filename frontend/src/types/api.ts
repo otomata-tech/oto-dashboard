@@ -332,7 +332,7 @@ export interface PlatformInstrBlock {
 }
 
 // ── Projets (couche d'organisation, ADR 0030) ──
-export type ProjectLinkType = 'tableau' | 'procedure' | 'connecteur' | 'base'
+export type ProjectLinkType = 'tableau' | 'procedure' | 'connecteur' | 'base' | 'page'
 // Surcharge contextuelle PRÉFAITE d'un connecteur dans un projet (ADR 0032 §4, B2) :
 // quel compte agir + instructions de surcharge en prose, posées au montage du projet,
 // lues par l'agent au chargement — jamais déclarées à la volée.
