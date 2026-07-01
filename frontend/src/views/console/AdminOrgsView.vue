@@ -5,8 +5,10 @@ import Stat from '@/components/console/Stat.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import Dot from '@/components/console/Dot.vue'
+import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useFormDialog } from '@/composables/useFormDialog'
 import { useDeepLink } from '@/composables/useDeepLink'
 import {
   getAdminOrgs, createOrg, getAdminOrg, archiveAdminOrg, addAdminOrgMember, setAdminOrgMemberRole,
@@ -19,7 +21,8 @@ import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
-const { promptText, promptForm, confirmAction } = usePrompt()
+const { confirmAction } = usePrompt()
+const { formDialog, formDialogOpen, openForm } = useFormDialog()
 const orgs = ref<AdminOrgSummary[]>([])
 const detail = ref<OrgDetail | null>(null)
 const selectedId = ref<number | null>(null)
@@ -62,11 +65,18 @@ async function select(id: number) {
   catch (e) { toast(humanize(e)) }
 }
 
-async function newOrg() {
-  const name = await promptText('new organization', { label: 'name', required: true, placeholder: 'e.g. Acme Corp' })
-  if (!name) return
-  try { const { id } = await createOrg(name); toast(`org "${name}" created`); await loadOrgs(); await select(id) }
-  catch (e) { toast(humanize(e)) }
+function newOrg() {
+  openForm({
+    title: 'new organization',
+    fields: [
+      { key: 'name', label: 'name', required: true, placeholder: 'e.g. Acme Corp' },
+    ],
+    onConfirm: async (v) => {
+      const name = (v.name ?? '').trim()
+      try { const { id } = await createOrg(name); toast(`org "${name}" created`); await loadOrgs(); await select(id) }
+      catch (e) { toast(humanize(e)); throw e }
+    },
+  })
 }
 
 async function archiveOrg() {
@@ -84,20 +94,22 @@ async function archiveOrg() {
   } catch (e) { toast(humanize(e)) }
 }
 
-async function addMember() {
+function addMember() {
   if (selectedId.value == null) return
-  const r = await promptForm({
+  const orgId = selectedId.value
+  openForm({
     title: 'add member', description: `to ${detail.value?.org.name}`,
+    submitLabel: 'add',
     fields: [
       { key: 'target', label: 'email or sub', required: true, placeholder: 'user@example.com' },
-      { key: 'role', label: 'role', type: 'select', value: 'org_member',
+      { key: 'role', label: 'role', type: 'select', initial: 'org_member',
         options: [{ value: 'org_member', label: 'member' }, { value: 'org_admin', label: 'admin' }] },
     ],
-    submitLabel: 'add',
+    onConfirm: async (v) => {
+      try { await addAdminOrgMember(orgId, v.target ?? '', (v.role || 'org_member') as OrgRole); toast('member added'); await refresh(); await loadOrgs() }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  try { await addAdminOrgMember(selectedId.value, r.target ?? '', (r.role || 'org_member') as OrgRole); toast('member added'); await refresh(); await loadOrgs() }
-  catch (e) { toast(humanize(e)) }
 }
 async function toggleMemberRole(m: OrgMember) {
   if (selectedId.value == null) return
@@ -112,20 +124,22 @@ async function removeMember(m: OrgMember) {
   catch (e) { toast(humanize(e)) }
 }
 
-async function putSecret() {
+function putSecret() {
   if (selectedId.value == null) return
-  const r = await promptForm({
+  const orgId = selectedId.value
+  openForm({
     title: 'shared org key', description: 'inherited by every member of this org.',
+    submitLabel: 'set key',
     fields: [
       { key: 'provider', label: 'provider', required: true, placeholder: 'e.g. attio, lemlist' },
       { key: 'api_key', label: 'api key', type: 'password', required: true, placeholder: 'paste the key' },
       { key: 'base_url', label: 'base url', placeholder: 'optional' },
     ],
-    submitLabel: 'set key',
+    onConfirm: async (v) => {
+      try { await putAdminOrgSecret(orgId, v.provider ?? '', v.api_key ?? '', v.base_url || undefined); toast(`${v.provider} key set`); await refresh() }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  try { await putAdminOrgSecret(selectedId.value, r.provider ?? '', r.api_key ?? '', r.base_url || undefined); toast(`${r.provider} key set`); await refresh() }
-  catch (e) { toast(humanize(e)) }
 }
 async function removeSecret(s: OrgSecret) {
   if (selectedId.value == null) return
@@ -134,19 +148,21 @@ async function removeSecret(s: OrgSecret) {
   catch (e) { toast(humanize(e)) }
 }
 
-async function grantEnt() {
+function grantEnt() {
   if (selectedId.value == null) return
-  const r = await promptForm({
+  const orgId = selectedId.value
+  openForm({
     title: 'grant entitlement', description: 'unlock a controlled namespace for the whole org.',
+    submitLabel: 'grant',
     fields: nsOptions.value.length
       ? [{ key: 'ns', label: 'namespace', type: 'select', required: true, placeholder: 'choose a namespace',
           options: nsOptions.value.map((n) => ({ value: n, label: n })) }]
       : [{ key: 'ns', label: 'namespace', required: true, hint: 'no controlled namespace in catalog — type one' }],
-    submitLabel: 'grant',
+    onConfirm: async (v) => {
+      try { await grantOrgEntitlement(orgId, v.ns ?? ''); toast(`granted ${v.ns}`); await refresh() }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  try { await grantOrgEntitlement(selectedId.value, r.ns ?? ''); toast(`granted ${r.ns}`); await refresh() }
-  catch (e) { toast(humanize(e)) }
 }
 async function revokeEnt(e0: OrgEntitlement) {
   if (selectedId.value == null) return
@@ -171,23 +187,25 @@ async function toggleOrgOption(opt: string) {
 
 // Clé plateforme partagée à TOUTE l'org (couche 2) : tous les membres l'utilisent
 // (métré per-membre, jamais révélée), sans grant per-user. Distinct du BYO d'org.
-async function grantOrgKey() {
+function grantOrgKey() {
   if (selectedId.value == null) return
   if (!pkeys.value.length) { toast('aucune clé plateforme — créez-en une dans platform · connectors'); return }
-  const r = await promptForm({
+  const orgId = selectedId.value
+  openForm({
     title: 'partager une clé plateforme à l\'org',
     description: 'tous les membres de l\'org utiliseront cette clé plateforme (métré per-membre, jamais révélée).',
+    submitLabel: 'partager',
     fields: [
       { key: 'key', label: 'clé plateforme', type: 'select', required: true,
         options: pkeys.value.map((k) => ({ value: String(k.id), label: `${k.provider}/${k.label}` })) },
       { key: 'quota', label: 'quota/jour par membre', placeholder: 'vide = défaut provider' },
     ],
-    submitLabel: 'partager',
+    onConfirm: async (v) => {
+      const quota = v.quota ? Math.max(1, Number(v.quota)) : undefined
+      try { await grantOrgPlatformKey(orgId, Number(v.key), quota); toast('clé partagée à l\'org'); await refresh() }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  const quota = r.quota ? Math.max(1, Number(r.quota)) : undefined
-  try { await grantOrgPlatformKey(selectedId.value, Number(r.key), quota); toast('clé partagée à l\'org'); await refresh() }
-  catch (e) { toast(humanize(e)) }
 }
 async function revokeOrgKey(g: AdminGrant) {
   if (selectedId.value == null) return
@@ -305,5 +323,9 @@ async function revokeOrgKey(g: AdminGrant) {
         </ConsoleCard>
       </div>
     </template>
+
+    <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
+      :title="formDialog.title" :description="formDialog.description"
+      :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
   </div>
 </template>

@@ -5,8 +5,11 @@ import Dot from '@/components/console/Dot.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import Avatar from '@/components/console/Avatar.vue'
+import Dropzone from '@/components/console/Dropzone.vue'
+import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useFormDialog } from '@/composables/useFormDialog'
 import { useMe } from '@/composables/useMe'
 import { getMyOrgs, getOrg, setOrgMemberRole, removeOrgMember,
   listInvitations, inviteMember, revokeInvitation, uploadOrgLogo, deleteOrgLogo, updateOrg } from '@/api/console'
@@ -16,7 +19,10 @@ import { humanize } from '@/lib/errors'
 import { validateImage, IMAGE_ACCEPT_ATTR } from '@/lib/imageUpload'
 
 const { toast } = useToast()
-const { confirmAction, promptForm } = usePrompt()
+const { confirmAction } = usePrompt()
+const { formDialog, formDialogOpen, openForm } = useFormDialog()
+// Dialog séparé pour la révélation lien/code (évite la course de fermeture du 1er).
+const { formDialog: revealDialog, formDialogOpen: revealOpen, openForm: openReveal } = useFormDialog()
 const { me, reload: reloadMe } = useMe()
 
 const orgs = ref<Org[]>([])
@@ -24,7 +30,6 @@ const detail = ref<OrgDetail | null>(null)
 const invites = ref<OrgInvitation[]>([])
 const error = ref<string | null>(null)
 const loaded = ref(false)
-const logoInput = ref<HTMLInputElement | null>(null)
 const logoBusy = ref(false)
 
 const isOrgAdmin = computed(() => detail.value?.org.my_role === 'org_admin')
@@ -49,42 +54,44 @@ async function load() {
 }
 onMounted(load)
 
-async function invite() {
-  const r = await promptForm({
+function invite() {
+  openForm({
     title: 'invite a teammate',
     description: 'send them an email link, or get a code to share yourself.',
+    submitLabel: 'create invite',
     fields: [
       { key: 'email', label: 'email (optional)', placeholder: 'name@company.com',
         hint: 'leave blank to get a code to share yourself' },
-      { key: 'role', label: 'role', type: 'select', value: 'org_member',
+      { key: 'role', label: 'role', type: 'select', initial: 'org_member',
         options: [{ value: 'org_member', label: 'member' }, { value: 'org_admin', label: 'admin' }] },
-      { key: 'delivery', label: 'how', type: 'select', value: 'mail',
+      { key: 'delivery', label: 'how', type: 'select', initial: 'mail',
         options: [{ value: 'mail', label: 'send by email' }, { value: 'code', label: 'give me a code to share' }] },
     ],
-    submitLabel: 'create invite',
+    onConfirm: async (v) => {
+      const sendMail = v.delivery !== 'code'
+      const email = (v.email || '').trim()
+      if (sendMail && !email) { toast('an email is required to send by email'); throw new Error('email required') }
+      const role: OrgRole = v.role === 'org_admin' ? 'org_admin' : 'org_member'
+      try {
+        const res = await inviteMember(activeOrgId.value!, email || null, role, sendMail)
+        if (res.emailed) {
+          toast(`invite sent to ${res.email}`)
+        } else {
+          openReveal({
+            title: 'share this invite yourself',
+            description: 'send this link (or code) to the person — it joins them to this org.',
+            submitLabel: 'done',
+            fields: [
+              { key: 'url', label: 'invite link', initial: res.invite_url },
+              { key: 'code', label: 'code', initial: res.code },
+            ],
+            onConfirm: async () => {},
+          })
+        }
+        await loadInvites()
+      } catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  const sendMail = r.delivery !== 'code'
-  const email = (r.email || '').trim()
-  if (sendMail && !email) { toast('an email is required to send by email'); return }
-  const role: OrgRole = r.role === 'org_admin' ? 'org_admin' : 'org_member'
-  try {
-    const res = await inviteMember(activeOrgId.value!, email || null, role, sendMail)
-    if (res.emailed) {
-      toast(`invite sent to ${res.email}`)
-    } else {
-      await promptForm({
-        title: 'share this invite yourself',
-        description: 'send this link (or code) to the person — it joins them to this org.',
-        fields: [
-          { key: 'url', label: 'invite link', value: res.invite_url },
-          { key: 'code', label: 'code', value: res.code },
-        ],
-        submitLabel: 'done',
-      })
-    }
-    await loadInvites()
-  } catch (e) { toast(humanize(e)) }
 }
 async function revokeInv(id: number) {
   if (!await confirmAction({ title: 'revoke invitation', danger: true, confirmLabel: 'revoke', message: 'revoke this pending invitation?' })) return
@@ -103,35 +110,32 @@ async function removeMember(sub: string, label: string) {
   try { await removeOrgMember(activeOrgId.value!, sub); toast('member removed'); detail.value = await getOrg(activeOrgId.value!) }
   catch (e) { toast(humanize(e)) }
 }
-async function editOrg() {
+function editOrg() {
   if (activeOrgId.value == null) return
-  const r = await promptForm({
+  openForm({
     title: 'edit organization',
-    fields: [
-      { key: 'name', label: 'name', value: detail.value?.org.name, required: true },
-      { key: 'description', label: 'description', type: 'textarea',
-        placeholder: 'what this org is for (optional)', value: detail.value?.org.description ?? '' },
-    ],
     submitLabel: 'save',
+    fields: [
+      { key: 'name', label: 'name', initial: detail.value?.org.name ?? '', required: true },
+      { key: 'description', label: 'description', type: 'textarea',
+        placeholder: 'what this org is for (optional)', initial: detail.value?.org.description ?? '' },
+    ],
+    onConfirm: async (v) => {
+      try {
+        await updateOrg(activeOrgId.value!, { name: (v.name ?? '').trim(), description: v.description ?? '' })
+        detail.value = await getOrg(activeOrgId.value!)
+        orgs.value = (await getMyOrgs()).orgs
+        await reloadMe()          // rafraîchit le nom dans le badge identité (topbar)
+        toast('organization updated')
+      } catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r || !r.name?.trim()) return
-  try {
-    await updateOrg(activeOrgId.value, { name: r.name.trim(), description: r.description ?? '' })
-    detail.value = await getOrg(activeOrgId.value)
-    orgs.value = (await getMyOrgs()).orgs
-    await reloadMe()          // rafraîchit le nom dans le badge identité (topbar)
-    toast('organization updated')
-  } catch (e) { toast(humanize(e)) }
 }
 
-function pickLogo() { logoInput.value?.click() }
-async function onLogoFile(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = ''
-  if (!file || activeOrgId.value == null) return
+async function onLogoDrop(file: File) {
+  if (activeOrgId.value == null) return
   try {
-    validateImage(file)
+    validateImage(file) // miroir backend (png/jpeg/webp ≤ 2 Mo) — le Dropzone pré-valide déjà
     logoBusy.value = true
     await uploadOrgLogo(activeOrgId.value, file)
     detail.value = await getOrg(activeOrgId.value)
@@ -226,10 +230,14 @@ async function removeLogo() {
           <ConsoleCard v-if="isOrgAdmin" title="branding" sub="logo shown across the dashboard for this org. png, jpeg or webp · up to 2 MB.">
             <div style="display: flex; align-items: center; gap: 16px">
               <Avatar :src="detail?.org.logo_url" :name="detail?.org.name" :size="56" shape="square" />
-              <div style="display: flex; gap: 10px; flex-wrap: wrap">
-                <input ref="logoInput" type="file" :accept="IMAGE_ACCEPT_ATTR" style="display: none" @change="onLogoFile" />
-                <Btn icon="pen" :disabled="logoBusy" @click="pickLogo">{{ detail?.org.logo_url ? 'change logo' : 'upload logo' }}</Btn>
-                <Btn v-if="detail?.org.logo_url" kind="danger" :disabled="logoBusy" @click="removeLogo">remove</Btn>
+              <div style="flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 8px">
+                <Dropzone :accept="IMAGE_ACCEPT_ATTR" :max-size-mb="2" :busy="logoBusy"
+                  :label="detail?.org.logo_url ? 'changer le logo' : 'déposer un logo'"
+                  hint="png, jpeg ou webp · glisser-déposer ou cliquer · max 2 Mo"
+                  @select="onLogoDrop" @error="toast" />
+                <div v-if="detail?.org.logo_url">
+                  <Btn kind="danger" :disabled="logoBusy" @click="removeLogo">remove logo</Btn>
+                </div>
               </div>
             </div>
           </ConsoleCard>
@@ -265,5 +273,12 @@ async function removeLogo() {
       </ConsoleCard>
 
     </template>
+
+    <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
+      :title="formDialog.title" :description="formDialog.description"
+      :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
+    <FormDialog v-if="revealDialog" v-model:open="revealOpen"
+      :title="revealDialog.title" :description="revealDialog.description"
+      :fields="revealDialog.fields" :submit-label="revealDialog.submitLabel" :on-confirm="revealDialog.onConfirm" />
   </div>
 </template>

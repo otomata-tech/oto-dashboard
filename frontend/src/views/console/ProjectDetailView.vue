@@ -3,11 +3,17 @@
 // un volet de liste). Charge un seul projet par id de route, remonté par le layout
 // quand :id change (viewKey = fullPath). Brief + pages/Docs + entités liées (vrais
 // sélecteurs) + partage + activité. Consomme oto_project / oto_doc / oto_resource.
-import { computed, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Tag from '@/components/console/Tag.vue'
 import ProjectDocs from '@/components/console/ProjectDocs.vue'
 import ProjectEntities from '@/components/console/ProjectEntities.vue'
+import Dropzone from '@/components/console/Dropzone.vue'
+import ProjectShareDialog from '@/components/console/ProjectShareDialog.vue'
+import NameDialog from '@/components/console/NameDialog.vue'
+// Unovis est lourd (~d3) : on l'isole dans son propre chunk, chargé seulement
+// quand le projet a de l'activité (v-if ci-dessous) → vue projet de base légère.
+const ActivityChart = defineAsyncComponent(() => import('@/components/console/ActivityChart.vue'))
 import {
   getProject, updateProject, archiveProject, copyProject, setProjectTemplate, projectHandoff,
   getProjectActivity, listDocs,
@@ -20,13 +26,13 @@ import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { encryptForShare } from '@/lib/crypto'
 import { useToast } from '@/composables/useToast'
-import { usePrompt, type PromptField } from '@/composables/usePrompt'
+import { usePrompt } from '@/composables/usePrompt'
 import { useTransferOwnership } from '@/composables/useTransferOwnership'
 
 const route = useRoute()
 const router = useRouter()
 const { toast } = useToast()
-const { promptForm, confirmAction } = usePrompt()
+const { confirmAction } = usePrompt()
 const { pickTarget } = useTransferOwnership()
 
 const projectId = Number(route.params.id)
@@ -35,8 +41,9 @@ const briefDraft = ref('')
 const grants = ref<NamespaceShare[]>([])
 const activity = ref<ProjectActivity[]>([])
 const files = ref<ProjectFile[]>([])
-const fileInput = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
+const shareOpen = ref(false)
+const copyOpen = ref(false)
 const loaded = ref(false)
 const error = ref<string | null>(null)
 // Partage public CHIFFRÉ (zero-knowledge) : le lien COMPLET (avec la clé en fragment)
@@ -74,17 +81,14 @@ function fmtSize(n?: number | null): string {
   if (n < 1024 * 1024) return `${Math.round(n / 1024)} Ko`
   return `${(n / (1024 * 1024)).toFixed(1)} Mo`
 }
-async function onFilePick(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
+async function onDropFile(file: File) {
   uploading.value = true
   try {
     const { file: row } = await uploadProjectFile(projectId, file)
     files.value = [row, ...files.value]
     await loadActivity()
   } catch (err) { toast(humanize(err)) }
-  finally { uploading.value = false; if (fileInput.value) fileInput.value.value = '' }
+  finally { uploading.value = false }
 }
 async function removeFile(f: ProjectFile) {
   if (!(await confirmAction({ title: 'Supprimer ce fichier ?',
@@ -132,19 +136,13 @@ async function archive() {
 }
 
 // ── modèle (template) : copier ce projet / le publier comme modèle (ADR 0032 §7 B5a) ──
-async function copy() {
-  if (!project.value) return
-  const res = await promptForm({
-    title: 'Copier ce projet', submitLabel: 'Copier',
-    fields: [{ key: 'name', label: 'Nom de la copie', type: 'text',
-               value: `Copie de ${project.value.name}`, required: true }],
-  })
-  if (!res) return
+function copy() { if (project.value) copyOpen.value = true }
+async function doCopy(name: string) {
   try {
-    const copy = await copyProject(projectId, String(res.name).trim())
+    const c = await copyProject(projectId, name)
     toast('projet copié')
-    router.push(`/projects/${copy.id}`)
-  } catch (e) { toast(humanize(e)) }
+    router.push(`/projects/${c.id}`)
+  } catch (e) { toast(humanize(e)); throw e }
 }
 
 async function toggleTemplate() {
@@ -166,20 +164,13 @@ async function handoff() {
 }
 
 // ── partage / transfert (oto_resource) ──
-async function share() {
-  if (!project.value) return
-  const fields: PromptField[] = [
-    { key: 'email', label: 'Email (utilisateur oto)', required: true },
-    { key: 'permission', label: 'Droit', type: 'select',
-      options: [{ value: 'write', label: 'édition' }, { value: 'read', label: 'lecture' }] },
-  ]
-  const r = await promptForm({ title: 'Partager le projet', fields, submitLabel: 'Partager' })
-  if (!r) return
+// Le form validé (email vérifié) vit dans <ProjectShareDialog> ; ici on ne fait
+// que l'appel réseau. On toast + relance en erreur pour garder le dialog ouvert.
+async function doShare(payload: { email: string; permission: 'read' | 'write' }) {
   try {
-    await shareResource('project', String(projectId), String(r.email),
-      (r.permission as 'read' | 'write') || 'write')
+    await shareResource('project', String(projectId), payload.email, payload.permission)
     toast('partagé'); await loadGrants()
-  } catch (e) { toast(humanize(e)) }
+  } catch (e) { toast(humanize(e)); throw e }
 }
 async function revoke(g: NamespaceShare) {
   if (!g.email) return
@@ -265,7 +256,7 @@ async function copyPublicLink() {
           <button class="btn-resume" @click="handoff">reprendre dans claude →</button>
           <button class="btn-soft" @click="copy">copier</button>
           <button v-if="!readOnly" class="btn-soft" @click="toggleTemplate">{{ project.is_template ? 'retirer des modèles' : 'publier comme modèle' }}</button>
-          <button v-if="!readOnly" class="btn-soft" @click="share">partager</button>
+          <button v-if="!readOnly" class="btn-soft" @click="shareOpen = true">partager</button>
           <button v-if="!readOnly" class="btn-soft" @click="transfer">transférer</button>
           <button v-if="!readOnly" class="btn-soft btn-soft--danger" @click="archive">archiver</button>
         </div>
@@ -307,7 +298,7 @@ async function copyPublicLink() {
           <section class="surface-card">
             <div class="card-eb-row">
               <span class="card-eb">partage</span>
-              <button v-if="!readOnly" class="btn-soft btn-soft--xs" @click="share">+ inviter</button>
+              <button v-if="!readOnly" class="btn-soft btn-soft--xs" @click="shareOpen = true">+ inviter</button>
             </div>
             <p v-if="!grants.length" class="dim" style="font-size: 12px">non partagé.</p>
             <div v-for="g in grants" :key="(g.email || '') + g.permission" class="meta-row">
@@ -352,10 +343,11 @@ async function copyPublicLink() {
           <section class="surface-card">
             <div class="card-eb-row">
               <span class="card-eb">autres documents</span>
-              <input ref="fileInput" type="file" style="display: none" @change="onFilePick" />
-              <button v-if="!readOnly && !uploading" class="btn-soft btn-soft--xs" @click="fileInput?.click()">+ déposer</button>
-              <span v-else-if="uploading" class="dim" style="font-size: 11px">envoi…</span>
             </div>
+            <Dropzone v-if="!readOnly" class="mb-3" :busy="uploading" :max-size-mb="25"
+              accept=".pdf,.html,.htm,.txt,.md,.csv,.json,image/*"
+              label="déposer un document" hint="PDF, HTML, image… — glisser-déposer ou cliquer · max 25 Mo"
+              @select="onDropFile" @error="toast" />
             <p v-if="!files.length" class="dim" style="font-size: 12px">aucun fichier brut — PDF, HTML…</p>
             <div v-for="f in files" :key="f.id" class="meta-row meta-row--file">
               <div class="meta-row__main">
@@ -374,6 +366,7 @@ async function copyPublicLink() {
           <!-- activité -->
           <section class="surface-card">
             <span class="card-eb">activité</span>
+            <ActivityChart v-if="activity.length" :activity="activity" :days="14" />
             <p v-if="!activity.length" class="dim" style="font-size: 12px; margin-top: 8px">aucune activité.</p>
             <div v-else class="wk-acts">
               <div v-for="(a, i) in activity" :key="i" class="wk-act">
@@ -384,6 +377,10 @@ async function copyPublicLink() {
           </section>
         </div>
       </div>
+
+      <ProjectShareDialog v-model:open="shareOpen" :project-name="project.name" :on-confirm="doShare" />
+      <NameDialog v-model:open="copyOpen" title="copier ce projet" label="nom de la copie"
+        :initial="'Copie de ' + project.name" submit-label="copier" :on-confirm="doCopy" />
     </template>
   </div>
 </template>

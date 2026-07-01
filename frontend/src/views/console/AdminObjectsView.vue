@@ -4,8 +4,10 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
+import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useFormDialog } from '@/composables/useFormDialog'
 import { listResources, transferResource } from '@/api/console'
 import type { ResourceEntry } from '@/types/api'
 import { fmtDate } from '@/types/api'
@@ -18,7 +20,8 @@ import { humanize } from '@/lib/errors'
 // le contenu des lignes (privacy by default — lecture = view-as audité).
 
 const { toast } = useToast()
-const { promptText, confirmAction } = usePrompt()
+const { confirmAction } = usePrompt()
+const { formDialog, formDialogOpen, openForm } = useFormDialog()
 
 const TYPES = [{ value: 'datastore_namespace', label: 'datastores' }]
 const type = ref('datastore_namespace')
@@ -42,22 +45,27 @@ function ownerTone(t?: string): 'cobalt' | 'olive' {
   return t === 'org' || t === 'group' ? 'cobalt' : 'olive'
 }
 
-async function transfer(r: ResourceEntry) {
-  const email = await promptText('transfer ownership', {
-    label: 'new owner email', required: true, placeholder: 'user@email.com',
-    hint: `${r.namespace ?? r.resource_id} → nouveau propriétaire (l'ancien garde un accès write).`,
+function transfer(r: ResourceEntry) {
+  openForm({
+    title: 'transfer ownership',
+    fields: [
+      { key: 'email', label: 'new owner email', required: true, placeholder: 'user@email.com',
+        hint: `${r.namespace ?? r.resource_id} → nouveau propriétaire (l'ancien garde un accès write).` },
+    ],
+    onConfirm: async (v) => {
+      const email = (v.email ?? '').trim()
+      const ok = await confirmAction({
+        title: 'transfer ownership?', danger: true, confirmLabel: 'transfer',
+        message: `give "${r.namespace ?? r.resource_id}" to ${email}? the previous owner keeps write access.`,
+      })
+      if (!ok) throw new Error('cancelled')
+      try {
+        await transferResource(type.value, r.resource_id, { email })
+        toast(`transferred to ${email}`)
+        await load()
+      } catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!email) return
-  const ok = await confirmAction({
-    title: 'transfer ownership?', danger: true, confirmLabel: 'transfer',
-    message: `give "${r.namespace ?? r.resource_id}" to ${email}? the previous owner keeps write access.`,
-  })
-  if (!ok) return
-  try {
-    await transferResource(type.value, r.resource_id, { email })
-    toast(`transferred to ${email}`)
-    await load()
-  } catch (e) { toast(humanize(e)) }
 }
 </script>
 
@@ -110,6 +118,10 @@ async function transfer(r: ResourceEntry) {
         </tbody>
       </table>
     </ConsoleCard>
+
+    <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
+      :title="formDialog.title" :description="formDialog.description"
+      :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
   </div>
 </template>
 

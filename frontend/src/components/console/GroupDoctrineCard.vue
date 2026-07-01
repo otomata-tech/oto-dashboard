@@ -6,8 +6,10 @@ import { ref, watch } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
+import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useFormDialog } from '@/composables/useFormDialog'
 import {
   getGroupInstructions, getGroupInstruction, putGroupInstruction, deleteGroupInstruction,
 } from '@/api/console'
@@ -16,7 +18,8 @@ import { humanize } from '@/lib/errors'
 
 const props = defineProps<{ groupId: number; canEdit: boolean }>()
 const { toast } = useToast()
-const { confirmAction, promptForm } = usePrompt()
+const { confirmAction } = usePrompt()
+const { formDialog, formDialogOpen, openForm } = useFormDialog()
 
 const bundle = ref<GroupInstructionsBundle | null>(null)
 
@@ -26,18 +29,19 @@ async function load() {
 }
 watch(() => props.groupId, load, { immediate: true })
 
-async function editDoctrine() {
-  const r = await promptForm({
+function editDoctrine() {
+  openForm({
     title: 'group base doctrine',
     description: 'served to this team in addition to the org doctrine, at session start (get_claude_md).',
-    fields: [{ key: 'body', label: 'markdown', type: 'textarea', value: bundle.value?.doctrine || '' }],
+    fields: [{ key: 'body', label: 'markdown', type: 'textarea', initial: bundle.value?.doctrine || '' }],
     submitLabel: 'save',
+    onConfirm: async (v) => {
+      const body = (v.body || '').trim()
+      if (!body) { toast('doctrine is empty — nothing saved'); throw new Error('empty doctrine') }
+      try { await putGroupInstruction(props.groupId, 'claude_md', body); toast('doctrine saved'); await load() }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  const body = (r.body || '').trim()
-  if (!body) { toast('doctrine is empty — nothing saved'); return }
-  try { await putGroupInstruction(props.groupId, 'claude_md', body); toast('doctrine saved'); await load() }
-  catch (e) { toast(humanize(e)) }
 }
 
 async function editSkill(slug?: string) {
@@ -46,24 +50,25 @@ async function editSkill(slug?: string) {
     try { const i = await getGroupInstruction(props.groupId, slug); body = i.body_md; title = i.title; description = i.description }
     catch (e) { toast(humanize(e)); return }
   }
-  const r = await promptForm({
+  openForm({
     title: slug ? `edit skill: ${slug}` : 'new skill',
     description: 'a named instruction loaded on demand by the agent (progressive disclosure).',
     fields: [
       ...(slug ? [] : [{ key: 'slug', label: 'slug', placeholder: 'invoicing-flow', required: true }]),
-      { key: 'title', label: 'title', value: title },
-      { key: 'description', label: 'when to use', value: description, placeholder: 'shown in the index' },
-      { key: 'body', label: 'markdown', type: 'textarea' as const, value: body, required: true },
+      { key: 'title', label: 'title', initial: title },
+      { key: 'description', label: 'when to use', initial: description, placeholder: 'shown in the index' },
+      { key: 'body', label: 'markdown', type: 'textarea' as const, initial: body, required: true },
     ],
     submitLabel: 'save',
+    onConfirm: async (v) => {
+      const newBody = (v.body || '').trim()
+      if (!newBody) throw new Error('empty body')
+      const targetSlug = slug || v.slug
+      if (!targetSlug) throw new Error('missing slug')
+      try { await putGroupInstruction(props.groupId, targetSlug, newBody, v.title || undefined, v.description || undefined); toast('skill saved'); await load() }
+      catch (e) { toast(humanize(e)); throw e }
+    },
   })
-  if (!r) return
-  const newBody = (r.body || '').trim()
-  if (!newBody) return
-  const targetSlug = slug || r.slug
-  if (!targetSlug) return
-  try { await putGroupInstruction(props.groupId, targetSlug, newBody, r.title || undefined, r.description || undefined); toast('skill saved'); await load() }
-  catch (e) { toast(humanize(e)) }
 }
 
 async function removeSkill(slug: string) {
@@ -100,5 +105,9 @@ async function removeSkill(slug: string) {
       </div>
     </div>
     <div v-else class="helptext">loading…</div>
+
+    <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
+      :title="formDialog.title" :description="formDialog.description"
+      :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
   </ConsoleCard>
 </template>

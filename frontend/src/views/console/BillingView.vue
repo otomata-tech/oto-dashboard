@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
@@ -12,6 +12,8 @@ import { getBillingPacks, getBillingTransactions, startCheckout } from '@/api/co
 import type { CreditPack, CreditTransaction } from '@/types/api'
 import { fmtDateTime } from '@/types/api'
 import { humanize } from '@/lib/errors'
+// Unovis lourd → chunk async, chargé seulement s'il y a un historique (v-if ci-dessous).
+const CreditHistoryChart = defineAsyncComponent(() => import('@/components/console/CreditHistoryChart.vue'))
 
 // Wallet de credits PAR ORG (le solde vient de me.billing, déjà chargé au boot).
 // 1 appel MCP = 1 credit ; stock de base gratuit puis recharge par packs Stripe.
@@ -112,6 +114,9 @@ onMounted(async () => {
 
       <!-- ── historique ── -->
       <ConsoleCard flush title="credit history" sub="top-ups, the free base stock, and admin adjustments. per-call usage is metered live on your balance.">
+        <div v-if="transactions.length > 1" class="card-body">
+          <CreditHistoryChart :transactions="transactions" />
+        </div>
         <table class="tbl">
           <thead><tr><th style="width: 18px"></th><th>movement</th><th class="num">credits</th><th class="num">at</th></tr></thead>
           <tbody>

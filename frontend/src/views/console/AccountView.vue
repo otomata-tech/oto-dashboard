@@ -4,6 +4,7 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Avatar from '@/components/console/Avatar.vue'
 import Tag from '@/components/console/Tag.vue'
+import Dropzone from '@/components/console/Dropzone.vue'
 import AccountTokensCard from '@/components/console/AccountTokensCard.vue'
 import SecurityCard from '@/components/console/SecurityCard.vue'
 import AgentContextCard from '@/components/console/AgentContextCard.vue'
@@ -20,7 +21,6 @@ const { confirmAction } = usePrompt()
 const { me, reload } = useMe()
 const { logout } = useAuth()
 
-const fileInput = ref<HTMLInputElement | null>(null)
 const busy = ref(false)
 
 const displayName = computed(() => me.value?.name || me.value?.email || '')
@@ -29,17 +29,9 @@ const roleLabel = computed(() =>
   me.value?.role === 'super_admin' ? 'super admin'
     : me.value?.role === 'admin' ? 'admin' : 'membre')
 
-function pick() {
-  fileInput.value?.click()
-}
-
-async function onFile(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = '' // permet de re-sélectionner le même fichier
-  if (!file) return
+async function onDropFile(file: File) {
   try {
-    validateImage(file)
+    validateImage(file) // miroir backend (png/jpeg/webp ≤ 2 Mo) — le Dropzone pré-valide déjà
     busy.value = true
     await uploadAvatar(file)
     await reload()
@@ -77,18 +69,19 @@ async function remove() {
         </div>
       </div>
 
-      <div class="profile-actions">
-        <input
-          ref="fileInput"
-          type="file"
-          :accept="IMAGE_ACCEPT_ATTR"
-          style="display: none"
-          @change="onFile"
-        />
-        <Btn icon="pen" :disabled="busy" @click="pick">{{ me?.avatar_url ? 'change avatar' : 'upload avatar' }}</Btn>
-        <Btn v-if="me?.avatar_url" kind="danger" :disabled="busy" @click="remove">remove</Btn>
+      <Dropzone
+        class="mt-4"
+        :accept="IMAGE_ACCEPT_ATTR"
+        :max-size-mb="2"
+        :busy="busy"
+        :label="me?.avatar_url ? 'changer l\'avatar' : 'déposer un avatar'"
+        hint="png, jpeg ou webp · glisser-déposer ou cliquer · max 2 Mo"
+        @select="onDropFile"
+        @error="toast"
+      />
+      <div v-if="me?.avatar_url" class="profile-actions">
+        <Btn kind="danger" :disabled="busy" @click="remove">remove avatar</Btn>
       </div>
-      <div class="helptext">png, jpeg or webp · up to 2 MB.</div>
     </ConsoleCard>
 
     <ConsoleCard title="compte & accès" sub="comment tu te connectes — et sous quel rôle.">

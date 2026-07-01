@@ -2,7 +2,8 @@
 import { computed, ref, watch } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
-import DayBars from '@/components/console/DayBars.vue'
+import { defineAsyncComponent } from 'vue'
+const CallsBarChart = defineAsyncComponent(() => import('@/components/console/CallsBarChart.vue'))
 import ErrLabel from '@/components/console/ErrLabel.vue'
 import SubTabs from '@/components/console/SubTabs.vue'
 import { getMonitoringSummary, getMonitoringRest, getMonitoringConnectors, getMonitoringFunnel } from '@/api/console'
@@ -94,7 +95,7 @@ watch(tab, (t) => { dlTab.set(t === 'mcp' ? null : t); loadTab() })
         <Stat label="active users" :value="summary?.active_users ?? 0" sub="authenticated callers" />
       </div>
       <ConsoleCard :title="`volume · last ${bars.length} days`">
-        <DayBars :days="bars" :height="96" />
+        <CallsBarChart :days="bars" :height="96" />
       </ConsoleCard>
       <div class="grid2">
         <ConsoleCard flush title="by tool">

@@ -8,6 +8,8 @@ import DataTable from '@/components/console/DataTable.vue'
 import DatastoreCards from '@/components/console/DatastoreCards.vue'
 import RowDrawer from '@/components/console/RowDrawer.vue'
 import ShareDialog from '@/components/console/ShareDialog.vue'
+import NameDialog from '@/components/console/NameDialog.vue'
+import NamespaceCreateDialog from '@/components/console/NamespaceCreateDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useTransferOwnership } from '@/composables/useTransferOwnership'
@@ -21,7 +23,7 @@ import { humanize } from '@/lib/errors'
 import { rowsToCsv, downloadCsv } from '@/lib/csv'
 
 const { toast } = useToast()
-const { promptText, promptForm, confirmAction } = usePrompt()
+const { confirmAction } = usePrompt()
 const { pickTarget } = useTransferOwnership()
 const { me } = useMe()
 const route = useRoute()
@@ -100,6 +102,10 @@ function closeDrawer() { drawerOpen.value = false; drawerRow.value = null; drawe
 
 // ── partage ──────────────────────────────────────────────────────────────────
 const shareOpen = ref(false)
+// ── création / renommage (dialogs validés) ────────────────────────────────────
+const createOpen = ref(false)
+const renameOpen = ref(false)
+const activeOrgName = computed(() => (me.value?.active_org ? (me.value?.active_org_name || 'mon org') : null))
 
 async function load() {
   try { namespaces.value = (await getNamespaces()).namespaces }
@@ -165,34 +171,16 @@ async function exportCsv() {
   finally { exporting.value = false }
 }
 
-async function create() {
+async function doCreate(payload: { name: string; scope: 'user' | 'org' }) {
   const activeOrg = me.value?.active_org
-  const orgName = me.value?.active_org_name || 'mon org'
-  // Avec une org active, on propose le scope : perso (défaut) ou classeur d'org.
-  const fields = [
-    { key: 'name', label: 'name', required: true, placeholder: 'e.g. prospects-q3' },
-  ]
-  if (activeOrg) {
-    fields.push({
-      key: 'scope', label: 'owner', type: 'select', value: 'user',
-      options: [
-        { value: 'user', label: 'personal (just me)' },
-        { value: 'org', label: `org classeur (${orgName})` },
-      ],
-    } as never)
-  }
-  const res = await promptForm({ title: 'new namespace', fields, submitLabel: 'create' })
-  if (!res || !res.name) return
-  const ns = res.name.trim()
-  const owner = res.scope === 'org' && activeOrg
-    ? { type: 'org', id: activeOrg } : undefined
+  const owner = payload.scope === 'org' && activeOrg ? { type: 'org', id: activeOrg } : undefined
   try {
-    await createNamespace(ns, owner)
-    toast(`namespace "${ns}" created`)
+    await createNamespace(payload.name, owner)
+    toast(`namespace "${payload.name}" created`)
     await load()
-    const created = namespaces.value.find((n) => n.namespace === ns)
+    const created = namespaces.value.find((n) => n.namespace === payload.name)
     if (created) await open(created.id)
-  } catch (e) { toast(humanize(e)) }
+  } catch (e) { toast(humanize(e)); throw e }
 }
 
 async function removeNamespace() {
@@ -212,17 +200,15 @@ async function removeNamespace() {
   } catch (e) { toast(humanize(e)) }
 }
 
-async function rename() {
+async function doRename(next: string) {
   const name = currentName.value
-  if (!name) return
-  const next = await promptText('rename namespace', { label: 'new name', required: true, placeholder: name })
-  if (!next || next === name) return
+  if (!name || next === name) return
   try {
     await renameNamespace(name, next)
     toast(`renamed to "${next}"`)
     await load()        // id inchangé → currentName se met à jour, l'URL reste valide
     await fetchRows()
-  } catch (e) { toast(humanize(e)) }
+  } catch (e) { toast(humanize(e)); throw e }
 }
 
 async function transfer() {
@@ -281,7 +267,7 @@ async function onDelete() {
       <ConsoleCard title="namespaces" flush
         sub="tabular storage your agents read &amp; write through data_* tools.">
         <template #actions>
-          <Btn kind="mini" icon="plus" @click="create">new</Btn>
+          <Btn kind="mini" icon="plus" @click="createOpen = true">new</Btn>
         </template>
         <div class="rowlist">
           <button v-for="ns in namespaces" :key="ns.id"
@@ -313,7 +299,7 @@ async function onDelete() {
           <Btn v-if="!readOnly" kind="mini" icon="plus" @click="openNew">add row</Btn>
           <template v-if="canGovern">
             <Btn kind="mini" icon="users" @click="shareOpen = true">share</Btn>
-            <Btn kind="mini" icon="pen" @click="rename">rename</Btn>
+            <Btn kind="mini" icon="pen" @click="renameOpen = true">rename</Btn>
             <Btn kind="mini" icon="ext" @click="transfer">transfer</Btn>
             <Btn kind="danger" icon="trash" @click="removeNamespace">delete</Btn>
           </template>
@@ -375,6 +361,9 @@ async function onDelete() {
     <RowDrawer :open="drawerOpen" :row="drawerRow" :fields="fields" :is-new="drawerNew"
       :read-only="readOnly" @save="onSave" @delete="onDelete" @close="closeDrawer" />
     <ShareDialog :open="shareOpen" :namespace="currentName" @close="shareOpen = false" />
+    <NamespaceCreateDialog v-model:open="createOpen" :org-name="activeOrgName" :on-confirm="doCreate" />
+    <NameDialog v-model:open="renameOpen" title="renommer le namespace" label="nouveau nom"
+      :initial="currentName ?? ''" submit-label="renommer" :on-confirm="doRename" />
   </div>
 </template>
 
