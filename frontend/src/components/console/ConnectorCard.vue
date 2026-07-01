@@ -80,10 +80,12 @@ const statusMode = computed<ConnectorMode>(() => {
 })
 const keyConfigured = computed(() => !!status.value?.user_key_configured)
 
-// Quelle clé est RÉSOLUE pour ce connecteur (perso / équipe / org / plateforme), en
+// Quelle clé est RÉSOLUE pour ce connecteur (membre / équipe / org / plateforme), en
 // clair — retour user : « on ne sait pas si on a la clé plateforme, org ou perso ».
+// « perso » n'existe plus (ADR 0033) : la clé d'un membre est scopée à l'org courante
+// — posée dans une autre org, elle n'y résout pas (mode `user` = ta clé DANS cette org).
 const KEY_SOURCE: Record<ConnectorMode, string> = {
-  user: 'ta clé perso',
+  user: 'ta clé (posée dans cette org)',
   group: 'la clé de ton équipe',
   org: 'la clé de ton org',
   platform: 'la clé plateforme oto',
