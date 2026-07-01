@@ -2,7 +2,7 @@
 // Cockpit connecteurs de l'ORG (/org/connectors, ADR 0022) — la projection « org »
 // du connecteur : ce que l'org propose & impose à ses membres. Leviers par connecteur :
 // disponibilité (BINAIRE, bornée par la plateforme = plancher dur : on ne peut PAS
-// forcer ce que la plateforme a coupé), clé partagée d'org, abonnement (add-on payant),
+// forcer ce que la plateforme a coupé), clé partagée d'org, option de connecteur,
 // et rédaction de champs (éditable ici — feature ORG ; absente de la carte user). Le
 // backend porte l'autz (org_admin) — l'UI masque les contrôles. « Recommandé » retiré
 // (inerte aujourd'hui ; backend gardé pour plus tard).

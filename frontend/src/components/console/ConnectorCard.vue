@@ -128,7 +128,7 @@ async function toggleTool(t: ToolEntry) {
            commun aux 3 projections de connecteur. -->
       <Tag v-if="connector.category" tone="ink">{{ connector.category }}</Tag>
       <!-- Posture fédérée (ADR 0024) : login délégué + outils proxifiés, mais
-           toujours sous gouvernance oto (redaction/calllog/billing). -->
+           toujours sous gouvernance oto (redaction/calllog). -->
       <Tag v-if="connector.family === 'federated'" tone="saffron" title="mcp fédéré — login délégué, outils proxifiés sous gouvernance oto">fédéré</Tag>
       <!-- Free-tier (ADR 0031) : clé plateforme oto offerte, quota gratuit/jour/user. -->
       <Tag v-if="connector.free_tier" tone="olive" :title="`clé plateforme oto offerte — ${connector.free_tier.daily_quota}/jour gratuits par utilisateur, sans poser ta clé`">gratuit · {{ connector.free_tier.daily_quota }}/j</Tag>

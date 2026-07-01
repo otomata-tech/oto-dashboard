@@ -1,7 +1,7 @@
 # oto-dashboard
 
 The product dashboard for **oto-mcp** — account management, connectors, organizations,
-groups, doctrines, billing and memory. It is the successor to the legacy `oto-app/account/`
+groups, doctrines and memory. It is the successor to the legacy `oto-app/account/`
 SPA ([ADR 0007](https://github.com/otomata-tech/otomata/blob/main/docs/adr/0007-dashboard-repo-separe.md)),
 served at `dashboard.oto.ninja`.
 
@@ -26,7 +26,6 @@ served at `dashboard.oto.ninja`.
 - **Organizations & groups** — orgs, departments with a team lead, shared secrets,
   toolset presets and doctrine.
 - **Memory** — datastore (native PG tabular storage) and knowledge (Memento connection).
-- **Billing** — per-org call-credit wallet (Stripe checkout).
 - **Doctrine library** — marketplace of public doctrines (fork / publish).
 
 The topbar carries an **MCP identity** badge (account × active org) showing which identity

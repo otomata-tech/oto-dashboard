@@ -1,13 +1,13 @@
 <script setup lang="ts">
 // Widget credential HÉBERGÉ (unipile, ADR 0024 R1) — rendu INLINE dans la
-// ConnectorCard (fin de la carte ancrée #messaging). Add-on payant : abonnement par
-// canal + login hébergé Unipile (pas de cookie/extension), les outils agissent comme
-// toi. Auto-suffisant : charge son propre statut.
+// ConnectorCard (fin de la carte ancrée #messaging). Option de connecteur : login
+// hébergé Unipile (pas de cookie/extension), les outils agissent comme toi. L'option
+// est débloquée par un admin (comp) ou par ta propre clé Unipile (BYO). Auto-suffisant.
 import { onMounted, ref } from 'vue'
 import Btn from './Btn.vue'
 import Dot from './Dot.vue'
 import Tag from './Tag.vue'
-import { getUnipileStatus, subscribeUnipile, connectUnipile, disconnectUnipile,
+import { getUnipileStatus, connectUnipile, disconnectUnipile,
   getConnectorIdentities, setConnectorIdentity } from '@/api/console'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
@@ -49,9 +49,6 @@ async function pick(id: string) {
   catch (e) { toast(humanize(e)) }
 }
 
-async function activate() {
-  try { const { checkout_url } = await subscribeUnipile(); window.location.href = checkout_url } catch (e) { toast(humanize(e)) }
-}
 async function link(channel: string) {
   try { const { url } = await connectUnipile(channel); window.location.href = url } catch (e) { toast(humanize(e)) }
 }
@@ -64,8 +61,8 @@ async function drop(channel: string) {
 <template>
   <div class="hw">
     <div class="hw-head">
-      <span class="dim hw-sub">paid add-on — hosted login (no cookie/extension); the tools then act as you. degressive €15 / €10 / €7 per connected account / month.</span>
-      <Btn v-if="!loading && !unipile?.subscribed" kind="mini" @click="activate">activate · from €15/mo</Btn>
+      <span class="dim hw-sub">hosted login (no cookie/extension); the tools then act as you.</span>
+      <Tag v-if="!loading && !unipile?.subscribed" tone="saffron">ask an admin to enable</Tag>
     </div>
     <div v-for="c in channels" :key="c.key" class="hw-channel">
       <div class="hw-row">
@@ -77,7 +74,7 @@ async function drop(channel: string) {
           </div>
           <div class="hw-desc">
             {{ !unipile?.subscribed
-              ? 'activate the option to connect'
+              ? 'option not enabled — ask an admin (or add your own unipile key)'
               : (unipile?.channels?.[c.key]?.connected
                 ? `connected ${fmtDate(unipile?.channels?.[c.key]?.connected_at ?? null) ?? ''} · ${c.desc}`
                 : `link your ${c.label} to start`) }}
