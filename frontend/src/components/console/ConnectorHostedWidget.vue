@@ -7,18 +7,20 @@ import { onMounted, ref } from 'vue'
 import Btn from './Btn.vue'
 import Dot from './Dot.vue'
 import Tag from './Tag.vue'
+import AccountShareSection from './AccountShareSection.vue'
 import { getUnipileStatus, connectUnipile, disconnectUnipile,
-  getConnectorIdentities, setConnectorIdentity } from '@/api/console'
+  getConnectorIdentities, setConnectorIdentity, getAccountGrants } from '@/api/console'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
 import { fmtDate } from '@/types/api'
-import type { UnipileStatus, ConnectorIdentity } from '@/types/api'
+import type { UnipileStatus, ConnectorIdentity, AccountGrant } from '@/types/api'
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
 const unipile = ref<UnipileStatus | null>(null)
 const identities = ref<ConnectorIdentity[]>([])
+const myGrants = ref<AccountGrant[]>([])   // grants accordés PAR moi (#55, face owner)
 const loading = ref(true)
 
 const channels = [
@@ -32,11 +34,13 @@ const channels = [
 
 async function refresh() {
   unipile.value = await getUnipileStatus().catch(() => null)
-  // BYO (clé propre) → la clé peut porter plusieurs comptes : on liste pour permettre
-  // de CHOISIR lequel piloter (vs hosted-auth aveugle). Revente → liste vide (gardée).
-  identities.value = unipile.value?.byo
-    ? await getConnectorIdentities('unipile').then(r => r.identities).catch(() => [])
-    : []
+  // Le backend décide quoi lister selon le mode : BYO → les comptes de la clé ;
+  // revente → vide, SAUF comptes accordés par un propriétaire (#55). Le front
+  // n'encode plus la logique de mode.
+  identities.value = await getConnectorIdentities('unipile')
+    .then(r => r.identities).catch(() => [])
+  myGrants.value = await getAccountGrants()
+    .then(r => r.granted_by_me).catch(() => [])
 }
 onMounted(async () => { await refresh(); loading.value = false })
 
@@ -44,6 +48,12 @@ onMounted(async () => { await refresh(); loading.value = false })
 function idsFor(channelKey: string): ConnectorIdentity[] {
   return identities.value.filter(i => (i.channel || '').toLowerCase() === channelKey)
 }
+// Grants accordés PAR moi sur ce canal (face owner de la section « opéré aussi par »).
+function grantsFor(channelKey: string): AccountGrant[] {
+  return myGrants.value.filter(g => (g.provider || '').toLowerCase() === channelKey)
+}
+const ownerLabel = (i: ConnectorIdentity) =>
+  i.owner ? (i.owner.name || i.owner.email || i.owner.sub) : null
 async function pick(id: string) {
   try { await setConnectorIdentity('unipile', id); toast('account selected'); await refresh() }
   catch (e) { toast(humanize(e)) }
@@ -85,17 +95,22 @@ async function drop(channel: string) {
           <Btn v-else kind="mini" @click="link(c.key)">connect</Btn>
         </template>
       </div>
-      <!-- BYO : la clé porte plusieurs comptes → choisir lequel piloter (ADR 0024) -->
+      <!-- BYO : la clé porte plusieurs comptes → choisir lequel piloter (ADR 0024).
+           Un compte ACCORDÉ par son propriétaire (#55) apparaît « partagé par X ». -->
       <div v-if="idsFor(c.key).length" class="hw-picker">
         <div v-for="idn in idsFor(c.key)" :key="idn.id" class="hw-acct">
           <Dot :tone="idn.is_default ? 'olive' : 'faint'" :size="7" />
           <span class="hw-acct-name">{{ idn.label || idn.id }}
             <Tag v-if="idn.is_default" tone="saffron">active</Tag>
+            <Tag v-if="idn.granted" tone="cobalt">partagé par {{ ownerLabel(idn) }}</Tag>
             <span v-if="idn.status && idn.status.toUpperCase() !== 'OK'" class="dim hw-acct-st">· {{ idn.status }}</span>
           </span>
           <Btn v-if="!idn.is_default" kind="mini" @click="pick(idn.id)">use this account</Btn>
         </div>
       </div>
+      <!-- #55 face propriétaire : autoriser/révoquer des membres à opérer CE compte -->
+      <AccountShareSection v-if="unipile?.channels?.[c.key]?.connected"
+        :channel="c.key" :grants="grantsFor(c.key)" @changed="refresh" />
     </div>
   </div>
 </template>
