@@ -10,13 +10,15 @@ import ProjectDocs from '@/components/console/ProjectDocs.vue'
 import ProjectEntities from '@/components/console/ProjectEntities.vue'
 import {
   getProject, updateProject, archiveProject, copyProject, setProjectTemplate, projectHandoff,
-  getProjectActivity,
+  getProjectActivity, listDocs,
   getResource, shareResource, unshareResource, transferResource,
   listProjectFiles, uploadProjectFile, deleteProjectFile, setProjectFilePublic,
+  publishProjectShare, unpublishProjectShare,
 } from '@/api/console'
 import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { encryptForShare } from '@/lib/crypto'
 import { useToast } from '@/composables/useToast'
 import { usePrompt, type PromptField } from '@/composables/usePrompt'
 import { useTransferOwnership } from '@/composables/useTransferOwnership'
@@ -37,6 +39,12 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
 const loaded = ref(false)
 const error = ref<string | null>(null)
+// Partage public CHIFFRÉ (zero-knowledge) : le lien COMPLET (avec la clé en fragment)
+// n'existe que côté navigateur. On le mémorise en localStorage pour le ré-afficher à la
+// revisite ; sinon on ne peut que re-publier (rotation de clé → nouveau lien).
+const publicLink = ref<string | null>(null)
+const publishing = ref(false)
+const pshareStoreKey = `oto:pshare:${projectId}`
 
 const briefDirty = computed(() => !!project.value && briefDraft.value !== (project.value.brief_md ?? ''))
 const readOnly = computed(() => project.value?.can_write === false)   // #4b — proposer une modif au lieu d'éditer
@@ -50,6 +58,8 @@ async function load() {
   try {
     project.value = await getProject(projectId)
     briefDraft.value = project.value.brief_md ?? ''
+    // Ré-affiche le lien public complet mémorisé localement (si toujours partagé).
+    publicLink.value = project.value.public_shared ? localStorage.getItem(pshareStoreKey) : null
     await Promise.all([loadGrants(), loadActivity(), loadFiles()])
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
@@ -183,6 +193,53 @@ async function transfer() {
   try { await transferResource('project', String(projectId), target); toast('transféré'); await Promise.all([load(), loadGrants()]) }
   catch (e) { toast(humanize(e)) }
 }
+
+// ── partage PUBLIC CHIFFRÉ (zero-knowledge, ADR 0032 §3) ──
+// Chiffre un snapshot { brief + pages } DANS le navigateur avec une clé neuve, n'envoie
+// que le ciphertext au backend, et met la clé dans le fragment du lien. La plateforme
+// ne peut pas lire le projet partagé. Re-publier fait tourner la clé (ancien lien caduc).
+async function publishPublic() {
+  if (!project.value || publishing.value) return
+  publishing.value = true
+  try {
+    const { docs } = await listDocs(projectId)
+    const snapshot = {
+      v: 1,
+      name: project.value.name,
+      brief_md: project.value.brief_md ?? '',
+      docs: docs.map((d) => ({ id: d.id, parent_id: d.parent_id, title: d.title, body_md: d.body_md, kind: d.kind })),
+      shared_at: new Date().toISOString(),
+    }
+    const { ciphertext, keyFragment } = await encryptForShare(snapshot)
+    const { token, public_base_url } = await publishProjectShare(projectId, ciphertext)
+    const url = `${public_base_url}/p/p/${token}#${keyFragment}`
+    localStorage.setItem(pshareStoreKey, url)
+    publicLink.value = url
+    project.value = { ...project.value, public_shared: true }
+    await navigator.clipboard.writeText(url).catch(() => {})
+    toast('lien public chiffré copié — la clé ne quitte jamais ce navigateur')
+    await loadActivity()
+  } catch (e) { toast(humanize(e)) }
+  finally { publishing.value = false }
+}
+async function unpublishPublic() {
+  if (!project.value) return
+  if (!await confirmAction({ title: 'Retirer le partage public',
+    message: 'Le lien public deviendra immédiatement inaccessible. Continuer ?', confirmLabel: 'Retirer' })) return
+  try {
+    await unpublishProjectShare(projectId)
+    localStorage.removeItem(pshareStoreKey)
+    publicLink.value = null
+    project.value = { ...project.value, public_shared: false }
+    toast('partage public retiré')
+    await loadActivity()
+  } catch (e) { toast(humanize(e)) }
+}
+async function copyPublicLink() {
+  if (!publicLink.value) return
+  await navigator.clipboard.writeText(publicLink.value).catch(() => {})
+  toast('lien copié')
+}
 </script>
 
 <template>
@@ -258,6 +315,37 @@ async function transfer() {
               <Tag :tone="g.permission === 'write' ? 'olive' : 'cobalt'">{{ g.permission === 'write' ? 'édition' : 'lecture' }}</Tag>
               <button v-if="!readOnly" class="ent__lnk" title="Retirer l'accès" @click="revoke(g)">✕</button>
             </div>
+          </section>
+
+          <!-- partage public chiffré (zero-knowledge, ADR 0032 §3) -->
+          <section class="surface-card">
+            <div class="card-eb-row">
+              <span class="card-eb">lien public · chiffré</span>
+              <Tag v-if="project.public_shared" tone="olive" title="Un lien public chiffré est actif">actif</Tag>
+            </div>
+            <p class="dim" style="font-size: 11.5px; line-height: 1.5; margin-bottom: 9px">
+              Publie un instantané en lecture seule (brief + pages) derrière un lien.
+              Le contenu est <strong>chiffré dans ton navigateur</strong> : la clé vit dans le lien,
+              oto ne peut pas le lire.
+            </p>
+            <template v-if="project.public_shared">
+              <div v-if="publicLink" class="pshare-link">
+                <input class="pshare-input" :value="publicLink" readonly @focus="($event.target as HTMLInputElement).select()" />
+                <button class="btn-soft btn-soft--xs" @click="copyPublicLink">copier</button>
+              </div>
+              <p v-else class="dim" style="font-size: 11px; margin-bottom: 8px">
+                Lien actif, mais sa clé n'a été affichée qu'à la publication (sur un autre appareil ?).
+                Re-publie pour obtenir un nouveau lien.
+              </p>
+              <div class="pshare-act">
+                <button v-if="!readOnly" class="btn-soft btn-soft--xs" :disabled="publishing" @click="publishPublic">re-publier</button>
+                <button v-if="!readOnly" class="btn-soft btn-soft--xs btn-soft--danger" @click="unpublishPublic">retirer</button>
+              </div>
+            </template>
+            <button v-else-if="!readOnly" class="btn-soft btn-soft--xs" :disabled="publishing" @click="publishPublic">
+              {{ publishing ? 'chiffrement…' : 'partager par lien chiffré' }}
+            </button>
+            <p v-else class="dim" style="font-size: 12px">non partagé publiquement.</p>
           </section>
 
           <!-- autres documents -->
@@ -353,4 +441,9 @@ async function transfer() {
 .wk-act__t { font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); width: 64px; flex: none; }
 .wk-act__b { font-size: 12px; color: var(--color-ink-soft); }
 .wk-act__b strong { font-weight: 600; color: var(--color-ink); }
+
+/* ── lien public chiffré ── */
+.pshare-link { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+.pshare-input { flex: 1; min-width: 0; border: 1px solid var(--color-hair); border-radius: 7px; padding: 5px 8px; font-family: var(--font-mono); font-size: 10.5px; color: var(--color-ink-soft); background: var(--color-paper-2); }
+.pshare-act { display: flex; gap: 7px; }
 </style>

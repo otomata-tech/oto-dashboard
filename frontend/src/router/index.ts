@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import ConsoleLayout from '../views/console/ConsoleLayout.vue'
 import InviteAcceptView from '../views/InviteAcceptView.vue'
 import PublicDocView from '../views/PublicDocView.vue'
+import PublicProjectView from '../views/PublicProjectView.vue'
 import { NAV } from '@/lib/consoleNav'
 
 // Une route par section, dérivée de NAV : le `path` EST l'identité, le layout
@@ -40,6 +41,9 @@ const router = createRouter({
     { path: '/invitation/:carrier/:code?', name: 'invitation', component: InviteAcceptView },
     // Viewer public d'un document partagé (#4a) — sans auth, hors shell console.
     { path: '/p/d/:token', name: 'public-doc', component: PublicDocView },
+    // Viewer public d'un PROJET partagé CHIFFRÉ (ADR 0032 §3) — sans auth ; la clé
+    // de déchiffrement vit dans le fragment (#…), jamais envoyée au serveur.
+    { path: '/p/p/:token', name: 'public-project', component: PublicProjectView },
     {
       // Fiche user (admin), sous /platform/users — résolue par le layout vers
       // AdminUserView ; surlignage + niveau hérités de la section users.
