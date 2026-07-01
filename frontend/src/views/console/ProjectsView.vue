@@ -7,7 +7,7 @@ import { useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
-import ProjectNameDialog from '@/components/console/ProjectNameDialog.vue'
+import NameDialog from '@/components/console/NameDialog.vue'
 import { listProjects, listProjectTemplates, createProject, copyProject } from '@/api/console'
 import type { Project } from '@/types/api'
 import { fmtDate } from '@/types/api'
@@ -120,7 +120,7 @@ function create() {
       </div>
     </ConsoleCard>
 
-    <ProjectNameDialog v-if="nameConfig" v-model:open="nameOpen"
+    <NameDialog v-if="nameConfig" v-model:open="nameOpen"
       :title="nameConfig.title" :description="nameConfig.description"
       :initial="nameConfig.initial" :submit-label="nameConfig.submitLabel"
       :on-confirm="nameConfig.onConfirm" placeholder="Prospection Marseille" />

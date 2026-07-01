@@ -1,8 +1,8 @@
 <script setup lang="ts">
-// Dialog de nom VALIDÉ (vee-validate + zod) — réutilisable pour « nouveau projet »
-// et « utiliser un modèle ». Remplace le promptForm générique : nom requis, trimmé,
-// borné. L'appel réseau est délégué au parent (`onConfirm` async) ; le dialog garde
-// l'ouverture + l'état d'envoi et se ferme au succès.
+// Dialog de nom VALIDÉ (vee-validate + zod), générique et réutilisable (création
+// de projet, renommage de namespace, etc.). Remplace le promptForm/promptText :
+// nom requis, trimmé, borné. L'appel réseau est délégué au parent (`onConfirm`
+// async) ; le dialog garde l'ouverture + l'état d'envoi et se ferme au succès.
 import { watch } from 'vue'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
