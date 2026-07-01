@@ -54,7 +54,7 @@ type LinkOption = { value: string; label: string }
 async function entitiesFor(type: ProjectLinkType): Promise<LinkOption[]> {
   if (type === 'tableau') return (await getNamespaces()).namespaces.map((n) => ({ value: String(n.id), label: n.namespace }))
   if (type === 'connecteur') return (await getConnectors()).connectors.map((c) => ({ value: c.name, label: c.label || c.name }))
-  if (type === 'procedure') return ((await getDoctrine()).instructions ?? []).map((i) => ({ value: i.slug, label: i.title }))
+  if (type === 'procedure') return ((await getDoctrine()).instructions ?? []).map((i) => ({ value: String(i.id), label: i.title }))
   const w = await getMementoWorkspaces()
   const seen = new Set<string>()
   return [...w.orgs.flatMap((o) => o.workspaces), ...w.shared, ...w.pinned]
