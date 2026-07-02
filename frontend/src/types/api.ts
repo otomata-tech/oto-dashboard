@@ -318,6 +318,15 @@ export interface AgentContext {
   tools: AgentToolsView
 }
 
+// Fiche profil « situation avec oto » (GET/PUT /api/me/profile). Data model libre :
+// `profile` = clés/valeurs, `fields` = schéma suggéré (question/why) pour guider l'UI.
+export interface ProfileField { key: string; question: string; why: string }
+export interface AccountProfile {
+  profile: Record<string, string>
+  updated_at: string | null
+  fields: ProfileField[]
+}
+
 // ── Blocs d'instructions plateforme A/B (#50) — édités par l'admin plateforme ──
 export interface PlatformInstrBlock {
   key: string                   // 'secret_sauce' (bloc A)
