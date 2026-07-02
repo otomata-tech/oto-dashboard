@@ -47,6 +47,11 @@ const visTone = (v: string) =>
   v === 'public' ? 'olive' : v === 'private' ? 'saffron' : 'cobalt'
 const statusTone = (s: string) => (s === 'DEPRECATED' ? 'saffron' : 'olive')
 
+// Le lien viewer vient du MCP memento distant : ne jamais binder un href sans
+// valider le scheme (défense en profondeur contre un javascript:/data: injecté).
+const safeHref = (u?: string): string | undefined =>
+  u && /^https?:\/\//i.test(u) ? u : undefined
+
 async function load() {
   try { memento.value = await getMementoStatus() }
   catch { memento.value = null }
@@ -181,7 +186,7 @@ async function disconnect() {
             <div v-else-if="doc">
               <div class="doc-head">
                 <h3 class="doc-title">{{ doc.title }}</h3>
-                <a v-if="doc.url" class="btn-mini" :href="doc.url" target="_blank" rel="noopener">open ↗</a>
+                <a v-if="safeHref(doc.url)" class="btn-mini" :href="safeHref(doc.url)" target="_blank" rel="noopener">open ↗</a>
               </div>
               <div v-for="b in doc.blocks" :key="b.id" class="block">
                 <span class="block-type">{{ b.type }}</span>
