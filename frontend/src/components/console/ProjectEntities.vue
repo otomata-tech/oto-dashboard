@@ -31,9 +31,16 @@ const LINK_GROUPS: { type: ProjectLinkType; label: string; icon: string }[] = [
 ]
 const TYPE_ICON: Record<string, string> = Object.fromEntries(LINK_GROUPS.map((g) => [g.type, g.icon]))
 
+// Nom affiché d'un lien : `label` (posé au lien) sinon le nom RÉSOLU par le backend
+// (procédure : `title` de la doctrine ; tableau : `namespace`) — `target_ref` est un
+// id stable (ADR 0032), l'afficher nu est le bug « la procédure s'appelle 25 ».
+function linkName(l: ProjectLink): string {
+  return l.label || l.title || l.namespace || l.target_ref
+}
+
 // Deep-link vers l'entité liée dans le dashboard (navigable). `target_ref` = id de
-// namespace (tableau) / slug de doctrine (procédure) / nom de connecteur / slug de
-// base. Connecteur & base n'ont pas de deep-link fin → on renvoie vers leur section.
+// namespace (tableau) / id stable de doctrine (procédure, ADR 0032) / nom de
+// connecteur / slug de base. Connecteur & base n'ont pas de deep-link fin → section.
 function entityHref(l: ProjectLink): string | null {
   const ref = encodeURIComponent(l.target_ref)
   switch (l.target_type) {
@@ -162,7 +169,7 @@ async function saveConfig(l: ProjectLink) {
 
 async function removeLink(l: ProjectLink) {
   if (!await confirmAction({ title: 'Délier', danger: true, confirmLabel: 'Délier',
-    message: `Délier ${l.label || l.target_ref} ?` })) return
+    message: `Délier ${linkName(l)} ?` })) return
   try {
     const { links } = await unlinkProject(props.projectId, l.target_type, l.target_ref, l.identity_ref ?? undefined)
     emit('update:links', links); emit('changed')
@@ -229,7 +236,7 @@ async function removeLink(l: ProjectLink) {
                   :target="hrefInfo(l).href ? '_blank' : undefined"
                   :rel="hrefInfo(l).href ? 'noopener noreferrer' : undefined"
                   class="ent__name" :class="{ 'ent__name--link': !!entityHref(l) }">
-                  {{ l.label || l.target_ref }}
+                  {{ linkName(l) }}
                   <Icon v-if="entityHref(l)" name="ext" :size="11" class="ent__go" />
                 </component>
                 <Tag v-if="l.cross_project" tone="saffron" title="Cette entité est aussi liée par un autre projet — éviter les modifications brutales">partagé</Tag>
