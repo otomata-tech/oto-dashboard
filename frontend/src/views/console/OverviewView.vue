@@ -15,7 +15,7 @@ import StateEmpty from '@/components/console/StateEmpty.vue'
 import Squiggle from '@/components/console/Squiggle.vue'
 import InviteFriendCard from '@/components/console/InviteFriendCard.vue'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
-import { getConnectors, getDoctrine, getGoogleStatus, getMonitoringSummary } from '@/api/console'
+import { getConnectors, getDoctrine, getGoogleStatus, getMonitoringSummary, getKbProject, listDocs } from '@/api/console'
 import type { ConnectorMeta, GoogleOauthStatus, MonitoringSummary } from '@/types/api'
 import { toDayBars } from '@/lib/monitoring'
 import { humanize } from '@/lib/errors'
@@ -32,6 +32,7 @@ const { me } = useMe()
 const catalog = ref<ConnectorMeta[]>([])
 const google = ref<GoogleOauthStatus | null>(null)
 const doctrineExists = ref(false)
+const hasDocs = ref(false)
 const summary = ref<MonitoringSummary | null>(null)
 const error = ref<string | null>(null)
 
@@ -85,7 +86,7 @@ const steps = computed(() => [
   { done: true, t: 'connect a client', d: 'add mcp.oto.cx to claude desktop, cursor or any mcp client — auth runs over oauth.', act: null as [string, string] | null },
   { done: userKeysCount.value > 0, t: 'add your first api key', d: 'paste a provider key (serper, hunter, …) so your tools can call out.', act: ['/connectors', 'add a key'] as [string, string] },
   { done: !!google.value?.connected, t: 'link google workspace', d: 'unlock gmail, drive, sheets and the datastore.', act: ['/connectors', 'link google'] as [string, string] },
-  { done: !!me.value?.memento?.connected, t: 'connect your knowledge base', d: 'link memento — a structured, sourced memory your agents read and write across sessions. federated into every oto session.', act: ['/connectors', 'connect memento'] as [string, string] },
+  { done: hasDocs.value, t: 'build your knowledge base', d: 'capture reference pages in Documents — shared, sourced org knowledge your agents read every session.', act: ['/documents', 'open documents'] as [string, string] },
   { done: doctrineExists.value, t: 'write your agent readme', d: 'injected at the start of every session: business context, crm rules, tone, guardrails.', act: ['/org', 'open the editor'] as [string, string] },
   { done: me.value?.active_org != null, t: 'join an organization', d: 'share org keys so teammates inherit your setup.', act: ['/org', 'manage organization'] as [string, string] },
 ])
@@ -102,6 +103,9 @@ onMounted(async () => {
   catalog.value = (await soft(getConnectors(), { connectors: [] })).connectors
   google.value = await soft(getGoogleStatus(), null)
   doctrineExists.value = (await soft(getDoctrine(), null))?.doctrine.exists ?? false
+  // KB d'org (zone Documents) : « fait » dès qu'une page de référence existe.
+  const kb = await soft(getKbProject(), null)
+  if (kb) hasDocs.value = (await soft(listDocs(kb.project_id), { docs: [] })).docs.length > 0
   if (isAdmin.value) summary.value = await soft(getMonitoringSummary(7), null)
   loaded.value = true
 })
