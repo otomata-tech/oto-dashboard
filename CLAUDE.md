@@ -59,9 +59,17 @@ la clé plateforme oto »). Les toggles d'outils restent `enableTool`/`disableTo
 de toolbox vivent en bas de la même vue. Les **tokens CLI** ont migré vers le **hub compte**
 (`/account`, `AccountTokensCard.vue`) — user-scopés (`/api/me/tokens`).
 
-> **Carte = shell partagé (ADR 0024 §3).** `ConnectorCardShell.vue` porte le chrome commun
-> (logo/nom/badges/corps) ; la projection USER le remplit via `ConnectorCard` (connexion +
-> outils), la projection ORG via `ConnectorOrgCard` (gouvernance). Même identité visuelle.
+> **Carte = shell partagé (ADR 0024 §3), UI alignée sur les 5 surfaces (2026-07-02).**
+> `ConnectorCardShell.vue` porte le chrome commun (logo/nom/badges/corps + variantes
+> `to` = nom→fiche, `clickable`/`fill` = tuile de grille) ; consommé par les TROIS
+> projections — USER `ConnectorCard` (connexion + outils), ORG `ConnectorOrgCard`
+> (gouvernance), PLATEFORME `ConnectorAdminCard` (master + clé plateforme — la vue
+> admin est passée de la table aux cartes) — ET par les tuiles marketplace
+> (`ConnectorLibraryView`) / partagés (`ConnectorsSharedView`). Badges **canoniques**
+> = `ConnectorBadges.vue` (catégorie=ink, auth=cobalt, fédéré=saffron, gratuit=olive,
+> grant-only=pill bordée — un axe = une couleur, partout). Sur toute carte, **le nom
+> du connecteur ouvre sa fiche de présentation** (`/connectors?tab=marketplace&connector=<name>`,
+> `ConnectorDetail.vue` — même cible que les entités liées d'un projet).
 
 > **Compte partagé autorisé (otomata-private#55, unipile).** Sur le widget hosted
 > (`ConnectorHostedWidget.vue`) : côté **propriétaire**, chaque canal connecté porte une
@@ -100,9 +108,11 @@ une carte par niveau du level-switch :
   > ∪ curé ∪ champs sous règle ; **rien par défaut** + **modèles 1-clic** (anonymisation candidat/bancaire) ;
   > **toggle actif/en-clair + éditer** par champ (`FieldRuleDialog.vue`) ; **dry-run** (`RedactionPreview.vue`)
   > pour voir avant→après sur un échantillon réel.
-- **PLATEFORME** `/platform/connectors` (`AdminConnectorsView`) — master switch + **clé plateforme**
-  (set/remove inline, réservé super_admin ; absorbe l'ex-`/platform/keys`, qui redirige). Entitlements
-  de namespace restent par org dans `/platform/orgs`.
+- **PLATEFORME** `/platform/connectors` (`AdminConnectorsView` → `ConnectorAdminCard`) — master
+  switch + **clé plateforme** (set/remove inline, réservé super_admin ; absorbe l'ex-`/platform/keys`,
+  qui redirige). **Cartes sur le shell partagé** (plus de table, 2026-07-02) — même liste que
+  user/org (recherche + chips + tri actifs d'abord). Entitlements de namespace restent par org
+  dans `/platform/orgs`.
 
 **Object-browser admin (ADR 0030).** `/platform/objects` (`AdminObjectsView`) = projection
 PLATEFORME des **objets possédés** (généralise le level-switch à tout objet, pas que les

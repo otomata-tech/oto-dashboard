@@ -7,10 +7,10 @@
 // l'agent ; not_selected = désactivé, le défaut.
 import { computed, ref } from 'vue'
 import Toggle from './Toggle.vue'
-import Tag from './Tag.vue'
 import Btn from './Btn.vue'
 import Quota from './Quota.vue'
 import ConnectorCardShell from './ConnectorCardShell.vue'
+import ConnectorBadges from './ConnectorBadges.vue'
 import ConnectorOAuthAccounts from './ConnectorOAuthAccounts.vue'
 import ConnectorFederatedWidget from './ConnectorFederatedWidget.vue'
 import ConnectorSessionWidget from './ConnectorSessionWidget.vue'
@@ -99,6 +99,11 @@ const keySource = computed(() => KEY_SOURCE[statusMode.value])
 // doctrines (`<tool:slug>`) sans être connecté — utile à l'écriture de doctrines.
 const docRefCount = computed(() => props.connector.doctrine_ref_count ?? 0)
 
+// Fiche de présentation (marketplace, ?connector=) — le nom de la carte y mène,
+// même geste sur les 3 projections (user / org / plateforme).
+const ficheTo = computed(() =>
+  `/connectors?tab=marketplace&connector=${encodeURIComponent(props.connector.name)}`)
+
 const myTools = computed(() => [...props.tools].sort((a, b) => a.name.localeCompare(b.name)))
 const enabledCount = computed(() => myTools.value.filter((t) => t.enabled).length)
 
@@ -127,17 +132,11 @@ async function toggleTool(t: ToolEntry) {
     :logo-url="connector.logo_url"
     :subtitle="`${connector.publisher} · ${connector.help}`"
     :off="state === 'not_selected'"
-    :collapsed="state === 'not_selected'">
-    <template #badges>
-      <!-- Catégorie métier curée (registre `category`, ADR 0011) — axe de lecture
-           commun aux 3 projections de connecteur. -->
-      <Tag v-if="connector.category" tone="ink">{{ connector.category }}</Tag>
-      <!-- Posture fédérée (ADR 0024) : login délégué + outils proxifiés, mais
-           toujours sous gouvernance oto (redaction/calllog). -->
-      <Tag v-if="connector.family === 'federated'" tone="saffron" title="mcp fédéré — login délégué, outils proxifiés sous gouvernance oto">fédéré</Tag>
-      <!-- Free-tier (ADR 0031) : clé plateforme oto offerte, quota gratuit/jour/user. -->
-      <Tag v-if="connector.free_tier" tone="olive" :title="`clé plateforme oto offerte — ${connector.free_tier.daily_quota}/jour gratuits par utilisateur, sans poser ta clé`">gratuit · {{ connector.free_tier.daily_quota }}/j</Tag>
-    </template>
+    :collapsed="state === 'not_selected'"
+    :to="ficheTo">
+    <!-- Badges CANONIQUES (ConnectorBadges) — même vocabulaire que les projections
+         org/plateforme et les tuiles marketplace/partagés. -->
+    <template #badges><ConnectorBadges :meta="connector" /></template>
     <template #header-right>
       <!-- Sélecteur des 3 états : actif | masqué | désactivé (défaut) -->
       <div class="cc-seg" role="radiogroup" aria-label="connector state">

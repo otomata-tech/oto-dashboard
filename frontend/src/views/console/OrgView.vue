@@ -129,13 +129,24 @@ function editOrg() {
       { key: 'name', label: 'name', initial: detail.value?.org.name ?? '', required: true },
       { key: 'description', label: 'description', type: 'textarea',
         placeholder: 'what this org is for (optional)', initial: detail.value?.org.description ?? '' },
+      { key: 'domain', label: 'domain', placeholder: 'acme.com',
+        hint: 'your company domain — also fetches your logo automatically (logo.dev) when none is uploaded',
+        initial: detail.value?.org.domain ?? '' },
+      { key: 'industry', label: 'industry', placeholder: 'e.g. software, accounting, retail (optional)',
+        initial: detail.value?.org.industry ?? '' },
+      { key: 'location', label: 'location', placeholder: 'e.g. Paris, France (optional)',
+        initial: detail.value?.org.location ?? '' },
     ],
     onConfirm: async (v) => {
       try {
-        await updateOrg(activeOrgId.value!, { name: (v.name ?? '').trim(), description: v.description ?? '' })
+        await updateOrg(activeOrgId.value!, {
+          name: (v.name ?? '').trim(), description: v.description ?? '',
+          domain: (v.domain ?? '').trim(), industry: (v.industry ?? '').trim(),
+          location: (v.location ?? '').trim(),
+        })
         detail.value = await getOrg(activeOrgId.value!)
         orgs.value = (await getMyOrgs()).orgs
-        await reloadMe()          // rafraîchit le nom dans le badge identité (topbar)
+        await reloadMe()          // rafraîchit nom + logo dans le badge identité (sidebar)
         toast('organization updated')
       } catch (e) { toast(humanize(e)); throw e }
     },
@@ -209,15 +220,27 @@ async function removeLogo() {
         </ConsoleCard>
 
         <div style="display: flex; flex-direction: column; gap: 16px">
-          <ConsoleCard title="general" sub="name and description of your active org.">
+          <ConsoleCard title="general" sub="name, description and company profile of your active org.">
             <template v-if="isOrgAdmin" #actions>
               <Btn kind="mini" icon="pen" @click="editOrg">edit</Btn>
             </template>
             <div class="rowlist">
               <div>
-                <div style="font-weight: 600; font-size: 15px; color: var(--color-ink)">{{ detail?.org.name }}</div>
-                <div v-if="detail?.org.description" style="font-size: 12.5px; color: var(--color-mute); margin-top: 4px; white-space: pre-wrap">{{ detail.org.description }}</div>
-                <div v-else class="helptext" style="margin-top: 4px">
+                <div style="display: flex; align-items: center; gap: 10px">
+                  <Avatar :src="detail?.org.logo_url" :name="detail?.org.name" :size="34" shape="square" />
+                  <div>
+                    <div style="font-weight: 600; font-size: 15px; color: var(--color-ink)">{{ detail?.org.name }}</div>
+                    <div v-if="detail?.org.domain || detail?.org.industry || detail?.org.location"
+                      style="font-size: 11.5px; color: var(--color-faint); display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 2px">
+                      <a v-if="detail?.org.domain" :href="`https://${detail.org.domain}`" target="_blank" rel="noopener"
+                        style="color: var(--color-mute); text-decoration: underline; text-underline-offset: 2px">{{ detail.org.domain }}</a>
+                      <span v-if="detail?.org.industry">{{ detail.org.industry }}</span>
+                      <span v-if="detail?.org.location">{{ detail.org.location }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="detail?.org.description" style="font-size: 12.5px; color: var(--color-mute); margin-top: 8px; white-space: pre-wrap">{{ detail.org.description }}</div>
+                <div v-else class="helptext" style="margin-top: 8px">
                   {{ isOrgAdmin ? 'no description yet — add one to tell teammates what this org is for.' : 'no description.' }}
                 </div>
               </div>
@@ -237,15 +260,19 @@ async function removeLogo() {
               <div v-if="!orgs.length" class="helptext">no orgs.</div>
             </div>
           </ConsoleCard>
-          <ConsoleCard v-if="isOrgAdmin" title="branding" sub="logo shown across the dashboard for this org. png, jpeg or webp · up to 2 MB.">
+          <ConsoleCard v-if="isOrgAdmin" title="branding"
+            sub="logo shown across the dashboard for this org. set a domain in « general » to fetch it automatically — or upload your own.">
             <div style="display: flex; align-items: center; gap: 16px">
               <Avatar :src="detail?.org.logo_url" :name="detail?.org.name" :size="56" shape="square" />
               <div style="flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 8px">
+                <div v-if="!detail?.org.logo_custom && detail?.org.domain && detail?.org.logo_url" class="helptext">
+                  logo fetched from <strong>{{ detail.org.domain }}</strong> (logo.dev) — upload one to override.
+                </div>
                 <Dropzone :accept="IMAGE_ACCEPT_ATTR" :max-size-mb="2" :busy="logoBusy"
-                  :label="detail?.org.logo_url ? 'changer le logo' : 'déposer un logo'"
+                  :label="detail?.org.logo_custom ? 'changer le logo' : 'déposer un logo'"
                   hint="png, jpeg ou webp · glisser-déposer ou cliquer · max 2 Mo"
                   @select="onLogoDrop" @error="toast" />
-                <div v-if="detail?.org.logo_url">
+                <div v-if="detail?.org.logo_custom">
                   <Btn kind="danger" :disabled="logoBusy" @click="removeLogo">remove logo</Btn>
                 </div>
               </div>

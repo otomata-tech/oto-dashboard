@@ -6,6 +6,7 @@
 // Présentation pure : les actions remontent à la vue (qui détient fetch + reload).
 import { computed, ref } from 'vue'
 import ConnectorCardShell from './ConnectorCardShell.vue'
+import ConnectorBadges from './ConnectorBadges.vue'
 import ConnectorTransforms from './ConnectorTransforms.vue'
 import ConnectorEmail from './ConnectorEmail.vue'
 import Tag from './Tag.vue'
@@ -51,7 +52,9 @@ function principalLabel(e: ConnectorAclEntry): string {
 const r = computed(() => props.activation)
 const subtitle = computed(() =>
   [props.meta?.publisher, r.value.help].filter(Boolean).join(' · '))
-const isFederated = computed(() => props.meta?.family === 'federated')
+// Fiche de présentation (marketplace) — même geste que la carte user/plateforme.
+const ficheTo = computed(() =>
+  `/connectors?tab=marketplace&connector=${encodeURIComponent(r.value.connector)}`)
 
 // Clé partagée d'org : possible pour les connecteurs à clé simple (api_key).
 const canHaveOrgKey = computed(() => props.meta?.secret_kind === 'api_key')
@@ -78,11 +81,9 @@ const emailTransport = computed(() => props.email?.transports?.[r.value.connecto
 </script>
 
 <template>
-  <ConnectorCardShell :label="r.label" :logo-url="meta?.logo_url" :subtitle="subtitle">
-    <template #badges>
-      <Tag v-if="meta?.category" tone="ink">{{ meta.category }}</Tag>
-      <Tag v-if="isFederated" tone="saffron" title="mcp fédéré — login délégué, outils proxifiés sous gouvernance oto">fédéré</Tag>
-    </template>
+  <ConnectorCardShell :label="r.label" :logo-url="meta?.logo_url" :subtitle="subtitle" :to="ficheTo">
+    <!-- Badges CANONIQUES — même vocabulaire que les projections user/plateforme. -->
+    <template #badges><ConnectorBadges :meta="meta" /></template>
 
     <!-- Effet en clair AVANT les leviers : ce que vivent tes membres. -->
     <div class="ocstatus" :class="r.effective ? 'is-on' : 'is-off'">
