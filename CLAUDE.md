@@ -152,6 +152,13 @@ picker des vraies entités via `getNamespaces`/`getConnectors`/`getDoctrine`/`ge
 dans `api/console.ts` (POST op-aware `/api/me/{projects,docs}`). Backend : `oto-backend/CLAUDE.md`
 §Projet. Non faits : MCP-App rendu, édition temps réel, pré-set vendable.
 
+> **Slots & inventaire dérivé (ADR 0035, B4/B5).** Le formulaire « publier en endpoint MCP »
+> **préremplit** ses outils depuis l'inventaire dérivé (`getProjectInventory` = op `inventory` :
+> refs `<tool:>` des procédures liées ∪ outils des runs) quand le projet n'a pas de liste curée —
+> on cure, on ne retape pas. La même réponse porte l'**`audit`** (liens morts / slots de procédure
+> non bindés / procédures inertes) → bandeau « liens à vérifier » de `ProjectDetailView`,
+> rechargé après lier/délier. Un lien peut porter un **`slot`** (binding nommé, 409 `slot_taken`).
+
 > **Partage public CHIFFRÉ (ADR 0032 §3, zero-knowledge).** `ProjectDetailView` porte une carte
 > « lien public · chiffré » : à la publication, le navigateur assemble un snapshot (brief + pages
 > via `listDocs`), le **chiffre** (`lib/crypto.ts`, WebCrypto AES-256-GCM, clé neuve) et n'envoie
