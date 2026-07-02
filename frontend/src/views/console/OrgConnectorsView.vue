@@ -8,8 +8,9 @@
 // (inerte aujourd'hui ; backend gardé pour plus tard).
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
-import ConnectorOrgCard from '@/components/console/ConnectorOrgCard.vue'
+import OrgConnectorDrawer from '@/components/console/OrgConnectorDrawer.vue'
 import CategoryChips from '@/components/console/CategoryChips.vue'
+import Avatar from '@/components/console/Avatar.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
@@ -47,13 +48,16 @@ const error = ref<string | null>(null)
 const loaded = ref(false)
 const q = ref('')
 const category = ref<string | null>(null)
+const selectedName = ref<string | null>(null)   // ligne ouverte dans le drawer
 
 const activeOrgId = computed(() => me.value?.active_org ?? null)
 const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin' || me.value?.role === 'admin')
 
 // Catégorie d'un connecteur = celle du registre (les lignes d'activation ne la
-// portent pas) ; sert au filtre par chips et au tag de carte.
+// portent pas) ; sert au filtre par chips et à la cellule de table.
 const catOf = (connector: string) => meta.value[connector]?.category ?? ''
+const pubOf = (connector: string) => meta.value[connector]?.publisher ?? ''
+const logoOf = (connector: string) => meta.value[connector]?.logo_url
 
 const shown = computed(() => {
   const needle = q.value.trim().toLowerCase()
@@ -62,6 +66,12 @@ const shown = computed(() => {
     .filter((r) => !needle || r.connector.toLowerCase().includes(needle) || r.label.toLowerCase().includes(needle))
     .sort((a, b) => Number(b.effective) - Number(a.effective) || a.label.localeCompare(b.label))
 })
+
+const selected = computed(() => rows.value.find((r) => r.connector === selectedName.value) ?? null)
+
+// ── cellules de table (dérivées des mêmes leviers que le drawer) ──
+const canHaveKey = (connector: string) => meta.value[connector]?.secret_kind === 'api_key'
+const accessCountOf = (connector: string) => acl.value.filter((e) => e.connector === connector).length
 
 async function load() {
   if (activeOrgId.value == null) { loaded.value = true; return }
@@ -140,6 +150,27 @@ async function setAvailable(r: OrgConnectorActivation, on: boolean) {
     if (on) await clearOrgConnectorActivation(activeOrgId.value!, r.connector)
     else await setOrgConnectorActivation(activeOrgId.value!, r.connector, false)
     toast(`${r.label} : ${on ? 'disponible pour tes membres' : 'coupé pour tes membres'}`)
+    await load()
+  } catch (e) { toast(humanize(e)) }
+}
+
+// « Tout activer » — rend disponibles à tes membres tous les connecteurs actuellement
+// coupés (override d'org off) que la plateforme expose. Un connecteur déjà effectif est
+// ignoré. Chaque activation = suppression de l'override → repli sur le master (dispo).
+const enableableAll = computed(() =>
+  rows.value.filter((r) => r.master_enabled === true && !r.effective))
+async function enableAll() {
+  if (!isOrgAdmin.value || activeOrgId.value == null) return
+  const targets = enableableAll.value
+  if (!targets.length) { toast('tous les connecteurs sont déjà disponibles pour tes membres'); return }
+  if (!await confirmAction({
+    title: 'tout activer',
+    confirmLabel: `activer ${targets.length} connecteur${targets.length > 1 ? 's' : ''}`,
+    message: `rendre disponibles à tes membres les ${targets.length} connecteurs actuellement coupés (parmi ceux que la plateforme expose) ?`,
+  })) return
+  try {
+    await Promise.all(targets.map((r) => clearOrgConnectorActivation(activeOrgId.value!, r.connector)))
+    toast(`${targets.length} connecteur${targets.length > 1 ? 's rendus disponibles' : ' rendu disponible'} pour tes membres`)
     await load()
   } catch (e) { toast(humanize(e)) }
 }
@@ -235,27 +266,73 @@ async function cancelScheduled(eid: number) {
     </ConsoleCard>
 
     <template v-else>
+      <!-- contrôles : recherche + chips + tout activer -->
       <ConsoleCard title="connecteurs de l'org"
-        sub="pour chaque connecteur : ce que tes membres peuvent installer (disponibilité), la clé partagée de l'org et la rédaction des champs. la plateforme borne — tu ne peux pas exposer un connecteur qu'elle a coupé.">
+        sub="pour chaque connecteur : ce que tes membres peuvent installer (disponibilité), la clé partagée de l'org, l'accès et la rédaction des champs. la plateforme borne — tu ne peux pas exposer un connecteur qu'elle a coupé.">
         <template #actions>
+          <Btn v-if="isOrgAdmin" kind="mini" icon="plus"
+            :disabled="!enableableAll.length" @click="enableAll">
+            tout activer<span v-if="enableableAll.length" class="oc-count"> · {{ enableableAll.length }}</span>
+          </Btn>
           <input v-model="q" class="cc-search" placeholder="rechercher…" />
         </template>
         <CategoryChips :values="rows.map((r) => catOf(r.connector))" v-model="category" />
         <div v-if="!isOrgAdmin" class="helptext" style="margin-top: 10px">lecture seule — seul un admin de l'org peut régler ces leviers.</div>
       </ConsoleCard>
 
-      <div class="occards">
-        <ConnectorOrgCard v-for="r in shown" :key="r.connector"
-          :activation="r" :meta="meta[r.connector]" :has-org-key="hasOrgKey(r.connector)"
-          :filters="filters" :email="emailBundle" :org-id="activeOrgId" :is-org-admin="isOrgAdmin"
-          :acl="aclFor(r.connector)" :groups="groups" :members="members"
-          @set-available="(on) => setAvailable(r, on)"
-          @set-key="() => setKey(r)" @remove-key="() => removeKey(r)"
-          @add-access="() => addAccess(r)" @remove-access="(pt, pid) => removeAccess(r, pt, pid)"
-          @force-member="() => forceForMember(r)"
-          @filters-changed="reloadFilters" @email-changed="reloadEmail" />
-      </div>
-      <p v-if="loaded && !shown.length" class="helptext" style="text-align: center; padding: 16px">aucun connecteur.</p>
+      <!-- table : une ligne par connecteur ; clic → drawer de gouvernance -->
+      <ConsoleCard flush title="gouvernance"
+        sub="clique une ligne pour régler ses leviers (disponibilité, clé d'org, accès, rédaction).">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th style="width: 38%">connecteur</th>
+              <th>disponibilité</th>
+              <th>clé d'org</th>
+              <th>accès</th>
+              <th style="width: 24px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in shown" :key="r.connector" class="crow" :class="{ sel: r.connector === selectedName }" @click="selectedName = r.connector">
+              <td>
+                <div style="display: flex; align-items: center; gap: 11px">
+                  <Avatar :src="logoOf(r.connector)" :name="r.label" :size="32" shape="square" />
+                  <div style="min-width: 0">
+                    <div class="cv-name">{{ r.label }}</div>
+                    <div class="cv-pub">{{ [pubOf(r.connector), catOf(r.connector)].filter(Boolean).join(' · ') }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="cv-avail"><span class="cdot" :class="r.effective ? 'olive' : 'grey'"></span>{{ r.effective ? 'disponible' : 'coupé' }}</span>
+              </td>
+              <td>
+                <Tag v-if="canHaveKey(r.connector) && hasOrgKey(r.connector)" tone="olive">posée</Tag>
+                <span v-else-if="canHaveKey(r.connector)" class="dim" style="font-size: 11.5px">aucune</span>
+                <span v-else class="dim" style="font-size: 11.5px">—</span>
+              </td>
+              <td>
+                <span v-if="accessCountOf(r.connector)" class="cv-avail"><span class="cdot saffron"></span>réservé · {{ accessCountOf(r.connector) }}</span>
+                <span v-else class="dim" style="font-size: 11.5px">ouvert</span>
+              </td>
+              <td style="text-align: right; color: var(--color-faint); font-weight: 700">›</td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-if="loaded && !shown.length" class="helptext" style="text-align: center; padding: 18px">aucun connecteur.</p>
+      </ConsoleCard>
+
+      <OrgConnectorDrawer v-if="selected" :key="selected.connector"
+        :activation="selected" :meta="meta[selected.connector]" :has-org-key="hasOrgKey(selected.connector)"
+        :filters="filters" :email="emailBundle" :org-id="activeOrgId" :is-org-admin="isOrgAdmin"
+        :acl="aclFor(selected.connector)" :groups="groups" :members="members"
+        @close="selectedName = null"
+        @set-available="(on) => setAvailable(selected!, on)"
+        @set-key="() => setKey(selected!)" @remove-key="() => removeKey(selected!)"
+        @add-access="() => addAccess(selected!)" @remove-access="(pt, pid) => removeAccess(selected!, pt, pid)"
+        @force-member="() => forceForMember(selected!)"
+        @filters-changed="reloadFilters" @email-changed="reloadEmail" />
 
       <!-- Envois programmés — carton unique en pied (tous connecteurs email confondus) -->
       <ConsoleCard v-if="hasEmailSenders" title="envois programmés"
@@ -295,8 +372,19 @@ async function cancelScheduled(eid: number) {
   border-radius: 8px; background: var(--color-surface); color: var(--color-ink); width: 200px;
 }
 .cc-search:focus { outline: none; border-color: var(--color-ink); }
-/* Grille de cartes org (mêmes cartes que la vue user — ConnectorOrgCard). */
-.occards { display: flex; flex-direction: column; gap: 12px; }
+.oc-count { opacity: 0.6; font-variant-numeric: tabular-nums; }
+/* Table (même dialecte que la vue USER ConnectorsView). */
+.crow { cursor: pointer; }
+.crow.sel td { background: var(--color-saffron-soft) !important; }
+.crow.sel td:first-child { box-shadow: inset 3px 0 0 var(--color-saffron); }
+.cv-name { font-weight: 600; font-size: 13px; color: var(--color-ink); white-space: nowrap; }
+.cv-pub { font-size: 11px; color: var(--color-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv-avail { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--color-ink-soft); }
+.cdot { width: 8px; height: 8px; border-radius: 999px; display: inline-block; flex: 0 0 auto; }
+.cdot.olive { background: var(--color-olive); }
+.cdot.saffron { background: var(--color-saffron); }
+.cdot.grey { background: var(--color-hair-classic); }
+.dim { color: var(--color-faint); }
 /* Lignes du carton « envois programmés ». */
 .oc-sched-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .oc-sched-subj { font-size: 13px; color: var(--color-ink); }
