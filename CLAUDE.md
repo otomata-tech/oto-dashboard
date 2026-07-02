@@ -155,7 +155,15 @@ et `/library/doctrines` **redirigent** vers `…?tab=marketplace` (`router/index
     seule** : connecteurs résolus par une **clé partagée** d'org/équipe, dérivés **sans fetch
     dédié** de `me.providers[name].mode ∈ {org, group}` (cascade `access.resolve_credential`).
     La gestion reste dans `mine`.
-  - `marketplace` — `ConnectorLibraryView.vue` (catalogue navigable, ex-connector library).
+  - `marketplace` — `ConnectorLibraryView.vue` (catalogue navigable, ex-connector library)
+    + **fiche détail deep-linkée** `?connector=<name>` (`library/ConnectorDetail.vue`) :
+    `description` curée (backend `connector_docs.py`, fallback `help`), **outils du
+    registre résolu** (`getToolRegistry`, groupés par namespace, nom + description),
+    **config credential** (méthode d'auth expliquée + champs avec `help` + « la clé
+    peut venir de » — `lib/connectorAuth.ts`), doc how-to complète (4 kinds, triée
+    usage→prerequisite→setup→note). La carte grille porte description + chip d'auth
+    + nb d'outils ; recherche étendue à description + noms d'outils. L'onglet outils
+    de `ConnectorCard` (mine) affiche aussi la description sous chaque toggle.
 - **`/doctrine`** = host `DoctrineHubView.vue`, 2 onglets :
   - `mine` — `DoctrineView.vue` (doctrine de base + skills de l'org/équipe, édition/versions/usage).
   - `marketplace` — `DoctrineLibraryView.vue` : doctrines publiques avec **auteur** (badge

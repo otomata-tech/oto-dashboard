@@ -26,7 +26,9 @@ import type { ConnectorState, MyConnector, ToolEntry } from '@/types/api'
 
 const props = defineProps<{
   connector: MyConnector
-  tools: ToolEntry[]
+  // `description` (registre résolu ADR 0014) : ce que FAIT l'outil, affiché
+  // sous son nom — un toggle nu ne dit rien.
+  tools: (ToolEntry & { description?: string })[]
 }>()
 // Le credential keyé reste géré par le parent (formulaire). Les flux non-keyés
 // (oauth/session/hosted) sont rendus INLINE par des widgets auto-suffisants.
@@ -196,7 +198,7 @@ async function toggleTool(t: ToolEntry) {
         <div v-for="t in myTools" :key="t.name" class="cc-tool" :class="{ muted: state === 'paused' }">
           <div class="cc-tmeta">
             <code class="mono cc-tname">{{ t.name }}</code>
-            <span v-if="t.description" class="cc-tdesc dim">{{ t.description }}</span>
+            <span v-if="t.description" class="cc-tdesc">{{ t.description }}</span>
           </div>
           <Toggle :on="t.enabled && state === 'active'" @change="toggleTool(t)" />
         </div>
@@ -233,6 +235,10 @@ async function toggleTool(t: ToolEntry) {
 .cc-tool.muted .cc-tname { color: var(--color-faint); }
 .cc-tmeta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .cc-tname { font-size: 12px; color: var(--color-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cc-tdesc { font-size: 11px; line-height: 1.35; color: var(--color-mute); }
+.cc-tdesc {
+  font-size: 11px; line-height: 1.4; color: var(--color-mute);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.cc-tool.muted .cc-tdesc { color: var(--color-faint); }
 .cc-no-tools { font-size: 12px; margin: 4px 0 0; }
 </style>

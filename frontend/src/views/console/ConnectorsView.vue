@@ -40,15 +40,21 @@ const profileLabel = computed(() => me.value?.active_org_name || 'Perso')
 
 const catalog = ref<MyConnector[]>([])
 const tools = ref<ToolEntry[]>([])
+// Descriptions des outils (registre résolu ADR 0014, best-effort) — affichées
+// sous le nom dans l'onglet outils de la carte (le toggle seul ne dit pas ce
+// que fait l'outil).
+const toolDesc = ref<Record<string, string>>({})
 const presets = ref<PresetEntry[]>([])
 const error = ref<string | null>(null)
 const q = ref('')
 const category = ref<string | null>(null)
 
 const nsOf = (toolName: string): string => toolName.split('_')[0] ?? toolName
-function toolsOf(c: MyConnector): ToolEntry[] {
+function toolsOf(c: MyConnector): (ToolEntry & { description?: string })[] {
   const ns = new Set(c.namespaces)
-  return tools.value.filter((t) => ns.has(nsOf(t.name)))
+  return tools.value
+    .filter((t) => ns.has(nsOf(t.name)))
+    .map((t) => ({ ...t, description: toolDesc.value[t.name] }))
 }
 
 // Tri : actifs d'abord, puis masqués, puis désactivés ; à l'intérieur par libellé.
@@ -80,6 +86,7 @@ async function load() {
     const desc = new Map(reg.tools.map((t) => [t.name, t.description]))
     tools.value = tl.tools.map((t) => ({ ...t, description: desc.get(t.name) }))
     presets.value = pr.presets
+    toolDesc.value = Object.fromEntries(reg.tools.map((t) => [t.name, t.description]))
   } catch (e) { error.value = humanize(e) }
 }
 onMounted(async () => {
