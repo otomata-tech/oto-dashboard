@@ -41,7 +41,7 @@ interface NsGroup { namespace: string; tools: ToolEntry[]; enabled: number; tota
 const nsGroups = computed<NsGroup[]>(() => {
   const by: Record<string, ToolEntry[]> = {}
   for (const t of allTools.value) {
-    const ns = t.name.split('_', 1)[0]
+    const ns = t.name.split('_', 1)[0] ?? t.name
     ;(by[ns] ??= []).push(t)
   }
   return Object.entries(by)
