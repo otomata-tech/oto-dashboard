@@ -322,7 +322,7 @@ async function toggleOrgRole(o: AdminUserOrg) {
       </ConsoleCard>
 
       <!-- organisations dont il est membre -->
-      <ConsoleCard title="organizations" sub="orgs this user belongs to, with their role. shared keys & doctrine come from the active org.">
+      <ConsoleCard title="organizations" sub="orgs this user belongs to, with their role. shared keys, readme & procedures come from the active org.">
         <div v-if="detail.orgs.length" class="rowlist">
           <div v-for="o in detail.orgs" :key="o.org_id" class="rowitem" style="gap: 10px">
             <Dot :tone="o.is_active ? 'saffron' : 'faint'" :size="8" />

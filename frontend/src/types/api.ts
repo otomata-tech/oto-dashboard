@@ -255,7 +255,13 @@ export interface PresetEntry {
   updated_at: string | null
 }
 
-// ── doctrine / instructions ──
+// ── agent readme (niveau USER) — prose injectée à chaque session (cumulable) ──
+export interface AgentReadme {
+  body_md: string
+  updated_at: string | null
+}
+
+// ── procédures / instructions ──
 export interface InstructionMeta {
   id: number
   slug: string

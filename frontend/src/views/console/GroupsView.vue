@@ -78,7 +78,7 @@ async function refresh() {
 function create() {
   openForm({
     title: 'new department',
-    description: 'a group inside your org, with its own team lead, doctrine, toolset and shared keys.',
+    description: 'a group inside your org, with its own team lead, agent readme, procedures, toolset and shared keys.',
     fields: [
       { key: 'name', label: 'name', placeholder: 'sales, ops, finance…', required: true },
       { key: 'description', label: 'description', type: 'textarea', placeholder: 'what this team does (optional)' },
@@ -188,7 +188,7 @@ function rename() {
   })
 }
 async function removeGroup() {
-  if (!await confirmAction({ title: 'delete department', danger: true, confirmLabel: 'delete', message: 'delete this department? members, doctrine, preset and shared keys are purged. members stay in the org.' })) return
+  if (!await confirmAction({ title: 'delete department', danger: true, confirmLabel: 'delete', message: 'delete this department? members, readme, procedures, preset and shared keys are purged. members stay in the org.' })) return
   try { await deleteGroup(selectedId.value!); toast('department deleted'); detail.value = null; selectedId.value = null; dl.set(null); await load() }
   catch (e) { toast(humanize(e)) }
 }
@@ -205,7 +205,7 @@ async function removeGroup() {
     <template v-else>
       <div class="grid23">
         <ConsoleCard title="departments" flush
-          sub="teams inside your org. switch the active one to load its doctrine, toolset and shared keys.">
+          sub="teams inside your org. switch the active one to load its readme, procedures, toolset and shared keys.">
           <template #actions>
             <Btn v-if="isOrgAdmin" kind="mini" icon="plus" @click="create">new</Btn>
           </template>
@@ -266,7 +266,7 @@ async function removeGroup() {
           </div>
         </ConsoleCard>
         <ConsoleCard v-else title="department" sub="pick a department on the left to manage it.">
-          <div class="helptext">select a department to see its members, shared keys, toolset preset and doctrine.</div>
+          <div class="helptext">select a department to see its members, shared keys, toolset preset, readme and procedures.</div>
         </ConsoleCard>
       </div>
 

@@ -81,7 +81,7 @@ onMounted(load)
 <template>
   <div class="content-inner fadein">
     <ConsoleCard title="server instructions"
-      sub="les blocs que TOUT agent oto reçoit au handshake MCP, avant la doctrine de son org. édités ici par la plateforme, inviolables par les orgs. la doctrine métier, elle, s’édite par org dans l’écran doctrine.">
+      sub="le niveau PLATEFORME de l'agent readme : les blocs que TOUT agent oto reçoit au handshake MCP, avant les readme org/équipe/user. édités ici par la plateforme, inviolables par les orgs. le readme d'org s'édite sur /org, les procédures sur /procedures.">
       <template #actions><Tag tone="cobalt">plateforme</Tag></template>
       <p v-if="error" class="dim" style="font-size: 13px">{{ error }}</p>
       <p v-else-if="!loaded" class="dim" style="font-size: 13px">chargement…</p>

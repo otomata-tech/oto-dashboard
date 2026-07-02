@@ -184,9 +184,9 @@ async function toggleTool(t: ToolEntry) {
         <template v-else-if="connKind === 'unipile'">
           <ConnectorHostedWidget />
         </template>
-        <!-- Posture doctrine-only : référencé par des doctrines même non connecté. -->
+        <!-- Posture procédure-only : référencé par des procédures même non connecté. -->
         <div v-if="docRefCount > 0" class="cc-docref dim">
-          ↳ referenced by {{ docRefCount }} doctrine{{ docRefCount > 1 ? 's' : '' }} — connect it to run them
+          ↳ referenced by {{ docRefCount }} procedure{{ docRefCount > 1 ? 's' : '' }} — connect it to run them
         </div>
       </div>
 

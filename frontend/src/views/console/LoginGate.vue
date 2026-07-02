@@ -52,7 +52,7 @@ onMounted(() => {
             <div class="env" style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-faint); margin-top: 3px">app.oto.ninja</div>
           </div>
           <p class="helptext" style="margin: 4px 0 6px">
-            connectez-vous avec votre compte otomata pour gérer vos connecteurs, votre doctrine et votre org.
+            connectez-vous avec votre compte otomata pour gérer vos connecteurs, vos procédures et votre org.
           </p>
           <button class="btn" @click="() => login()">se connecter</button>
         </template>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// Doctrine & skills d'un groupe (ADR 0012). Lecture = membre, écriture = chef
-// (prop can-edit, le backend re-vérifie). Base doctrine (slug claude_md) servie
-// EN COMPLÉMENT de celle de l'org par get_claude_md ; skills = progressive disclosure.
+// Agent readme & procédures d'un groupe (ADR 0012). Lecture = membre, écriture = chef
+// (prop can-edit, le backend re-vérifie). L'agent readme d'équipe (slug claude_md) est
+// INJECTÉ à chaque session des membres du groupe actif, cumulé APRÈS celui de l'org ;
+// les procédures d'équipe = progressive disclosure (chargées à la demande).
 import { ref, watch } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
@@ -31,14 +32,14 @@ watch(() => props.groupId, load, { immediate: true })
 
 function editDoctrine() {
   openForm({
-    title: 'group base doctrine',
-    description: 'served to this team in addition to the org doctrine, at session start (get_claude_md).',
+    title: 'agent readme · équipe',
+    description: 'injected into every session of this team\'s members, right after the org readme.',
     fields: [{ key: 'body', label: 'markdown', type: 'textarea', initial: bundle.value?.doctrine || '' }],
     submitLabel: 'save',
     onConfirm: async (v) => {
       const body = (v.body || '').trim()
-      if (!body) { toast('doctrine is empty — nothing saved'); throw new Error('empty doctrine') }
-      try { await putGroupInstruction(props.groupId, 'claude_md', body); toast('doctrine saved'); await load() }
+      if (!body) { toast('readme is empty — nothing saved'); throw new Error('empty readme') }
+      try { await putGroupInstruction(props.groupId, 'claude_md', body); toast('agent readme saved'); await load() }
       catch (e) { toast(humanize(e)); throw e }
     },
   })
@@ -51,7 +52,7 @@ async function editSkill(slug?: string) {
     catch (e) { toast(humanize(e)); return }
   }
   openForm({
-    title: slug ? `edit skill: ${slug}` : 'new skill',
+    title: slug ? `edit procedure: ${slug}` : 'new procedure',
     description: 'a named instruction loaded on demand by the agent (progressive disclosure).',
     fields: [
       ...(slug ? [] : [{ key: 'slug', label: 'slug', placeholder: 'invoicing-flow', required: true }]),
@@ -65,30 +66,30 @@ async function editSkill(slug?: string) {
       if (!newBody) throw new Error('empty body')
       const targetSlug = slug || v.slug
       if (!targetSlug) throw new Error('missing slug')
-      try { await putGroupInstruction(props.groupId, targetSlug, newBody, v.title || undefined, v.description || undefined); toast('skill saved'); await load() }
+      try { await putGroupInstruction(props.groupId, targetSlug, newBody, v.title || undefined, v.description || undefined); toast('procedure saved'); await load() }
       catch (e) { toast(humanize(e)); throw e }
     },
   })
 }
 
 async function removeSkill(slug: string) {
-  if (!await confirmAction({ title: 'delete skill', danger: true, confirmLabel: 'delete', message: `delete the "${slug}" skill and its history?` })) return
-  try { await deleteGroupInstruction(props.groupId, slug); toast('skill deleted'); await load() }
+  if (!await confirmAction({ title: 'delete procedure', danger: true, confirmLabel: 'delete', message: `delete the "${slug}" procedure and its history?` })) return
+  try { await deleteGroupInstruction(props.groupId, slug); toast('procedure deleted'); await load() }
   catch (e) { toast(humanize(e)) }
 }
 </script>
 
 <template>
-  <ConsoleCard title="department doctrine"
-    sub="base doctrine + skills for this team — applied on top of the org doctrine.">
+  <ConsoleCard title="agent readme & procédures · équipe"
+    sub="the team's agent readme (injected each session, after the org's) + its procedures (loaded on demand).">
     <template #actions v-if="canEdit">
-      <Btn kind="mini" @click="editDoctrine">edit doctrine</Btn>
-      <Btn kind="mini" icon="plus" @click="editSkill()">skill</Btn>
+      <Btn kind="mini" @click="editDoctrine">edit readme</Btn>
+      <Btn kind="mini" icon="plus" @click="editSkill()">procedure</Btn>
     </template>
     <div v-if="bundle">
       <div class="rowitem" style="gap: 10px; padding-bottom: 8px">
-        <Tag tone="saffron">base</Tag>
-        <span class="dim" style="font-size: 12px">{{ bundle.doctrine ? `claude_md · v${bundle.doctrine_version}` : 'no base doctrine yet' }}</span>
+        <Tag tone="saffron">readme</Tag>
+        <span class="dim" style="font-size: 12px">{{ bundle.doctrine ? `injecté à chaque session · v${bundle.doctrine_version}` : 'no team readme yet' }}</span>
       </div>
       <div class="rowlist">
         <div v-for="i in bundle.instructions" :key="i.slug" class="rowitem" style="gap: 10px">
@@ -101,7 +102,7 @@ async function removeSkill(slug: string) {
             <Btn kind="danger" @click="removeSkill(i.slug)">delete</Btn>
           </template>
         </div>
-        <div v-if="!bundle.instructions.length" class="helptext">no skills yet.</div>
+        <div v-if="!bundle.instructions.length" class="helptext">no procedures yet.</div>
       </div>
     </div>
     <div v-else class="helptext">loading…</div>

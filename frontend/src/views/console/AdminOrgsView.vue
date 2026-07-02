@@ -226,7 +226,7 @@ async function revokeOrgKey(g: AdminGrant) {
     </div>
 
     <ConsoleCard flush title="organizations"
-      sub="shared perimeters: members inherit org keys, doctrine and entitlements. click an org to manage it.">
+      sub="shared perimeters: members inherit org keys, agent readme, procedures and entitlements. click an org to manage it.">
       <template #actions>
         <Btn kind="mini" icon="plus" @click="newOrg">new org</Btn>
       </template>
