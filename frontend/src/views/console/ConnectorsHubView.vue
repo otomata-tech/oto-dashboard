@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Point d'entrée UNIFIÉ des connecteurs (/connectors) : un seul écran à trois
 // onglets, câblés sur `?tab=` (deep-link, back/forward, refresh par construction) :
-//   • mine        — mes connecteurs : connexion (credential) + outils + presets
+//   • mine        — mes connecteurs : connexion (credential) + outils
 //                   (panneau historique ConnectorsView, projection USER ADR 0022).
 //   • shared      — connecteurs que je peux utiliser grâce à une clé partagée de
 //                   mon org / mon équipe (lentille de consommation, lecture seule).

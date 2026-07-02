@@ -1,99 +1,126 @@
 <script setup lang="ts">
-// Connecteurs — surface UNIFIÉE (fusion ex-/connectors + ex-/toolbox + ex-/my-connectors).
-// Un connecteur = UNE chose à deux faces : config de la connexion (credential) ET
-// paramétrage de ses outils (toolbox). Chaque connecteur est une carte (ConnectorCard)
-// portant les deux + le sélecteur 3 états (actif/masqué/désactivé, ADR 0019). Tous les
-// flux de connexion (clé, oauth, session, hosted, mcp fédéré) sont rendus INLINE sur la
-// carte du connecteur (ADR 0024 R1) — plus de cartes ancrées. Presets de toolbox tout en
-// bas. Les tokens CLI ont migré vers le hub compte (/account, user-scopés).
+// Connecteurs — surface UNIFIÉE (projection USER, ADR 0022), design Connectors.dc.html.
+// Table dense + lentilles (all / connected / available / shared) + chips de catégories
+// + recherche ; une LIGNE par connecteur (connexion · outils · exposition). Le détail
+// — connexion (widgets d'auth), outils (toggles), à propos — vit dans un DRAWER latéral
+// (ConnectorDrawer). Un connecteur = UNE chose à deux faces : credential + toolbox.
+// getMyConnectors() renvoie le catalogue COMPLET avec l'état par membre → les lentilles
+// opèrent sur cette liste unique (« available » = pas encore installé, « shared » = clé
+// d'org/équipe). Les tokens CLI ont migré vers le hub compte (/account).
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
-import ConnectorCard from '@/components/console/ConnectorCard.vue'
 import CategoryChips from '@/components/console/CategoryChips.vue'
-import Stat from '@/components/console/Stat.vue'
+import Avatar from '@/components/console/Avatar.vue'
 import Btn from '@/components/console/Btn.vue'
-import NameDialog from '@/components/console/NameDialog.vue'
+import ConnectorDrawer from '@/components/console/ConnectorDrawer.vue'
 import CredentialFieldsDialog from '@/components/console/CredentialFieldsDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
-import {
-  getMyConnectors, getTools, getToolRegistry, getPresets, setCredential, deleteApiKey,
-  applyPreset as applyPresetApi, savePreset, deletePreset,
-} from '@/api/console'
-import type {
-  ConnectorState, MyConnector, PresetEntry, ToolEntry,
-} from '@/types/api'
-import { fmtDate } from '@/types/api'
+import { getMyConnectors, getTools, getToolRegistry, setCredential, deleteApiKey } from '@/api/console'
+import type { ConnectorState, MyConnector, ToolEntry } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
-
-// dialogs validés (credential keyé + nom de preset)
-const credOpen = ref(false)
-const credConnector = ref<MyConnector | null>(null)
-const presetOpen = ref(false)
 const { me, reload } = useMe()
 
-const profileLabel = computed(() => me.value?.active_org_name || 'Perso')
-
 const catalog = ref<MyConnector[]>([])
-const tools = ref<ToolEntry[]>([])
-// Descriptions des outils (registre résolu ADR 0014, best-effort) — affichées
-// sous le nom dans l'onglet outils de la carte (le toggle seul ne dit pas ce
-// que fait l'outil).
-const toolDesc = ref<Record<string, string>>({})
-const presets = ref<PresetEntry[]>([])
+// Les outils portent leur description (registre résolu, ADR 0014) FUSIONNÉE dès le
+// load → `toolsOf` renvoie des RÉFÉRENCES à ces objets (pas des copies) : un toggle
+// depuis le drawer mute la source et se reflète dans la table (et inversement).
+const tools = ref<(ToolEntry & { description?: string })[]>([])
 const error = ref<string | null>(null)
+
+type Lens = 'all' | 'connected' | 'available' | 'shared'
+const lens = ref<Lens>('all')
 const q = ref('')
 const category = ref<string | null>(null)
+const selectedName = ref<string | null>(null)
+
+// credential keyé (générique, ADR 0011) — dialog possédé ici, ouvert depuis le drawer.
+const credOpen = ref(false)
+const credConnector = ref<MyConnector | null>(null)
 
 const nsOf = (toolName: string): string => toolName.split('_')[0] ?? toolName
 function toolsOf(c: MyConnector): (ToolEntry & { description?: string })[] {
   const ns = new Set(c.namespaces)
-  return tools.value
-    .filter((t) => ns.has(nsOf(t.name)))
-    .map((t) => ({ ...t, description: toolDesc.value[t.name] }))
+  // Références (pas de copie) : toggles persistants + cohérence table↔drawer.
+  return tools.value.filter((t) => ns.has(nsOf(t.name)))
 }
+function modeOf(c: MyConnector): string | undefined { return me.value?.providers?.[c.name]?.mode }
 
-// Tri : actifs d'abord, puis masqués, puis désactivés ; à l'intérieur par libellé.
+function matchesLens(c: MyConnector, l: Lens): boolean {
+  if (l === 'connected') return c.state !== 'not_selected'
+  if (l === 'available') return c.state === 'not_selected'
+  if (l === 'shared') { const m = modeOf(c); return m === 'org' || m === 'group' }
+  return true
+}
+const counts = computed(() => ({
+  all: catalog.value.length,
+  connected: catalog.value.filter((c) => matchesLens(c, 'connected')).length,
+  available: catalog.value.filter((c) => matchesLens(c, 'available')).length,
+  shared: catalog.value.filter((c) => matchesLens(c, 'shared')).length,
+}))
+
 const ORDER: Record<ConnectorState, number> = { active: 0, paused: 1, not_selected: 2 }
 const shown = computed(() => {
   const needle = q.value.trim().toLowerCase()
   return catalog.value
+    .filter((c) => matchesLens(c, lens.value))
     .filter((c) => !category.value || c.category === category.value)
     .filter((c) => !needle
       || c.label.toLowerCase().includes(needle)
       || c.name.toLowerCase().includes(needle)
       || c.publisher.toLowerCase().includes(needle)
-      || c.namespaces.some((n) => n.includes(needle)))
+      || c.category.toLowerCase().includes(needle)
+      || c.namespaces.some((n) => n.includes(needle))
+      || toolsOf(c).some((t) => t.name.includes(needle)))
     .sort((a, b) => (ORDER[a.state] - ORDER[b.state]) || a.label.localeCompare(b.label))
 })
-const activeCount = computed(() => catalog.value.filter((c) => c.state === 'active').length)
-const exposedTools = computed(() => tools.value.filter((t) => t.enabled).length)
+
+const LENS_META: Record<Lens, { title: string; sub: string }> = {
+  all: { title: 'all connectors', sub: 'everything oto can drive — connect what you need, expose only the tools you trust.' },
+  connected: { title: 'connected', sub: 'connectors installed in your workspace — live or muted.' },
+  available: { title: 'available to add', sub: 'in the catalog but not yet in your workspace. click one to connect it.' },
+  shared: { title: 'shared with you', sub: 'usable without pasting your own key — your org or team provides one.' },
+}
+
+// Cellule connexion (dot + libellé + sous-libellé) dérivée de l'auth + du mode résolu.
+function connection(c: MyConnector): { label: string; tone: string; sub: string } {
+  if (c.auth.method === 'none') return { label: 'Open data', tone: 'cobalt', sub: 'no credential needed' }
+  const m = modeOf(c)
+  if (!m || m === 'forbidden') return { label: 'Not connected', tone: 'grey', sub: 'needs a key' }
+  const sub = m === 'user' ? 'your key' : m === 'org' ? 'org key' : m === 'group' ? 'team key' : (c.free_tier ? 'oto platform · free' : 'oto platform key')
+  return { label: 'Connected', tone: 'olive', sub }
+}
+const EXPOSURE: Record<ConnectorState, { label: string; tone: string }> = {
+  active: { label: 'live', tone: 'olive' },
+  paused: { label: 'muted', tone: 'saffron' },
+  not_selected: { label: 'off', tone: 'grey' },
+}
+function toolStats(c: MyConnector): { enabled: number; total: number; pct: number } {
+  const ts = toolsOf(c)
+  const enabled = ts.filter((t) => t.enabled).length
+  return { enabled, total: ts.length, pct: ts.length ? Math.round((enabled / ts.length) * 100) : 0 }
+}
+
+const selected = computed(() => catalog.value.find((c) => c.name === selectedName.value) ?? null)
 
 async function load() {
   try {
-    const [mc, tl, reg, pr] = await Promise.all([
+    const [mc, tl, reg] = await Promise.all([
       getMyConnectors(), getTools(),
-      // Registre résolu (ADR 0014) = source des descriptions ; best-effort (l'état
-      // enabled/disabled de la toolbox ne dépend pas de lui).
       getToolRegistry().catch(() => ({ tools: [], count: 0 })),
-      getPresets().catch(() => ({ presets: [] })),
     ])
     catalog.value = mc.connectors
     const desc = new Map(reg.tools.map((t) => [t.name, t.description]))
     tools.value = tl.tools.map((t) => ({ ...t, description: desc.get(t.name) }))
-    presets.value = pr.presets
-    toolDesc.value = Object.fromEntries(reg.tools.map((t) => [t.name, t.description]))
   } catch (e) { error.value = humanize(e) }
 }
 onMounted(async () => {
   await load()
-  // Retour d'un flux de connexion (oauth google/fédéré, hosted unipile) :
-  // ?<x>=connected|error|subscribed. Les widgets inline rechargent leur propre statut
-  // au mount ; ici juste la confirmation + nettoyage de l'URL.
+  // Retour d'un flux de connexion (oauth google/fédéré, hosted unipile) : ?<x>=connected|error.
   const sp = new URLSearchParams(window.location.search)
   let touched = false
   for (const [k, v] of sp.entries()) {
@@ -105,7 +132,7 @@ onMounted(async () => {
   if (touched) window.history.replaceState({}, '', window.location.pathname)
 })
 
-// ── credential keyé (générique, ADR 0011) ──
+// ── credential keyé (dialog) ──
 function configure(c: MyConnector) {
   if (!(c.credential_fields ?? []).length) return
   credConnector.value = c
@@ -123,87 +150,102 @@ async function removeKey(c: MyConnector) {
   try { await deleteApiKey(c.name); toast('key removed'); await reload() }
   catch (e) { toast(humanize(e)) }
 }
-
-// Les flux de connexion non-keyés (session crunchbase, mcp fédéré, hosted unipile)
-// sont désormais rendus INLINE par des widgets auto-suffisants dans la ConnectorCard
-// (ADR 0024 R1) — plus de cartes ancrées ni de handlers ici.
-
-// ── presets de toolbox ──
-async function applyPreset(name: string) {
-  try { await applyPresetApi(name); tools.value = (await getTools()).tools; toast(`preset "${name}" applied`) } catch (e) { toast(humanize(e)) }
-}
-async function doSavePreset(name: string) {
-  try { await savePreset(name); presets.value = (await getPresets()).presets; toast(`preset "${name}" saved`) } catch (e) { toast(humanize(e)); throw e }
-}
-async function removePreset(name: string) {
-  if (!await confirmAction({ title: 'delete preset', danger: true, confirmLabel: 'delete', message: `delete preset "${name}"?` })) return
-  try { await deletePreset(name); presets.value = (await getPresets()).presets; toast('preset deleted') } catch (e) { toast(humanize(e)) }
-}
 </script>
 
 <template>
   <div class="content-inner fadein">
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
-    <p class="helptext" style="margin: -4px 0 2px">
-      connectors · <strong style="color: var(--color-ink)">{{ profileLabel }}</strong>
-      <span v-if="me && me.active_org == null"> — profil perso/global</span>
-      <span v-else> — propre à cette organisation</span>
-    </p>
-
-    <div class="grid3">
-      <Stat label="connectors active" :value="activeCount" :unit="'/ ' + catalog.length" sub="exposing tools to your agents" />
-      <Stat label="tools exposed" :value="exposedTools" :unit="'/ ' + tools.length" sub="what your mcp clients see" />
-      <Stat label="presets" :value="presets.length" sub="one-click tool selections" />
+    <!-- contrôles : lentilles + recherche + chips de catégories -->
+    <div class="card">
+      <div class="cv-controls">
+        <div class="seg" role="tablist">
+          <button :class="{ on: lens === 'all' }" @click="lens = 'all'">all <span class="dim">{{ counts.all }}</span></button>
+          <button :class="{ on: lens === 'connected' }" @click="lens = 'connected'">connected <span class="dim">{{ counts.connected }}</span></button>
+          <button :class="{ on: lens === 'available' }" @click="lens = 'available'">available <span class="dim">{{ counts.available }}</span></button>
+          <button :class="{ on: lens === 'shared' }" @click="lens = 'shared'">shared <span class="dim">{{ counts.shared }}</span></button>
+        </div>
+        <input v-model="q" class="inp cv-search" placeholder="search connectors, tools, publishers…" />
+      </div>
+      <CategoryChips :values="catalog.map((c) => c.category)" v-model="category" style="margin-top: 13px" />
     </div>
 
-    <ConsoleCard title="connectors"
-      sub="one card per connector — its connection (credential) and its tools, together. active = tools exposed · hidden = installed but tools cloaked · off = disabled (default).">
-      <template #actions>
-        <input v-model="q" class="cc-search" placeholder="search connectors…" />
-      </template>
-      <CategoryChips :values="catalog.map((c) => c.category)" v-model="category" style="margin-bottom: 12px" />
-      <div class="cc-grid">
-        <ConnectorCard v-for="c in shown" :key="c.name" :connector="c" :tools="toolsOf(c)"
-          @configure="configure" @remove="removeKey" />
-      </div>
-      <p v-if="!shown.length" class="helptext" style="text-align: center; padding: 16px">no connector matches “{{ q }}”.</p>
+    <!-- table -->
+    <ConsoleCard flush :title="LENS_META[lens].title" :sub="LENS_META[lens].sub">
+      <template #actions><Btn kind="mini" icon="plus" @click="lens = 'available'">add connector</Btn></template>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width: 34%">connector</th>
+            <th>connection</th>
+            <th>tools</th>
+            <th>exposure</th>
+            <th style="width: 24px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="c in shown" :key="c.name" class="crow" :class="{ sel: c.name === selectedName }" @click="selectedName = c.name">
+            <td>
+              <div style="display: flex; align-items: center; gap: 11px">
+                <Avatar :src="c.logo_url" :name="c.label" :size="32" shape="square" />
+                <div style="min-width: 0">
+                  <div class="cv-name">{{ c.label }}<span v-if="c.recommended" class="tag saffron cv-reco">recommended</span></div>
+                  <div class="cv-pub">{{ c.publisher }} · {{ c.category }}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 8px">
+                <span class="cdot" :class="connection(c).tone"></span>
+                <div>
+                  <div style="font-size: 12px; color: var(--color-ink-soft); font-weight: 500">{{ connection(c).label }}</div>
+                  <div style="font-size: 10.5px; color: var(--color-faint)">{{ connection(c).sub }}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 9px">
+                <span class="tbar"><i :style="{ width: toolStats(c).pct + '%' }"></i></span>
+                <span class="mono" style="font-size: 11px; color: var(--color-mute)">{{ toolStats(c).enabled }}/{{ toolStats(c).total }}</span>
+              </div>
+            </td>
+            <td>
+              <span class="cv-exp"><span class="cdot" :class="EXPOSURE[c.state].tone"></span>{{ EXPOSURE[c.state].label }}</span>
+            </td>
+            <td style="text-align: right; color: var(--color-faint); font-weight: 700">›</td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-if="!shown.length" class="helptext" style="text-align: center; padding: 18px">no connector matches your filters.</p>
     </ConsoleCard>
 
-
-    <ConsoleCard title="presets" sub="saved tool selections — switch your whole toolbox in one move.">
-      <template #actions><Btn kind="mini" icon="plus" @click="presetOpen = true">save current</Btn></template>
-      <div class="rowlist">
-        <div v-for="p in presets" :key="p.name" class="rowitem" style="gap: 12px">
-          <div style="min-width: 0; flex: 1">
-            <div style="font-weight: 600; font-size: 13px">{{ p.name }}
-              <span style="font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); margin-left: 4px">{{ p.tool_count }} tools</span>
-            </div>
-            <div style="font-size: 11.5px; color: var(--color-mute)">updated {{ fmtDate(p.updated_at) ?? '—' }}</div>
-          </div>
-          <Btn kind="mini" @click="applyPreset(p.name)">apply</Btn>
-          <Btn kind="danger" @click="removePreset(p.name)">delete</Btn>
-        </div>
-        <div v-if="!presets.length" class="helptext">no presets yet — tune your tools then “save current”.</div>
-      </div>
-    </ConsoleCard>
+    <ConnectorDrawer v-if="selected" :connector="selected" :tools="toolsOf(selected)"
+      @close="selectedName = null" @configure="configure" @remove="removeKey" />
 
     <CredentialFieldsDialog v-if="credConnector" v-model:open="credOpen"
       :label="credConnector.label"
       :fields="credConnector.credential_fields ?? []"
       :single="(credConnector.credential_fields ?? []).length === 1"
       :on-confirm="doSetCredential" />
-    <NameDialog v-model:open="presetOpen" title="save preset" label="preset name"
-      description="capture ta sélection d'outils actuelle sous un nom réutilisable."
-      placeholder="e.g. prospection" submit-label="enregistrer" :on-confirm="doSavePreset" />
   </div>
 </template>
 
 <style scoped>
-.cc-grid { display: flex; flex-direction: column; gap: 12px; }
-.cc-search {
-  font-size: 12px; padding: 5px 10px; border: 1px solid var(--color-hair-classic);
-  border-radius: 8px; background: var(--color-surface); color: var(--color-ink); width: 200px;
-}
-.cc-search:focus { outline: none; border-color: var(--color-ink); }
+.cv-controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: space-between; }
+.cv-search { width: 240px; }
+.dim { opacity: .6; }
+.crow { cursor: pointer; }
+.crow.sel td { background: var(--color-saffron-soft) !important; }
+.crow.sel td:first-child { box-shadow: inset 3px 0 0 var(--color-saffron); }
+.cv-name { font-weight: 600; font-size: 13px; color: var(--color-ink); display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.cv-reco { font-size: 8.5px; padding: 1.5px 6px; }
+.cv-pub { font-size: 11px; color: var(--color-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cdot { width: 8px; height: 8px; border-radius: 999px; display: inline-block; flex: 0 0 auto; }
+.cdot.olive { background: var(--color-olive); }
+.cdot.saffron { background: var(--color-saffron); }
+.cdot.cobalt { background: var(--color-cobalt); }
+.cdot.grey { background: var(--color-hair-classic); }
+.tbar { height: 5px; width: 62px; border-radius: 999px; background: var(--color-hair-soft); overflow: hidden; display: inline-block; }
+.tbar > i { display: block; height: 100%; border-radius: 999px; background: var(--color-olive); }
+.cv-exp { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--color-mute); }
 </style>

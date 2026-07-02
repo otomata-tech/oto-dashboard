@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // Groupes (départements) d'une org + chef d'équipe (ADR 0012).
 // Liste des groupes de l'org active, switch de groupe actif, et — pour le chef
-// (group_admin) ou un org_admin — gestion des membres, secrets partagés, preset
-// de toolset, doctrine. Le backend porte l'autz (escalade roles.py) ; l'UI ne
+// (group_admin) ou un org_admin — gestion des membres, secrets partagés et
+// doctrine. Le backend porte l'autz (escalade roles.py) ; l'UI ne
 // fait que masquer les contrôles.
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
@@ -19,7 +19,7 @@ import { useMe } from '@/composables/useMe'
 import {
   listGroups, getGroup, createGroup, updateGroup, deleteGroup, useGroup, clearActiveGroup,
   addGroupMember, setGroupMemberRole, removeGroupMember,
-  setGroupSecret, deleteGroupSecret, setGroupPreset,
+  setGroupSecret, deleteGroupSecret,
 } from '@/api/console'
 import type { GroupDetail, GroupListItem, GroupRole } from '@/types/api'
 import { fmtDate } from '@/types/api'
@@ -153,25 +153,6 @@ async function removeSecret(provider: string) {
   catch (e) { toast(humanize(e)) }
 }
 
-function editPreset() {
-  const current = (detail.value?.default_tools ?? []).join('\n')
-  openForm({
-    title: 'toolset preset',
-    description: 'one tool name per line — the default visible toolset for this team. personal toggles still win; grant-only tools are never revealed. leave empty to keep nobody visible by default.',
-    fields: [{ key: 'tools', label: 'tools', type: 'textarea', initial: current, placeholder: 'serper_web_search\nfr_search\n…' }],
-    submitLabel: 'set preset',
-    onConfirm: async (v) => {
-      const tools = (v.tools || '').split(/[\s,]+/).map(s => s.trim()).filter(Boolean)
-      try { await setGroupPreset(selectedId.value!, tools); toast('preset set'); await select(selectedId.value!) }
-      catch (e) { toast(humanize(e)); throw e }
-    },
-  })
-}
-async function clearPreset() {
-  if (!await confirmAction({ title: 'clear preset', confirmLabel: 'clear', message: 'remove the toolset baseline (members keep their default visibility)?' })) return
-  try { await setGroupPreset(selectedId.value!, null); toast('preset cleared'); await select(selectedId.value!) }
-  catch (e) { toast(humanize(e)) }
-}
 
 function rename() {
   openForm({
@@ -188,7 +169,7 @@ function rename() {
   })
 }
 async function removeGroup() {
-  if (!await confirmAction({ title: 'delete department', danger: true, confirmLabel: 'delete', message: 'delete this department? members, readme, procedures, preset and shared keys are purged. members stay in the org.' })) return
+  if (!await confirmAction({ title: 'delete department', danger: true, confirmLabel: 'delete', message: 'delete this department? members, readme, procedures and shared keys are purged. members stay in the org.' })) return
   try { await deleteGroup(selectedId.value!); toast('department deleted'); detail.value = null; selectedId.value = null; dl.set(null); await load() }
   catch (e) { toast(humanize(e)) }
 }
@@ -266,7 +247,7 @@ async function removeGroup() {
           </div>
         </ConsoleCard>
         <ConsoleCard v-else title="department" sub="pick a department on the left to manage it.">
-          <div class="helptext">select a department to see its members, shared keys, toolset preset, readme and procedures.</div>
+          <div class="helptext">select a department to see its members, shared keys, readme and procedures.</div>
         </ConsoleCard>
       </div>
 
@@ -290,19 +271,6 @@ async function removeGroup() {
                 <tr v-if="!detail.secrets.length"><td :colspan="canManage ? 5 : 4" class="dim" style="text-align: center; padding: 14px">no shared keys</td></tr>
               </tbody>
             </table>
-          </ConsoleCard>
-
-          <ConsoleCard title="toolset preset"
-            sub="the default visible toolset for this team. personal toggles still win; grant-only tools stay entitlement-gated.">
-            <template #actions v-if="canManage">
-              <Btn kind="mini" @click="editPreset">edit</Btn>
-              <Btn v-if="detail.default_tools" kind="mini" @click="clearPreset">clear</Btn>
-            </template>
-            <div v-if="detail.default_tools == null" class="helptext">no baseline — members keep their default toolset visibility.</div>
-            <div v-else-if="!detail.default_tools.length" class="helptext">empty baseline — nothing visible by default for this team.</div>
-            <div v-else class="rowlist">
-              <div v-for="t in detail.default_tools" :key="t" class="rowitem"><Tag>{{ t }}</Tag></div>
-            </div>
           </ConsoleCard>
         </div>
 

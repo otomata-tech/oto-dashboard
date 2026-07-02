@@ -224,7 +224,7 @@ export interface AlphaInvite {
   expires_at: string
 }
 
-// ── tools / presets ──
+// ── tools ──
 export interface ToolEntry {
   name: string
   enabled: boolean
@@ -249,12 +249,6 @@ export interface InstructionUsage {
   callers: string[]
   series: number[]
 }
-export interface PresetEntry {
-  name: string
-  tool_count: number
-  updated_at: string | null
-}
-
 // ── agent readme (niveau USER) — prose injectée à chaque session (cumulable) ──
 export interface AgentReadme {
   body_md: string
@@ -776,7 +770,6 @@ export interface GroupBrief {
   name: string
   description: string
   member_count: number
-  has_preset: boolean
   my_role: GroupRole | null
 }
 export interface GroupMember {
@@ -794,7 +787,6 @@ export interface GroupSecret {
 }
 export interface GroupDetail {
   group: GroupBrief
-  default_tools: string[] | null     // preset de toolset ; null = pas de baseline
   members: GroupMember[]
   secrets: GroupSecret[]
 }

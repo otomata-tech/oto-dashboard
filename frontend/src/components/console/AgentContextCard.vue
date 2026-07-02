@@ -103,7 +103,7 @@ onMounted(load)
         <header class="ctx-head">
           <div>
             <div class="ctx-title">visible tools</div>
-            <div class="ctx-sub">les outils que ton agent voit RÉELLEMENT sous ton org active (après activation des connecteurs + tes presets) — ton sous-ensemble effectif du catalogue.</div>
+            <div class="ctx-sub">les outils que ton agent voit RÉELLEMENT sous ton org active (après activation des connecteurs + tes réglages) — ton sous-ensemble effectif du catalogue.</div>
           </div>
           <Tag v-if="tools?.available" tone="olive">
             {{ tools.total_visible }} visibles · {{ tools.total_hidden }} masqués
