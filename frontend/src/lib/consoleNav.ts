@@ -32,6 +32,7 @@ export const NAV: NavGroup[] = [
   // ── Mon espace : consommation, niveau utilisateur (racine) ─────────────────
   { group: null, level: 'work', items: [
     { path: '/overview', label: 'overview', icon: 'home' },
+    { path: '/context', label: 'context', icon: 'bolt' },
   ]},
   { group: 'workspace', level: 'work', items: [
     { path: '/projects', label: 'projects', icon: 'home' },
@@ -50,12 +51,14 @@ export const NAV: NavGroup[] = [
   // sont déclarées explicitement dans le routeur (elles ne dérivent plus de NAV).
   // ── Gérer mon org : agir SUR l'organisation active ─────────────────────────
   { group: 'organization', level: 'org', items: [
+    { path: '/org/context', label: 'context', icon: 'bolt' },
     { path: '/org', label: 'members & secrets', icon: 'users' },
     { path: '/org/connectors', label: 'connectors', icon: 'plug' },
     { path: '/org/departments', label: 'departments', icon: 'users' },
   ]},
   // ── Gérer la plateforme : réservé opérateur plateforme ─────────────────────
   { group: 'platform · admin', level: 'platform', items: [
+    { path: '/platform/context', label: 'context', icon: 'bolt' },
     { path: '/platform/monitoring', label: 'monitoring', icon: 'chart' },
     { path: '/platform/usage', label: 'usage & déroulés', icon: 'pulse' },
     { path: '/platform/users', label: 'users & grants', icon: 'shield' },
@@ -77,15 +80,18 @@ export function levelOf(path: string): NavLevel {
 
 export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/overview': { title: 'overview', crumb: 'app.oto.ninja' },
+  '/context': { title: 'ce que voit ton agent', crumb: 'mon espace' },
   '/connectors': { title: 'connectors', crumb: 'workspace' },
   '/procedures': { title: 'procédures', crumb: 'workspace' },
   '/data': { title: 'données', crumb: 'memory' },
   '/documents': { title: 'documents', crumb: 'memory' },
   '/account': { title: 'manage account', crumb: 'account' },
   '/activity': { title: 'activity', crumb: 'account' },
+  '/org/context': { title: 'ce que voit l\'agent · org', crumb: 'gérer mon org' },
   '/org': { title: 'organization', crumb: 'gérer mon org' },
   '/org/connectors': { title: 'org connectors', crumb: 'gérer mon org' },
   '/org/departments': { title: 'departments', crumb: 'gérer mon org' },
+  '/platform/context': { title: 'ce que voit l\'agent · plateforme', crumb: 'plateforme' },
   '/platform/monitoring': { title: 'mcp monitoring', crumb: 'plateforme' },
   '/platform/usage': { title: 'usage & déroulés', crumb: 'plateforme' },
   '/platform/users': { title: 'users & grants', crumb: 'plateforme' },

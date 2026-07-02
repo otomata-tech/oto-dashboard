@@ -12,10 +12,10 @@ import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
 import { useMe } from '@/composables/useMe'
 import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
-import { getMyOrgs, getOrg, setOrgMemberRole, removeOrgMember,
+import { getOrg, setOrgMemberRole, removeOrgMember,
   listInvitations, inviteMember, revokeInvitation, uploadOrgLogo, deleteOrgLogo, updateOrg,
   getInstruction, putInstruction, getInstructionVersions, revertInstruction } from '@/api/console'
-import type { Org, OrgDetail, OrgInvitation, OrgRole } from '@/types/api'
+import type { OrgDetail, OrgInvitation, OrgRole } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { validateImage, IMAGE_ACCEPT_ATTR } from '@/lib/imageUpload'
@@ -27,7 +27,6 @@ const { formDialog, formDialogOpen, openForm } = useFormDialog()
 const { formDialog: revealDialog, formDialogOpen: revealOpen, openForm: openReveal } = useFormDialog()
 const { me, reload: reloadMe } = useMe()
 
-const orgs = ref<Org[]>([])
 const detail = ref<OrgDetail | null>(null)
 const invites = ref<OrgInvitation[]>([])
 const error = ref<string | null>(null)
@@ -54,7 +53,6 @@ async function loadInvites() {
 
 async function load() {
   try {
-    orgs.value = (await getMyOrgs()).orgs
     if (activeOrgId.value != null) {
       detail.value = await getOrg(activeOrgId.value)
       await loadInvites()
@@ -145,7 +143,6 @@ function editOrg() {
           location: (v.location ?? '').trim(),
         })
         detail.value = await getOrg(activeOrgId.value!)
-        orgs.value = (await getMyOrgs()).orgs
         await reloadMe()          // rafraîchit nom + logo dans le badge identité (sidebar)
         toast('organization updated')
       } catch (e) { toast(humanize(e)); throw e }
@@ -160,7 +157,6 @@ async function onLogoDrop(file: File) {
     logoBusy.value = true
     await uploadOrgLogo(activeOrgId.value, file)
     detail.value = await getOrg(activeOrgId.value)
-    orgs.value = (await getMyOrgs()).orgs
     await reloadMe()          // rafraîchit le logo dans le badge identité (topbar)
     toast('org logo updated')
   } catch (err) { toast(humanize(err)) }
@@ -173,7 +169,6 @@ async function removeLogo() {
     logoBusy.value = true
     await deleteOrgLogo(activeOrgId.value)
     detail.value = await getOrg(activeOrgId.value)
-    orgs.value = (await getMyOrgs()).orgs
     await reloadMe()
     toast('org logo removed')
   } catch (err) { toast(humanize(err)) }
@@ -191,7 +186,10 @@ async function removeLogo() {
 
     <template v-else>
       <div class="grid23">
-        <ConsoleCard title="members" flush sub="people in your active org. shared keys & connector governance live in « connectors ».">
+        <ConsoleCard title="members" flush sub="people in your active org — plus pending invites. shared keys & connector governance live in « connectors ».">
+          <template v-if="isOrgAdmin" #actions>
+            <Btn kind="mini" icon="plus" @click="invite">Ajouter</Btn>
+          </template>
           <table class="tbl">
             <thead><tr><th>member</th><th>role</th><th>active</th><th v-if="isOrgAdmin" style="width: 150px"></th></tr></thead>
             <tbody>
@@ -215,12 +213,32 @@ async function removeLogo() {
                   <span v-else class="dim" style="font-size: 11px">you</span>
                 </td>
               </tr>
+              <!-- Invitations en attente = lignes de la même liste (pas de carte séparée) :
+                   « rejoindront l'org au clic sur le lien ». Admin only (loadInvites gaté). -->
+              <tr v-for="iv in invites" :key="iv.id">
+                <td>
+                  <div style="display: flex; align-items: center; gap: 9px">
+                    <Avatar :name="iv.email" :size="28" />
+                    <div>
+                      <div style="font-weight: 600; color: var(--color-ink); display: flex; gap: 6px; align-items: center">
+                        {{ iv.email }} <Tag tone="saffron">invité</Tag>
+                      </div>
+                      <div style="font-size: 11px; color: var(--color-faint)">invité {{ fmtDate(iv.created_at) }} · expire {{ fmtDate(iv.expires_at) }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td><Tag v-if="iv.org_role === 'org_admin'" tone="ink">admin</Tag><Tag v-else>member</Tag></td>
+                <td><Dot tone="saffron" :size="7" /></td>
+                <td v-if="isOrgAdmin" style="text-align: right">
+                  <Btn kind="danger" @click="revokeInv(iv.id)">revoke</Btn>
+                </td>
+              </tr>
             </tbody>
           </table>
         </ConsoleCard>
 
         <div style="display: flex; flex-direction: column; gap: 16px">
-          <ConsoleCard title="general" sub="name, description and company profile of your active org.">
+          <ConsoleCard title="general" sub="name, logo, description and company profile of your active org.">
             <template v-if="isOrgAdmin" #actions>
               <Btn kind="mini" icon="pen" @click="editOrg">edit</Btn>
             </template>
@@ -244,36 +262,23 @@ async function removeLogo() {
                   {{ isOrgAdmin ? 'no description yet — add one to tell teammates what this org is for.' : 'no description.' }}
                 </div>
               </div>
-            </div>
-          </ConsoleCard>
-          <ConsoleCard title="your orgs">
-            <div class="rowlist">
-              <div v-for="o in orgs" :key="o.id" class="rowitem">
-                <Avatar v-if="o.logo_url" :src="o.logo_url" :name="o.name" :size="22" shape="square" />
-                <Dot v-else :tone="o.id === activeOrgId ? 'saffron' : 'faint'" :size="8" />
-                <div style="flex: 1">
-                  <div style="font-weight: 600; font-size: 13px">{{ o.name }}</div>
-                  <div style="font-size: 11px; color: var(--color-faint)">{{ o.member_count }} members · you are {{ o.my_role === 'org_admin' ? 'admin' : 'member' }}</div>
+
+              <!-- Logo : dérivé du domaine (logo.dev) par défaut, upload = override. Fusionné
+                   depuis l'ex-carte « branding » — le domaine de « general » couvre le cas courant,
+                   l'upload n'est qu'un repli, on ne lui dédie plus une carte. -->
+              <div v-if="isOrgAdmin" style="border-top: 1px solid var(--color-hair); padding-top: 12px">
+                <div v-if="!detail?.org.logo_custom && detail?.org.domain && detail?.org.logo_url" class="helptext" style="margin-bottom: 8px">
+                  logo dérivé de <strong>{{ detail.org.domain }}</strong> (logo.dev) — dépose-en un pour le remplacer.
                 </div>
-                <Tag v-if="o.id === activeOrgId" tone="saffron">active</Tag>
-              </div>
-              <div v-if="!orgs.length" class="helptext">no orgs.</div>
-            </div>
-          </ConsoleCard>
-          <ConsoleCard v-if="isOrgAdmin" title="branding"
-            sub="logo shown across the dashboard for this org. set a domain in « general » to fetch it automatically — or upload your own.">
-            <div style="display: flex; align-items: center; gap: 16px">
-              <Avatar :src="detail?.org.logo_url" :name="detail?.org.name" :size="56" shape="square" />
-              <div style="flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 8px">
-                <div v-if="!detail?.org.logo_custom && detail?.org.domain && detail?.org.logo_url" class="helptext">
-                  logo fetched from <strong>{{ detail.org.domain }}</strong> (logo.dev) — upload one to override.
+                <div v-else-if="!detail?.org.logo_url" class="helptext" style="margin-bottom: 8px">
+                  aucun logo — renseigne un domaine dans « edit » pour le récupérer automatiquement, ou dépose-en un.
                 </div>
-                <Dropzone :accept="IMAGE_ACCEPT_ATTR" :max-size-mb="2" :busy="logoBusy"
-                  :label="detail?.org.logo_custom ? 'changer le logo' : 'déposer un logo'"
-                  hint="png, jpeg ou webp · glisser-déposer ou cliquer · max 2 Mo"
-                  @select="onLogoDrop" @error="toast" />
-                <div v-if="detail?.org.logo_custom">
-                  <Btn kind="danger" :disabled="logoBusy" @click="removeLogo">remove logo</Btn>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+                  <Dropzone :accept="IMAGE_ACCEPT_ATTR" :max-size-mb="2" :busy="logoBusy"
+                    :label="detail?.org.logo_custom ? 'changer le logo' : 'déposer un logo'"
+                    hint="png, jpeg ou webp · max 2 Mo"
+                    @select="onLogoDrop" @error="toast" />
+                  <Btn v-if="detail?.org.logo_custom" kind="danger" :disabled="logoBusy" @click="removeLogo">remove logo</Btn>
                 </div>
               </div>
             </div>
@@ -297,26 +302,6 @@ async function removeLogo() {
         placeholder="ex. nous vendons des audits RGPD à des ETI ; toujours vérifier le SIREN via fr_get avant d'écrire au CRM."
         :load="loadOrgReadme" :save="saveOrgReadme"
         :load-versions="loadOrgReadmeVersions" :restore="restoreOrgReadme" />
-
-      <ConsoleCard v-if="isOrgAdmin" title="invitations"
-        sub="invite teammates by email — they join this org when they accept the link.">
-        <template #actions>
-          <Btn kind="mini" icon="plus" @click="invite">invite</Btn>
-        </template>
-        <div class="rowlist">
-          <div v-for="iv in invites" :key="iv.id" class="rowitem" style="gap: 12px">
-            <Dot tone="saffron" :size="8" />
-            <div style="min-width: 0; flex: 1">
-              <div style="font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: center">
-                {{ iv.email }} <Tag :tone="iv.org_role === 'org_admin' ? 'ink' : undefined">{{ iv.org_role === 'org_admin' ? 'admin' : 'member' }}</Tag>
-              </div>
-              <div style="font-size: 11.5px; color: var(--color-mute)">invited {{ fmtDate(iv.created_at) }} · expires {{ fmtDate(iv.expires_at) }}</div>
-            </div>
-            <Btn kind="danger" @click="revokeInv(iv.id)">revoke</Btn>
-          </div>
-          <div v-if="!invites.length" class="helptext">no pending invitations — invite a teammate to get started.</div>
-        </div>
-      </ConsoleCard>
 
     </template>
 

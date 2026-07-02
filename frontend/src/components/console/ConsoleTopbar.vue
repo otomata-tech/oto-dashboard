@@ -40,15 +40,12 @@ const meta = computed(() =>
     </div>
   </header>
 
-  <!-- Signal franc : hors « mon espace » on AGIT SUR une org / la plateforme -->
-  <div v-if="me && level !== 'work'" class="gov-banner" :class="{ platform: level === 'platform' }">
+  <!-- Signal franc réservé au niveau PLATEFORME (action sur TOUTE la plateforme).
+       Le niveau org n'affiche plus de bandeau : l'org active est déjà portée par
+       l'en-tête d'identité (ConsoleIdentity) — le répéter ici était redondant. -->
+  <div v-if="me && level === 'platform'" class="gov-banner platform">
     <Icon name="shield" :size="13" />
-    <template v-if="level === 'platform'">
-      administration plateforme — tes actions touchent <strong>toute la plateforme</strong>
-    </template>
-    <template v-else>
-      gouvernance — tu agis sur l'organisation <strong>{{ me.active_org_name || 'Perso (aucune org active)' }}</strong>
-    </template>
+    administration plateforme — tes actions touchent <strong>toute la plateforme</strong>
   </div>
 </template>
 

@@ -34,13 +34,14 @@ type Entry = {
 
 const entries = computed<Entry[]>(() => {
   const onAccount = section.value.startsWith('/account')
+  const onActivity = section.value.startsWith('/activity')
   const out: Entry[] = [
     {
       key: 'work',
       label: 'mon espace',
       icon: 'home',
       to: '/overview',
-      active: level.value === 'work' && !onAccount,
+      active: level.value === 'work' && !onAccount && !onActivity,
     },
     {
       key: 'profile',
@@ -48,6 +49,13 @@ const entries = computed<Entry[]>(() => {
       icon: 'user',
       to: '/account',
       active: onAccount,
+    },
+    {
+      key: 'activity',
+      label: 'activity',
+      icon: 'pulse',
+      to: '/activity',
+      active: onActivity,
     },
   ]
   if (me.value?.org_role === 'org_admin')

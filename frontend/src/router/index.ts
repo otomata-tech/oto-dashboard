@@ -82,6 +82,20 @@ const router = createRouter({
       component: ConsoleLayout,
       meta: { section: '/procedures', level: 'work' },
     },
+    {
+      // /account (« manage account ») et /activity : retirés de la sidebar, déplacés
+      // dans le menu profil du pied (ConsoleUserMenu). Routes explicites — elles ne
+      // dérivent plus du groupe nav « account » (supprimé). Résolues par le layout
+      // via VIEWS[section] comme n'importe quelle section.
+      path: '/account',
+      component: ConsoleLayout,
+      meta: { section: '/account', level: 'work' },
+    },
+    {
+      path: '/activity',
+      component: ConsoleLayout,
+      meta: { section: '/activity', level: 'work' },
+    },
     ...sectionRoutes,
     {
       // Le retour PKCE est traité par initAuth() avant le mount du router

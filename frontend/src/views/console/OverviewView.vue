@@ -14,6 +14,7 @@ import McpEndpointCard from '@/components/console/McpEndpointCard.vue'
 import StateEmpty from '@/components/console/StateEmpty.vue'
 import Squiggle from '@/components/console/Squiggle.vue'
 import InviteFriendCard from '@/components/console/InviteFriendCard.vue'
+import ContextPreviewCard from '@/components/console/ContextPreviewCard.vue'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { getConnectors, getDoctrine, getGoogleStatus, getMonitoringSummary, getKbProject, listDocs } from '@/api/console'
 import type { ConnectorMeta, GoogleOauthStatus, MonitoringSummary } from '@/types/api'
@@ -143,6 +144,7 @@ onMounted(async () => {
           <Stat v-if="summary" label="calls · 7 days" :value="summary.total_calls.toLocaleString('en-US')" :spark="callsSpark" :sub="`${summary.error_count} errors · ${errRate}%`" />
           <Stat label="active org" :value="me?.active_org_name ?? '—'" :sub="me?.active_org ? `you · ${me.org_role}` : 'no active org'" />
         </div>
+        <ContextPreviewCard />
         <div class="grid23">
           <ConnectorHealthGrid />
           <McpEndpointCard />
