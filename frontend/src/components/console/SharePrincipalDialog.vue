@@ -31,7 +31,7 @@ const { me } = useMe()
 
 type Mode = 'member' | 'team' | 'org' | 'orgid' | 'email'
 const mode = ref<Mode>('member')
-const permission = ref<'read' | 'write'>(props.permissions[0])
+const permission = ref<'read' | 'write'>(props.permissions[0] ?? 'write')
 const memberSub = ref('')
 const groupId = ref('')
 const orgId = ref('')
@@ -65,7 +65,7 @@ async function loadPickers() {
 watch(() => props.open, async (o) => {
   if (!o) return
   mode.value = 'member'
-  permission.value = props.permissions[0]
+  permission.value = props.permissions[0] ?? 'write'
   memberSub.value = ''; groupId.value = ''; orgId.value = ''; orgIdFree.value = ''; email.value = ''
   loading.value = true
   try { await Promise.all([refreshGrants(), loadPickers()]) }
