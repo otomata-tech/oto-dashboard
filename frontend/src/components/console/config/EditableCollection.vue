@@ -2,7 +2,7 @@
 // Liste éditable générique : une row d'ajout (slot #add, câblée par le caller) +
 // N lignes (slot scopé #row={item,index,remove}) + état vide. Réutilise .rowlist/
 // .rowitem de console.css. N'impose PAS la forme de l'item — le caller rend chaque
-// ligne. Extrait du pattern .sh-list/.sh-item de ShareDialog.
+// ligne.
 defineProps<{
   items: unknown[]
   emptyText: string

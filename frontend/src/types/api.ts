@@ -616,7 +616,12 @@ export interface Org {
   id: number
   name: string
   description?: string | null
+  // logo EFFECTIF : upload sinon dérivé logo.dev du `domain` déclaré (backend).
   logo_url?: string | null
+  logo_custom?: boolean      // true = un logo uploadé existe (gate « remove logo »)
+  domain?: string | null     // domaine de marque (acme.com) — pilote aussi le logo
+  industry?: string | null
+  location?: string | null
   member_count?: number
   my_role?: OrgRole
 }
