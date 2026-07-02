@@ -242,6 +242,48 @@ export interface ToolRegistryEntry {
   source: 'native' | 'federated'
   mcp?: string
 }
+// Propriété d'un schéma d'entrée d'outil (JSON Schema dérivé par FastMCP). Un
+// param `Optional[str]` arrive en `anyOf: [{type:'string'},{type:'null'}]`.
+export interface ToolParamSchema {
+  type?: string
+  description?: string
+  title?: string
+  default?: unknown
+  enum?: (string | number)[]
+  anyOf?: { type?: string }[]
+  items?: { type?: string }
+}
+export interface ToolInputSchema {
+  type?: string
+  properties?: Record<string, ToolParamSchema>
+  required?: string[]
+}
+// Fiche détaillée d'un outil (`GET /api/me/tools/{name}/detail`) : description
+// complète + schémas + connecteur + état perso + testabilité (bouton « tester »).
+export interface ToolDetail {
+  name: string
+  description: string
+  input_schema: ToolInputSchema | null
+  output_schema: unknown | null
+  namespace: string
+  connector: { name: string; label: string } | null
+  source: 'native' | 'federated'
+  enabled: boolean
+  protected: boolean
+  default_hidden: boolean
+  // Testable depuis le dashboard = open-data en lecture seule (FOD & co). Un test
+  // n'envoie jamais d'email / n'écrit jamais de donnée (backend `is_testable`).
+  testable: boolean
+}
+// Résultat d'un test d'outil (`POST /api/me/tools/{name}/call`). L'erreur de
+// l'outil est renvoyée EN DONNÉE (`ok:false`) — la voir EST le but du test.
+export interface ToolCallResult {
+  ok: boolean
+  name: string
+  result?: unknown
+  error?: string
+  elapsed_ms?: number
+}
 // Usage d'une doctrine : nb de chargements par l'agent, appelants, série 30j.
 export interface InstructionUsage {
   slug: string

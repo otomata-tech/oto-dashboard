@@ -4,11 +4,12 @@
 // résolu, nom + description), sa CONFIG (méthode d'auth, champs de credential,
 // qui peut fournir la clé). Lecture seule + install ; la gestion (poser la clé,
 // toggles d'outils) reste dans « mes connecteurs ».
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import ConnectorBadges from '@/components/console/ConnectorBadges.vue'
 import DocSections from '@/components/console/DocSections.vue'
+import ConnectorToolDialog from '@/components/console/library/ConnectorToolDialog.vue'
 import { authExplain, authModesExplain } from '@/lib/connectorAuth'
 import type { DocSection, MyConnector, ToolRegistryEntry } from '@/types/api'
 
@@ -33,6 +34,9 @@ const sortedTools = computed(() =>
 const keyProviders = computed(() => authModesExplain(c.value))
 const fields = computed(() => c.value.credential_fields ?? [])
 const installed = computed(() => c.value.state !== 'not_selected')
+
+// Outil ouvert dans la fiche détail (« en savoir plus » + banc de test).
+const openTool = ref<string | null>(null)
 </script>
 
 <template>
@@ -87,14 +91,18 @@ const installed = computed(() => c.value.state !== 'not_selected')
           </p>
         </section>
 
-        <!-- outils exposés à l'agent -->
+        <!-- outils exposés à l'agent — cliquer un outil ouvre sa fiche + banc de test -->
         <section class="cd-panel">
           <h4>outils <span class="dim">{{ sortedTools.length || '' }}</span></h4>
           <div v-if="sortedTools.length" class="cd-tools">
-            <div v-for="t in sortedTools" :key="t.name" class="cd-tool">
-              <code class="mono cd-tool-name">{{ t.name }}</code>
+            <button v-for="t in sortedTools" :key="t.name" type="button" class="cd-tool"
+              @click="openTool = t.name">
+              <span class="cd-tool-top">
+                <code class="mono cd-tool-name">{{ t.name }}</code>
+                <span class="cd-tool-more">détails →</span>
+              </span>
               <span class="cd-tool-desc">{{ t.description || '—' }}</span>
-            </div>
+            </button>
           </div>
           <p v-else class="cd-note">
             les outils de ce connecteur ne sont pas chargés sur cette instance
@@ -110,6 +118,9 @@ const installed = computed(() => c.value.state !== 'not_selected')
       </section>
     </div>
   </ConsoleCard>
+
+  <!-- fiche détail + banc de test d'un outil (ouvert au clic sur une tuile) -->
+  <ConnectorToolDialog :name="openTool" @close="openTool = null" />
 </template>
 
 <style scoped>
@@ -157,10 +168,18 @@ const installed = computed(() => c.value.state !== 'not_selected')
 .cd-modes { margin: 0; padding-left: 16px; font-size: 12px; color: var(--color-mute); line-height: 1.6; }
 .cd-note { font-size: 11.5px; color: var(--color-mute); margin: 8px 0 0; }
 
-.cd-tools { display: flex; flex-direction: column; gap: 6px; max-height: 340px; overflow-y: auto; }
-.cd-tool { display: flex; flex-direction: column; gap: 1px; padding: 4px 0; border-bottom: 1px solid var(--color-hair-soft); }
+.cd-tools { display: flex; flex-direction: column; gap: 2px; max-height: 340px; overflow-y: auto; }
+.cd-tool {
+  display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; text-align: left;
+  width: 100%; border: 0; border-radius: 7px; background: transparent; cursor: pointer;
+  border-bottom: 1px solid var(--color-hair-soft); transition: background 0.12s var(--ease-out);
+}
 .cd-tool:last-child { border-bottom: 0; }
+.cd-tool:hover { background: var(--color-bg); }
+.cd-tool-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .cd-tool-name { font-size: 12px; color: var(--color-ink); }
+.cd-tool-more { font-size: 10.5px; color: var(--color-faint); opacity: 0; transition: opacity 0.12s var(--ease-out); }
+.cd-tool:hover .cd-tool-more { opacity: 1; }
 .cd-tool-desc { font-size: 11.5px; line-height: 1.45; color: var(--color-mute); }
 
 .cd-docs { margin-top: 14px; }

@@ -9,7 +9,7 @@ import type {
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
   ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
-  ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
+  ToolRegistryEntry, ToolDetail, ToolCallResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   MementoStatus, MementoWorkspaces, MementoPages, MementoDocument, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
   ReferralLink, InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
@@ -262,6 +262,15 @@ export const deleteInstruction = (slug: string) =>
 // <tool:slug>, l'autocomplétion @ et le manifeste « outils référencés ».
 export const getToolRegistry = () =>
   api<{ tools: ToolRegistryEntry[]; count: number }>('/api/me/tools/registry')
+// Fiche détaillée d'un outil (description complète + schémas + testabilité) —
+// panneau « en savoir plus » de la fiche connecteur.
+export const getToolDetail = (name: string) =>
+  api<ToolDetail>(`/api/me/tools/${encodeURIComponent(name)}/detail`)
+// Teste un outil open-data en lecture seule sous ta propre identité (le backend
+// refuse tout outil à effet de bord). Renvoie le résultat brut (ou l'erreur).
+export const callTool = (name: string, args: Record<string, unknown>) =>
+  api<ToolCallResult>(`/api/me/tools/${encodeURIComponent(name)}/call`,
+    { method: 'POST', ...j({ arguments: args }) })
 // Usage d'une doctrine, dérivé de tool_calls (chargements par l'agent).
 export const getInstructionUsage = (slug: string) =>
   api<InstructionUsage>(`/api/me/instructions/${slug}/usage`)
