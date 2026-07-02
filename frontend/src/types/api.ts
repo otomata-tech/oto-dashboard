@@ -500,13 +500,22 @@ export interface DatastoreSchema {
   fields?: DatastoreField[]
 }
 
-// Bénéficiaire d'un partage de namespace (vue propriétaire).
+// Bénéficiaire d'un partage de ressource (vue propriétaire).
 export interface NamespaceShare {
   email: string | null
+  label?: string | null   // libellé résolu backend : email (user) / nom (org, équipe)
   permission: string
   principal_type?: string
   principal_id?: string
   created_at?: string | null
+}
+
+// Destinataire d'un partage `oto_resource` : un user (email), une équipe (group_id —
+// groupe d'une org dont on est membre) ou une org entière (org_id, livraison client).
+export interface SharePrincipal {
+  email?: string
+  org_id?: number
+  group_id?: number
 }
 
 // Object-browser admin (ADR 0030) — une ressource possédée, plan gouvernance.
