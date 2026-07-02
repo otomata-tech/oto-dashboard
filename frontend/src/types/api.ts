@@ -54,6 +54,7 @@ export interface ConnectorMeta {
   category: string           // axe utilisateur (curé) — Prospection|Data FR|…
   credential_fields: CredentialField[]
   free_tier: { daily_quota: number } | null   // ADR 0031 — clé plateforme offerte (quota gratuit/jour/user)
+  identities: boolean        // ADR 0024 — sélecteur d'identité/cible par défaut (pennylaneged : la GED cible)
 }
 
 // État de sélection marketplace d'un connecteur pour le membre (ADR 0019).
@@ -144,6 +145,10 @@ export interface ProviderStatus {
   // Connecteurs à session navigateur (cookie/personal_session : brevo, crunchbase) —
   // quand la session a été posée (Live View Browserbase). Absent pour les keyés.
   session_set_at?: string | null
+  // Identité/cible par défaut du sélecteur ADR 0024 (pennylaneged : la société
+  // cliente = SA GED) — satellites publics du meta credential, rendus sans listing.
+  identity_id?: string | null
+  identity_label?: string | null
 }
 
 export interface Me {

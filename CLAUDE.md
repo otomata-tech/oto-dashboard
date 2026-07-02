@@ -48,6 +48,12 @@ flux d'auth sont édités INLINE sur la carte** (ADR 0024) — keyé (`credentia
 formulaire (`setCredential`) ; oauth/cookie/hosted/fédéré → widget dédié inline
 (`ConnectorOAuthAccounts`/`ConnectorSessionWidget`/`ConnectorHostedWidget`/`ConnectorFederatedWidget`,
 dérivés de `connKind`). **Plus de cartes ancrées** `#sessions`/`#google`/`#federated`/`#messaging`.
+`ConnectorSessionWidget` porte aussi le picker de **cible par défaut** (sélecteur d'identité
+ADR 0024, gaté `ConnectorMeta.identities` — pennylaneged : la **GED cible**, une société
+cliente par client, issue otomata-private#31) : la cible courante vient de
+`me.providers[name].identity_label` (zéro coût), le **listing** (`getConnectorIdentities`)
+loue une session Browserbase (~10 s) → chargé au clic seulement ; choix via
+`setConnectorIdentity`.
 La carte dit en clair **quelle clé résout** (`status.mode` → « ta clé perso / la clé de ton org /
 la clé plateforme oto »). Les toggles d'outils restent `enableTool`/`disableTool`. Les **presets**
 de toolbox vivent en bas de la même vue. Les **tokens CLI** ont migré vers le **hub compte**
