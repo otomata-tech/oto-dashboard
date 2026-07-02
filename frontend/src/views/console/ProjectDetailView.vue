@@ -6,6 +6,7 @@
 import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Tag from '@/components/console/Tag.vue'
+import MarkdownView from '@/components/console/MarkdownView.vue'
 import ProjectDocs from '@/components/console/ProjectDocs.vue'
 import ProjectEntities from '@/components/console/ProjectEntities.vue'
 import Dropzone from '@/components/console/Dropzone.vue'
@@ -20,6 +21,7 @@ import {
   getResource, shareResource, unshareResource, transferResource,
   listProjectFiles, uploadProjectFile, deleteProjectFile, setProjectFilePublic,
   publishProjectShare, unpublishProjectShare,
+  publishProjectMcp, unpublishProjectMcp,
 } from '@/api/console'
 import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile } from '@/types/api'
 import { fmtDate } from '@/types/api'
@@ -32,12 +34,14 @@ import { useTransferOwnership } from '@/composables/useTransferOwnership'
 const route = useRoute()
 const router = useRouter()
 const { toast } = useToast()
-const { confirmAction } = usePrompt()
+const { confirmAction, promptForm } = usePrompt()
 const { pickTarget } = useTransferOwnership()
 
 const projectId = Number(route.params.id)
 const project = ref<Project | null>(null)
 const briefDraft = ref('')
+// Le brief est du markdown : rendu (MarkdownView) hors édition, textarea seulement en édition.
+const editingBrief = ref(false)
 const grants = ref<NamespaceShare[]>([])
 const activity = ref<ProjectActivity[]>([])
 const files = ref<ProjectFile[]>([])
@@ -119,10 +123,14 @@ async function loadActivity() {
 }
 onMounted(load)
 
+function startEditBrief() { briefDraft.value = project.value?.brief_md ?? ''; editingBrief.value = true }
+function cancelEditBrief() { briefDraft.value = project.value?.brief_md ?? ''; editingBrief.value = false }
+
 async function saveBrief() {
   if (!project.value) return
   try {
     project.value = { ...project.value, ...(await updateProject(projectId, { brief_md: briefDraft.value })) }
+    editingBrief.value = false
     await loadActivity(); toast('brief enregistré')
   } catch (e) { toast(humanize(e)) }
 }
@@ -231,6 +239,56 @@ async function copyPublicLink() {
   await navigator.clipboard.writeText(publicLink.value).catch(() => {})
   toast('lien copié')
 }
+
+// ── Endpoint MCP dédié (`<slug>.mcp.oto.cx`, ADR 0032 amende #44) ──
+const mcpBusy = ref(false)
+async function publishMcp() {
+  if (!project.value || mcpBusy.value) return
+  const r = await promptForm({
+    title: 'Publier en endpoint MCP',
+    description: 'Un sous-domaine dédié `<slug>.mcp.oto.cx` exposant un jeu d’outils figé, à brancher dans Claude/Mistral.',
+    fields: [
+      { key: 'slug', label: 'Sous-domaine', value: project.value.mcp_slug ?? '',
+        placeholder: 'french-tech-marseille', required: true, hint: '→ <slug>.mcp.oto.cx (min. 3 car., a-z 0-9 -)' },
+      { key: 'access', label: 'Accès', type: 'select', value: project.value.mcp_access && project.value.mcp_access !== 'off' ? project.value.mcp_access : 'anonymous',
+        options: [
+          { value: 'anonymous', label: 'Public · sans login (n’importe qui, aucun compte)' },
+          { value: 'org', label: 'Org · authentifié (membres de l’org, login Logto)' },
+        ] },
+      { key: 'tools', label: 'Outils exposés', type: 'textarea', value: (project.value.mcp_tools ?? []).join('\n'),
+        placeholder: 'frenchtech_search_annuaire\nfrenchtech_evenements', required: true,
+        hint: 'un par ligne — les SEULS outils visibles sur ce sous-domaine' },
+    ],
+    submitLabel: 'Publier',
+  })
+  if (!r) return
+  const tools = (r.tools ?? '').split(/[\n,]/).map((t) => t.trim()).filter(Boolean)
+  mcpBusy.value = true
+  try {
+    const updated = await publishProjectMcp(projectId, {
+      mcp_slug: (r.slug ?? '').trim(), mcp_access: (r.access ?? 'anonymous') as 'anonymous' | 'org', mcp_tools: tools })
+    project.value = { ...project.value, ...updated }
+    toast('endpoint MCP publié')
+    await loadActivity()
+  } catch (e) { toast(humanize(e)) }
+  finally { mcpBusy.value = false }
+}
+async function unpublishMcp() {
+  if (!project.value) return
+  if (!await confirmAction({ title: 'Retirer l’endpoint MCP',
+    message: 'Le sous-domaine deviendra immédiatement inaccessible. Continuer ?', confirmLabel: 'Retirer', danger: true })) return
+  try {
+    const updated = await unpublishProjectMcp(projectId)
+    project.value = { ...project.value, ...updated }
+    toast('endpoint MCP retiré')
+    await loadActivity()
+  } catch (e) { toast(humanize(e)) }
+}
+async function copyMcpUrl() {
+  if (!project.value?.mcp_url) return
+  await navigator.clipboard.writeText(project.value.mcp_url).catch(() => {})
+  toast('URL copiée')
+}
 </script>
 
 <template>
@@ -267,18 +325,26 @@ async function copyPublicLink() {
         <!-- colonne atelier : brief + pages + entités liées -->
         <div class="wk-col">
 
-          <!-- brief -->
+          <!-- brief : rendu markdown hors édition, textarea seulement en édition -->
           <section class="surface-card">
             <div class="card-eb-row">
               <span class="card-eb">brief — point d'entrée de l'agent</span>
-              <span class="card-eb-hint">md</span>
+              <span v-if="editingBrief" class="card-eb-hint">md</span>
+              <button v-else-if="!readOnly" class="btn-soft btn-soft--xs" @click="startEditBrief">éditer</button>
             </div>
-            <textarea v-model="briefDraft" class="wk-brief" rows="5" :readonly="readOnly"
-              placeholder="Le but du projet, le contexte, ce que l'agent doit savoir au démarrage…"></textarea>
-            <div v-if="!readOnly" class="wk-brief-act">
-              <button class="btn-soft" @click="saveBrief">enregistrer le brief</button>
-              <span class="dim" style="font-size: 11px">{{ briefDirty ? 'modifié' : 'enregistré' }}</span>
-            </div>
+            <template v-if="editingBrief">
+              <textarea v-model="briefDraft" class="wk-brief" rows="8"
+                placeholder="Le but du projet, le contexte, ce que l'agent doit savoir au démarrage…"></textarea>
+              <div class="wk-brief-act">
+                <button class="btn-soft" @click="saveBrief">enregistrer le brief</button>
+                <button class="ent__lnk" @click="cancelEditBrief">annuler</button>
+                <span class="dim" style="font-size: 11px">{{ briefDirty ? 'modifié' : 'enregistré' }}</span>
+              </div>
+            </template>
+            <template v-else>
+              <MarkdownView v-if="project.brief_md && project.brief_md.trim()" :source="project.brief_md" />
+              <p v-else class="dim" style="font-size: 12px">{{ readOnly ? 'aucun brief.' : 'aucun brief — clique « éditer » pour le rédiger.' }}</p>
+            </template>
           </section>
 
           <!-- pages (ProjectDocs porte son propre en-tête « Pages ») -->
@@ -337,6 +403,37 @@ async function copyPublicLink() {
               {{ publishing ? 'chiffrement…' : 'partager par lien chiffré' }}
             </button>
             <p v-else class="dim" style="font-size: 12px">non partagé publiquement.</p>
+          </section>
+
+          <!-- endpoint MCP dédié (<slug>.mcp.oto.cx, ADR 0032 amende #44) -->
+          <section class="surface-card">
+            <div class="card-eb-row" style="margin-bottom: 6px">
+              <strong>Endpoint MCP</strong>
+              <Tag v-if="project.mcp_access === 'anonymous'" tone="olive" title="Sous-domaine public, sans login">public · sans login</Tag>
+              <Tag v-else-if="project.mcp_access === 'org'" tone="saffron" title="Authentifié, membres de l'org">org · authentifié</Tag>
+            </div>
+            <p class="dim" style="font-size: 11.5px; line-height: 1.5; margin-bottom: 9px">
+              Publie ce projet comme un serveur MCP dédié à brancher dans Claude / Mistral.
+              <strong>Public</strong> = n'importe qui l'utilise <strong>sans compte</strong> ;
+              <strong>org</strong> = login requis (membres de l'org).
+            </p>
+            <template v-if="project.mcp_url">
+              <div class="pshare-link">
+                <input class="pshare-input" :value="project.mcp_url" readonly @focus="($event.target as HTMLInputElement).select()" />
+                <button class="btn-soft btn-soft--xs" @click="copyMcpUrl">copier</button>
+              </div>
+              <p class="dim" style="font-size: 11px; margin: 6px 0 8px">
+                {{ project.mcp_tools?.length ?? 0 }} outil(s) : {{ (project.mcp_tools ?? []).join(', ') }}
+              </p>
+              <div class="pshare-act">
+                <button v-if="!readOnly" class="btn-soft btn-soft--xs" :disabled="mcpBusy" @click="publishMcp">reconfigurer</button>
+                <button v-if="!readOnly" class="btn-soft btn-soft--xs btn-soft--danger" @click="unpublishMcp">retirer</button>
+              </div>
+            </template>
+            <button v-else-if="!readOnly" class="btn-soft btn-soft--xs" :disabled="mcpBusy" @click="publishMcp">
+              {{ mcpBusy ? 'publication…' : 'publier en endpoint MCP' }}
+            </button>
+            <p v-else class="dim" style="font-size: 12px">non publié.</p>
           </section>
 
           <!-- autres documents -->

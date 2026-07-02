@@ -40,8 +40,8 @@ watch(() => props.open, (o) => { if (o) resetForm({ values: blank() }) })
 
 const title = computed(() => (props.single ? `clé api ${props.label}` : `connecter ${props.label}`))
 const description = computed(() => (props.single
-  ? `ta clé ${props.label} — stockée chiffrée ; la tienne prime sur la clé d'org et de plateforme.`
-  : `tes identifiants ${props.label} — stockés chiffrés, utilisés pour agir en ton nom.`))
+  ? `ta clé ${props.label} — stockée chiffrée, scopée à l'org courante ; elle y prime sur la clé d'org et de plateforme.`
+  : `tes identifiants ${props.label} — stockés chiffrés, scopés à l'org courante, utilisés pour agir en ton nom.`))
 
 const submit = handleSubmit(async (values) => {
   try {

@@ -82,7 +82,7 @@ const platformQuotas = computed(() =>
 
 // ── onboarding (checklist réelle) ──
 const steps = computed(() => [
-  { done: true, t: 'connect a client', d: 'add mcp.oto.ninja to claude desktop, cursor or any mcp client — auth runs over oauth.', act: null as [string, string] | null },
+  { done: true, t: 'connect a client', d: 'add mcp.oto.cx to claude desktop, cursor or any mcp client — auth runs over oauth.', act: null as [string, string] | null },
   { done: userKeysCount.value > 0, t: 'add your first api key', d: 'paste a provider key (serper, hunter, …) so your tools can call out.', act: ['/connectors', 'add a key'] as [string, string] },
   { done: !!google.value?.connected, t: 'link google workspace', d: 'unlock gmail, drive, sheets and the datastore.', act: ['/connectors', 'link google'] as [string, string] },
   { done: !!me.value?.memento?.connected, t: 'connect your knowledge base', d: 'link memento — a structured, sourced memory your agents read and write across sessions. federated into every oto session.', act: ['/connectors', 'connect memento'] as [string, string] },

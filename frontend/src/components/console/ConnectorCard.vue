@@ -82,10 +82,12 @@ const statusMode = computed<ConnectorMode>(() => {
 })
 const keyConfigured = computed(() => !!status.value?.user_key_configured)
 
-// Quelle clé est RÉSOLUE pour ce connecteur (perso / équipe / org / plateforme), en
+// Quelle clé est RÉSOLUE pour ce connecteur (membre / équipe / org / plateforme), en
 // clair — retour user : « on ne sait pas si on a la clé plateforme, org ou perso ».
+// « perso » n'existe plus (ADR 0033) : la clé d'un membre est scopée à l'org courante
+// — posée dans une autre org, elle n'y résout pas (mode `user` = ta clé DANS cette org).
 const KEY_SOURCE: Record<ConnectorMode, string> = {
-  user: 'ta clé perso',
+  user: 'ta clé (posée dans cette org)',
   group: 'la clé de ton équipe',
   org: 'la clé de ton org',
   platform: 'la clé plateforme oto',
@@ -229,7 +231,7 @@ async function toggleTool(t: ToolEntry) {
 .cc-tools { display: flex; flex-direction: column; gap: 5px; }
 .cc-tools-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 600; margin-bottom: 2px; }
 .cc-paused { font-weight: 400; }
-.cc-tool { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--color-hair-soft); }
+.cc-tool { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--color-hair-soft); }
 .cc-tool.muted .cc-tname { color: var(--color-faint); }
 .cc-tmeta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .cc-tname { font-size: 12px; color: var(--color-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

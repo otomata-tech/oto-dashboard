@@ -154,6 +154,11 @@ export const getProjectActivity = (id: number) =>
 // « Reprendre dans Claude » — blob copier-coller qui pré-écrit oto_use_project (B5b).
 export const projectHandoff = (id: number) =>
   projectsApi<{ id: number; markdown: string }>({ op: 'handoff', project_id: id })
+// Publier / retirer un projet comme endpoint MCP dédié `<slug>.mcp.oto.cx` (ADR 0032, amende #44).
+export const publishProjectMcp = (id: number, fields: { mcp_slug: string; mcp_access: 'anonymous' | 'org'; mcp_tools: string[] }) =>
+  projectsApi<Project>({ op: 'publish_mcp', project_id: id, ...fields })
+export const unpublishProjectMcp = (id: number) =>
+  projectsApi<Project>({ op: 'unpublish_mcp', project_id: id })
 
 // Fichiers bruts d'un projet — carte « Autre document » (ADR 0032 §3, B4a).
 export const listProjectFiles = (id: number) =>

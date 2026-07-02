@@ -223,6 +223,9 @@ export interface AlphaInvite {
 export interface ToolEntry {
   name: string
   enabled: boolean
+  // 1ʳᵉ ligne de docstring (champ MCP `description`), fusionnée depuis le registre
+  // résolu (ADR 0014, `/api/me/tools/registry`) pour l'afficher dans la carte.
+  description?: string
 }
 // Entrée du registre résolu (ADR 0014). `source` = native (in-process oto) ou
 // federated (MCP tiers monté) ; `mcp` = nom du connecteur fédéré le cas échéant.
@@ -341,6 +344,11 @@ export interface Project {
   can_write?: boolean            // droit d'écriture effectif (#4b) ; false → lecture seule
   public_shared?: boolean        // partage public CHIFFRÉ actif (ADR 0032 §3, zero-knowledge)
   public_shared_at?: string | null  // horodatage de la dernière (re)publication chiffrée
+  // Publication en endpoint MCP dédié `<mcp_slug>.mcp.oto.cx` (ADR 0032, amende #44).
+  mcp_slug?: string | null
+  mcp_access?: 'off' | 'anonymous' | 'org'   // off = non publié ; anonymous = sans login ; org = JWT + org épinglée
+  mcp_tools?: string[]                        // allowlist figée du preset exposé
+  mcp_url?: string | null                     // URL dérivée `https://<slug>.mcp.oto.cx/mcp` (null si off)
   created_at?: string | null
   updated_at?: string | null
   archived_at?: string | null
@@ -950,8 +958,11 @@ export interface ScheduledEmail {
   created_by?: string
 }
 
-// MCP endpoint public (config, pas un secret) — affiché tel quel.
-export const MCP_URL = (import.meta.env.VITE_LOGTO_AUDIENCE as string) || 'https://mcp.oto.ninja/mcp'
+// MCP endpoint public (config, pas un secret) — affiché tel quel. DÉCOUPLÉ de
+// VITE_LOGTO_AUDIENCE : l'URL vitrine est mcp.oto.cx (coexistence multi-domaine,
+// le backend accepte les deux audiences) tandis que l'audience OAuth du dashboard
+// reste mcp.oto.ninja/mcp.
+export const MCP_URL = (import.meta.env.VITE_MCP_PUBLIC_URL as string) || 'https://mcp.oto.cx/mcp'
 
 // Accepte les timestamps PG ("YYYY-MM-DD HH:MM:SS", UTC implicite) ET les ISO
 // portant déjà un offset/Z (ex. granted_at = datetime.isoformat() → "…+00:00").
