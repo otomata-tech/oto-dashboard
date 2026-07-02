@@ -33,7 +33,7 @@ const callersLabel = computed(() => {
       <div v-if="usage && usage.count > 0" class="spark">
         <div v-for="(b, i) in bars" :key="i" class="bar" :style="{ height: b.h, background: b.color }" />
       </div>
-      <div v-else class="empty">jamais chargé sur les 30 derniers jours — l'agent la tire via <code>get_claude_md</code>.</div>
+      <div v-else class="empty">jamais chargée sur les 30 derniers jours — l'agent la tire via <code>oto_get_doctrine</code>.</div>
       <div class="foot">
         <span>30 derniers jours</span><span>par {{ callersLabel }}</span>
       </div>

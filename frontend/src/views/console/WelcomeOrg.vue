@@ -31,7 +31,7 @@ async function create() {
     <span class="o-medallion o-medallion-lg">o</span>
     <div class="se-title">create your <Squiggle>workspace</Squiggle>.</div>
     <div class="se-body">
-      a workspace holds your team's shared keys, doctrine and prospects. you'll be its admin —
+      a workspace holds your team's shared keys, agent readme, procedures and prospects. you'll be its admin —
       invite teammates once it's set up.
     </div>
     <div style="display: flex; gap: 8px; width: 100%; max-width: 380px; margin-top: 6px">

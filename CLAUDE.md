@@ -159,13 +159,27 @@ Groupe nav **« memory »** (`consoleNav.ts`) = deux surfaces de mémoire :
 - **Datastore** (`/console/data`, `DataView.vue`) — stockage tabulaire, **substrat PG natif** (plus Google Sheets). Grille **server-driven** (`DataTable.vue` : tri 3 états/recherche/pagination/**filtres par colonne** côté API via `getNamespaceRows({offset,limit,order_by,order_dir,q,filters})` — ops par type dérivé `datastoreFilters.ts` (text/number/date/bool), cellule `ColumnFilterCell.vue`, chips des filtres actifs retirables, taille de page 25/50/100, header sticky ; rendu cellules typé `cellRender.ts`) ; clic row → détail/édition (`RowDrawer.vue`). **Deeplink par id** (`?ns=<id>`, `NamespaceEntry.id` BIGSERIAL stable → le **renommage** ne casse pas l'URL) **+ état du tableau MIROIR dans l'URL** (`?q/sort/dir/page/ps/f`, `readTableQuery`/`syncTableQuery` — refresh et partage de lien conservent la vue filtrée ; `?f=` sérialisé par `filtersToParam`/`filtersFromParam`, param malformé ignoré). **Ownership ADR 0030** : les droits viennent du payload (`can_write`/`can_govern`/`owner_type`), plus de `isOwner` dérivé du flag `shared` ; read-only = `can_write===false`, boutons share/rename/transfer/delete gatés par `can_govern`. **org-owned activé** : la création propose un scope (perso / classeur d'org active) via `promptForm` select → `createNamespace(ns, {type:'org', id})` ; badge « org »/« team » sur la liste. **share** (`ShareDialog.vue`), **rename**, **transfer** (l'ancien proprio repasse en grant write). Plus de gate Google.
 - **Knowledge** (`/console/knowledge`, `KnowledgeView.vue`) — connexion **Memento opt-in** (réutilise `getMementoStatus`/`startMementoOauth`/`disconnectMemento`, mêmes endpoints que la carte federated mcp de `ConnectorsView`) ; pas de browse des KB (déféré). Retour OAuth `?memento=connected|error`.
 
-## Connecteurs & doctrines — point d'entrée à onglets (découverte fusionnée)
+## Agent readme (ex-« doctrine de base ») — unbundlé des procédures (2026-07)
+
+**Deux objets, deux mots, deux surfaces** (fin du bundle historique de l'écran doctrine) :
+- **agent readme** = prose libre **injectée à chaque session** (bloc C backend), **cumulable
+  par niveau** : plateforme (`/platform/instructions`) → org (**carte sur `/org`**,
+  `AgentReadmeCard` branchée sur `putInstruction('claude_md')`, versions/restore conservés)
+  → équipe (`GroupDoctrineCard`, `/org/departments`) → user (**carte sur `/account`**,
+  `GET/PUT /api/me/agent-readme`). Composant générique `AgentReadmeCard.vue` (props
+  load/save/loadVersions/restore). Pas de compteur d'usage (l'injection n'est pas un tool
+  call) — le tag dit « injecté à chaque session ».
+- **procédure** (ex-skill / doctrine nommée) = déroulé opératoire **chargé à la demande**
+  (`oto_get_doctrine(slug)`), publiable/forkable/partageable/liable à un projet.
+
+## Connecteurs & procédures — point d'entrée à onglets (découverte fusionnée)
 
 Le groupe nav « library » a **disparu** : les bibliothèques (découverte) sont fusionnées
-en **onglets** des pages de gestion `/connectors` et `/doctrine`, chacune devenue un
+en **onglets** des pages de gestion `/connectors` et `/procedures`, chacune devenue un
 **point d'entrée unique** à onglets (`SubTabs.vue`, état porté par `?tab=` via `useDeepLink`).
 Onglet par défaut = `mine` (`?tab` absent = URL propre). Les ex-routes `/library/connectors`
-et `/library/doctrines` **redirigent** vers `…?tab=marketplace` (`router/index.ts`).
+et `/library/doctrines` **redirigent** vers `…?tab=marketplace` (`router/index.ts`) ;
+`/doctrine` et `/doctrine/:id` **redirigent** vers `/procedures[…]`.
 
 - **`/connectors`** = host `ConnectorsHubView.vue`, 3 onglets :
   - `mine` — `ConnectorsView.vue` (projection USER inchangée : connexion + outils + presets).
@@ -182,14 +196,19 @@ et `/library/doctrines` **redirigent** vers `…?tab=marketplace` (`router/index
     usage→prerequisite→setup→note). La carte grille porte description + chip d'auth
     + nb d'outils ; recherche étendue à description + noms d'outils. L'onglet outils
     de `ConnectorCard` (mine) affiche aussi la description sous chaque toggle.
-- **`/doctrine`** = host `DoctrineHubView.vue`, 2 onglets :
-  - `mine` — `DoctrineView.vue` (doctrine de base + skills de l'org/équipe, édition/versions/usage).
-  - `marketplace` — `DoctrineLibraryView.vue` : doctrines publiques avec **auteur** (badge
+- **`/procedures`** = host `DoctrineHubView.vue`, 2 onglets :
+  - `mine` — `DoctrineView.vue` (**100 % procédures** de l'org/équipe, édition/versions/usage ;
+    l'agent readme n'y apparaît plus — slug `claude_md` réservé, édité sur `/org`).
+    Route détail `/procedures/:id` (`procedure-detail`).
+  - `marketplace` — `DoctrineLibraryView.vue` : procédures publiques avec **auteur** (badge
     « Otomata » ou org créatrice), recherche + filtres auteur/topic, preview markdown,
     **fork** dans l'org active (org_admin), unpublish conditionnel. API `listLibraryDoctrines`/
     `getLibraryDoctrine`/`forkLibraryDoctrine`/`unpublishDoctrine`. `DoctrineView.vue` garde
-    l'action **« publier »** d'un skill (org_admin → `publishDoctrine`). Backend :
+    l'action **« publier »** d'une procédure (org_admin → `publishDoctrine`). Backend :
     `oto-backend/CLAUDE.md` §REST (capacités `library.*`).
+  > NB : les identifiants de code/API gardent le mot « doctrine » (`Doctrine*View`,
+  > `getDoctrine`, endpoints `/api/me/instructions*`, resource_type `doctrine`) — seul le
+  > vocabulaire produit (routes, copy) est passé à « procédure » / « agent readme ».
 
 Les hosts montent leurs panneaux en `v-if` (lazy `defineAsyncComponent`, chunks préservés) ;
 chaque panneau garde son propre deep-link (`?doc=`, `?preview=`) qui coexiste avec `?tab=`.
@@ -234,9 +253,11 @@ persistée, pas `current_org`** (qui renverrait le contexte du requérant) — c
 
 `AccountView.vue` = hub « gérer mon compte » (≠ ancien écran profil seul) : carte **profile**
 (avatar/nom/email, `uploadAvatar`/`deleteAvatar`), carte **compte & accès** (email + rôle
-plateforme en lecture seule + `logout`), carte **cli & api tokens** (`AccountTokensCard.vue`,
-`getTokens`/`createToken`/`deleteToken` — migrés depuis `ConnectorsView`, user-scopés). Pas de
-préférences/langue (aucune infra i18n dans le repo).
+plateforme en lecture seule + `logout`), carte **agent readme · toi** (`AgentReadmeCard`,
+niveau USER — `GET/PUT /api/me/agent-readme`, injecté à chaque session après plateforme/org/
+équipe), carte **cli & api tokens** (`AccountTokensCard.vue`, `getTokens`/`createToken`/
+`deleteToken` — migrés depuis `ConnectorsView`, user-scopés). Pas de préférences/langue
+(aucune infra i18n dans le repo).
 
 ## Observabilité (PostHog + Sentry)
 

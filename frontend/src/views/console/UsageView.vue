@@ -68,10 +68,10 @@ function fmt(ts: string | null): string {
   <div class="content-inner fadein">
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
-    <ConsoleCard title="déroulés de doctrine" flush
-      sub="chaque run = un doctrine_start…finish ; clique pour voir la timeline des appels.">
+    <ConsoleCard title="déroulés" flush
+      sub="chaque run = un run_start…run_finish (procédure nommée ou déroulé ad-hoc) ; clique pour voir la timeline des appels.">
       <table class="tbl">
-        <thead><tr><th>doctrine</th><th>issue</th><th>appels</th><th>début</th><th style="width: 80px"></th></tr></thead>
+        <thead><tr><th>procédure</th><th>issue</th><th>appels</th><th>début</th><th style="width: 80px"></th></tr></thead>
         <tbody>
           <template v-for="r in runs" :key="r.run_id">
             <tr>
@@ -103,7 +103,7 @@ function fmt(ts: string | null): string {
           </template>
           <tr v-if="loaded && !runs.length">
             <td colspan="5" class="dim" style="text-align: center; padding: 16px">
-              aucun déroulé encore — les agents en ouvrent via doctrine_start.
+              aucun déroulé encore — les agents en ouvrent via run_start.
             </td>
           </tr>
         </tbody>

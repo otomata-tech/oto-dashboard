@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// Bibliothèque de doctrines publiques (marketplace de skills) — cherchable,
-// partageable. Chaque entrée a un AUTEUR : Otomata (la plateforme) ou un créateur
-// privé (une org). Preview du markdown + FORK dans son org active (copie versionnée).
+// Bibliothèque de procédures publiques (marketplace) — cherchable, partageable.
+// Chaque entrée a un AUTEUR : Otomata (la plateforme) ou un créateur privé (une org).
+// Preview du markdown + FORK dans son org active (copie versionnée).
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
@@ -37,13 +37,13 @@ const selected = ref<LibraryDoctrine | null>(null)
 const previewing = ref(false)
 const busy = ref(false)
 
-// Doctrine en preview portée par `?preview=<slug>` (lien direct + retour).
+// Procédure en preview portée par `?preview=<slug>` (lien direct + retour).
 const dl = useDeepLink('preview', (slug) => {
   if (slug && selected.value?.slug !== slug) openSlug(slug)
   else if (!slug && previewing.value) closePreview()
 })
 // Registre d'outils résolu — pour rendre les <tool:slug> en chips + le manifeste
-// « outils référencés », comme l'éditeur de doctrine (cohérence ADR 0014).
+// « outils référencés », comme l'éditeur de procédure (cohérence ADR 0014).
 const reg = ref<ToolReg>(buildReg([]))
 
 async function load() {
@@ -95,14 +95,14 @@ async function fork(e: LibraryEntry | LibraryDoctrine) {
     const r = await forkLibraryDoctrine(e.slug)
     toast(`forked as "${r.slug}" into ${me.value.active_org_name ?? 'your org'}`)
     closePreview()
-    router.push('/doctrine')
+    router.push('/procedures')
   } catch (err) { toast(humanize(err)) }
   finally { busy.value = false }
 }
 
 async function unpublish(e: LibraryEntry | LibraryDoctrine) {
   if (!await confirmAction({
-    title: 'unpublish doctrine', danger: true, confirmLabel: 'unpublish',
+    title: 'unpublish procedure', danger: true, confirmLabel: 'unpublish',
     message: `remove "${e.title || e.slug}" from the public library? forks already made are untouched.`,
   })) return
   busy.value = true
@@ -138,10 +138,10 @@ async function unpublish(e: LibraryEntry | LibraryDoctrine) {
     </ConsoleCard>
 
     <template v-else>
-      <ConsoleCard title="doctrine library"
-        sub="a public marketplace of skills — published by Otomata or by other teams. preview, then fork into your org.">
+      <ConsoleCard title="procedure library"
+        sub="a public marketplace of procedures — published by Otomata or by other teams. preview, then fork into your org.">
         <div class="dl-controls">
-          <input v-model="q" class="inp" placeholder="search doctrines…" @keyup.enter="load" />
+          <input v-model="q" class="inp" placeholder="search procedures…" @keyup.enter="load" />
           <div class="chips">
             <button class="chip" :class="{ on: author === 'all' }" @click="author = 'all'; load()">all authors</button>
             <button class="chip" :class="{ on: author === 'otomata' }" @click="author = 'otomata'; load()">Otomata</button>
@@ -176,7 +176,7 @@ async function unpublish(e: LibraryEntry | LibraryDoctrine) {
 
       <div v-else-if="loaded && !error" class="state-empty" style="margin-top: 40px">
         <h3>the library is empty here</h3>
-        <p>no published doctrine matches. publish one from your <a href="#" @click.prevent="router.push('/doctrine')">doctrine</a> page.</p>
+        <p>no published procedure matches. publish one from your <a href="#" @click.prevent="router.push('/procedures')">procedures</a> page.</p>
       </div>
     </template>
   </div>

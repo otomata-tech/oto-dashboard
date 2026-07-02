@@ -36,7 +36,7 @@ export const NAV: NavGroup[] = [
   { group: 'workspace', level: 'work', items: [
     { path: '/projects', label: 'projects', icon: 'home' },
     { path: '/connectors', label: 'connectors', icon: 'plug' },
-    { path: '/doctrine', label: 'procédures', icon: 'doc' },
+    { path: '/procedures', label: 'procédures', icon: 'doc' },
   ]},
   { group: 'memory', level: 'work', items: [
     { path: '/data', label: 'données', icon: 'db' },
@@ -76,7 +76,7 @@ export function levelOf(path: string): NavLevel {
 export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/overview': { title: 'overview', crumb: 'app.oto.ninja' },
   '/connectors': { title: 'connectors', crumb: 'workspace' },
-  '/doctrine': { title: 'procédures', crumb: 'workspace' },
+  '/procedures': { title: 'procédures', crumb: 'workspace' },
   '/data': { title: 'données', crumb: 'memory' },
   '/documents': { title: 'documents', crumb: 'memory' },
   '/account': { title: 'manage account', crumb: 'account' },

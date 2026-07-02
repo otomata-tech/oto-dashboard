@@ -11,8 +11,10 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
 import { useMe } from '@/composables/useMe'
+import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
 import { getMyOrgs, getOrg, setOrgMemberRole, removeOrgMember,
-  listInvitations, inviteMember, revokeInvitation, uploadOrgLogo, deleteOrgLogo, updateOrg } from '@/api/console'
+  listInvitations, inviteMember, revokeInvitation, uploadOrgLogo, deleteOrgLogo, updateOrg,
+  getInstruction, putInstruction, getInstructionVersions, revertInstruction } from '@/api/console'
 import type { Org, OrgDetail, OrgInvitation, OrgRole } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -33,6 +35,14 @@ const loaded = ref(false)
 const logoBusy = ref(false)
 
 const isOrgAdmin = computed(() => detail.value?.org.my_role === 'org_admin')
+
+// Agent readme de L'ORG (ex-« doctrine de base », slug réservé claude_md) : prose
+// injectée au début de chaque session des membres. Stockage versionné org_instructions.
+const README_SLUG = 'claude_md'
+const loadOrgReadme = () => getInstruction(README_SLUG)
+const saveOrgReadme = (body: string) => putInstruction(README_SLUG, body, 'agent readme')
+const loadOrgReadmeVersions = () => getInstructionVersions(README_SLUG)
+const restoreOrgReadme = (v: number) => revertInstruction(README_SLUG, v)
 const activeOrgId = computed(() => me.value?.active_org ?? null)
 const meSub = computed(() => me.value?.sub ?? null)
 
@@ -251,6 +261,15 @@ async function removeLogo() {
           </ConsoleCard>
         </div>
       </div>
+
+      <!-- Niveau ORG du concept agent_readme (ex-« doctrine de base ») : injecté à
+           chaque session de chaque membre, cumulé avant équipe et user. -->
+      <AgentReadmeCard title="agent readme · organisation"
+        :sub="'la prose de l\'org (contexte métier, règles, vocabulaire), injectée au début de chaque session de chaque membre. variables : {{org}} {{user}} {{équipe}} {{connecteurs_actifs}}. les procédures (chargées à la demande) vivent dans « procédures ».'"
+        :can-edit="isOrgAdmin"
+        placeholder="ex. nous vendons des audits RGPD à des ETI ; toujours vérifier le SIREN via fr_get avant d'écrire au CRM."
+        :load="loadOrgReadme" :save="saveOrgReadme"
+        :load-versions="loadOrgReadmeVersions" :restore="restoreOrgReadme" />
 
       <ConsoleCard v-if="isOrgAdmin" title="invitations"
         sub="invite teammates by email — they join this org when they accept the link.">

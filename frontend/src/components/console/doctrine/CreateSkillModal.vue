@@ -35,7 +35,7 @@ async function submit() {
     <div class="modal" @click.stop>
       <div class="top">
         <div>
-          <div class="kicker">nouveau skill</div>
+          <div class="kicker">nouvelle procédure</div>
           <div class="title">un process que l'agent tire par son nom</div>
         </div>
         <button type="button" class="x" @click="emit('close')">
@@ -56,12 +56,12 @@ async function submit() {
         </label>
         <label class="field">
           <span class="lbl">résumé — 1–2 lignes, détaché du corps</span>
-          <textarea v-model="summary" rows="2" class="inp" placeholder="quand le charger, ce qu'il fait." />
+          <textarea v-model="summary" rows="2" class="inp" placeholder="quand la charger, ce qu'elle fait." />
         </label>
       </div>
 
       <div class="actions">
-        <button type="button" class="btn-ink" :disabled="busy || !title.trim()" @click="submit">créer le skill →</button>
+        <button type="button" class="btn-ink" :disabled="busy || !title.trim()" @click="submit">créer la procédure →</button>
         <button type="button" class="btn-ghost" @click="emit('close')">annuler</button>
         <span class="meta">v1 · brouillon</span>
       </div>

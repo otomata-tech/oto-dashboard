@@ -8,11 +8,12 @@ import Dropzone from '@/components/console/Dropzone.vue'
 import AccountTokensCard from '@/components/console/AccountTokensCard.vue'
 import SecurityCard from '@/components/console/SecurityCard.vue'
 import AgentContextCard from '@/components/console/AgentContextCard.vue'
+import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
 import { useAuth } from '@/composables/useAuth'
-import { uploadAvatar, deleteAvatar } from '@/api/console'
+import { uploadAvatar, deleteAvatar, getAgentReadme, setAgentReadme } from '@/api/console'
 import { humanize } from '@/lib/errors'
 import { validateImage, IMAGE_ACCEPT_ATTR } from '@/lib/imageUpload'
 
@@ -106,6 +107,14 @@ async function remove() {
     </ConsoleCard>
 
     <SecurityCard />
+
+    <!-- Niveau USER du concept agent_readme : injecté à chaque session, après les
+         readme plateforme / org / équipe (cumulable). -->
+    <AgentReadmeCard title="agent readme · toi"
+      sub="ta prose libre, injectée au début de chaque session de ton agent — après celles de la plateforme, de ton org et de ton équipe."
+      :can-edit="true" allow-empty
+      placeholder="ex. je préfère des réponses courtes ; mes clients sont des PME ; signe mes emails « Alexis »."
+      :load="getAgentReadme" :save="setAgentReadme" />
 
     <AgentContextCard />
 

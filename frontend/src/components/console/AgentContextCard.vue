@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // Carte « contexte agent » (otomata-private#49) — transparence : ce que le Claude
 // de l'utilisateur reçoit d'oto au handshake, en 3 couches étiquetées par PROVENANCE
-// (plateforme-statique / org-éditable / dérivé). Lecture seule ; l'édition de la
-// couche org se fait dans l'écran doctrine. Vit comme section de la page Account.
+// (plateforme-statique / readme cumulés org→équipe→user / dérivé). Lecture seule ;
+// l'édition des readme se fait sur /org (org), /org/departments (équipe) et /account
+// (user) ; les procédures sur /procedures. Vit comme section de la page Account.
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from './ConsoleCard.vue'
 import Tag from './Tag.vue'
@@ -37,7 +38,7 @@ onMounted(load)
 
 <template>
   <ConsoleCard title="agent context" flush
-    sub="exactement ce que ton Claude reçoit d'oto à la connexion : instructions de la plateforme, doctrine de ton org, et les outils visibles sous ton org active. lecture seule.">
+    sub="exactement ce que ton Claude reçoit d'oto à la connexion : instructions de la plateforme, agent readme cumulés, et les outils visibles sous ton org active. lecture seule.">
     <p v-if="error" class="dim" style="font-size: 13px; padding: 0 16px 12px">{{ error }}</p>
     <p v-else-if="!loaded" class="dim" style="font-size: 13px; padding: 0 16px 12px">chargement…</p>
 
@@ -60,26 +61,26 @@ onMounted(load)
         <pre v-if="showInstructions" class="ctx-pre">{{ ctx.instructions }}</pre>
       </section>
 
-      <!-- Couche 2 — doctrine de l'org (éditable) -->
+      <!-- Couche 2 — agent readme (org/équipe/user, cumulés) + procédures -->
       <section class="ctx-layer">
         <header class="ctx-head">
           <div>
-            <div class="ctx-title">org doctrine</div>
-            <div class="ctx-sub">la prose opératoire de ton org (workflows, règles, vocabulaire), servie en début de session. c'est ta couche personnalisable.</div>
+            <div class="ctx-title">agent readme & procédures</div>
+            <div class="ctx-sub">les readme cumulés (org → équipe → toi), injectés à chaque session, + les procédures de ton org (chargées à la demande). readme org : /org · readme perso : ci-dessus · procédures : /procedures.</div>
           </div>
           <Tag tone="olive">{{ doctrine?.org || 'aucune org active' }}</Tag>
         </header>
         <div v-if="!doctrine?.org_id" class="dim" style="font-size: 13px">
-          aucune org active → ton agent démarre généraliste, sans doctrine métier.
+          aucune org active → ton agent démarre généraliste, sans readme d'org.
         </div>
         <template v-else>
           <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px">
             <Tag :tone="hasBaseDoctrine ? 'olive' : undefined">
-              doctrine de base · {{ hasBaseDoctrine ? 'définie' : 'vide' }}
+              readme org · {{ hasBaseDoctrine ? 'défini' : 'vide' }}
             </Tag>
-            <Tag tone="cobalt">{{ namedDoctrines.length }} doctrine(s) nommée(s)</Tag>
+            <Tag tone="cobalt">{{ namedDoctrines.length }} procédure(s)</Tag>
             <Tag v-if="doctrine?.group" tone="saffron">équipe : {{ doctrine.group }}</Tag>
-            <RouterLink to="/doctrine"><Btn kind="mini">éditer la doctrine →</Btn></RouterLink>
+            <RouterLink to="/procedures"><Btn kind="mini">les procédures →</Btn></RouterLink>
           </div>
           <table v-if="namedDoctrines.length" class="tbl">
             <thead><tr><th>slug</th><th>titre</th><th>portée</th></tr></thead>

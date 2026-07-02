@@ -60,7 +60,7 @@ function pick(name: string) {
   <div class="wrap">
     <textarea
       ref="ta" class="editor" :value="modelValue" spellcheck="false"
-      placeholder="écrivez la doctrine en markdown… tapez @ pour insérer un outil du registre"
+      placeholder="écrivez la procédure en markdown… tapez @ pour insérer un outil du registre"
       @input="onInput" @keydown="onKeydown"
     />
     <div v-if="ac" class="ac">

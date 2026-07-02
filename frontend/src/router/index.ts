@@ -27,9 +27,13 @@ const router = createRouter({
     { path: '/knowledge', redirect: '/documents' },
     { path: '/toolbox', redirect: '/connectors' },
     // Bibliothèques fusionnées en onglet « marketplace » des pages connecteurs /
-    // doctrine (point d'entrée unique) : l'ex-groupe nav « library » a disparu.
+    // procédures (point d'entrée unique) : l'ex-groupe nav « library » a disparu.
     { path: '/library/connectors', redirect: '/connectors?tab=marketplace' },
-    { path: '/library/doctrines', redirect: '/doctrine?tab=marketplace' },
+    { path: '/library/doctrines', redirect: '/procedures?tab=marketplace' },
+    // « doctrine » → « procédures » (unbundle 2026-07 : la doctrine de base est devenue
+    // l'agent readme, éditée sur /org et /account ; l'écran ne porte que les procédures).
+    { path: '/doctrine', redirect: (to) => ({ path: '/procedures', query: to.query }) },
+    { path: '/doctrine/:id', redirect: (to) => `/procedures/${to.params.id}` },
     // Redaction de champs migrée dans la carte connecteur (onglet transformations).
     { path: '/org/redaction', redirect: '/connectors' },
     // Clés plateforme fusionnées dans le cockpit connecteurs plateforme (ADR 0022).
@@ -70,13 +74,13 @@ const router = createRouter({
       meta: { section: '/data', level: 'work' },
     },
     {
-      // Procédure/doctrine ciblée `/doctrine/:id` (id surrogate stable, ADR 0032 —
-      // « stop using slug ») — section '/doctrine' → DoctrineHubView (onglet mine). La
+      // Procédure ciblée `/procedures/:id` (id surrogate stable, ADR 0032 —
+      // « stop using slug ») — section '/procedures' → DoctrineHubView (onglet mine). La
       // vue résout `:id` par id OU slug (back-compat liens/`?doc=`), normalise vers l'id.
-      path: '/doctrine/:id',
-      name: 'doctrine-detail',
+      path: '/procedures/:id',
+      name: 'procedure-detail',
       component: ConsoleLayout,
-      meta: { section: '/doctrine', level: 'work' },
+      meta: { section: '/procedures', level: 'work' },
     },
     ...sectionRoutes,
     {

@@ -32,13 +32,13 @@ const LINK_GROUPS: { type: ProjectLinkType; label: string; icon: string }[] = [
 const TYPE_ICON: Record<string, string> = Object.fromEntries(LINK_GROUPS.map((g) => [g.type, g.icon]))
 
 // Deep-link vers l'entité liée dans le dashboard (navigable). `target_ref` = id de
-// namespace (tableau) / slug de doctrine (procédure) / nom de connecteur / slug de
+// namespace (tableau) / id ou slug de procédure / nom de connecteur / slug de
 // base. Connecteur & base n'ont pas de deep-link fin → on renvoie vers leur section.
 function entityHref(l: ProjectLink): string | null {
   const ref = encodeURIComponent(l.target_ref)
   switch (l.target_type) {
     case 'tableau': return `/data/${ref}`
-    case 'procedure': return `/doctrine/${ref}`
+    case 'procedure': return `/procedures/${ref}`
     case 'connecteur': return '/connectors?tab=mine'
     case 'base': return '/documents'
     case 'page': return l.target_ref   // URL memento complète (lien externe, cf. hrefInfo)

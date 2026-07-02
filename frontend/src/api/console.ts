@@ -2,7 +2,7 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity,
   DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
@@ -130,10 +130,16 @@ export const applyPreset = (name: string) => api(`/api/me/presets/${name}/apply`
 export const savePreset = (name: string) => api(`/api/me/presets/${name}`, { method: 'POST' })
 export const deletePreset = (name: string) => api(`/api/me/presets/${name}`, { method: 'DELETE' })
 
-// ── doctrine / instructions ──
+// ── procédures / instructions ──
 export const getDoctrine = () => api<DoctrineBundle>('/api/me/instructions')
-// Contexte agent (otomata-private#49) : instructions serveur + doctrine + outils visibles.
+// Contexte agent (otomata-private#49) : instructions serveur + readme/procédures + outils visibles.
 export const getAgentContext = () => api<AgentContext>('/api/me/agent-context')
+
+// ── agent readme (niveau USER) — prose injectée à chaque session, cumulée après
+// les readme plateforme (bloc A), org (claude_md) et équipe. Édité sur /account.
+export const getAgentReadme = () => api<AgentReadme>('/api/me/agent-readme')
+export const setAgentReadme = (body_md: string) =>
+  api<AgentReadme>('/api/me/agent-readme', { method: 'PUT', ...j({ body_md }) })
 
 // ── Projets (couche d'organisation, ADR 0030) — capacité op-aware oto_project ──
 const projectsApi = <T>(body: Record<string, unknown>) =>
