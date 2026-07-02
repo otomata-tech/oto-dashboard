@@ -105,7 +105,7 @@ onMounted(async () => {
   doctrineExists.value = (await soft(getDoctrine(), null))?.doctrine.exists ?? false
   // KB d'org (zone Documents) : « fait » dès qu'une page de référence existe.
   const kb = await soft(getKbProject(), null)
-  if (kb) hasDocs.value = (await soft(listDocs(kb.project_id), { docs: [] })).docs.length > 0
+  if (kb) hasDocs.value = (await soft(listDocs(kb.project_id), { project_id: kb.project_id, docs: [] })).docs.length > 0
   if (isAdmin.value) summary.value = await soft(getMonitoringSummary(7), null)
   loaded.value = true
 })
