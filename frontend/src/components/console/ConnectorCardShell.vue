@@ -25,14 +25,20 @@ const monogram = computed(() => (props.label || '?').charAt(0).toUpperCase())
   <article class="cc-card" :class="{ off, click: clickable, fill }"
     @click="clickable && emit('open')">
     <header class="cc-head">
-      <div class="cc-logo">
+      <!-- Logo = cible de clic vers la fiche (grande zone découvrable) quand `to`. -->
+      <RouterLink v-if="to" :to="to" class="cc-logo cc-logolink"
+        title="ouvrir la fiche du connecteur" @click.stop>
+        <img v-if="logoUrl" :src="logoUrl" :alt="label" loading="lazy" />
+        <span v-else class="cc-mono">{{ monogram }}</span>
+      </RouterLink>
+      <div v-else class="cc-logo">
         <img v-if="logoUrl" :src="logoUrl" :alt="label" loading="lazy" />
         <span v-else class="cc-mono">{{ monogram }}</span>
       </div>
       <div class="cc-id">
         <div class="cc-name">
           <RouterLink v-if="to" :to="to" class="cc-namelink"
-            title="ouvrir la fiche du connecteur" @click.stop>{{ label }}</RouterLink>
+            title="ouvrir la fiche du connecteur" @click.stop>{{ label }}<span class="cc-open" aria-hidden="true">›</span></RouterLink>
           <template v-else>{{ label }}</template>
           <slot name="badges" />
         </div>
@@ -58,11 +64,17 @@ const monogram = computed(() => (props.label || '?').charAt(0).toUpperCase())
   border: 1px solid var(--color-hair); background: var(--color-surface);
 }
 .cc-logo img { width: 100%; height: 100%; object-fit: contain; }
+.cc-logolink { cursor: pointer; transition: border-color 180ms var(--ease-out); }
+.cc-logolink:hover { border-color: var(--color-ink-soft); }
 .cc-mono { font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: var(--color-ink-soft); }
 .cc-id { flex: 1; min-width: 0; }
 .cc-name { font-weight: 600; font-size: 14px; line-height: 1.2; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.cc-namelink { color: inherit; text-decoration: none; }
-.cc-namelink:hover { text-decoration: underline; }
+/* Affordance PERSISTANTE (pas seulement au survol) : le nom ouvre la fiche —
+   soulignement discret + chevron, se renforce au survol. */
+.cc-namelink { color: inherit; text-decoration: underline; text-decoration-color: var(--color-hair); text-underline-offset: 2px; cursor: pointer; }
+.cc-namelink:hover { text-decoration-color: var(--color-ink-soft); }
+.cc-open { color: var(--color-faint); font-weight: 700; margin-left: 1px; transition: color 180ms var(--ease-out); }
+.cc-namelink:hover .cc-open { color: var(--color-ink-soft); }
 .cc-pub { font-size: 11.5px; color: var(--color-faint); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cc-body { padding: 0 14px 14px; }
 </style>
