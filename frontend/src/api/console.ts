@@ -339,8 +339,15 @@ export const createMyOrg = (name: string) =>
   api<{ org_id: number; name: string; active_org: number; org_role: string }>(
     '/api/me/orgs', { method: 'POST', ...j({ name }) })
 export const getOrg = (id: number) => api<OrgDetail>(`/api/orgs/${id}`)
-export const updateOrg = (id: number, patch: { name?: string; description?: string }) =>
-  api<{ ok: true; org_id: number; name: string; description?: string }>(
+// Profil d'entreprise : chaîne vide = effacer le champ ; `domain` normalisé
+// backend (acme.com) et dérive le logo via logo.dev sans upload.
+export const updateOrg = (id: number, patch: {
+  name?: string; description?: string
+  domain?: string; industry?: string; location?: string
+}) =>
+  api<{ ok: true; org_id: number; name: string; description?: string;
+        domain?: string | null; industry?: string; location?: string;
+        logo_url?: string | null }>(
     `/api/orgs/${id}`, { method: 'PATCH', ...j(patch) })
 
 // ── email & envoi de l'org — par CONNECTEUR (scaleway hébergé / resend BYOK) ──
