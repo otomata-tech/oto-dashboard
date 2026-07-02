@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Entités liées d'un projet (ADR 0032 §4) : tableau / procédure / connecteur / base,
+// Entités liées d'un projet (ADR 0032 §4) : tableau / procédure / connecteur,
 // rendues en grille de cartes typées. Picker des VRAIES entités (sélecteurs réels) +
 // surcharge de connecteur préparée par projet (identité + instructions). Enfant de
 // ProjectDetailView ; toute mutation passe par linkProject/unlinkProject et remonte la
@@ -10,7 +10,7 @@ import Tag from '@/components/console/Tag.vue'
 import Icon from '@/components/console/Icon.vue'
 import {
   linkProject, unlinkProject,
-  getNamespaces, getConnectors, getDoctrine, getMementoWorkspaces, getConnectorIdentities,
+  getNamespaces, getConnectors, getDoctrine, getConnectorIdentities, getKbProject, listDocs,
 } from '@/api/console'
 import type { ProjectLink, ProjectLinkType, ConnectorIdentity } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -26,15 +26,9 @@ const LINK_GROUPS: { type: ProjectLinkType; label: string; icon: string }[] = [
   { type: 'tableau', label: 'Tableaux', icon: 'db' },
   { type: 'procedure', label: 'Procédures', icon: 'doc' },
   { type: 'connecteur', label: 'Connecteurs', icon: 'plug' },
-  { type: 'base', label: 'Bases de connaissances', icon: 'book' },
-  { type: 'page', label: 'Pages memento', icon: 'doc' },
+  { type: 'doc', label: 'Documents', icon: 'book' },
 ]
 const TYPE_ICON: Record<string, string> = Object.fromEntries(LINK_GROUPS.map((g) => [g.type, g.icon]))
-
-// Types LIABLES depuis le picker « + lier ». `base`/`page` (adossés à memento) en
-// sont retirés (2026-07-02) : memento est coupé, on privilégie Documents. LINK_GROUPS
-// reste complet pour AFFICHER les liens existants de ces types (pas de régression).
-const ADDABLE_GROUPS = LINK_GROUPS.filter((g) => g.type !== 'base' && g.type !== 'page')
 
 // Nom affiché d'un lien : `label` (posé au lien) sinon le nom RÉSOLU par le backend
 // (procédure : `title` de la doctrine ; tableau : `namespace`) — `target_ref` est un
@@ -44,27 +38,22 @@ function linkName(l: ProjectLink): string {
 }
 
 // Deep-link vers l'entité liée dans le dashboard (navigable). `target_ref` = id de
-// namespace (tableau) / id stable de procédure (ADR 0032) / nom de connecteur /
-// slug de base. Connecteur → fiche détail marketplace (?connector=,
-// ConnectorDetail.vue) ; base n'a pas de deep-link fin → on renvoie vers sa section.
+// namespace (tableau) / id stable de procédure (ADR 0032) / nom de connecteur.
+// Connecteur → fiche détail marketplace (?connector=, ConnectorDetail.vue).
 function entityHref(l: ProjectLink): string | null {
   const ref = encodeURIComponent(l.target_ref)
   switch (l.target_type) {
     case 'tableau': return `/data/${ref}`
     case 'procedure': return `/procedures/${ref}`
     case 'connecteur': return `/connectors?tab=marketplace&connector=${ref}`
-    case 'base': return '/documents'
-    case 'page': return l.target_ref   // URL memento complète (lien externe, cf. hrefInfo)
+    case 'doc': return l.doc_project_id ? `/projects/${l.doc_project_id}` : null   // la page vit dans SON projet
     default: return null
   }
 }
-// Résout l'élément + attributs du lien : `<a>` externe pour une URL http(s) (page
-// memento), `RouterLink` interne sinon, `span` si non navigable. Une seule source.
-function hrefInfo(l: ProjectLink): { el: unknown; to?: string; href?: string } {
+// Élément à rendre pour le lien : `RouterLink` interne si navigable, `span` sinon.
+function hrefInfo(l: ProjectLink): { el: unknown; to?: string } {
   const h = entityHref(l)
-  if (!h) return { el: 'span' }
-  if (/^https?:\/\//i.test(h)) return { el: 'a', href: h }
-  return { el: RouterLink, to: h }
+  return h ? { el: RouterLink, to: h } : { el: 'span' }
 }
 const linksByType = computed(() => {
   const out: Record<string, ProjectLink[]> = {}
@@ -78,12 +67,10 @@ async function entitiesFor(type: ProjectLinkType): Promise<LinkOption[]> {
   if (type === 'tableau') return (await getNamespaces()).namespaces.map((n) => ({ value: String(n.id), label: n.namespace }))
   if (type === 'connecteur') return (await getConnectors()).connectors.map((c) => ({ value: c.name, label: c.label || c.name }))
   if (type === 'procedure') return ((await getDoctrine()).instructions ?? []).map((i) => ({ value: String(i.id), label: i.title }))
-  if (type === 'page') return []   // page memento = saisie d'URL (pas de picker), cf. template
-  const w = await getMementoWorkspaces()
-  const seen = new Set<string>()
-  return [...w.orgs.flatMap((o) => o.workspaces), ...w.shared, ...w.pinned]
-    .filter((x) => !seen.has(x.slug) && seen.add(x.slug))
-    .map((x) => ({ value: x.slug, label: x.name }))
+  // doc : pages de la KB de l'org (Documents). Une page peut venir de n'importe quel
+  // projet lisible ; le picker liste la KB de l'org (cas principal).
+  const kb = await getKbProject()
+  return (await listDocs(kb.project_id)).docs.map((d) => ({ value: String(d.id), label: d.title }))
 }
 
 const linking = ref(false)
@@ -195,14 +182,10 @@ async function removeLink(l: ProjectLink) {
         <span class="pj-fld__lbl">Type</span>
         <select v-model="linkType" class="pj-input" @change="onTypeChange">
           <option value="" disabled>choisir…</option>
-          <option v-for="g in ADDABLE_GROUPS" :key="g.type" :value="g.type">{{ g.label }}</option>
+          <option v-for="g in LINK_GROUPS" :key="g.type" :value="g.type">{{ g.label }}</option>
         </select>
       </label>
-      <label v-if="linkType === 'page'" class="pj-fld">
-        <span class="pj-fld__lbl">URL de la page</span>
-        <input v-model="linkRef" class="pj-input" type="url" inputmode="url" placeholder="https://…/page memento" />
-      </label>
-      <label v-else class="pj-fld">
+      <label class="pj-fld">
         <span class="pj-fld__lbl">Entité</span>
         <select v-model="linkRef" class="pj-input" :disabled="!linkType || linkLoading" @change="onRefChange">
           <option value="" disabled>{{ linkLoading ? 'chargement…' : !linkType ? 'choisis un type' : linkOpts.length ? 'choisir…' : 'aucune entité de ce type' }}</option>
@@ -238,9 +221,7 @@ async function removeLink(l: ProjectLink) {
             <span class="ent__ico"><Icon :name="TYPE_ICON[l.target_type] || 'doc'" :size="15" /></span>
             <div class="ent__body">
               <div class="ent__top">
-                <component :is="hrefInfo(l).el" :to="hrefInfo(l).to" :href="hrefInfo(l).href"
-                  :target="hrefInfo(l).href ? '_blank' : undefined"
-                  :rel="hrefInfo(l).href ? 'noopener noreferrer' : undefined"
+                <component :is="hrefInfo(l).el" :to="hrefInfo(l).to"
                   class="ent__name" :class="{ 'ent__name--link': !!entityHref(l) }">
                   {{ linkName(l) }}
                   <Icon v-if="entityHref(l)" name="ext" :size="11" class="ent__go" />

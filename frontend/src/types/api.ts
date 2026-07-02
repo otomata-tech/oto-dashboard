@@ -332,7 +332,7 @@ export interface PlatformInstrBlock {
 }
 
 // ── Projets (couche d'organisation, ADR 0030) ──
-export type ProjectLinkType = 'tableau' | 'procedure' | 'connecteur' | 'base' | 'page'
+export type ProjectLinkType = 'tableau' | 'procedure' | 'connecteur' | 'doc'
 // Surcharge contextuelle PRÉFAITE d'un connecteur dans un projet (ADR 0032 §4, B2) :
 // quel compte agir + instructions de surcharge en prose, posées au montage du projet,
 // lues par l'agent au chargement — jamais déclarées à la volée.
@@ -346,7 +346,8 @@ export interface ProjectLink {
   identity_ref?: string | null  // connecteur : identité (compte) du binding — clé de multiplicité (#57)
   label?: string | null
   namespace?: string | null     // tableau : nom du namespace résolu backend (target_ref = id stable)
-  title?: string | null         // procédure : titre de la doctrine résolu backend (target_ref = id stable)
+  title?: string | null         // procédure : titre de la doctrine / doc : titre de la page Documents (résolu backend, target_ref = id stable)
+  doc_project_id?: number | null  // doc : projet propriétaire de la page (deep-link vers /projects/:id)
   role?: string | null          // pourquoi cette entité est dans le projet (ADR 0032 §2)
   config?: ConnectorLinkConfig | null   // surcharge préfaite du lien (connecteur, ADR 0032 §4)
   cross_project?: boolean        // dérivé : la même entité est liée par ≥1 autre projet
