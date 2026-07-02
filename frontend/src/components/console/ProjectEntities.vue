@@ -31,6 +31,11 @@ const LINK_GROUPS: { type: ProjectLinkType; label: string; icon: string }[] = [
 ]
 const TYPE_ICON: Record<string, string> = Object.fromEntries(LINK_GROUPS.map((g) => [g.type, g.icon]))
 
+// Types LIABLES depuis le picker « + lier ». `base`/`page` (adossés à memento) en
+// sont retirés (2026-07-02) : memento est coupé, on privilégie Documents. LINK_GROUPS
+// reste complet pour AFFICHER les liens existants de ces types (pas de régression).
+const ADDABLE_GROUPS = LINK_GROUPS.filter((g) => g.type !== 'base' && g.type !== 'page')
+
 // Nom affiché d'un lien : `label` (posé au lien) sinon le nom RÉSOLU par le backend
 // (procédure : `title` de la doctrine ; tableau : `namespace`) — `target_ref` est un
 // id stable (ADR 0032), l'afficher nu est le bug « la procédure s'appelle 25 ».
@@ -190,7 +195,7 @@ async function removeLink(l: ProjectLink) {
         <span class="pj-fld__lbl">Type</span>
         <select v-model="linkType" class="pj-input" @change="onTypeChange">
           <option value="" disabled>choisir…</option>
-          <option v-for="g in LINK_GROUPS" :key="g.type" :value="g.type">{{ g.label }}</option>
+          <option v-for="g in ADDABLE_GROUPS" :key="g.type" :value="g.type">{{ g.label }}</option>
         </select>
       </label>
       <label v-if="linkType === 'page'" class="pj-fld">
