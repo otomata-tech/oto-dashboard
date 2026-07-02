@@ -41,11 +41,11 @@ export const NAV: NavGroup[] = [
   { group: 'memory', level: 'work', items: [
     { path: '/data', label: 'données', icon: 'db' },
     { path: '/documents', label: 'documents', icon: 'book' },
+    { path: '/memento', label: 'memento', icon: 'graph' },
   ]},
-  { group: 'account', level: 'work', items: [
-    { path: '/account', label: 'manage account', icon: 'user' },
-    { path: '/activity', label: 'activity', icon: 'pulse' },
-  ]},
+  // « manage account » (/account) et « activity » (/activity) ne sont PLUS dans la
+  // sidebar : ils vivent dans le menu profil du pied (ConsoleUserMenu). Leurs routes
+  // sont déclarées explicitement dans le routeur (elles ne dérivent plus de NAV).
   // ── Gérer mon org : agir SUR l'organisation active ─────────────────────────
   { group: 'organization', level: 'org', items: [
     { path: '/org', label: 'members & secrets', icon: 'users' },
@@ -79,6 +79,7 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/procedures': { title: 'procédures', crumb: 'workspace' },
   '/data': { title: 'données', crumb: 'memory' },
   '/documents': { title: 'documents', crumb: 'memory' },
+  '/memento': { title: 'memento', crumb: 'memory' },
   '/account': { title: 'manage account', crumb: 'account' },
   '/activity': { title: 'activity', crumb: 'account' },
   '/org': { title: 'organization', crumb: 'gérer mon org' },

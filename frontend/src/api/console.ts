@@ -10,7 +10,7 @@ import type {
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
   ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
-  MementoStatus, MementoWorkspaces, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
+  MementoStatus, MementoWorkspaces, MementoPages, MementoDocument, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
   ReferralLink, InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
   EmailSettingsBundle, EmailSender, QuietHours, ScheduledEmail,
@@ -74,6 +74,19 @@ export const getMementoStatus = () => api<MementoStatus>('/api/memento/oauth/sta
 export const startMementoOauth = () => api<{ auth_url: string }>('/api/memento/oauth/start')
 export const disconnectMemento = () => api('/api/memento/oauth', { method: 'DELETE' })
 export const getMementoWorkspaces = () => api<MementoWorkspaces>('/api/memento/workspaces')
+export const getMementoPages = (workspace?: string, cursor?: string) => {
+  const q = new URLSearchParams()
+  if (workspace) q.set('workspace', workspace)
+  if (cursor) q.set('cursor', cursor)
+  const qs = q.toString()
+  return api<MementoPages>(`/api/memento/pages${qs ? `?${qs}` : ''}`)
+}
+export const getMementoDocument = (ref: { id?: string; path?: string }) => {
+  const q = new URLSearchParams()
+  if (ref.id) q.set('id', ref.id)
+  if (ref.path) q.set('path', ref.path)
+  return api<MementoDocument>(`/api/memento/document?${q.toString()}`)
+}
 
 // ── MCP fédéré générique, par connecteur (#40 — atlassian & co.) ──
 // Mêmes routes que memento, paramétrées par le nom du connecteur :

@@ -479,6 +479,41 @@ export interface MementoWorkspaces {
   pinned: MementoWorkspace[]
 }
 
+// Browse d'une KB : pages (documents) énumérées, keyset paginé (curseur opaque).
+export interface MementoPage {
+  id: string
+  title: string
+  docPath: string
+  status: string
+  updatedAt: string | null
+}
+export interface MementoPages {
+  connected: boolean
+  workspace?: string
+  org?: string
+  items: MementoPage[]
+  totalCount?: number
+  hasMore?: boolean
+  cursor?: string | null
+}
+
+// Contenu d'une page : blocs ordonnés + lien viewer canonique (jamais forgé côté client).
+export interface MementoBlock {
+  id: string
+  type: string
+  content: string
+}
+export interface MementoDocumentBody {
+  id: string
+  title: string
+  url?: string
+  blocks: MementoBlock[]
+}
+export interface MementoDocument {
+  connected: boolean
+  document?: MementoDocumentBody
+}
+
 // Datastore (ADR 0016 + primitive d'ownership ADR 0030) — un namespace possédé ou partagé.
 export interface NamespaceEntry {
   id: number          // BIGSERIAL stable — handle de deeplink, survit au renommage

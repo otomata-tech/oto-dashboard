@@ -31,6 +31,7 @@ const ICON_PATHS: Record<string, string> = {
   card: 'M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Zm-1 4h20M6 15h4',
   book: 'M12 6c-2-1.3-4.5-1.3-7 0v12c2.5-1.3 5-1.3 7 0m0-12c2-1.3 4.5-1.3 7 0v12c-2.5-1.3-5-1.3-7 0m0-12v12',
   mail: 'M3 6h18v12H3V6Zm0 .5 9 6.5 9-6.5',
+  graph: 'M6 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm12 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM12 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm-5-14 4 9m6-9-4 9',
 }
 
 const props = withDefaults(defineProps<{ name: string; size?: number; sw?: number }>(), {
