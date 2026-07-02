@@ -21,6 +21,7 @@ import {
 import type { NamespaceEntry, DatastoreRow, ColumnFilter } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { rowsToCsv, downloadCsv } from '@/lib/csv'
+import { filtersFromParam, filtersToParam } from '@/lib/datastoreFilters'
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
@@ -28,7 +29,8 @@ const { pickTarget } = useTransferOwnership()
 const { me } = useMe()
 const route = useRoute()
 const router = useRouter()
-const PAGE_SIZE = 25
+const DEFAULT_PAGE_SIZE = 25
+const PAGE_SIZES = [25, 50, 100]
 
 const namespaces = ref<NamespaceEntry[]>([])
 const error = ref<string | null>(null)
@@ -40,13 +42,48 @@ const total = ref(0)
 const rowsLoading = ref(false)
 const rowsError = ref<string | null>(null)
 
-// État de pagination/tri/recherche/filtres — tout côté serveur.
+// État de pagination/tri/recherche/filtres — tout côté serveur, MIROIR dans l'URL
+// (?q/sort/dir/page/ps/f → refresh, back et partage de lien conservent la vue).
 const page = ref(0)
+const pageSize = ref(DEFAULT_PAGE_SIZE)
 const sortField = ref<string | null>('_updated_at')
 const sortDir = ref<'asc' | 'desc'>('desc')
 const search = ref('')
 const filters = ref<ColumnFilter[]>([])
 const exporting = ref(false)
+
+const TABLE_QUERY_KEYS = ['q', 'sort', 'dir', 'page', 'ps', 'f', 'ns']
+
+// URL → état : relu à chaque (re)sélection de namespace (deep-link, refresh).
+function readTableQuery() {
+  const q = route.query
+  search.value = typeof q.q === 'string' ? q.q : ''
+  sortField.value = typeof q.sort === 'string' && q.sort ? q.sort : '_updated_at'
+  sortDir.value = q.dir === 'asc' ? 'asc' : 'desc'
+  const ps = Number(q.ps)
+  pageSize.value = PAGE_SIZES.includes(ps) ? ps : DEFAULT_PAGE_SIZE
+  const pg = Number(q.page)
+  page.value = Number.isInteger(pg) && pg > 1 ? pg - 1 : 0   // 1-based dans l'URL
+  filters.value = filtersFromParam(typeof q.f === 'string' ? q.f : null)
+}
+
+// État → URL : seuls les écarts au défaut sont écrits (URL propre), en `replace`
+// (pas d'entrée d'historique par frappe). Les params étrangers sont préservés.
+function syncTableQuery() {
+  const query: Record<string, string> = {}
+  for (const [k, v] of Object.entries(route.query))
+    if (!TABLE_QUERY_KEYS.includes(k) && typeof v === 'string') query[k] = v
+  if (search.value) query.q = search.value
+  if (sortField.value && (sortField.value !== '_updated_at' || sortDir.value !== 'desc')) {
+    query.sort = sortField.value
+    query.dir = sortDir.value
+  }
+  if (pageSize.value !== DEFAULT_PAGE_SIZE) query.ps = String(pageSize.value)
+  if (page.value > 0) query.page = String(page.value + 1)
+  const f = filtersToParam(filters.value)
+  if (f) query.f = f
+  void router.replace({ path: route.path, query })
+}
 
 const META = new Set(['_id', '_created_at', '_updated_at'])
 
@@ -63,12 +100,16 @@ async function applySelection(raw: string | null) {
   if (!raw) { selectedId.value = null; rows.value = []; return }
   const ns = namespaces.value.find((n) => String(n.id) === raw || n.namespace === raw)
   if (!ns) { selectedId.value = null; rows.value = []; return }
-  // Normalise l'URL vers le chemin canonique par id (venant d'un nom ou d'un `?ns=`).
-  if (String(route.params.id) !== String(ns.id)) void router.replace(`/data/${ns.id}`)
+  // Normalise l'URL vers le chemin canonique par id (venant d'un nom ou d'un `?ns=`),
+  // en préservant l'état du tableau porté par la query.
+  if (String(route.params.id) !== String(ns.id)) {
+    const { ns: _drop, ...rest } = route.query
+    void router.replace({ path: `/data/${ns.id}`, query: rest })
+  }
   if (ns.id === selectedId.value) return
   selectedId.value = ns.id
   closeDrawer()
-  page.value = 0; sortField.value = '_updated_at'; sortDir.value = 'desc'; search.value = ''; filters.value = []
+  readTableQuery()
   await fetchRows()
 }
 watch(selParam, (v) => { void applySelection(v) })
@@ -82,7 +123,7 @@ const canGovern = computed(() => !!current.value?.can_govern)
 // défaut (rendu via les rôles), avec bascule vers le tableau plat.
 const isTyped = computed(() => !!current.value?.schema?.fields?.length)
 const cardView = ref(true)
-const pageCount = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
+const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
 const fields = computed<string[]>(() => {
   const seen: string[] = []
@@ -124,7 +165,7 @@ async function fetchRows() {
   rowsError.value = null
   try {
     const r = await getNamespaceRows(name, {
-      offset: page.value * PAGE_SIZE, limit: PAGE_SIZE,
+      offset: page.value * pageSize.value, limit: pageSize.value,
       orderBy: sortField.value ?? undefined, orderDir: sortDir.value,
       q: search.value || undefined,
       filters: filters.value.length ? filters.value : undefined,
@@ -138,10 +179,11 @@ async function fetchRows() {
 // Un clic navigue vers le chemin ; le watcher de `selParam` applique la sélection.
 function open(id: number) { void router.push(`/data/${id}`) }
 
-function onPage(p: number) { page.value = p; fetchRows() }
-function onSort(field: string, dir: 'asc' | 'desc') { sortField.value = field; sortDir.value = dir; page.value = 0; fetchRows() }
-function onSearch(q: string) { search.value = q; page.value = 0; fetchRows() }
-function onFilters(f: ColumnFilter[]) { filters.value = f; page.value = 0; fetchRows() }
+function onPage(p: number) { page.value = p; syncTableQuery(); fetchRows() }
+function onSort(field: string, dir: 'asc' | 'desc') { sortField.value = field; sortDir.value = dir; page.value = 0; syncTableQuery(); fetchRows() }
+function onSearch(q: string) { search.value = q; page.value = 0; syncTableQuery(); fetchRows() }
+function onFilters(f: ColumnFilter[]) { filters.value = f; page.value = 0; syncTableQuery(); fetchRows() }
+function onPageSize(ps: number) { pageSize.value = ps; page.value = 0; syncTableQuery(); fetchRows() }
 
 // Export CSV du jeu FILTRÉ (mêmes tri/recherche/filtres), paginé pour couvrir tout
 // le vivier (la page UI plafonne à PAGE_SIZE ; l'API à 500/req).
@@ -329,10 +371,10 @@ async function onDelete() {
             <button class="pj-x" :disabled="page >= pageCount - 1" @click="onPage(page + 1)">suiv. ›</button>
           </div>
         </template>
-        <DataTable v-else :rows="rows" :total="total" :page="page" :page-size="PAGE_SIZE"
+        <DataTable v-else :rows="rows" :total="total" :page="page" :page-size="pageSize"
           :sort-field="sortField" :sort-dir="sortDir" :search="search" :filters="filters" :loading="rowsLoading"
-          @open="openRow" @update:page="onPage" @update:sort="onSort" @update:search="onSearch"
-          @update:filters="onFilters" />
+          @open="openRow" @update:page="onPage" @update:page-size="onPageSize" @update:sort="onSort"
+          @update:search="onSearch" @update:filters="onFilters" />
       </ConsoleCard>
 
       <ConsoleCard v-else title="pick a namespace">

@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   columnFilterKind, OPS_BY_KIND, opLabel, defaultOp, opNeedsValue, buildFilters,
+  filterChipLabel, filtersToParam, filtersFromParam,
 } from './datastoreFilters'
 
 describe('columnFilterKind', () => {
@@ -21,6 +22,10 @@ describe('columnFilterKind', () => {
 
   it('returns text when every row is empty for the field', () => {
     expect(columnFilterKind([{ x: '' }, { x: null }], 'x')).toBe('text')
+  })
+
+  it('detects bool from a boolean value', () => {
+    expect(columnFilterKind([{ b: false }], 'b')).toBe('bool')
   })
 })
 
@@ -57,5 +62,51 @@ describe('buildFilters', () => {
 
   it('produces an empty list for an empty state', () => {
     expect(buildFilters({})).toEqual([])
+  })
+})
+
+describe('filterChipLabel', () => {
+  it('renders field, op label and value', () => {
+    expect(filterChipLabel({ field: 'name', op: 'contains', value: 'acme' }, 'text'))
+      .toBe('name contient acme')
+  })
+
+  it('omits the value for empty/not_empty', () => {
+    expect(filterChipLabel({ field: 'email', op: 'not_empty', value: '' }, 'text'))
+      .toBe('email rempli')
+  })
+
+  it('humanizes booleans', () => {
+    expect(filterChipLabel({ field: 'done', op: 'eq', value: 'true' }, 'bool'))
+      .toBe('done est vrai')
+  })
+})
+
+describe('filters ↔ URL param', () => {
+  it('round-trips a filter list', () => {
+    const filters = [
+      { field: 'name', op: 'contains' as const, value: 'acme' },
+      { field: 'email', op: 'not_empty' as const, value: '' },
+      { field: 'score', op: 'gte' as const, value: '10' },
+    ]
+    expect(filtersFromParam(filtersToParam(filters))).toEqual(filters)
+  })
+
+  it('serializes an empty list to an empty string', () => {
+    expect(filtersToParam([])).toBe('')
+    expect(filtersFromParam('')).toEqual([])
+    expect(filtersFromParam(null)).toEqual([])
+  })
+
+  it('ignores malformed input instead of crashing (URL = saisie utilisateur)', () => {
+    expect(filtersFromParam('not json')).toEqual([])
+    expect(filtersFromParam('{"a":1}')).toEqual([])
+    expect(filtersFromParam('[["f","bogus_op","x"]]')).toEqual([])
+    expect(filtersFromParam('[[42,"eq","x"]]')).toEqual([])
+  })
+
+  it('drops valued ops whose value is blank, keeps valid triples', () => {
+    expect(filtersFromParam('[["f","eq",""],["g","eq","ok"]]'))
+      .toEqual([{ field: 'g', op: 'eq', value: 'ok' }])
   })
 })

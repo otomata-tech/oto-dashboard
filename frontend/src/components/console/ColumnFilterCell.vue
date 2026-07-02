@@ -24,7 +24,13 @@ function setValue(value: string) { emit('update:modelValue', { op: props.modelVa
       @change="setOp(($event.target as HTMLSelectElement).value as FilterOp)">
       <option v-for="op in ops" :key="op" :value="op">{{ opLabel(op, kind) }}</option>
     </select>
-    <input v-if="needsValue" class="cfc-val" :type="inputType" :value="modelValue.value"
+    <select v-if="needsValue && kind === 'bool'" class="cfc-val cfc-val-sel" :value="modelValue.value"
+      @change="setValue(($event.target as HTMLSelectElement).value)">
+      <option value="">…</option>
+      <option value="true">vrai</option>
+      <option value="false">faux</option>
+    </select>
+    <input v-else-if="needsValue" class="cfc-val" :type="inputType" :value="modelValue.value"
       placeholder="…" @input="setValue(($event.target as HTMLInputElement).value)" />
   </div>
 </template>
@@ -44,4 +50,5 @@ function setValue(value: string) { emit('update:modelValue', { op: props.modelVa
   font: inherit; font-size: 11px; border: 0; background: none; color: var(--color-ink);
   outline: none; width: 72px; min-width: 0;
 }
+.cfc-val-sel { cursor: pointer; }
 </style>
