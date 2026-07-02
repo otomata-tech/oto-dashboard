@@ -956,8 +956,11 @@ export interface ScheduledEmail {
   created_by?: string
 }
 
-// MCP endpoint public (config, pas un secret) — affiché tel quel.
-export const MCP_URL = (import.meta.env.VITE_LOGTO_AUDIENCE as string) || 'https://mcp.oto.ninja/mcp'
+// MCP endpoint public (config, pas un secret) — affiché tel quel. DÉCOUPLÉ de
+// VITE_LOGTO_AUDIENCE : l'URL vitrine est mcp.oto.cx (coexistence multi-domaine,
+// le backend accepte les deux audiences) tandis que l'audience OAuth du dashboard
+// reste mcp.oto.ninja/mcp.
+export const MCP_URL = (import.meta.env.VITE_MCP_PUBLIC_URL as string) || 'https://mcp.oto.cx/mcp'
 
 // Accepte les timestamps PG ("YYYY-MM-DD HH:MM:SS", UTC implicite) ET les ISO
 // portant déjà un offset/Z (ex. granted_at = datetime.isoformat() → "…+00:00").
