@@ -2,7 +2,7 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity,
   DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
@@ -154,6 +154,12 @@ export const getAgentReadme = () => api<AgentReadme>('/api/me/agent-readme')
 export const setAgentReadme = (body_md: string) =>
   api<AgentReadme>('/api/me/agent-readme', { method: 'PUT', ...j({ body_md }) })
 
+// ── profil « situation avec oto » (data model libre, relu à chaque session ; surface
+// REST de oto_profile). Édité in-situ dans la section Context. ──
+export const getProfile = () => api<AccountProfile>('/api/me/profile')
+export const setProfile = (fields: Record<string, string>) =>
+  api<AccountProfile>('/api/me/profile', { method: 'PUT', ...j({ fields }) })
+
 // ── Projets (couche d'organisation, ADR 0030) — capacité op-aware oto_project ──
 const projectsApi = <T>(body: Record<string, unknown>) =>
   api<T>('/api/me/projects', { method: 'POST', ...j(body) })
@@ -186,9 +192,15 @@ export const getProjectActivity = (id: number) =>
 export const projectHandoff = (id: number) =>
   projectsApi<{ id: number; markdown: string }>({ op: 'handoff', project_id: id })
 // Inventaire DÉRIVÉ du projet (ADR 0035 B4) : refs <tool:> des procédures liées ∪
-// usage des runs — préremplit le formulaire publish_mcp (l'humain cure).
+// usage des runs — préremplit le formulaire publish_mcp (l'humain cure). L'`audit`
+// (B5) = liens vérifiés comme des refs : morts / slots non bindés / procédures inertes.
+export type ProjectAudit = {
+  dead_links: { target_type: string; target_ref: string; slot?: string | null; why: string }[]
+  unbound_slots: { procedure: string; ref: string; slots: string[] }[]
+  inert_procedures: string[]
+}
 export const getProjectInventory = (id: number) =>
-  projectsApi<{ id: number; tools: string[]; connectors: string[] }>({ op: 'inventory', project_id: id })
+  projectsApi<{ id: number; tools: string[]; connectors: string[]; audit?: ProjectAudit }>({ op: 'inventory', project_id: id })
 // Publier / retirer un projet comme endpoint MCP dédié `<slug>.mcp.oto.cx` (ADR 0032, amende #44).
 export const publishProjectMcp = (id: number, fields: { mcp_slug: string; mcp_access: 'anonymous' | 'org'; mcp_tools: string[] }) =>
   projectsApi<Project>({ op: 'publish_mcp', project_id: id, ...fields })

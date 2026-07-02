@@ -23,6 +23,7 @@ import {
   publishProjectShare, unpublishProjectShare,
   publishProjectMcp, unpublishProjectMcp, getProjectInventory,
 } from '@/api/console'
+import type { ProjectAudit } from '@/api/console'
 import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -59,9 +60,18 @@ const pshareStoreKey = `oto:pshare:${projectId}`
 
 const briefDirty = computed(() => !!project.value && briefDraft.value !== (project.value.brief_md ?? ''))
 const readOnly = computed(() => project.value?.can_write === false)   // #4b — proposer une modif au lieu d'éditer
+// Audit des liens (ADR 0035 B5) : morts / slots non bindés / procédures inertes.
+const audit = ref<ProjectAudit | null>(null)
+const auditIssues = computed(() => !!audit.value
+  && audit.value.dead_links.length + audit.value.unbound_slots.length + audit.value.inert_procedures.length > 0)
+async function loadAudit() {
+  try { audit.value = (await getProjectInventory(projectId)).audit ?? null }
+  catch { audit.value = null }   // dérivation best-effort — pas de bandeau, pas d'erreur
+}
 // MAJ de la liste d'entités remontée par <ProjectEntities> après lier/délier/surcharger.
 function onLinksUpdate(links: ProjectLink[]) {
   if (project.value) project.value = { ...project.value, links }
+  void loadAudit()
 }
 
 async function load() {
@@ -71,7 +81,7 @@ async function load() {
     briefDraft.value = project.value.brief_md ?? ''
     // Ré-affiche le lien public complet mémorisé localement (si toujours partagé).
     publicLink.value = project.value.public_shared ? localStorage.getItem(pshareStoreKey) : null
-    await Promise.all([loadGrants(), loadActivity(), loadFiles()])
+    await Promise.all([loadGrants(), loadActivity(), loadFiles(), loadAudit()])
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
@@ -361,6 +371,23 @@ async function copyMcpUrl() {
           <!-- pages (ProjectDocs porte son propre en-tête « Pages ») -->
           <section class="surface-card">
             <ProjectDocs :project-id="project.id" :read-only="readOnly" @changed="loadActivity" />
+          </section>
+
+          <!-- audit des liens (ADR 0035 B5) : morts / slots non bindés / inertes -->
+          <section v-if="auditIssues && audit" class="surface-card"
+            style="border-left: 3px solid var(--color-saffron)">
+            <div class="card-eb-row"><span class="card-eb">liens à vérifier</span></div>
+            <ul class="dim" style="font-size: 12px; margin: 0; padding-left: 16px; display: grid; gap: 4px">
+              <li v-for="d in audit.dead_links" :key="'dead-' + d.target_type + d.target_ref">
+                lien mort — {{ d.target_type }} « {{ d.target_ref }} » : {{ d.why }}
+              </li>
+              <li v-for="u in audit.unbound_slots" :key="'unbound-' + u.ref">
+                procédure « {{ u.procedure }} » : slots déclarés non bindés dans ce projet — {{ u.slots.join(', ') }}
+              </li>
+              <li v-for="s in audit.inert_procedures" :key="'inert-' + s">
+                procédure « {{ s }} » liée mais jamais déroulée dans ce projet
+              </li>
+            </ul>
           </section>
 
           <!-- entités liées -->
