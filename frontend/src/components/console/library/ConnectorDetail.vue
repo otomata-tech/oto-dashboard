@@ -6,10 +6,10 @@
 // toggles d'outils) reste dans « mes connecteurs ».
 import { computed } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
-import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
+import ConnectorBadges from '@/components/console/ConnectorBadges.vue'
 import DocSections from '@/components/console/DocSections.vue'
-import { authChip, authExplain, authModesExplain } from '@/lib/connectorAuth'
+import { authExplain, authModesExplain } from '@/lib/connectorAuth'
 import type { DocSection, MyConnector, ToolRegistryEntry } from '@/types/api'
 
 const props = defineProps<{
@@ -54,11 +54,8 @@ const installed = computed(() => c.value.state !== 'not_selected')
           <span v-else class="cd-mono">{{ monogram }}</span>
         </div>
         <span class="cd-pub">{{ c.publisher }}</span>
-        <Tag tone="saffron">{{ c.category }}</Tag>
-        <Tag tone="ink">{{ c.family }}</Tag>
-        <Tag tone="cobalt">{{ authChip(c.auth) }}</Tag>
-        <Tag v-if="c.free_tier" tone="olive">gratuit · {{ c.free_tier.daily_quota }}/j</Tag>
-        <span v-if="c.availability === 'platform_granted'" class="cd-flag">grant-only</span>
+        <!-- Badges CANONIQUES — même vocabulaire que les cartes des 3 projections. -->
+        <ConnectorBadges :meta="c" />
       </div>
 
       <!-- ce que fait le connecteur -->
@@ -129,11 +126,6 @@ const installed = computed(() => c.value.state !== 'not_selected')
 .cd-logo img { width: 100%; height: 100%; object-fit: contain; }
 .cd-mono { font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: var(--color-ink-soft); }
 .cd-pub { font-size: 12px; color: var(--color-mute); margin-right: 4px; }
-.cd-flag {
-  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;
-  text-transform: uppercase; padding: 2.5px 8px; border-radius: 999px;
-  border: 1px solid var(--color-hair); color: var(--color-mute);
-}
 
 .cd-desc { font-size: 13.5px; line-height: 1.6; color: var(--color-ink-soft); margin: 0 0 16px; max-width: 72ch; }
 

@@ -9,7 +9,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
-import Btn from '@/components/console/Btn.vue'
+import ConnectorCardShell from '@/components/console/ConnectorCardShell.vue'
+import ConnectorBadges from '@/components/console/ConnectorBadges.vue'
 import { useMe } from '@/composables/useMe'
 import { getMyConnectors } from '@/api/console'
 import type { MyConnector, ConnectorState } from '@/types/api'
@@ -46,7 +47,9 @@ const sourceLabel = (name: string) => SOURCE_LABEL[modeOf(name) ?? ''] ?? 'une c
 const STATE_LABEL: Record<ConnectorState, string> = {
   active: 'actif', paused: 'masqué', not_selected: 'non installé',
 }
-const monogram = (c: MyConnector) => (c.label || c.name).charAt(0).toUpperCase()
+// Fiche de présentation (marketplace) — même geste que les cartes user/org/plateforme.
+const ficheTo = (c: MyConnector) =>
+  `/connectors?tab=marketplace&connector=${encodeURIComponent(c.name)}`
 </script>
 
 <template>
@@ -55,27 +58,24 @@ const monogram = (c: MyConnector) => (c.label || c.name).charAt(0).toUpperCase()
       sub="ce que tu peux utiliser sans poser ta propre clé — fourni par ton organisation ou ton équipe. ta clé perso, si tu en ajoutes une, prime toujours.">
       <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
+      <!-- Tuiles = MÊME shell que les cartes user/org/plateforme (ADR 0024 §3) ;
+           badges canoniques ; le nom mène à la fiche marketplace. -->
       <div v-if="loaded && shared.length" class="grid3">
-        <article v-for="c in shared" :key="c.name" class="sh-card">
-          <div class="sh-head">
-            <div class="sh-logo">
-              <img v-if="c.logo_url" :src="c.logo_url" :alt="c.label" loading="lazy" />
-              <span v-else class="sh-mono">{{ monogram(c) }}</span>
-            </div>
-            <div style="min-width: 0; flex: 1">
-              <div class="sh-name">{{ c.label }}</div>
-              <div class="sh-pub">{{ c.publisher }}</div>
-            </div>
+        <ConnectorCardShell v-for="c in shared" :key="c.name"
+          :label="c.label" :logo-url="c.logo_url" :subtitle="c.publisher"
+          fill :to="ficheTo(c)">
+          <template #header-right>
             <Tag :tone="modeOf(c.name) === 'group' ? 'cobalt' : 'olive'">
               {{ modeOf(c.name) === 'group' ? 'team key' : 'org key' }}
             </Tag>
-          </div>
+          </template>
           <p class="sh-help">{{ c.help || '—' }}</p>
+          <div class="sh-tags"><ConnectorBadges :meta="c" /></div>
           <div class="sh-foot">
             <span class="sh-src">résolu par <strong>{{ sourceLabel(c.name) }}</strong></span>
             <span class="sh-state" :class="c.state">{{ STATE_LABEL[c.state] }}</span>
           </div>
-        </article>
+        </ConnectorCardShell>
       </div>
 
       <div v-else-if="loaded && !error" class="state-empty" style="margin-top: 24px">
@@ -91,21 +91,9 @@ const monogram = (c: MyConnector) => (c.label || c.name).charAt(0).toUpperCase()
 </template>
 
 <style scoped>
-.sh-card {
-  display: flex; flex-direction: column; gap: 10px; padding: 16px;
-  border: 1px solid var(--color-hair); border-radius: 12px; background: var(--color-paper);
-}
-.sh-head { display: flex; align-items: center; gap: 11px; }
-.sh-logo {
-  width: 40px; height: 40px; border-radius: 9px; flex: 0 0 auto; overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--color-hair); background: var(--color-surface);
-}
-.sh-logo img { width: 100%; height: 100%; object-fit: contain; }
-.sh-mono { font-family: var(--font-mono); font-weight: 700; font-size: 17px; color: var(--color-ink-soft); }
-.sh-name { font-weight: 600; font-size: 14px; line-height: 1.2; }
-.sh-pub { font-size: 11.5px; color: var(--color-faint); margin-top: 2px; }
+/* Le chrome de tuile (logo/nom/éditeur) vit dans ConnectorCardShell. Ici : le corps. */
 .sh-help { font-size: 12.5px; line-height: 1.5; color: var(--color-ink-soft); margin: 0; flex: 1; }
+.sh-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .sh-foot { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
 .sh-src { font-size: 11.5px; color: var(--color-mute); }
 .sh-src strong { color: var(--color-ink-soft); font-weight: 600; }

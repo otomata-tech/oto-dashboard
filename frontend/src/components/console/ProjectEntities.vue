@@ -40,13 +40,14 @@ function linkName(l: ProjectLink): string {
 
 // Deep-link vers l'entité liée dans le dashboard (navigable). `target_ref` = id de
 // namespace (tableau) / id stable de doctrine (procédure, ADR 0032) / nom de
-// connecteur / slug de base. Connecteur & base n'ont pas de deep-link fin → section.
+// connecteur / slug de base. Connecteur → fiche détail marketplace (?connector=,
+// ConnectorDetail.vue) ; base n'a pas de deep-link fin → on renvoie vers sa section.
 function entityHref(l: ProjectLink): string | null {
   const ref = encodeURIComponent(l.target_ref)
   switch (l.target_type) {
     case 'tableau': return `/data/${ref}`
     case 'procedure': return `/doctrine/${ref}`
-    case 'connecteur': return '/connectors?tab=mine'
+    case 'connecteur': return `/connectors?tab=marketplace&connector=${ref}`
     case 'base': return '/documents'
     case 'page': return l.target_ref   // URL memento complète (lien externe, cf. hrefInfo)
     default: return null
