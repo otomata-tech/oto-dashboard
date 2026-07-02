@@ -228,6 +228,8 @@ export interface AlphaInvite {
 export interface ToolEntry {
   name: string
   enabled: boolean
+  // Anti-lockout / boucle d'usage (PROTECTED_TOOLS backend) : jamais désactivable.
+  protected?: boolean
   // 1ʳᵉ ligne de docstring (champ MCP `description`), fusionnée depuis le registre
   // résolu (ADR 0014, `/api/me/tools/registry`) pour l'afficher dans la carte.
   description?: string

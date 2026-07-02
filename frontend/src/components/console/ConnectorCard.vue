@@ -113,6 +113,7 @@ async function setState(s: ConnectorState) {
 }
 
 async function toggleTool(t: ToolEntry) {
+  if (t.protected) return // anti-lockout / boucle d'usage : jamais désactivable
   try {
     if (t.enabled) { await disableTool(t.name); t.enabled = false }
     else { await enableTool(t.name); t.enabled = true }
@@ -200,7 +201,7 @@ async function toggleTool(t: ToolEntry) {
             <code class="mono cc-tname">{{ t.name }}</code>
             <span v-if="t.description" class="cc-tdesc">{{ t.description }}</span>
           </div>
-          <Toggle :on="t.enabled && state === 'active'" @change="toggleTool(t)" />
+          <Toggle :on="t.enabled && state === 'active'" :disabled="t.protected" @change="toggleTool(t)" />
         </div>
         <p v-if="!myTools.length" class="cc-no-tools dim">no tools loaded for this connector.</p>
       </div>
