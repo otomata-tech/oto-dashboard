@@ -1,15 +1,14 @@
 name: CI/CD
 
-# test → deploy : le deploy DÉPEND d'un build/type-check vert (`needs: test`). Le job
-# `test` (build + vue-tsc) tourne sur runner hosted GitHub, aussi sur PR (= required
-# check de branch protection).
-# Le job `deploy` tourne sur un RUNNER SELF-HOSTED installé sur otomata-0 (label
-# `otomata-0`, user non-root `gha-runner`) : pas de SSH entrant depuis Internet (le
-# port 22 est filtré par CrowdSec et droppait les IP des runners GitHub hosted). Le
-# runner n'a qu'un sudo NOPASSWD sur /opt/deploy/oto-dashboard.sh (moindre privilège,
-# équivalent de l'ancien forced-command) → il ne peut QUE déclencher ce script
-# (git reset + npm build + snapshot + swap + smoke + rollback).
-# Pour changer le déploiement : éditer /opt/deploy/oto-dashboard.sh sur le serveur.
+# test (build + type-check + vitest, runner HOSTED) → deploy (runner SELF-HOSTED).
+# Depuis le 2026-07-02 : plus AUCUN build sur la box — le dist du job `test` EST
+# l'artefact déployé (upload-artifact → download → /opt/deploy/oto-dashboard-deploy.sh,
+# copie atomique + smoke + rollback, chemin borné au workspace runner). Le runner
+# self-hosted ne subsiste que parce que CrowdSec droppe le SSH entrant des IPs
+# cloud : il copie des fichiers, rien d'autre. L'ex-script build-serveur
+# /opt/deploy/oto-dashboard.sh reste en secours manuel.
+# SENTRY_AUTH_TOKEN (upload des source maps au build) = GitHub Secret ; absent
+# (PRs de forks) → build sans source maps, dégradé gracieux.
 on:
   pull_request:
     branches: [main]
@@ -29,9 +28,18 @@ jobs:
       - name: Install
         run: cd frontend && npm ci
       - name: Build + type-check
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: cd frontend && npm run build
       - name: Unit tests (vitest)
         run: cd frontend && npm run test
+      - uses: actions/upload-artifact@v4
+        if: github.event_name != 'pull_request'
+        with:
+          name: dist
+          path: frontend/dist
+          retention-days: 3
+          if-no-files-found: error
 
   deploy:
     needs: test
@@ -41,5 +49,9 @@ jobs:
       group: deploy-dashboard
       cancel-in-progress: false
     steps:
-      - name: Deploy (build serveur via script root-restreint)
-        run: sudo /opt/deploy/oto-dashboard.sh
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: ${{ runner.temp }}/dist
+      - name: Deploy (artefact only, script root-restreint)
+        run: sudo /opt/deploy/oto-dashboard-deploy.sh "${{ runner.temp }}/dist"
