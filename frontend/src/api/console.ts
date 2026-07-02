@@ -10,7 +10,7 @@ import type {
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
   ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ResourceEntry, Role, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
-  MementoStatus, MementoWorkspaces, UnipileStatus, ConnectorIdentity, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
+  MementoStatus, MementoWorkspaces, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
   ReferralLink, InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
   EmailSettingsBundle, EmailSender, QuietHours, ScheduledEmail,
@@ -97,6 +97,18 @@ export const getConnectorIdentities = (connector: string) =>
 export const setConnectorIdentity = (connector: string, identity_id: string) =>
   api(`/api/connectors/${encodeURIComponent(connector)}/identities/default`,
     { method: 'PUT', ...j({ identity_id }) })
+
+// ── autorisation de compte connecteur partagé (#55) — le PROPRIÉTAIRE accorde/
+// révoque à un membre nommé (d'une org commune) le droit d'opérer SON compte ──
+export const getAccountGrants = () =>
+  api<{ granted_by_me: AccountGrant[]; granted_to_me: AccountGrant[] }>(
+    '/api/me/connector-accounts/grants')
+export const grantAccountAccess = (channel: string, grantee: string) =>
+  api(`/api/me/connector-accounts/${encodeURIComponent(channel)}/grants`,
+    { method: 'POST', ...j({ grantee }) })
+export const revokeAccountAccess = (channel: string, grantee: string) =>
+  api(`/api/me/connector-accounts/${encodeURIComponent(channel)}/grants?grantee=${encodeURIComponent(grantee)}`,
+    { method: 'DELETE' })
 
 // ── admin : sièges de la clé plateforme unipile (réconciliation owners) ──
 export const getUnipilePlatformSeats = () =>

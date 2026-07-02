@@ -63,6 +63,18 @@ de toolbox vivent en bas de la même vue. Les **tokens CLI** ont migré vers le 
 > (logo/nom/badges/corps) ; la projection USER le remplit via `ConnectorCard` (connexion +
 > outils), la projection ORG via `ConnectorOrgCard` (gouvernance). Même identité visuelle.
 
+> **Compte partagé autorisé (otomata-private#55, unipile).** Sur le widget hosted
+> (`ConnectorHostedWidget.vue`) : côté **propriétaire**, chaque canal connecté porte une
+> section « opéré aussi par » (`AccountShareSection.vue`) — autoriser un membre de l'org
+> active (picker `getOrg().members`, `grantAccountAccess`) / révoquer (effet immédiat) ;
+> côté **membre autorisé**, le compte accordé apparaît dans le picker d'identités avec le
+> tag « partagé par X » (`ConnectorIdentity.granted`/`owner`) et « use this account »
+> bascule dessus (pointeur backend, son propre compte reste intact). Le widget appelle
+> désormais TOUJOURS `getConnectorIdentities` (le backend décide selon le mode — revente
+> sans grant → liste vide, inchangé). API : `getAccountGrants`/`grantAccountAccess`/
+> `revokeAccountAccess` (`/api/me/connector-accounts/*`). Backend : `oto-backend/CLAUDE.md`
+> §Compte partagé autorisé.
+
 **Un connecteur = 3 projections par audience (ADR 0022).** La même chose vue de trois sièges,
 une carte par niveau du level-switch :
 - **USER** `/console/connectors` (`ConnectorsView`, ci-dessus) — j'installe / mes clés / mes

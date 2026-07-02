@@ -562,6 +562,26 @@ export interface ConnectorIdentity {
   status: string
   is_default: boolean
   channel: string | null    // canal (unipile : LINKEDIN/…) ; null hors multi-canal
+  granted?: boolean         // compte PARTAGÉ par son propriétaire (#55)
+  owner?: { sub: string; email?: string | null; name?: string | null } | null
+}
+
+// Autorisation de compte connecteur partagé (#55) : le propriétaire accorde à un
+// membre nommé (d'une org commune) le droit d'OPÉRER son compte sur un canal.
+// Face owner (granted_by_me : grantee_*) et face grantee (granted_to_me : owner_*).
+export interface AccountGrant {
+  provider: string          // canal DB (LINKEDIN/WHATSAPP/…)
+  account_id: string | null // handle LIVE du compte du owner (null = canal déconnecté)
+  account_name?: string | null
+  grantee_sub?: string
+  grantee_email?: string | null
+  grantee_name?: string | null
+  owner_sub?: string
+  owner_email?: string | null
+  owner_name?: string | null
+  granted_by?: string
+  granted_at?: string
+  active?: boolean          // false = owner déconnecté du canal (grant inerte)
 }
 
 // Siège de la clé plateforme unipile : un compte de l'instance partagée + son
