@@ -41,7 +41,9 @@ export const NAV: NavGroup[] = [
   { group: 'memory', level: 'work', items: [
     { path: '/data', label: 'données', icon: 'db' },
     { path: '/documents', label: 'documents', icon: 'book' },
-    { path: '/memento', label: 'memento', icon: 'graph' },
+    // memento masqué (2026-07-02) : on privilégie « documents » comme surface de
+    // connaissance. Vue MementoView + endpoints /api/memento/* conservés en sommeil
+    // (browse réactivable en réajoutant cette entrée + le master connector_activation).
   ]},
   // « manage account » (/account) et « activity » (/activity) ne sont PLUS dans la
   // sidebar : ils vivent dans le menu profil du pied (ConsoleUserMenu). Leurs routes
@@ -79,7 +81,6 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/procedures': { title: 'procédures', crumb: 'workspace' },
   '/data': { title: 'données', crumb: 'memory' },
   '/documents': { title: 'documents', crumb: 'memory' },
-  '/memento': { title: 'memento', crumb: 'memory' },
   '/account': { title: 'manage account', crumb: 'account' },
   '/activity': { title: 'activity', crumb: 'account' },
   '/org': { title: 'organization', crumb: 'gérer mon org' },
