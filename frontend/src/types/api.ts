@@ -880,7 +880,6 @@ export interface AdminUserDetail {
   orgs: AdminUserOrg[]
   providers: Record<string, ProviderStatus | undefined>
   grants: AdminGrant[]
-  namespace_grants: NamespaceGrant[]
   option_comps: string[]   // options de connecteur offertes (comp admin) à CET user
   unipile_orgs?: AdminUserUnipileOrg[]   // messagerie PAR ORG (l'option est per-org)
 }
@@ -911,13 +910,6 @@ export interface PlatformKey {
   label: string
   api_key_tail: string
   created_at: string
-}
-export interface NamespaceGrant {
-  sub: string
-  email?: string | null
-  name?: string | null
-  namespace: string
-  granted_at?: string | null
 }
 
 // ── monitoring ──

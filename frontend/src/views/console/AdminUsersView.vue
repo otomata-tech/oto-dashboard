@@ -4,13 +4,12 @@ import { useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Tag from '@/components/console/Tag.vue'
-import { getAdminUsers, getNamespaceGrants } from '@/api/console'
-import type { AdminUser, NamespaceGrant } from '@/types/api'
+import { getAdminUsers } from '@/api/console'
+import type { AdminUser } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const router = useRouter()
 const users = ref<AdminUser[]>([])
-const grants = ref<NamespaceGrant[]>([])
 const error = ref<string | null>(null)
 const q = ref('')
 
@@ -18,7 +17,6 @@ const filtered = computed(() =>
   users.value.filter((u) => !q.value || ((u.email ?? '') + (u.name ?? '')).toLowerCase().includes(q.value.toLowerCase())),
 )
 const grantsTotal = computed(() => users.value.reduce((a, u) => a + u.grants.length, 0))
-const nsCountFor = (sub: string) => grants.value.filter((g) => g.sub === sub).length
 
 function openUser(u: AdminUser) {
   router.push(`/platform/users/${encodeURIComponent(u.sub)}`)
@@ -26,9 +24,7 @@ function openUser(u: AdminUser) {
 
 onMounted(async () => {
   try {
-    const [u, g] = await Promise.all([getAdminUsers(), getNamespaceGrants().catch(() => ({ grants: [] }))])
-    users.value = u.users
-    grants.value = g.grants
+    users.value = (await getAdminUsers()).users
   } catch (e) { error.value = humanize(e) }
 })
 </script>
@@ -40,11 +36,10 @@ onMounted(async () => {
     <div class="grid3">
       <Stat label="users" :value="users.length" sub="platform-wide" />
       <Stat label="key grants" :value="grantsTotal" sub="platform keys lent" />
-      <Stat label="namespace grants" :value="grants.length" sub="controlled namespaces" />
     </div>
 
     <ConsoleCard flush title="users"
-      sub="click a user to open their fiche — role, connector access, grants, namespaces and activity.">
+      sub="click a user to open their fiche — role, connector access, grants and activity.">
       <template #actions>
         <input v-model="q" class="inp" placeholder="filter by name or email…" style="width: 220px" />
       </template>
@@ -61,7 +56,7 @@ onMounted(async () => {
               <Tag v-else-if="u.effective_role === 'admin'" tone="ink">admin</Tag>
               <Tag v-else tone="olive">user</Tag>
             </td>
-            <td class="dim">{{ u.grants.length }} key{{ u.grants.length === 1 ? '' : 's' }} · {{ nsCountFor(u.sub) }} ns</td>
+            <td class="dim">{{ u.grants.length }} key{{ u.grants.length === 1 ? '' : 's' }}</td>
             <td style="text-align: right"><span class="linklike">manage →</span></td>
           </tr>
           <tr v-if="!filtered.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no users</td></tr>

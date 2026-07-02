@@ -8,7 +8,7 @@ import type {
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
-  ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
+  ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   MementoStatus, MementoWorkspaces, MementoPages, MementoDocument, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
   ReferralLink, InviteResult,
@@ -573,13 +573,6 @@ export const grantOrgPlatformKey = (orgId: number, keyId: number, daily_quota?: 
   api(`/api/admin/orgs/${orgId}/grants/${keyId}`, { method: 'POST', ...j({ daily_quota }) })
 export const revokeOrgPlatformKey = (orgId: number, keyId: number) =>
   api(`/api/admin/orgs/${orgId}/grants/${keyId}`, { method: 'DELETE' })
-
-// namespace grants per-user (controlled namespaces)
-export const getNamespaceGrants = () => api<{ grants: NamespaceGrant[] }>('/api/admin/namespace-grants')
-export const grantNamespace = (sub: string, namespace: string) =>
-  api(`/api/admin/users/${sub}/namespace-grants/${namespace}`, { method: 'POST' })
-export const revokeNamespaceGrant = (sub: string, namespace: string) =>
-  api(`/api/admin/users/${sub}/namespace-grants/${namespace}`, { method: 'DELETE' })
 
 // option comps (offrir/retirer GRATUITEMENT une option payante — couche abonnement,
 // oto-backend/docs/connector-model.md). entity_type user|org, super_admin only.

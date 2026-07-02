@@ -14,12 +14,12 @@ import { useFormDialog, type FormDialogField } from '@/composables/useFormDialog
 import { useMe, isSuperAdmin } from '@/composables/useMe'
 import {
   getAdminUser, setUserRole, getPlatformKeys, getConnectors, getMonitoringCalls,
-  grantPlatformKey, revokePlatformKey, grantNamespace, revokeNamespaceGrant, resendAlphaInvite,
+  grantPlatformKey, revokePlatformKey, resendAlphaInvite,
   setAdminOrgMemberRole, setOptionComp,
 } from '@/api/console'
 import { setViewUser } from '@/lib/viewOrg'
 import type {
-  AdminGrant, AdminUserDetail, AdminUserOrg, AdminUserUnipileOrg, ConnectorMeta, NamespaceGrant, PlatformKey, ProviderStatus, Role, ToolCall, UnipileStatus,
+  AdminGrant, AdminUserDetail, AdminUserOrg, AdminUserUnipileOrg, ConnectorMeta, PlatformKey, ProviderStatus, Role, ToolCall, UnipileStatus,
 } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -71,10 +71,6 @@ const providerRows = computed(() =>
     .filter((e): e is [string, ProviderStatus] => !!e[1])
     .sort((a, b) => a[0].localeCompare(b[0])),
 )
-const nsOptions = computed(() =>
-  [...new Set(catalog.value.filter((c) => c.availability === 'platform_granted').flatMap((c) => c.namespaces))],
-)
-
 function access(p: ProviderStatus): { text: string; tone?: 'olive' | 'cobalt' | 'saffron' | 'terra' } {
   switch (p.mode) {
     case 'user': return { text: 'own key', tone: 'olive' }
@@ -191,26 +187,6 @@ async function revokeKey(g: AdminGrant) {
   try { await revokePlatformKey(sub.value, g.platform_key_id); toast('grant revoked'); await loadDetail() }
   catch (e) { toast(humanize(e)) }
 }
-function grantNs() {
-  openForm({
-    title: 'grant a namespace', description: 'unlock a controlled (deny-by-default) namespace for this user.',
-    fields: nsOptions.value.length
-      ? [{ key: 'ns', label: 'namespace', type: 'select', required: true, placeholder: 'choose a namespace',
-          options: nsOptions.value.map((n) => ({ value: n, label: n })) }]
-      : [{ key: 'ns', label: 'namespace', required: true, hint: 'no controlled namespace in catalog — type one' }],
-    submitLabel: 'grant',
-    onConfirm: async (v) => {
-      try { await grantNamespace(sub.value, v.ns ?? ''); toast(`granted ${v.ns}`); await loadDetail() }
-      catch (e) { toast(humanize(e)); throw e }
-    },
-  })
-}
-async function revokeNs(g: NamespaceGrant) {
-  if (!await confirmAction({ title: 'revoke namespace grant', danger: true, confirmLabel: 'revoke', message: `revoke ${g.namespace}?` })) return
-  try { await revokeNamespaceGrant(sub.value, g.namespace); toast('grant revoked'); await loadDetail() }
-  catch (e) { toast(humanize(e)) }
-}
-
 // Options de connecteur (couche 3, oto-backend/docs/connector-model.md) : accorder
 // l'option à CET user (comp admin user-level). Plus de paiement.
 const PAID_OPTIONS = [{ key: 'unipile', label: 'messagerie hébergée (unipile)' }]
@@ -409,19 +385,6 @@ async function toggleOrgRole(o: AdminUserOrg) {
           </div>
         </template>
         <div v-else class="helptext">membre d'aucune org — pas de messagerie.</div>
-      </ConsoleCard>
-
-      <!-- namespaces débloqués -->
-      <ConsoleCard title="namespace grants" sub="controlled (deny-by-default) namespaces this user can see & call.">
-        <template #actions><Btn kind="mini" @click="grantNs">grant a namespace</Btn></template>
-        <div v-if="detail.namespace_grants.length" class="rowlist">
-          <div v-for="g in detail.namespace_grants" :key="g.namespace" class="rowitem" style="gap: 10px">
-            <Tag tone="cobalt">{{ g.namespace }}</Tag>
-            <span class="dim" style="flex: 1; font-size: 11.5px">granted {{ fmtDate(g.granted_at) }}</span>
-            <Btn kind="danger" @click="revokeNs(g)">revoke</Btn>
-          </div>
-        </div>
-        <div v-else class="helptext">no namespace grants — sensitive connectors stay hidden for this user.</div>
       </ConsoleCard>
 
       <!-- activité -->

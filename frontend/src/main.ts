@@ -10,6 +10,12 @@ import { initSentry } from './lib/sentry'
 
 // Analytics + session replay (PostHog Cloud EU) — no-op si VITE_POSTHOG_KEY absent.
 initAnalytics()
+// Chunk périmé après un redeploy (import dynamique / CSS d'une route qui n'existe
+// plus sous ce hash) : recharger prend la nouvelle version au lieu de casser la nav.
+window.addEventListener('vite:preloadError', (e) => {
+  e.preventDefault()
+  window.location.reload()
+})
 // Pageviews SPA (couvre le 1er rendu et chaque navigation).
 router.afterEach(() => capturePageview())
 
