@@ -21,7 +21,7 @@ import {
   getResource, unshareResource, transferResource,
   listProjectFiles, uploadProjectFile, deleteProjectFile, setProjectFilePublic,
   publishProjectShare, unpublishProjectShare,
-  publishProjectMcp, unpublishProjectMcp,
+  publishProjectMcp, unpublishProjectMcp, getProjectInventory,
 } from '@/api/console'
 import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile } from '@/types/api'
 import { fmtDate } from '@/types/api'
@@ -244,6 +244,17 @@ async function copyPublicLink() {
 const mcpBusy = ref(false)
 async function publishMcp() {
   if (!project.value || mcpBusy.value) return
+  // Préremplissage DÉRIVÉ (ADR 0035 B4) : pas encore de liste curée sur le projet →
+  // proposer l'inventaire (refs des procédures liées ∪ usage des runs) ; on cure, on
+  // ne retape pas. Best-effort : échec de dérivation = formulaire vide, comme avant.
+  let toolsDefault = (project.value.mcp_tools ?? []).join('\n')
+  let toolsHint = 'un par ligne — les SEULS outils visibles sur ce sous-domaine'
+  if (!toolsDefault) {
+    try {
+      toolsDefault = ((await getProjectInventory(projectId)).tools ?? []).join('\n')
+      if (toolsDefault) toolsHint = 'prérempli depuis l’inventaire du projet (procédures liées + runs) — cure la liste'
+    } catch { /* dérivation best-effort */ }
+  }
   const r = await promptForm({
     title: 'Publier en endpoint MCP',
     description: 'Un sous-domaine dédié `<slug>.mcp.oto.cx` exposant un jeu d’outils figé, à brancher dans Claude/Mistral.',
@@ -255,9 +266,9 @@ async function publishMcp() {
           { value: 'anonymous', label: 'Public · sans login (n’importe qui, aucun compte)' },
           { value: 'org', label: 'Org · authentifié (membres de l’org, login Logto)' },
         ] },
-      { key: 'tools', label: 'Outils exposés', type: 'textarea', value: (project.value.mcp_tools ?? []).join('\n'),
+      { key: 'tools', label: 'Outils exposés', type: 'textarea', value: toolsDefault,
         placeholder: 'frenchtech_search_annuaire\nfrenchtech_evenements', required: true,
-        hint: 'un par ligne — les SEULS outils visibles sur ce sous-domaine' },
+        hint: toolsHint },
     ],
     submitLabel: 'Publier',
   })
