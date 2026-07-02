@@ -7,7 +7,7 @@ import Tag from '@/components/console/Tag.vue'
 import DataTable from '@/components/console/DataTable.vue'
 import DatastoreCards from '@/components/console/DatastoreCards.vue'
 import RowDrawer from '@/components/console/RowDrawer.vue'
-import ShareDialog from '@/components/console/ShareDialog.vue'
+import SharePrincipalDialog from '@/components/console/SharePrincipalDialog.vue'
 import NameDialog from '@/components/console/NameDialog.vue'
 import NamespaceCreateDialog from '@/components/console/NamespaceCreateDialog.vue'
 import { useToast } from '@/composables/useToast'
@@ -402,7 +402,9 @@ async function onDelete() {
 
     <RowDrawer :open="drawerOpen" :row="drawerRow" :fields="fields" :is-new="drawerNew"
       :read-only="readOnly" @save="onSave" @delete="onDelete" @close="closeDrawer" />
-    <ShareDialog :open="shareOpen" :namespace="currentName" @close="shareOpen = false" />
+    <SharePrincipalDialog v-if="current" :open="shareOpen" resource-type="datastore_namespace"
+      :resource-id="String(current.id)" :resource-label="currentName ?? undefined"
+      @close="shareOpen = false" @changed="load" />
     <NamespaceCreateDialog v-model:open="createOpen" :org-name="activeOrgName" :on-confirm="doCreate" />
     <NameDialog v-model:open="renameOpen" title="renommer le namespace" label="nouveau nom"
       :initial="currentName ?? ''" submit-label="renommer" :on-confirm="doRename" />

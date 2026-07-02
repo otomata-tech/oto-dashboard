@@ -20,6 +20,7 @@ import ReferencedTools from '@/components/console/doctrine/ReferencedTools.vue'
 import DoctrineEditor from '@/components/console/doctrine/DoctrineEditor.vue'
 import UsageCard from '@/components/console/doctrine/UsageCard.vue'
 import CreateSkillModal from '@/components/console/doctrine/CreateSkillModal.vue'
+import SharePrincipalDialog from '@/components/console/SharePrincipalDialog.vue'
 
 const BASE_SLUG = 'claude_md'
 const router = useRouter()
@@ -60,6 +61,7 @@ const usage = ref<InstructionUsage | null>(null)
 const usageLoading = ref(false)
 const editing = ref(false)
 const modalOpen = ref(false)
+const shareOpen = ref(false)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const bodyCache = reactive<Record<string, string>>({})
@@ -290,6 +292,10 @@ async function removeSkill(slug: string, label: string) {
               class="btn-edit" @click="publishToLibrary(activeSlug, activeDoc?.title || activeSlug)">
               publier
             </button>
+            <button v-if="!isEdit && canEdit && !isBase && activeDoc?.exists && activeDoc.id > 0"
+              type="button" class="btn-edit" @click="shareOpen = true">
+              partager
+            </button>
           </div>
 
           <div class="hdr__title">{{ activeDoc?.title }}</div>
@@ -390,6 +396,11 @@ async function removeSkill(slug: string, label: string) {
     </div>
 
     <CreateSkillModal :open="modalOpen" @close="modalOpen = false" @create="createSkill" />
+    <!-- Partage ciblé d'une procédure (oto_resource, modèle licence → lecture seule).
+         Le destinataire lit cross-org par id (oto_get_doctrine doctrine_id). -->
+    <SharePrincipalDialog v-if="activeDoc && activeDoc.id > 0" :open="shareOpen"
+      resource-type="doctrine" :resource-id="String(activeDoc.id)"
+      :resource-label="activeDoc.title" :permissions="['read']" @close="shareOpen = false" />
   </div>
 </template>
 

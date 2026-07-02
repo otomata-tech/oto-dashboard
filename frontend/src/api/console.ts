@@ -8,7 +8,7 @@ import type {
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
-  ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ResourceEntry, Role, ToolCall, ToolEntry,
+  ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, NamespaceGrant, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, PresetEntry, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   MementoStatus, MementoWorkspaces, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
   ReferralLink, InviteResult,
@@ -296,13 +296,6 @@ export const renameNamespace = (ns: string, name: string) =>
 export const transferNamespace = (ns: string, target: { email?: string; org_id?: number }) =>
   api(`/api/datastore/namespaces/${encodeURIComponent(ns)}/transfer`, {
     method: 'POST', ...j({ email: target.email, new_owner_org: target.org_id }) })
-export const getNamespaceShares = (ns: string) =>
-  api<{ shares: NamespaceShare[] }>(`/api/datastore/namespaces/${encodeURIComponent(ns)}/share`)
-export const shareNamespace = (ns: string, email: string, permission: string) =>
-  api(`/api/datastore/namespaces/${encodeURIComponent(ns)}/share`, { method: 'POST', ...j({ email, permission }) })
-export const unshareNamespace = (ns: string, email: string) =>
-  api(`/api/datastore/namespaces/${encodeURIComponent(ns)}/share`, { method: 'DELETE', ...j({ email }) })
-
 // ── object-browser admin : gouvernance générique des ressources (ADR 0030) ──
 // Une seule capacité `oto_resource` (POST /api/resources) op-aware.
 export const listResources = (resource_type: string) =>
@@ -315,10 +308,10 @@ export const transferResource = (resource_type: string, resource_id: string, tar
 export const getResource = (resource_type: string, resource_id: string) =>
   api<ResourceEntry & { grants: NamespaceShare[] }>(
     '/api/resources', { method: 'POST', ...j({ op: 'get', resource_type, resource_id }) })
-export const shareResource = (resource_type: string, resource_id: string, email: string, permission: 'read' | 'write' = 'write') =>
-  api<{ ok: boolean }>('/api/resources', { method: 'POST', ...j({ op: 'share', resource_type, resource_id, email, permission }) })
-export const unshareResource = (resource_type: string, resource_id: string, email: string) =>
-  api<{ ok: boolean }>('/api/resources', { method: 'POST', ...j({ op: 'unshare', resource_type, resource_id, email }) })
+export const shareResource = (resource_type: string, resource_id: string, principal: SharePrincipal, permission: 'read' | 'write' = 'write') =>
+  api<{ ok: boolean }>('/api/resources', { method: 'POST', ...j({ op: 'share', resource_type, resource_id, ...principal, permission }) })
+export const unshareResource = (resource_type: string, resource_id: string, principal: SharePrincipal) =>
+  api<{ ok: boolean }>('/api/resources', { method: 'POST', ...j({ op: 'unshare', resource_type, resource_id, ...principal }) })
 export const appendNamespaceRow = (ns: string, row: Record<string, unknown>) =>
   api<DatastoreRow>(`/api/datastore/namespaces/${encodeURIComponent(ns)}/rows`,
     { method: 'POST', ...j(row) })

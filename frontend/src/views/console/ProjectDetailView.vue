@@ -10,7 +10,7 @@ import MarkdownView from '@/components/console/MarkdownView.vue'
 import ProjectDocs from '@/components/console/ProjectDocs.vue'
 import ProjectEntities from '@/components/console/ProjectEntities.vue'
 import Dropzone from '@/components/console/Dropzone.vue'
-import ProjectShareDialog from '@/components/console/ProjectShareDialog.vue'
+import SharePrincipalDialog from '@/components/console/SharePrincipalDialog.vue'
 import NameDialog from '@/components/console/NameDialog.vue'
 // Unovis est lourd (~d3) : on l'isole dans son propre chunk, chargé seulement
 // quand le projet a de l'activité (v-if ci-dessous) → vue projet de base légère.
@@ -18,7 +18,7 @@ const ActivityChart = defineAsyncComponent(() => import('@/components/console/Ac
 import {
   getProject, updateProject, archiveProject, copyProject, setProjectTemplate, projectHandoff,
   getProjectActivity, listDocs,
-  getResource, shareResource, unshareResource, transferResource,
+  getResource, unshareResource, transferResource,
   listProjectFiles, uploadProjectFile, deleteProjectFile, setProjectFilePublic,
   publishProjectShare, unpublishProjectShare,
   publishProjectMcp, unpublishProjectMcp,
@@ -172,17 +172,17 @@ async function handoff() {
 }
 
 // ── partage / transfert (oto_resource) ──
-// Le form validé (email vérifié) vit dans <ProjectShareDialog> ; ici on ne fait
-// que l'appel réseau. On toast + relance en erreur pour garder le dialog ouvert.
-async function doShare(payload: { email: string; permission: 'read' | 'write' }) {
-  try {
-    await shareResource('project', String(projectId), payload.email, payload.permission)
-    toast('partagé'); await loadGrants()
-  } catch (e) { toast(humanize(e)); throw e }
+// Le geste de partage (membre / équipe / org / email) vit dans
+// <SharePrincipalDialog> (autonome) ; la carte inline garde sa révocation rapide.
+function principalOf(g: NamespaceShare) {
+  if (g.principal_type === 'group') return { group_id: Number(g.principal_id) }
+  if (g.principal_type === 'org') return { org_id: Number(g.principal_id) }
+  return g.email ? { email: g.email } : null
 }
 async function revoke(g: NamespaceShare) {
-  if (!g.email) return
-  try { await unshareResource('project', String(projectId), g.email); await loadGrants() }
+  const p = principalOf(g)
+  if (!p) return
+  try { await unshareResource('project', String(projectId), p); await loadGrants() }
   catch (e) { toast(humanize(e)) }
 }
 async function transfer() {
@@ -367,10 +367,12 @@ async function copyMcpUrl() {
               <button v-if="!readOnly" class="btn-soft btn-soft--xs" @click="shareOpen = true">+ inviter</button>
             </div>
             <p v-if="!grants.length" class="dim" style="font-size: 12px">non partagé.</p>
-            <div v-for="g in grants" :key="(g.email || '') + g.permission" class="meta-row">
-              <span class="meta-row__main">{{ g.email || g.principal_id }}</span>
+            <div v-for="g in grants" :key="(g.principal_type || 'user') + (g.principal_id || g.email || '')" class="meta-row">
+              <span class="meta-row__main">{{ g.label || g.email || g.principal_id }}</span>
+              <Tag v-if="g.principal_type === 'group'" tone="saffron">équipe</Tag>
+              <Tag v-else-if="g.principal_type === 'org'" tone="terra">org</Tag>
               <Tag :tone="g.permission === 'write' ? 'olive' : 'cobalt'">{{ g.permission === 'write' ? 'édition' : 'lecture' }}</Tag>
-              <button v-if="!readOnly" class="ent__lnk" title="Retirer l'accès" @click="revoke(g)">✕</button>
+              <button v-if="!readOnly && principalOf(g)" class="ent__lnk" title="Retirer l'accès" @click="revoke(g)">✕</button>
             </div>
           </section>
 
@@ -475,7 +477,8 @@ async function copyMcpUrl() {
         </div>
       </div>
 
-      <ProjectShareDialog v-model:open="shareOpen" :project-name="project.name" :on-confirm="doShare" />
+      <SharePrincipalDialog :open="shareOpen" resource-type="project" :resource-id="String(projectId)"
+        :resource-label="project.name" @close="shareOpen = false" @changed="loadGrants" />
       <NameDialog v-model:open="copyOpen" title="copier ce projet" label="nom de la copie"
         :initial="'Copie de ' + project.name" submit-label="copier" :on-confirm="doCopy" />
     </template>
