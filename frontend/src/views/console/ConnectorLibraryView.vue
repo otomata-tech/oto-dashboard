@@ -7,13 +7,13 @@
 // doc how-to complète). La connexion d'un credential reste sur /connectors.
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
-import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import CategoryChips from '@/components/console/CategoryChips.vue'
+import ConnectorCardShell from '@/components/console/ConnectorCardShell.vue'
+import ConnectorBadges from '@/components/console/ConnectorBadges.vue'
 import ConnectorDetail from '@/components/console/library/ConnectorDetail.vue'
 import { useDeepLink } from '@/composables/useDeepLink'
 import { getMyConnectors, getToolRegistry, selectConnector } from '@/api/console'
-import { authChip } from '@/lib/connectorAuth'
 import type { MyConnector, ToolRegistryEntry } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
@@ -91,8 +91,6 @@ const filtered = computed(() => {
   })
 })
 
-// Monogramme de repli quand pas de logo (1ʳᵉ lettre du label).
-const monogram = (c: MyConnector) => (c.label || c.name).charAt(0).toUpperCase()
 </script>
 
 <template>
@@ -112,25 +110,14 @@ const monogram = (c: MyConnector) => (c.label || c.name).charAt(0).toUpperCase()
 
       <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
+      <!-- Tuiles = MÊME shell que les cartes user/org/plateforme (ADR 0024 §3),
+           en variante grille (clickable + fill) ; badges canoniques partagés. -->
       <div v-if="loaded && filtered.length" class="grid3">
-        <article v-for="c in filtered" :key="c.name" class="lib-card" @click="open(c)">
-          <div class="lib-head">
-            <div class="lib-logo">
-              <img v-if="c.logo_url" :src="c.logo_url" :alt="c.label" loading="lazy" />
-              <span v-else class="lib-mono">{{ monogram(c) }}</span>
-            </div>
-            <div style="min-width: 0; flex: 1">
-              <div class="lib-name">{{ c.label }}</div>
-              <div class="lib-pub">{{ c.publisher }}</div>
-            </div>
-          </div>
+        <ConnectorCardShell v-for="c in filtered" :key="c.name"
+          :label="c.label" :logo-url="c.logo_url" :subtitle="c.publisher"
+          clickable fill @open="open(c)">
           <p class="lib-desc">{{ c.description || c.help || '—' }}</p>
-          <div class="lib-tags">
-            <Tag tone="saffron">{{ c.category }}</Tag>
-            <Tag tone="cobalt">{{ authChip(c.auth) }}</Tag>
-            <Tag v-if="c.free_tier" tone="olive">gratuit · {{ c.free_tier.daily_quota }}/j</Tag>
-            <span v-if="c.availability === 'platform_granted'" class="lib-flag">grant-only</span>
-          </div>
+          <div class="lib-tags"><ConnectorBadges :meta="c" /></div>
           <div class="lib-foot">
             <span class="lib-count dim">
               {{ toolsOf(c).length ? `${toolsOf(c).length} outils` : c.namespaces.join(' ') }}
@@ -144,7 +131,7 @@ const monogram = (c: MyConnector) => (c.label || c.name).charAt(0).toUpperCase()
               <RouterLink v-else to="/connectors" class="lib-installed" @click.stop>installed →</RouterLink>
             </div>
           </div>
-        </article>
+        </ConnectorCardShell>
       </div>
 
       <div v-else-if="loaded && !error" class="state-empty" style="margin-top: 40px">
@@ -159,37 +146,16 @@ const monogram = (c: MyConnector) => (c.label || c.name).charAt(0).toUpperCase()
 .lib-controls { display: flex; flex-direction: column; gap: 12px; }
 .lib-controls .inp { width: 100%; max-width: 420px; }
 
-.lib-card {
-  display: flex; flex-direction: column; gap: 10px; padding: 16px; cursor: pointer;
-  border: 1px solid var(--color-hair); border-radius: 12px; background: var(--color-paper);
-  transition: border-color var(--t-fast) var(--ease-out);
-}
-.lib-card:hover { border-color: var(--color-ink-soft); }
-.lib-head { display: flex; align-items: center; gap: 11px; }
-.lib-logo {
-  width: 40px; height: 40px; border-radius: 9px; flex: 0 0 auto; overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--color-hair); background: var(--color-surface);
-}
-.lib-logo img { width: 100%; height: 100%; object-fit: contain; }
-.lib-mono { font-family: var(--font-mono); font-weight: 700; font-size: 17px; color: var(--color-ink-soft); }
-.lib-name { font-weight: 600; font-size: 14px; line-height: 1.2; }
-.lib-pub { font-size: 11.5px; color: var(--color-faint); margin-top: 2px; }
+/* Le chrome de tuile (logo/nom/éditeur/hover) vit dans ConnectorCardShell. Ici : le corps. */
 .lib-desc {
   font-size: 12.5px; line-height: 1.5; color: var(--color-ink-soft); margin: 0; flex: 1;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 .lib-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.lib-flag {
-  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;
-  text-transform: uppercase; padding: 2.5px 8px; border-radius: 999px;
-  border: 1px solid var(--color-hair); color: var(--color-mute);
-}
 .lib-foot { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
 .lib-count { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lib-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
 .lib-more { font-size: 11px; color: var(--color-faint); }
-.lib-card:hover .lib-more { color: var(--color-ink-soft); }
 .lib-installed {
   font-size: 12px; font-weight: 600; color: var(--color-olive); text-decoration: none; white-space: nowrap;
 }

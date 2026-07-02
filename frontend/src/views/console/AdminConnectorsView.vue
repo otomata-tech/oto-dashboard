@@ -4,11 +4,11 @@
 // master switch d'activation (deny-by-default) + clé plateforme (studio-owned,
 // prêtée aux users via grants). Absorbe l'ex-écran « platform keys ». Les
 // entitlements de namespace restent indexés par org dans /platform/orgs (naturel).
+// Même présentation que les projections user/org : une CARTE par connecteur
+// (`ConnectorAdminCard`, shell partagé ADR 0024 §3) — plus de table.
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
-import Toggle from '@/components/console/Toggle.vue'
-import Btn from '@/components/console/Btn.vue'
-import Tag from '@/components/console/Tag.vue'
+import ConnectorAdminCard from '@/components/console/ConnectorAdminCard.vue'
 import CategoryChips from '@/components/console/CategoryChips.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
@@ -39,19 +39,18 @@ const error = ref<string | null>(null)
 const q = ref('')
 const category = ref<string | null>(null)
 
-// Un connecteur peut porter une clé plateforme si son provider est platform-éligible
-// (auth_modes inclut 'platform') — les byo-only la refuseraient.
-const platformEligible = (name: string) => !!meta.value[name]?.auth_modes?.includes('platform')
 const keysOf = (name: string) => keys.value.filter((k) => k.provider === name)
 // Catégorie d'un connecteur = celle du registre (les lignes d'activation ne la portent pas).
 const catOf = (name: string) => meta.value[name]?.category ?? ''
 
+// Tri : actifs d'abord puis libellé — même lecture que les listes user et org.
 const shown = computed(() => {
   const needle = q.value.trim().toLowerCase()
   return connectors.value
     .filter((c) => !category.value || catOf(c.connector) === category.value)
     .filter((c) => !needle
       || c.connector.toLowerCase().includes(needle) || c.label.toLowerCase().includes(needle))
+    .sort((a, b) => Number(b.enabled === true) - Number(a.enabled === true) || a.label.localeCompare(b.label))
 })
 
 async function load() {
@@ -126,45 +125,18 @@ async function removeKey(k: PlatformKey) {
       <template #actions>
         <input v-model="q" class="cc-search" placeholder="search…" />
       </template>
-      <CategoryChips :values="connectors.map((c) => catOf(c.connector))" v-model="category" style="margin-bottom: 12px" />
-      <table class="tbl">
-        <thead><tr><th>connector</th><th>category</th><th>platform key</th><th>master</th><th style="width: 60px"></th></tr></thead>
-        <tbody>
-          <tr v-for="c in shown" :key="c.connector">
-            <td>
-              <div style="font-weight: 600; color: var(--color-ink)">{{ c.label }}</div>
-              <div style="font-size: 11px; color: var(--color-faint)">
-                {{ c.connector }} · <code class="mono">{{ c.namespaces.join(', ') }}</code>
-              </div>
-            </td>
-            <td>
-              <Tag v-if="catOf(c.connector)" tone="ink">{{ catOf(c.connector) }}</Tag>
-              <span v-else class="dim" style="font-size: 11px">—</span>
-            </td>
-            <td>
-              <template v-if="platformEligible(c.connector)">
-                <span v-for="k in keysOf(c.connector)" :key="k.id" class="pk">
-                  <code class="mono">{{ k.label }} …{{ k.api_key_tail }}</code>
-                  <button v-if="isSuperAdmin" class="pk-x" title="delete" @click="removeKey(k)">×</button>
-                </span>
-                <Btn v-if="isSuperAdmin" kind="mini" icon="plus" @click="setKey(c)">key</Btn>
-                <span v-else-if="!keysOf(c.connector).length" class="dim" style="font-size: 11px">—</span>
-              </template>
-              <span v-else class="dim" style="font-size: 11px">byo-only</span>
-            </td>
-            <td>
-              <span :style="{ fontSize: '11px', fontWeight: 600, color: c.enabled ? 'var(--color-ink)' : 'var(--color-faint)' }">
-                {{ c.enabled ? 'active' : 'off' }}
-              </span>
-            </td>
-            <td style="text-align: right"><Toggle :on="c.enabled === true" @change="toggle(c)" /></td>
-          </tr>
-          <tr v-if="!shown.length">
-            <td colspan="5" class="dim" style="text-align: center; padding: 16px">no connectors</td>
-          </tr>
-        </tbody>
-      </table>
+      <CategoryChips :values="connectors.map((c) => catOf(c.connector))" v-model="category" />
     </ConsoleCard>
+
+    <!-- Une carte par connecteur — même shell que les vues user (/connectors) et
+         org (/org/connectors), corps = leviers plateforme. -->
+    <div class="accards">
+      <ConnectorAdminCard v-for="c in shown" :key="c.connector"
+        :activation="c" :meta="meta[c.connector]" :keys="keysOf(c.connector)"
+        :is-super-admin="isSuperAdmin"
+        @toggle="toggle(c)" @set-key="setKey(c)" @remove-key="removeKey" />
+    </div>
+    <p v-if="!shown.length" class="helptext" style="text-align: center; padding: 16px">no connectors</p>
 
     <ConsoleCard title="resolution order">
       <div class="helptext" style="font-size: 12.5px">
@@ -219,6 +191,6 @@ async function removeKey(k: PlatformKey) {
   border-radius: 8px; background: var(--color-surface); color: var(--color-ink); width: 200px;
 }
 .cc-search:focus { outline: none; border-color: var(--color-ink); }
-.pk { display: inline-flex; align-items: center; gap: 3px; margin-right: 6px; }
-.pk-x { border: 0; background: none; cursor: pointer; color: var(--color-terra-ink); font-size: 14px; line-height: 1; padding: 0 2px; }
+/* Pile de cartes plateforme — même rythme que les listes user (.cc-grid) et org (.occards). */
+.accards { display: flex; flex-direction: column; gap: 12px; }
 </style>
