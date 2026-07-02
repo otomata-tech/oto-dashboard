@@ -336,6 +336,8 @@ export interface ProjectLink {
   target_ref: string
   identity_ref?: string | null  // connecteur : identité (compte) du binding — clé de multiplicité (#57)
   label?: string | null
+  namespace?: string | null     // tableau : nom du namespace résolu backend (target_ref = id stable)
+  title?: string | null         // procédure : titre de la doctrine résolu backend (target_ref = id stable)
   role?: string | null          // pourquoi cette entité est dans le projet (ADR 0032 §2)
   config?: ConnectorLinkConfig | null   // surcharge préfaite du lien (connecteur, ADR 0032 §4)
   cross_project?: boolean        // dérivé : la même entité est liée par ≥1 autre projet
