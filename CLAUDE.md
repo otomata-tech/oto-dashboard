@@ -167,8 +167,10 @@ dans `api/console.ts` (POST op-aware `/api/me/{projects,docs}`). Backend : `oto-
 > (`oto:pshare:<id>`) pour le ré-afficher (la clé n'existe QUE côté client → sinon re-publier).
 > Viewer public `PublicProjectView.vue` (route `/p/p/:token`, hors shell, sans auth) : lit la clé
 > du hash, `getPublicProjectShare` → `decryptShare` → rend brief + arbre de pages (`MarkdownView`).
-> `Project.public_shared`/`public_shared_at` viennent du `get` backend. Pendant chiffré du viewer
-> public de doc (#4a, `PublicDocView` / `/p/d/:token`).
+> `Project.public_shared`/`public_shared_at` viennent du `get` backend. Le pendant en clair =
+> le viewer public de **doc** (#4a) : `/p/d/<token>` n'est **plus une route SPA** — Caddy la route
+> vers le backend qui rend le doc **server-side** (lisible par un agent sans JS, content-negotiation
+> HTML/markdown/JSON) ; `PublicDocView.vue` a été supprimé. Seul `/p/p/` reste SPA (déchiffrement client).
 
 ## Mémoire — datastore + knowledge (ADR 0016)
 
