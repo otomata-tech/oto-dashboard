@@ -41,6 +41,9 @@ export const NAV: NavGroup[] = [
   ]},
   { group: 'memory', level: 'work', items: [
     { path: '/data', label: 'données', icon: 'db' },
+    // « documents » = RACCOURCI vers le projet KB de l'org (oto-dashboard#37 : la base
+    // de connaissance est un projet, ses pages SONT des documents — plus d'entité à part).
+    // /documents résout oto_kb et redirige vers /projects/:id (DocumentsView).
     { path: '/documents', label: 'documents', icon: 'book' },
     // memento masqué (2026-07-02) : on privilégie « documents » comme surface de
     // connaissance. Vue MementoView + endpoints /api/memento/* conservés en sommeil

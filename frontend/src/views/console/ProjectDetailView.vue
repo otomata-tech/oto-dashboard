@@ -6,8 +6,7 @@
 import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Tag from '@/components/console/Tag.vue'
-import MarkdownView from '@/components/console/MarkdownView.vue'
-import ProjectDocs from '@/components/console/ProjectDocs.vue'
+import ProjectWiki from '@/components/console/ProjectWiki.vue'
 import ProjectEntities from '@/components/console/ProjectEntities.vue'
 import Dropzone from '@/components/console/Dropzone.vue'
 import SharePrincipalDialog from '@/components/console/SharePrincipalDialog.vue'
@@ -40,9 +39,6 @@ const { pickTarget } = useTransferOwnership()
 
 const projectId = Number(route.params.id)
 const project = ref<Project | null>(null)
-const briefDraft = ref('')
-// Le brief est du markdown : rendu (MarkdownView) hors édition, textarea seulement en édition.
-const editingBrief = ref(false)
 const grants = ref<NamespaceShare[]>([])
 const activity = ref<ProjectActivity[]>([])
 const files = ref<ProjectFile[]>([])
@@ -58,7 +54,6 @@ const publicLink = ref<string | null>(null)
 const publishing = ref(false)
 const pshareStoreKey = `oto:pshare:${projectId}`
 
-const briefDirty = computed(() => !!project.value && briefDraft.value !== (project.value.brief_md ?? ''))
 const readOnly = computed(() => project.value?.can_write === false)   // #4b — proposer une modif au lieu d'éditer
 // Audit des liens (ADR 0035 B5) : morts / slots non bindés / procédures inertes.
 const audit = ref<ProjectAudit | null>(null)
@@ -78,7 +73,6 @@ async function load() {
   if (!Number.isFinite(projectId)) { error.value = 'Projet introuvable.'; loaded.value = true; return }
   try {
     project.value = await getProject(projectId)
-    briefDraft.value = project.value.brief_md ?? ''
     // Ré-affiche le lien public complet mémorisé localement (si toujours partagé).
     publicLink.value = project.value.public_shared ? localStorage.getItem(pshareStoreKey) : null
     await Promise.all([loadGrants(), loadActivity(), loadFiles(), loadAudit()])
@@ -133,14 +127,12 @@ async function loadActivity() {
 }
 onMounted(load)
 
-function startEditBrief() { briefDraft.value = project.value?.brief_md ?? ''; editingBrief.value = true }
-function cancelEditBrief() { briefDraft.value = project.value?.brief_md ?? ''; editingBrief.value = false }
-
-async function saveBrief() {
+// Le brief est édité dans le wiki (page d'accueil) ; le parent reste propriétaire de
+// l'état projet et persiste la valeur remontée par <ProjectWiki @save-brief>.
+async function saveBrief(value: string) {
   if (!project.value) return
   try {
-    project.value = { ...project.value, ...(await updateProject(projectId, { brief_md: briefDraft.value })) }
-    editingBrief.value = false
+    project.value = { ...project.value, ...(await updateProject(projectId, { brief_md: value })) }
     await loadActivity(); toast('brief enregistré')
   } catch (e) { toast(humanize(e)) }
 }
@@ -343,35 +335,12 @@ async function copyMcpUrl() {
 
       <!-- grille atelier | méta -->
       <div class="wk-grid">
-        <!-- colonne atelier : brief + pages + entités liées -->
+        <!-- colonne atelier : wiki (accueil=brief + pages navigables) + entités liées -->
         <div class="wk-col">
 
-          <!-- brief : rendu markdown hors édition, textarea seulement en édition -->
-          <section class="surface-card">
-            <div class="card-eb-row">
-              <span class="card-eb">brief — point d'entrée de l'agent</span>
-              <span v-if="editingBrief" class="card-eb-hint">md</span>
-              <button v-else-if="!readOnly" class="btn-soft btn-soft--xs" @click="startEditBrief">éditer</button>
-            </div>
-            <template v-if="editingBrief">
-              <textarea v-model="briefDraft" class="wk-brief" rows="8"
-                placeholder="Le but du projet, le contexte, ce que l'agent doit savoir au démarrage…"></textarea>
-              <div class="wk-brief-act">
-                <button class="btn-soft" @click="saveBrief">enregistrer le brief</button>
-                <button class="ent__lnk" @click="cancelEditBrief">annuler</button>
-                <span class="dim" style="font-size: 11px">{{ briefDirty ? 'modifié' : 'enregistré' }}</span>
-              </div>
-            </template>
-            <template v-else>
-              <MarkdownView v-if="project.brief_md && project.brief_md.trim()" :source="project.brief_md" />
-              <p v-else class="dim" style="font-size: 12px">{{ readOnly ? 'aucun brief.' : 'aucun brief — clique « éditer » pour le rédiger.' }}</p>
-            </template>
-          </section>
-
-          <!-- pages (ProjectDocs porte son propre en-tête « Pages ») -->
-          <section class="surface-card">
-            <ProjectDocs :project-id="project.id" :read-only="readOnly" @changed="loadActivity" />
-          </section>
+          <!-- wiki : le brief est la page d'accueil, les pages s'y naviguent (#37) -->
+          <ProjectWiki :project-id="project.id" :project-name="project.name" :brief="project.brief_md"
+            :read-only="readOnly" @save-brief="saveBrief" @changed="loadActivity" />
 
           <!-- audit des liens (ADR 0035 B5) : morts / slots non bindés / inertes -->
           <section v-if="auditIssues && audit" class="surface-card"
@@ -551,12 +520,7 @@ async function copyMcpUrl() {
 /* ── carte-surface ── */
 .surface-card { background: var(--color-surface); border: 1px solid var(--color-hair); border-radius: 12px; padding: 18px; }
 .card-eb { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--color-mute); }
-.card-eb-hint { font-family: var(--font-mono); font-size: 9.5px; color: var(--color-faint); }
 .card-eb-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
-
-/* ── brief ── */
-.wk-brief { width: 100%; margin-top: 0; border: 1px solid var(--color-hair); border-radius: 10px; padding: 11px 13px; font-family: var(--font-sans); font-size: 13.5px; line-height: 1.6; color: var(--color-ink-soft); background: var(--color-surface); resize: vertical; box-sizing: border-box; }
-.wk-brief-act { display: flex; align-items: center; gap: 9px; margin-top: 8px; }
 
 /* ── colonne méta : actions inline (partagées avec les cartes d'entité) ── */
 .ent__lnk { background: none; border: 0; padding: 0; font-family: var(--font-sans); font-size: 11px; color: var(--color-mute); cursor: pointer; }

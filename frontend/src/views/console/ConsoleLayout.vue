@@ -65,11 +65,14 @@ const current = computed(() => {
   if (route.name === 'project-detail') return ProjectDetailView  // page /projects/:id
   return VIEWS[section.value] ?? OverviewView
 })
-// Clé de remount : la route complète pour une page de détail (change d'id → remount),
-// sinon la section.
-const viewKey = computed(() =>
-  route.name === 'admin-user' || route.name === 'project-detail' ? route.fullPath : section.value,
-)
+// Clé de remount : une page de détail remonte quand son ID change, pas sa query.
+// (project-detail keye sur :id seul → le deep-link wiki `?doc=` ne remonte pas la vue ;
+// admin-user reste sur fullPath.) Sinon = la section.
+const viewKey = computed(() => {
+  if (route.name === 'admin-user') return route.fullPath
+  if (route.name === 'project-detail') return `/projects/${route.params.id}`
+  return section.value
+})
 </script>
 
 <template>
