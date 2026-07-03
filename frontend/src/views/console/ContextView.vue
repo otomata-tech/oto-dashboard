@@ -15,15 +15,19 @@ import Btn from '@/components/console/Btn.vue'
 import Icon from '@/components/console/Icon.vue'
 import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
 import ContextProfileCard from '@/components/console/ContextProfileCard.vue'
-import { getAgentContext, getAgentReadme, setAgentReadme, getTools, enableTool, disableTool } from '@/api/console'
-import type { AgentContext, ToolEntry } from '@/types/api'
+import { getAgentContext, getAgentReadme, setAgentReadme, getTools, enableTool, disableTool, getMyOrgs, setActiveOrg, clearActiveOrg } from '@/api/console'
+import type { AgentContext, ToolEntry, Org } from '@/types/api'
 import { useToast } from '@/composables/useToast'
+import { useMe } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
+const { me, reload: reloadMe } = useMe()
 
 const ctx = ref<AgentContext | null>(null)
 const allTools = ref<ToolEntry[]>([])
+const orgs = ref<Org[]>([])
+const savingHome = ref(false)
 const loaded = ref(false)
 const error = ref<string | null>(null)
 const showInstructions = ref(false)
@@ -79,11 +83,28 @@ async function toggleNamespace(g: NsGroup) {
   for (const t of g.tools) await setTool(t, on)
 }
 
+// Poser l'org MAISON = le SEUL geste de cette page qui touche le MCP (défaut des
+// nouvelles conversations Claude, ADR 0023). Migré ici depuis le WorkspaceSwitcher,
+// devenu consultation pure. « aucune » → identité perso/globale (clearActiveOrg).
+async function onHomeChange(e: Event) {
+  const val = (e.target as HTMLSelectElement).value
+  const target = val === '' ? null : Number(val)
+  if (target === (me.value?.home_org ?? null)) return
+  savingHome.value = true
+  try {
+    if (target === null) await clearActiveOrg()
+    else await setActiveOrg(target)
+    await reloadMe()
+  } catch (err) { toast(humanize(err)) }
+  finally { savingHome.value = false }
+}
+
 async function load() {
   try {
-    const [c, tl] = await Promise.all([getAgentContext(), getTools()])
+    const [c, tl, o] = await Promise.all([getAgentContext(), getTools(), getMyOrgs()])
     ctx.value = c
     allTools.value = tl.tools
+    orgs.value = o.orgs
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
@@ -105,6 +126,26 @@ onMounted(load)
     <p v-else-if="!loaded" class="helptext">chargement…</p>
 
     <template v-else-if="ctx">
+      <!-- Couche 0 — org maison (défaut MCP, seul réglage à effet MCP de cette page) -->
+      <ConsoleCard title="org maison" flush
+        sub="l'org que ton agent prend par défaut dans une nouvelle conversation. c'est le seul réglage ici qui change ce que FAIT ton Claude — pas juste ce que le dashboard affiche.">
+        <template #actions>
+          <Tag :tone="me?.home_org ? 'olive' : undefined">{{ me?.home_org_name || 'aucune · généraliste' }}</Tag>
+        </template>
+        <div class="home-row">
+          <label class="dim" style="font-size: 12.5px">définir la maison :</label>
+          <select class="ctx-select" :value="me?.home_org ?? ''" :disabled="savingHome" @change="onHomeChange">
+            <option value="">aucune (agent généraliste)</option>
+            <option v-for="o in orgs" :key="o.id" :value="o.id">{{ o.name }}</option>
+          </select>
+          <span v-if="savingHome" class="dim" style="font-size: 12px">enregistrement…</span>
+        </div>
+        <p class="helptext" style="margin-top: 8px">
+          changer d'org juste pour <em>consulter</em> le dashboard se fait dans le menu compte —
+          sans effet sur ton agent.
+        </p>
+      </ConsoleCard>
+
       <!-- Couche 1 — instructions plateforme (statique, héritée) -->
       <ConsoleCard title="instructions plateforme" flush
         sub="injectées au handshake : posture, bootstrap, boucle d'usage, catalogue de namespaces. communes à tous — tu ne les modifies pas.">
@@ -198,6 +239,15 @@ onMounted(load)
   border-radius: 8px; padding: 12px 14px; color: var(--color-ink-soft, #4a463d);
 }
 
+.home-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.ctx-select {
+  font: inherit; font-size: 13px; color: var(--color-ink);
+  background: var(--color-paper-2, #faf7f0);
+  border: 1px solid var(--color-hair-soft, #e3dccd);
+  border-radius: 7px; padding: 6px 10px; cursor: pointer; min-width: 14rem;
+}
+.ctx-select:disabled { opacity: 0.55; cursor: default; }
+
 .ns-list { display: flex; flex-direction: column; }
 .ns-block { border-top: 1px solid var(--color-hair-soft); }
 .ns-block:first-child { border-top: 0; }
@@ -216,5 +266,5 @@ onMounted(load)
 }
 .tool-row:first-child { border-top: 0; }
 .tool-name { font-size: 12.5px; font-weight: 600; color: var(--color-saffron-ink); flex: none; min-width: 12rem; }
-.tool-desc { font-size: 12px; color: var(--color-mute); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tool-desc { font-size: 12px; color: var(--color-mute); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
