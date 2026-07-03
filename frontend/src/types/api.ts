@@ -408,9 +408,10 @@ export interface Project {
   public_shared_at?: string | null  // horodatage de la dernière (re)publication chiffrée
   // Publication en endpoint MCP dédié `<mcp_slug>.mcp.oto.cx` (ADR 0032, amende #44).
   mcp_slug?: string | null
-  mcp_access?: 'off' | 'anonymous' | 'org'   // off = non publié ; anonymous = sans login ; org = JWT + org épinglée
+  mcp_access?: 'off' | 'anonymous' | 'secret' | 'org'   // off = non publié ; anonymous = sans login + listé ; secret = sans login, non listé, URL secrète ; org = JWT + org épinglée
   mcp_tools?: string[]                        // allowlist figée du preset exposé
   mcp_url?: string | null                     // URL dérivée `https://<slug>.mcp.oto.cx/mcp` (null si off)
+  mcp_unresolvable_tools?: string[]           // (réponse publish) outils exposés MAIS non résolubles sans login → échouent à l'appel
   created_at?: string | null
   updated_at?: string | null
   archived_at?: string | null

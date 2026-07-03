@@ -198,7 +198,7 @@ export type ProjectAudit = {
 export const getProjectInventory = (id: number) =>
   projectsApi<{ id: number; tools: string[]; connectors: string[]; audit?: ProjectAudit }>({ op: 'inventory', project_id: id })
 // Publier / retirer un projet comme endpoint MCP dédié `<slug>.mcp.oto.cx` (ADR 0032, amende #44).
-export const publishProjectMcp = (id: number, fields: { mcp_slug: string; mcp_access: 'anonymous' | 'org'; mcp_tools: string[] }) =>
+export const publishProjectMcp = (id: number, fields: { mcp_slug: string; mcp_access: 'anonymous' | 'secret' | 'org'; mcp_tools: string[] }) =>
   projectsApi<Project>({ op: 'publish_mcp', project_id: id, ...fields })
 export const unpublishProjectMcp = (id: number) =>
   projectsApi<Project>({ op: 'unpublish_mcp', project_id: id })

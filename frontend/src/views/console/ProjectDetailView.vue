@@ -262,10 +262,11 @@ async function publishMcp() {
     description: 'Un sous-domaine dédié `<slug>.mcp.oto.cx` exposant un jeu d’outils figé, à brancher dans Claude/Mistral.',
     fields: [
       { key: 'slug', label: 'Sous-domaine', value: project.value.mcp_slug ?? '',
-        placeholder: 'french-tech-marseille', required: true, hint: '→ <slug>.mcp.oto.cx (min. 3 car., a-z 0-9 -)' },
+        placeholder: 'french-tech-marseille', required: false, hint: '→ <slug>.mcp.oto.cx (min. 3 car., a-z 0-9 -). En « secret », préfixe optionnel : un suffixe aléatoire est ajouté.' },
       { key: 'access', label: 'Accès', type: 'select', value: project.value.mcp_access && project.value.mcp_access !== 'off' ? project.value.mcp_access : 'anonymous',
         options: [
-          { value: 'anonymous', label: 'Public · sans login (n’importe qui, aucun compte)' },
+          { value: 'anonymous', label: 'Public · sans login, listé dans l’annuaire' },
+          { value: 'secret', label: 'Secret · sans login, URL non devinable (non listé)' },
           { value: 'org', label: 'Org · authentifié (membres de l’org, login Logto)' },
         ] },
       { key: 'tools', label: 'Outils exposés', type: 'textarea', value: toolsDefault,
@@ -279,9 +280,13 @@ async function publishMcp() {
   mcpBusy.value = true
   try {
     const updated = await publishProjectMcp(projectId, {
-      mcp_slug: (r.slug ?? '').trim(), mcp_access: (r.access ?? 'anonymous') as 'anonymous' | 'org', mcp_tools: tools })
+      mcp_slug: (r.slug ?? '').trim(), mcp_access: (r.access ?? 'anonymous') as 'anonymous' | 'secret' | 'org', mcp_tools: tools })
     project.value = { ...project.value, ...updated }
-    toast('endpoint MCP publié')
+    const unresolvable = updated.mcp_unresolvable_tools ?? []
+    if (unresolvable.length)
+      toast(`endpoint publié — ${unresolvable.length} outil(s) exposé(s) mais non résoluble(s) sans login (échoueront à l’appel) : ${unresolvable.join(', ')}`)
+    else
+      toast('endpoint MCP publié')
     await loadActivity()
   } catch (e) { toast(humanize(e)) }
   finally { mcpBusy.value = false }
