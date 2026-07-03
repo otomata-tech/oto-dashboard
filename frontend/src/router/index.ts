@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import ConsoleLayout from '../views/console/ConsoleLayout.vue'
 import InviteAcceptView from '../views/InviteAcceptView.vue'
-import PublicDocView from '../views/PublicDocView.vue'
 import PublicProjectView from '../views/PublicProjectView.vue'
 import { NAV } from '@/lib/consoleNav'
 
@@ -43,8 +42,8 @@ const router = createRouter({
     // partageable (referral réutilisable si carrier seul, nominatif si +code).
     { path: '/invite', name: 'invite', component: InviteAcceptView },
     { path: '/invitation/:carrier/:code?', name: 'invitation', component: InviteAcceptView },
-    // Viewer public d'un document partagé (#4a) — sans auth, hors shell console.
-    { path: '/p/d/:token', name: 'public-doc', component: PublicDocView },
+    // NB : `/p/d/<token>` (doc public) n'est PLUS une route SPA — Caddy la route
+    // vers le backend qui la rend SERVER-SIDE (lisible par un agent sans JS).
     // Viewer public d'un PROJET partagé CHIFFRÉ (ADR 0032 §3) — sans auth ; la clé
     // de déchiffrement vit dans le fragment (#…), jamais envoyée au serveur.
     { path: '/p/p/:token', name: 'public-project', component: PublicProjectView },
