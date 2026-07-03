@@ -7,6 +7,8 @@ import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { useAuth } from '@/composables/useAuth'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
+import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
+import AccountViewAs from './AccountViewAs.vue'
 
 // Menu profil (pied de sidebar) = point d'entrée unique des destinations de
 // GESTION, à la place de l'ancien level-switch du topbar. On *entre* dans une
@@ -91,6 +93,14 @@ function go() {
 
     <!-- menu déroulant (s'ouvre vers le haut depuis le pied de sidebar) -->
     <div v-if="open" class="um-pop" role="menu">
+      <!-- Switcher d'org (+ équipe) : consultation pure, zéro effet MCP -->
+      <WorkspaceSwitcher @switched="open = false" />
+      <!-- Opérateur plateforme : naviguer entre comptes (view-as lecture seule) -->
+      <template v-if="isPlatformOperator(me)">
+        <div class="um-sep" />
+        <AccountViewAs />
+      </template>
+      <div class="um-sep" />
       <template v-for="e in entries" :key="e.key">
         <div v-if="e.tone === 'platform'" class="um-sep" />
         <RouterLink
@@ -161,6 +171,7 @@ function go() {
   display: flex; flex-direction: column; gap: 2px; padding: 6px;
   background: var(--color-surface); border: 1px solid var(--color-hair);
   border-radius: 12px; box-shadow: 0 8px 28px rgb(0 0 0 / 0.12);
+  max-height: min(78vh, 620px); overflow-y: auto;
 }
 .um-item {
   display: flex; align-items: center; gap: 9px;

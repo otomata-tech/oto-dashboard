@@ -1,20 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import Icon from './Icon.vue'
+import { computed } from 'vue'
 import Avatar from './Avatar.vue'
-import IdentityDialog from './IdentityDialog.vue'
 import { useMe } from '@/composables/useMe'
 import { useScope } from '@/composables/useScope'
 
 // En-tête de la sidebar = l'axe IDENTITÉ (« qui je suis » : org + équipe active),
-// déplacé ici depuis le topbar pour qu'on le voie là où on regarde — le menu.
-// Clic → IdentityDialog (bascule org + équipe). L'axe NIVEAU (« quoi je fais »)
-// reste le segmented control du topbar. Le bloc s'adapte au niveau : en « org »
-// il se recompose en bannière centrée sur l'organisation gérée.
+// AFFICHAGE SEUL. La bascule d'org/équipe a migré dans la popin compte (pied de
+// sidebar, WorkspaceSwitcher) — pattern SaaS classique. Le bloc s'adapte au niveau :
+// en « org » il se recompose en bannière centrée sur l'organisation gérée.
 const { me } = useMe()
 const { level } = useScope()
-
-const open = ref(false)
 
 const orgName = computed(() => me.value?.active_org_name || '…')
 const hasLogo = computed(() => !!(me.value?.active_org_name && me.value?.active_org_logo_url))
@@ -40,11 +35,10 @@ const kicker = computed(() => {
 </script>
 
 <template>
-  <button
+  <div
     class="ident"
     :class="{ org: level === 'org', platform: level === 'platform' }"
-    aria-label="identité — changer d'organisation ou d'équipe"
-    @click="open = true"
+    aria-label="identité — organisation & équipe affichées"
   >
     <Avatar
       v-if="hasLogo"
@@ -67,11 +61,7 @@ const kicker = computed(() => {
         </span>
       </div>
     </div>
-
-    <Icon name="chevd" :size="13" class="ident-chev" />
-  </button>
-
-  <IdentityDialog :open="open" @close="open = false" />
+  </div>
 </template>
 
 <style scoped>
@@ -80,12 +70,9 @@ const kicker = computed(() => {
   display: flex; align-items: center; gap: 10px;
   padding: 6px 8px; border-radius: 10px;
   border: 1px solid transparent; background: transparent;
-  cursor: pointer; text-align: left;
-  transition: background var(--t-fast), border-color var(--t-fast);
+  text-align: left;
 }
-.ident:hover { background: var(--color-paper-2); border-color: var(--color-hair); }
 .ident.org { background: var(--color-saffron-soft); border-color: var(--color-hair); }
-.ident.org:hover { border-color: var(--color-saffron); }
 
 .ident-txt { flex: 1; min-width: 0; }
 .ident-kicker {
@@ -109,5 +96,4 @@ const kicker = computed(() => {
 }
 .ident-meta > .pill:first-child { margin-left: 0; }
 .pill.faint { color: var(--color-faint); }
-.ident-chev { flex: none; color: var(--color-faint); }
 </style>
