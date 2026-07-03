@@ -8,7 +8,15 @@ const base = (import.meta.env.VITE_OTO_MCP_BASE as string).replace(/\/$/, '')
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { getAccessToken } = useAuth()
-  const token = await getAccessToken()
+  // Toute erreur ICI = session Logto morte (refresh 400, token undefined, erreur
+  // OIDC localisée type « La requête de consentement est invalide ») — normalisée
+  // pour que l'UI propose « se reconnecter » au lieu d'un faux incident serveur.
+  let token: string
+  try {
+    token = await getAccessToken()
+  } catch {
+    throw new Error('stale_session')
+  }
   beginBusy()   // active la présence « réfléchit » d'Oto (favicon) le temps de l'appel
   try {
     const resp = await fetch(`${base}${path}`, {

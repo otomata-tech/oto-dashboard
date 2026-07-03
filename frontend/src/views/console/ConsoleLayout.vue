@@ -48,7 +48,7 @@ const VIEWS: Record<string, Component> = {
 }
 
 const route = useRoute()
-const { isAuthenticated } = useAuth()
+const { isAuthenticated, logout } = useAuth()
 const { message } = useToast()
 const { me, error, load } = useMe()
 const { navOpen, closeNav } = useNav()
@@ -81,7 +81,7 @@ const viewKey = computed(() =>
       <div class="main">
         <ConsoleTopbar />
         <div class="content">
-          <StateError v-if="error" :message="error" @retry="load(true)" />
+          <StateError v-if="error" :message="error" @retry="load(true)" @relogin="logout()" />
           <WaitlistView v-else-if="me && me.access?.status === 'pending' && !isPlatformOperator(me)" />
           <component :is="current" v-else-if="me" :key="viewKey" />
           <SkeletonOverview v-else />
