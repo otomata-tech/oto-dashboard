@@ -507,9 +507,9 @@ export const setOrgMemberRole = (id: number, sub: string, role: string) =>
 export const removeOrgMember = (id: number, sub: string) =>
   api(`/api/orgs/${id}/members/${sub}`, { method: 'DELETE' })
 // Pose/rotation de la clé partagée d'org (org_admin, self-service, ADR 0022).
-export const setOrgSecret = (id: number, provider: string, api_key: string, base_url?: string) =>
+export const setOrgSecret = (id: number, provider: string, api_key: string, base_url?: string, fields?: Record<string, string>) =>
   api<{ ok: boolean; org_id: number; provider: string }>(
-    `/api/orgs/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url }) })
+    `/api/orgs/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url, fields }) })
 export const deleteOrgSecret = (id: number, provider: string) =>
   api(`/api/orgs/${id}/secrets/${provider}`, { method: 'DELETE' })
 

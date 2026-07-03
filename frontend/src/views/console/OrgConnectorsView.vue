@@ -14,6 +14,7 @@ import Avatar from '@/components/console/Avatar.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
+import CredentialFieldsDialog from '@/components/console/CredentialFieldsDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
@@ -40,6 +41,10 @@ const rows = ref<OrgConnectorActivation[]>([])
 const filters = ref<FieldFiltersBundle | null>(null)
 const emailBundle = ref<EmailSettingsBundle | null>(null)
 const meta = ref<Record<string, ConnectorMeta>>({})   // catalogue (secret_kind…)
+
+// Clé d'org multi-champs (zoho/silae/zohodesk…) : saisie via CredentialFieldsDialog.
+const credOpen = ref(false)
+const credConn = ref<{ label: string; provider: string; fields: ConnectorMeta['credential_fields'] } | null>(null)
 const orgSecrets = ref<Set<string>>(new Set())        // connecteurs avec une clé partagée d'org
 const acl = ref<ConnectorAclEntry[]>([])              // RBAC connecteur (ADR 0025)
 const groups = ref<GroupListItem[]>([])               // départements de l'org (picker)
@@ -116,6 +121,13 @@ const hasOrgKey = (name: string) => orgSecrets.value.has(name)
 
 function setKey(r: OrgConnectorActivation) {
   if (!isOrgAdmin.value) return
+  // Connecteur multi-champs (secret_kind=fields) → dialog N-champs, comme côté user.
+  const m = meta.value[r.connector]
+  if (m?.secret_kind === 'fields' && (m.credential_fields?.length ?? 0) > 0) {
+    credConn.value = { label: r.label, provider: r.connector, fields: m.credential_fields }
+    credOpen.value = true
+    return
+  }
   openForm({
     title: `${r.label} — clé partagée d'org`,
     description: 'clé du compte de l\'org, héritée par tous les membres (cascade : clé perso > équipe > org > plateforme). stockée chiffrée.',
@@ -126,6 +138,14 @@ function setKey(r: OrgConnectorActivation) {
       catch (e) { toast(humanize(e)); throw e }
     },
   })
+}
+
+// Soumission d'une clé d'org MULTI-CHAMPS (api_key vide, `fields` peuplé).
+async function doSetOrgCred(values: Record<string, string>) {
+  const c = credConn.value
+  if (!c) return
+  try { await setOrgSecret(activeOrgId.value!, c.provider, '', undefined, values); toast(`${c.label} : clé d'org enregistrée`); await load() }
+  catch (e) { toast(humanize(e)); throw e }
 }
 
 async function removeKey(r: OrgConnectorActivation) {
@@ -333,6 +353,10 @@ async function cancelScheduled(eid: number) {
         @add-access="() => addAccess(selected!)" @remove-access="(pt, pid) => removeAccess(selected!, pt, pid)"
         @force-member="() => forceForMember(selected!)"
         @filters-changed="reloadFilters" @email-changed="reloadEmail" />
+
+      <CredentialFieldsDialog v-if="credConn" v-model:open="credOpen"
+        :label="credConn.label" :fields="credConn.fields ?? []" :single="false"
+        :on-confirm="doSetOrgCred" />
 
       <!-- Envois programmés — carton unique en pied (tous connecteurs email confondus) -->
       <ConsoleCard v-if="hasEmailSenders" title="envois programmés"

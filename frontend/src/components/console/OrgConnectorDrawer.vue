@@ -61,8 +61,10 @@ function principalLabel(e: ConnectorAclEntry): string {
   return m?.name || m?.email || e.principal_id
 }
 
-// Clé partagée d'org : possible pour les connecteurs à clé simple (api_key).
-const canHaveOrgKey = computed(() => props.meta?.secret_kind === 'api_key')
+// Clé partagée d'org : clé simple (api_key) OU multi-champs (fields — zoho, silae,
+// zohodesk…). Le backend accepte `fields` sur PUT /api/orgs/{id}/secrets/{provider}.
+const canHaveOrgKey = computed(() =>
+  props.meta?.secret_kind === 'api_key' || props.meta?.secret_kind === 'fields')
 
 // Rédaction par connecteur : schéma observé/déclaré + règles effectives (org sinon défaut).
 const tf = computed(() => {
