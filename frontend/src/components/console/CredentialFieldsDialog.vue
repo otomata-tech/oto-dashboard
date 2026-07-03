@@ -14,7 +14,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/comp
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
-interface Field { name: string; label: string; secret?: boolean; required?: boolean }
+interface Field { name: string; label: string; secret?: boolean; required?: boolean; help?: string }
 
 const props = defineProps<{
   open: boolean
@@ -77,7 +77,7 @@ const submit = handleSubmit(async (values) => {
               <Input
                 :type="f.secret ? 'password' : 'text'"
                 autocomplete="off"
-                :placeholder="single ? `colle ta clé ${label}` : ''"
+                :placeholder="f.help || (single ? `colle ta clé ${label}` : '')"
                 v-bind="componentField"
               />
             </FormControl>
