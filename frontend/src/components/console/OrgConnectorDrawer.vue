@@ -14,7 +14,10 @@ import ConnectorEmail from './ConnectorEmail.vue'
 import Tag from './Tag.vue'
 import Toggle from './Toggle.vue'
 import Btn from './Btn.vue'
-import type { ConnectorAclEntry, ConnectorMeta, EmailSettingsBundle, FieldFiltersBundle, GroupListItem, OrgConnectorActivation, OrgMember } from '@/types/api'
+import { verifyConnector } from '@/api/console'
+import { useToast } from '@/composables/useToast'
+import { humanize } from '@/lib/errors'
+import type { ConnectorAclEntry, ConnectorMeta, EmailSettingsBundle, FieldFiltersBundle, GroupListItem, OrgConnectorActivation, OrgMember, VerifyResult } from '@/types/api'
 
 const props = defineProps<{
   activation: OrgConnectorActivation
@@ -65,6 +68,25 @@ function principalLabel(e: ConnectorAclEntry): string {
 // zohodesk…). Le backend accepte `fields` sur PUT /api/orgs/{id}/secrets/{provider}.
 const canHaveOrgKey = computed(() =>
   props.meta?.secret_kind === 'api_key' || props.meta?.secret_kind === 'fields')
+
+// Sonde « tester la connexion » de la clé D'ORG (level='org' → le backend teste la clé
+// de l'org consultée, pas une clé perso qui la masquerait). Self-contained (read-only,
+// résultat éphémère) : exception assumée à la « présentation pure » de ce drawer.
+const { toast } = useToast()
+const canTestOrg = computed(() => !!props.meta?.verifiable && props.hasOrgKey)
+const testing = ref(false)
+const testRes = ref<VerifyResult | null>(null)
+async function testOrgConnection() {
+  testing.value = true
+  testRes.value = null
+  try {
+    testRes.value = await verifyConnector(r.value.connector, 'org')
+  } catch (e) {
+    toast(humanize(e))
+  } finally {
+    testing.value = false
+  }
+}
 
 // Rédaction par connecteur : schéma observé/déclaré + règles effectives (org sinon défaut).
 const tf = computed(() => {
@@ -135,7 +157,14 @@ const subtitle = computed(() =>
               <button class="oclink" @click="emit('set-key')">{{ hasOrgKey ? 'remplacer' : 'poser' }}</button>
               <button v-if="hasOrgKey" class="oclink oclink-danger" @click="emit('remove-key')">retirer</button>
             </template>
+            <button v-if="canTestOrg" class="oclink" :disabled="testing" @click="testOrgConnection">
+              {{ testing ? 'test…' : 'tester' }}
+            </button>
           </div>
+          <p v-if="testRes" class="helptext" style="margin: 8px 0 0"
+             :style="{ color: testRes.ok ? 'var(--color-olive)' : 'var(--color-terra-ink)' }">
+            {{ testRes.ok ? '✓ connexion OK' : `✗ ${testRes.error}` }}
+          </p>
         </div>
 
         <!-- option de connecteur (couche 3) -->

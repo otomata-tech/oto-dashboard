@@ -17,7 +17,7 @@ import CredentialFieldsDialog from '@/components/console/CredentialFieldsDialog.
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
-import { getMyConnectors, getTools, getToolRegistry, setCredential, deleteApiKey } from '@/api/console'
+import { getMyConnectors, getTools, getToolRegistry, setCredential, deleteApiKey, verifyConnector } from '@/api/console'
 import type { ConnectorState, MyConnector, ToolEntry } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
@@ -145,6 +145,8 @@ async function doSetCredential(values: Record<string, string>) {
   try { await setCredential(c.name, values); toast(`${c.label} ${single ? 'key saved' : 'connected'}`); await reload() }
   catch (e) { toast(humanize(e)); throw e }
 }
+// Sonde câblée au dialog quand le connecteur est vérifiable (teste juste après la pose).
+const doVerifyCred = () => verifyConnector(credConnector.value!.name)
 async function removeKey(c: MyConnector) {
   if (!await confirmAction({ title: 'remove key', danger: true, confirmLabel: 'remove', message: `remove your ${c.label} key?` })) return
   try { await deleteApiKey(c.name); toast('key removed'); await reload() }
@@ -226,7 +228,8 @@ async function removeKey(c: MyConnector) {
       :label="credConnector.label"
       :fields="credConnector.credential_fields ?? []"
       :single="(credConnector.credential_fields ?? []).length === 1"
-      :on-confirm="doSetCredential" />
+      :on-confirm="doSetCredential"
+      :verify="credConnector.verifiable ? doVerifyCred : undefined" />
   </div>
 </template>
 

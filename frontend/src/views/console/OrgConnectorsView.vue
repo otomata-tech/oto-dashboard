@@ -22,7 +22,7 @@ import { useMe } from '@/composables/useMe'
 import {
   getOrgConnectorActivation, setOrgConnectorActivation, clearOrgConnectorActivation,
   getOrgFieldFilters, getOrgEmailSettings, listScheduledEmails, cancelScheduledEmail,
-  getConnectors, getOrg, setOrgSecret, deleteOrgSecret,
+  getConnectors, getOrg, setOrgSecret, deleteOrgSecret, verifyConnector,
   getConnectorAcl, setConnectorAccess, clearConnectorAccess, forceConnectorForMember, listGroups,
 } from '@/api/console'
 import type {
@@ -44,7 +44,7 @@ const meta = ref<Record<string, ConnectorMeta>>({})   // catalogue (secret_kind�
 
 // Clé d'org multi-champs (zoho/silae/zohodesk…) : saisie via CredentialFieldsDialog.
 const credOpen = ref(false)
-const credConn = ref<{ label: string; provider: string; fields: ConnectorMeta['credential_fields'] } | null>(null)
+const credConn = ref<{ label: string; provider: string; fields: ConnectorMeta['credential_fields']; verifiable: boolean } | null>(null)
 const orgSecrets = ref<Set<string>>(new Set())        // connecteurs avec une clé partagée d'org
 const acl = ref<ConnectorAclEntry[]>([])              // RBAC connecteur (ADR 0025)
 const groups = ref<GroupListItem[]>([])               // départements de l'org (picker)
@@ -124,7 +124,7 @@ function setKey(r: OrgConnectorActivation) {
   // Connecteur multi-champs (secret_kind=fields) → dialog N-champs, comme côté user.
   const m = meta.value[r.connector]
   if (m?.secret_kind === 'fields' && (m.credential_fields?.length ?? 0) > 0) {
-    credConn.value = { label: r.label, provider: r.connector, fields: m.credential_fields }
+    credConn.value = { label: r.label, provider: r.connector, fields: m.credential_fields, verifiable: m.verifiable }
     credOpen.value = true
     return
   }
@@ -147,6 +147,8 @@ async function doSetOrgCred(values: Record<string, string>) {
   try { await setOrgSecret(activeOrgId.value!, c.provider, '', undefined, values); toast(`${c.label} : clé d'org enregistrée`); await load() }
   catch (e) { toast(humanize(e)); throw e }
 }
+// Sonde câblée au dialog d'org : teste la clé DE L'ORG juste après la pose (level='org').
+const doVerifyOrgCred = () => verifyConnector(credConn.value!.provider, 'org')
 
 async function removeKey(r: OrgConnectorActivation) {
   if (!isOrgAdmin.value) return
@@ -356,7 +358,8 @@ async function cancelScheduled(eid: number) {
 
       <CredentialFieldsDialog v-if="credConn" v-model:open="credOpen"
         :label="credConn.label" :fields="credConn.fields ?? []" :single="false"
-        :on-confirm="doSetOrgCred" />
+        :on-confirm="doSetOrgCred"
+        :verify="credConn.verifiable ? doVerifyOrgCred : undefined" />
 
       <!-- Envois programmés — carton unique en pied (tous connecteurs email confondus) -->
       <ConsoleCard v-if="hasEmailSenders" title="envois programmés"

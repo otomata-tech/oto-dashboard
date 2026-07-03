@@ -17,9 +17,9 @@ import ConnectorHostedWidget from './ConnectorHostedWidget.vue'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
-import { selectConnector, pauseConnector, unselectConnector, enableTool, disableTool } from '@/api/console'
+import { selectConnector, pauseConnector, unselectConnector, enableTool, disableTool, verifyConnector } from '@/api/console'
 import type { ConnectorMode } from '@/lib/consoleTypes'
-import type { ConnectorState, MyConnector, ToolEntry } from '@/types/api'
+import type { ConnectorState, MyConnector, ToolEntry, VerifyResult } from '@/types/api'
 
 const props = defineProps<{
   connector: MyConnector
@@ -94,6 +94,23 @@ const statusMode = computed<ConnectorMode>(() => {
 })
 const keyConfigured = computed(() => !!status.value?.user_key_configured)
 const needsKey = computed(() => connKind.value === 'key')
+
+// Sonde « tester la connexion » (self-contained, patron ConnectorSessionConnect) :
+// dispo si le connecteur a une sonde ET qu'un credential résout (perso ou en cascade).
+const canTest = computed(() => c.value.verifiable && statusMode.value !== 'none')
+const testing = ref(false)
+const testRes = ref<VerifyResult | null>(null)
+async function testConnection() {
+  testing.value = true
+  testRes.value = null
+  try {
+    testRes.value = await verifyConnector(c.value.name)
+  } catch (e) {
+    toast(humanize(e))
+  } finally {
+    testing.value = false
+  }
+}
 function nodeCls(mode: ConnectorMode): string {
   return 'node' + (statusMode.value === mode ? ' win' : '')
 }
@@ -194,13 +211,20 @@ async function setAllTools(on: boolean) {
           </div>
           <p class="helptext" style="margin: 11px 0 0">{{ keyStatus }}<span v-if="statusMode === 'platform' && status?.platform_key_label" class="dim"> ({{ status.platform_key_label }})</span></p>
           <Quota v-if="status?.quota_daily" style="margin-top: 12px" :used="status.quota_used_today" :total="status.quota_daily" label="daily quota" />
-          <div style="display: flex; gap: 8px; margin-top: 14px">
+          <div style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap">
             <template v-if="keyConfigured">
               <Btn kind="mini" @click="emit('configure', c)">override key</Btn>
               <Btn kind="danger" @click="emit('remove', c)">remove key</Btn>
             </template>
             <Btn v-else kind="mini" @click="emit('configure', c)">connect {{ c.label }}</Btn>
+            <Btn v-if="canTest" kind="mini" :disabled="testing" @click="testConnection">
+              {{ testing ? 'test…' : 'test connection' }}
+            </Btn>
           </div>
+          <p v-if="testRes" class="helptext" style="margin: 10px 0 0"
+             :style="{ color: testRes.ok ? 'var(--color-olive)' : 'var(--color-terra-ink)' }">
+            {{ testRes.ok ? '✓ connexion OK' : `✗ ${testRes.error}` }}
+          </p>
         </div>
 
         <ConnectorOAuthAccounts v-else-if="connKind === 'google'" />

@@ -56,6 +56,16 @@ export interface ConnectorMeta {
   credential_fields: CredentialField[]
   free_tier: { daily_quota: number } | null   // ADR 0031 — clé plateforme offerte (quota gratuit/jour/user)
   identities: boolean        // ADR 0024 — sélecteur d'identité/cible par défaut (pennylaneged : la GED cible)
+  verifiable: boolean        // le connecteur a une sonde « tester la connexion » (zoho…) — bouton de test
+}
+
+// Retour d'une sonde de credential (POST /api/me/connectors/{provider}/verify).
+// `ok:false` porte le message provider actionnable (l'erreur d'auth EST le résultat).
+export interface VerifyResult {
+  ok: boolean
+  provider: string
+  error?: string
+  elapsed_ms?: number
 }
 
 // État de sélection marketplace d'un connecteur pour le membre (ADR 0019).

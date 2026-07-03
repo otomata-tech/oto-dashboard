@@ -9,7 +9,7 @@ import type {
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
   ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
-  ToolRegistryEntry, ToolDetail, ToolCallResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
+  ToolRegistryEntry, ToolDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   MementoStatus, MementoWorkspaces, MementoPages, MementoDocument, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
   ReferralLink, InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
@@ -46,6 +46,14 @@ export const setCredential = (provider: string, fields: Record<string, string>) 
   api(`/api/settings/api-keys/${provider}`, { method: 'POST', ...j(fields) })
 export const deleteApiKey = (provider: string) =>
   api(`/api/settings/api-keys/${provider}`, { method: 'DELETE' })
+
+// Sonde « tester la connexion » (framework de vérification de credential). Résout le
+// credential et vérifie qu'il authentifie réellement, en remontant le vrai message
+// provider. `level='auto'` (défaut) = le credential effectif ; `level='org'` = la clé
+// DE L'ORG consultée (l'en-tête X-Oto-Org est injecté par api()).
+export const verifyConnector = (provider: string, level: 'auto' | 'org' = 'auto') =>
+  api<VerifyResult>(`/api/me/connectors/${encodeURIComponent(provider)}/verify`,
+    { method: 'POST', ...j({ level }) })
 
 // ── sessions navigateur (brevo, crunchbase) — Live View Browserbase ──
 // Connexion DEPUIS le dashboard : `start` ouvre un navigateur distant et renvoie
