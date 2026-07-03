@@ -18,6 +18,7 @@ export interface CredentialField {
   label: string
   secret: boolean
   help?: string              // aide de saisie (ex. « ex. https://eu1.make.com »)
+  required?: boolean         // false = facultatif (connecteur « ET/OU » type slack, ≥1 champ au total)
 }
 // Section de doc « how-to » d'un connecteur (user-facing, markdown) — rendue
 // partout où le connecteur s'affiche. `kind` = type curé (ordre + icône).

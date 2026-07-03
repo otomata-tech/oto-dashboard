@@ -14,7 +14,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/comp
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
-interface Field { name: string; label: string; secret?: boolean }
+interface Field { name: string; label: string; secret?: boolean; required?: boolean }
 
 const props = defineProps<{
   open: boolean
@@ -25,11 +25,19 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ (e: 'update:open', value: boolean): void }>()
 
+// Un champ `required:false` (connecteur « ET/OU » type slack) peut rester vide,
+// mais il faut au moins un champ renseigné au total — même règle que le backend.
 const schema = computed(() =>
   toTypedSchema(
     z.object(Object.fromEntries(
-      props.fields.map((f) => [f.name, z.string().trim().min(1, 'requis')]),
-    )),
+      props.fields.map((f) => [
+        f.name,
+        f.required === false ? z.string().trim() : z.string().trim().min(1, 'requis'),
+      ]),
+    )).refine(
+      (v) => Object.values(v).some((s) => s.length > 0),
+      { message: 'renseigne au moins un champ', path: [props.fields[0]?.name ?? ''] },
+    ),
   ),
 )
 
@@ -64,7 +72,7 @@ const submit = handleSubmit(async (values) => {
       <form class="grid gap-4" @submit.prevent="submit">
         <FormField v-for="f in fields" :key="f.name" v-slot="{ componentField }" :name="f.name">
           <FormItem>
-            <FormLabel>{{ f.label.toLowerCase() }}</FormLabel>
+            <FormLabel>{{ f.label.toLowerCase() }}<span v-if="f.required === false" class="dim"> · optionnel</span></FormLabel>
             <FormControl>
               <Input
                 :type="f.secret ? 'password' : 'text'"
