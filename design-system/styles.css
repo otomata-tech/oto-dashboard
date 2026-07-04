@@ -1,0 +1,9 @@
+/* ════════════════════════════════════════════════════════════════════
+ * oto console — design system entry point
+ * Consumers link THIS file. It only @imports; no rules live here.
+ * Palette « Manuscrit chaud » ported from otomata-tech/oto-dashboard.
+ * ════════════════════════════════════════════════════════════════════ */
+@import "./tokens/fonts.css";
+@import "./tokens/colors.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";

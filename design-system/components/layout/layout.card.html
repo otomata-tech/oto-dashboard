@@ -1,0 +1,62 @@
+<!-- @dsCard group="Components" viewport="720x470" name="Layout — Shell, Sidebar, Topbar" subtitle="Dark ink sidebar + topbar + content, composed" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,400..700;1,400..700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../styles.css" />
+<script src="../../_ds_bundle.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  html, body { margin: 0; background: var(--color-bg); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const NS = window.OtoConsoleDesignSystem_517927;
+  const { Shell, Content, Sidebar, SidebarGroup, SidebarItem, Identity, UserMenu, Topbar, OrgPill, PageHeader, Stat, Dot } = NS;
+  function Demo() {
+    const [cur, setCur] = React.useState("/overview");
+    return (
+      <Shell style={{ height: 470 }} sidebar={
+        <Sidebar
+          brand={<Identity org="Otomata" kicker="votre contexte" role="admin" />}
+          foot={<div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,fontFamily:"var(--font-mono)",fontSize:10,letterSpacing:"0.1em",textTransform:"uppercase",color:"var(--sidebar-fg-mute)"}}><Dot tone="olive" size={7}/> mcp connected</div>
+            <UserMenu name="Jean-Baptiste" email="jb@oto.ninja" />
+          </div>}
+        >
+          <SidebarGroup>
+            <SidebarItem icon="overview" active={cur==="/overview"} onClick={()=>setCur("/overview")}>overview</SidebarItem>
+            <SidebarItem icon="context" active={cur==="/context"} onClick={()=>setCur("/context")}>context</SidebarItem>
+          </SidebarGroup>
+          <SidebarGroup label="workspace">
+            <SidebarItem icon="projects" active={cur==="/projects"} onClick={()=>setCur("/projects")}>projects</SidebarItem>
+            <SidebarItem icon="connectors" count="7/12" active={cur==="/connectors"} onClick={()=>setCur("/connectors")}>connectors</SidebarItem>
+            <SidebarItem icon="procedures" active={cur==="/procedures"} onClick={()=>setCur("/procedures")}>procédures</SidebarItem>
+          </SidebarGroup>
+          <SidebarGroup label="memory">
+            <SidebarItem icon="data" active={cur==="/data"} onClick={()=>setCur("/data")}>données</SidebarItem>
+            <SidebarItem icon="documents" active={cur==="/documents"} onClick={()=>setCur("/documents")}>documents</SidebarItem>
+          </SidebarGroup>
+        </Sidebar>
+      }>
+        <Topbar title="overview" crumb="app.oto.ninja" actions={<OrgPill name="Otomata" />} />
+        <Content>
+          <PageHeader dot="olive" eyebrow="studio open · all systems nominal" />
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
+            <Stat label="connectors live" value="7" unit="/ 12" sub="api keys resolvable" />
+            <Stat label="calls · 7 days" value="1,204" spark={[4,6,5,9,7,11,8]} sub="12 errors · 1%" />
+            <Stat label="active org" value="Otomata" sub="you · org_admin" />
+          </div>
+        </Content>
+      </Shell>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+</script>
+</body>
+</html>

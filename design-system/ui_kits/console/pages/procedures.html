@@ -1,0 +1,45 @@
+<!-- @dsCard group="Pages" viewport="1280x760" name="Procedures / doctrine page" subtitle="The doctrine editor — agent readme + referenced tools" -->
+<!-- @startingPoint section="Pages" subtitle="Doctrine editor page — mono textarea + tool tags" viewport="1280x760" -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,400..700;1,400..700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Oto — procédures</title>
+<link rel="icon" type="image/svg+xml" href="../../../assets/favicon.svg" />
+<link rel="stylesheet" href="../../../styles.css" />
+<script src="../../../_ds_bundle.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>html, body { margin: 0; height: 100%; background: var(--color-bg); } #root { height: 100vh; }</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="frame.jsx"></script>
+<script type="text/babel">
+  const { Card, Textarea, Tag, Button, Alert } = window.OtoConsoleDesignSystem_517927;
+  const DOC = "# Contexte\n\nOto automatise la prospection B2B pour les PME industrielles.\nCible : dirigeants, 10–250 salariés, France.\n\n## Règles CRM\n- Toujours vérifier le SIREN avant d'écrire dans Pipedrive.\n- Ne jamais contacter deux fois la même entreprise en 30 jours.\n\n## Ton\n- Direct, tutoiement, pas de jargon.";
+  function Page() {
+    return (
+      <Frame title="procédures" crumb="workspace" active="/procedures">
+        <Alert tone="info" title="readme de l'agent">injecté au début de chaque session : contexte métier, règles CRM, ton, garde-fous.</Alert>
+        <Card title="doctrine" sub="markdown — lu par vos agents à chaque session." actions={<><Button kind="ghost">Prévisualiser</Button><Button kind="accent">Publier</Button></>}>
+          <Textarea doctrine defaultValue={DOC} />
+        </Card>
+        <Card title="outils référencés" sub="détectés dans la doctrine ci-dessus.">
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Tag tone="cobalt">recherche_entreprises.search</Tag>
+            <Tag tone="cobalt">pipedrive.upsert</Tag>
+            <Tag tone="cobalt">gmail.send</Tag>
+            <Tag tone="cobalt">sheets.append</Tag>
+          </div>
+        </Card>
+      </Frame>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById("root")).render(<Page />);
+</script>
+</body>
+</html>

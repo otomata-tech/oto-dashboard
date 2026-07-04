@@ -1,0 +1,49 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Data — Card, Stat, Tag, Dot, Quota" subtitle="KPIs, cards, status pills and bars" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,400..700;1,400..700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../styles.css" />
+<script src="../../_ds_bundle.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  body { margin: 0; background: var(--color-bg); font-family: var(--font-sans); color: var(--color-ink); }
+  .wrap { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+  .g4 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { Card, Stat, Tag, Dot, Quota, Button } = window.OtoConsoleDesignSystem_517927;
+  function Demo() {
+    return (
+      <div className="wrap">
+        <div className="g4">
+          <Stat label="connectors live" value="7" unit="/ 12" sub="api keys resolvable" />
+          <Stat label="calls · 7 days" value="1,204" spark={[3,5,4,8,6,9,7]} sub="12 errors · 1%" />
+          <Stat label="errors" value="12" unit="1%" tone="var(--color-terra-ink)" sub="across all callers" />
+        </div>
+        <Card title="active connectors" sub="providers resolvable for your tools right now"
+          actions={<Button kind="mini" icon="plus">add a key</Button>}>
+          <div className="row" style={{marginBottom:12}}>
+            <Tag tone="olive"><Dot tone="olive" size={6} />live</Tag>
+            <Tag tone="saffron">partial</Tag>
+            <Tag tone="terra">error</Tag>
+            <Tag tone="cobalt">personal</Tag>
+            <Tag tone="ink">org</Tag>
+            <Tag>neutral</Tag>
+          </div>
+          <Quota used={840} total={1000} label="serper · platform pool" />
+        </Card>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+</script>
+</body>
+</html>

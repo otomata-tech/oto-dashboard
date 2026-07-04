@@ -304,3 +304,34 @@ niveau USER — `GET/PUT /api/me/agent-readme`, injecté à chaque session aprè
 - CORS : ajouter le domaine du dashboard à la whitelist oto-mcp (`OTO_MCP_CORS_ORIGINS` / défauts dans `api_routes.py`) avant tout déploiement
 - ⚠️ **Avant push : typecheck PROPRE** (`rm -f frontend/*.tsbuildinfo; cd frontend && npx vue-tsc --noEmit`). Le cache incrémental `tsbuildinfo` ne re-vérifie PAS les fichiers non touchés → un changement de nullabilité dans `types/api.ts` peut casser un consommateur ailleurs (`vue-tsc` local vert) tandis que le **build propre du CI** (job `test`) le rejette. Vécu 2026-06-22 (`AlphaInvite.email` passé nullable → `resendAlphaInvite` cassé).
   > **Second vecteur local-vert-CI-rouge : working tree ≠ arbre commité.** `vue-tsc` local compile le **working tree** ; le CI compile l'**arbre commité**. Sur ce tree partagé (`/data/oto`), le working tree porte souvent du WIP d'une session parallèle **ou** un correctif du linter non commité → le typecheck local passe alors que le commité casse. Corollaires : (a) après un `git add` large, vérifier qu'on n'a pas emporté un hunk étranger (retrait d'un symbole encore consommé par un fichier resté à l'ancienne version → build rouge) ; fix = `git checkout <sha-main> -- <fichier>` puis re-appliquer **seulement** ses ajouts additifs. (b) Si le CI pointe une ligne verte en local, comparer `git show HEAD:<fichier>` au working tree avant de conclure. Vécu 2026-07-02 (section Context : presets emportés + `ContextView.vue:45` corrigé par le linter mais non commité).
+
+## Design system — règles front (DRY, non négociables)
+
+Source de vérité visuelle : le DS **« Oto Console »** livré par JB Fleury, déposé dans
+**`design-system/`** (brief `design-system/DESIGN-BRIEF.md` = le *pourquoi*, à lire d'abord ;
+inventaire `design-system/readme.md` ; tokens `design-system/tokens/*.css` ; composants de
+référence en JSX/`.d.ts`/`.prompt.md`/`*.card.html`). Le catalogue d'usage des classes
+`console.css` reste `DESIGN.md` (racine). En cas de conflit repo ↔ brief, **le brief gagne**.
+Skill dédiée : `.claude/skills/oto-frontend`.
+
+Direction **« 2a »** : sidebar **encre** (`--sidebar-bg #2c2112`, texte crème ; actif = aplat
+saffron), cartes chaudes (filet doux `#ede1bd` + `--shadow-card`, **jamais de bord noir**),
+rayons **8px ou pill uniquement**, boutons **tous pill + casse normale**, typo Familjen Grotesk +
+**Spline Sans Mono** (voix technique, retirer JetBrains Mono), icônes **Lucide** (`@lucide/vue`),
+logo **« O ouvert »**.
+
+- **Réutiliser avant d'écrire.** Toujours composer les classes `console.css` et les composants
+  existants. Ne jamais redéfinir un style qui existe déjà.
+- **Zéro valeur magique.** Couleurs, rayons, espacements, ombres, polices → uniquement via `var(--…)`.
+  Rayons : `--radius-md` (8px) ou `--radius-pill`. Rien d'autre.
+- **Accents = sens**, jamais décoratif. Icônes = Lucide, jamais de SVG dessiné à la main, jamais d'emoji.
+- **Besoin récurrent (≥2×) manquant → créer un composant** dans le design system (documenté),
+  puis l'utiliser. Étendre le système, jamais bricoler dans une vue.
+- **Contraste** : petits libellés lisibles (mute `#675a3c`, faint `#6d603f`). Vérifier WCAG.
+- Le DS est fourni en **React** : **porter en Vue**, ne pas copier les `.jsx` tels quels.
+- Toute nouvelle vue rend **empty / error / loading** explicitement.
+
+> **État d'intégration.** DS déposé + doctrine + skill posés (doc d'abord). Le portage effectif
+> (tokens → sidebar → boutons → champs → icônes Lucide → logo → composants manquants → audit des
+> vues) suit le plan en 8 étapes du `design-system/handoff-alexis.md`, par barreaux vérifiés — **non
+> encore réalisé**.

@@ -1,0 +1,50 @@
+<!-- @dsCard group="Pages" viewport="1280x760" name="Settings / form page" subtitle="Narrow form layout — profile, preferences, danger zone" -->
+<!-- @startingPoint section="Pages" subtitle="Settings page — narrow form layout" viewport="1280x760" -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,400..700;1,400..700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Oto — paramètres</title>
+<link rel="icon" type="image/svg+xml" href="../../../assets/favicon.svg" />
+<link rel="stylesheet" href="../../../styles.css" />
+<script src="../../../_ds_bundle.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>html, body { margin: 0; height: 100%; background: var(--color-bg); } #root { height: 100vh; }</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="frame.jsx"></script>
+<script type="text/babel">
+  const { Card, Field, Input, Switch, Select, Button } = window.OtoConsoleDesignSystem_517927;
+  function Page() {
+    const [dense, setDense] = React.useState(true);
+    const [lang, setLang] = React.useState("fr");
+    return (
+      <Frame title="paramètres" crumb="compte" active="/overview" narrow>
+        <Card title="profil" sub="vos informations de compte.">
+          <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+            <Field label="nom"><Input defaultValue="Jean-Baptiste" /></Field>
+            <Field label="email"><Input defaultValue="jb@oto.ninja" /></Field>
+            <div><Button kind="accent">Enregistrer</Button></div>
+          </div>
+        </Card>
+        <Card title="préférences">
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <Field label="langue"><Select value={lang} onChange={setLang} options={[{value:"fr",label:"Français"},{value:"en",label:"English"}]} /></Field>
+            <Switch checked={dense} onChange={() => setDense(!dense)} label="Mode dense" />
+          </div>
+        </Card>
+        <Card title="zone de danger" sub="ces actions sont irréversibles.">
+          <Button kind="danger" icon="trash-2">Supprimer le compte</Button>
+        </Card>
+      </Frame>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById("root")).render(<Page />);
+</script>
+</body>
+</html>

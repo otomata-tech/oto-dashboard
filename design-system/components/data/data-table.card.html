@@ -1,0 +1,58 @@
+<!-- @dsCard group="Components" viewport="700x360" name="Data — Table, Tabs, DayBars, Skeleton" subtitle="Tables, section tabs, activity bars, loading" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,400..700;1,400..700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../styles.css" />
+<script src="../../_ds_bundle.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  body { margin: 0; background: var(--color-bg); font-family: var(--font-sans); color: var(--color-ink); }
+  .wrap { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const NS = window.OtoConsoleDesignSystem_517927;
+  const { Card, Table, Tabs, DayBars, Skeleton, Dot, Tag } = NS;
+  const rows = [
+    { tool: "recherche_entreprises.search", calls: 412, err: 0 },
+    { tool: "gmail.send", calls: 208, err: 2 },
+    { tool: "sheets.append", calls: 173, err: 1 },
+    { tool: "hunter.find", calls: 96, err: 7 },
+  ];
+  const cols = [
+    { key: "d", label: "", width: 20, render: (r) => <Dot tone={r.err ? "terra" : "olive"} size={7} /> },
+    { key: "tool", label: "tool", mono: true },
+    { key: "calls", label: "calls", align: "right", render: (r) => r.calls },
+    { key: "st", label: "", align: "right", render: (r) => <Tag tone={r.err ? "terra" : "olive"}>{r.err} err</Tag> },
+  ];
+  function Demo() {
+    const [tab, setTab] = React.useState("tools");
+    return (
+      <div className="wrap">
+        <Tabs value={tab} onChange={setTab} tabs={[{key:"tools",label:"top tools"},{key:"users",label:"active users"},{key:"errors",label:"errors"}]} />
+        <div style={{display:"grid",gridTemplateColumns:"1.5fr 1fr",gap:14,alignItems:"start"}}>
+          <Card title="recent · top tools" flush>
+            <Table columns={cols} rows={rows} />
+          </Card>
+          <Card title="calls · 7 days" sub="terra = failures">
+            <DayBars data={[[38,2],[52,0],[44,3],[61,1],[49,0],[70,4],[58,1]]} />
+          </Card>
+        </div>
+        <Card title="loading">
+          <div style={{display:"flex",gap:10}}>
+            <Skeleton w="30%" h={14} /><Skeleton w="20%" h={14} /><Skeleton w="25%" h={14} />
+          </div>
+        </Card>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+</script>
+</body>
+</html>
