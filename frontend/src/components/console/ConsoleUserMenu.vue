@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import Icon from './Icon.vue'
 import Avatar from './Avatar.vue'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
+import { useMyOrgs } from '@/composables/useMyOrgs'
 import { useAuth } from '@/composables/useAuth'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
@@ -18,6 +19,7 @@ import AccountViewAs from './AccountViewAs.vue'
 // org = org_admin de l'org courante, plateforme = opérateur plateforme.
 const route = useRoute()
 const { me } = useMe()
+const { prefetch } = useMyOrgs()   // orgs+équipes préchargées au survol → popin instantanée
 const { logout } = useAuth()
 const { closeNav } = useNav()
 const { level } = useScope()
@@ -127,6 +129,8 @@ function go() {
       :aria-expanded="open"
       aria-haspopup="menu"
       aria-label="menu du compte"
+      @pointerenter="prefetch"
+      @focus="prefetch"
       @click="open = !open"
     >
       <Avatar :src="me?.avatar_url" :name="me?.name || me?.email" :size="26" />

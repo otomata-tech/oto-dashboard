@@ -3,8 +3,9 @@ import { computed, onMounted, ref } from 'vue'
 import Icon from './Icon.vue'
 import Avatar from './Avatar.vue'
 import { useMe } from '@/composables/useMe'
+import { useMyOrgs } from '@/composables/useMyOrgs'
 import { useToast } from '@/composables/useToast'
-import { getMyOrgs, createMyOrg, listGroups } from '@/api/console'
+import { createMyOrg } from '@/api/console'
 import { setViewOrg, setViewGroup } from '@/lib/viewOrg'
 import type { Org, GroupListItem } from '@/types/api'
 
@@ -22,13 +23,14 @@ import type { Org, GroupListItem } from '@/types/api'
 const emit = defineEmits<{ switched: [] }>()
 
 const { me } = useMe()
+const { orgs, loadOrgs, loadMyTeams: loadTeamsOf } = useMyOrgs()
 const { toast } = useToast()
 
-const orgs = ref<Org[]>([])
 const loading = ref(false)
 const switching = ref(false)
 const creating = ref(false)
 const newName = ref('')
+const filter = ref('')
 
 // Équipes de l'org courante dont JE suis membre (my_role != null).
 const myTeams = ref<GroupListItem[]>([])
@@ -37,17 +39,24 @@ function msg(e: unknown, fallback: string) {
   return e instanceof Error && e.message ? e.message : fallback
 }
 
-async function loadOrgs() {
-  loading.value = true
-  try { orgs.value = (await getMyOrgs()).orgs }
-  catch (e) { toast(msg(e, 'impossible de charger tes organisations')) }
-  finally { loading.value = false }
-}
+// Org active épinglée en tête, le reste en ordre alpha (scannable quand il y en
+// a beaucoup) ; au-delà de quelques orgs, un filtre + un scroll interne à la liste
+// (les entrées de gestion de la popin restent toujours visibles).
+const sorted = computed(() => {
+  const active = me.value?.active_org
+  return [...(orgs.value ?? [])].sort((a, b) =>
+    (b.id === active ? 1 : 0) - (a.id === active ? 1 : 0)
+    || (a.name || '').localeCompare(b.name || '', 'fr'))
+})
+const filterable = computed(() => (orgs.value?.length ?? 0) > 7)
+const shown = computed(() => {
+  const needle = filter.value.trim().toLowerCase()
+  return needle ? sorted.value.filter((o) => (o.name || '').toLowerCase().includes(needle)) : sorted.value
+})
 
-// « Mes équipes dans l'org X » = groupes où my_role est non nul (l'API listGroups
-// renvoie my_role=null pour les équipes dont on n'est pas membre).
+// Équipes d'une org (cache module) — un échec ne bloque pas la bascule.
 async function myTeamsIn(orgId: number): Promise<GroupListItem[]> {
-  try { return (await listGroups(orgId)).groups.filter(g => g.my_role != null) }
+  try { return await loadTeamsOf(orgId) }
   catch { return [] }
 }
 
@@ -89,7 +98,16 @@ async function createOrg() {
 
 const showTeams = computed(() => myTeams.value.length > 0)
 
-onMounted(() => { loadOrgs(); loadMyTeams() })
+// SWR : cache présent (préchargé au survol ou ouverture précédente) → affichage
+// immédiat + refresh silencieux en fond ; sinon chargement visible.
+onMounted(async () => {
+  loadMyTeams()
+  if (orgs.value != null) { loadOrgs(true).catch(() => {}); return }
+  loading.value = true
+  try { await loadOrgs() }
+  catch (e) { toast(msg(e, 'impossible de charger tes organisations')) }
+  finally { loading.value = false }
+})
 </script>
 
 <template>
@@ -97,25 +115,32 @@ onMounted(() => { loadOrgs(); loadMyTeams() })
     <div class="ws-head">workspace</div>
 
     <div v-if="loading" class="ws-empty">chargement…</div>
-    <template v-else v-for="o in orgs" :key="o.id">
-      <button class="ws-opt" :class="{ on: o.id === me?.active_org }"
-              :disabled="switching" @click="pickOrg(o)">
-        <Avatar v-if="o.logo_url" :src="o.logo_url" :name="o.name" :size="18" shape="square" />
-        <span v-else class="ws-mono">{{ (o.name || '?').charAt(0).toUpperCase() }}</span>
-        <span class="ws-name">{{ o.name }}</span>
-        <span class="ws-tag">{{ o.my_role === 'org_admin' ? 'admin' : 'membre' }}</span>
-        <Icon v-if="o.id === me?.active_org" name="check" :size="14" class="ws-check" />
-      </button>
+    <template v-else>
+      <input v-if="filterable" v-model="filter" class="inp sm ws-filter"
+             placeholder="filtrer les workspaces…" aria-label="filtrer les workspaces" />
+      <div class="ws-list">
+        <template v-for="o in shown" :key="o.id">
+          <button class="ws-opt" :class="{ on: o.id === me?.active_org }"
+                  :disabled="switching" @click="pickOrg(o)">
+            <Avatar v-if="o.logo_url" :src="o.logo_url" :name="o.name" :size="18" shape="square" />
+            <span v-else class="ws-mono">{{ (o.name || '?').charAt(0).toUpperCase() }}</span>
+            <span class="ws-name">{{ o.name }}</span>
+            <span class="ws-tag">{{ o.my_role === 'org_admin' ? 'admin' : 'membre' }}</span>
+            <Icon v-if="o.id === me?.active_org" name="check" :size="14" class="ws-check" />
+          </button>
 
-      <!-- Ligne équipe : seulement sous l'org courante ET si j'y ai des équipes. -->
-      <div v-if="o.id === me?.active_org && showTeams" class="ws-teams">
-        <button v-for="g in myTeams" :key="g.id" class="ws-team"
-                :class="{ on: g.id === me?.active_group }"
-                :disabled="switching" @click="pickTeam(g)">
-          <Icon name="check" v-if="g.id === me?.active_group" :size="11" class="ws-team-check" />
-          <span class="ws-team-name">{{ g.name }}</span>
-          <span v-if="g.my_role === 'group_admin'" class="ws-team-tag">chef</span>
-        </button>
+          <!-- Ligne équipe : seulement sous l'org courante ET si j'y ai des équipes. -->
+          <div v-if="o.id === me?.active_org && showTeams" class="ws-teams">
+            <button v-for="g in myTeams" :key="g.id" class="ws-team"
+                    :class="{ on: g.id === me?.active_group }"
+                    :disabled="switching" @click="pickTeam(g)">
+              <Icon name="check" v-if="g.id === me?.active_group" :size="11" class="ws-team-check" />
+              <span class="ws-team-name">{{ g.name }}</span>
+              <span v-if="g.my_role === 'group_admin'" class="ws-team-tag">chef</span>
+            </button>
+          </div>
+        </template>
+        <div v-if="filterable && !shown.length" class="ws-empty">aucun workspace ne correspond</div>
       </div>
     </template>
 
@@ -140,6 +165,9 @@ onMounted(() => { loadOrgs(); loadMyTeams() })
   text-transform: uppercase; color: var(--color-faint); padding: 2px 9px 5px;
 }
 .ws-empty { padding: 8px 9px; font-size: 12px; color: var(--color-mute); }
+.ws-filter { margin: 0 0 4px; }
+/* la LISTE scrolle, pas la popin : gestion + logout restent toujours visibles */
+.ws-list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; max-height: 290px; }
 
 .ws-opt {
   display: flex; align-items: center; gap: 9px; width: 100%;
