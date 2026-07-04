@@ -16,17 +16,15 @@ import NameDialog from '@/components/console/NameDialog.vue'
 const ActivityChart = defineAsyncComponent(() => import('@/components/console/ActivityChart.vue'))
 import {
   getProject, updateProject, archiveProject, copyProject, setProjectTemplate, projectHandoff,
-  getProjectActivity, listDocs,
+  getProjectActivity,
   getResource, unshareResource, transferResource,
   listProjectFiles, uploadProjectFile, deleteProjectFile, setProjectFilePublic,
-  publishProjectShare, unpublishProjectShare,
   publishProjectMcp, unpublishProjectMcp, getProjectInventory,
 } from '@/api/console'
 import type { ProjectAudit } from '@/api/console'
 import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
-import { encryptForShare } from '@/lib/crypto'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useTransferOwnership } from '@/composables/useTransferOwnership'
@@ -47,12 +45,16 @@ const shareOpen = ref(false)
 const copyOpen = ref(false)
 const loaded = ref(false)
 const error = ref<string | null>(null)
-// Partage public CHIFFRÉ (zero-knowledge) : le lien COMPLET (avec la clé en fragment)
-// n'existe que côté navigateur. On le mémorise en localStorage pour le ré-afficher à la
-// revisite ; sinon on ne peut que re-publier (rotation de clé → nouveau lien).
-const publicLink = ref<string | null>(null)
-const publishing = ref(false)
-const pshareStoreKey = `oto:pshare:${projectId}`
+// URL de PARTAGE NAVIGABLE (lecture seule, humain) — mode `secret` uniquement (ADR 0032) :
+// sur `<slug>.share.oto.cx` la racine + /procedures//data//docs rendent l'UI, le MCP est au
+// path /mcp. Dérivée du slug (aucun secret) plutôt que calculée par le backend.
+const shareUrl = computed(() =>
+  project.value?.mcp_access === 'secret' && project.value.mcp_slug
+    ? `https://${project.value.mcp_slug}.share.oto.cx` : null)
+// URL du connecteur MCP à brancher dans Claude : share.oto.cx/mcp en secret, sinon la dérivée
+// backend (mcp.oto.cx/mcp pour anonymous/org).
+const mcpConnectUrl = computed(() =>
+  shareUrl.value ? `${shareUrl.value}/mcp` : (project.value?.mcp_url ?? null))
 
 const readOnly = computed(() => project.value?.can_write === false)   // #4b — proposer une modif au lieu d'éditer
 // Audit des liens (ADR 0035 B5) : morts / slots non bindés / procédures inertes.
@@ -73,8 +75,6 @@ async function load() {
   if (!Number.isFinite(projectId)) { error.value = 'Projet introuvable.'; loaded.value = true; return }
   try {
     project.value = await getProject(projectId)
-    // Ré-affiche le lien public complet mémorisé localement (si toujours partagé).
-    publicLink.value = project.value.public_shared ? localStorage.getItem(pshareStoreKey) : null
     await Promise.all([loadGrants(), loadActivity(), loadFiles(), loadAudit()])
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
@@ -195,54 +195,7 @@ async function transfer() {
   catch (e) { toast(humanize(e)) }
 }
 
-// ── partage PUBLIC CHIFFRÉ (zero-knowledge, ADR 0032 §3) ──
-// Chiffre un snapshot { brief + pages } DANS le navigateur avec une clé neuve, n'envoie
-// que le ciphertext au backend, et met la clé dans le fragment du lien. La plateforme
-// ne peut pas lire le projet partagé. Re-publier fait tourner la clé (ancien lien caduc).
-async function publishPublic() {
-  if (!project.value || publishing.value) return
-  publishing.value = true
-  try {
-    const { docs } = await listDocs(projectId)
-    const snapshot = {
-      v: 1,
-      name: project.value.name,
-      brief_md: project.value.brief_md ?? '',
-      docs: docs.map((d) => ({ id: d.id, parent_id: d.parent_id, title: d.title, body_md: d.body_md, kind: d.kind })),
-      shared_at: new Date().toISOString(),
-    }
-    const { ciphertext, keyFragment } = await encryptForShare(snapshot)
-    const { token, public_base_url } = await publishProjectShare(projectId, ciphertext)
-    const url = `${public_base_url}/p/p/${token}#${keyFragment}`
-    localStorage.setItem(pshareStoreKey, url)
-    publicLink.value = url
-    project.value = { ...project.value, public_shared: true }
-    await navigator.clipboard.writeText(url).catch(() => {})
-    toast('lien public chiffré copié — la clé ne quitte jamais ce navigateur')
-    await loadActivity()
-  } catch (e) { toast(humanize(e)) }
-  finally { publishing.value = false }
-}
-async function unpublishPublic() {
-  if (!project.value) return
-  if (!await confirmAction({ title: 'Retirer le partage public',
-    message: 'Le lien public deviendra immédiatement inaccessible. Continuer ?', confirmLabel: 'Retirer' })) return
-  try {
-    await unpublishProjectShare(projectId)
-    localStorage.removeItem(pshareStoreKey)
-    publicLink.value = null
-    project.value = { ...project.value, public_shared: false }
-    toast('partage public retiré')
-    await loadActivity()
-  } catch (e) { toast(humanize(e)) }
-}
-async function copyPublicLink() {
-  if (!publicLink.value) return
-  await navigator.clipboard.writeText(publicLink.value).catch(() => {})
-  toast('lien copié')
-}
-
-// ── Endpoint MCP dédié (`<slug>.mcp.oto.cx`, ADR 0032 amende #44) ──
+// ── Endpoint MCP dédié + partage navigable (`<slug>.{mcp,share}.oto.cx`, ADR 0032) ──
 const mcpBusy = ref(false)
 async function publishMcp() {
   if (!project.value || mcpBusy.value) return
@@ -259,14 +212,14 @@ async function publishMcp() {
   }
   const r = await promptForm({
     title: 'Publier en endpoint MCP',
-    description: 'Un sous-domaine dédié `<slug>.mcp.oto.cx` exposant un jeu d’outils figé, à brancher dans Claude/Mistral.',
+    description: 'Un sous-domaine dédié exposant un jeu d’outils figé, à brancher dans Claude/Mistral. En « secret », le sous-domaine `<slug>.share.oto.cx` est aussi une UI navigable (lecture seule).',
     fields: [
       { key: 'slug', label: 'Sous-domaine', value: project.value.mcp_slug ?? '',
-        placeholder: 'french-tech-marseille', required: false, hint: '→ <slug>.mcp.oto.cx (min. 3 car., a-z 0-9 -). En « secret », préfixe optionnel : un suffixe aléatoire est ajouté.' },
+        placeholder: 'french-tech-marseille', required: false, hint: '→ <slug>.mcp.oto.cx (public/org) ou <slug>.share.oto.cx (secret). Min. 3 car., a-z 0-9 -. En « secret », préfixe optionnel : un suffixe aléatoire est ajouté.' },
       { key: 'access', label: 'Accès', type: 'select', value: project.value.mcp_access && project.value.mcp_access !== 'off' ? project.value.mcp_access : 'anonymous',
         options: [
           { value: 'anonymous', label: 'Public · sans login, listé dans l’annuaire' },
-          { value: 'secret', label: 'Secret · sans login, URL non devinable (non listé)' },
+          { value: 'secret', label: 'Secret · URL non devinable, navigable (non listé)' },
           { value: 'org', label: 'Org · authentifié (membres de l’org, login Logto)' },
         ] },
       { key: 'tools', label: 'Outils exposés', type: 'textarea', value: toolsDefault,
@@ -303,9 +256,14 @@ async function unpublishMcp() {
   } catch (e) { toast(humanize(e)) }
 }
 async function copyMcpUrl() {
-  if (!project.value?.mcp_url) return
-  await navigator.clipboard.writeText(project.value.mcp_url).catch(() => {})
+  if (!mcpConnectUrl.value) return
+  await navigator.clipboard.writeText(mcpConnectUrl.value).catch(() => {})
   toast('URL copiée')
+}
+async function copyShareUrl() {
+  if (!shareUrl.value) return
+  await navigator.clipboard.writeText(shareUrl.value).catch(() => {})
+  toast('lien de partage copié')
 }
 </script>
 
@@ -388,52 +346,35 @@ async function copyMcpUrl() {
             </div>
           </section>
 
-          <!-- partage public chiffré (zero-knowledge, ADR 0032 §3) -->
-          <section class="surface-card">
-            <div class="card-eb-row">
-              <span class="card-eb">lien public · chiffré</span>
-              <Tag v-if="project.public_shared" tone="olive" title="Un lien public chiffré est actif">actif</Tag>
-            </div>
-            <p class="dim" style="font-size: 11.5px; line-height: 1.5; margin-bottom: 9px">
-              Publie un instantané en lecture seule (brief + pages) derrière un lien.
-              Le contenu est <strong>chiffré dans ton navigateur</strong> : la clé vit dans le lien,
-              oto ne peut pas le lire.
-            </p>
-            <template v-if="project.public_shared">
-              <div v-if="publicLink" class="pshare-link">
-                <input class="pshare-input" :value="publicLink" readonly @focus="($event.target as HTMLInputElement).select()" />
-                <button class="btn-soft btn-soft--xs" @click="copyPublicLink">copier</button>
-              </div>
-              <p v-else class="dim" style="font-size: 11px; margin-bottom: 8px">
-                Lien actif, mais sa clé n'a été affichée qu'à la publication (sur un autre appareil ?).
-                Re-publie pour obtenir un nouveau lien.
-              </p>
-              <div class="pshare-act">
-                <button v-if="!readOnly" class="btn-soft btn-soft--xs" :disabled="publishing" @click="publishPublic">re-publier</button>
-                <button v-if="!readOnly" class="btn-soft btn-soft--xs btn-soft--danger" @click="unpublishPublic">retirer</button>
-              </div>
-            </template>
-            <button v-else-if="!readOnly" class="btn-soft btn-soft--xs" :disabled="publishing" @click="publishPublic">
-              {{ publishing ? 'chiffrement…' : 'partager par lien chiffré' }}
-            </button>
-            <p v-else class="dim" style="font-size: 12px">non partagé publiquement.</p>
-          </section>
-
-          <!-- endpoint MCP dédié (<slug>.mcp.oto.cx, ADR 0032 amende #44) -->
+          <!-- endpoint MCP dédié + partage navigable (<slug>.{mcp,share}.oto.cx, ADR 0032) -->
           <section class="surface-card">
             <div class="card-eb-row" style="margin-bottom: 6px">
-              <strong>Endpoint MCP</strong>
+              <strong>Endpoint MCP & partage</strong>
               <Tag v-if="project.mcp_access === 'anonymous'" tone="olive" title="Sous-domaine public, sans login">public · sans login</Tag>
+              <Tag v-else-if="project.mcp_access === 'secret'" tone="cobalt" title="URL secrète navigable, sans login">secret · navigable</Tag>
               <Tag v-else-if="project.mcp_access === 'org'" tone="saffron" title="Authentifié, membres de l'org">org · authentifié</Tag>
             </div>
             <p class="dim" style="font-size: 11.5px; line-height: 1.5; margin-bottom: 9px">
-              Publie ce projet comme un serveur MCP dédié à brancher dans Claude / Mistral.
-              <strong>Public</strong> = n'importe qui l'utilise <strong>sans compte</strong> ;
+              Publie ce projet comme serveur MCP dédié à brancher dans Claude / Mistral.
+              <strong>Public</strong> = n'importe qui l'utilise <strong>sans compte</strong> (listé) ;
+              <strong>secret</strong> = URL non devinable, <strong>navigable</strong> (procédures, tableaux, docs en lecture seule) ;
               <strong>org</strong> = login requis (membres de l'org).
             </p>
-            <template v-if="project.mcp_url">
+            <template v-if="mcpConnectUrl">
+              <!-- lien de partage navigable (mode secret) : ce qu'on envoie à un invité -->
+              <template v-if="shareUrl">
+                <span class="card-eb">lien de partage · navigable</span>
+                <div class="pshare-link">
+                  <input class="pshare-input" :value="shareUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
+                  <button class="btn-soft btn-soft--xs" @click="copyShareUrl">copier</button>
+                </div>
+                <p class="dim" style="font-size: 11px; margin: 6px 0 10px">
+                  Tes invités y naviguent les procédures, tableaux et documents (lecture seule).
+                </p>
+                <span class="card-eb">endpoint MCP (Claude)</span>
+              </template>
               <div class="pshare-link">
-                <input class="pshare-input" :value="project.mcp_url" readonly @focus="($event.target as HTMLInputElement).select()" />
+                <input class="pshare-input" :value="mcpConnectUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
                 <button class="btn-soft btn-soft--xs" @click="copyMcpUrl">copier</button>
               </div>
               <p class="dim" style="font-size: 11px; margin: 6px 0 8px">

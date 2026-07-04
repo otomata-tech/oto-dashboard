@@ -223,19 +223,6 @@ export const deleteProjectFile = (id: number, fileId: number) =>
 export const setProjectFilePublic = (id: number, fileId: number, isPublic: boolean) =>
   api<{ ok: boolean; file: ProjectFile }>(`/api/me/projects/${id}/files/${fileId}/public`, { method: 'POST', ...j({ public: isPublic }) })
 
-// Partage public CHIFFRÉ d'un projet (ADR 0032 §3, zero-knowledge) — le `ciphertext`
-// est chiffré côté navigateur (lib/crypto), le backend ne stocke QUE lui. Renvoie le
-// token public + la base d'URL du dashboard (le front y appose le fragment de clé).
-export const publishProjectShare = (id: number, ciphertext: string) =>
-  api<{ ok: boolean; token: string; public_base_url: string }>(
-    `/api/me/projects/${id}/public-share`, { method: 'POST', ...j({ ciphertext }) })
-export const unpublishProjectShare = (id: number) =>
-  api<{ ok: boolean }>(`/api/me/projects/${id}/public-share`, { method: 'DELETE' })
-// Lecture publique (sans auth) du snapshot chiffré par token — déchiffré côté navigateur.
-export const getPublicProjectShare = (token: string) =>
-  apiPublic<{ ciphertext: string; updated_at?: string | null }>(
-    `/api/public/projects/${encodeURIComponent(token)}`)
-
 // Docs (incrément 3) — pages markdown d'un projet, op-aware oto_doc
 const docsApi = <T>(body: Record<string, unknown>) =>
   api<T>('/api/me/docs', { method: 'POST', ...j(body) })

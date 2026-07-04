@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import ConsoleLayout from '../views/console/ConsoleLayout.vue'
 import InviteAcceptView from '../views/InviteAcceptView.vue'
-import PublicProjectView from '../views/PublicProjectView.vue'
 import { NAV } from '@/lib/consoleNav'
 
 // Une route par section, dérivée de NAV : le `path` EST l'identité, le layout
@@ -42,11 +41,9 @@ const router = createRouter({
     // partageable (referral réutilisable si carrier seul, nominatif si +code).
     { path: '/invite', name: 'invite', component: InviteAcceptView },
     { path: '/invitation/:carrier/:code?', name: 'invitation', component: InviteAcceptView },
-    // NB : `/p/d/<token>` (doc public) n'est PLUS une route SPA — Caddy la route
-    // vers le backend qui la rend SERVER-SIDE (lisible par un agent sans JS).
-    // Viewer public d'un PROJET partagé CHIFFRÉ (ADR 0032 §3) — sans auth ; la clé
-    // de déchiffrement vit dans le fragment (#…), jamais envoyée au serveur.
-    { path: '/p/p/:token', name: 'public-project', component: PublicProjectView },
+    // NB : les partages publics de projet/doc ne sont PLUS des routes SPA — le partage
+    // navigable d'un projet est rendu SERVER-SIDE sur `<slug>.share.oto.cx` (share_ui),
+    // et `/p/d/<token>` (doc public) est rendu server-side par le backend via Caddy.
     {
       // Fiche user (admin), sous /platform/users — résolue par le layout vers
       // AdminUserView ; surlignage + niveau hérités de la section users.
