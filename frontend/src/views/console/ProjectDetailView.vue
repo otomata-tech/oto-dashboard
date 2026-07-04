@@ -9,6 +9,8 @@ import Tag from '@/components/console/Tag.vue'
 import ProjectWiki from '@/components/console/ProjectWiki.vue'
 import ProjectEntities from '@/components/console/ProjectEntities.vue'
 import Dropzone from '@/components/console/Dropzone.vue'
+import Icon from '@/components/console/Icon.vue'
+import AttachmentViewer from '@/components/console/AttachmentViewer.vue'
 import SharePrincipalDialog from '@/components/console/SharePrincipalDialog.vue'
 import NameDialog from '@/components/console/NameDialog.vue'
 // Unovis est lourd (~d3) : on l'isole dans son propre chunk, chargé seulement
@@ -42,6 +44,7 @@ const project = ref<Project | null>(null)
 const grants = ref<NamespaceShare[]>([])
 const activity = ref<ProjectActivity[]>([])
 const files = ref<ProjectFile[]>([])
+const preview = ref<ProjectFile | null>(null)   // fichier ouvert dans le viewer lightbox
 const uploading = ref(false)
 const shareOpen = ref(false)
 const copyOpen = ref(false)
@@ -462,13 +465,12 @@ async function copyMcpUrl() {
             <p v-if="!files.length" class="dim" style="font-size: 12px">aucun fichier brut — PDF, HTML…</p>
             <div v-for="f in files" :key="f.id" class="meta-row meta-row--file">
               <div class="meta-row__main">
-                <a v-if="f.public && f.public_url" :href="f.public_url" target="_blank" rel="noopener" class="file-link">{{ f.title || f.filename }}</a>
-                <a v-else-if="f.download_url" :href="f.download_url" target="_blank" rel="noopener" class="file-link">{{ f.title || f.filename }}</a>
-                <span v-else class="file-link">{{ f.title || f.filename }}</span>
+                <button class="file-link" title="Aperçu" @click="preview = f">{{ f.title || f.filename }}</button>
                 <span class="dim" style="font-size: 10.5px; margin-left: 6px">{{ fmtSize(f.size_bytes) }}</span>
                 <Tag v-if="f.public" tone="cobalt" title="Partagé publiquement — accessible par lien">public</Tag>
                 <div v-if="f.description" class="dim" style="font-size: 11px; margin-top: 2px">{{ f.description }}</div>
               </div>
+              <button class="ent__lnk" title="Aperçu" @click="preview = f"><Icon name="eye" :size="14" /></button>
               <button v-if="!readOnly" class="ent__lnk" :title="f.public ? 'Rendre privé' : 'Partager publiquement (copie le lien)'" @click="toggleFilePublic(f)">{{ f.public ? '🔓' : '🔗' }}</button>
               <button v-if="!readOnly" class="ent__lnk" title="Supprimer" @click="removeFile(f)">✕</button>
             </div>
@@ -493,6 +495,7 @@ async function copyMcpUrl() {
         :resource-label="project.name" @close="shareOpen = false" @changed="loadGrants" />
       <NameDialog v-model:open="copyOpen" title="copier ce projet" label="nom de la copie"
         :initial="'Copie de ' + project.name" submit-label="copier" :on-confirm="doCopy" />
+      <AttachmentViewer :file="preview" @close="preview = null" />
     </template>
   </div>
 </template>
@@ -537,7 +540,7 @@ async function copyMcpUrl() {
 .meta-row--file { align-items: flex-start; }
 .meta-row__main { flex: 1; min-width: 0; font-size: 12.5px; color: var(--color-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .meta-row--file .meta-row__main { white-space: normal; }
-.file-link { font-size: 12.5px; color: var(--color-ink); font-weight: 500; }
+.file-link { font-size: 12.5px; color: var(--color-ink); font-weight: 500; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; font-family: inherit; }
 .file-link:hover { text-decoration: underline; }
 .wk-acts { margin-top: 9px; display: flex; flex-direction: column; }
 .wk-act { display: flex; gap: 9px; padding: 5px 0; border-bottom: 1px solid var(--color-hair-soft); }
