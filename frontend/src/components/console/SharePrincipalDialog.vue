@@ -139,7 +139,7 @@ const kindLabel = (g: NamespaceShare) =>
 
         <div class="sp-body">
           <div class="sp-add">
-            <select v-model="mode" class="sp-select" aria-label="type de destinataire">
+            <select v-model="mode" class="inp" aria-label="type de destinataire">
               <option value="member">membre de l'org</option>
               <option value="team">équipe</option>
               <option value="org">une de mes orgs</option>
@@ -147,24 +147,24 @@ const kindLabel = (g: NamespaceShare) =>
               <option value="email">email libre</option>
             </select>
 
-            <select v-if="mode === 'member'" v-model="memberSub" class="sp-select sp-grow">
+            <select v-if="mode === 'member'" v-model="memberSub" class="inp sp-grow">
               <option value="" disabled>choisir un membre…</option>
               <option v-for="m in members" :key="m.sub" :value="m.sub">{{ m.name || m.email }}</option>
             </select>
-            <select v-else-if="mode === 'team'" v-model="groupId" class="sp-select sp-grow">
+            <select v-else-if="mode === 'team'" v-model="groupId" class="inp sp-grow">
               <option value="" disabled>choisir une équipe…</option>
               <option v-for="g in groups" :key="g.group_id" :value="String(g.group_id)">{{ g.name }}</option>
             </select>
-            <select v-else-if="mode === 'org'" v-model="orgId" class="sp-select sp-grow">
+            <select v-else-if="mode === 'org'" v-model="orgId" class="inp sp-grow">
               <option value="" disabled>choisir une org…</option>
               <option v-for="o in myOrgs" :key="o.id" :value="String(o.id)">{{ o.name }}</option>
             </select>
-            <input v-else-if="mode === 'orgid'" v-model="orgIdFree" class="sp-input sp-grow"
+            <input v-else-if="mode === 'orgid'" v-model="orgIdFree" class="inp sp-grow"
               inputmode="numeric" placeholder="id de l'org destinataire" @keyup.enter="add" />
-            <input v-else v-model="email" class="sp-input sp-grow" type="email"
+            <input v-else v-model="email" class="inp sp-grow" type="email"
               placeholder="collègue@exemple.com" @keyup.enter="add" />
 
-            <select v-if="permissions.length > 1" v-model="permission" class="sp-select" aria-label="droit">
+            <select v-if="permissions.length > 1" v-model="permission" class="inp" aria-label="droit">
               <option value="write">édition</option>
               <option value="read">lecture</option>
             </select>
@@ -226,16 +226,8 @@ const kindLabel = (g: NamespaceShare) =>
 .sp-body { padding: 4px 18px 8px; }
 .sp-add { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
 .sp-grow { flex: 1; min-width: 150px; }
-.sp-input {
-  font: inherit; font-size: 13px; padding: 6px 8px;
-  border: 1px solid var(--color-hair-soft); border-radius: 6px;
-  background: var(--color-surface); color: var(--color-ink);
-}
-.sp-input:focus { outline: none; border-color: var(--color-cobalt); }
-.sp-select {
-  font: inherit; font-size: 12.5px; padding: 6px 8px; border: 1px solid var(--color-hair-soft);
-  border-radius: 6px; background: var(--color-surface); color: var(--color-ink); max-width: 100%;
-}
+/* rangée flex : les .inp reprennent une largeur naturelle (layout local, pas de skin) */
+.sp-add .inp { width: auto; max-width: 100%; }
 .sp-hint { font-size: 11.5px; margin: 0 0 8px; }
 .sp-list { margin-top: 6px; }
 .sp-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--color-hair-soft); }

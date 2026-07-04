@@ -180,32 +180,32 @@ async function removeLink(l: ProjectLink) {
     <div v-if="linking" class="pj-linkform">
       <label class="pj-fld">
         <span class="pj-fld__lbl">Type</span>
-        <select v-model="linkType" class="pj-input" @change="onTypeChange">
+        <select v-model="linkType" class="inp" @change="onTypeChange">
           <option value="" disabled>choisir…</option>
           <option v-for="g in LINK_GROUPS" :key="g.type" :value="g.type">{{ g.label }}</option>
         </select>
       </label>
       <label class="pj-fld">
         <span class="pj-fld__lbl">Entité</span>
-        <select v-model="linkRef" class="pj-input" :disabled="!linkType || linkLoading" @change="onRefChange">
+        <select v-model="linkRef" class="inp" :disabled="!linkType || linkLoading" @change="onRefChange">
           <option value="" disabled>{{ linkLoading ? 'chargement…' : !linkType ? 'choisis un type' : linkOpts.length ? 'choisir…' : 'aucune entité de ce type' }}</option>
           <option v-for="o in linkOpts" :key="o.value" :value="o.value">{{ o.label }}</option>
         </select>
       </label>
       <label v-if="linkType === 'connecteur' && linkRef && (linkIdentities.length || linkIdentityLoading)" class="pj-fld">
         <span class="pj-fld__lbl">Identité (compte) <span class="dim" style="font-weight: 400; text-transform: none; letter-spacing: 0">— lier N fois pour N comptes</span></span>
-        <select v-model="linkIdentity" class="pj-input" :disabled="linkIdentityLoading">
+        <select v-model="linkIdentity" class="inp" :disabled="linkIdentityLoading">
           <option value="">{{ linkIdentityLoading ? 'chargement…' : '(défaut du compte)' }}</option>
           <option v-for="idn in linkIdentities" :key="idn.id" :value="idn.id">{{ idn.label || idn.id }}{{ idn.channel ? ` · ${idn.channel}` : '' }}</option>
         </select>
       </label>
       <label class="pj-fld">
         <span class="pj-fld__lbl">Nom affiché <span class="dim" style="font-weight: 400; text-transform: none; letter-spacing: 0">(optionnel)</span></span>
-        <input v-model="linkLabel" class="pj-input" placeholder="(optionnel — par défaut le nom de l'entité)" @input="linkLabelEdited = true" />
+        <input v-model="linkLabel" class="inp" placeholder="(optionnel — par défaut le nom de l'entité)" @input="linkLabelEdited = true" />
       </label>
       <label class="pj-fld">
         <span class="pj-fld__lbl">Rôle <span class="dim" style="font-weight: 400; text-transform: none; letter-spacing: 0">(optionnel)</span></span>
-        <input v-model="linkRole" class="pj-input" placeholder="pourquoi cette entité est ici / ce qu'elle apporte au projet" />
+        <input v-model="linkRole" class="inp" placeholder="pourquoi cette entité est ici / ce qu'elle apporte au projet" />
       </label>
       <div class="pj-linkform__act">
         <button class="ent__lnk" @click="cancelLinking">annuler</button>
@@ -247,7 +247,7 @@ async function removeLink(l: ProjectLink) {
       <p class="dim" style="font-size: 11px; margin: 0 0 2px">Surcharge de <b>{{ cfgLink.label || cfgLink.target_ref }}</b><template v-if="cfgLink.identity_ref"> (compte {{ cfgLink.identity_ref }})</template> <b>pour ce projet</b> — l'identité est fixée au lien ; délie + relie pour en changer.</p>
       <label class="pj-fld">
         <span class="pj-fld__lbl">Instructions de surcharge <span class="dim" style="font-weight: 400; text-transform: none; letter-spacing: 0">(prose, optionnel)</span></span>
-        <textarea v-model="cfgInstructions" class="pj-input" rows="3" placeholder="ex. ne filtrer les accords que par thème mutuelle"></textarea>
+        <textarea v-model="cfgInstructions" class="inp" rows="3" placeholder="ex. ne filtrer les accords que par thème mutuelle"></textarea>
       </label>
       <div class="pj-linkform__act">
         <button class="ent__lnk" @click="closeConfig">annuler</button>
@@ -292,7 +292,5 @@ async function removeLink(l: ProjectLink) {
 .pj-cfgform { display: flex; flex-direction: column; gap: 9px; padding: 11px 12px 12px; margin-top: 11px; border: 1px solid var(--color-hair); border-radius: 10px; background: var(--color-paper-2); }
 .pj-fld { display: flex; flex-direction: column; gap: 4px; }
 .pj-fld__lbl { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: var(--color-mute); }
-.pj-input { width: 100%; border: 1px solid var(--color-hair); border-radius: 8px; padding: 7px 10px; font-family: var(--font-sans); font-size: 13px; background: var(--color-surface); color: var(--color-ink); box-sizing: border-box; }
-.pj-input:disabled { opacity: .55; cursor: not-allowed; }
 .pj-linkform__act { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 2px; }
 </style>

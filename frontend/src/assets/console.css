@@ -314,14 +314,16 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-small); 
 }
 .inp::placeholder { color: var(--color-faint); }
 .inp.mono { font-family: var(--font-mono); font-size: 12px; }
+.inp.sm { padding: 3px 7px; font-size: 11.5px; }
 .inp:focus { outline: none; border-color: var(--focus-ring); }
-/* <select class="inp"> : retire le chrome OS, chevron custom (cohérent console).
-   Les selects à classe ad-hoc (pj-/tld-/fr-input…) seront repliés sur .inp (audit b8). */
+.inp:disabled { opacity: .55; cursor: not-allowed; }
+/* <select class="inp"> : retire le chrome OS, chevron custom (cohérent console). */
 select.inp {
   appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 30px;
   background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23675a3c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
   background-repeat: no-repeat; background-position: right 10px center;
 }
+select.inp.sm { padding-right: 22px; background-position: right 6px center; background-size: 12px 12px; }
 
 .copyfield {
   display: flex; align-items: center; gap: 8px;

@@ -135,18 +135,18 @@ function onOpenChange(v: boolean) { if (!v) emit('close') }
               </span>
               <span v-if="p.schema.description" class="tld-field-help">{{ p.schema.description }}</span>
 
-              <select v-if="p.kind === 'enum'" v-model="form[p.name]" class="tld-input">
+              <select v-if="p.kind === 'enum'" v-model="form[p.name]" class="inp">
                 <option value="">— (défaut)</option>
                 <option v-for="opt in p.schema.enum" :key="String(opt)" :value="String(opt)">{{ opt }}</option>
               </select>
-              <select v-else-if="p.kind === 'boolean'" v-model="form[p.name]" class="tld-input">
+              <select v-else-if="p.kind === 'boolean'" v-model="form[p.name]" class="inp">
                 <option value="">— (défaut)</option>
                 <option value="true">true</option>
                 <option value="false">false</option>
               </select>
-              <input v-else-if="p.kind === 'number'" v-model="form[p.name]" type="number" class="tld-input"
+              <input v-else-if="p.kind === 'number'" v-model="form[p.name]" type="number" class="inp"
                 :placeholder="p.schema.default != null ? String(p.schema.default) : ''" />
-              <input v-else v-model="form[p.name]" type="text" class="tld-input"
+              <input v-else v-model="form[p.name]" type="text" class="inp"
                 :placeholder="p.kind === 'array' ? 'valeurs séparées par des virgules' : ''" />
             </label>
           </div>
@@ -203,11 +203,6 @@ function onOpenChange(v: boolean) { if (!v) emit('close') }
 .tld-field-type { font-family: var(--font-mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-mute); }
 .tld-req { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-terra-ink); }
 .tld-field-help { font-size: 11.5px; color: var(--color-mute); line-height: 1.4; }
-.tld-input {
-  font-size: 12.5px; padding: 6px 9px; border: 1px solid var(--color-hair);
-  border-radius: 7px; background: var(--color-bg); color: var(--color-ink); width: 100%;
-}
-.tld-input:focus { outline: none; border-color: var(--color-cobalt); }
 
 .tld-test-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
 .tld-test-head h4 { margin: 0; }

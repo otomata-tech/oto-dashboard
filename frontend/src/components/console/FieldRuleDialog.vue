@@ -62,23 +62,23 @@ function submit() {
         <div class="fr-body">
           <label v-if="!fixedField" class="fr-row">
             <span class="fr-lbl">champs <span class="dim">(virgule ou espace)</span></span>
-            <input v-model="fieldsStr" class="fr-input" placeholder="first_name, email, photo_url"
+            <input v-model="fieldsStr" class="inp" placeholder="first_name, email, photo_url"
               @keyup.enter="submit" />
           </label>
 
           <label class="fr-row">
             <span class="fr-lbl">action</span>
-            <select v-model="action" class="fr-input">
+            <select v-model="action" class="inp">
               <option v-for="s in actionSchema" :key="s.action" :value="s.action">{{ s.label }}</option>
             </select>
           </label>
 
           <label v-for="p in currentParams" :key="p.key" class="fr-row">
             <span class="fr-lbl">{{ p.label }} <span class="dim">(optionnel)</span></span>
-            <select v-if="p.type === 'select'" v-model="params[p.key]" class="fr-input">
+            <select v-if="p.type === 'select'" v-model="params[p.key]" class="inp">
               <option v-for="o in (p.options ?? [])" :key="o" :value="o">{{ o || '— défaut —' }}</option>
             </select>
-            <input v-else v-model="params[p.key]" class="fr-input" inputmode="numeric" placeholder="nombre" />
+            <input v-else v-model="params[p.key]" class="inp" inputmode="numeric" placeholder="nombre" />
           </label>
           <p v-if="!currentParams.length" class="dim fr-note">aucune option pour cette action.</p>
         </div>
@@ -114,11 +114,6 @@ function submit() {
 .fr-body { padding: 8px 18px; display: flex; flex-direction: column; gap: 12px; }
 .fr-row { display: flex; flex-direction: column; gap: 4px; }
 .fr-lbl { font-size: 12px; color: var(--color-ink-soft); }
-.fr-input {
-  font: inherit; font-size: 13px; padding: 7px 9px; border: 1px solid var(--color-hair-soft);
-  border-radius: 7px; background: var(--color-surface); color: var(--color-ink);
-}
-.fr-input:focus { outline: none; border-color: var(--color-cobalt); }
 .fr-note { font-size: 12px; margin: 0; }
 .fr-foot {
   display: flex; align-items: center; justify-content: flex-end; gap: 8px;

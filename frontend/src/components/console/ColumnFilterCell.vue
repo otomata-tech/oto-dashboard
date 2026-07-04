@@ -20,35 +20,25 @@ function setValue(value: string) { emit('update:modelValue', { op: props.modelVa
 
 <template>
   <div class="cfc" :class="{ on: active }">
-    <select class="cfc-op" :value="modelValue.op" :title="`filtre ${field}`"
+    <select class="inp sm cfc-op" :value="modelValue.op" :title="`filtre ${field}`"
       @change="setOp(($event.target as HTMLSelectElement).value as FilterOp)">
       <option v-for="op in ops" :key="op" :value="op">{{ opLabel(op, kind) }}</option>
     </select>
-    <select v-if="needsValue && kind === 'bool'" class="cfc-val cfc-val-sel" :value="modelValue.value"
+    <select v-if="needsValue && kind === 'bool'" class="inp sm cfc-val" :value="modelValue.value"
       @change="setValue(($event.target as HTMLSelectElement).value)">
       <option value="">…</option>
       <option value="true">vrai</option>
       <option value="false">faux</option>
     </select>
-    <input v-else-if="needsValue" class="cfc-val" :type="inputType" :value="modelValue.value"
+    <input v-else-if="needsValue" class="inp sm cfc-val" :type="inputType" :value="modelValue.value"
       placeholder="…" @input="setValue(($event.target as HTMLInputElement).value)" />
   </div>
 </template>
 
 <style scoped>
-.cfc {
-  display: flex; align-items: center; gap: 3px;
-  border: 1px solid var(--color-hair); border-radius: 5px;
-  background: var(--color-surface); padding: 1px 2px;
-}
-.cfc.on { border-color: var(--color-cobalt); }
-.cfc-op {
-  font: inherit; font-size: 10.5px; border: 0; background: none; color: var(--color-mute);
-  outline: none; cursor: pointer; max-width: 84px;
-}
-.cfc-val {
-  font: inherit; font-size: 11px; border: 0; background: none; color: var(--color-ink);
-  outline: none; width: 72px; min-width: 0;
-}
-.cfc-val-sel { cursor: pointer; }
+.cfc { display: flex; align-items: center; gap: 4px; }
+/* layout local : largeurs adaptées à l'en-tête de colonne ; l'op est la voix discrète */
+.cfc-op { width: auto; max-width: 96px; color: var(--color-mute); }
+.cfc-val { width: 76px; min-width: 0; }
+.cfc.on .inp { border-color: var(--color-cobalt); }
 </style>

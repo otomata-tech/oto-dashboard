@@ -100,7 +100,7 @@ Sparkline optionnelle : `.stat .v.with-spark` + `.spark`.
 
 ## Inputs
 
-`.inp` (bordé `--radius-md`, `.inp.mono` pour valeurs techniques) · `.copyfield` (champ + code copiable, surface sunken) · `.kbd` (touche). Textarea doctrine : `.doc-editor` (mono, min-height 380px). Tous les conteneurs de champ = `--radius-md` (8px) ; focus = bord saffron (`--focus-ring`).
+`.inp` (bordé `--radius-md`, `.inp.mono` pour valeurs techniques, `.inp.sm` compact — filtres de colonne, rangées denses) · `.copyfield` (champ + code copiable, surface sunken) · `.kbd` (touche). Textarea doctrine : `.doc-editor` (mono, min-height 380px). Tous les conteneurs de champ = `--radius-md` (8px) ; focus = bord saffron (`--focus-ring`) ; `:disabled` = opacité .55. S'applique aussi aux `<select>` (chevron custom via `select.inp`) et `<textarea>` — **plus de classe input ad-hoc dans les vues** (les ex `pj-/tld-/fr-/sp-/cfc-input` sont repliées).
 
 ## Barres & viz
 
