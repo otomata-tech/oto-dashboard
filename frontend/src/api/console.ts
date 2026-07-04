@@ -31,7 +31,9 @@ export const deleteOrgLogo = (id: number) => api(`/api/orgs/${id}/logo`, { metho
 export const getConnectors = () => api<{ connectors: ConnectorMeta[] }>('/api/connectors')
 // Marketplace (ADR 0019) : catalogue exposé + état per-membre (not_selected/active/paused)
 // + recommended. Source unique de la library installable ET de « mes connecteurs ».
-export const getMyConnectors = () => api<{ connectors: MyConnector[] }>('/api/me/connectors')
+// verbose=true : le dashboard rend les cartes complètes (doc/auth/credential_fields).
+// L'agent MCP, lui, reçoit une vue compacte par défaut (oto-backend#109).
+export const getMyConnectors = () => api<{ connectors: MyConnector[] }>('/api/me/connectors?verbose=true')
 export const selectConnector = (name: string) =>
   api(`/api/me/connectors/${encodeURIComponent(name)}/select`, { method: 'POST' })
 export const pauseConnector = (name: string) =>
@@ -394,6 +396,12 @@ export const updateOrg = (id: number, patch: {
         logo_url?: string | null }>(
     `/api/orgs/${id}`, { method: 'PATCH', ...j(patch) })
 
+// Archive (soft-delete) SON org — org_admin. L'org disparaît de partout, réversible
+// en DB ; les membres retombent sur leurs autres orgs. L'espace perso est refusé (400).
+export const archiveOrg = (id: number) =>
+  api<{ ok: true; org_id: number; archived: boolean }>(
+    `/api/orgs/${id}`, { method: 'DELETE' })
+
 // ── email & envoi de l'org — par CONNECTEUR (scaleway hébergé / resend BYOK) ──
 // GET = bundle keyé par connecteur (membre) ; PUT = org_admin, ciblé sur UN
 // connecteur. Le PUT fait un MERGE JSONB : passer `senders` SEUL ou `quiet_hours`
@@ -418,7 +426,7 @@ export const cancelScheduledEmail = (id: number, eid: number) =>
 
 // ── redaction de champs par connecteur (org_admin, ADR 0015) ──
 export const getOrgFieldFilters = (id: number) =>
-  api<FieldFiltersBundle>(`/api/orgs/${id}/field-filters`)
+  api<FieldFiltersBundle>(`/api/orgs/${id}/field-filters?include_schemas=true`)
 // rules=null efface la politique du connecteur (repli sur le défaut serveur).
 export const setOrgFieldFilter = (id: number, service: string, rules: FieldRule[] | null, salt?: string) =>
   api<{ ok: boolean; service: string; cleared: boolean; rules: number }>(
