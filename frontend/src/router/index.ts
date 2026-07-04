@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import ConsoleLayout from '../views/console/ConsoleLayout.vue'
 import InviteAcceptView from '../views/InviteAcceptView.vue'
+import ImportProjectView from '../views/ImportProjectView.vue'
 import { NAV } from '@/lib/consoleNav'
 
 // Une route par section, dérivée de NAV : le `path` EST l'identité, le layout
@@ -41,6 +42,9 @@ const router = createRouter({
     // partageable (referral réutilisable si carrier seul, nominatif si +code).
     { path: '/invite', name: 'invite', component: InviteAcceptView },
     { path: '/invitation/:carrier/:code?', name: 'invitation', component: InviteAcceptView },
+    // « Ajouter à mon Oto » depuis un partage public (`<slug>.share.oto.cx`) — forke le
+    // projet publié dans l'org active puis l'ouvre. Hors shell console (gère sa propre auth).
+    { path: '/import', name: 'import-project', component: ImportProjectView },
     // NB : les partages publics de projet/doc ne sont PLUS des routes SPA — le partage
     // navigable d'un projet est rendu SERVER-SIDE sur `<slug>.share.oto.cx` (share_ui),
     // et `/p/d/<token>` (doc public) est rendu server-side par le backend via Caddy.

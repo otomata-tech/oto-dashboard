@@ -183,6 +183,12 @@ export const updateProject = (id: number, fields: { name?: string; brief_md?: st
 // Copie profonde d'un projet (le sien ou un modèle) → nouveau projet dans l'org active (B5a).
 export const copyProject = (id: number, name: string) =>
   projectsApi<Project & { copied_from: number; links: ProjectLink[] }>({ op: 'copy', project_id: id, name })
+// « Ajouter à mon Oto » (canal d'acquisition) : forke un projet PUBLIÉ par son slug de
+// partage dans l'org active, ou RÉCUPÈRE la copie déjà présente (idempotent). Route dédiée
+// (≠ op-aware /api/me/projects) — le backend résout la source par slug, jamais par id possédé.
+export const importSharedProject = (slug: string) =>
+  api<{ project_id: number; imported: boolean; name?: string; reason?: string }>(
+    '/api/me/projects/import', { method: 'POST', ...j({ slug }) })
 // Publier / retirer un projet comme modèle copiable (B5a).
 export const setProjectTemplate = (id: number, is_template: boolean) =>
   projectsApi<Project>({ op: 'update', project_id: id, is_template })
