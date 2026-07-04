@@ -283,7 +283,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-small); 
   background: var(--color-ink); color: var(--color-bg);
   border: 1px solid var(--color-ink); border-radius: var(--radius-pill);
   padding: 7px 15px; font-family: var(--font-sans);
-  font-size: 12.5px; font-weight: 600; text-transform: lowercase;
+  font-size: 12.5px; font-weight: 600;
   transition: transform var(--t-fast) var(--ease-out);
 }
 .btn:hover { transform: translateY(-1px); }
@@ -294,13 +294,13 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-small); 
   background: var(--color-surface); color: var(--color-ink-soft);
   border: 1px solid var(--color-hair); border-radius: var(--radius-pill);
   padding: 4px 10px; font-family: var(--font-sans);
-  font-size: 11.5px; font-weight: 600; text-transform: lowercase;
+  font-size: 11.5px; font-weight: 600;
   transition: background var(--t-fast);
 }
 .btn-mini:hover { background: var(--color-paper-2); color: var(--color-ink); }
 .btn-mini.danger { color: var(--color-terra-ink); border-color: var(--color-terra-soft); }
 .btn-mini.danger:hover { background: var(--color-terra-soft); }
-.linklike { background: none; border: 0; padding: 0; font-size: var(--fs-small); font-weight: 600; color: var(--color-saffron-ink); text-transform: lowercase; }
+.linklike { background: none; border: 0; padding: 0; font-size: var(--fs-small); font-weight: 600; color: var(--color-saffron-ink); }
 .linklike:hover { color: var(--color-ink); }
 
 /* ════ inputs ════ */
