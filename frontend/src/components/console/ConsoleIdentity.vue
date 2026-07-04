@@ -68,32 +68,39 @@ const kicker = computed(() => {
 .ident {
   flex: 1; min-width: 0;
   display: flex; align-items: center; gap: 10px;
-  padding: 6px 8px; border-radius: 10px;
+  padding: 6px 8px; border-radius: var(--radius-md);
   border: 1px solid transparent; background: transparent;
   text-align: left;
 }
+/* En mode « org », le bloc devient une bannière claire (saffron doux) sur l'encre. */
 .ident.org { background: var(--color-saffron-soft); border-color: var(--color-hair); }
 
 .ident-txt { flex: 1; min-width: 0; }
 .ident-kicker {
   font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em;
-  text-transform: uppercase; color: var(--color-faint); line-height: 1.2;
+  text-transform: uppercase; color: var(--sidebar-fg-mute); line-height: 1.2;
 }
 .ident.org .ident-kicker { color: var(--color-saffron-ink); }
 .ident-name {
-  font-weight: 700; font-size: 15px; letter-spacing: -0.02em; color: var(--color-ink);
+  font-weight: 700; font-size: 15px; letter-spacing: -0.02em; color: var(--sidebar-fg-strong);
   line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.ident.org .ident-name { color: var(--color-ink); }
 .ident-meta {
   display: flex; align-items: center; gap: 5px; margin-top: 2px;
-  font-size: 11px; color: var(--color-mute); min-width: 0;
+  font-size: 11px; color: var(--sidebar-fg-mute); min-width: 0;
 }
+.ident.org .ident-meta { color: var(--color-mute); }
 .ident-team { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pill {
   font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.04em;
-  padding: 1px 5px; border-radius: 5px; margin-left: 3px;
-  background: var(--color-surface); border: 1px solid var(--color-hair); color: var(--color-ink-soft);
+  padding: 1px 6px; border-radius: var(--radius-pill); margin-left: 3px;
+  background: rgba(255, 255, 255, 0.08); border: 1px solid var(--sidebar-hair); color: var(--sidebar-fg);
+}
+.ident.org .pill {
+  background: var(--color-surface); border-color: var(--color-hair); color: var(--color-ink-soft);
 }
 .ident-meta > .pill:first-child { margin-left: 0; }
-.pill.faint { color: var(--color-faint); }
+.pill.faint { color: var(--sidebar-fg-mute); }
+.ident.org .pill.faint { color: var(--color-faint); }
 </style>

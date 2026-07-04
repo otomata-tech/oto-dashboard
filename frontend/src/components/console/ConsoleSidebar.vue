@@ -88,7 +88,8 @@ const visibleGroups = computed(() =>
 <style scoped>
 /* Projet en exergue : sous-liens des 5 derniers projets sous l'entrée « projects ».
    Le reste du chrome sidebar vit dans console.css. */
-.sb-subitem { padding-left: 30px; font-size: 12.5px; color: var(--color-ink-soft, #6b6b6b); }
+.sb-subitem { padding-left: 30px; font-size: 12.5px; color: var(--sidebar-fg); }
 .sb-subitem .ic { width: 15px; }
-.sb-subitem.on { color: var(--color-ink, #2a2a2a); font-weight: 600; }
+/* état actif : couleurs portées par .sb-item.on (aplat saffron) ; on garde juste le poids. */
+.sb-subitem.on { font-weight: 700; }
 </style>

@@ -126,24 +126,24 @@
 /* ════ sidebar ════ */
 .sb {
   display: flex; flex-direction: column;
-  border-right: 1px solid var(--color-hair);
-  background: transparent;
+  border-right: 1px solid var(--sidebar-hair);
+  background: var(--sidebar-bg);
   min-height: 0;
 }
 .sb-brand {
   display: flex; align-items: center; gap: 10px;
   padding: 16px 16px 14px;
-  border-bottom: 1px solid var(--color-hair-soft);
+  border-bottom: 1px solid var(--sidebar-hair);
 }
-.sb-brand .name { font-weight: 700; font-size: 15px; letter-spacing: -0.02em; }
-.sb-brand .env { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-faint); margin-top: 1px; }
+.sb-brand .name { font-weight: 700; font-size: 15px; letter-spacing: -0.02em; color: var(--sidebar-fg-strong); }
+.sb-brand .env { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--sidebar-fg-mute); margin-top: 1px; }
 
 .sb-nav { flex: 1; overflow-y: auto; padding: 10px 10px 16px; min-height: 0; }
 .sb-group { margin-top: 14px; }
 .sb-group:first-child { margin-top: 2px; }
 .sb-group-label {
   font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
-  letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-faint);
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--sidebar-fg-mute);
   padding: 0 8px 5px;
 }
 .sb-item {
@@ -151,21 +151,21 @@
   width: 100%; text-align: left;
   padding: 6px 8px; border: 0; background: transparent;
   font-family: var(--font-sans); font-size: 13px; font-weight: 500;
-  color: var(--color-ink-soft); border-radius: var(--radius-md);
+  color: var(--sidebar-fg); border-radius: var(--radius-md);
   transition: background var(--t-fast), color var(--t-fast);
 }
-.sb-item:hover { background: var(--color-paper-2); color: var(--color-ink); }
-.sb-item.on { background: var(--color-paper-2); color: var(--color-ink); font-weight: 600; }
-.sb-item .ic { display: inline-flex; color: var(--color-mute); }
-.sb-item.on .ic { color: var(--color-saffron-ink); }
+.sb-item:hover { background: var(--sidebar-hover-bg); color: var(--sidebar-fg-strong); }
+.sb-item.on { background: var(--sidebar-active-bg); color: var(--sidebar-active-fg); font-weight: 700; }
+.sb-item .ic { display: inline-flex; color: var(--sidebar-fg-mute); }
+.sb-item.on .ic { color: var(--sidebar-active-fg); }
 .sb-item .count {
   margin-left: auto; font-family: var(--font-mono); font-size: 10px;
-  color: var(--color-faint);
+  color: var(--sidebar-fg-mute);
 }
 .sb-item .warn-dot { margin-left: auto; }
 
-.sb-foot { border-top: 1px solid var(--color-hair-soft); padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
-.sb-mcp { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-mute); }
+.sb-foot { border-top: 1px solid var(--sidebar-hair); padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+.sb-mcp { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sidebar-fg-mute); }
 /* Le bloc utilisateur du pied est porté par ConsoleUserMenu.vue (menu profil). */
 
 /* chip de grant révocable (admin users) */
@@ -445,9 +445,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-small); 
   display: none; margin-left: auto; flex-shrink: 0;
   align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: var(--radius-md);
-  border: none; background: transparent; color: var(--color-faint); cursor: pointer;
+  border: none; background: transparent; color: var(--sidebar-fg-mute); cursor: pointer;
 }
-.sb-brand .sb-close:hover { color: var(--color-ink); background: var(--color-hair-soft); }
+.sb-brand .sb-close:hover { color: var(--sidebar-fg-strong); background: var(--sidebar-hover-bg); }
 .nav-backdrop { display: none; }
 
 /* grid3/grid4 sont fluides (auto-fit) → pas de palier tablette dédié, ils
@@ -461,13 +461,13 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-small); 
   .sb {
     position: fixed; inset: 0 auto 0 0; z-index: 70;
     width: min(86vw, 288px);
-    background: var(--color-bg);
-    border-right: 1px solid var(--color-hair);
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--sidebar-hair);
     transform: translateX(-100%);
     transition: transform var(--t-fast) var(--ease-out);
     box-shadow: 0 0 0 1px transparent;
   }
-  .sb.open { transform: translateX(0); box-shadow: 6px 0 28px rgba(44, 33, 18, 0.16); }
+  .sb.open { transform: translateX(0); box-shadow: var(--shadow-drawer); }
   .sb-brand .sb-close { display: inline-flex; }
 
   .nav-backdrop {

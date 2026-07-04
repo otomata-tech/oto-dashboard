@@ -147,35 +147,36 @@ function go() {
 .um-trigger {
   position: relative; z-index: 10;
   width: 100%; display: flex; align-items: center; gap: 8px;
-  padding: 6px 8px; border-radius: 10px;
+  padding: 6px 8px; border-radius: var(--radius-md);
   border: 1px solid transparent; background: transparent;
   cursor: pointer; text-align: left;
   transition: background var(--t-fast), border-color var(--t-fast);
 }
 .um-trigger:hover,
-.usermenu.open .um-trigger { background: var(--color-paper-2); border-color: var(--color-hair); }
+.usermenu.open .um-trigger { background: var(--sidebar-hover-bg); border-color: var(--sidebar-hair); }
 
 .who { flex: 1; min-width: 0; }
 .who .n {
-  font-weight: 600; font-size: 13px; color: var(--color-ink); line-height: 1.2;
+  font-weight: 600; font-size: 13px; color: var(--sidebar-fg-strong); line-height: 1.2;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .who .e {
-  font-size: 11px; color: var(--color-mute); line-height: 1.2;
+  font-size: 11px; color: var(--sidebar-fg-mute); line-height: 1.2;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.um-chev { flex: none; color: var(--color-faint); transform: rotate(180deg); }
+.um-chev { flex: none; color: var(--sidebar-fg-mute); transform: rotate(180deg); }
 
+/* Le menu déroulant est une surface CLAIRE (menu flottant), pas sur l'encre. */
 .um-pop {
   position: absolute; bottom: calc(100% + 6px); left: 0; right: 0; z-index: 50;
   display: flex; flex-direction: column; gap: 2px; padding: 6px;
   background: var(--color-surface); border: 1px solid var(--color-hair);
-  border-radius: 12px; box-shadow: 0 8px 28px rgb(0 0 0 / 0.12);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-pop);
   max-height: min(78vh, 620px); overflow-y: auto;
 }
 .um-item {
   display: flex; align-items: center; gap: 9px;
-  padding: 8px 9px; border-radius: 8px; width: 100%;
+  padding: 8px 9px; border-radius: var(--radius-md); width: 100%;
   border: 0; background: transparent; cursor: pointer; text-align: left;
   font-family: inherit; font-size: 13px; font-weight: 600;
   color: var(--color-ink-soft); text-decoration: none;
