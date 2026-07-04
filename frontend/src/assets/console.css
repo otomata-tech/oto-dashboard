@@ -81,16 +81,18 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* ── brand : medallion saffron (logo sidebar) ── */
+/* ── brand : « O ouvert » (anneau à ouverture haut-droite, mono saffron) ──
+   Rendu via SVG en background : les 7 vues gardent <span class="o-medallion">o</span>,
+   le « o » textuel legacy est masqué (color/ font-size 0). Marque vivante = <OtoMark>. */
 .o-medallion {
-  display: inline-flex; align-items: center; justify-content: center;
-  background: var(--color-saffron); color: var(--color-ink);
-  border-radius: var(--radius-pill);
-  font-family: var(--font-sans); font-style: italic; font-weight: 600;
+  display: inline-flex; flex: none;
+  background: center / contain no-repeat
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="-64 -64 128 128"><circle r="44" fill="none" stroke="%23f0b41e" stroke-width="28" stroke-linecap="round" stroke-dasharray="230 46" transform="rotate(-8)"/></svg>');
+  color: transparent; font-size: 0;
 }
-.o-medallion-sm { width: 28px; height: 28px; font-size: 15px; }
-.o-medallion-md { width: 34px; height: 34px; font-size: 18px; }
-.o-medallion-lg { width: 56px; height: 56px; font-size: 30px; }
+.o-medallion-sm { width: 28px; height: 28px; }
+.o-medallion-md { width: 34px; height: 34px; }
+.o-medallion-lg { width: 56px; height: 56px; }
 
 /* ── base mono ── */
 .console-root code, .console-root .mono { font-family: var(--font-mono); }

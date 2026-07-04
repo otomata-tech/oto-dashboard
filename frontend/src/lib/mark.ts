@@ -1,46 +1,36 @@
-// Moteur de la marque Oto — le « o » (disque chaud percé), framework-agnostique.
-// Source unique partagée par le composant <OtoMark> (et exportable ailleurs sans
-// dépendre de la lib Vue, cf. ADR 0007). Fidèle au favicon : viewBox élargi à
-// -80..80 pour loger la « corona » d'état autour du disque (r=58, trou « o » r=26).
+// Moteur de la marque Oto — le « O ouvert » (anneau à ouverture haut-droite, bouts
+// arrondis en écho aux pills), framework-agnostique. Source unique partagée par le
+// composant <OtoMark> (et exportable ailleurs sans dépendre de la lib Vue, ADR 0007).
+// viewBox élargi à -80..80 pour loger la « corona » d'état autour de l'anneau.
 //
-//   cœur  = identité fixe (disque + trou « o »), variantes quad / mono / olive
+//   cœur  = identité fixe (l'anneau ouvert), variantes quad / mono / olive
 //   corona = strate vivante qui exprime l'état (idle/think/talk) — n'apparaît que
 //            là où le mouvement a un sens réel (chargements, plus tard MCP Apps).
+//            En `think`, l'anneau tourne lentement à l'inverse des points d'orbite.
 
 export type MarkVariant = 'quad' | 'mono' | 'olive'
 export type MarkState = 'static' | 'idle' | 'think' | 'talk'
 
 export const MARK_VIEWBOX = '-80 -80 160 160'
 
-const CREAM = '#fefcf5'
 const INK = '#2c2112'
 const HAIR = '#dccfa8'
 const SAFF = '#f0b41e'
 
-// Dégradés repris tels quels du favicon canonique (oto.ninja / oto.zone).
+// Dégradés chauds de l'anneau (mêmes valeurs que le DS « Oto Console »).
 export const MARK_DEFS = `<defs>` +
-  `<radialGradient id="otoSaff" cx="38%" cy="32%" r="78%"><stop offset="0%" stop-color="#ffd24a"/><stop offset="55%" stop-color="#f0b41e"/><stop offset="100%" stop-color="#c4870c"/></radialGradient>` +
-  `<radialGradient id="otoTerr" cx="38%" cy="32%" r="78%"><stop offset="0%" stop-color="#f56a2d"/><stop offset="55%" stop-color="#d63d0a"/><stop offset="100%" stop-color="#9c2c06"/></radialGradient>` +
-  `<radialGradient id="otoOliv" cx="38%" cy="32%" r="78%"><stop offset="0%" stop-color="#c0db4e"/><stop offset="55%" stop-color="#8aa620"/><stop offset="100%" stop-color="#5c7212"/></radialGradient>` +
-  `<radialGradient id="otoCob" cx="38%" cy="32%" r="78%"><stop offset="0%" stop-color="#4f9be0"/><stop offset="55%" stop-color="#1f6dba"/><stop offset="100%" stop-color="#124a80"/></radialGradient>` +
-  `<clipPath id="otoCq"><circle r="58"/></clipPath>` +
+  `<radialGradient id="otoSaff" cx="38%" cy="30%" r="82%"><stop offset="0%" stop-color="#ffd24a"/><stop offset="55%" stop-color="#f0b41e"/><stop offset="100%" stop-color="#cf8f10"/></radialGradient>` +
+  `<radialGradient id="otoOliv" cx="38%" cy="30%" r="82%"><stop offset="0%" stop-color="#c0db4e"/><stop offset="55%" stop-color="#8aa620"/><stop offset="100%" stop-color="#5c7212"/></radialGradient>` +
   `</defs>`
 
-// Cœur identitaire : le disque + le trou crème (= le « o » d'oto). Inchangé.
+// Cœur identitaire : l'anneau ouvert (ouverture haut-droite, bouts ronds).
+// quad = dégradé chaud saffron, olive = dégradé olive, mono = saffron plat.
 export function coreMark(variant: MarkVariant): string {
-  let disc: string
-  if (variant === 'quad') {
-    disc = `<g clip-path="url(#otoCq)">` +
-      `<rect x="-58" y="-58" width="58" height="58" fill="url(#otoSaff)"/>` +
-      `<rect x="0" y="-58" width="58" height="58" fill="url(#otoTerr)"/>` +
-      `<rect x="-58" y="0" width="58" height="58" fill="url(#otoCob)"/>` +
-      `<rect x="0" y="0" width="58" height="58" fill="url(#otoOliv)"/></g>`
-  } else if (variant === 'olive') {
-    disc = `<circle r="58" fill="url(#otoOliv)"/>`
-  } else {
-    disc = `<circle r="58" fill="url(#otoSaff)"/>`
-  }
-  return disc + `<circle r="26" fill="${CREAM}"/>`
+  let stroke: string
+  if (variant === 'quad') stroke = 'url(#otoSaff)'
+  else if (variant === 'olive') stroke = 'url(#otoOliv)'
+  else stroke = SAFF
+  return `<circle r="44" fill="none" stroke="${stroke}" stroke-width="28" stroke-linecap="round" stroke-dasharray="230 46" transform="rotate(-8)"/>`
 }
 
 // Corona d'état : vit hors du disque (r>58). Les classes portent l'animation
@@ -72,8 +62,10 @@ export function corona(state: MarkState): string {
 }
 
 // Contenu interne d'un <svg viewBox=MARK_VIEWBOX> : defs + corona + cœur.
+// En `think`, l'anneau est enveloppé pour contre-tourner (classe oto-corespin).
 export function markInner(variant: MarkVariant, state: MarkState): string {
-  return MARK_DEFS + corona(state) + coreMark(variant)
+  const core = state === 'think' ? `<g class="oto-corespin">${coreMark(variant)}</g>` : coreMark(variant)
+  return MARK_DEFS + corona(state) + core
 }
 
 // SVG autonome (pour data-URI, export, favicon dynamique).
