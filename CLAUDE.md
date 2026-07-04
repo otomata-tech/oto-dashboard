@@ -166,6 +166,12 @@ dans `api/console.ts` (POST op-aware `/api/me/{projects,docs}`). Backend : `oto-
 > les procédures/tableaux/docs en **lecture seule**, rendus **server-side** par le backend
 > (`share_ui`) — rien à faire côté front (pas de viewer SPA). Le backend expose aussi `share_url`/
 > `mcp_url` (per-mode) sur `oto_project(op=get)`.
+> **« Ajouter à mon Oto » (canal d'acquisition).** La page publique porte un CTA qui deep-linke
+> `dashboard.oto.ninja/import?slug=<slug>` → route `/import` (`ImportProjectView.vue`, hors shell
+> console, gère sa propre auth comme `InviteAcceptView`) : au login, appelle
+> `importSharedProject(slug)` (`POST /api/me/projects/import`) puis `router.replace('/projects/'+id)`.
+> Le backend forke le projet publié dans l'org active (structure only, jamais de credentials ;
+> idempotent — récupère la copie déjà présente). Voir `oto-backend/docs/projects.md`.
 > **Retiré** : le partage public **chiffré** zero-knowledge (`PublicProjectView.vue`, route
 > `/p/p/:token`, `lib/crypto.ts`, `publishProjectShare`/`getPublicProjectShare`) — supplanté par
 > le navigable live. Le viewer public de **doc** (`/p/d/<token>`) reste rendu **server-side** par
