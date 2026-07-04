@@ -83,7 +83,7 @@ async function run() {
     <textarea v-model="sample" class="rp-ta" rows="5" spellcheck="false"
       placeholder='{ "first_name": "…", "contact_info": { "emails": ["…"] }, "skills": [{ "name": "…" }] }' />
     <div class="rp-actions">
-      <Btn icon="bolt" :disabled="!canRun" @click="run">{{ busy ? 'test…' : 'tester le filtrage' }}</Btn>
+      <Btn icon="bolt" :disabled="!canRun" @click="run">{{ busy ? 'Test…' : 'Tester le filtrage' }}</Btn>
       <span v-if="error" class="rp-err">{{ error }}</span>
     </div>
 

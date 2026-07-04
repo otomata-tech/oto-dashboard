@@ -158,7 +158,7 @@ function onOpenChange(v: boolean) { if (!v) emit('close') }
           <div class="tld-test-head">
             <h4>tester</h4>
             <Btn v-if="detail.testable" kind="mini" :disabled="running" @click="run">
-              {{ running ? '…' : '▶ exécuter' }}
+              {{ running ? '…' : '▶ Exécuter' }}
             </Btn>
           </div>
           <p v-if="!detail.testable" class="tld-note">

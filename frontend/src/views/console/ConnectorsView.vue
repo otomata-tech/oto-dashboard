@@ -148,7 +148,7 @@ async function doSetCredential(values: Record<string, string>) {
 // Sonde câblée au dialog quand le connecteur est vérifiable (teste juste après la pose).
 const doVerifyCred = () => verifyConnector(credConnector.value!.name)
 async function removeKey(c: MyConnector) {
-  if (!await confirmAction({ title: 'remove key', danger: true, confirmLabel: 'remove', message: `remove your ${c.label} key?` })) return
+  if (!await confirmAction({ title: 'remove key', danger: true, confirmLabel: 'Remove', message: `remove your ${c.label} key?` })) return
   try { await deleteApiKey(c.name); toast('key removed'); await reload() }
   catch (e) { toast(humanize(e)) }
 }
@@ -174,7 +174,7 @@ async function removeKey(c: MyConnector) {
 
     <!-- table -->
     <ConsoleCard flush :title="LENS_META[lens].title" :sub="LENS_META[lens].sub">
-      <template #actions><Btn kind="mini" icon="plus" @click="lens = 'available'">add connector</Btn></template>
+      <template #actions><Btn kind="mini" icon="plus" @click="lens = 'available'">Add connector</Btn></template>
       <table class="tbl">
         <thead>
           <tr>

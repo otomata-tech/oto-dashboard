@@ -126,7 +126,7 @@ const filtered = computed(() => {
               <span class="lib-more">détails →</span>
               <Btn v-if="c.state === 'not_selected'" kind="mini" :disabled="busy === c.name"
                 @click.stop="install(c)">
-                {{ busy === c.name ? '…' : 'install' }}
+                {{ busy === c.name ? '…' : 'Install' }}
               </Btn>
               <RouterLink v-else to="/connectors" class="lib-installed" @click.stop>installed →</RouterLink>
             </div>

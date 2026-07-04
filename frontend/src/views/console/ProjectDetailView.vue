@@ -287,12 +287,12 @@ async function copyShareUrl() {
           </div>
         </div>
         <div class="wk-head__act">
-          <button class="btn-resume" @click="handoff">reprendre dans claude →</button>
-          <button class="btn-soft" @click="copy">copier</button>
-          <button v-if="!readOnly" class="btn-soft" @click="toggleTemplate">{{ project.is_template ? 'retirer des modèles' : 'publier comme modèle' }}</button>
-          <button v-if="!readOnly" class="btn-soft" @click="shareOpen = true">partager</button>
-          <button v-if="!readOnly" class="btn-soft" @click="transfer">transférer</button>
-          <button v-if="!readOnly" class="btn-soft btn-soft--danger" @click="archive">archiver</button>
+          <button class="btn-resume" @click="handoff">Reprendre dans claude →</button>
+          <button class="btn-soft" @click="copy">Copier</button>
+          <button v-if="!readOnly" class="btn-soft" @click="toggleTemplate">{{ project.is_template ? 'Retirer des modèles' : 'Publier comme modèle' }}</button>
+          <button v-if="!readOnly" class="btn-soft" @click="shareOpen = true">Partager</button>
+          <button v-if="!readOnly" class="btn-soft" @click="transfer">Transférer</button>
+          <button v-if="!readOnly" class="btn-soft btn-soft--danger" @click="archive">Archiver</button>
         </div>
       </header>
 
@@ -334,7 +334,7 @@ async function copyShareUrl() {
           <section class="surface-card">
             <div class="card-eb-row">
               <span class="card-eb">partage</span>
-              <button v-if="!readOnly" class="btn-soft btn-soft--xs" @click="shareOpen = true">+ inviter</button>
+              <button v-if="!readOnly" class="btn-soft btn-soft--xs" @click="shareOpen = true">+ Inviter</button>
             </div>
             <p v-if="!grants.length" class="dim" style="font-size: 12px">non partagé.</p>
             <div v-for="g in grants" :key="(g.principal_type || 'user') + (g.principal_id || g.email || '')" class="meta-row">
@@ -366,7 +366,7 @@ async function copyShareUrl() {
                 <span class="card-eb">lien de partage · navigable</span>
                 <div class="pshare-link">
                   <input class="pshare-input" :value="shareUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
-                  <button class="btn-soft btn-soft--xs" @click="copyShareUrl">copier</button>
+                  <button class="btn-soft btn-soft--xs" @click="copyShareUrl">Copier</button>
                 </div>
                 <p class="dim" style="font-size: 11px; margin: 6px 0 10px">
                   Tes invités y naviguent les procédures, tableaux et documents (lecture seule).
@@ -375,18 +375,18 @@ async function copyShareUrl() {
               </template>
               <div class="pshare-link">
                 <input class="pshare-input" :value="mcpConnectUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
-                <button class="btn-soft btn-soft--xs" @click="copyMcpUrl">copier</button>
+                <button class="btn-soft btn-soft--xs" @click="copyMcpUrl">Copier</button>
               </div>
               <p class="dim" style="font-size: 11px; margin: 6px 0 8px">
                 {{ project.mcp_tools?.length ?? 0 }} outil(s) : {{ (project.mcp_tools ?? []).join(', ') }}
               </p>
               <div class="pshare-act">
-                <button v-if="!readOnly" class="btn-soft btn-soft--xs" :disabled="mcpBusy" @click="publishMcp">reconfigurer</button>
-                <button v-if="!readOnly" class="btn-soft btn-soft--xs btn-soft--danger" @click="unpublishMcp">retirer</button>
+                <button v-if="!readOnly" class="btn-soft btn-soft--xs" :disabled="mcpBusy" @click="publishMcp">Reconfigurer</button>
+                <button v-if="!readOnly" class="btn-soft btn-soft--xs btn-soft--danger" @click="unpublishMcp">Retirer</button>
               </div>
             </template>
             <button v-else-if="!readOnly" class="btn-soft btn-soft--xs" :disabled="mcpBusy" @click="publishMcp">
-              {{ mcpBusy ? 'publication…' : 'publier en endpoint MCP' }}
+              {{ mcpBusy ? 'Publication…' : 'Publier en endpoint MCP' }}
             </button>
             <p v-else class="dim" style="font-size: 12px">non publié.</p>
           </section>

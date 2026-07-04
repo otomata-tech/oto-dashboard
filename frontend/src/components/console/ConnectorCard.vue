@@ -162,9 +162,9 @@ async function toggleTool(t: ToolEntry) {
           <Quota v-if="status?.quota_daily" class="cc-quota"
             :used="status.quota_used_today" :total="status.quota_daily" label="" />
           <span class="cc-actions">
-            <Btn v-if="keyConfigured" kind="danger" @click="emit('remove', connector)">remove key</Btn>
-            <Btn v-else-if="statusMode === 'none'" kind="mini" @click="emit('configure', connector)">configure</Btn>
-            <Btn v-else kind="mini" @click="emit('configure', connector)">override key</Btn>
+            <Btn v-if="keyConfigured" kind="danger" @click="emit('remove', connector)">Remove key</Btn>
+            <Btn v-else-if="statusMode === 'none'" kind="mini" @click="emit('configure', connector)">Configure</Btn>
+            <Btn v-else kind="mini" @click="emit('configure', connector)">Override key</Btn>
           </span>
         </template>
         <template v-else-if="connKind === 'none'">

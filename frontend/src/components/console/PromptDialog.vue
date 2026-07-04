@@ -79,8 +79,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             </label>
           </form>
           <div class="modal-actions">
-            <Btn kind="mini" @click="cancel">cancel</Btn>
-            <button class="btn" :disabled="missingRequired" @click="submitForm">{{ form.submitLabel || 'save' }}</button>
+            <Btn kind="mini" @click="cancel">Cancel</Btn>
+            <button class="btn" :disabled="missingRequired" @click="submitForm">{{ form.submitLabel || 'Save' }}</button>
           </div>
         </template>
 
@@ -89,9 +89,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           <h3 class="modal-title">{{ confirm.title }}</h3>
           <p v-if="confirm.message" class="modal-desc">{{ confirm.message }}</p>
           <div class="modal-actions">
-            <Btn kind="mini" @click="cancel">cancel</Btn>
+            <Btn kind="mini" @click="cancel">Cancel</Btn>
             <button ref="confirmBtn" :class="confirm.danger ? 'btn danger-solid' : 'btn'" @click="resolve(true)">
-              {{ confirm.confirmLabel || 'confirm' }}
+              {{ confirm.confirmLabel || 'Confirm' }}
             </button>
           </div>
         </template>

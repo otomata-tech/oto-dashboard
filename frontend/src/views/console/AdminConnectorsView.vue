@@ -81,7 +81,7 @@ const orphanCount = computed(() => seats.value.filter((s) => s.orphan).length)
 async function toggle(c: ConnectorActivation) {
   const next = c.enabled !== true
   if (!next && !(await confirmAction({
-    title: 'disable connector', danger: true, confirmLabel: 'disable',
+    title: 'disable connector', danger: true, confirmLabel: 'Disable',
     message: `disable "${c.label}" platform-wide? its tools stop loading on the next server restart.`,
   }))) return
   try {
@@ -109,7 +109,7 @@ function setKey(c: ConnectorActivation) {
 }
 
 async function removeKey(k: PlatformKey) {
-  if (!await confirmAction({ title: 'delete platform key', danger: true, confirmLabel: 'delete',
+  if (!await confirmAction({ title: 'delete platform key', danger: true, confirmLabel: 'Delete',
     message: `delete "${k.provider}/${k.label}"? grants using it will stop resolving.` })) return
   try { await deletePlatformKey(k.id); toast('key deleted'); await load() }
   catch (e) { toast(humanize(e)) }

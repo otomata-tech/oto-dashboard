@@ -61,8 +61,8 @@ async function submit() {
       </div>
 
       <div class="actions">
-        <button type="button" class="btn-ink" :disabled="busy || !title.trim()" @click="submit">créer la procédure →</button>
-        <button type="button" class="btn-ghost" @click="emit('close')">annuler</button>
+        <button type="button" class="btn-ink" :disabled="busy || !title.trim()" @click="submit">Créer la procédure →</button>
+        <button type="button" class="btn-ghost" @click="emit('close')">Annuler</button>
         <span class="meta">v1 · brouillon</span>
       </div>
     </div>

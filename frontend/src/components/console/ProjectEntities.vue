@@ -174,7 +174,7 @@ async function removeLink(l: ProjectLink) {
   <section class="surface-card">
     <div class="card-eb-row">
       <span class="card-eb">entités liées · {{ links.length }}</span>
-      <button v-if="!readOnly && !linking" class="btn-soft btn-soft--xs" @click="startLinking">+ lier</button>
+      <button v-if="!readOnly && !linking" class="btn-soft btn-soft--xs" @click="startLinking">+ Lier</button>
     </div>
 
     <div v-if="linking" class="pj-linkform">
@@ -208,8 +208,8 @@ async function removeLink(l: ProjectLink) {
         <input v-model="linkRole" class="inp" placeholder="pourquoi cette entité est ici / ce qu'elle apporte au projet" />
       </label>
       <div class="pj-linkform__act">
-        <button class="ent__lnk" @click="cancelLinking">annuler</button>
-        <button class="btn-soft" :disabled="!linkRef" @click="submitLink">lier</button>
+        <button class="ent__lnk" @click="cancelLinking">Annuler</button>
+        <button class="btn-soft" :disabled="!linkRef" @click="submitLink">Lier</button>
       </div>
     </div>
 
@@ -233,8 +233,8 @@ async function removeLink(l: ProjectLink) {
               <div v-if="l.role" class="ent__role">{{ l.role }}</div>
               <div v-if="g.type === 'connecteur' && l.config?.instructions_md" class="ent__cfg">↳ {{ l.config.instructions_md }}</div>
               <div v-if="!readOnly" class="ent__act">
-                <button v-if="g.type === 'connecteur'" class="ent__lnk" @click="cfgRef === bindingKey(l) ? closeConfig() : openConfig(l)">{{ cfgRef === bindingKey(l) ? 'fermer' : 'configurer' }}</button>
-                <button class="ent__lnk" @click="removeLink(l)">délier</button>
+                <button v-if="g.type === 'connecteur'" class="ent__lnk" @click="cfgRef === bindingKey(l) ? closeConfig() : openConfig(l)">{{ cfgRef === bindingKey(l) ? 'Fermer' : 'Configurer' }}</button>
+                <button class="ent__lnk" @click="removeLink(l)">Délier</button>
               </div>
             </div>
           </div>
@@ -250,8 +250,8 @@ async function removeLink(l: ProjectLink) {
         <textarea v-model="cfgInstructions" class="inp" rows="3" placeholder="ex. ne filtrer les accords que par thème mutuelle"></textarea>
       </label>
       <div class="pj-linkform__act">
-        <button class="ent__lnk" @click="closeConfig">annuler</button>
-        <button class="btn-soft" :disabled="cfgSaving" @click="saveConfig(cfgLink)">enregistrer</button>
+        <button class="ent__lnk" @click="closeConfig">Annuler</button>
+        <button class="btn-soft" :disabled="cfgSaving" @click="saveConfig(cfgLink)">Enregistrer</button>
       </div>
     </div>
 

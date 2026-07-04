@@ -61,7 +61,7 @@ onMounted(load)
       <ConsoleCard title="masters de connecteurs" flush
         sub="l'interrupteur global par connecteur : ce qui est disponible à toute la plateforme (chaque org active ensuite dans cette limite).">
         <template #actions>
-          <RouterLink to="/platform/connectors"><Btn kind="mini">gérer les masters →</Btn></RouterLink>
+          <RouterLink to="/platform/connectors"><Btn kind="mini">Gérer les masters →</Btn></RouterLink>
         </template>
         <p class="helptext">l'activation master + la clé plateforme se gèrent dans le cockpit connecteurs plateforme.</p>
       </ConsoleCard>

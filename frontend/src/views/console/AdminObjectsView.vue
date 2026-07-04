@@ -55,7 +55,7 @@ function transfer(r: ResourceEntry) {
     onConfirm: async (v) => {
       const email = (v.email ?? '').trim()
       const ok = await confirmAction({
-        title: 'transfer ownership?', danger: true, confirmLabel: 'transfer',
+        title: 'transfer ownership?', danger: true, confirmLabel: 'Transfer',
         message: `give "${r.namespace ?? r.resource_id}" to ${email}? the previous owner keeps write access.`,
       })
       if (!ok) throw new Error('cancelled')
@@ -84,7 +84,7 @@ function transfer(r: ResourceEntry) {
           <option v-for="t in TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
         </select>
         <Btn kind="mini" icon="refresh" :disabled="loading" @click="load">
-          {{ loading ? 'loading…' : 'refresh' }}
+          {{ loading ? 'Loading…' : 'Refresh' }}
         </Btn>
       </template>
 
@@ -112,7 +112,7 @@ function transfer(r: ResourceEntry) {
             <td class="num">{{ r.row_count ?? '—' }}</td>
             <td class="dim">{{ r.created_at ? fmtDate(r.created_at) : '—' }}</td>
             <td class="num">
-              <Btn kind="mini" icon="ext" @click="transfer(r)">transfer</Btn>
+              <Btn kind="mini" icon="ext" @click="transfer(r)">Transfer</Btn>
             </td>
           </tr>
         </tbody>

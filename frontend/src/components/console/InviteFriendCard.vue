@@ -81,12 +81,12 @@ function invite() {
     <!-- lien referral réutilisable -->
     <div v-if="referral?.url" class="ref-row">
       <input class="ref-link" :value="referral.url" readonly @focus="(e) => (e.target as HTMLInputElement).select()" />
-      <Btn kind="ghost" :disabled="left <= 0" @click="copy(referral!.url)">copier le lien</Btn>
+      <Btn kind="ghost" :disabled="left <= 0" @click="copy(referral!.url)">Copier le lien</Btn>
     </div>
     <p class="ref-hint">partagez ce lien à votre réseau — chaque personne qui rejoint via lui utilise une invitation.</p>
 
     <div class="ref-actions">
-      <Btn :disabled="left <= 0" @click="invite">inviter par email ou code</Btn>
+      <Btn :disabled="left <= 0" @click="invite">Inviter par email ou code</Btn>
       <span class="dim">{{ left }} restante{{ left === 1 ? '' : 's' }}</span>
     </div>
 

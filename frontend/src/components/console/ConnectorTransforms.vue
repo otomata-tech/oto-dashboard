@@ -128,7 +128,7 @@ async function onSave(rule: FieldRule) {
 
 async function resetToDefault() {
   if (!canEdit.value) return
-  if (!await confirmAction({ title: 'tout réinitialiser', confirmLabel: 'réinitialiser',
+  if (!await confirmAction({ title: 'tout réinitialiser', confirmLabel: 'Réinitialiser',
     message: `effacer la politique d'org pour ${props.service} et revenir au défaut serveur ?` })) return
   try {
     await clearService(props.orgId!, props.service)
@@ -147,8 +147,8 @@ async function resetToDefault() {
         <span v-else class="dim">aucune rédaction</span>
       </span>
       <span v-if="canEdit" class="ct-actions">
-        <Btn kind="mini" icon="plus" @click="addField">champ</Btn>
-        <Btn v-if="customized" kind="mini" @click="resetToDefault">tout réinitialiser</Btn>
+        <Btn kind="mini" icon="plus" @click="addField">Champ</Btn>
+        <Btn v-if="customized" kind="mini" @click="resetToDefault">Tout réinitialiser</Btn>
       </span>
     </div>
 
@@ -190,7 +190,7 @@ async function resetToDefault() {
             <span v-else class="dim">en clair</span>
           </td>
           <td v-if="canEdit" class="ct-act">
-            <Btn kind="mini" @click="editField(f.name)">éditer</Btn>
+            <Btn kind="mini" @click="editField(f.name)">Éditer</Btn>
           </td>
         </tr>
       </tbody>

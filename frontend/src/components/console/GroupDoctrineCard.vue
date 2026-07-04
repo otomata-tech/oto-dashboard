@@ -73,7 +73,7 @@ async function editSkill(slug?: string) {
 }
 
 async function removeSkill(slug: string) {
-  if (!await confirmAction({ title: 'delete procedure', danger: true, confirmLabel: 'delete', message: `delete the "${slug}" procedure and its history?` })) return
+  if (!await confirmAction({ title: 'delete procedure', danger: true, confirmLabel: 'Delete', message: `delete the "${slug}" procedure and its history?` })) return
   try { await deleteGroupInstruction(props.groupId, slug); toast('procedure deleted'); await load() }
   catch (e) { toast(humanize(e)) }
 }
@@ -83,8 +83,8 @@ async function removeSkill(slug: string) {
   <ConsoleCard title="agent readme & procédures · équipe"
     sub="the team's agent readme (injected each session, after the org's) + its procedures (loaded on demand).">
     <template #actions v-if="canEdit">
-      <Btn kind="mini" @click="editDoctrine">edit readme</Btn>
-      <Btn kind="mini" icon="plus" @click="editSkill()">procedure</Btn>
+      <Btn kind="mini" @click="editDoctrine">Edit readme</Btn>
+      <Btn kind="mini" icon="plus" @click="editSkill()">Procedure</Btn>
     </template>
     <div v-if="bundle">
       <div class="rowitem" style="gap: 10px; padding-bottom: 8px">
@@ -98,8 +98,8 @@ async function removeSkill(slug: string) {
             <div v-if="i.description" style="font-size: 11.5px; color: var(--color-mute)">{{ i.description }}</div>
           </div>
           <template v-if="canEdit">
-            <Btn kind="mini" @click="editSkill(i.slug)">edit</Btn>
-            <Btn kind="danger" @click="removeSkill(i.slug)">delete</Btn>
+            <Btn kind="mini" @click="editSkill(i.slug)">Edit</Btn>
+            <Btn kind="danger" @click="removeSkill(i.slug)">Delete</Btn>
           </template>
         </div>
         <div v-if="!bundle.instructions.length" class="helptext">no procedures yet.</div>

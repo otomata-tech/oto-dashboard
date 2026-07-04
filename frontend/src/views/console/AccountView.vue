@@ -45,7 +45,7 @@ async function onDropFile(file: File) {
 }
 
 async function remove() {
-  if (!await confirmAction({ title: 'remove avatar', danger: true, confirmLabel: 'remove', message: 'remove your avatar?' })) return
+  if (!await confirmAction({ title: 'remove avatar', danger: true, confirmLabel: 'Remove', message: 'remove your avatar?' })) return
   try {
     busy.value = true
     await deleteAvatar()
@@ -81,7 +81,7 @@ async function remove() {
         @error="toast"
       />
       <div v-if="me?.avatar_url" class="profile-actions">
-        <Btn kind="danger" :disabled="busy" @click="remove">remove avatar</Btn>
+        <Btn kind="danger" :disabled="busy" @click="remove">Remove avatar</Btn>
       </div>
     </ConsoleCard>
 
@@ -102,7 +102,7 @@ async function remove() {
         actives se changent depuis l'identité, en haut du menu.
       </p>
       <div class="profile-actions">
-        <Btn icon="logout" @click="() => logout()">se déconnecter</Btn>
+        <Btn icon="logout" @click="() => logout()">Se déconnecter</Btn>
       </div>
     </ConsoleCard>
 

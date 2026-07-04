@@ -133,8 +133,8 @@ onMounted(async () => {
         no tools have run yet. connect a client, add a provider key, and your agents start
         showing up here — calls, quotas, errors, the lot.
         <template #cta>
-          <Btn @click="router.push('/connectors')">add a key</Btn>
-          <Btn kind="ghost" @click="router.push('/projects')">open your projects</Btn>
+          <Btn @click="router.push('/connectors')">Add a key</Btn>
+          <Btn kind="ghost" @click="router.push('/projects')">Open your projects</Btn>
         </template>
       </StateEmpty>
       <template v-else>
@@ -177,7 +177,7 @@ onMounted(async () => {
                 </div>
               </div>
             </div>
-            <Btn v-else kind="mini" @click="router.push('/connectors')">review setup →</Btn>
+            <Btn v-else kind="mini" @click="router.push('/connectors')">Review setup →</Btn>
           </ConsoleCard>
         </div>
       </template>

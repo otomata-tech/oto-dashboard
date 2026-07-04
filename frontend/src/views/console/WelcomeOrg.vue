@@ -37,7 +37,7 @@ async function create() {
     <div style="display: flex; gap: 8px; width: 100%; max-width: 380px; margin-top: 6px">
       <input v-model="name" class="inp" placeholder="workspace name (e.g. acme)"
         :disabled="busy" @keyup.enter="create" />
-      <Btn :disabled="busy" @click="create">{{ busy ? 'creating…' : 'create' }}</Btn>
+      <Btn :disabled="busy" @click="create">{{ busy ? 'Creating…' : 'Create' }}</Btn>
     </div>
     <div class="se-body" style="font-size: 12px; margin-top: 2px">
       have an invitation? open the link from your email instead.

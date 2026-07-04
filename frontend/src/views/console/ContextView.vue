@@ -152,7 +152,7 @@ onMounted(load)
         <template #actions><Tag tone="cobalt">plateforme · hérité</Tag></template>
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px">
           <Btn kind="mini" @click="showInstructions = !showInstructions">
-            {{ showInstructions ? 'masquer' : 'voir le texte intégral' }}
+            {{ showInstructions ? 'Masquer' : 'Voir le texte intégral' }}
           </Btn>
           <span class="dim" style="font-size: 12px">{{ ctx.instructions.length }} caractères</span>
         </div>
@@ -172,8 +172,8 @@ onMounted(load)
           <Tag :tone="hasOrgReadme ? 'olive' : undefined">readme org · {{ hasOrgReadme ? 'défini' : 'vide' }}</Tag>
           <Tag v-if="doctrine?.group" tone="saffron">équipe : {{ doctrine.group }}</Tag>
           <Tag tone="cobalt">{{ namedDoctrines.length }} procédure(s)</Tag>
-          <RouterLink to="/org"><Btn kind="mini">éditer le readme org →</Btn></RouterLink>
-          <RouterLink to="/procedures"><Btn kind="mini">les procédures →</Btn></RouterLink>
+          <RouterLink to="/org"><Btn kind="mini">Éditer le readme org →</Btn></RouterLink>
+          <RouterLink to="/procedures"><Btn kind="mini">Les procédures →</Btn></RouterLink>
         </div>
       </ConsoleCard>
 
@@ -202,7 +202,7 @@ onMounted(load)
               <Tag :tone="g.enabled > 0 ? 'olive' : undefined">{{ g.enabled }} / {{ g.total }}</Tag>
               <span style="flex: 1"></span>
               <Btn kind="mini" @click.stop="toggleNamespace(g)">
-                {{ g.enabled > 0 ? 'tout masquer' : 'tout activer' }}
+                {{ g.enabled > 0 ? 'Tout masquer' : 'Tout activer' }}
               </Btn>
             </div>
             <div v-if="expanded.has(g.namespace)" class="tool-list">
@@ -211,7 +211,7 @@ onMounted(load)
                 <span class="tool-desc">{{ t.description || '—' }}</span>
                 <Tag v-if="t.protected" tone="cobalt">protégé</Tag>
                 <Btn v-else kind="mini" :disabled="busy.has(t.name)" @click="setTool(t, !t.enabled)">
-                  {{ t.enabled ? 'masquer' : 'afficher' }}
+                  {{ t.enabled ? 'Masquer' : 'Afficher' }}
                 </Btn>
               </div>
             </div>

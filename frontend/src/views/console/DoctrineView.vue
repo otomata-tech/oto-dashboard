@@ -181,7 +181,7 @@ async function onPublish() {
 
 async function restore(v: number) {
   if (!await confirmAction({
-    title: 'restaurer une version', confirmLabel: 'restaurer',
+    title: 'restaurer une version', confirmLabel: 'Restaurer',
     message: `restaurer v${v} comme nouvelle version courante ? l'historique est conservé.`,
   })) return
   try {
@@ -214,7 +214,7 @@ async function createSkill(p: { title: string; slug: string; summary: string }) 
 // L'auteur (Otomata vs org) est résolu côté serveur selon le rôle du publieur.
 async function publishToLibrary(slug: string, label: string) {
   if (!await confirmAction({
-    title: 'publier dans la bibliothèque', confirmLabel: 'publier',
+    title: 'publier dans la bibliothèque', confirmLabel: 'Publier',
     message: `publier « ${label} » dans la bibliothèque publique de procédures ? `
       + `tout le monde pourra la découvrir et la forker.`,
   })) return
@@ -228,7 +228,7 @@ async function publishToLibrary(slug: string, label: string) {
 
 async function removeSkill(slug: string, label: string) {
   if (!await confirmAction({
-    title: 'supprimer la procédure', danger: true, confirmLabel: 'supprimer',
+    title: 'supprimer la procédure', danger: true, confirmLabel: 'Supprimer',
     message: `supprimer « ${label} » et tout son historique ?`,
   })) return
   try {
@@ -266,8 +266,8 @@ async function removeSkill(slug: string, label: string) {
         <RouterLink to="/org">/org</RouterLink> et <RouterLink to="/account">/account</RouterLink>.
       </div>
       <div style="display: flex; gap: 10px">
-        <button v-if="canEdit" type="button" class="btn-ink-sm" @click="modalOpen = true">nouvelle procédure</button>
-        <button type="button" class="btn-ghost-sm" @click="router.push('/procedures?tab=marketplace')">bibliothèque</button>
+        <button v-if="canEdit" type="button" class="btn-ink-sm" @click="modalOpen = true">Nouvelle procédure</button>
+        <button type="button" class="btn-ghost-sm" @click="router.push('/procedures?tab=marketplace')">Bibliothèque</button>
       </div>
     </div>
 
@@ -299,11 +299,11 @@ async function removeSkill(slug: string, label: string) {
             </button>
             <button v-if="!isEdit && canEdit && activeDoc?.exists" type="button"
               class="btn-edit" @click="publishToLibrary(activeSlug, activeDoc?.title || activeSlug)">
-              publier
+              Publier
             </button>
             <button v-if="!isEdit && canEdit && activeDoc?.exists && activeDoc.id > 0"
               type="button" class="btn-edit" @click="shareOpen = true">
-              partager
+              Partager
             </button>
           </div>
 
@@ -328,7 +328,7 @@ async function removeSkill(slug: string, label: string) {
             <span class="eyebrow">content</span>
             <span class="dim">markdown · @ pour citer un outil</span>
             <div v-if="isEdit" class="card__actions">
-              <button type="button" class="btn-ghost-sm" @click="onDiscard">abandonner</button>
+              <button type="button" class="btn-ghost-sm" @click="onDiscard">Abandonner</button>
               <button type="button" class="btn-ink-sm" @click="onPublish">publier {{ nextVersion }}</button>
             </div>
           </div>
@@ -395,7 +395,7 @@ async function removeSkill(slug: string, label: string) {
               <span class="vrow__v">v{{ v.version }}</span>
               <div class="vrow__meta">{{ v.set_by ?? '—' }} · {{ fmtDate(v.created_at) }}</div>
               <span v-if="v.version === curVersion" class="tag tag--ver">actuelle</span>
-              <button v-else-if="canEdit" type="button" class="btn-ghost-xs" @click="restore(v.version)">restaurer</button>
+              <button v-else-if="canEdit" type="button" class="btn-ghost-xs" @click="restore(v.version)">Restaurer</button>
             </div>
             <div v-if="!versions.length" class="dim">aucun historique.</div>
           </div>

@@ -83,7 +83,7 @@ function fmt(ts: string | null): string {
               <td class="mono">{{ r.n_calls }}</td>
               <td class="dim" style="font-size: 12px">{{ fmt(r.started_at) }}</td>
               <td style="text-align: right">
-                <Btn kind="mini" @click="toggleRun(r)">{{ openRun === r.run_id ? 'fermer' : 'timeline' }}</Btn>
+                <Btn kind="mini" @click="toggleRun(r)">{{ openRun === r.run_id ? 'Fermer' : 'Timeline' }}</Btn>
               </td>
             </tr>
             <tr v-if="openRun === r.run_id">

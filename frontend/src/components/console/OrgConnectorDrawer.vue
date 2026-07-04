@@ -154,8 +154,8 @@ const subtitle = computed(() =>
             <Tag v-if="hasOrgKey" tone="olive">posée</Tag>
             <span v-else class="dim" style="font-size: 11.5px">aucune</span>
             <template v-if="isOrgAdmin">
-              <button class="oclink" @click="emit('set-key')">{{ hasOrgKey ? 'remplacer' : 'poser' }}</button>
-              <button v-if="hasOrgKey" class="oclink oclink-danger" @click="emit('remove-key')">retirer</button>
+              <button class="oclink" @click="emit('set-key')">{{ hasOrgKey ? 'Remplacer' : 'Poser' }}</button>
+              <button v-if="hasOrgKey" class="oclink oclink-danger" @click="emit('remove-key')">Retirer</button>
             </template>
             <button v-if="canTestOrg" class="oclink" :disabled="testing" @click="testOrgConnection">
               {{ testing ? 'test…' : 'tester' }}
@@ -180,7 +180,7 @@ const subtitle = computed(() =>
           <div class="eyebrow" style="margin-bottom: 8px">accès</div>
           <template v-if="!restricted">
             <p class="helptext" style="margin: 0 0 10px">ouvert à toute l'org.</p>
-            <button v-if="isOrgAdmin" class="oclink" @click="emit('add-access')">restreindre…</button>
+            <button v-if="isOrgAdmin" class="oclink" @click="emit('add-access')">Restreindre…</button>
           </template>
           <template v-else>
             <p class="helptext" style="margin: 0 0 10px"><strong>réservé</strong> — invisible et bloqué pour les autres, même avec leur propre clé.</p>

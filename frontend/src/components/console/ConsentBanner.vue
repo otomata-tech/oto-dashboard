@@ -19,12 +19,12 @@ const showReopen = computed(() => analyticsEnabled() && consent.value !== null)
         <a href="https://trust.oto.zone" target="_blank" rel="noopener">privacy</a>
       </div>
       <div class="consent__actions">
-        <Btn kind="mini" @click="denyConsent">decline</Btn>
-        <Btn @click="grantConsent">accept</Btn>
+        <Btn kind="mini" @click="denyConsent">Decline</Btn>
+        <Btn @click="grantConsent">Accept</Btn>
       </div>
     </div>
   </Transition>
-  <button v-if="showReopen" type="button" class="consent-reopen" @click="reopenConsent">cookies</button>
+  <button v-if="showReopen" type="button" class="consent-reopen" @click="reopenConsent">Cookies</button>
 </template>
 
 <style scoped>

@@ -194,7 +194,7 @@ async function restoreRevision(r: DocRevision) {
     <nav class="wiki__nav">
       <div class="wiki__navhead">
         <span class="card-eb">pages</span>
-        <Btn v-if="!readOnly" kind="mini" @click="addDoc(null)">+ page</Btn>
+        <Btn v-if="!readOnly" kind="mini" @click="addDoc(null)">+ Page</Btn>
       </div>
       <ul class="wtree">
         <li>
@@ -228,7 +228,7 @@ async function restoreRevision(r: DocRevision) {
         <div class="wiki__mainhead">
           <h2 class="wiki__title">{{ projectName }}</h2>
           <div class="wiki__acts">
-            <button v-if="!editing && !readOnly" class="pj-x" @click="editBrief">éditer</button>
+            <button v-if="!editing && !readOnly" class="pj-x" @click="editBrief">Éditer</button>
           </div>
         </div>
         <p class="card-eb" style="margin-bottom: 8px">brief — point d'entrée de l'agent</p>
@@ -236,8 +236,8 @@ async function restoreRevision(r: DocRevision) {
           <textarea v-model="briefDraft" class="wiki__area" rows="14"
             placeholder="Le but du projet, le contexte, ce que l'agent doit savoir au démarrage…"></textarea>
           <div class="wiki__editact">
-            <Btn kind="mini" @click="saveBrief">enregistrer</Btn>
-            <button class="pj-x" @click="cancelBrief">annuler</button>
+            <Btn kind="mini" @click="saveBrief">Enregistrer</Btn>
+            <button class="pj-x" @click="cancelBrief">Annuler</button>
             <span v-if="briefDirty" class="dim" style="font-size: 11px">modifié</span>
           </div>
         </template>
@@ -263,11 +263,11 @@ async function restoreRevision(r: DocRevision) {
               <option value="doc">doc</option><option value="note">note agent</option><option value="source">source</option>
             </select>
             <template v-if="!editing">
-              <button v-if="!readOnly" class="pj-x" @click="editDoc">éditer</button>
-              <button v-if="!readOnly" class="pj-x" @click="addDoc(selected.id)">+ sous-page</button>
-              <button class="pj-x" @click="toggleHistory">{{ showHistory ? 'masquer l\'historique' : 'historique' }}</button>
-              <button v-if="!readOnly" class="pj-x" @click="toggleDocPublic">{{ selected.public ? 'rendre privé' : 'partager' }}</button>
-              <button v-if="!readOnly" class="pj-x pj-x--danger" @click="remove(selected)">supprimer</button>
+              <button v-if="!readOnly" class="pj-x" @click="editDoc">Éditer</button>
+              <button v-if="!readOnly" class="pj-x" @click="addDoc(selected.id)">+ Sous-page</button>
+              <button class="pj-x" @click="toggleHistory">{{ showHistory ? 'Masquer l\'historique' : 'Historique' }}</button>
+              <button v-if="!readOnly" class="pj-x" @click="toggleDocPublic">{{ selected.public ? 'Rendre privé' : 'Partager' }}</button>
+              <button v-if="!readOnly" class="pj-x pj-x--danger" @click="remove(selected)">Supprimer</button>
             </template>
           </div>
         </div>
@@ -275,9 +275,9 @@ async function restoreRevision(r: DocRevision) {
         <template v-if="editing">
           <textarea v-model="draft.body_md" class="wiki__area" rows="16" placeholder="Contenu de la page (markdown)…"></textarea>
           <div class="wiki__editact">
-            <Btn v-if="!readOnly" kind="mini" @click="saveDoc">enregistrer</Btn>
-            <Btn v-else kind="mini" @click="proposeChange">proposer une modif</Btn>
-            <button class="pj-x" @click="cancelDoc">annuler</button>
+            <Btn v-if="!readOnly" kind="mini" @click="saveDoc">Enregistrer</Btn>
+            <Btn v-else kind="mini" @click="proposeChange">Proposer une modif</Btn>
+            <button class="pj-x" @click="cancelDoc">Annuler</button>
             <span v-if="docDirty" class="dim" style="font-size: 11px">{{ readOnly ? 'lecture seule — propose une modif' : 'modifié' }}</span>
           </div>
         </template>
@@ -293,8 +293,8 @@ async function restoreRevision(r: DocRevision) {
               <span class="dim" style="font-size: 11px">{{ req.requested_by || '—' }} · {{ fmtDate(req.created_at) }}</span>
               <div v-if="req.message" style="font-size: 12px; color: var(--color-ink-soft)">{{ req.message }}</div>
             </div>
-            <button class="pj-x" @click="resolveRequest(req, true)">accepter</button>
-            <button class="pj-x" @click="resolveRequest(req, false)">refuser</button>
+            <button class="pj-x" @click="resolveRequest(req, true)">Accepter</button>
+            <button class="pj-x" @click="resolveRequest(req, false)">Refuser</button>
           </div>
         </div>
 
@@ -306,7 +306,7 @@ async function restoreRevision(r: DocRevision) {
               <span style="color: var(--color-ink)">{{ r.title }}</span>
               <span class="dim" style="font-size: 11px; margin-left: 6px">{{ fmtDate(r.created_at) }}<template v-if="r.edited_by"> · {{ r.edited_by }}</template></span>
             </div>
-            <button class="pj-x" @click="restoreRevision(r)">restaurer</button>
+            <button class="pj-x" @click="restoreRevision(r)">Restaurer</button>
           </div>
         </div>
       </template>

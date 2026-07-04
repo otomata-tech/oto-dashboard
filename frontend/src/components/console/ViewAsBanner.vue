@@ -15,7 +15,7 @@ function quit() {
 <template>
   <div v-if="viewing" class="viewas-banner">
     <span>👁&nbsp; tu vois en tant que <strong>{{ viewing.name }}</strong> — lecture seule</span>
-    <button type="button" @click="quit">quitter</button>
+    <button type="button" @click="quit">Quitter</button>
   </div>
 </template>
 

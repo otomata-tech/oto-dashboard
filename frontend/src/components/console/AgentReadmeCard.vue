@@ -82,7 +82,7 @@ async function restoreVersion(v: number) {
 <template>
   <ConsoleCard :title="title" :sub="sub">
     <template v-if="canEdit && !editing" #actions>
-      <Btn kind="mini" icon="pen" @click="edit">{{ body ? 'éditer' : 'écrire' }}</Btn>
+      <Btn kind="mini" icon="pen" @click="edit">{{ body ? 'Éditer' : 'Écrire' }}</Btn>
     </template>
 
     <p v-if="!loaded" class="dim-note">chargement…</p>
@@ -91,8 +91,8 @@ async function restoreVersion(v: number) {
       <textarea v-model="draft" rows="10" class="rd-edit"
         :placeholder="placeholder || 'markdown libre — injecté au début de chaque session.'" />
       <div class="rd-actions">
-        <Btn kind="mini" :disabled="busy" @click="editing = false">annuler</Btn>
-        <Btn :disabled="busy" @click="saveDraft">publier</Btn>
+        <Btn kind="mini" :disabled="busy" @click="editing = false">Annuler</Btn>
+        <Btn :disabled="busy" @click="saveDraft">Publier</Btn>
       </div>
     </template>
 
@@ -114,7 +114,7 @@ async function restoreVersion(v: number) {
           <span class="rd-v">v{{ v.version }}</span>
           <span class="dim-note">{{ v.set_by ?? '—' }} · {{ fmtDate(v.created_at) }}</span>
           <Tag v-if="v.version === version" tone="saffron">actuelle</Tag>
-          <Btn v-else kind="mini" :disabled="busy" @click="restoreVersion(v.version)">restaurer</Btn>
+          <Btn v-else kind="mini" :disabled="busy" @click="restoreVersion(v.version)">Restaurer</Btn>
         </div>
       </details>
     </template>

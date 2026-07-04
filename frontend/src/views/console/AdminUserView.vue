@@ -183,7 +183,7 @@ function grantKey(provider: string) {
   })
 }
 async function revokeKey(g: AdminGrant) {
-  if (!await confirmAction({ title: 'revoke grant', danger: true, confirmLabel: 'revoke', message: `revoke ${g.provider}/${g.label}?` })) return
+  if (!await confirmAction({ title: 'revoke grant', danger: true, confirmLabel: 'Revoke', message: `revoke ${g.provider}/${g.label}?` })) return
   try { await revokePlatformKey(sub.value, g.platform_key_id); toast('grant revoked'); await loadDetail() }
   catch (e) { toast(humanize(e)) }
 }
@@ -260,14 +260,14 @@ async function toggleOrgRole(o: AdminUserOrg) {
           <Tag v-else-if="currentRole === 'admin'" tone="ink">{{ roleLabel }}</Tag>
           <Tag v-else tone="olive">member</Tag>
           <Btn v-if="canResend" kind="mini" :disabled="resending" @click="resendInvite">
-            {{ resending ? 'sending…' : 'resend invite' }}
+            {{ resending ? 'Sending…' : 'Resend invite' }}
           </Btn>
-          <Btn v-if="canViewAs" kind="mini" icon="user" @click="viewAsUser">voir en tant que</Btn>
+          <Btn v-if="canViewAs" kind="mini" icon="user" @click="viewAsUser">Voir en tant que</Btn>
           <!-- gestion des rôles plateforme : super_admin seul. Les deux paliers admin
                (operator → super) sont fusionnés dans un dropdown ; member reste un bouton. -->
           <template v-if="canManageRoles">
             <span ref="roleMenu" class="rolemenu">
-              <Btn kind="mini" icon="chevd" @click="roleMenuOpen = !roleMenuOpen">make admin</Btn>
+              <Btn kind="mini" icon="chevd" @click="roleMenuOpen = !roleMenuOpen">Make admin</Btn>
               <div v-if="roleMenuOpen" class="rolemenu__pop">
                 <button
                   v-for="t in adminTiers" :key="t.role" type="button" class="rolemenu__item"
@@ -281,7 +281,7 @@ async function toggleOrgRole(o: AdminUserOrg) {
                 </button>
               </div>
             </span>
-            <Btn v-if="currentRole !== 'member'" kind="mini" @click="setRole('member')">demote to member</Btn>
+            <Btn v-if="currentRole !== 'member'" kind="mini" @click="setRole('member')">Demote to member</Btn>
           </template>
         </template>
         <div class="helptext">
@@ -308,7 +308,7 @@ async function toggleOrgRole(o: AdminUserOrg) {
             </div>
             <Tag v-if="o.is_active" tone="saffron">active</Tag>
             <Btn kind="mini" @click="toggleOrgRole(o)">
-              {{ o.org_role === 'org_admin' ? 'make member' : 'make admin' }}
+              {{ o.org_role === 'org_admin' ? 'Make member' : 'Make admin' }}
             </Btn>
           </div>
         </div>
@@ -326,8 +326,8 @@ async function toggleOrgRole(o: AdminUserOrg) {
               <td style="font-weight: 600; color: var(--color-ink)">{{ name }}</td>
               <td><Tag :tone="access(p).tone">{{ access(p).text }}</Tag></td>
               <td style="text-align: right">
-                <Btn v-if="grantFor(name)" kind="danger" @click="revokeKey(grantFor(name)!)">revoke</Btn>
-                <Btn v-else-if="platformKeysFor(name).length" kind="mini" @click="grantKey(name)">grant key</Btn>
+                <Btn v-if="grantFor(name)" kind="danger" @click="revokeKey(grantFor(name)!)">Revoke</Btn>
+                <Btn v-else-if="platformKeysFor(name).length" kind="mini" @click="grantKey(name)">Grant key</Btn>
                 <span v-else class="dim" style="font-size: 11px">no platform key</span>
               </td>
             </tr>
@@ -347,7 +347,7 @@ async function toggleOrgRole(o: AdminUserOrg) {
               <td><Tag :tone="optionStatus(o.key).tone">{{ optionStatus(o.key).text }}</Tag></td>
               <td style="text-align: right">
                 <Btn :kind="optionComped(o.key) ? 'danger' : 'mini'" @click="toggleOption(o.key)">
-                  {{ optionComped(o.key) ? 'retirer' : 'accorder l\'option' }}
+                  {{ optionComped(o.key) ? 'Retirer' : 'Accorder l\'option' }}
                 </Btn>
               </td>
             </tr>

@@ -24,7 +24,7 @@ const isStale = computed(() => props.message === 'stale_session')
         <Squiggle>sign in again</Squiggle> to pick up where you left off.
       </div>
       <div class="se-cta">
-        <Btn @click="$emit('relogin')">sign in again</Btn>
+        <Btn @click="$emit('relogin')">Sign in again</Btn>
       </div>
     </div>
     <div v-else class="se-card">
@@ -37,8 +37,8 @@ const isStale = computed(() => props.message === 'stale_session')
         keys. it often clears on a <Squiggle>retry</Squiggle>.
       </div>
       <div class="se-cta">
-        <Btn @click="$emit('retry')">retry now</Btn>
-        <Btn kind="ghost" icon="ext" @click="$emit('retry')">status page</Btn>
+        <Btn @click="$emit('retry')">Retry now</Btn>
+        <Btn kind="ghost" icon="ext" @click="$emit('retry')">Status page</Btn>
       </div>
     </div>
   </div>

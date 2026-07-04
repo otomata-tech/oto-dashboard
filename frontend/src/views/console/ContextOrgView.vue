@@ -78,7 +78,7 @@ onMounted(load)
       <ConsoleCard title="readme d'équipe" flush
         sub="chaque département peut ajouter sa prose, injectée après celle de l'org pour ses membres. édition par équipe.">
         <template #actions>
-          <RouterLink to="/org/departments"><Btn kind="mini">gérer les départements →</Btn></RouterLink>
+          <RouterLink to="/org/departments"><Btn kind="mini">Gérer les départements →</Btn></RouterLink>
         </template>
         <p v-if="!loaded" class="helptext">chargement…</p>
         <div v-else-if="!groups.length" class="helptext">aucun département — l'org n'a pas d'équipe pour l'instant.</div>
@@ -94,7 +94,7 @@ onMounted(load)
       <ConsoleCard title="connecteurs mis à disposition" flush
         sub="les connecteurs activés pour l'org — leurs outils sont disponibles aux membres (chacun affine sa visibilité). la baseline de toolset définit ce qui est visible par défaut.">
         <template #actions>
-          <RouterLink to="/org/connectors"><Btn kind="mini">gérer connecteurs & baseline →</Btn></RouterLink>
+          <RouterLink to="/org/connectors"><Btn kind="mini">Gérer connecteurs & baseline →</Btn></RouterLink>
         </template>
         <p v-if="!loaded" class="helptext">chargement…</p>
         <div v-else-if="!activeConnectors.length" class="helptext">aucun connecteur activé pour l'org.</div>

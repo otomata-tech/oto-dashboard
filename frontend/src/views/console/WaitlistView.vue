@@ -46,7 +46,7 @@ async function refresh() {
 
     <div class="se-cta">
       <Btn kind="ghost" :disabled="refreshing" @click="refresh">
-        {{ refreshing ? 'vérification…' : 'actualiser mon statut' }}
+        {{ refreshing ? 'Vérification…' : 'Actualiser mon statut' }}
       </Btn>
     </div>
     <div v-if="note" class="se-body" style="font-size: 13px; color: var(--color-mute); margin-top: 2px">

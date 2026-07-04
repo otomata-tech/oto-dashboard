@@ -102,7 +102,7 @@ async function fork(e: LibraryEntry | LibraryDoctrine) {
 
 async function unpublish(e: LibraryEntry | LibraryDoctrine) {
   if (!await confirmAction({
-    title: 'unpublish procedure', danger: true, confirmLabel: 'unpublish',
+    title: 'unpublish procedure', danger: true, confirmLabel: 'Unpublish',
     message: `remove "${e.title || e.slug}" from the public library? forks already made are untouched.`,
   })) return
   busy.value = true
@@ -118,9 +118,9 @@ async function unpublish(e: LibraryEntry | LibraryDoctrine) {
     <ConsoleCard v-if="selected" :title="selected.title || selected.slug" flush
       :sub="selected.description || undefined">
       <template #actions>
-        <Btn kind="mini" @click="closePreview">← back</Btn>
-        <Btn kind="mini" :disabled="busy" @click="fork(selected)">fork into my org</Btn>
-        <Btn v-if="canUnpublish(selected)" kind="danger" :disabled="busy" @click="unpublish(selected)">unpublish</Btn>
+        <Btn kind="mini" @click="closePreview">← Back</Btn>
+        <Btn kind="mini" :disabled="busy" @click="fork(selected)">Fork into my org</Btn>
+        <Btn v-if="canUnpublish(selected)" kind="danger" :disabled="busy" @click="unpublish(selected)">Unpublish</Btn>
       </template>
       <div class="card-body">
         <div class="dl-meta">
@@ -169,7 +169,7 @@ async function unpublish(e: LibraryEntry | LibraryDoctrine) {
           <div class="dl-foot">
             <Tag v-if="e.category" tone="saffron">{{ e.category }}</Tag>
             <span class="dim" style="margin-left: auto; font-size: 11px">v{{ e.version }}</span>
-            <Btn kind="mini" :disabled="busy" @click.stop="fork(e)">fork</Btn>
+            <Btn kind="mini" :disabled="busy" @click.stop="fork(e)">Fork</Btn>
           </div>
         </article>
       </div>

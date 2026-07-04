@@ -98,7 +98,7 @@ function rename(f: MfaFactor) {
 }
 
 async function remove(f: MfaFactor) {
-  if (!await confirmAction({ title: 'retirer ce facteur', danger: true, confirmLabel: 'retirer', message: `retirer « ${f.name || LABEL[f.type] || f.type} » ? tu ne pourras plus l'utiliser pour te connecter.` })) return
+  if (!await confirmAction({ title: 'retirer ce facteur', danger: true, confirmLabel: 'Retirer', message: `retirer « ${f.name || LABEL[f.type] || f.type} » ? tu ne pourras plus l'utiliser pour te connecter.` })) return
   try { await deleteFactor(f.id); toast('facteur retiré'); await reload() } catch (e) { toast(humanize(e)) }
 }
 
@@ -109,8 +109,8 @@ onMounted(reload)
   <ConsoleCard id="security" title="sécurité · 2FA" flush
     sub="facteurs de double authentification de ton compte (passkey, application, codes de secours).">
     <template #actions>
-      <Btn kind="mini" icon="plus" :disabled="busy || needsReconnect" @click="startTotp">app authenticator</Btn>
-      <Btn kind="mini" :disabled="busy || needsReconnect" @click="backupCodes">codes de secours</Btn>
+      <Btn kind="mini" icon="plus" :disabled="busy || needsReconnect" @click="startTotp">App authenticator</Btn>
+      <Btn kind="mini" :disabled="busy || needsReconnect" @click="backupCodes">Codes de secours</Btn>
     </template>
 
     <p v-if="needsReconnect" class="helptext" style="padding: 8px 2px">
@@ -126,8 +126,8 @@ onMounted(reload)
       <code class="totp-secret">{{ totp.secret }}</code>
       <div class="totp-verify">
         <input v-model="totpCode" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" maxlength="6" />
-        <Btn :disabled="busy || totpCode.length < 6" @click="confirmTotp">vérifier</Btn>
-        <Btn kind="ghost" :disabled="busy" @click="totp = null">annuler</Btn>
+        <Btn :disabled="busy || totpCode.length < 6" @click="confirmTotp">Vérifier</Btn>
+        <Btn kind="ghost" :disabled="busy" @click="totp = null">Annuler</Btn>
       </div>
     </div>
 
@@ -142,8 +142,8 @@ onMounted(reload)
           <td class="dim">{{ fmtDate(f.createdAt) }}</td>
           <td class="dim">{{ fmtDate(f.lastUsedAt) ?? 'jamais' }}</td>
           <td style="text-align: right; white-space: nowrap">
-            <Btn v-if="f.type !== 'BackupCode'" kind="mini" @click="rename(f)">renommer</Btn>
-            <Btn kind="danger" @click="remove(f)">retirer</Btn>
+            <Btn v-if="f.type !== 'BackupCode'" kind="mini" @click="rename(f)">Renommer</Btn>
+            <Btn kind="danger" @click="remove(f)">Retirer</Btn>
           </td>
         </tr>
         <tr v-if="!loading && !factors.length">

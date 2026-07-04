@@ -56,7 +56,7 @@ async function pick(id: string) {
 }
 
 async function drop() {
-  if (!await confirmAction({ title: `disconnect ${props.connector.label}`, danger: true, confirmLabel: 'disconnect', message: `disconnect your ${props.connector.label} session?` })) return
+  if (!await confirmAction({ title: `disconnect ${props.connector.label}`, danger: true, confirmLabel: 'Disconnect', message: `disconnect your ${props.connector.label} session?` })) return
   try { await deleteApiKey(props.connector.name); toast('session removed'); await reload() } catch (e) { toast(humanize(e)) }
 }
 </script>
@@ -70,8 +70,8 @@ async function drop() {
           ? `session set ${fmtDate(setAt) ?? ''} — never shared with your org`
           : 'no session — connect to log in through a remote browser' }}
       </span>
-      <Btn v-if="configured" kind="danger" @click="drop">disconnect</Btn>
-      <Btn v-else kind="mini" @click="connecting = true">connecter</Btn>
+      <Btn v-if="configured" kind="danger" @click="drop">Disconnect</Btn>
+      <Btn v-else kind="mini" @click="connecting = true">Connecter</Btn>
     </div>
 
     <!-- cible par défaut (pennylaneged : la GED du client en cours) -->
@@ -80,7 +80,7 @@ async function drop() {
       <span class="sw-status dim">
         {{ target ? `target: ${target}` : 'no default target — pick the client to work in' }}
       </span>
-      <Btn kind="mini" :disabled="loadingIds" @click="openPicker">{{ target ? 'change' : 'choose' }}</Btn>
+      <Btn kind="mini" :disabled="loadingIds" @click="openPicker">{{ target ? 'Change' : 'Choose' }}</Btn>
     </div>
     <div v-if="picking" class="sw-picker">
       <span v-if="loadingIds" class="dim sw-load">listing… (opens the remote session, ~10s)</span>
@@ -90,7 +90,7 @@ async function drop() {
           <span class="sw-acct-name">{{ idn.label || idn.id }}
             <Tag v-if="idn.is_default" tone="saffron">active</Tag>
           </span>
-          <Btn v-if="!idn.is_default" kind="mini" @click="pick(idn.id)">use</Btn>
+          <Btn v-if="!idn.is_default" kind="mini" @click="pick(idn.id)">Use</Btn>
         </div>
         <span v-if="!identities.length" class="dim sw-load">nothing to pick — reconnect your session</span>
       </template>

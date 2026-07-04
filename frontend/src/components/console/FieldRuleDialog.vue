@@ -84,8 +84,8 @@ function submit() {
         </div>
 
         <footer class="fr-foot">
-          <Btn kind="ghost" @click="emit('close')">annuler</Btn>
-          <Btn icon="check" :disabled="!canSave" @click="submit">enregistrer</Btn>
+          <Btn kind="ghost" @click="emit('close')">Annuler</Btn>
+          <Btn icon="check" :disabled="!canSave" @click="submit">Enregistrer</Btn>
         </footer>
       </div>
     </div>

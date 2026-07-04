@@ -100,10 +100,10 @@ onMounted(load)
           {{ (draft[b.key] ?? '').length }} caractères<template v-if="b.updated_by"> · maj par {{ b.updated_by }}</template>
         </span>
         <span style="flex: 1"></span>
-        <Btn v-if="!isDefault(b)" kind="mini" @click="restoreDefault(b)">rétablir le défaut</Btn>
-        <Btn v-if="dirty(b)" kind="mini" @click="revert(b)">annuler</Btn>
+        <Btn v-if="!isDefault(b)" kind="mini" @click="restoreDefault(b)">Rétablir le défaut</Btn>
+        <Btn v-if="dirty(b)" kind="mini" @click="revert(b)">Annuler</Btn>
         <Btn :disabled="!dirty(b) || saving[b.key]" @click="save(b)">
-          {{ saving[b.key] ? 'enregistrement…' : 'enregistrer' }}
+          {{ saving[b.key] ? 'Enregistrement…' : 'Enregistrer' }}
         </Btn>
       </div>
     </ConsoleCard>

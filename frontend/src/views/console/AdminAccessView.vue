@@ -54,7 +54,7 @@ async function resend(inv: AlphaInvite) {
 }
 
 async function revoke(inv: AlphaInvite) {
-  if (!await confirmAction({ title: 'revoke invitation', message: `revoke the pending invitation to ${inv.email}? the link will stop working.`, confirmLabel: 'revoke', danger: true })) return
+  if (!await confirmAction({ title: 'revoke invitation', message: `revoke the pending invitation to ${inv.email}? the link will stop working.`, confirmLabel: 'Revoke', danger: true })) return
   busy.value = `inv:${inv.id}`
   try {
     await revokeAlphaInvite(inv.id)
@@ -85,7 +85,7 @@ async function reject(u: WaitlistEntry) {
   if (!await confirmAction({
     title: 'reject access request',
     message: `reject ${u.email || u.sub}? the account is blocked and drops off the waitlist. you can still grant access later.`,
-    confirmLabel: 'reject',
+    confirmLabel: 'Reject',
     danger: true,
   })) return
   busy.value = u.sub
@@ -149,7 +149,7 @@ onMounted(load)
     <ConsoleCard title="invite to the alpha"
       sub="open the service to a new email — no referral quota spent. they get their own account and org.">
       <div style="display: flex; align-items: center; gap: 10px">
-        <Btn :disabled="inviting" @click="invite">{{ inviting ? 'sending…' : 'invite by email' }}</Btn>
+        <Btn :disabled="inviting" @click="invite">{{ inviting ? 'Sending…' : 'Invite by email' }}</Btn>
       </div>
     </ConsoleCard>
 
@@ -166,8 +166,8 @@ onMounted(load)
             <td class="dim">{{ inv.created_at }}</td>
             <td class="dim">{{ inv.expires_at }}</td>
             <td style="text-align: right; white-space: nowrap">
-              <Btn kind="mini" :disabled="busy === `inv:${inv.id}`" @click="resend(inv)">resend</Btn>
-              <Btn kind="mini" :disabled="busy === `inv:${inv.id}`" @click="revoke(inv)" style="margin-left: 6px">revoke</Btn>
+              <Btn kind="mini" :disabled="busy === `inv:${inv.id}`" @click="resend(inv)">Resend</Btn>
+              <Btn kind="mini" :disabled="busy === `inv:${inv.id}`" @click="revoke(inv)" style="margin-left: 6px">Revoke</Btn>
             </td>
           </tr>
           <tr v-if="!invites.length">
@@ -190,9 +190,9 @@ onMounted(load)
             <td class="dim">{{ u.created_at }}</td>
             <td style="text-align: right; white-space: nowrap">
               <Btn kind="mini" :disabled="busy === u.sub" @click="grant(u)">
-                {{ busy === u.sub ? 'granting…' : 'grant access' }}
+                {{ busy === u.sub ? 'Granting…' : 'Grant access' }}
               </Btn>
-              <Btn kind="mini" :disabled="busy === u.sub" @click="reject(u)" style="margin-left: 6px">reject</Btn>
+              <Btn kind="mini" :disabled="busy === u.sub" @click="reject(u)" style="margin-left: 6px">Reject</Btn>
             </td>
           </tr>
           <tr v-if="!waitlist.length">

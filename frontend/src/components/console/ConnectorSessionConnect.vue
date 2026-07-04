@@ -82,7 +82,7 @@ watch(() => props.open, (o) => { if (o) begin() })
           <div v-if="loading" class="cs-state dim">ouverture du navigateur distant…</div>
           <div v-else-if="error" class="cs-state">
             <p class="cs-err">{{ error }}</p>
-            <Btn kind="mini" @click="begin">réessayer</Btn>
+            <Btn kind="mini" @click="begin">Réessayer</Btn>
           </div>
           <iframe v-else-if="liveUrl" :src="liveUrl" class="cs-frame"
             allow="clipboard-read; clipboard-write" sandbox="allow-same-origin allow-scripts allow-forms allow-popups" />
@@ -90,9 +90,9 @@ watch(() => props.open, (o) => { if (o) begin() })
 
         <footer class="cs-foot">
           <span class="dim" style="flex: 1; font-size: 12px">la session expire après ~15 min d'inactivité</span>
-          <Btn kind="ghost" @click="emit('close')">annuler</Btn>
+          <Btn kind="ghost" @click="emit('close')">Annuler</Btn>
           <Btn :disabled="!liveUrl || verifying" @click="verify">
-            {{ verifying ? 'vérification…' : 'vérifier' }}
+            {{ verifying ? 'Vérification…' : 'Vérifier' }}
           </Btn>
         </footer>
       </div>

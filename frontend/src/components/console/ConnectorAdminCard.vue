@@ -59,7 +59,7 @@ const ficheTo = computed(() =>
               <button v-if="isSuperAdmin" class="ac-pk-x" title="supprimer"
                 @click="emit('remove-key', k)">×</button>
             </span>
-            <Btn v-if="isSuperAdmin" kind="mini" icon="plus" @click="emit('set-key')">key</Btn>
+            <Btn v-if="isSuperAdmin" kind="mini" icon="plus" @click="emit('set-key')">Key</Btn>
             <span v-else-if="!keys.length" class="dim" style="font-size: 11.5px">aucune</span>
           </template>
           <span v-else class="dim" style="font-size: 11.5px">byo-only — chaque membre/org pose sa clé</span>

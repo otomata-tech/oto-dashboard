@@ -213,12 +213,12 @@ async function setAllTools(on: boolean) {
           <Quota v-if="status?.quota_daily" style="margin-top: 12px" :used="status.quota_used_today" :total="status.quota_daily" label="daily quota" />
           <div style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap">
             <template v-if="keyConfigured">
-              <Btn kind="mini" @click="emit('configure', c)">override key</Btn>
-              <Btn kind="danger" @click="emit('remove', c)">remove key</Btn>
+              <Btn kind="mini" @click="emit('configure', c)">Override key</Btn>
+              <Btn kind="danger" @click="emit('remove', c)">Remove key</Btn>
             </template>
-            <Btn v-else kind="mini" @click="emit('configure', c)">connect {{ c.label }}</Btn>
+            <Btn v-else kind="mini" @click="emit('configure', c)">Connect {{ c.label }}</Btn>
             <Btn v-if="canTest" kind="mini" :disabled="testing" @click="testConnection">
-              {{ testing ? 'test…' : 'test connection' }}
+              {{ testing ? 'Test…' : 'Test connection' }}
             </Btn>
           </div>
           <p v-if="testRes" class="helptext" style="margin: 10px 0 0"
@@ -249,8 +249,8 @@ async function setAllTools(on: boolean) {
         <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px">
           <div class="eyebrow">{{ enabledCount }} of {{ myTools.length }} tools enabled</div>
           <div style="display: flex; gap: 12px">
-            <button class="linklike" @click="setAllTools(true)">enable all</button>
-            <button class="linklike" @click="setAllTools(false)">disable all</button>
+            <button class="linklike" @click="setAllTools(true)">Enable all</button>
+            <button class="linklike" @click="setAllTools(false)">Disable all</button>
           </div>
         </div>
         <p v-if="state === 'paused'" class="helptext" style="color: var(--color-saffron-ink); margin: 0 0 8px">this connector is muted — your selection is saved but hidden from agents until you set it live.</p>

@@ -63,7 +63,7 @@ async function link(channel: string) {
   try { const { url } = await connectUnipile(channel); window.location.href = url } catch (e) { toast(humanize(e)) }
 }
 async function drop(channel: string) {
-  if (!await confirmAction({ title: `disconnect ${channel} (unipile)`, danger: true, confirmLabel: 'disconnect', message: `disconnect your ${channel}? the unipile tools will stop acting as you on this channel.` })) return
+  if (!await confirmAction({ title: `disconnect ${channel} (unipile)`, danger: true, confirmLabel: 'Disconnect', message: `disconnect your ${channel}? the unipile tools will stop acting as you on this channel.` })) return
   try { await disconnectUnipile(channel); toast(`${channel} disconnected`); await refresh() } catch (e) { toast(humanize(e)) }
 }
 </script>
@@ -91,8 +91,8 @@ async function drop(channel: string) {
           </div>
         </div>
         <template v-if="unipile?.subscribed">
-          <Btn v-if="unipile?.channels?.[c.key]?.connected" kind="danger" @click="drop(c.key)">disconnect</Btn>
-          <Btn v-else kind="mini" @click="link(c.key)">connect</Btn>
+          <Btn v-if="unipile?.channels?.[c.key]?.connected" kind="danger" @click="drop(c.key)">Disconnect</Btn>
+          <Btn v-else kind="mini" @click="link(c.key)">Connect</Btn>
         </template>
       </div>
       <!-- BYO : la clé porte plusieurs comptes → choisir lequel piloter (ADR 0024).
@@ -105,7 +105,7 @@ async function drop(channel: string) {
             <Tag v-if="idn.granted" tone="cobalt">partagé par {{ ownerLabel(idn) }}</Tag>
             <span v-if="idn.status && idn.status.toUpperCase() !== 'OK'" class="dim hw-acct-st">· {{ idn.status }}</span>
           </span>
-          <Btn v-if="!idn.is_default" kind="mini" @click="pick(idn.id)">use this account</Btn>
+          <Btn v-if="!idn.is_default" kind="mini" @click="pick(idn.id)">Use this account</Btn>
         </div>
       </div>
       <!-- #55 face propriétaire : autoriser/révoquer des membres à opérer CE compte -->

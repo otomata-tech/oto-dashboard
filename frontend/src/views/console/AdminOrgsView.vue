@@ -83,7 +83,7 @@ async function archiveOrg() {
   if (selectedId.value == null || !detail.value) return
   const name = detail.value.org.name
   if (!await confirmAction({
-    title: 'archive organization', danger: true, confirmLabel: 'archive',
+    title: 'archive organization', danger: true, confirmLabel: 'Archive',
     message: `archive "${name}"? it disappears from all listings and its members fall back to their other orgs. reversible in the database.`,
   })) return
   try {
@@ -119,7 +119,7 @@ async function toggleMemberRole(m: OrgMember) {
 }
 async function removeMember(m: OrgMember) {
   if (selectedId.value == null) return
-  if (!await confirmAction({ title: 'remove member', danger: true, confirmLabel: 'remove', message: `remove ${m.email || m.sub}?` })) return
+  if (!await confirmAction({ title: 'remove member', danger: true, confirmLabel: 'Remove', message: `remove ${m.email || m.sub}?` })) return
   try { await removeAdminOrgMember(selectedId.value, m.sub); toast('member removed'); await refresh(); await loadOrgs() }
   catch (e) { toast(humanize(e)) }
 }
@@ -143,7 +143,7 @@ function putSecret() {
 }
 async function removeSecret(s: OrgSecret) {
   if (selectedId.value == null) return
-  if (!await confirmAction({ title: 'remove shared key', danger: true, confirmLabel: 'remove', message: `remove shared ${s.provider} key?` })) return
+  if (!await confirmAction({ title: 'remove shared key', danger: true, confirmLabel: 'Remove', message: `remove shared ${s.provider} key?` })) return
   try { await deleteAdminOrgSecret(selectedId.value, s.provider); toast('shared key removed'); await refresh() }
   catch (e) { toast(humanize(e)) }
 }
@@ -166,7 +166,7 @@ function grantEnt() {
 }
 async function revokeEnt(e0: OrgEntitlement) {
   if (selectedId.value == null) return
-  if (!await confirmAction({ title: 'revoke entitlement', danger: true, confirmLabel: 'revoke', message: `revoke ${e0.namespace}?` })) return
+  if (!await confirmAction({ title: 'revoke entitlement', danger: true, confirmLabel: 'Revoke', message: `revoke ${e0.namespace}?` })) return
   try { await revokeOrgEntitlement(selectedId.value, e0.namespace); toast('entitlement revoked'); await refresh() }
   catch (e) { toast(humanize(e)) }
 }
@@ -209,7 +209,7 @@ function grantOrgKey() {
 }
 async function revokeOrgKey(g: AdminGrant) {
   if (selectedId.value == null) return
-  if (!await confirmAction({ title: 'retirer le partage', danger: true, confirmLabel: 'retirer', message: `retirer ${g.provider}/${g.label} de l'org ?` })) return
+  if (!await confirmAction({ title: 'retirer le partage', danger: true, confirmLabel: 'Retirer', message: `retirer ${g.provider}/${g.label} de l'org ?` })) return
   try { await revokeOrgPlatformKey(selectedId.value, g.platform_key_id); toast('partage retiré'); await refresh() }
   catch (e) { toast(humanize(e)) }
 }
@@ -228,7 +228,7 @@ async function revokeOrgKey(g: AdminGrant) {
     <ConsoleCard flush title="organizations"
       sub="shared perimeters: members inherit org keys, agent readme, procedures and entitlements. click an org to manage it.">
       <template #actions>
-        <Btn kind="mini" icon="plus" @click="newOrg">new org</Btn>
+        <Btn kind="mini" icon="plus" @click="newOrg">New org</Btn>
       </template>
       <table class="tbl">
         <thead><tr><th>org</th><th class="num">members</th><th style="width: 70px"></th></tr></thead>
@@ -237,7 +237,7 @@ async function revokeOrgKey(g: AdminGrant) {
             style="cursor: pointer" @click="select(o.id)">
             <td style="font-weight: 600; color: var(--color-ink)">{{ o.name }}</td>
             <td class="num">{{ o.member_count }}</td>
-            <td style="text-align: right"><Btn kind="mini" @click.stop="select(o.id)">manage</Btn></td>
+            <td style="text-align: right"><Btn kind="mini" @click.stop="select(o.id)">Manage</Btn></td>
           </tr>
           <tr v-if="!orgs.length"><td colspan="3" class="dim" style="text-align: center; padding: 16px">no organizations</td></tr>
         </tbody>
@@ -247,8 +247,8 @@ async function revokeOrgKey(g: AdminGrant) {
     <template v-if="detail">
       <ConsoleCard flush :title="`${detail.org.name} · members`">
         <template #actions>
-          <Btn kind="mini" icon="plus" @click="addMember">add member</Btn>
-          <Btn kind="danger" @click="archiveOrg">archive org</Btn>
+          <Btn kind="mini" icon="plus" @click="addMember">Add member</Btn>
+          <Btn kind="danger" @click="archiveOrg">Archive org</Btn>
         </template>
         <table class="tbl">
           <thead><tr><th>member</th><th>role</th><th>active</th><th style="width: 140px"></th></tr></thead>
@@ -261,8 +261,8 @@ async function revokeOrgKey(g: AdminGrant) {
               <td><Tag v-if="m.role === 'org_admin'" tone="ink">admin</Tag><Tag v-else>member</Tag></td>
               <td><Dot :tone="m.active ? 'olive' : 'faint'" :size="7" /></td>
               <td style="text-align: right; white-space: nowrap">
-                <Btn kind="mini" @click="toggleMemberRole(m)">{{ m.role === 'org_admin' ? 'demote' : 'promote' }}</Btn>
-                <Btn kind="danger" @click="removeMember(m)">remove</Btn>
+                <Btn kind="mini" @click="toggleMemberRole(m)">{{ m.role === 'org_admin' ? 'Demote' : 'Promote' }}</Btn>
+                <Btn kind="danger" @click="removeMember(m)">Remove</Btn>
               </td>
             </tr>
             <tr v-if="!detail.members.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no members</td></tr>
@@ -272,7 +272,7 @@ async function revokeOrgKey(g: AdminGrant) {
 
       <div class="grid2">
         <ConsoleCard title="shared keys" sub="org-wide credentials inherited by every member.">
-          <template #actions><Btn kind="mini" icon="plus" @click="putSecret">add key</Btn></template>
+          <template #actions><Btn kind="mini" icon="plus" @click="putSecret">Add key</Btn></template>
           <div class="rowlist">
             <div v-for="s in detail.secrets" :key="s.provider" class="rowitem" style="gap: 12px">
               <Dot tone="olive" :size="8" />
@@ -280,19 +280,19 @@ async function revokeOrgKey(g: AdminGrant) {
                 <div style="font-weight: 600; font-size: 13px">{{ s.provider }}</div>
                 <div style="font-size: 11.5px; color: var(--color-mute)">{{ s.base_url || 'set' }}{{ s.set_at ? ` · ${fmtDate(s.set_at)}` : '' }}</div>
               </div>
-              <Btn kind="danger" @click="removeSecret(s)">remove</Btn>
+              <Btn kind="danger" @click="removeSecret(s)">Remove</Btn>
             </div>
             <div v-if="!detail.secrets.length" class="helptext">no shared keys yet.</div>
           </div>
         </ConsoleCard>
 
         <ConsoleCard title="entitlements" sub="controlled namespaces unlocked for the whole org.">
-          <template #actions><Btn kind="mini" icon="plus" @click="grantEnt">grant</Btn></template>
+          <template #actions><Btn kind="mini" icon="plus" @click="grantEnt">Grant</Btn></template>
           <div class="rowlist">
             <div v-for="e in (detail.entitlements ?? [])" :key="e.namespace" class="rowitem" style="gap: 12px">
               <div style="min-width: 0; flex: 1"><Tag tone="cobalt">{{ e.namespace }}</Tag></div>
               <span v-if="e.granted_at" class="dim" style="font-size: 11px">{{ fmtDate(e.granted_at) }}</span>
-              <Btn kind="danger" @click="revokeEnt(e)">revoke</Btn>
+              <Btn kind="danger" @click="revokeEnt(e)">Revoke</Btn>
             </div>
             <div v-if="!(detail.entitlements ?? []).length" class="helptext">no entitlements granted.</div>
           </div>
@@ -304,19 +304,19 @@ async function revokeOrgKey(g: AdminGrant) {
               <div style="min-width: 0; flex: 1; font-weight: 600; color: var(--color-ink)">{{ o.label }}</div>
               <Tag :tone="orgOptionComped(o.key) ? 'olive' : undefined">{{ orgOptionComped(o.key) ? 'offerte (comp)' : 'non offerte' }}</Tag>
               <Btn :kind="orgOptionComped(o.key) ? 'danger' : 'mini'" @click="toggleOrgOption(o.key)">
-                {{ orgOptionComped(o.key) ? 'retirer' : 'accorder l\'option' }}
+                {{ orgOptionComped(o.key) ? 'Retirer' : 'Accorder l\'option' }}
               </Btn>
             </div>
           </div>
         </ConsoleCard>
 
         <ConsoleCard title="clés plateforme partagées" sub="prêter une clé plateforme à TOUTE l'org (métré per-membre, jamais révélée). distinct du « shared keys » BYO ci-dessus (où l'org pose SA clé).">
-          <template #actions><Btn kind="mini" icon="plus" @click="grantOrgKey">partager une clé</Btn></template>
+          <template #actions><Btn kind="mini" icon="plus" @click="grantOrgKey">Partager une clé</Btn></template>
           <div class="rowlist">
             <div v-for="g in (detail.platform_grants ?? [])" :key="g.platform_key_id" class="rowitem" style="gap: 12px">
               <div style="min-width: 0; flex: 1"><Tag tone="saffron">{{ g.provider }}/{{ g.label }}</Tag></div>
               <span class="dim" style="font-size: 11px">{{ g.daily_quota ? `${g.daily_quota}/j` : '∞' }}</span>
-              <Btn kind="danger" @click="revokeOrgKey(g)">retirer</Btn>
+              <Btn kind="danger" @click="revokeOrgKey(g)">Retirer</Btn>
             </div>
             <div v-if="!(detail.platform_grants ?? []).length" class="helptext">aucune clé plateforme partagée.</div>
           </div>

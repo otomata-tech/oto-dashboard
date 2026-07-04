@@ -42,10 +42,10 @@ const openTool = ref<string | null>(null)
 <template>
   <ConsoleCard flush :title="c.label" :sub="c.help || undefined">
     <template #actions>
-      <Btn kind="mini" @click="emit('back')">← back</Btn>
+      <Btn kind="mini" @click="emit('back')">← Back</Btn>
       <a v-if="c.href" :href="c.href" target="_blank" rel="noopener" class="cd-site">↗ site éditeur</a>
       <Btn v-if="!installed" kind="mini" :disabled="busy" @click="emit('install')">
-        {{ busy ? '…' : 'installer' }}
+        {{ busy ? '…' : 'Installer' }}
       </Btn>
       <RouterLink v-else to="/connectors" class="cd-installed">installé →</RouterLink>
     </template>

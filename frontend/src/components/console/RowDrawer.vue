@@ -130,11 +130,11 @@ const title = computed(() => props.isNew ? 'new row' : (props.row?._id ?? 'row')
         </div>
 
         <footer class="rd-foot">
-          <Btn v-if="!readOnly" kind="mini" icon="plus" @click="addField">field</Btn>
+          <Btn v-if="!readOnly" kind="mini" icon="plus" @click="addField">Field</Btn>
           <span class="rd-spacer" />
-          <Btn v-if="!readOnly && !isNew" kind="danger" icon="trash" @click="emit('delete')">delete</Btn>
-          <Btn kind="ghost" @click="emit('close')">{{ readOnly ? 'close' : 'cancel' }}</Btn>
-          <Btn v-if="!readOnly" kind="mini" icon="check" @click="save">save</Btn>
+          <Btn v-if="!readOnly && !isNew" kind="danger" icon="trash" @click="emit('delete')">Delete</Btn>
+          <Btn kind="ghost" @click="emit('close')">{{ readOnly ? 'Close' : 'Cancel' }}</Btn>
+          <Btn v-if="!readOnly" kind="mini" icon="check" @click="save">Save</Btn>
         </footer>
 
         <FormDialog v-if="formDialog" v-model:open="formDialogOpen"

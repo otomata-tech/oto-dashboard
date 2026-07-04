@@ -127,8 +127,8 @@ onMounted(async () => {
           créez votre compte<template v-if="preview?.email"> en <strong>{{ preview.email }}</strong></template> pour entrer.
         </div>
         <div class="se-cta se-cta-col">
-          <Btn @click="createAccount">créer mon compte</Btn>
-          <button class="linklike" @click="signIn">déjà un compte ? se connecter</button>
+          <Btn @click="createAccount">Créer mon compte</Btn>
+          <button class="linklike" @click="signIn">Déjà un compte ? Se connecter</button>
         </div>
       </template>
 
@@ -140,8 +140,8 @@ onMounted(async () => {
           connecté·e en <strong>{{ me?.email }}</strong>. continuez avec ce compte, ou changez.
         </div>
         <div class="se-cta se-cta-col">
-          <Btn @click="accept">continuer en {{ me?.email }}</Btn>
-          <button class="linklike" @click="switchAccount">changer de compte</button>
+          <Btn @click="accept">Continuer en {{ me?.email }}</Btn>
+          <button class="linklike" @click="switchAccount">Changer de compte</button>
         </div>
       </template>
 
@@ -153,7 +153,7 @@ onMounted(async () => {
           <template v-else>votre accès est ouvert. prochaine étape : créer votre espace de travail.</template>
         </div>
         <div class="se-cta">
-          <Btn @click="router.push('/overview')">{{ orgName ? 'aller à la console' : 'créer mon espace' }}</Btn>
+          <Btn @click="router.push('/overview')">{{ orgName ? 'Aller à la console' : 'Créer mon espace' }}</Btn>
         </div>
       </template>
 
@@ -161,7 +161,7 @@ onMounted(async () => {
         <div class="se-title">mauvais <Squiggle>compte</Squiggle>.</div>
         <div class="se-body">{{ errMsg }}</div>
         <div class="se-cta">
-          <Btn @click="switchAccount">se connecter avec un autre compte</Btn>
+          <Btn @click="switchAccount">Se connecter avec un autre compte</Btn>
         </div>
       </template>
 
@@ -169,7 +169,7 @@ onMounted(async () => {
         <div class="se-title">invitation <Squiggle>invalide</Squiggle>.</div>
         <div class="se-body">{{ errMsg }}</div>
         <div class="se-cta">
-          <Btn kind="ghost" @click="router.push('/overview')">aller à la console</Btn>
+          <Btn kind="ghost" @click="router.push('/overview')">Aller à la console</Btn>
         </div>
       </template>
     </div>

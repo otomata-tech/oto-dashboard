@@ -147,7 +147,7 @@ watch(() => props.filters, (f) => {
         @click="showFilters = !showFilters">
         filters<span v-if="activeFilterCount" class="dt-filter-badge">{{ activeFilterCount }}</span>
       </button>
-      <button v-if="activeFilterCount" class="dt-filter-clear" @click="clearFilters">clear</button>
+      <button v-if="activeFilterCount" class="dt-filter-clear" @click="clearFilters">Clear</button>
       <span class="dim dt-count">{{ total }} row{{ total === 1 ? '' : 's' }}</span>
     </div>
 
@@ -200,7 +200,7 @@ watch(() => props.filters, (f) => {
               <OtoLoading v-if="loading" label="chargement…" style="justify-content: center" />
               <template v-else-if="search || filters.length">
                 no rows match —
-                <button class="dt-clear-inline" @click="clearAll">clear filters &amp; search</button>
+                <button class="dt-clear-inline" @click="clearAll">Clear filters &amp; search</button>
               </template>
               <template v-else>no rows match.</template>
             </td>
@@ -213,9 +213,9 @@ watch(() => props.filters, (f) => {
       <span class="dim dt-range">{{ rangeText }}</span>
       <div v-if="pageCount > 1" class="dt-pager-nav">
         <Btn kind="ghost" :disabled="page <= 0" title="première page" @click="emit('update:page', 0)">«</Btn>
-        <Btn kind="ghost" :disabled="page <= 0" @click="emit('update:page', page - 1)">‹ prev</Btn>
+        <Btn kind="ghost" :disabled="page <= 0" @click="emit('update:page', page - 1)">‹ Prev</Btn>
         <span class="dim">page {{ page + 1 }} / {{ pageCount }}</span>
-        <Btn kind="ghost" :disabled="page >= pageCount - 1" @click="emit('update:page', page + 1)">next ›</Btn>
+        <Btn kind="ghost" :disabled="page >= pageCount - 1" @click="emit('update:page', page + 1)">Next ›</Btn>
         <Btn kind="ghost" :disabled="page >= pageCount - 1" title="dernière page"
           @click="emit('update:page', pageCount - 1)">»</Btn>
       </div>

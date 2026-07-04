@@ -168,7 +168,7 @@ const kindLabel = (g: NamespaceShare) =>
               <option value="write">édition</option>
               <option value="read">lecture</option>
             </select>
-            <Btn kind="mini" icon="plus" :disabled="busy || !principal" @click="add">partager</Btn>
+            <Btn kind="mini" icon="plus" :disabled="busy || !principal" @click="add">Partager</Btn>
           </div>
           <p v-if="mode === 'team' && !groups.length && !loading" class="dim sp-hint">
             aucune équipe dans ton org active — crée un département dans « groups ».
@@ -197,7 +197,7 @@ const kindLabel = (g: NamespaceShare) =>
 
         <footer class="sp-foot">
           <span style="flex: 1" />
-          <Btn kind="ghost" @click="emit('close')">fermer</Btn>
+          <Btn kind="ghost" @click="emit('close')">Fermer</Btn>
         </footer>
       </div>
     </div>

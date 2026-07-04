@@ -54,7 +54,7 @@ onMounted(load)
         </header>
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px">
           <Btn kind="mini" @click="showInstructions = !showInstructions">
-            {{ showInstructions ? 'masquer' : 'voir le texte intégral' }}
+            {{ showInstructions ? 'Masquer' : 'Voir le texte intégral' }}
           </Btn>
           <span class="dim" style="font-size: 12px">{{ ctx.instructions.length }} caractères</span>
         </div>
@@ -80,7 +80,7 @@ onMounted(load)
             </Tag>
             <Tag tone="cobalt">{{ namedDoctrines.length }} procédure(s)</Tag>
             <Tag v-if="doctrine?.group" tone="saffron">équipe : {{ doctrine.group }}</Tag>
-            <RouterLink to="/procedures"><Btn kind="mini">les procédures →</Btn></RouterLink>
+            <RouterLink to="/procedures"><Btn kind="mini">Les procédures →</Btn></RouterLink>
           </div>
           <table v-if="namedDoctrines.length" class="tbl">
             <thead><tr><th>slug</th><th>titre</th><th>portée</th></tr></thead>

@@ -126,7 +126,7 @@ async function toggleMemberRole(sub: string, role: GroupRole) {
   catch (e) { toast(humanize(e)) }
 }
 async function removeMember(sub: string) {
-  if (!await confirmAction({ title: 'remove member', danger: true, confirmLabel: 'remove', message: 'remove this member from the department?' })) return
+  if (!await confirmAction({ title: 'remove member', danger: true, confirmLabel: 'Remove', message: 'remove this member from the department?' })) return
   try { await removeGroupMember(selectedId.value!, sub); toast('member removed'); await select(selectedId.value!) }
   catch (e) { toast(humanize(e)) }
 }
@@ -148,7 +148,7 @@ function addSecret() {
   })
 }
 async function removeSecret(provider: string) {
-  if (!await confirmAction({ title: 'remove shared key', danger: true, confirmLabel: 'remove', message: `remove the shared ${provider} key?` })) return
+  if (!await confirmAction({ title: 'remove shared key', danger: true, confirmLabel: 'Remove', message: `remove the shared ${provider} key?` })) return
   try { await deleteGroupSecret(selectedId.value!, provider); toast('shared key removed'); await select(selectedId.value!) }
   catch (e) { toast(humanize(e)) }
 }
@@ -169,7 +169,7 @@ function rename() {
   })
 }
 async function removeGroup() {
-  if (!await confirmAction({ title: 'delete department', danger: true, confirmLabel: 'delete', message: 'delete this department? members, readme, procedures and shared keys are purged. members stay in the org.' })) return
+  if (!await confirmAction({ title: 'delete department', danger: true, confirmLabel: 'Delete', message: 'delete this department? members, readme, procedures and shared keys are purged. members stay in the org.' })) return
   try { await deleteGroup(selectedId.value!); toast('department deleted'); detail.value = null; selectedId.value = null; dl.set(null); await load() }
   catch (e) { toast(humanize(e)) }
 }
@@ -188,7 +188,7 @@ async function removeGroup() {
         <ConsoleCard title="departments" flush
           sub="teams inside your org. switch the active one to load its readme, procedures, toolset and shared keys.">
           <template #actions>
-            <Btn v-if="isOrgAdmin" kind="mini" icon="plus" @click="create">new</Btn>
+            <Btn v-if="isOrgAdmin" kind="mini" icon="plus" @click="create">New</Btn>
           </template>
           <table class="tbl">
             <thead><tr><th>department</th><th>you</th><th>active</th><th style="width: 150px"></th></tr></thead>
@@ -205,22 +205,22 @@ async function removeGroup() {
                 </td>
                 <td><Dot :tone="g.id === activeGroupId ? 'saffron' : 'faint'" :size="7" /></td>
                 <td style="text-align: right; white-space: nowrap">
-                  <Btn kind="mini" @click="select(g.id)">open</Btn>
-                  <Btn v-if="g.my_role && g.id !== activeGroupId" kind="mini" @click="switchTo(g.id)">use</Btn>
+                  <Btn kind="mini" @click="select(g.id)">Open</Btn>
+                  <Btn v-if="g.my_role && g.id !== activeGroupId" kind="mini" @click="switchTo(g.id)">Use</Btn>
                 </td>
               </tr>
               <tr v-if="!groups.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no departments yet<span v-if="isOrgAdmin"> — create one</span>.</td></tr>
             </tbody>
           </table>
           <div v-if="activeGroupId != null" style="padding: 10px 14px; border-top: 1px solid var(--color-hair)">
-            <Btn kind="mini" @click="leaveActive">leave active department (operate at org level)</Btn>
+            <Btn kind="mini" @click="leaveActive">Leave active department (operate at org level)</Btn>
           </div>
         </ConsoleCard>
 
         <ConsoleCard v-if="detail" :title="detail.group.name" flush :sub="detail.group.description || 'department'">
           <template #actions>
-            <Btn v-if="canManage" kind="mini" @click="rename">edit</Btn>
-            <Btn v-if="canManage" kind="danger" @click="removeGroup">delete</Btn>
+            <Btn v-if="canManage" kind="mini" @click="rename">Edit</Btn>
+            <Btn v-if="canManage" kind="danger" @click="removeGroup">Delete</Btn>
           </template>
           <table class="tbl">
             <thead><tr><th>member</th><th>role</th><th v-if="canManage" style="width: 130px"></th></tr></thead>
@@ -233,8 +233,8 @@ async function removeGroup() {
                 <td><Tag v-if="m.role === 'group_admin'" tone="ink">lead</Tag><Tag v-else>member</Tag></td>
                 <td v-if="canManage" style="text-align: right; white-space: nowrap">
                   <template v-if="m.sub !== meSub">
-                    <Btn kind="mini" @click="toggleMemberRole(m.sub, m.role)">{{ m.role === 'group_admin' ? 'demote' : 'make lead' }}</Btn>
-                    <Btn kind="danger" @click="removeMember(m.sub)">remove</Btn>
+                    <Btn kind="mini" @click="toggleMemberRole(m.sub, m.role)">{{ m.role === 'group_admin' ? 'Demote' : 'Make lead' }}</Btn>
+                    <Btn kind="danger" @click="removeMember(m.sub)">Remove</Btn>
                   </template>
                   <span v-else class="dim" style="font-size: 11px">you</span>
                 </td>
@@ -243,7 +243,7 @@ async function removeGroup() {
             </tbody>
           </table>
           <div v-if="canManage" style="padding: 10px 14px; border-top: 1px solid var(--color-hair)">
-            <Btn kind="mini" icon="plus" @click="addMember">add member</Btn>
+            <Btn kind="mini" icon="plus" @click="addMember">Add member</Btn>
           </div>
         </ConsoleCard>
         <ConsoleCard v-else title="department" sub="pick a department on the left to manage it.">
@@ -256,7 +256,7 @@ async function removeGroup() {
           <ConsoleCard title="shared keys" flush
             sub="department-level credentials — resolve before the org key for this team's members.">
             <template #actions>
-              <Btn v-if="canManage" kind="mini" icon="plus" @click="addSecret">add key</Btn>
+              <Btn v-if="canManage" kind="mini" icon="plus" @click="addSecret">Add key</Btn>
             </template>
             <table class="tbl">
               <thead><tr><th>provider</th><th>type</th><th>set by</th><th>since</th><th v-if="canManage" style="width: 80px"></th></tr></thead>
@@ -266,7 +266,7 @@ async function removeGroup() {
                   <td><Tag v-if="s.base_url" tone="cobalt">remote bridge</Tag><Tag v-else>api key</Tag></td>
                   <td class="dim">{{ s.set_by ?? '—' }}</td>
                   <td class="dim">{{ fmtDate(s.set_at) ?? '—' }}</td>
-                  <td v-if="canManage" style="text-align: right"><Btn kind="danger" @click="removeSecret(s.provider)">remove</Btn></td>
+                  <td v-if="canManage" style="text-align: right"><Btn kind="danger" @click="removeSecret(s.provider)">Remove</Btn></td>
                 </tr>
                 <tr v-if="!detail.secrets.length"><td :colspan="canManage ? 5 : 4" class="dim" style="text-align: center; padding: 14px">no shared keys</td></tr>
               </tbody>

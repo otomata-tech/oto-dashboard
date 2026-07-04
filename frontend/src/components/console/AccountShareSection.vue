@@ -58,7 +58,7 @@ async function addGrant() {
 async function revoke(g: AccountGrant) {
   if (!g.grantee_sub) return
   if (!await confirmAction({
-    title: `révoquer ${who(g)}`, danger: true, confirmLabel: 'révoquer',
+    title: `révoquer ${who(g)}`, danger: true, confirmLabel: 'Révoquer',
     message: `révoquer l'autorisation de ${who(g)} d'opérer ton compte ${props.channel} ? effet immédiat sur son prochain appel.`,
   })) return
   try { await revokeAccountAccess(props.channel, g.grantee_sub); toast('autorisation révoquée'); emit('changed') }
@@ -70,14 +70,14 @@ async function revoke(g: AccountGrant) {
   <div class="asx">
     <div class="asx-head">
       <span class="dim asx-title">opéré aussi par</span>
-      <Btn kind="mini" :disabled="busy" @click="addGrant">autoriser un membre</Btn>
+      <Btn kind="mini" :disabled="busy" @click="addGrant">Autoriser un membre</Btn>
     </div>
     <div v-for="g in grants" :key="g.grantee_sub ?? ''" class="asx-row">
       <span class="asx-who">{{ who(g) }}
         <Tag tone="saffron">peut opérer ce compte</Tag>
         <span v-if="g.granted_at" class="dim asx-date">depuis {{ fmtDate(g.granted_at) }}</span>
       </span>
-      <Btn kind="danger" @click="revoke(g)">révoquer</Btn>
+      <Btn kind="danger" @click="revoke(g)">Révoquer</Btn>
     </div>
     <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
       :title="formDialog.title" :description="formDialog.description"

@@ -152,7 +152,7 @@ const doVerifyOrgCred = () => verifyConnector(credConn.value!.provider, 'org')
 
 async function removeKey(r: OrgConnectorActivation) {
   if (!isOrgAdmin.value) return
-  if (!await confirmAction({ title: 'retirer la clé d\'org', danger: true, confirmLabel: 'retirer',
+  if (!await confirmAction({ title: 'retirer la clé d\'org', danger: true, confirmLabel: 'Retirer',
     message: `retirer la clé partagée ${r.label} ? les membres sans clé perso perdent l'accès.` })) return
   try { await deleteOrgSecret(activeOrgId.value!, r.connector); toast(`${r.label} : clé d'org retirée`); await load() }
   catch (e) { toast(humanize(e)) }
@@ -268,7 +268,7 @@ function setSchedFilter(f: SchedFilter) { schedFilter.value = f; loadScheduled()
 async function cancelScheduled(eid: number) {
   if (activeOrgId.value == null) return
   if (!await confirmAction({
-    title: 'annuler l\'envoi', danger: true, confirmLabel: 'annuler l\'envoi',
+    title: 'annuler l\'envoi', danger: true, confirmLabel: 'Annuler l\'envoi',
     message: 'cet email programmé ne partira pas. confirmer ?',
   })) return
   try {
@@ -294,7 +294,7 @@ async function cancelScheduled(eid: number) {
         <template #actions>
           <Btn v-if="isOrgAdmin" kind="mini" icon="plus"
             :disabled="!enableableAll.length" @click="enableAll">
-            tout activer<span v-if="enableableAll.length" class="oc-count"> · {{ enableableAll.length }}</span>
+            Tout activer<span v-if="enableableAll.length" class="oc-count"> · {{ enableableAll.length }}</span>
           </Btn>
           <input v-model="q" class="cc-search" placeholder="rechercher…" />
         </template>
@@ -378,7 +378,7 @@ async function cancelScheduled(eid: number) {
             </div>
             <span class="oc-spacer" />
             <Tag :tone="m.status === 'failed' ? 'terra' : m.status === 'sent' ? 'olive' : 'saffron'">{{ m.status }}</Tag>
-            <Btn v-if="m.status === 'pending'" kind="danger" @click="cancelScheduled(m.id)">annuler</Btn>
+            <Btn v-if="m.status === 'pending'" kind="danger" @click="cancelScheduled(m.id)">Annuler</Btn>
           </div>
         </div>
         <p v-else-if="schedLoaded" class="helptext" style="padding: 6px 0">

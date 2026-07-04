@@ -36,7 +36,7 @@ async function link() {
   catch (e) { toast(humanize(e)) }
 }
 async function drop() {
-  if (!await confirmAction({ title: `disconnect ${props.connector.label}`, danger: true, confirmLabel: 'disconnect', message: `disconnect your ${props.connector.label}? its tools will disappear from your session.` })) return
+  if (!await confirmAction({ title: `disconnect ${props.connector.label}`, danger: true, confirmLabel: 'Disconnect', message: `disconnect your ${props.connector.label}? its tools will disappear from your session.` })) return
   try { await disconnectFederated(props.connector.name); toast(`${props.connector.label} disconnected`); await refresh() }
   catch (e) { toast(humanize(e)) }
 }
@@ -51,8 +51,8 @@ async function drop() {
           ? `connected ${fmtDate(status?.set_at) ?? ''} · login délégué (mcp fédéré)`
           : 'not connected — login delegated to the provider (mcp fédéré)' }}
       </span>
-      <Btn v-if="connected" kind="danger" @click="drop">disconnect</Btn>
-      <Btn v-else-if="!loading" kind="mini" @click="link">connect</Btn>
+      <Btn v-if="connected" kind="danger" @click="drop">Disconnect</Btn>
+      <Btn v-else-if="!loading" kind="mini" @click="link">Connect</Btn>
     </div>
     <DocSections v-if="docs.length" :sections="docs" />
   </div>

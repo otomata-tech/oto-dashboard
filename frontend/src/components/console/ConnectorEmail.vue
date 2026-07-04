@@ -128,7 +128,7 @@ async function saveQuiet() {
           <input v-model="draft.email" class="inp ce-email" placeholder="email@org.com" />
           <input v-model="draft.name" class="inp ce-name" placeholder="nom (optionnel)" />
           <input v-model="draft.reply_to" class="inp ce-name" placeholder="reply-to (optionnel)" />
-          <Btn kind="mini" icon="plus" @click="addSender">ajouter</Btn>
+          <Btn kind="mini" icon="plus" @click="addSender">Ajouter</Btn>
         </template>
         <template #row="{ item, index, remove }">
           <span class="mono ce-addr">{{ (item as EmailSender).email }}</span>
@@ -175,7 +175,7 @@ async function saveQuiet() {
     </ConfigSection>
     <div v-if="canEdit && quietDirty" class="ce-save">
       <Btn kind="mini" :disabled="savingQuiet" @click="saveQuiet">
-        {{ savingQuiet ? '…' : 'enregistrer la fenêtre calme' }}
+        {{ savingQuiet ? '…' : 'Enregistrer la fenêtre calme' }}
       </Btn>
     </div>
   </div>

@@ -32,7 +32,7 @@ async function makeDefault(email: string) {
   catch (e) { toast(humanize(e)) }
 }
 async function revoke(email: string) {
-  if (!await confirmAction({ title: 'revoke google account', danger: true, confirmLabel: 'revoke', message: `revoke ${email}? tools using it will lose access.` })) return
+  if (!await confirmAction({ title: 'revoke google account', danger: true, confirmLabel: 'Revoke', message: `revoke ${email}? tools using it will lose access.` })) return
   try { await revokeGoogle(email); toast('grant revoked'); await refresh() }
   catch (e) { toast(humanize(e)) }
 }
@@ -47,12 +47,12 @@ async function revoke(email: string) {
           <div class="oa-email">{{ g.email }} <Tag v-if="g.is_default" tone="saffron">default</Tag></div>
           <div class="oa-scopes">{{ g.scopes.join(' · ') }} · granted {{ fmtDate(g.granted_at) ?? '—' }}</div>
         </div>
-        <Btn v-if="!g.is_default" kind="mini" @click="makeDefault(g.email!)">make default</Btn>
-        <Btn kind="danger" @click="revoke(g.email!)">revoke</Btn>
+        <Btn v-if="!g.is_default" kind="mini" @click="makeDefault(g.email!)">Make default</Btn>
+        <Btn kind="danger" @click="revoke(g.email!)">Revoke</Btn>
       </div>
     </div>
     <span v-else-if="!loading" class="dim oa-empty">no account linked yet — link one to unlock the connector's tools.</span>
-    <Btn kind="mini" icon="plus" class="oa-add" @click="link">link account</Btn>
+    <Btn kind="mini" icon="plus" class="oa-add" @click="link">Link account</Btn>
   </div>
 </template>
 

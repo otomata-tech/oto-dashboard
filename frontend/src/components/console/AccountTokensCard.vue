@@ -66,7 +66,7 @@ async function copyToken() {
 }
 
 async function revokeToken(t: ApiToken) {
-  if (!await confirmAction({ title: 'revoke token', danger: true, confirmLabel: 'revoke', message: `revoke "${t.label}"?` })) return
+  if (!await confirmAction({ title: 'revoke token', danger: true, confirmLabel: 'Revoke', message: `revoke "${t.label}"?` })) return
   try { await deleteToken(t.id); toast('token revoked'); await reload() } catch (e) { toast(humanize(e)) }
 }
 
@@ -76,7 +76,7 @@ onMounted(reload)
 <template>
   <ConsoleCard id="tokens" title="cli & api tokens" flush
     sub="long-lived tokens for the oto cli and ci environments.">
-    <template #actions><Btn kind="mini" icon="plus" @click="createOpen = true">new token</Btn></template>
+    <template #actions><Btn kind="mini" icon="plus" @click="createOpen = true">New token</Btn></template>
     <table class="tbl">
       <thead><tr><th>label</th><th>created</th><th>last used</th><th style="width: 80px"></th></tr></thead>
       <tbody>
@@ -84,7 +84,7 @@ onMounted(reload)
           <td style="font-weight: 600; color: var(--color-ink)">{{ t.label }}</td>
           <td class="dim">{{ fmtDate(t.created_at) }}</td>
           <td class="dim">{{ fmtDate(t.last_used_at) ?? 'never' }}</td>
-          <td style="text-align: right"><Btn kind="danger" @click="revokeToken(t)">revoke</Btn></td>
+          <td style="text-align: right"><Btn kind="danger" @click="revokeToken(t)">Revoke</Btn></td>
         </tr>
         <tr v-if="!tokens.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no tokens yet</td></tr>
       </tbody>

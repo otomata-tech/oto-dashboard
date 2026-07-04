@@ -113,7 +113,7 @@ async function connect() {
 
 async function disconnect() {
   if (!await confirmAction({
-    title: 'disconnect memento', danger: true, confirmLabel: 'disconnect',
+    title: 'disconnect memento', danger: true, confirmLabel: 'Disconnect',
     message: 'disconnect your memento workspace? its tools disappear from your session — your knowledge base itself is untouched.',
   })) return
   try {
@@ -138,8 +138,8 @@ async function disconnect() {
               : 'not connected — your agents have no knowledge base yet' }}
           </div>
         </div>
-        <Btn v-if="loaded && memento?.connected" kind="danger" @click="disconnect">disconnect</Btn>
-        <Btn v-else-if="loaded" kind="mini" @click="connect">connect</Btn>
+        <Btn v-if="loaded && memento?.connected" kind="danger" @click="disconnect">Disconnect</Btn>
+        <Btn v-else-if="loaded" kind="mini" @click="connect">Connect</Btn>
       </div>
     </ConsoleCard>
 
@@ -212,7 +212,7 @@ async function disconnect() {
             </div>
             <div v-if="pagesMore" style="padding: 10px 16px">
               <Btn kind="mini" :disabled="pagesLoading" @click="loadPages(true)">
-                {{ pagesLoading ? 'loading…' : 'load more' }}
+                {{ pagesLoading ? 'Loading…' : 'Load more' }}
               </Btn>
             </div>
           </template>
