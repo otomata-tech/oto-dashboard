@@ -2,8 +2,11 @@
 
 Catalogue des patterns de la console (`dashboard.oto.ninja`). But : ajouter des **écrans** (`views/`) cohérents sans réinventer le shell ni les composants.
 
+> **Direction artistique « 2a » (contraste chaud).** Sidebar **encre** ancrant un contenu crème, cartes qui flottent sur un **filet doux + ombre chaude** (jamais de bord noir), rayons **8px ou pill uniquement**, boutons **tous pill + casse normale**, typo Familjen Grotesk + **Spline Sans Mono**, icônes **Lucide**, logo **« O ouvert »**. Le *pourquoi* et l'inventaire complet : `design-system/DESIGN-BRIEF.md` + `design-system/readme.md` (DS livré par JB). Skill front : `.claude/skills/oto-frontend`. **En cas de conflit repo ↔ brief, le brief gagne.**
+
 - **Source de vérité des classes** = `frontend/src/assets/console.css` (importé global par `main.ts`). Ce fichier dit **quand** utiliser quoi ; il ne reduplique pas le CSS.
-- **Tokens** : 6 couleurs de base en `@theme` (`src/assets/main.css`) pour les utilitaires Tailwind ; le **set complet** (`--color-surface/-bg/-ink-soft/-hair-soft`, tous les `-soft`/`-ink` d'accents, `--ease-out`) vit dans `console.css`, consommé en `var(--…)`. Palette = même « Manuscrit chaud » que le site (cf. `@otomata/ui/THEME.md`) — **aucune dépendance à `@otomata/ui`** (ADR 0007).
+- **Tokens** : 6 couleurs de base en `@theme` (`src/assets/main.css`) pour les utilitaires Tailwind ; le **set complet** vit dans `console.css` (`:root`), consommé en `var(--…)`, aligné sur `design-system/tokens/*.css`. Familles clés : neutres crème/encre (`--color-bg/-surface/-ink/-ink-soft/-mute/-faint`, **assombris pour la lisibilité WCAG**) + filet carte `--color-card-bd` ; 4 accents (`saffron/terra/olive/cobalt`, chacun base/`-soft`/`-ink`) ; **surface sidebar encre** (`--sidebar-bg/-fg/-fg-strong/-fg-mute/-hair/-active-bg/-active-fg/-hover-bg`) ; **rayons** `--radius-md` (8px) et `--radius-pill` (999px) — **rien d'autre** ; **élévation** `--shadow-card`/`-pop`/`-drawer` ; motion `--t-fast`/`--ease-out`. Palette = « Manuscrit chaud » — **aucune dépendance à `@otomata/ui`** (ADR 0007).
+- **Zéro valeur magique** : couleurs, rayons, espacements, ombres, polices → uniquement via `var(--…)`. **Réutiliser avant d'écrire** : composer les classes/composants existants ; un besoin récurrent (≥2×) manquant → créer un composant dans le système, pas un one-off dans une vue.
 - shadcn-vue (`src/components/ui/`) dispo pour les primitives complexes (dialog, dropdown…), mais le **langage visuel console** = les classes `console.css` ci-dessous, pas le style shadcn par défaut.
 
 ## Marketing vs console — deux dialectes d'une même palette
@@ -14,14 +17,15 @@ Mêmes tokens, intentions opposées. Ne pas transplanter l'un dans l'autre :
 |---|---|---|
 | Densité | aérée, éditoriale (`py-88`) | dense, fonctionnelle (`--row-py`, `--pad-card`) |
 | Titres | `display-l`, `clamp()`, squiggle | `topbar h1` 16px, `card-head .t` 14px |
-| Surfaces | hairlines, peu de cards | **cards** `radius:12px` partout |
+| Surfaces | hairlines, peu de cards | **cards** blanches, filet doux (`--color-card-bd`) + `--shadow-card` |
 | Accents | confettis larges (squiggle, soft bg) | stricts : `.tag`, dots, états |
-| Radius | pills, 16–18px | 7–12px (plus carré, outillé) |
+| Radius | pills, 16–18px | **8px (conteneurs) ou pill (boutons/tags/dots)** — rien d'autre |
+| Nav | topbar claire | **sidebar encre**, item actif aplat saffron |
 | Reveal | scroll-reveal | `.fadein` à l'entrée de vue |
 
 ## Shell (ne pas recréer)
 
-`.shell` = grille `sidebar 232px | 1fr`, pleine hauteur. Fourni par le layout console : sidebar (`.sb` : brand + groupes nav + foot user) + `.main` (`.topbar` + `.content`). Une nouvelle page = une **vue** rendue dans `.content`, jamais un nouveau shell.
+`.shell` = grille `sidebar 232px | 1fr`, pleine hauteur. Fourni par le layout console : sidebar **encre** (`.sb` : fond `--sidebar-bg`, textes crème `--sidebar-fg*`, item actif = aplat saffron `.sb-item.on`) portant brand + groupes nav + foot user, et `.main` (`.topbar` + `.content`) sur crème clair. Une nouvelle page = une **vue** rendue dans `.content`, jamais un nouveau shell.
 
 ```html
 <div class="content-inner">       <!-- gauche-ancré, max 1440px, gap 16px -->
@@ -83,18 +87,20 @@ Sparkline optionnelle : `.stat .v.with-spark` + `.spark`.
 
 ## Boutons
 
+**Tous les boutons sont en pill (`--radius-pill`) et en casse normale** (« Se connecter », pas « se connecter »). Le seul « bouton-like » non-pill = les jetons d'un `.seg` (segmented), qui restent lowercase.
+
 | Classe | Usage |
 |---|---|
 | `.btn` | action primaire (encre pleine, hover `-1px`) |
 | `.btn.ghost` | secondaire (bordée) |
-| `.btn-mini` | action de carte/ligne (surface + hairline, radius 7px) |
+| `.btn-mini` | action de carte/ligne (surface + hairline, pill) |
 | `.btn-mini.danger` | destructif (terra) |
 | `.linklike` | action inline texte (saffron-ink) |
-| `.seg` + `button.on` | segmented control (toggle de vue/mode) |
+| `.seg` + `button.on` | segmented control (jetons 8px, lowercase) |
 
 ## Inputs
 
-`.inp` (bordé radius 8px, `.inp.mono` pour valeurs techniques) · `.copyfield` (champ + code copiable, fond `hair-soft`) · `.kbd` (touche). Textarea doctrine : `.doc-editor` (mono, min-height 380px).
+`.inp` (bordé `--radius-md`, `.inp.mono` pour valeurs techniques) · `.copyfield` (champ + code copiable, surface sunken) · `.kbd` (touche). Textarea doctrine : `.doc-editor` (mono, min-height 380px). Tous les conteneurs de champ = `--radius-md` (8px) ; focus = bord saffron (`--focus-ring`).
 
 ## Barres & viz
 
@@ -117,7 +123,8 @@ Sparkline optionnelle : `.stat .v.with-spark` + `.spark`.
 
 ## Brand & touches éditoriales
 
-- `.o-medallion` (`-sm/-md/-lg`) : pastille saffron « o » — logo sidebar, avatars.
+- **Logo « O ouvert »** : la marque = un anneau à ouverture haut-droite (bouts ronds en écho aux pills), mono saffron. `.o-medallion` (`-sm/-md/-lg`) le rend en background pour un logo/avatar statique ; la **marque vivante** (états breathe/think/talk) = `<OtoMark>` (`lib/mark.ts`), utilisée topbar + chargements.
+- **Icônes = Lucide** (`components/console/Icon.vue`, API `name`, stroke 1.75, `currentColor`) — jamais de SVG dessiné à la main, jamais d'emoji. Le statut passe par `Dot`/`Tag`, pas une icône.
 - `.squiggle` (+ svg) : souligné ondulé saffron sur **un** mot d'un titre d'état/empty — parcimonie, c'est le clin d'œil au site, pas un ornement de routine.
 - `.fadein` : à poser sur la racine de vue pour l'entrée (220ms).
 
@@ -127,6 +134,6 @@ Sparkline optionnelle : `.stat .v.with-spark` + `.spark`.
 2. Données via `src/api.ts` (fetch authentifié `/api/*`, JWT Logto) — le front ne détient aucun secret, pas de BFF.
 3. Layout : `content-inner` (ou `.narrow` pour un formulaire), cards + grilles `console.css`.
 4. Rendre **empty / error / loading** explicitement.
-5. Accents = sens (tag/dot/quota), jamais décoratif. Radius outillé (7–12px).
+5. Accents = sens (tag/dot/quota), jamais décoratif. Rayons **8px ou pill** (tokens), zéro valeur en dur. Icônes Lucide.
 6. Pas de fichier > 500 lignes ; extraire en `components/console/` si besoin.
 7. CORS : domaine déjà whitelisté côté oto-backend (`OTO_MCP_CORS_ORIGINS`).
