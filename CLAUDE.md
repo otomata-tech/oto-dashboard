@@ -331,7 +331,11 @@ logo **« O ouvert »**.
 - Le DS est fourni en **React** : **porter en Vue**, ne pas copier les `.jsx` tels quels.
 - Toute nouvelle vue rend **empty / error / loading** explicitement.
 
-> **État d'intégration.** DS déposé + doctrine + skill posés (doc d'abord). Le portage effectif
-> (tokens → sidebar → boutons → champs → icônes Lucide → logo → composants manquants → audit des
-> vues) suit le plan en 8 étapes du `design-system/handoff-alexis.md`, par barreaux vérifiés — **non
-> encore réalisé**.
+> **État d'intégration (barreaux vérifiés au build, commits locaux — pas encore poussés).**
+> Faits : **b1** fondations tokens (couleurs WCAG, rayons md/pill, sidebar/ombres, Spline Sans
+> Mono) · **b2** sidebar encre (item actif saffron) · **b3** retrait du lowercase forcé sur les
+> boutons · **b5** icônes Lucide (`Icon.vue`, API inchangée) · **b6** logo « O ouvert » (`lib/mark.ts`,
+> `.o-medallion`) + favicons régénérés. Restent : **b4** champs (radio classique + select en
+> dropdown stylé) · **b7** composants manquants (Popover, SearchableSelect, Alert, Badge, Breadcrumb,
+> Pagination, Accordion…) · **b8** audit des scoped-styles (rayons magiques résiduels dans ~60 vues) ·
+> recapitalisation effective des libellés de boutons. Plan : `design-system/handoff-alexis.md`.
