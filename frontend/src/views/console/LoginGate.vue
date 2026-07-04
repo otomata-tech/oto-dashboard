@@ -31,7 +31,7 @@ onMounted(() => {
   <div class="console-root" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--color-bg)">
     <section class="card" style="max-width: 380px; width: 100%; text-align: center; padding: 32px 28px">
       <div style="display: flex; flex-direction: column; align-items: center; gap: 14px">
-        <span class="o-medallion o-medallion-sm" style="width: 44px; height: 44px; font-size: 22px">o</span>
+        <span class="o-medallion o-medallion-sm" style="width: 44px; height: 44px" aria-label="Oto" role="img" />
 
         <template v-if="join || otl">
           <div>
@@ -42,7 +42,7 @@ onMounted(() => {
             {{ otl ? 'connexion en cours…' : 'redirection vers la création de compte…' }}
           </p>
           <a href="#" @click.prevent="go" style="font-size: 13px; color: var(--color-mute); text-decoration: underline">
-            la redirection ne se lance pas ? {{ otl ? 'se connecter' : 'créer mon compte' }}
+            la redirection ne se lance pas ? {{ otl ? 'Se connecter' : 'Créer mon compte' }}
           </a>
         </template>
 
@@ -54,7 +54,7 @@ onMounted(() => {
           <p class="helptext" style="margin: 4px 0 6px">
             connectez-vous avec votre compte otomata pour gérer vos connecteurs, vos procédures et votre org.
           </p>
-          <button class="btn" @click="() => login()">se connecter</button>
+          <button class="btn" @click="() => login()">Se connecter</button>
         </template>
       </div>
     </section>
