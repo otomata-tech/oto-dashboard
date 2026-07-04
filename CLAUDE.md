@@ -159,18 +159,17 @@ dans `api/console.ts` (POST op-aware `/api/me/{projects,docs}`). Backend : `oto-
 > non bindés / procédures inertes) → bandeau « liens à vérifier » de `ProjectDetailView`,
 > rechargé après lier/délier. Un lien peut porter un **`slot`** (binding nommé, 409 `slot_taken`).
 
-> **Partage public CHIFFRÉ (ADR 0032 §3, zero-knowledge).** `ProjectDetailView` porte une carte
-> « lien public · chiffré » : à la publication, le navigateur assemble un snapshot (brief + pages
-> via `listDocs`), le **chiffre** (`lib/crypto.ts`, WebCrypto AES-256-GCM, clé neuve) et n'envoie
-> que le ciphertext (`publishProjectShare`) ; la clé part dans le **fragment** du lien
-> (`/p/p/<token>#<clé>`), copié au presse-papier. Le lien complet est mémorisé en `localStorage`
-> (`oto:pshare:<id>`) pour le ré-afficher (la clé n'existe QUE côté client → sinon re-publier).
-> Viewer public `PublicProjectView.vue` (route `/p/p/:token`, hors shell, sans auth) : lit la clé
-> du hash, `getPublicProjectShare` → `decryptShare` → rend brief + arbre de pages (`MarkdownView`).
-> `Project.public_shared`/`public_shared_at` viennent du `get` backend. Le pendant en clair =
-> le viewer public de **doc** (#4a) : `/p/d/<token>` n'est **plus une route SPA** — Caddy la route
-> vers le backend qui rend le doc **server-side** (lisible par un agent sans JS, content-negotiation
-> HTML/markdown/JSON) ; `PublicDocView.vue` a été supprimé. Seul `/p/p/` reste SPA (déchiffrement client).
+> **Partage NAVIGABLE d'un projet (ADR 0032) — `<slug>.share.oto.cx`.** `ProjectDetailView`
+> porte la carte « Endpoint MCP & partage » : pour un projet publié en `secret`, elle affiche
+> le **lien de partage navigable** `https://<slug>.share.oto.cx` (dérivé côté front de
+> `mcp_slug`/`mcp_access`, aucun secret) + l'endpoint connecteur `…/mcp`. Les invités y naviguent
+> les procédures/tableaux/docs en **lecture seule**, rendus **server-side** par le backend
+> (`share_ui`) — rien à faire côté front (pas de viewer SPA). Le backend expose aussi `share_url`/
+> `mcp_url` (per-mode) sur `oto_project(op=get)`.
+> **Retiré** : le partage public **chiffré** zero-knowledge (`PublicProjectView.vue`, route
+> `/p/p/:token`, `lib/crypto.ts`, `publishProjectShare`/`getPublicProjectShare`) — supplanté par
+> le navigable live. Le viewer public de **doc** (`/p/d/<token>`) reste rendu **server-side** par
+> le backend via Caddy (pas de route SPA ; `PublicDocView.vue` déjà supprimé).
 
 ## Mémoire — datastore + knowledge (ADR 0016)
 
