@@ -240,7 +240,7 @@ watch(() => props.filters, (f) => {
 .dt-count { font-size: 11px; white-space: nowrap; }
 .dt-filter-toggle, .dt-filter-clear {
   font: inherit; font-size: 11px; cursor: pointer; border: 1px solid var(--color-hair);
-  background: var(--color-surface); color: var(--color-mute); border-radius: 6px;
+  background: var(--color-surface); color: var(--color-mute); border-radius: var(--radius-md);
   padding: 2px 8px; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
 }
 .dt-filter-toggle.on { color: var(--color-cobalt); border-color: var(--color-cobalt); }
@@ -248,7 +248,7 @@ watch(() => props.filters, (f) => {
 .dt-filter-clear:hover { color: var(--color-terra-ink); }
 .dt-filter-badge {
   font-size: 10px; background: var(--color-cobalt); color: var(--color-paper);
-  border-radius: 8px; padding: 0 5px; line-height: 1.5;
+  border-radius: var(--radius-md); padding: 0 5px; line-height: 1.5;
 }
 .dt-chips {
   display: flex; flex-wrap: wrap; gap: 6px;
@@ -257,7 +257,7 @@ watch(() => props.filters, (f) => {
 .dt-chip {
   font: inherit; font-size: 11px; cursor: pointer;
   display: inline-flex; align-items: center; gap: 5px;
-  border: 1px solid var(--color-cobalt); border-radius: 999px; padding: 1px 8px;
+  border: 1px solid var(--color-cobalt); border-radius: var(--radius-pill); padding: 1px 8px;
   background: var(--color-surface); color: var(--color-cobalt); max-width: 260px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -294,7 +294,7 @@ watch(() => props.filters, (f) => {
 .dt-psize { font-size: 11px; margin-left: auto; white-space: nowrap; }
 .dt-pager-nav + .dt-psize { margin-left: 0; }
 .dt-psize select {
-  font: inherit; font-size: 11px; border: 1px solid var(--color-hair); border-radius: 6px;
+  font: inherit; font-size: 11px; border: 1px solid var(--color-hair); border-radius: var(--radius-md);
   background: var(--color-surface); color: var(--color-mute); padding: 1px 4px; cursor: pointer;
 }
 </style>

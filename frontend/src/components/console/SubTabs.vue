@@ -26,12 +26,12 @@ defineEmits<{ (e: 'update:modelValue', key: string): void }>()
 <style scoped>
 .subtabs {
   display: inline-flex; gap: 3px; padding: 3px;
-  border: 1px solid var(--color-hair); border-radius: 11px;
+  border: 1px solid var(--color-hair); border-radius: var(--radius-md);
   background: var(--color-surface); margin-bottom: 16px;
 }
 .subtab {
   font-size: 12.5px; font-weight: 600; text-transform: lowercase;
-  padding: 5px 14px; border-radius: 8px; border: 1px solid transparent;
+  padding: 5px 14px; border-radius: var(--radius-md); border: 1px solid transparent;
   background: transparent; color: var(--color-mute); cursor: pointer;
   transition: all var(--t-fast) var(--ease-out); white-space: nowrap;
 }
