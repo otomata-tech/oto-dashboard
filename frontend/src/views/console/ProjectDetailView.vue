@@ -1,497 +1,301 @@
 <script setup lang="ts">
-// Page DÉDIÉE d'un projet — `/projects/:id` (objet de premier rang, ADR 0030 ; pas
-// un volet de liste). Charge un seul projet par id de route, remonté par le layout
-// quand :id change (viewKey = fullPath). Brief + pages/Docs + entités liées (vrais
-// sélecteurs) + partage + activité. Consomme oto_project / oto_doc / oto_resource.
-import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
+// Page DÉDIÉE d'un projet — `/projects/:id` (objet de premier rang, ADR 0030). Refonte UX
+// (ADR « refonte projets ») : chef d'orchestre du NAVIGATEUR de contenu. En-tête fusionné
+// (nom + tags + avatars + Partager · Historique · Reprendre dans Claude · •••) ; corps =
+// viewer polymorphe (gauche) + rail d'entités (droite) ; audit en bandeau pleine largeur ;
+// partage en modale, activité en drawer. La logique data (get/update/link/doc/file…) est
+// CONSERVÉE — c'est le rendu qui est ré-agencé (viewer/rail + dialogs).
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Tag from '@/components/console/Tag.vue'
-import ProjectWiki from '@/components/console/ProjectWiki.vue'
-import ProjectEntities from '@/components/console/ProjectEntities.vue'
-import Dropzone from '@/components/console/Dropzone.vue'
 import Icon from '@/components/console/Icon.vue'
-import AttachmentViewer from '@/components/console/AttachmentViewer.vue'
-import SharePrincipalDialog from '@/components/console/SharePrincipalDialog.vue'
 import NameDialog from '@/components/console/NameDialog.vue'
-// Unovis est lourd (~d3) : on l'isole dans son propre chunk, chargé seulement
-// quand le projet a de l'activité (v-if ci-dessous) → vue projet de base légère.
-const ActivityChart = defineAsyncComponent(() => import('@/components/console/ActivityChart.vue'))
+import ProjectRail from '@/components/console/project/ProjectRail.vue'
+import ProjectViewer from '@/components/console/project/ProjectViewer.vue'
+import ProjectShareDialog from '@/components/console/project/ProjectShareDialog.vue'
+import ProjectHistoryDrawer from '@/components/console/project/ProjectHistoryDrawer.vue'
+import EntityPickerDialog from '@/components/console/project/EntityPickerDialog.vue'
+import type { RailGroup, RailItem } from '@/components/console/project/rail'
 import {
   getProject, updateProject, archiveProject, copyProject, setProjectTemplate, projectHandoff,
-  getProjectActivity,
-  getResource, unshareResource, transferResource,
-  listProjectFiles, uploadProjectFile, deleteProjectFile, setProjectFilePublic,
-  publishProjectMcp, unpublishProjectMcp, getProjectInventory,
+  getProjectActivity, getResource, listProjectFiles, listDocs, getProjectInventory,
 } from '@/api/console'
 import type { ProjectAudit } from '@/api/console'
-import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile } from '@/types/api'
-import { fmtDate } from '@/types/api'
+import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile, Doc } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
-import { usePrompt } from '@/composables/usePrompt'
-import { useTransferOwnership } from '@/composables/useTransferOwnership'
 
 const route = useRoute()
 const router = useRouter()
 const { toast } = useToast()
-const { confirmAction, promptForm } = usePrompt()
-const { pickTarget } = useTransferOwnership()
 
 const projectId = Number(route.params.id)
 const project = ref<Project | null>(null)
 const grants = ref<NamespaceShare[]>([])
 const activity = ref<ProjectActivity[]>([])
 const files = ref<ProjectFile[]>([])
-const preview = ref<ProjectFile | null>(null)   // fichier ouvert dans le viewer lightbox
-const uploading = ref(false)
-const shareOpen = ref(false)
-const copyOpen = ref(false)
+const docs = ref<Doc[]>([])
+const audit = ref<ProjectAudit | null>(null)
 const loaded = ref(false)
 const error = ref<string | null>(null)
-// URL de PARTAGE NAVIGABLE (lecture seule, humain) — mode `secret` uniquement (ADR 0032) :
-// sur `<slug>.share.oto.cx` la racine + /procedures//data//docs rendent l'UI, le MCP est au
-// path /mcp. Dérivée du slug (aucun secret) plutôt que calculée par le backend.
-const shareUrl = computed(() =>
-  project.value?.mcp_access === 'secret' && project.value.mcp_slug
-    ? `https://${project.value.mcp_slug}.share.oto.cx` : null)
-// URL du connecteur MCP à brancher dans Claude : share.oto.cx/mcp en secret, sinon la dérivée
-// backend (mcp.oto.cx/mcp pour anonymous/org).
-const mcpConnectUrl = computed(() =>
-  shareUrl.value ? `${shareUrl.value}/mcp` : (project.value?.mcp_url ?? null))
 
-const readOnly = computed(() => project.value?.can_write === false)   // #4b — proposer une modif au lieu d'éditer
-// Audit des liens (ADR 0035 B5) : morts / slots non bindés / procédures inertes.
-const audit = ref<ProjectAudit | null>(null)
+const sel = ref<string>('home')
+const shareOpen = ref(false)
+const histOpen = ref(false)
+const menuOpen = ref(false)
+const copyOpen = ref(false)
+// picker d'ajout : { kind, parentId? } ouvert par un (+) du rail ou « + sous-page »
+const addKind = ref<null | 'connecteur' | 'tableau' | 'procedure' | 'doc' | 'page' | 'file'>(null)
+const addParent = ref<number | null>(null)
+
+const readOnly = computed(() => project.value?.can_write === false)
+const links = computed<ProjectLink[]>(() => project.value?.links ?? [])
 const auditIssues = computed(() => !!audit.value
   && audit.value.dead_links.length + audit.value.unbound_slots.length + audit.value.inert_procedures.length > 0)
-async function loadAudit() {
-  try { audit.value = (await getProjectInventory(projectId)).audit ?? null }
-  catch { audit.value = null }   // dérivation best-effort — pas de bandeau, pas d'erreur
-}
-// MAJ de la liste d'entités remontée par <ProjectEntities> après lier/délier/surcharger.
-function onLinksUpdate(links: ProjectLink[]) {
-  if (project.value) project.value = { ...project.value, links }
-  void loadAudit()
-}
+const auditLines = computed<string[]>(() => {
+  const a = audit.value
+  if (!a) return []
+  return [
+    ...a.dead_links.map((d) => `Lien mort — ${d.target_type} « ${d.target_ref} » : ${d.why}`),
+    ...a.unbound_slots.map((u) => `Procédure « ${u.procedure} » : slots déclarés non bindés dans ce projet — ${u.slots.join(', ')}`),
+    ...a.inert_procedures.map((s) => `Procédure « ${s} » liée mais jamais déroulée dans ce projet.`),
+  ]
+})
 
+// ── en-tête : tags + avatars ──
+const statusTags = computed(() => {
+  const out: { tone: 'saffron' | 'cobalt'; label: string }[] = []
+  if (project.value?.is_template) out.push({ tone: 'saffron', label: 'modèle' })
+  if (readOnly.value) out.push({ tone: 'cobalt', label: 'lecture' })
+  return out
+})
+const AV_PALETTE = [
+  { bg: 'var(--color-cobalt-soft)', fg: 'var(--color-cobalt-ink)' },
+  { bg: 'var(--color-saffron-soft)', fg: 'var(--color-saffron-ink)' },
+  { bg: 'var(--color-olive-soft)', fg: 'var(--color-olive-ink)' },
+]
+function initialsOf(g: NamespaceShare): string {
+  const s = g.label || g.email || String(g.principal_id || '?')
+  return s.replace(/[^\p{L}\p{N} ]/gu, '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('') || '?'
+}
+const avatars = computed(() => grants.value.slice(0, 3).map((g, i) => ({ initials: initialsOf(g), ...AV_PALETTE[i % AV_PALETTE.length] })))
+const moreCount = computed(() => Math.max(0, grants.value.length - 3))
+
+// ── rail : groupes dérivés (pages + liens + fichiers) ──
+function bindingKey(l: ProjectLink): string { return `link:${l.target_type}:${l.target_ref}|${l.identity_ref ?? ''}` }
+function linkName(l: ProjectLink): string { return l.label || l.title || l.namespace || l.target_ref }
+function linksOf(t: string): ProjectLink[] { return links.value.filter((l) => l.target_type === t) }
+
+const railGroups = computed<RailGroup[]>(() => {
+  // Pages : accueil (brief) + arbre de docs (top-level puis enfants).
+  const pageItems: RailItem[] = [{ key: 'home', kind: 'page', label: 'Accueil · Brief', home: true, pad: 0 }]
+  const top = docs.value.filter((d) => d.parent_id == null)
+  for (const d of top) {
+    pageItems.push({ key: `doc:${d.id}`, kind: 'page', label: d.title, doc: d, pad: 0 })
+    for (const c of docs.value.filter((x) => x.parent_id === d.id))
+      pageItems.push({ key: `doc:${c.id}`, kind: 'page', label: c.title, doc: c, parentKey: `doc:${d.id}`, pad: 1 })
+  }
+  const mkLink = (t: RailItem['kind'], l: ProjectLink): RailItem => ({
+    key: bindingKey(l), kind: t, label: linkName(l), link: l,
+    railTag: t === 'connecteur' && l.config?.instructions_md ? { tone: 'olive', label: 'surchargé' } : null,
+  })
+  const fileItems: RailItem[] = files.value.map((f) => ({
+    key: `file:${f.id}`, kind: 'file', label: f.title || f.filename, file: f,
+    railTag: f.public ? { tone: 'cobalt', label: 'public' } : null,
+  }))
+  return [
+    { key: 'pages', label: 'Pages', icon: 'book', kind: 'page', addKind: 'page', items: pageItems },
+    { key: 'tableaux', label: 'Tableaux', icon: 'db', kind: 'tableau', addKind: 'tableau', items: linksOf('tableau').map((l) => mkLink('tableau', l)) },
+    { key: 'connecteurs', label: 'Connecteurs', icon: 'plug', kind: 'connecteur', addKind: 'connecteur', items: linksOf('connecteur').map((l) => mkLink('connecteur', l)) },
+    { key: 'procedures', label: 'Procédures', icon: 'doc', kind: 'procedure', addKind: 'procedure', items: linksOf('procedure').map((l) => mkLink('procedure', l)) },
+    { key: 'documents', label: 'Documents', icon: 'book', kind: 'doc', addKind: 'doc', items: linksOf('doc').map((l) => mkLink('doc', l)) },
+    { key: 'files', label: 'Fichiers importés', icon: 'file-text', kind: 'file', addKind: 'file', items: fileItems },
+  ]
+})
+// Item sélectionné (recomputé → survit aux reloads ; fallback accueil si disparu).
+const selItem = computed<RailItem | null>(() => {
+  for (const g of railGroups.value) { const it = g.items.find((x) => x.key === sel.value); if (it) return it }
+  return railGroups.value[0]?.items[0] ?? null
+})
+
+// ── chargement ──
 async function load() {
   if (!Number.isFinite(projectId)) { error.value = 'Projet introuvable.'; loaded.value = true; return }
   try {
     project.value = await getProject(projectId)
-    await Promise.all([loadGrants(), loadActivity(), loadFiles(), loadAudit()])
+    await Promise.all([loadGrants(), loadActivity(), loadFiles(), loadDocs(), loadAudit()])
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
-async function loadFiles() {
-  try { files.value = (await listProjectFiles(projectId)).files }
-  catch (e) { toast(humanize(e)) }
-}
-function fmtSize(n?: number | null): string {
-  if (!n) return ''
-  if (n < 1024) return `${n} o`
-  if (n < 1024 * 1024) return `${Math.round(n / 1024)} Ko`
-  return `${(n / (1024 * 1024)).toFixed(1)} Mo`
-}
-async function onDropFile(file: File) {
-  uploading.value = true
-  try {
-    const { file: row } = await uploadProjectFile(projectId, file)
-    files.value = [row, ...files.value]
-    await loadActivity()
-  } catch (err) { toast(humanize(err)) }
-  finally { uploading.value = false }
-}
-async function removeFile(f: ProjectFile) {
-  if (!(await confirmAction({ title: 'Supprimer ce fichier ?',
-    message: `Supprimer « ${f.title || f.filename} » ?` }))) return
-  try {
-    await deleteProjectFile(projectId, f.id)
-    files.value = files.value.filter((x) => x.id !== f.id)
-    await loadActivity()
-  } catch (e) { toast(humanize(e)) }
-}
-async function toggleFilePublic(f: ProjectFile) {
-  try {
-    const { file: row } = await setProjectFilePublic(projectId, f.id, !f.public)
-    files.value = files.value.map((x) => (x.id === f.id ? row : x))
-    if (row.public && row.public_url) {
-      await navigator.clipboard.writeText(row.public_url).catch(() => {})
-      toast('Lien public copié.')
-    }
-  } catch (e) { toast(humanize(e)) }
-}
-async function loadGrants() {
-  try { grants.value = (await getResource('project', String(projectId))).grants }
-  catch { grants.value = [] }
-}
-async function loadActivity() {
-  try { activity.value = (await getProjectActivity(projectId)).activity }
-  catch { activity.value = [] }
-}
+async function reloadProject() { try { project.value = await getProject(projectId) } catch (e) { toast(humanize(e)) } }
+async function loadGrants() { try { grants.value = (await getResource('project', String(projectId))).grants } catch { grants.value = [] } }
+async function loadActivity() { try { activity.value = (await getProjectActivity(projectId)).activity } catch { activity.value = [] } }
+async function loadFiles() { try { files.value = (await listProjectFiles(projectId)).files } catch (e) { toast(humanize(e)) } }
+async function loadDocs() { try { docs.value = (await listDocs(projectId)).docs } catch (e) { toast(humanize(e)) } }
+async function loadAudit() { try { audit.value = (await getProjectInventory(projectId)).audit ?? null } catch { audit.value = null } }
 onMounted(load)
 
-// Le brief est édité dans le wiki (page d'accueil) ; le parent reste propriétaire de
-// l'état projet et persiste la valeur remontée par <ProjectWiki @save-brief>.
+// ── actions d'en-tête ──
 async function saveBrief(value: string) {
   if (!project.value) return
-  try {
-    project.value = { ...project.value, ...(await updateProject(projectId, { brief_md: value })) }
-    await loadActivity(); toast('brief enregistré')
-  } catch (e) { toast(humanize(e)) }
+  try { project.value = { ...project.value, ...(await updateProject(projectId, { brief_md: value })) }; await loadActivity(); toast('brief enregistré') }
+  catch (e) { toast(humanize(e)) }
 }
-
-async function archive() {
+async function handoff() {
+  try { const { markdown } = await projectHandoff(projectId); await navigator.clipboard.writeText(markdown); toast('texte copié — colle-le dans Claude pour reprendre le projet') }
+  catch (e) { toast(humanize(e)) }
+}
+function copy() { menuOpen.value = false; if (project.value) copyOpen.value = true }
+async function doCopy(name: string) {
+  try { const c = await copyProject(projectId, name); toast('projet copié'); router.push(`/projects/${c.id}`) }
+  catch (e) { toast(humanize(e)); throw e }
+}
+async function toggleTemplate() {
+  menuOpen.value = false
   if (!project.value) return
-  if (!await confirmAction({ title: 'Archiver le projet', danger: true, confirmLabel: 'Archiver',
-    message: `Archiver « ${project.value.name} » ?` })) return
+  const next = !project.value.is_template
+  try { project.value = { ...project.value, ...(await setProjectTemplate(projectId, next)) }; toast(next ? 'publié comme modèle' : 'retiré des modèles') }
+  catch (e) { toast(humanize(e)) }
+}
+async function archive() {
+  menuOpen.value = false
+  if (!project.value) return
   try { await archiveProject(projectId); toast('projet archivé'); router.push('/projects') }
   catch (e) { toast(humanize(e)) }
 }
 
-// ── modèle (template) : copier ce projet / le publier comme modèle (ADR 0032 §7 B5a) ──
-function copy() { if (project.value) copyOpen.value = true }
-async function doCopy(name: string) {
-  try {
-    const c = await copyProject(projectId, name)
-    toast('projet copié')
-    router.push(`/projects/${c.id}`)
-  } catch (e) { toast(humanize(e)); throw e }
+// ── navigateur : sélection + ajout ──
+function onSelect(it: RailItem) { sel.value = it.key }
+function openAdd(kind: NonNullable<typeof addKind.value>) { addParent.value = null; addKind.value = kind }
+function openSubPage(parentId: number) { addParent.value = parentId; addKind.value = 'page' }
+async function onLinked() { await Promise.all([reloadProject(), loadActivity(), loadAudit()]) }
+async function onCreatedDoc(id: number) { await loadDocs(); sel.value = `doc:${id}` }
+async function onReloadDocs() {
+  await loadDocs()
+  if (sel.value.startsWith('doc:') && !docs.value.some((d) => `doc:${d.id}` === sel.value)) sel.value = 'home'
 }
-
-async function toggleTemplate() {
-  if (!project.value) return
-  const next = !project.value.is_template
-  try {
-    project.value = { ...project.value, ...(await setProjectTemplate(projectId, next)) }
-    toast(next ? 'publié comme modèle' : 'retiré des modèles')
-  } catch (e) { toast(humanize(e)) }
+async function onReloadFiles() {
+  await loadFiles()
+  if (sel.value.startsWith('file:') && !files.value.some((f) => `file:${f.id}` === sel.value)) sel.value = 'home'
 }
-
-// « Reprendre dans Claude » (B5b) : récupère le blob copier-coller et le met au presse-papier.
-async function handoff() {
-  try {
-    const { markdown } = await projectHandoff(projectId)
-    await navigator.clipboard.writeText(markdown)
-    toast('texte copié — colle-le dans Claude pour reprendre le projet')
-  } catch (e) { toast(humanize(e)) }
-}
-
-// ── partage / transfert (oto_resource) ──
-// Le geste de partage (membre / équipe / org / email) vit dans
-// <SharePrincipalDialog> (autonome) ; la carte inline garde sa révocation rapide.
-function principalOf(g: NamespaceShare) {
-  if (g.principal_type === 'group') return { group_id: Number(g.principal_id) }
-  if (g.principal_type === 'org') return { org_id: Number(g.principal_id) }
-  return g.email ? { email: g.email } : null
-}
-async function revoke(g: NamespaceShare) {
-  const p = principalOf(g)
-  if (!p) return
-  try { await unshareResource('project', String(projectId), p); await loadGrants() }
-  catch (e) { toast(humanize(e)) }
-}
-async function transfer() {
-  if (!project.value) return
-  const target = await pickTarget(project.value.name || `projet #${projectId}`)
-  if (!target) return
-  try { await transferResource('project', String(projectId), target); toast('transféré'); await Promise.all([load(), loadGrants()]) }
-  catch (e) { toast(humanize(e)) }
-}
-
-// ── Endpoint MCP dédié + partage navigable (`<slug>.{mcp,share}.oto.cx`, ADR 0032) ──
-const mcpBusy = ref(false)
-async function publishMcp() {
-  if (!project.value || mcpBusy.value) return
-  // Préremplissage DÉRIVÉ (ADR 0035 B4) : pas encore de liste curée sur le projet →
-  // proposer l'inventaire (refs des procédures liées ∪ usage des runs) ; on cure, on
-  // ne retape pas. Best-effort : échec de dérivation = formulaire vide, comme avant.
-  let toolsDefault = (project.value.mcp_tools ?? []).join('\n')
-  let toolsHint = 'un par ligne — les SEULS outils visibles sur ce sous-domaine'
-  if (!toolsDefault) {
-    try {
-      toolsDefault = ((await getProjectInventory(projectId)).tools ?? []).join('\n')
-      if (toolsDefault) toolsHint = 'prérempli depuis l’inventaire du projet (procédures liées + runs) — cure la liste'
-    } catch { /* dérivation best-effort */ }
-  }
-  const r = await promptForm({
-    title: 'Publier en endpoint MCP',
-    description: 'Un sous-domaine dédié exposant un jeu d’outils figé, à brancher dans Claude/Mistral. En « secret », le sous-domaine `<slug>.share.oto.cx` est aussi une UI navigable (lecture seule).',
-    fields: [
-      { key: 'slug', label: 'Sous-domaine', value: project.value.mcp_slug ?? '',
-        placeholder: 'french-tech-marseille', required: false, hint: '→ <slug>.mcp.oto.cx (public/org) ou <slug>.share.oto.cx (secret). Min. 3 car., a-z 0-9 -. En « secret », préfixe optionnel : un suffixe aléatoire est ajouté.' },
-      { key: 'access', label: 'Accès', type: 'select', value: project.value.mcp_access && project.value.mcp_access !== 'off' ? project.value.mcp_access : 'anonymous',
-        options: [
-          { value: 'anonymous', label: 'Public · sans login, listé dans l’annuaire' },
-          { value: 'secret', label: 'Secret · URL non devinable, navigable (non listé)' },
-          { value: 'org', label: 'Org · authentifié (membres de l’org, login Logto)' },
-        ] },
-      { key: 'tools', label: 'Outils exposés', type: 'textarea', value: toolsDefault,
-        placeholder: 'frenchtech_search_annuaire\nfrenchtech_evenements', required: true,
-        hint: toolsHint },
-    ],
-    submitLabel: 'Publier',
-  })
-  if (!r) return
-  const tools = (r.tools ?? '').split(/[\n,]/).map((t) => t.trim()).filter(Boolean)
-  mcpBusy.value = true
-  try {
-    const updated = await publishProjectMcp(projectId, {
-      mcp_slug: (r.slug ?? '').trim(), mcp_access: (r.access ?? 'anonymous') as 'anonymous' | 'secret' | 'org', mcp_tools: tools })
-    project.value = { ...project.value, ...updated }
-    const unresolvable = updated.mcp_unresolvable_tools ?? []
-    if (unresolvable.length)
-      toast(`endpoint publié — ${unresolvable.length} outil(s) exposé(s) mais non résoluble(s) sans login (échoueront à l’appel) : ${unresolvable.join(', ')}`)
-    else
-      toast('endpoint MCP publié')
-    await loadActivity()
-  } catch (e) { toast(humanize(e)) }
-  finally { mcpBusy.value = false }
-}
-async function unpublishMcp() {
-  if (!project.value) return
-  if (!await confirmAction({ title: 'Retirer l’endpoint MCP',
-    message: 'Le sous-domaine deviendra immédiatement inaccessible. Continuer ?', confirmLabel: 'Retirer', danger: true })) return
-  try {
-    const updated = await unpublishProjectMcp(projectId)
-    project.value = { ...project.value, ...updated }
-    toast('endpoint MCP retiré')
-    await loadActivity()
-  } catch (e) { toast(humanize(e)) }
-}
-async function copyMcpUrl() {
-  if (!mcpConnectUrl.value) return
-  await navigator.clipboard.writeText(mcpConnectUrl.value).catch(() => {})
-  toast('URL copiée')
-}
-async function copyShareUrl() {
-  if (!shareUrl.value) return
-  await navigator.clipboard.writeText(shareUrl.value).catch(() => {})
-  toast('lien de partage copié')
-}
+async function onReloadLinks() { await Promise.all([reloadProject(), loadAudit()]) }
+async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
 </script>
 
 <template>
-  <div class="content-inner fadein">
-    <RouterLink to="/projects" class="wk-back">← projets</RouterLink>
-
-    <div v-if="error" class="surface-card"><p class="dim" style="font-size: 13px">{{ error }}</p></div>
-    <div v-else-if="!loaded" class="surface-card"><p class="dim" style="font-size: 13px">chargement du projet…</p></div>
+  <div class="pj fadein">
+    <div v-if="error" class="pj__msg surface-card"><p class="dim" style="font-size: 13px">{{ error }}</p></div>
+    <div v-else-if="!loaded" class="pj__msg surface-card"><p class="dim" style="font-size: 13px">chargement du projet…</p></div>
 
     <template v-else-if="project">
-      <!-- en-tête de page -->
-      <header class="wk-head">
-        <div class="wk-head__id">
-          <span class="card-eb">{{ project.owner_type === 'org' ? "projet d'org · partagé avec l'équipe" : 'projet perso' }}</span>
-          <div class="wk-title">{{ project.name }}</div>
-          <div class="wk-status">
-            <span class="wk-dot"></span> actif
-            <Tag v-if="project.is_template" tone="saffron" title="Publié comme modèle copiable">modèle</Tag>
-            <Tag v-if="readOnly" tone="cobalt" title="Tu es en lecture seule sur ce projet">lecture</Tag>
-          </div>
+      <!-- en-tête fusionné -->
+      <header class="pj-top">
+        <div class="pj-top__id">
+          <h1 class="pj-top__name">{{ project.name }}</h1>
+          <Tag v-for="t in statusTags" :key="t.label" :tone="t.tone">{{ t.label }}</Tag>
         </div>
-        <div class="wk-head__act">
-          <button class="btn-resume" @click="handoff">Reprendre dans claude →</button>
-          <button class="btn-soft" @click="copy">Copier</button>
-          <button v-if="!readOnly" class="btn-soft" @click="toggleTemplate">{{ project.is_template ? 'Retirer des modèles' : 'Publier comme modèle' }}</button>
-          <button v-if="!readOnly" class="btn-soft" @click="shareOpen = true">Partager</button>
-          <button v-if="!readOnly" class="btn-soft" @click="transfer">Transférer</button>
-          <button v-if="!readOnly" class="btn-soft btn-soft--danger" @click="archive">Archiver</button>
+        <div class="pj-top__act">
+          <button v-if="grants.length" class="pj-avs" title="Partagé — voir avec qui" @click="shareOpen = true">
+            <span v-for="(a, i) in avatars" :key="i" class="pj-av" :style="{ background: a.bg, color: a.fg }">{{ a.initials }}</span>
+            <span v-if="moreCount" class="pj-av pj-av--more">+{{ moreCount }}</span>
+          </button>
+          <button class="pj-btn" @click="shareOpen = true"><Icon name="users" :size="15" /> Partager</button>
+          <button class="pj-btn" @click="histOpen = true"><Icon name="activity" :size="15" /> Historique</button>
+          <button class="pj-btn pj-btn--primary" @click="handoff"><Icon name="sparkles" :size="14" /> Reprendre dans Claude</button>
+          <span class="pj-menu">
+            <button class="pj-btn pj-btn--icon" aria-label="plus d'actions" @click="menuOpen = !menuOpen"><Icon name="ellipsis" :size="17" /></button>
+            <template v-if="menuOpen">
+              <span class="pj-menu__scrim" @click="menuOpen = false"></span>
+              <div class="pj-menu__pop">
+                <button class="pj-mi" @click="copy"><Icon name="copy" :size="14" /> Copier le projet</button>
+                <template v-if="!readOnly">
+                  <button class="pj-mi" @click="toggleTemplate"><Icon name="sparkles" :size="14" /> {{ project.is_template ? 'Retirer des modèles' : 'Publier comme modèle' }}</button>
+                  <div class="pj-mi__sep"></div>
+                  <button class="pj-mi pj-mi--danger" @click="archive"><Icon name="trash-2" :size="14" /> Archiver</button>
+                </template>
+              </div>
+            </template>
+          </span>
         </div>
       </header>
 
-      <!-- grille atelier | méta -->
-      <div class="wk-grid">
-        <!-- colonne atelier : wiki (accueil=brief + pages navigables) + entités liées -->
-        <div class="wk-col">
-
-          <!-- wiki : le brief est la page d'accueil, les pages s'y naviguent (#37) -->
-          <ProjectWiki :project-id="project.id" :project-name="project.name" :brief="project.brief_md"
-            :read-only="readOnly" @save-brief="saveBrief" @changed="loadActivity" />
-
-          <!-- audit des liens (ADR 0035 B5) : morts / slots non bindés / inertes -->
-          <section v-if="auditIssues && audit" class="surface-card"
-            style="border-left: 3px solid var(--color-saffron)">
-            <div class="card-eb-row"><span class="card-eb">liens à vérifier</span></div>
-            <ul class="dim" style="font-size: 12px; margin: 0; padding-left: 16px; display: grid; gap: 4px">
-              <li v-for="d in audit.dead_links" :key="'dead-' + d.target_type + d.target_ref">
-                lien mort — {{ d.target_type }} « {{ d.target_ref }} » : {{ d.why }}
-              </li>
-              <li v-for="u in audit.unbound_slots" :key="'unbound-' + u.ref">
-                procédure « {{ u.procedure }} » : slots déclarés non bindés dans ce projet — {{ u.slots.join(', ') }}
-              </li>
-              <li v-for="s in audit.inert_procedures" :key="'inert-' + s">
-                procédure « {{ s }} » liée mais jamais déroulée dans ce projet
-              </li>
-            </ul>
-          </section>
-
-          <!-- entités liées -->
-          <ProjectEntities :project-id="project.id" :links="project.links ?? []" :read-only="readOnly"
-            @update:links="onLinksUpdate" @changed="loadActivity" />
+      <!-- bandeau audit pleine largeur -->
+      <section v-if="auditIssues" class="pj-audit">
+        <div class="pj-audit__hd">
+          <span class="pj-audit__ic"><Icon name="triangle-alert" :size="15" /></span>
+          <span class="pj-audit__t">liens à vérifier</span>
+          <Tag tone="saffron">{{ auditLines.length }}</Tag>
         </div>
-
-        <!-- colonne méta : partage + autres documents + activité -->
-        <div class="wk-col">
-
-          <!-- partage -->
-          <section class="surface-card">
-            <div class="card-eb-row">
-              <span class="card-eb">partage</span>
-              <button v-if="!readOnly" class="btn-soft btn-soft--xs" @click="shareOpen = true">+ Inviter</button>
-            </div>
-            <p v-if="!grants.length" class="dim" style="font-size: 12px">non partagé.</p>
-            <div v-for="g in grants" :key="(g.principal_type || 'user') + (g.principal_id || g.email || '')" class="meta-row">
-              <span class="meta-row__main">{{ g.label || g.email || g.principal_id }}</span>
-              <Tag v-if="g.principal_type === 'group'" tone="saffron">équipe</Tag>
-              <Tag v-else-if="g.principal_type === 'org'" tone="terra">org</Tag>
-              <Tag :tone="g.permission === 'write' ? 'olive' : 'cobalt'">{{ g.permission === 'write' ? 'édition' : 'lecture' }}</Tag>
-              <button v-if="!readOnly && principalOf(g)" class="ent__lnk" title="Retirer l'accès" @click="revoke(g)">✕</button>
-            </div>
-          </section>
-
-          <!-- endpoint MCP dédié + partage navigable (<slug>.{mcp,share}.oto.cx, ADR 0032) -->
-          <section class="surface-card">
-            <div class="card-eb-row" style="margin-bottom: 6px">
-              <strong>Endpoint MCP & partage</strong>
-              <Tag v-if="project.mcp_access === 'anonymous'" tone="olive" title="Sous-domaine public, sans login">public · sans login</Tag>
-              <Tag v-else-if="project.mcp_access === 'secret'" tone="cobalt" title="URL secrète navigable, sans login">secret · navigable</Tag>
-              <Tag v-else-if="project.mcp_access === 'org'" tone="saffron" title="Authentifié, membres de l'org">org · authentifié</Tag>
-            </div>
-            <p class="dim" style="font-size: 11.5px; line-height: 1.5; margin-bottom: 9px">
-              Publie ce projet comme serveur MCP dédié à brancher dans Claude / Mistral.
-              <strong>Public</strong> = n'importe qui l'utilise <strong>sans compte</strong> (listé) ;
-              <strong>secret</strong> = URL non devinable, <strong>navigable</strong> (procédures, tableaux, docs en lecture seule) ;
-              <strong>org</strong> = login requis (membres de l'org).
-            </p>
-            <template v-if="mcpConnectUrl">
-              <!-- lien de partage navigable (mode secret) : ce qu'on envoie à un invité -->
-              <template v-if="shareUrl">
-                <span class="card-eb">lien de partage · navigable</span>
-                <div class="pshare-link">
-                  <input class="pshare-input" :value="shareUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
-                  <button class="btn-soft btn-soft--xs" @click="copyShareUrl">Copier</button>
-                </div>
-                <p class="dim" style="font-size: 11px; margin: 6px 0 10px">
-                  Tes invités y naviguent les procédures, tableaux et documents (lecture seule).
-                </p>
-                <span class="card-eb">endpoint MCP (Claude)</span>
-              </template>
-              <div class="pshare-link">
-                <input class="pshare-input" :value="mcpConnectUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
-                <button class="btn-soft btn-soft--xs" @click="copyMcpUrl">Copier</button>
-              </div>
-              <p class="dim" style="font-size: 11px; margin: 6px 0 8px">
-                {{ project.mcp_tools?.length ?? 0 }} outil(s) : {{ (project.mcp_tools ?? []).join(', ') }}
-              </p>
-              <div class="pshare-act">
-                <button v-if="!readOnly" class="btn-soft btn-soft--xs" :disabled="mcpBusy" @click="publishMcp">Reconfigurer</button>
-                <button v-if="!readOnly" class="btn-soft btn-soft--xs btn-soft--danger" @click="unpublishMcp">Retirer</button>
-              </div>
-            </template>
-            <button v-else-if="!readOnly" class="btn-soft btn-soft--xs" :disabled="mcpBusy" @click="publishMcp">
-              {{ mcpBusy ? 'Publication…' : 'Publier en endpoint MCP' }}
-            </button>
-            <p v-else class="dim" style="font-size: 12px">non publié.</p>
-          </section>
-
-          <!-- autres documents -->
-          <section class="surface-card">
-            <div class="card-eb-row">
-              <span class="card-eb">autres documents</span>
-            </div>
-            <Dropzone v-if="!readOnly" class="mb-3" :busy="uploading" :max-size-mb="25"
-              accept=".pdf,.html,.htm,.txt,.md,.csv,.json,image/*"
-              label="déposer un document" hint="PDF, HTML, image… — glisser-déposer ou cliquer · max 25 Mo"
-              @select="onDropFile" @error="toast" />
-            <p v-if="!files.length" class="dim" style="font-size: 12px">aucun fichier brut — PDF, HTML…</p>
-            <div v-for="f in files" :key="f.id" class="meta-row meta-row--file">
-              <div class="meta-row__main">
-                <button class="file-link" title="Aperçu" @click="preview = f">{{ f.title || f.filename }}</button>
-                <span class="dim" style="font-size: 10.5px; margin-left: 6px">{{ fmtSize(f.size_bytes) }}</span>
-                <Tag v-if="f.public" tone="cobalt" title="Partagé publiquement — accessible par lien">public</Tag>
-                <div v-if="f.description" class="dim" style="font-size: 11px; margin-top: 2px">{{ f.description }}</div>
-              </div>
-              <button class="ent__lnk" title="Aperçu" @click="preview = f"><Icon name="eye" :size="14" /></button>
-              <button v-if="!readOnly" class="ent__lnk" :title="f.public ? 'Rendre privé' : 'Partager publiquement (copie le lien)'" @click="toggleFilePublic(f)">{{ f.public ? '🔓' : '🔗' }}</button>
-              <button v-if="!readOnly" class="ent__lnk" title="Supprimer" @click="removeFile(f)">✕</button>
-            </div>
-          </section>
-
-          <!-- activité -->
-          <section class="surface-card">
-            <span class="card-eb">activité</span>
-            <ActivityChart v-if="activity.length" :activity="activity" :days="14" />
-            <p v-if="!activity.length" class="dim" style="font-size: 12px; margin-top: 8px">aucune activité.</p>
-            <div v-else class="wk-acts">
-              <div v-for="(a, i) in activity" :key="i" class="wk-act">
-                <span class="wk-act__t">{{ fmtDate(a.created_at) }}</span>
-                <span class="wk-act__b"><strong>{{ a.action }}</strong><span v-if="a.detail" class="dim"> · {{ a.detail }}</span></span>
-              </div>
-            </div>
-          </section>
+        <div class="pj-audit__list">
+          <div v-for="(a, i) in auditLines" :key="i" class="pj-audit__row"><span class="pj-audit__dot"></span><span>{{ a }}</span></div>
         </div>
+      </section>
+
+      <!-- navigateur : viewer (gauche) + rail (droite) -->
+      <div class="pj-body">
+        <ProjectViewer class="pj-body__vw" :item="selItem" :project-id="projectId" :project-name="project.name"
+          :brief="project.brief_md" :read-only="readOnly"
+          @save-brief="saveBrief" @reload-docs="onReloadDocs" @reload-files="onReloadFiles"
+          @reload-links="onReloadLinks" @changed="onChanged" @open-doc="(id) => sel = `doc:${id}`" @add-subpage="openSubPage" />
+        <ProjectRail class="pj-body__rail" :groups="railGroups" :sel="sel" :read-only="readOnly"
+          @select="onSelect" @add="openAdd" />
       </div>
-
-      <SharePrincipalDialog :open="shareOpen" resource-type="project" :resource-id="String(projectId)"
-        :resource-label="project.name" @close="shareOpen = false" @changed="loadGrants" />
-      <NameDialog v-model:open="copyOpen" title="copier ce projet" label="nom de la copie"
-        :initial="'Copie de ' + project.name" submit-label="copier" :on-confirm="doCopy" />
-      <AttachmentViewer :file="preview" @close="preview = null" />
     </template>
+
+    <ProjectShareDialog v-if="project" :open="shareOpen" :project="project" :grants="grants" :read-only="readOnly"
+      @close="shareOpen = false" @changed="loadGrants" @reload-project="reloadProject" />
+    <ProjectHistoryDrawer :open="histOpen" :activity="activity" :days="14" @close="histOpen = false" />
+    <EntityPickerDialog v-if="addKind" :open="!!addKind" :kind="addKind" :project-id="projectId" :parent-id="addParent"
+      @close="addKind = null" @linked="onLinked" @created-doc="onCreatedDoc" @reload-files="onReloadFiles" />
+    <NameDialog v-if="project" v-model:open="copyOpen" title="copier ce projet" label="nom de la copie"
+      :initial="'Copie de ' + project.name" submit-label="copier" :on-confirm="doCopy" />
   </div>
 </template>
 
 <style scoped>
-/* ── chrome de page ── */
-.wk-back { display: inline-block; margin-bottom: 14px; font-size: 12.5px; color: var(--color-mute); text-decoration: none; }
-.wk-back:hover { color: var(--color-ink); }
-.wk-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
-.wk-head__id { flex: 1; min-width: 240px; }
-.wk-title { font-size: 27px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.06; margin-top: 5px; color: var(--color-ink); }
-.wk-status { display: flex; align-items: center; gap: 7px; margin-top: 7px; font-size: 12.5px; color: var(--color-mute); }
-.wk-dot { display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: var(--color-olive); }
-.wk-head__act { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+/* le navigateur pleine largeur casse la gouttière de .content pour coller au menu/bord */
+.pj { display: flex; flex-direction: column; min-height: calc(100vh - 60px); margin: -24px -26px -64px; }
+@media (max-width: 820px) { .pj { margin: -18px -16px -56px; } }
+@media (max-width: 480px) { .pj { margin: -14px -12px -48px; } }
+.pj__msg { margin: 24px 26px; }
 
-/* ── boutons ── */
-.btn-resume { display: inline-flex; align-items: center; gap: 7px; background: var(--color-ink); color: var(--color-bg); border: 1px solid var(--color-ink); border-radius: 999px; padding: 7px 15px; font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; text-transform: lowercase; cursor: pointer; transition: transform 180ms var(--ease-out); }
-.btn-resume:hover { transform: translateY(-1px); }
-.btn-soft { display: inline-flex; align-items: center; background: var(--color-surface); color: var(--color-ink-soft); border: 1px solid var(--color-hair); border-radius: 7px; padding: 5px 11px; font-family: var(--font-sans); font-size: 11.5px; font-weight: 600; text-transform: lowercase; cursor: pointer; transition: background 180ms; }
-.btn-soft:hover { background: var(--color-paper-2); }
-.btn-soft:disabled { opacity: .5; cursor: not-allowed; }
-.btn-soft--xs { padding: 4px 9px; font-size: 11px; }
-.btn-soft--danger { color: var(--color-terra-ink); border-color: var(--color-terra-soft); }
+/* en-tête */
+.pj-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 26px; border-bottom: 1px solid var(--color-hair); background: var(--color-bg); }
+.pj-top__id { flex: 1 1 auto; min-width: 160px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pj-top__name { font-size: 20px; font-weight: 700; letter-spacing: -.02em; margin: 0; color: var(--color-ink); }
+.pj-top__act { flex: none; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
+.pj-avs { display: inline-flex; align-items: center; padding-left: 8px; border: 0; background: transparent; cursor: pointer; flex: none; }
+.pj-av { width: 30px; height: 30px; border-radius: var(--radius-pill); display: grid; place-items: center; font-size: 10.5px; font-weight: 700; border: 2px solid var(--color-bg); margin-left: -8px; }
+.pj-av--more { background: var(--color-paper-2); color: var(--color-mute); }
 
-/* ── grille atelier | méta ── */
-.wk-grid { display: grid; grid-template-columns: 1fr 280px; gap: 14px; align-items: start; }
-@media (max-width: 900px) { .wk-grid { grid-template-columns: 1fr; } }
-.wk-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.pj-btn { height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; border: 1px solid var(--color-hair); background: var(--color-surface); border-radius: var(--radius-pill); font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; color: var(--color-ink-soft); cursor: pointer; white-space: nowrap; transition: background var(--t-fast), transform var(--t-fast) var(--ease-out); }
+.pj-btn:hover { background: var(--color-paper-2); }
+.pj-btn--primary { background: var(--color-ink); color: var(--color-bg); border-color: var(--color-ink); padding: 0 16px; }
+.pj-btn--primary:hover { background: var(--color-ink); transform: translateY(-1px); }
+.pj-btn--icon { width: 36px; padding: 0; justify-content: center; }
+.pj-menu { position: relative; display: inline-flex; flex: none; }
+.pj-menu__scrim { position: fixed; inset: 0; z-index: 60; }
+.pj-menu__pop { position: absolute; top: calc(100% + 6px); right: 0; width: 214px; z-index: 70; background: var(--color-surface); border: 1px solid var(--border-card); border-radius: var(--radius-md); box-shadow: var(--shadow-pop); padding: 5px; }
+.pj-mi { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 10px; border: 0; background: transparent; border-radius: 6px; font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; color: var(--color-ink-soft); cursor: pointer; }
+.pj-mi:hover { background: var(--color-paper-2); color: var(--color-ink); }
+.pj-mi--danger { color: var(--color-terra-ink); }
+.pj-mi--danger:hover { background: var(--color-terra-soft); }
+.pj-mi__sep { height: 1px; background: var(--color-hair-soft); margin: 5px 4px; }
 
-/* ── carte-surface ── */
-.surface-card { background: var(--color-surface); border: 1px solid var(--color-hair); border-radius: 12px; padding: 18px; }
-.card-eb { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--color-mute); }
-.card-eb-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+/* audit */
+.pj-audit { background: var(--color-surface); border-bottom: 1px solid var(--color-hair); border-left: 3px solid var(--color-saffron); padding: 14px 26px; }
+.pj-audit__hd { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.pj-audit__ic { display: inline-flex; color: var(--color-saffron-ink); }
+.pj-audit__t { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--color-saffron-ink); }
+.pj-audit__list { display: flex; flex-direction: column; gap: 7px; }
+.pj-audit__row { display: flex; gap: 9px; align-items: flex-start; font-size: 12.5px; line-height: 1.5; color: var(--color-ink-soft); }
+.pj-audit__dot { width: 5px; height: 5px; border-radius: var(--radius-pill); background: var(--color-saffron); margin-top: 6px; flex: none; }
 
-/* ── colonne méta : actions inline (partagées avec les cartes d'entité) ── */
-.ent__lnk { background: none; border: 0; padding: 0; font-family: var(--font-sans); font-size: 11px; color: var(--color-mute); cursor: pointer; }
-.ent__lnk:hover { color: var(--color-ink); text-decoration: underline; }
+/* corps : viewer 3fr | rail ~0.85fr */
+.pj-body { flex: 1; display: grid; grid-template-columns: 3fr minmax(198px, 0.85fr); align-items: stretch; min-height: 0; }
+.pj-body__vw { order: 1; min-width: 0; }
+.pj-body__rail { order: 2; }
+@media (max-width: 720px) { .pj-body { grid-template-columns: 1fr; } .pj-body__rail { order: 1; border-left: 0; border-bottom: 1px solid var(--color-hair); } .pj-body__vw { order: 2; } }
 
-/* ── colonne méta : lignes partage / fichiers / activité ── */
-.meta-row { display: flex; align-items: center; gap: 9px; padding: 7px 0; border-bottom: 1px solid var(--color-hair-soft); }
-.meta-row:last-child { border-bottom: none; }
-.meta-row--file { align-items: flex-start; }
-.meta-row__main { flex: 1; min-width: 0; font-size: 12.5px; color: var(--color-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.meta-row--file .meta-row__main { white-space: normal; }
-.file-link { font-size: 12.5px; color: var(--color-ink); font-weight: 500; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; font-family: inherit; }
-.file-link:hover { text-decoration: underline; }
-.wk-acts { margin-top: 9px; display: flex; flex-direction: column; }
-.wk-act { display: flex; gap: 9px; padding: 5px 0; border-bottom: 1px solid var(--color-hair-soft); }
-.wk-act:last-child { border-bottom: none; }
-.wk-act__t { font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); width: 64px; flex: none; }
-.wk-act__b { font-size: 12px; color: var(--color-ink-soft); }
-.wk-act__b strong { font-weight: 600; color: var(--color-ink); }
-
-/* ── lien public chiffré ── */
-.pshare-link { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
-.pshare-input { flex: 1; min-width: 0; border: 1px solid var(--color-hair); border-radius: 7px; padding: 5px 8px; font-family: var(--font-mono); font-size: 10.5px; color: var(--color-ink-soft); background: var(--color-paper-2); }
-.pshare-act { display: flex; gap: 7px; }
+.surface-card { background: var(--color-surface); border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 18px; }
 </style>

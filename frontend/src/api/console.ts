@@ -3,7 +3,7 @@
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
   AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
-  Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity,
+  Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
@@ -200,6 +200,11 @@ export const unlinkProject = (id: number, target_type: ProjectLinkType, target_r
   projectsApi<{ ok: boolean; links: ProjectLink[] }>({ op: 'unlink', project_id: id, target_type, target_ref, identity_ref })
 export const getProjectActivity = (id: number) =>
   projectsApi<{ id: number; activity: ProjectActivity[] }>({ op: 'activity', project_id: id })
+// Runs d'un projet (ADR 0017), optionnellement filtrés sur une procédure liée
+// (target_ref = son id stable) — pastille ok/échec du viewer de procédure.
+export const getProjectRuns = (id: number, target_ref?: string) =>
+  projectsApi<{ id: number; target_ref?: string; runs: ProjectRun[] }>(
+    { op: 'runs', project_id: id, target_ref })
 // « Reprendre dans Claude » — blob copier-coller qui pré-écrit oto_use_project (B5b).
 export const projectHandoff = (id: number) =>
   projectsApi<{ id: number; markdown: string }>({ op: 'handoff', project_id: id })
