@@ -9,6 +9,7 @@ import Icon from '@/components/console/Icon.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import MarkdownView from '@/components/console/MarkdownView.vue'
+import AttachmentViewer from '@/components/console/AttachmentViewer.vue'
 import {
   updateDoc, deleteDoc, setDocPublic, getDocRevisions,
   requestDocChange, listDocChanges, resolveDocChange,
@@ -18,7 +19,7 @@ import {
 } from '@/api/console'
 import type {
   Doc, DocKind, DocRevision, DocChangeRequest, ProjectLink, ConnectorIdentity,
-  ToolRegistryEntry, ConnectorMeta, DatastoreRow, ProjectRun,
+  ToolRegistryEntry, ConnectorMeta, DatastoreRow, ProjectRun, ProjectFile,
 } from '@/types/api'
 
 // Caches module-level : le registre d'outils et le catalogue de connecteurs ne changent
@@ -270,6 +271,7 @@ function cell(v: unknown): string {
 }
 
 const file = computed(() => item.value?.file ?? null)
+const preview = ref<ProjectFile | null>(null)   // fichier ouvert dans le lightbox AttachmentViewer
 function fmtSize(n?: number | null): string {
   if (!n) return '—'
   if (n < 1024) return `${n} o`
@@ -451,13 +453,14 @@ async function removeFile() {
 
       <!-- ═══ FICHIER importé ═══ -->
       <div v-else-if="kind === 'file' && file" class="vw__block" style="max-width: 640px">
-        <div class="vw__filebox">
+        <button class="vw__filebox" type="button" @click="preview = file">
           <Icon name="file-text" :size="26" />
           <span class="vw__filehint">aperçu du document</span>
-        </div>
+        </button>
         <div v-if="file.description" style="font-size: 13px; color: var(--color-ink-soft); line-height: 1.55; margin-bottom: 10px">{{ file.description }}</div>
         <div class="vw__filemeta"><span class="vw__filek">taille</span><span>{{ fmtSize(file.size_bytes) }}</span></div>
         <div class="vw__fileact">
+          <button class="vw__x" @click="preview = file"><Icon name="file-text" :size="12" /> Prévisualiser</button>
           <a v-if="file.download_url" class="vw__x" :href="file.download_url" target="_blank" rel="noopener"><Icon name="download" :size="12" /> Télécharger</a>
           <a v-if="file.public && file.public_url" class="vw__x" :href="file.public_url" target="_blank" rel="noopener"><Icon name="ext" :size="12" /> Lien public</a>
           <button v-if="!readOnly" class="vw__x" @click="toggleFilePublic">{{ file.public ? 'Rendre privé' : 'Partager par lien public' }}</button>
@@ -465,6 +468,7 @@ async function removeFile() {
         </div>
       </div>
     </template>
+    <AttachmentViewer :file="preview" @close="preview = null" />
   </div>
 </template>
 
@@ -521,7 +525,8 @@ async function removeFile() {
 .vw__runl { flex: 1; min-width: 0; font-size: 12.5px; color: var(--color-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vw__runo { font-family: var(--font-mono); font-size: 10px; color: var(--color-mute); flex: none; }
 
-.vw__filebox { display: grid; place-items: center; height: 190px; width: 100%; background: var(--color-paper-2); border: 1px dashed var(--color-hair); border-radius: var(--radius-md); margin-bottom: 14px; color: var(--color-mute); gap: 7px; grid-auto-flow: row; }
+.vw__filebox { display: grid; place-items: center; height: 190px; width: 100%; background: var(--color-paper-2); border: 1px dashed var(--color-hair); border-radius: var(--radius-md); margin-bottom: 14px; color: var(--color-mute); gap: 7px; grid-auto-flow: row; cursor: pointer; font: inherit; }
+.vw__filebox:hover { border-color: var(--color-ink-soft); color: var(--color-ink-soft); }
 .vw__filehint { font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
 .vw__filemeta { display: flex; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--color-hair-soft); font-size: 13px; color: var(--color-ink-soft); width: 100%; }
 .vw__filek { flex: none; width: 104px; font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--color-faint); }

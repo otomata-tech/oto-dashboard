@@ -20,6 +20,8 @@ const SRC = join(__dirname, '..')
 const ALLOWED: Record<string, string> = {
   'api.ts': 'LE client central : api()/apiPublic()/apiUpload() — injecte viewHeaders().',
   'lib/account.ts': 'Logto Account API (/api/my-account/*, MFA) — user-scopé par nature, un contexte org n\'y a pas de sens.',
+  'components/console/AttachmentViewer.vue':
+    'Fetch du CONTENU d\'une pièce jointe via son URL S3 présignée (download_url/public_url) — hors API backend, des headers X-Oto-* y seraient étrangers.',
 }
 
 function* walk(dir: string): Generator<string> {
