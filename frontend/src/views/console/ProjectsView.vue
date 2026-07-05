@@ -53,6 +53,8 @@ function chipsFor(p: Project): { tone: 'saffron' | 'olive' | 'cobalt'; label: st
   const out: { tone: 'saffron' | 'olive' | 'cobalt'; label: string }[] = []
   if (p.is_template) out.push({ tone: 'saffron', label: 'modèle' })
   if (p.mcp_access && p.mcp_access !== 'off') out.push({ tone: 'olive', label: 'mcp live' })
+  if (p.shared) out.push({ tone: 'cobalt', label: 'partagé' })
+  if (p.has_audit) out.push({ tone: 'saffron', label: 'à vérifier' })
   return out
 }
 function briefSnippet(p: Project): string {
@@ -115,6 +117,9 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
         <p v-else class="pl-card__brief pl-card__brief--empty">pas encore de brief.</p>
         <div class="pl-card__foot">
           <span>maj {{ fmtDate(p.updated_at) }}</span>
+          <template v-if="p.entity_count != null">
+            <span class="pl-card__sep"></span><span>{{ p.entity_count }} entités</span>
+          </template>
           <span class="pl-card__go"><Icon name="chevron-right" :size="15" /></span>
         </div>
       </button>
@@ -123,12 +128,13 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
     <!-- tableau dense -->
     <div v-else class="pl-table">
       <div class="pl-row pl-row--head">
-        <span>projet</span><span>état</span><span>maj</span><span></span>
+        <span>projet</span><span>état</span><span>maj</span><span class="pl-row__num">entités</span><span></span>
       </div>
       <button v-for="p in projects" :key="p.id" class="pl-row" @click="openProject(p.id)">
         <span class="pl-row__name"><span class="pl-row__nt">{{ p.name }}</span><span class="pl-row__owner">{{ ownerLabel(p) }}</span></span>
         <span class="pl-row__chips"><Tag v-for="c in chipsFor(p)" :key="c.label" :tone="c.tone">{{ c.label }}</Tag></span>
         <span class="pl-row__maj">{{ fmtDate(p.updated_at) }}</span>
+        <span class="pl-row__num">{{ p.entity_count ?? '—' }}</span>
         <span class="pl-row__go"><Icon name="chevron-right" :size="15" /></span>
       </button>
     </div>
@@ -189,12 +195,13 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
 .pl-card__brief--empty { color: var(--color-faint); font-style: italic; }
 .pl-card__foot { display: flex; align-items: center; gap: 10px; margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--color-hair-soft); font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; color: var(--color-faint); }
 .pl-card__go { margin-left: auto; display: inline-flex; color: var(--color-mute); }
+.pl-card__sep { width: 3px; height: 3px; border-radius: var(--radius-pill); background: var(--color-faint); }
 .pl-card--tpl { cursor: default; box-shadow: none; border-style: dashed; background: var(--color-paper); }
 .pl-card--tpl:hover { transform: none; box-shadow: none; }
 
 /* tableau dense */
 .pl-table { border: 1px solid var(--border-card); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-card); overflow: hidden; }
-.pl-row { display: grid; grid-template-columns: 1fr auto 132px 28px; gap: 14px; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--color-hair-soft); background: transparent; font: inherit; cursor: pointer; }
+.pl-row { display: grid; grid-template-columns: 1fr auto 132px 72px 28px; gap: 14px; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--color-hair-soft); background: transparent; font: inherit; cursor: pointer; }
 .pl-row:last-child { border-bottom: 0; }
 .pl-row:hover:not(.pl-row--head) { background: var(--color-paper-2); }
 .pl-row--head { cursor: default; border-bottom: 1px solid var(--color-hair); font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--color-faint); }
@@ -203,6 +210,8 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
 .pl-row__owner { font-family: var(--font-mono); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-faint); }
 .pl-row__chips { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
 .pl-row__maj { font-family: var(--font-mono); font-size: 11px; color: var(--color-mute); }
+.pl-row__num { font-family: var(--font-mono); font-size: 11px; color: var(--color-mute); text-align: right; }
+.pl-row--head .pl-row__num { text-align: right; }
 .pl-row__go { display: inline-flex; color: var(--color-faint); }
 
 /* modèles */

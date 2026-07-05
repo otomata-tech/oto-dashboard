@@ -14,8 +14,20 @@ import {
   requestDocChange, listDocChanges, resolveDocChange,
   getConnectorIdentities, linkProject, unlinkProject,
   setProjectFilePublic, deleteProjectFile,
+  getToolRegistry, getConnectors, getNamespaceRows, getProjectRuns,
 } from '@/api/console'
-import type { Doc, DocKind, DocRevision, DocChangeRequest, ProjectLink, ConnectorIdentity } from '@/types/api'
+import type {
+  Doc, DocKind, DocRevision, DocChangeRequest, ProjectLink, ConnectorIdentity,
+  ToolRegistryEntry, ConnectorMeta, DatastoreRow, ProjectRun,
+} from '@/types/api'
+
+// Caches module-level : le registre d'outils et le catalogue de connecteurs ne changent
+// pas entre deux sélections → une seule requête, partagée par toutes les cartes connecteur.
+let _registryP: Promise<ToolRegistryEntry[]> | null = null
+let _connectorsP: Promise<ConnectorMeta[]> | null = null
+const loadRegistry = () => (_registryP ??= getToolRegistry().then((r) => r.tools).catch(() => []))
+const loadConnectors = () => (_connectorsP ??= getConnectors().then((r) => r.connectors).catch(() => []))
+const nsOf = (tool: string) => tool.split('_')[0]
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
@@ -156,22 +168,69 @@ async function restoreRevision(r: DocRevision) {
 const body = computed(() => (isHome.value ? props.brief : doc.value?.body_md) ?? '')
 const hasBody = computed(() => !!body.value && body.value.trim().length > 0)
 
-// ═══════════ CONNECTEUR (résolution + surcharge, ADR 0032 §4) ═══════════
+// ═══════════ CONNECTEUR (résolution + outils + surcharge, ADR 0032 §4) ═══════════
 const identities = ref<ConnectorIdentity[]>([])
 const identLoading = ref(false)
 const chosenIdentity = ref('')      // identité cible (défaut = celle du binding)
 const surcharge = ref('')
 const cfgSaving = ref(false)
+const connectorTools = ref<{ name: string; description: string }[]>([])
+const toolsLoading = ref(false)
 
+// ═══════════ TABLEAU (aperçu) / PROCÉDURE (runs) — extras chargés à la sélection ═══════════
+const tableRows = ref<DatastoreRow[] | null>(null)
+const tableLoading = ref(false)
+const runs = ref<ProjectRun[]>([])
+const runsLoading = ref(false)
+
+// Charge les extras de l'entité sélectionnée (identités+outils / lignes / runs) selon son type.
 watch(item, async () => {
-  if (kind.value !== 'connecteur' || !link.value) { identities.value = []; return }
-  chosenIdentity.value = link.value.identity_ref ?? ''
-  surcharge.value = link.value.config?.instructions_md ?? ''
-  identLoading.value = true
-  try { const r = await getConnectorIdentities(link.value.target_ref); identities.value = r.supported ? r.identities : [] }
-  catch { identities.value = [] }
-  finally { identLoading.value = false }
+  identities.value = []; connectorTools.value = []; tableRows.value = null; runs.value = []
+  const l = link.value
+  if (kind.value === 'connecteur' && l) {
+    chosenIdentity.value = l.identity_ref ?? ''
+    surcharge.value = l.config?.instructions_md ?? ''
+    identLoading.value = true; toolsLoading.value = true
+    getConnectorIdentities(l.target_ref)
+      .then((r) => { identities.value = r.supported ? r.identities : [] })
+      .catch(() => { identities.value = [] })
+      .finally(() => { identLoading.value = false })
+    // Outils exposés = ceux du registre dont le namespace appartient au connecteur.
+    Promise.all([loadRegistry(), loadConnectors()])
+      .then(([reg, cons]) => {
+        const ns = new Set(cons.find((c) => c.name === l.target_ref)?.namespaces ?? [])
+        connectorTools.value = reg.filter((t) => ns.has(nsOf(t.name)))
+          .map((t) => ({ name: t.name, description: t.description }))
+      })
+      .catch(() => { connectorTools.value = [] })
+      .finally(() => { toolsLoading.value = false })
+  } else if (kind.value === 'tableau' && l) {
+    tableLoading.value = true
+    getNamespaceRows(l.target_ref, { limit: 5 })
+      .then((r) => { tableRows.value = r.rows })
+      .catch(() => { tableRows.value = null })   // pas d'accès / erreur → fallback lien
+      .finally(() => { tableLoading.value = false })
+  } else if (kind.value === 'procedure' && l) {
+    runsLoading.value = true
+    getProjectRuns(props.projectId, l.target_ref)
+      .then((r) => { runs.value = r.runs })
+      .catch(() => { runs.value = [] })
+      .finally(() => { runsLoading.value = false })
+  }
 }, { immediate: true })
+
+// Colonnes de l'aperçu tableau : union des clés « métier » (hors _id/_created_at…), cap 5.
+const tableCols = computed<string[]>(() => {
+  const cols: string[] = []
+  for (const row of tableRows.value ?? [])
+    for (const k of Object.keys(row)) if (!k.startsWith('_') && !cols.includes(k)) cols.push(k)
+  return cols.slice(0, 5)
+})
+const RUN_DOT: Record<string, string> = {
+  done: 'var(--color-olive)', failed: 'var(--color-terra-ink)', blocked: 'var(--color-terra-ink)',
+  abandoned: 'var(--color-mute)',
+}
+const runDot = (o: string | null) => (o ? RUN_DOT[o] ?? 'var(--color-saffron)' : 'var(--color-saffron)')
 
 async function saveConnector() {
   const l = link.value
@@ -204,6 +263,12 @@ const openHref = computed<string | null>(() => {
 })
 
 // ═══════════ FICHIER importé ═══════════
+function cell(v: unknown): string {
+  if (v == null) return ''
+  if (typeof v === 'object') return Array.isArray(v) ? v.join(', ') : JSON.stringify(v)
+  return String(v)
+}
+
 const file = computed(() => item.value?.file ?? null)
 function fmtSize(n?: number | null): string {
   if (!n) return '—'
@@ -327,6 +392,14 @@ async function removeFile() {
         </select>
         <p v-else class="dim" style="font-size: 12.5px">Ce connecteur n'a pas de sélecteur de compte — il résout la clé perso / d'org / plateforme.</p>
 
+        <template v-if="toolsLoading || connectorTools.length">
+          <div class="vw__sub" style="margin-top: 18px">outils exposés</div>
+          <p v-if="toolsLoading" class="dim" style="font-size: 12.5px">chargement…</p>
+          <div v-else class="vw__tools">
+            <span v-for="t in connectorTools" :key="t.name" class="vw__tool" :title="t.description">{{ t.name }}</span>
+          </div>
+        </template>
+
         <div class="vw__sub" style="margin-top: 18px">surcharge — instructions pour ce projet</div>
         <textarea v-model="surcharge" class="vw__area" rows="3" :disabled="readOnly"
           placeholder="ex. n'utiliser que le compte Alexandra pour ce projet…"></textarea>
@@ -337,15 +410,35 @@ async function removeFile() {
         </RouterLink>
       </div>
 
-      <!-- ═══ TABLEAU ═══ -->
-      <div v-else-if="kind === 'tableau'" class="vw__block">
-        <p class="dim" style="font-size: 13px; line-height: 1.6">Tableau de données lié à ce projet. L'aperçu des lignes s'ouvre dans le datastore.</p>
+      <!-- ═══ TABLEAU (aperçu des premières lignes) ═══ -->
+      <div v-else-if="kind === 'tableau'" class="vw__block" style="max-width: 800px">
+        <p v-if="tableLoading" class="dim" style="font-size: 13px">chargement de l'aperçu…</p>
+        <div v-else-if="tableRows && tableRows.length && tableCols.length" class="vw__tbl">
+          <div class="vw__tblhd"><span v-for="c in tableCols" :key="c" class="vw__tblc">{{ c }}</span></div>
+          <div v-for="(row, i) in tableRows" :key="i" class="vw__tblr">
+            <span v-for="c in tableCols" :key="c" class="vw__tblc">{{ cell(row[c]) }}</span>
+          </div>
+        </div>
+        <p v-else class="dim" style="font-size: 13px; line-height: 1.6">Aperçu indisponible ici — ouvre le tableau pour voir et éditer ses lignes.</p>
         <RouterLink v-if="openHref" class="vw__open" :to="openHref">Ouvrir le tableau <Icon name="ext" :size="12" /></RouterLink>
       </div>
 
-      <!-- ═══ PROCÉDURE ═══ -->
+      <!-- ═══ PROCÉDURE (déroulé + derniers runs) ═══ -->
       <div v-else-if="kind === 'procedure'" class="vw__block">
-        <p class="dim" style="font-size: 13px; line-height: 1.6">Procédure (déroulé opératoire) liée à ce projet — chargée à la demande par l'agent. Les runs apparaîtront ici quand le backend les exposera.</p>
+        <p class="dim" style="font-size: 13px; line-height: 1.6">Procédure (déroulé opératoire) liée à ce projet — chargée à la demande par l'agent.</p>
+        <template v-if="runs.length">
+          <div class="vw__sub" style="margin-top: 16px">derniers runs</div>
+          <div class="vw__runs">
+            <div v-for="r in runs" :key="r.run_id" class="vw__run">
+              <span class="vw__rundot" :style="{ background: runDot(r.outcome) }"></span>
+              <span class="vw__runt">{{ fmtDate(r.started_at) }}</span>
+              <span class="vw__runl">{{ r.label }}</span>
+              <span class="vw__runo" :class="{ dim: !r.outcome }">{{ r.outcome || 'en cours' }}</span>
+            </div>
+          </div>
+        </template>
+        <p v-else-if="runsLoading" class="dim" style="font-size: 12.5px; margin-top: 12px">chargement des runs…</p>
+        <p v-else class="dim" style="font-size: 12.5px; margin-top: 12px">Aucun run enregistré pour cette procédure dans ce projet.</p>
         <RouterLink v-if="openHref" class="vw__open" :to="openHref">Ouvrir la procédure <Icon name="ext" :size="12" /></RouterLink>
       </div>
 
@@ -405,6 +498,28 @@ async function removeFile() {
 .vw__select { width: 100%; max-width: 340px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 8px 11px; font-family: var(--font-sans); font-size: 13px; color: var(--color-ink); background: var(--color-surface); }
 .vw__open { display: inline-flex; align-items: center; gap: 5px; margin-top: 16px; font-size: 12.5px; font-weight: 600; color: var(--color-cobalt); text-decoration: none; }
 .vw__open:hover { text-decoration: underline; }
+
+/* outils exposés (connecteur) */
+.vw__tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.vw__tool { font-family: var(--font-mono); font-size: 10.5px; padding: 3px 10px; border: 1px solid var(--color-hair); border-radius: var(--radius-pill); background: var(--color-paper); color: var(--color-ink-soft); }
+
+/* aperçu tableau */
+.vw__tbl { width: 100%; border: 1px solid var(--color-hair); border-radius: var(--radius-md); overflow: hidden; }
+.vw__tblhd, .vw__tblr { display: flex; gap: 12px; padding: 8px 14px; }
+.vw__tblhd { background: var(--color-paper); border-bottom: 1px solid var(--color-hair); }
+.vw__tblr { border-bottom: 1px solid var(--color-hair-soft); font-size: 12.5px; color: var(--color-ink-soft); }
+.vw__tblr:last-child { border-bottom: 0; }
+.vw__tblhd .vw__tblc { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--color-faint); }
+.vw__tblc { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* derniers runs (procédure) */
+.vw__runs { display: flex; flex-direction: column; width: 100%; max-width: 560px; }
+.vw__run { display: flex; align-items: center; gap: 9px; padding: 7px 0; border-bottom: 1px solid var(--color-hair-soft); }
+.vw__run:last-child { border-bottom: 0; }
+.vw__rundot { width: 7px; height: 7px; border-radius: var(--radius-pill); flex: none; }
+.vw__runt { font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); width: 62px; flex: none; }
+.vw__runl { flex: 1; min-width: 0; font-size: 12.5px; color: var(--color-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vw__runo { font-family: var(--font-mono); font-size: 10px; color: var(--color-mute); flex: none; }
 
 .vw__filebox { display: grid; place-items: center; height: 190px; width: 100%; background: var(--color-paper-2); border: 1px dashed var(--color-hair); border-radius: var(--radius-md); margin-bottom: 14px; color: var(--color-mute); gap: 7px; grid-auto-flow: row; }
 .vw__filehint { font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }

@@ -13,16 +13,24 @@ const ActivityChart = defineAsyncComponent(() => import('@/components/console/Ac
 const props = withDefaults(defineProps<{ open: boolean; activity: ProjectActivity[]; days?: number }>(), { days: 14 })
 const emit = defineEmits<{ close: [] }>()
 
-type Actor = 'agent' | 'human' | 'audit'
-function actorOf(a: ProjectActivity): Actor {
+type Kind = 'agent' | 'human' | 'audit'
+function kindOf(a: ProjectActivity): Kind {
   const s = (a.action || '').toLowerCase()
   if (s.includes('audit') || s.includes('vérifier')) return 'audit'
-  if (/(déroul|enrichi|collect|rafraîch|généré|préparé|annuaire)/.test(s)) return 'agent'
+  if (/(déroul|enrichi|collect|rafraîch|généré|préparé|annuaire|run)/.test(s)) return 'agent'
   return 'human'
 }
-const DOT: Record<Actor, string> = { agent: 'var(--color-olive)', human: 'var(--color-cobalt)', audit: 'var(--color-saffron)' }
-const WHO: Record<Actor, string> = { agent: "l'agent", human: 'un membre', audit: 'Oto (auto)' }
-const rows = computed(() => props.activity.map((a) => ({ ...a, actor: actorOf(a) })))
+const DOT: Record<Kind, string> = { agent: 'var(--color-olive)', human: 'var(--color-cobalt)', audit: 'var(--color-saffron)' }
+const WHO: Record<Kind, string> = { agent: "l'agent", human: 'un membre', audit: 'Oto (auto)' }
+// « par X » : l'auteur RÉEL (actor résolu backend) prime ; sinon on retombe sur le libellé
+// dérivé du type d'événement (heuristique) — best-effort, jamais vide.
+function whoOf(a: ProjectActivity, kind: Kind): string {
+  return a.actor?.name || a.actor?.email || WHO[kind]
+}
+const rows = computed(() => props.activity.map((a) => {
+  const kind = kindOf(a)
+  return { ...a, kind, who: whoOf(a, kind) }
+}))
 </script>
 
 <template>
@@ -45,10 +53,10 @@ const rows = computed(() => props.activity.map((a) => ({ ...a, actor: actorOf(a)
           <div class="dr__sec" style="margin: 20px 0 6px">Événements</div>
           <div class="dr__events">
             <div v-for="(a, i) in rows" :key="i" class="dr__ev">
-              <span class="dr__dot" :style="{ background: DOT[a.actor] }"></span>
+              <span class="dr__dot" :style="{ background: DOT[a.kind] }"></span>
               <span class="dr__evtxt">
                 <span class="dr__evline"><strong>{{ a.action }}</strong><span v-if="a.detail" class="dim"> · {{ a.detail }}</span></span>
-                <span class="dr__evwho">par {{ WHO[a.actor] }}</span>
+                <span class="dr__evwho">par {{ a.who }}</span>
               </span>
               <span class="dr__evt">{{ fmtDate(a.created_at) }}</span>
             </div>

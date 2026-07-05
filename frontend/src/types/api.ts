@@ -426,6 +426,10 @@ export interface Project {
   updated_at?: string | null
   archived_at?: string | null
   links?: ProjectLink[]
+  // Pastilles d'ÉTAT de l'index (op=list) — dérivées backend, absentes ailleurs.
+  entity_count?: number          // nombre d'entités liées
+  has_audit?: boolean            // le projet a des liens « à vérifier » (audit)
+  shared?: boolean               // partagé (grants présents, ou livré à mon org)
 }
 // Fichier brut d'un projet — carte « Autre document » (ADR 0032 §3, B4a). Blob
 // durable en Object Storage ; `download_url` = lien signé expirant (jamais la clé S3).
@@ -479,6 +483,17 @@ export interface ProjectActivity {
   action: string
   detail: string | null
   created_at: string | null
+  // Identité de l'auteur résolue backend (refonte UX) — null si sub inconnu/système.
+  actor?: { name?: string | null; email?: string | null } | null
+}
+// Run persisté d'un projet (ADR 0017) — pastille ok/échec du viewer de procédure.
+export interface ProjectRun {
+  run_id: string
+  label: string
+  doctrine: string | null
+  outcome: string | null         // done|abandoned|failed|blocked ; null = en cours
+  started_at: string | null
+  finished_at: string | null
 }
 export interface ResourceGrant {
   principal_type: string
