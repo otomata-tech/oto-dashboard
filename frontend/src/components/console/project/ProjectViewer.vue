@@ -27,7 +27,7 @@ let _registryP: Promise<ToolRegistryEntry[]> | null = null
 let _connectorsP: Promise<ConnectorMeta[]> | null = null
 const loadRegistry = () => (_registryP ??= getToolRegistry().then((r) => r.tools).catch(() => []))
 const loadConnectors = () => (_connectorsP ??= getConnectors().then((r) => r.connectors).catch(() => []))
-const nsOf = (tool: string) => tool.split('_')[0]
+const nsOf = (tool: string) => tool.split('_')[0] ?? ''
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
