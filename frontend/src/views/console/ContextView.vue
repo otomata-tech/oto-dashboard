@@ -37,7 +37,6 @@ const busy = ref<Set<string>>(new Set())
 
 const doctrine = computed(() => ctx.value?.doctrine ?? null)
 const hasOrgReadme = computed(() => !!doctrine.value?.doctrine?.trim())
-const namedDoctrines = computed(() => doctrine.value?.doctrines ?? [])
 
 // Visibilité des outils = préférences USER (getTools), groupées par namespace. Truth
 // « effective » (incl. activation d'org) : le total visible peut différer si un
@@ -117,9 +116,8 @@ onMounted(load)
     <header class="ctx-intro">
       <h2 class="ctx-h1">ce que voit ton agent</h2>
       <p class="ctx-lead">
-        exactement ce que ton Claude reçoit d'oto à la connexion, sous ton org active :
-        les instructions de la plateforme, les readme cumulés (org → équipe → toi) et les
-        outils réellement visibles. tu édites ici ce qui te revient ; le reste indique sa source.
+        tout ce que ton Claude sait et peut faire quand il démarre pour toi. deux natures :
+        ce qu'il a <strong>toujours en tête</strong>, et ce qu'il va <strong>chercher au besoin</strong>.
       </p>
     </header>
 
@@ -127,78 +125,70 @@ onMounted(load)
     <p v-else-if="!loaded" class="helptext">chargement…</p>
 
     <template v-else-if="ctx">
-      <!-- Couche 0 — org maison (défaut MCP, seul réglage à effet MCP de cette page) -->
-      <ConsoleCard title="org maison" flush
-        sub="l'org que ton agent prend par défaut dans une nouvelle conversation. c'est le seul réglage ici qui change ce que FAIT ton Claude — pas juste ce que le dashboard affiche.">
+      <!-- Réglage org maison — n'a de sens qu'avec un CHOIX d'org (≥2). Sinon masqué. -->
+      <ConsoleCard v-if="orgs.length > 1" title="org par défaut" flush
+        sub="l'org sous laquelle ton agent agit par défaut dans une nouvelle conversation. seul réglage ici qui change ce que FAIT ton Claude, pas juste l'affichage.">
         <template #actions>
           <Tag :tone="me?.home_org ? 'olive' : undefined">{{ me?.home_org_name || 'aucune · généraliste' }}</Tag>
         </template>
         <div class="home-row">
-          <label class="dim" style="font-size: 12.5px">définir la maison :</label>
           <select class="ctx-select" :value="me?.home_org ?? ''" :disabled="savingHome" @change="onHomeChange">
             <option value="">aucune (agent généraliste)</option>
             <option v-for="o in orgs" :key="o.id" :value="o.id">{{ o.name }}</option>
           </select>
           <span v-if="savingHome" class="dim" style="font-size: 12px">enregistrement…</span>
         </div>
-        <p class="helptext" style="margin-top: 8px">
-          changer d'org juste pour <em>consulter</em> le dashboard se fait dans le menu compte —
-          sans effet sur ton agent.
+      </ConsoleCard>
+
+      <!-- ══ CE QU'IL SAIT DE TOI (toujours injecté) ══ -->
+      <div class="sec">
+        <h3 class="sec-t">ce qu'il sait de toi</h3>
+        <p class="sec-s">
+          injecté au début de <em>chaque</em> conversation — l'agent l'a toujours en tête.
+          <strong>ta note</strong> = ce que tu écris ; <strong>ta fiche</strong> = ce que l'agent apprend
+          sur toi et tient à jour tout seul.
         </p>
-      </ConsoleCard>
+      </div>
 
-      <!-- Couche 1 — instructions plateforme (statique, héritée) -->
-      <ConsoleCard title="instructions plateforme" flush
-        sub="injectées au handshake : posture, bootstrap, boucle d'usage, catalogue de namespaces. communes à tous — tu ne les modifies pas.">
-        <template #actions><Tag tone="cobalt">plateforme · hérité</Tag></template>
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px">
-          <Btn kind="mini" @click="showInstructions = !showInstructions">
-            {{ showInstructions ? 'Masquer' : 'Voir le texte intégral' }}
-          </Btn>
-          <span class="dim" style="font-size: 12px">{{ ctx.instructions.length }} caractères</span>
-        </div>
-        <pre v-if="showInstructions" class="ctx-pre">{{ ctx.instructions }}</pre>
-      </ConsoleCard>
-
-      <!-- Couche 2a — readme hérités (org / équipe), lecture -->
-      <ConsoleCard title="readme hérités" flush
-        sub="la prose de ton org et de ton équipe, injectée avant la tienne. modifiable par un admin d'org, pas ici.">
-        <template #actions>
-          <Tag :tone="doctrine?.org ? 'olive' : undefined">{{ doctrine?.org || 'aucune org active' }}</Tag>
-        </template>
-        <div v-if="!doctrine?.org_id" class="helptext">
-          aucune org active → ton agent démarre généraliste, sans readme d'org ni d'équipe.
-        </div>
-        <div v-else style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
-          <Tag :tone="hasOrgReadme ? 'olive' : undefined">readme org · {{ hasOrgReadme ? 'défini' : 'vide' }}</Tag>
+      <!-- Hérité org / équipe : n'apparaît QUE s'il y a une prose d'org ou une équipe -->
+      <ConsoleCard v-if="hasOrgReadme || doctrine?.group" title="hérité de ton org / ton équipe" flush
+        sub="la prose de ton org et de ton équipe, injectée avant la tienne — éditée par un admin, pas ici.">
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+          <Tag v-if="hasOrgReadme" tone="olive">note d'org : {{ doctrine?.org }}</Tag>
           <Tag v-if="doctrine?.group" tone="saffron">équipe : {{ doctrine.group }}</Tag>
-          <Tag tone="cobalt">{{ namedDoctrines.length }} procédure(s)</Tag>
-          <RouterLink to="/org"><Btn kind="mini">Éditer le readme org →</Btn></RouterLink>
-          <RouterLink to="/procedures"><Btn kind="mini">Les procédures →</Btn></RouterLink>
+          <RouterLink to="/org/context"><Btn kind="mini">Voir / éditer côté org →</Btn></RouterLink>
         </div>
       </ConsoleCard>
 
-      <!-- Couche 2b — TON readme (éditable in-situ) -->
-      <AgentReadmeCard title="ton readme"
-        sub="ta prose libre, injectée en dernier (après plateforme, org, équipe). c'est le seul readme que tu modifies ici."
+      <!-- Ta note (prose libre éditable) -->
+      <AgentReadmeCard title="ta note"
+        sub="ta prose libre — préférences, contexte, ton. injectée à chaque session."
         :can-edit="true" allow-empty
         placeholder="ex. je préfère des réponses courtes ; mes clients sont des PME ; signe mes emails « Alexis »."
         :load="getAgentReadme" :save="setAgentReadme" />
 
-      <!-- Couche 2c — fiche profil « situation avec oto » (éditable in-situ) -->
+      <!-- Ta fiche « situation avec oto » (structurée, entretenue par l'agent) -->
       <ContextProfileCard />
 
-      <!-- Couche 2d — guides ON-DEMAND (pendant du readme : chargés à la demande, pas injectés) -->
-      <GuidesCard scope="user" :can-edit="true" title="tes guides"
-        sub="des how-to que ton agent charge à la demande (via oto_guide) quand la tâche s'y prête — pas injectés à chaque session comme le readme." />
+      <!-- ══ CE QU'IL VA CHERCHER AU BESOIN ══ -->
+      <div class="sec">
+        <h3 class="sec-t">ce qu'il va chercher au besoin</h3>
+        <p class="sec-s">
+          des how-to qu'il <strong>ne garde pas en tête</strong> mais qu'il ouvre quand la tâche le demande
+          (via <code>oto_guide</code>) — pour ne pas alourdir chaque conversation.
+        </p>
+      </div>
+      <GuidesCard scope="user" :can-edit="true" title="tes guides" sub="" />
 
-      <!-- Couche 3 — outils visibles (éditable : toggles par namespace / outil) -->
-      <ConsoleCard title="outils visibles" flush
-        sub="ce que ton agent voit sous ton org active. déplie un namespace pour affiner outil par outil. les outils protégés restent toujours visibles.">
+      <!-- ══ CE QU'IL PEUT FAIRE ══ -->
+      <div class="sec">
+        <h3 class="sec-t">ce qu'il peut faire</h3>
+        <p class="sec-s">les outils visibles pour ton agent. déplie un namespace pour affiner outil par outil.</p>
+      </div>
+      <ConsoleCard flush>
         <template #actions>
           <Tag tone="olive">{{ totalVisible }} visibles · {{ totalHidden }} masqués</Tag>
         </template>
-
         <div class="ns-list">
           <div v-for="g in nsGroups" :key="g.namespace" class="ns-block">
             <div class="ns-head" @click="toggleExpand(g.namespace)">
@@ -222,12 +212,24 @@ onMounted(load)
             </div>
           </div>
         </div>
-
         <p class="helptext" style="margin-top: 12px">
           un outil peut rester masqué si son connecteur n'est pas activé pour l'org —
           <RouterLink to="/connectors" class="linklike">gérer les connexions</RouterLink>.
         </p>
       </ConsoleCard>
+
+      <!-- Transparence : l'INTÉGRALITÉ du texte injecté (socle oto + tout ce qui précède) -->
+      <div class="raw-block">
+        <button class="raw-toggle" @click="showInstructions = !showInstructions">
+          <Icon name="chevd" :size="12" class="raw-chev" :class="{ open: showInstructions }" />
+          voir l'intégralité du texte injecté à ton agent
+          <span class="dim" style="font-size: 11.5px">· {{ ctx.instructions.length }} caractères</span>
+        </button>
+        <p v-if="showInstructions" class="helptext" style="margin: 4px 0 8px">
+          le socle d'oto (posture, boucle d'usage) suivi de tout ce qui précède, tel que Claude le reçoit.
+        </p>
+        <pre v-if="showInstructions" class="ctx-pre">{{ ctx.instructions }}</pre>
+      </div>
     </template>
   </div>
 </template>
@@ -243,6 +245,22 @@ onMounted(load)
   border: 1px solid var(--color-hair-soft, #e3dccd);
   border-radius: 8px; padding: 12px 14px; color: var(--color-ink-soft, #4a463d);
 }
+
+/* En-têtes de section : donnent la colonne vertébrale (injecté / à la demande / outils). */
+.sec { margin: 26px 0 10px; }
+.sec-t { font-weight: 700; font-size: 14.5px; color: var(--color-ink); letter-spacing: -0.01em; }
+.sec-s { font-size: 12.5px; color: var(--color-mute); line-height: 1.55; margin-top: 3px; max-width: 640px; }
+.sec-s code { font-family: var(--font-mono); font-size: 11.5px; color: var(--color-saffron-ink); }
+
+/* Bloc transparence (dump complet) — discret, replié par défaut. */
+.raw-block { margin-top: 26px; border-top: 1px solid var(--color-hair-soft); padding-top: 12px; }
+.raw-toggle {
+  display: flex; align-items: center; gap: 7px; background: none; border: 0; cursor: pointer;
+  font: inherit; font-size: 12.5px; color: var(--color-mute); padding: 2px 0;
+}
+.raw-toggle:hover { color: var(--color-ink); }
+.raw-chev { color: var(--color-faint); transition: transform 0.15s; }
+.raw-chev.open { transform: rotate(180deg); }
 
 .home-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .ctx-select {
