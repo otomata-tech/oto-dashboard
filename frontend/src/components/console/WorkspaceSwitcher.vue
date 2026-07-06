@@ -5,7 +5,7 @@ import Avatar from './Avatar.vue'
 import { useMe } from '@/composables/useMe'
 import { useMyOrgs } from '@/composables/useMyOrgs'
 import { useToast } from '@/composables/useToast'
-import { createMyOrg } from '@/api/console'
+import { createMyOrg, setActiveOrg } from '@/api/console'
 import { setViewOrg, setViewGroup } from '@/lib/viewOrg'
 import type { Org, GroupListItem } from '@/types/api'
 
@@ -96,6 +96,19 @@ async function createOrg() {
   catch (e) { toast(msg(e, 'échec de la création')); switching.value = false }
 }
 
+// Org MCP (MAISON) : le SEUL geste qui touche le MCP (setActiveOrg = PUT active-org).
+// Distinct de la consultation ci-dessus (view-as, zéro effet MCP). Définir la maison
+// efface l'override de consultation → l'org affichée = la nouvelle maison.
+async function setHome(o: Org) {
+  if (switching.value || o.id === me.value?.home_org) return
+  switching.value = true
+  try {
+    await setActiveOrg(o.id)
+    setViewOrg(null); setViewGroup(null)
+    location.reload()
+  } catch (e) { toast(msg(e, "échec de la définition de l'org MCP")); switching.value = false }
+}
+
 const showTeams = computed(() => myTeams.value.length > 0)
 
 // SWR : cache présent (préchargé au survol ou ouverture précédente) → affichage
@@ -120,14 +133,28 @@ onMounted(async () => {
              placeholder="filtrer les workspaces…" aria-label="filtrer les workspaces" />
       <div class="ws-list">
         <template v-for="o in shown" :key="o.id">
-          <button class="ws-opt" :class="{ on: o.id === me?.active_org }"
-                  :disabled="switching" @click="pickOrg(o)">
-            <Avatar v-if="o.logo_url" :src="o.logo_url" :name="o.name" :size="18" shape="square" />
-            <span v-else class="ws-mono">{{ (o.name || '?').charAt(0).toUpperCase() }}</span>
-            <span class="ws-name">{{ o.name }}</span>
-            <span class="ws-tag">{{ o.my_role === 'org_admin' ? 'admin' : 'membre' }}</span>
-            <Icon v-if="o.id === me?.active_org" name="check" :size="14" class="ws-check" />
-          </button>
+          <!-- Ligne org : bouton CONSULTATION (view-as) + pastille MAISON (défaut MCP).
+               Deux boutons frères (jamais imbriqués) pour rester du HTML valide. -->
+          <div class="ws-row" :class="{ on: o.id === me?.active_org }">
+            <button class="ws-opt" :disabled="switching" @click="pickOrg(o)">
+              <Avatar v-if="o.logo_url" :src="o.logo_url" :name="o.name" :size="18" shape="square" />
+              <span v-else class="ws-mono">{{ (o.name || '?').charAt(0).toUpperCase() }}</span>
+              <span class="ws-name">{{ o.name }}</span>
+              <span class="ws-tag">{{ o.my_role === 'org_admin' ? 'admin' : 'membre' }}</span>
+              <Icon v-if="o.id === me?.active_org" name="check" :size="14" class="ws-check" />
+            </button>
+            <!-- Org MCP (maison) : le défaut de tes conversations Claude. Pastille inerte
+                 quand c'est déjà la maison, bouton « définir » sinon. -->
+            <span v-if="o.id === me?.home_org" class="ws-home on"
+                  title="org MCP — défaut de tes conversations Claude">
+              <Icon name="home" :size="12" /> maison
+            </span>
+            <button v-else class="ws-home" :disabled="switching"
+                    title="définir comme org MCP (défaut de tes conversations Claude)"
+                    @click="setHome(o)">
+              <Icon name="home" :size="12" /> définir
+            </button>
+          </div>
 
           <!-- Ligne équipe : seulement sous l'org courante ET si j'y ai des équipes. -->
           <div v-if="o.id === me?.active_org && showTeams" class="ws-teams">
@@ -142,6 +169,10 @@ onMounted(async () => {
         </template>
         <div v-if="filterable && !shown.length" class="ws-empty">aucun workspace ne correspond</div>
       </div>
+      <p class="ws-legend">
+        <Icon name="check" :size="11" /> consultation (ce tableau de bord) ·
+        <Icon name="home" :size="11" /> maison (défaut de tes conversations Claude)
+      </p>
     </template>
 
     <form v-if="creating" class="ws-newform" @submit.prevent="createOrg">
@@ -169,15 +200,39 @@ onMounted(async () => {
 /* la LISTE scrolle, pas la popin : gestion + logout restent toujours visibles */
 .ws-list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; max-height: 290px; }
 
+/* Ligne = bouton consultation (élastique) + pastille maison (fixe) */
+.ws-row { display: flex; align-items: center; gap: 4px; border-radius: 8px; }
+.ws-row.on { background: var(--color-paper-2); }
+
 .ws-opt {
-  display: flex; align-items: center; gap: 9px; width: 100%;
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 9px;
   padding: 8px 9px; border-radius: 8px;
   border: 1px solid transparent; background: transparent;
   font-size: 13px; font-weight: 600; color: var(--color-ink); text-align: left; cursor: pointer;
 }
 .ws-opt:hover:not(:disabled) { background: var(--color-paper-2); }
 .ws-opt:disabled { opacity: 0.55; cursor: default; }
-.ws-opt.on { background: var(--color-paper-2); }
+
+/* Pastille « org MCP (maison) » — pill, distincte du check de consultation */
+.ws-home {
+  flex: none; display: inline-flex; align-items: center; gap: 3px;
+  padding: 4px 8px; border-radius: var(--radius-pill);
+  border: 1px solid var(--color-hair); background: var(--color-surface);
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.04em;
+  color: var(--color-mute); cursor: pointer; white-space: nowrap;
+}
+.ws-home:hover:not(:disabled) { color: var(--color-ink); border-color: var(--color-ink-soft); }
+.ws-home:disabled { opacity: 0.55; cursor: default; }
+.ws-home.on {
+  border-color: var(--color-saffron); background: var(--color-saffron-soft);
+  color: var(--color-saffron-ink); cursor: default;
+}
+
+.ws-legend {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  padding: 7px 9px 2px; font-size: 10px; line-height: 1.5; color: var(--color-faint);
+}
 .ws-mono {
   flex: none; display: grid; place-items: center; width: 18px; height: 18px;
   border-radius: 5px; font-family: var(--font-mono); font-size: 10px; font-weight: 700;
