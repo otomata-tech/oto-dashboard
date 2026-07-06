@@ -12,8 +12,7 @@ import Btn from '@/components/console/Btn.vue'
 import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
 import { useMe } from '@/composables/useMe'
 import {
-  getInstruction, putInstruction, getInstructionVersions, revertInstruction,
-  listGroups, getOrgConnectorActivation,
+  getInstruction, putInstruction, listGroups, getOrgConnectorActivation,
 } from '@/api/console'
 import type { GroupListItem, OrgConnectorActivation } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -26,8 +25,6 @@ const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin')
 const README_SLUG = 'claude_md'
 const loadOrgReadme = () => getInstruction(README_SLUG)
 const saveOrgReadme = (body: string) => putInstruction(README_SLUG, body, 'agent readme')
-const loadOrgReadmeVersions = () => getInstructionVersions(README_SLUG)
-const restoreOrgReadme = (v: number) => revertInstruction(README_SLUG, v)
 
 const groups = ref<GroupListItem[]>([])
 const connectors = ref<OrgConnectorActivation[]>([])
@@ -71,8 +68,7 @@ onMounted(load)
         sub="la prose de l'org (contexte métier, règles, vocabulaire) injectée au début de chaque session de chaque membre — avant l'équipe et l'utilisateur. variables : {{org}} {{user}} {{équipe}} {{connecteurs_actifs}}."
         :can-edit="isOrgAdmin"
         placeholder="ex. nous vendons des audits RGPD à des ETI ; toujours vérifier le SIREN via fr_get avant d'écrire au CRM."
-        :load="loadOrgReadme" :save="saveOrgReadme"
-        :load-versions="loadOrgReadmeVersions" :restore="restoreOrgReadme" />
+        :load="loadOrgReadme" :save="saveOrgReadme" />
 
       <!-- readme d'équipe -->
       <ConsoleCard title="readme d'équipe" flush

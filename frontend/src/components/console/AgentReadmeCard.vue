@@ -1,14 +1,14 @@
 <script setup lang="ts">
 // Carte « agent readme » — UN niveau du concept agent_readme (prose markdown libre
 // injectée à chaque session, cumulée plateforme → org → équipe → user). Le composant
-// est générique : le niveau vient des handlers passés en props (org = instruction
-// claude_md versionnée ; user = /api/me/agent-readme). ≠ procédures (/procedures),
-// qui sont chargées à la demande.
+// est générique : le niveau vient des handlers passés en props (load/save). Le readme
+// est de la PROSE PLATE (ADR 0042 : stocké dans `guides`, sans versioning) — ≠ procédures
+// (/procedures), versionnées et chargées à la demande.
 import { onMounted, ref } from 'vue'
 import ConsoleCard from './ConsoleCard.vue'
 import Btn from './Btn.vue'
 import Tag from './Tag.vue'
-import { fmtDate, type InstructionVersion } from '@/types/api'
+import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
 
@@ -17,20 +17,16 @@ const props = defineProps<{
   sub: string
   canEdit: boolean
   placeholder?: string
-  /** false = un corps vide est refusé à la sauvegarde (stockage versionné org). */
+  /** false = un corps vide est refusé à la sauvegarde. */
   allowEmpty?: boolean
-  load: () => Promise<{ body_md: string; version?: number; updated_at: string | null }>
+  load: () => Promise<{ body_md: string; updated_at: string | null }>
   save: (body: string) => Promise<unknown>
-  loadVersions?: () => Promise<{ versions: InstructionVersion[] }>
-  restore?: (version: number) => Promise<unknown>
 }>()
 
 const { toast } = useToast()
 const body = ref('')
 const draft = ref('')
-const version = ref<number | null>(null)
 const updatedAt = ref<string | null>(null)
-const versions = ref<InstructionVersion[]>([])
 const editing = ref(false)
 const busy = ref(false)
 const loaded = ref(false)
@@ -39,13 +35,9 @@ async function reload() {
   try {
     const r = await props.load()
     body.value = r.body_md || ''
-    version.value = r.version ?? null
     updatedAt.value = r.updated_at ?? null
   } catch {
     body.value = ''   // pas encore écrit (404) → état vide
-  }
-  if (props.loadVersions) {
-    try { versions.value = (await props.loadVersions()).versions } catch { versions.value = [] }
   }
   loaded.value = true
 }
@@ -63,16 +55,6 @@ async function saveDraft() {
     await props.save(b)
     toast('agent readme publié — injecté aux prochaines sessions')
     editing.value = false
-    await reload()
-  } catch (e) { toast(humanize(e)) }
-  finally { busy.value = false }
-}
-async function restoreVersion(v: number) {
-  if (!props.restore) return
-  busy.value = true
-  try {
-    await props.restore(v)
-    toast(`restauré v${v}`)
     await reload()
   } catch (e) { toast(humanize(e)) }
   finally { busy.value = false }
@@ -99,7 +81,6 @@ async function restoreVersion(v: number) {
     <template v-else>
       <div class="rd-meta">
         <Tag :tone="body ? 'olive' : undefined">{{ body ? 'injecté à chaque session' : 'vide' }}</Tag>
-        <Tag v-if="version" tone="saffron">v{{ version }}</Tag>
         <span v-if="updatedAt" class="dim-note">maj {{ fmtDate(updatedAt) }}</span>
       </div>
       <pre v-if="body" class="rd-body">{{ body }}</pre>
@@ -107,16 +88,6 @@ async function restoreVersion(v: number) {
         rien d'écrit — l'agent démarre sans ce niveau de readme.
         {{ canEdit ? 'écris ici ce qu’il doit toujours savoir : contexte, règles, ton.' : '' }}
       </p>
-
-      <details v-if="versions.length > 1 && canEdit" class="rd-versions">
-        <summary>historique ({{ versions.length }} versions)</summary>
-        <div v-for="v in versions" :key="v.version" class="rd-vrow">
-          <span class="rd-v">v{{ v.version }}</span>
-          <span class="dim-note">{{ v.set_by ?? '—' }} · {{ fmtDate(v.created_at) }}</span>
-          <Tag v-if="v.version === version" tone="saffron">actuelle</Tag>
-          <Btn v-else kind="mini" :disabled="busy" @click="restoreVersion(v.version)">Restaurer</Btn>
-        </div>
-      </details>
     </template>
   </ConsoleCard>
 </template>
@@ -139,14 +110,4 @@ async function restoreVersion(v: number) {
 }
 .rd-edit:focus-visible { outline: 2px solid var(--color-cobalt); outline-offset: 2px; }
 .rd-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px; }
-.rd-versions { margin-top: 12px; }
-.rd-versions summary {
-  cursor: pointer; font-family: var(--font-mono); font-size: 10px; font-weight: 600;
-  letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-mute);
-}
-.rd-vrow {
-  display: flex; align-items: center; gap: 10px; padding: 8px 0;
-  border-bottom: 1px solid var(--color-hair-soft);
-}
-.rd-v { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--color-ink); }
 </style>

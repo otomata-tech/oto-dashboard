@@ -13,8 +13,8 @@ import { useFormDialog } from '@/composables/useFormDialog'
 import { useMe } from '@/composables/useMe'
 import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
 import { getOrg, setOrgMemberRole, removeOrgMember,
-  listInvitations, inviteMember, revokeInvitation, uploadOrgLogo, deleteOrgLogo, updateOrg,
-  getInstruction, putInstruction, getInstructionVersions, revertInstruction } from '@/api/console'
+  listInvitations, inviteMember, revokeInvitation, uploadOrgLogo, deleteOrgLogo, updateOrg, archiveOrg,
+  getInstruction, putInstruction } from '@/api/console'
 import type { OrgDetail, OrgInvitation, OrgRole } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -40,8 +40,6 @@ const isOrgAdmin = computed(() => detail.value?.org.my_role === 'org_admin')
 const README_SLUG = 'claude_md'
 const loadOrgReadme = () => getInstruction(README_SLUG)
 const saveOrgReadme = (body: string) => putInstruction(README_SLUG, body, 'agent readme')
-const loadOrgReadmeVersions = () => getInstructionVersions(README_SLUG)
-const restoreOrgReadme = (v: number) => revertInstruction(README_SLUG, v)
 const activeOrgId = computed(() => me.value?.active_org ?? null)
 const meSub = computed(() => me.value?.sub ?? null)
 
@@ -300,8 +298,7 @@ async function removeLogo() {
         :sub="'la prose de l\'org (contexte métier, règles, vocabulaire), injectée au début de chaque session de chaque membre. variables : {{org}} {{user}} {{équipe}} {{connecteurs_actifs}}. les procédures (chargées à la demande) vivent dans « procédures ».'"
         :can-edit="isOrgAdmin"
         placeholder="ex. nous vendons des audits RGPD à des ETI ; toujours vérifier le SIREN via fr_get avant d'écrire au CRM."
-        :load="loadOrgReadme" :save="saveOrgReadme"
-        :load-versions="loadOrgReadmeVersions" :restore="restoreOrgReadme" />
+        :load="loadOrgReadme" :save="saveOrgReadme" />
 
     </template>
 

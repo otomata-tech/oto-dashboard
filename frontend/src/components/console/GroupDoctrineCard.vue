@@ -89,7 +89,7 @@ async function removeSkill(slug: string) {
     <div v-if="bundle">
       <div class="rowitem" style="gap: 10px; padding-bottom: 8px">
         <Tag tone="saffron">readme</Tag>
-        <span class="dim" style="font-size: 12px">{{ bundle.doctrine ? `injecté à chaque session · v${bundle.doctrine_version}` : 'no team readme yet' }}</span>
+        <span class="dim" style="font-size: 12px">{{ bundle.doctrine ? 'injecté à chaque session' : 'no team readme yet' }}</span>
       </div>
       <div class="rowlist">
         <div v-for="i in bundle.instructions" :key="i.slug" class="rowitem" style="gap: 10px">
