@@ -77,6 +77,8 @@ export interface MyConnector extends ConnectorMeta {
   state: ConnectorState
   recommended: boolean       // proposé par l'org active (baseline default_connectors)
   doctrine_ref_count?: number  // nb de doctrines de l'org qui le référencent (posture doctrine-only, ADR 0024)
+  paid_option?: string | null  // option payante requise (couche 3, ADR 0043/0044) ou null
+  option_ok?: boolean          // l'option est-elle accordée pour moi (true si aucune requise)
 }
 
 // ── bibliothèque publique de doctrines (marketplace, library.*) ──
