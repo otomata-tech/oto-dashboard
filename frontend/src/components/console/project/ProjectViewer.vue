@@ -180,13 +180,14 @@ const toolsLoading = ref(false)
 
 // ═══════════ TABLEAU (aperçu) / PROCÉDURE (runs) — extras chargés à la sélection ═══════════
 const tableRows = ref<DatastoreRow[] | null>(null)
+const tableError = ref<string | null>(null)
 const tableLoading = ref(false)
 const runs = ref<ProjectRun[]>([])
 const runsLoading = ref(false)
 
 // Charge les extras de l'entité sélectionnée (identités+outils / lignes / runs) selon son type.
 watch(item, async () => {
-  identities.value = []; connectorTools.value = []; tableRows.value = null; runs.value = []
+  identities.value = []; connectorTools.value = []; tableRows.value = null; tableError.value = null; runs.value = []
   const l = link.value
   if (kind.value === 'connecteur' && l) {
     chosenIdentity.value = l.identity_ref ?? ''
@@ -208,8 +209,8 @@ watch(item, async () => {
   } else if (kind.value === 'tableau' && l) {
     tableLoading.value = true
     getNamespaceRows(l.target_ref, { limit: 5 })
-      .then((r) => { tableRows.value = r.rows })
-      .catch(() => { tableRows.value = null })   // pas d'accès / erreur → fallback lien
+      .then((r) => { tableRows.value = r.rows; tableError.value = null })
+      .catch((e) => { tableRows.value = null; tableError.value = tableErrMsg(e) })
       .finally(() => { tableLoading.value = false })
   } else if (kind.value === 'procedure' && l) {
     runsLoading.value = true
@@ -219,6 +220,16 @@ watch(item, async () => {
       .finally(() => { runsLoading.value = false })
   }
 }, { immediate: true })
+
+// Message d'aperçu quand le chargement échoue — api() lève Error("<status> <code>").
+// On distingue le hors-scope (403/404 : le tableau existe mais pas dans l'org active
+// consultée) du reste, au lieu d'un « indisponible » muet.
+function tableErrMsg(e: unknown): string {
+  const m = e instanceof Error ? e.message : String(e)
+  if (/^40[34]\b/.test(m) || /namespace_not_found/.test(m))
+    return "Ce tableau n'est pas visible dans l'org active — il appartient peut-être à une autre org. Ouvre-le pour voir/éditer."
+  return 'Aperçu indisponible ici — ouvre le tableau pour voir et éditer ses lignes.'
+}
 
 // Colonnes de l'aperçu tableau : union des clés « métier » (hors _id/_created_at…), cap 5.
 const tableCols = computed<string[]>(() => {
@@ -421,7 +432,8 @@ async function removeFile() {
             <span v-for="c in tableCols" :key="c" class="vw__tblc">{{ cell(row[c]) }}</span>
           </div>
         </div>
-        <p v-else class="dim" style="font-size: 13px; line-height: 1.6">Aperçu indisponible ici — ouvre le tableau pour voir et éditer ses lignes.</p>
+        <p v-else-if="tableRows && !tableRows.length" class="dim" style="font-size: 13px; line-height: 1.6">Ce tableau est vide.</p>
+        <p v-else class="dim" style="font-size: 13px; line-height: 1.6">{{ tableError ?? 'Aperçu indisponible ici — ouvre le tableau pour voir et éditer ses lignes.' }}</p>
         <RouterLink v-if="openHref" class="vw__open" :to="openHref">Ouvrir le tableau <Icon name="ext" :size="12" /></RouterLink>
       </div>
 
