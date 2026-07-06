@@ -423,6 +423,22 @@ async function removeFile() {
         </RouterLink>
       </div>
 
+      <!-- ═══ CONNECTEUR REQUIS PAR UNE PROCÉDURE (non déclaré) ═══ -->
+      <div v-else-if="kind === 'connecteur' && item?.derived" class="vw__block">
+        <p class="dim" style="font-size: 13px; line-height: 1.6">
+          <strong>Requis par une procédure</strong>, pas déclaré au niveau projet. Il résout via la
+          cascade normale (perso &gt; équipe &gt; org &gt; plateforme) — <strong>déclare-le</strong>
+          (via « + » ci-contre) pour lui préconfigurer une identité ou une surcharge.
+        </p>
+        <div class="vw__sub" style="margin-top: 14px">source</div>
+        <div class="vw__tools">
+          <span v-for="s in item.derived" :key="s" class="vw__tool">{{ s.startsWith('procedure:') ? `procédure · ${s.slice(10)}` : s }}</span>
+        </div>
+        <RouterLink class="vw__open" :to="`/connectors?tab=marketplace&connector=${encodeURIComponent(item.label)}`">
+          Voir la fiche du connecteur <Icon name="ext" :size="12" />
+        </RouterLink>
+      </div>
+
       <!-- ═══ TABLEAU (aperçu des premières lignes) ═══ -->
       <div v-else-if="kind === 'tableau'" class="vw__block" style="max-width: 800px">
         <p v-if="tableLoading" class="dim" style="font-size: 13px">chargement de l'aperçu…</p>

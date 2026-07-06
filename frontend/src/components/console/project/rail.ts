@@ -18,6 +18,7 @@ export interface RailItem {
   doc?: Doc                   // kind=page (≠ accueil)
   link?: ProjectLink          // kind=tableau|connecteur|procedure|doc
   file?: ProjectFile          // kind=file
+  derived?: string[]          // connecteur REQUIS par une procédure mais non déclaré (sources : 'procedure:<slug>' | 'run')
 }
 
 export interface RailGroup {

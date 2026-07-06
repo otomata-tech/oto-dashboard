@@ -36,6 +36,9 @@ const activity = ref<ProjectActivity[]>([])
 const files = ref<ProjectFile[]>([])
 const docs = ref<Doc[]>([])
 const audit = ref<ProjectAudit | null>(null)
+// Source de chaque connecteur du projet (ADR 0035/0044) : 'declared' (lié au projet)
+// vs 'procedure:<slug>' / 'run' (requis par une procédure). Sert à distinguer dans le rail.
+const connectorSources = ref<Record<string, string[]>>({})
 const loaded = ref(false)
 const error = ref<string | null>(null)
 
@@ -103,10 +106,22 @@ const railGroups = computed<RailGroup[]>(() => {
     key: `file:${f.id}`, kind: 'file', label: f.title || f.filename, file: f,
     railTag: f.public ? { tone: 'cobalt', label: 'public' } : null,
   }))
+  // Connecteurs REQUIS par une procédure mais NON déclarés au projet (ADR 0035/0044) :
+  // affichés sous les déclarés, tag « requis ». Ils résolvent via la cascade normale ;
+  // les DÉCLARER permet de leur préconfigurer une identité/surcharge.
+  const declaredConns = new Set(linksOf('connecteur').map((l) => l.target_ref))
+  const derivedConnItems: RailItem[] = Object.entries(connectorSources.value)
+    .filter(([name, srcs]) => !declaredConns.has(name) && srcs.some((s) => s !== 'declared'))
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([name, srcs]) => ({
+      key: `reqconn:${name}`, kind: 'connecteur' as const, label: name,
+      derived: srcs.filter((s) => s !== 'declared'),
+      railTag: { tone: 'cobalt' as const, label: 'requis' },
+    }))
   return [
     { key: 'pages', label: 'Pages', icon: 'book', kind: 'page', addKind: 'page', items: pageItems },
     { key: 'tableaux', label: 'Tableaux', icon: 'db', kind: 'tableau', addKind: 'tableau', items: linksOf('tableau').map((l) => mkLink('tableau', l)) },
-    { key: 'connecteurs', label: 'Connecteurs', icon: 'plug', kind: 'connecteur', addKind: 'connecteur', items: linksOf('connecteur').map((l) => mkLink('connecteur', l)) },
+    { key: 'connecteurs', label: 'Connecteurs', icon: 'plug', kind: 'connecteur', addKind: 'connecteur', items: [...linksOf('connecteur').map((l) => mkLink('connecteur', l)), ...derivedConnItems] },
     { key: 'procedures', label: 'Procédures', icon: 'doc', kind: 'procedure', addKind: 'procedure', items: linksOf('procedure').map((l) => mkLink('procedure', l)) },
     { key: 'documents', label: 'Documents', icon: 'book', kind: 'doc', addKind: 'doc', items: linksOf('doc').map((l) => mkLink('doc', l)) },
     { key: 'files', label: 'Fichiers importés', icon: 'file-text', kind: 'file', addKind: 'file', items: fileItems },
@@ -132,7 +147,13 @@ async function loadGrants() { try { grants.value = (await getResource('project',
 async function loadActivity() { try { activity.value = (await getProjectActivity(projectId)).activity } catch { activity.value = [] } }
 async function loadFiles() { try { files.value = (await listProjectFiles(projectId)).files } catch (e) { toast(humanize(e)) } }
 async function loadDocs() { try { docs.value = (await listDocs(projectId)).docs } catch (e) { toast(humanize(e)) } }
-async function loadAudit() { try { audit.value = (await getProjectInventory(projectId)).audit ?? null } catch { audit.value = null } }
+async function loadAudit() {
+  try {
+    const inv = await getProjectInventory(projectId)
+    audit.value = inv.audit ?? null
+    connectorSources.value = inv.connector_sources ?? {}
+  } catch { audit.value = null; connectorSources.value = {} }
+}
 onMounted(load)
 
 // ── actions d'en-tête ──
