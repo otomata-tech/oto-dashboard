@@ -64,7 +64,6 @@ export const NAV: NavGroup[] = [
     { path: '/org', label: 'members & secrets', icon: 'users' },
     { path: '/org/connectors', label: 'connectors', icon: 'plug' },
     { path: '/org/departments', label: 'groups', icon: 'users' },
-    { path: '/org/billing', label: 'abonnement', icon: 'card' },
   ]},
   // ── Gérer la plateforme : réservé opérateur plateforme ─────────────────────
   { group: 'platform · admin', level: 'platform', items: [
