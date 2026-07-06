@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, watch, defineAsyncComponent, type Component } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import ConsoleSidebar from '@/components/console/ConsoleSidebar.vue'
 import ConsoleTopbar from '@/components/console/ConsoleTopbar.vue'
 import PromptDialog from '@/components/console/PromptDialog.vue'
@@ -50,6 +50,7 @@ const VIEWS: Record<string, Component> = {
 }
 
 const route = useRoute()
+const router = useRouter()
 const { isAuthenticated, logout } = useAuth()
 const { message } = useToast()
 const { me, error, load } = useMe()
@@ -61,19 +62,36 @@ watch(isAuthenticated, (ok) => { if (ok) load() }, { immediate: true })
 // Referme le tiroir mobile à chaque navigation (sécurité si un lien ne le fait pas).
 watch(() => route.fullPath, () => closeNav())
 
+// Org de consultation portée par l'URL (`/o/:orgId/…`, ADR 0023).
+const orgId = computed(() => (typeof route.params.orgId === 'string' ? route.params.orgId : null))
+
+// L'org de l'URL change → les headers de scope changent → refetch le profil.
+watch(orgId, () => { if (isAuthenticated.value) load() })
+
+// Canonicalise une URL org-scopée NUE vers `/o/<maison>/…` une fois `me` connu (le
+// backend a déjà rendu la maison sans header ; on aligne juste l'URL).
+watch([me, () => route.fullPath], () => {
+  if (!me.value || !route.meta.orgScoped || orgId.value != null) return
+  const home = me.value.home_org ?? me.value.active_org
+  if (home == null) return
+  void router.replace({ path: `/o/${home}${route.path}`, query: route.query, hash: route.hash })
+}, { immediate: true })
+
 const section = computed(() => String(route.meta.section || '/overview'))
+const detail = computed(() => route.meta.detail as string | undefined)
 const current = computed(() => {
-  if (route.name === 'admin-user') return AdminUserView          // fiche /platform/users/:sub
-  if (route.name === 'project-detail') return ProjectDetailView  // page /projects/:id
+  if (detail.value === 'admin-user') return AdminUserView       // fiche /platform/users/:sub
+  if (detail.value === 'project') return ProjectDetailView      // page /projects/:id
   return VIEWS[section.value] ?? OverviewView
 })
-// Clé de remount : une page de détail remonte quand son ID change, pas sa query.
-// (project-detail keye sur :id seul → le deep-link wiki `?doc=` ne remonte pas la vue ;
-// admin-user reste sur fullPath.) Sinon = la section.
+// Clé de remount : org de l'URL + identité de la vue. Une page de détail remonte quand
+// son ID (ou l'org) change, pas sa query ; admin-user reste sur fullPath. Changer d'org
+// (préfixe `/o/:id`) remonte donc toujours la vue → refetch propre.
 const viewKey = computed(() => {
-  if (route.name === 'admin-user') return route.fullPath
-  if (route.name === 'project-detail') return `/projects/${route.params.id}`
-  return section.value
+  const o = orgId.value ?? ''
+  if (detail.value === 'admin-user') return route.fullPath
+  if (detail.value === 'project') return `${o}:/projects/${route.params.id}`
+  return `${o}:${section.value}`
 })
 </script>
 

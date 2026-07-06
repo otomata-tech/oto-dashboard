@@ -1,23 +1,48 @@
-// Consultation (view-as, ADR 0023) — état PUREMENT front : quelle org ET quelle
-// équipe le dashboard affiche. Envoyées en headers `X-Oto-Org` / `X-Oto-Group` ;
-// le backend scope ses lectures/écritures dessus SANS rien persister ni toucher
-// l'identité MCP (maison / session). Persisté en localStorage (les vues se
-// re-scopent au reload). Absent = on voit la maison.
-const ORG_KEY = 'oto_view_org'
+// Consultation (view-as, ADR 0023) — état front qui décide QUELS headers de scope
+// (`X-Oto-Org` / `X-Oto-Group` / `X-Oto-View-As`) partent au backend. Le backend
+// scope ses lectures/écritures dessus SANS rien persister ni toucher l'identité MCP
+// (maison / session).
+//
+// ⚠️ Depuis 2026-07-06 l'org de consultation vit dans l'URL (`/o/:orgId/…`), plus en
+// localStorage : chaque org a donc son URL (bookmarkable, deux onglets = deux orgs).
+// Le routeur synchronise cette variable module (`setViewOrgId` en afterEach) ;
+// `viewHeaders()` la lit. Absente = on voit la maison (aucun `X-Oto-Org`).
+// L'ÉQUIPE (group) et le view-as USER restent en localStorage (hors périmètre v1).
 const GROUP_KEY = 'oto_view_group'
 const USER_KEY = 'oto_view_user'
 
-// Org : id (">0") d'une org consultée ; null = aucune consultation (→ maison).
-// (Plus de perso : tout user est toujours dans une org.)
-export function getViewOrg(): string | null {
-  return localStorage.getItem(ORG_KEY)
-}
-export function setViewOrg(value: string | null): void {
-  if (value === null) localStorage.removeItem(ORG_KEY)
-  else localStorage.setItem(ORG_KEY, value)
+// ── org de consultation : dérivée de l'URL, tenue en variable module ────────
+// Format canonique du préfixe : `/o/<id>/…` (id = entier positif).
+export function parseOrgFromPath(pathname: string): string | null {
+  const m = pathname.match(/^\/o\/(\d+)(?:\/|$)/)
+  return m ? m[1]! : null
 }
 
-// Équipe : id de groupe (">0"), null = niveau org (pas d'équipe consultée).
+// Seed synchrone à l'import : garantit des headers corrects dès le 1er appel `api()`
+// (avant même le 1er afterEach du routeur). SSR-safe (garde `window`).
+let viewOrgId: string | null =
+  typeof window !== 'undefined' ? parseOrgFromPath(window.location.pathname) : null
+
+export function currentViewOrg(): string | null {
+  return viewOrgId
+}
+// Appelé par le routeur (afterEach) à chaque navigation résolue.
+export function setViewOrgId(value: string | null): void {
+  viewOrgId = value
+}
+
+// Décision de la garde routeur (beforeEach) : un chemin org-scopé NU (sans préfixe
+// `/o/:orgId`) hérite de l'org courante. Retourne le chemin préfixé à rediriger, ou
+// null (laisser passer : non org-scopé, déjà préfixé, ou org courante inconnue au 1er
+// chargement — canonicalisée ensuite par ConsoleLayout).
+export function orgRedirectPath(
+  path: string, orgScoped: boolean, hasOrgParam: boolean, current: string | null,
+): string | null {
+  if (!orgScoped || hasOrgParam || current == null) return null
+  return `/o/${current}${path}`
+}
+
+// ── équipe consultée (localStorage) — id de groupe (">0"), null = niveau org ──
 export function getViewGroup(): string | null {
   return localStorage.getItem(GROUP_KEY)
 }
@@ -37,8 +62,7 @@ export function getViewUser(): ViewUser | null {
 }
 export function setViewUser(u: ViewUser | null): void {
   if (u === null) { localStorage.removeItem(USER_KEY); return }
-  // entrer en « voir en tant que » → repartir sur SA maison (efface la consultation org/équipe).
-  localStorage.removeItem(ORG_KEY)
+  // entrer en « voir en tant que » → repartir sur SA maison (efface l'équipe consultée).
   localStorage.removeItem(GROUP_KEY)
   localStorage.setItem(USER_KEY, JSON.stringify(u))
 }
@@ -47,8 +71,7 @@ export function viewHeaders(): Record<string, string> {
   const h: Record<string, string> = {}
   const u = getViewUser()
   if (u) { h['X-Oto-View-As'] = u.sub; return h }  // user-as prime : sa maison suit, pas de view-org
-  const o = getViewOrg()
-  if (o !== null) h['X-Oto-Org'] = o
+  if (viewOrgId !== null) h['X-Oto-Org'] = viewOrgId
   const g = getViewGroup()
   if (g !== null) h['X-Oto-Group'] = g
   return h

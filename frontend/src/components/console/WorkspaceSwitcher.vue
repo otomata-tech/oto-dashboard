@@ -1,30 +1,42 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import Icon from './Icon.vue'
 import Avatar from './Avatar.vue'
 import { useMe } from '@/composables/useMe'
 import { useMyOrgs } from '@/composables/useMyOrgs'
 import { useToast } from '@/composables/useToast'
 import { createMyOrg, setActiveOrg } from '@/api/console'
-import { setViewOrg, setViewGroup } from '@/lib/viewOrg'
+import { setViewGroup } from '@/lib/viewOrg'
 import type { Org, GroupListItem } from '@/types/api'
 
-// Switcher d'org (+ équipe) monté dans la popin compte. C'est de la CONSULTATION
-// pure (ADR 0023) : poser l'org affichée = headers `X-Oto-Org`/`X-Oto-Group` +
-// reload, ZÉRO effet MCP (jamais de bascule d'identité Claude depuis le FE — ça
-// casserait une conversation en cours). Le « défaut MCP » (org maison) ne vit PLUS
-// ici : il a migré sur la page agent context.
+// Switcher d'org (+ équipe). C'est de la CONSULTATION pure (ADR 0023), ZÉRO effet MCP
+// (jamais de bascule d'identité Claude depuis le FE — ça casserait une conversation en
+// cours). Depuis 2026-07-06 l'org de consultation vit dans l'URL (`/o/:orgId/…`) : choisir
+// une org = NAVIGUER vers `/o/<id>/<section courante>` (le routeur synchronise le scope).
+// Chaque org a donc son URL bookmarkable. La pastille « maison » (défaut MCP) reste le
+// seul geste qui écrit côté serveur (setActiveOrg).
 //
 // Équipe : on n'affiche RIEN tant que l'org courante n'a pas d'équipe dont on est
-// membre (cas courant). Si elle en a, changer d'org t'y dépose automatiquement ;
-// une ligne discrète permet de basculer entre TES équipes. Fini « toute l'org /
-// aucune équipe » (dénué de sens pour les 95 % d'orgs sans équipe).
+// membre (cas courant). Une ligne discrète permet de basculer entre TES équipes.
+// Fini « toute l'org / aucune équipe » (dénué de sens pour les 95 % d'orgs sans équipe).
 
 const emit = defineEmits<{ switched: [] }>()
 
+const route = useRoute()
+const router = useRouter()
 const { me } = useMe()
 const { orgs, loadOrgs, loadMyTeams: loadTeamsOf } = useMyOrgs()
 const { toast } = useToast()
+
+// Section courante (canonique, sans préfixe `/o/:orgId`) où déposer la nouvelle org —
+// seulement si elle est org-scopée (sinon `/o/:id/account` n'existe pas → overview).
+const landingSection = () =>
+  route.meta.orgScoped ? String(route.meta.section || '/overview') : '/overview'
+// Naviguer vers une org (consultation) : `/o/<id>/<section>`.
+function goToOrg(orgId: number, section?: string) {
+  return router.push(`/o/${orgId}${section ?? landingSection()}`)
+}
 
 const loading = ref(false)
 const switching = ref(false)
@@ -66,20 +78,18 @@ async function loadMyTeams() {
   myTeams.value = await myTeamsIn(orgId)
 }
 
-// Bascule d'org (consultation) : on résout d'abord MON équipe dans l'org cible pour
-// m'y déposer (aucune équipe → niveau org ; une → dedans ; plusieurs → la première).
+// Bascule d'org (consultation) = navigation vers son URL. Le routeur (afterEach) efface
+// l'équipe consultée (une équipe appartient à une org). On atterrit au niveau org ; les
+// chips d'équipe permettent d'entrer ensuite dans TON équipe.
 async function pickOrg(o: Org) {
   if (switching.value || o.id === me.value?.active_org) return
   switching.value = true
-  const teams = await myTeamsIn(o.id)
-  const landing = teams[0]
-  setViewGroup(landing ? String(landing.id) : null)
-  setViewOrg(String(o.id))
   emit('switched')
-  location.reload()
+  await goToOrg(o.id)
 }
 
-// Bascule d'équipe DANS l'org courante (consultation aussi).
+// Bascule d'équipe DANS l'org courante (consultation aussi). L'équipe reste hors URL
+// (localStorage) → un reload re-scope les vues.
 async function pickTeam(g: GroupListItem) {
   if (switching.value || g.id === me.value?.active_group) return
   switching.value = true
@@ -92,20 +102,24 @@ async function createOrg() {
   const name = newName.value.trim()
   if (!name || switching.value) return
   switching.value = true
-  try { await createMyOrg(name); setViewOrg(null); setViewGroup(null); location.reload() }
-  catch (e) { toast(msg(e, 'échec de la création')); switching.value = false }
+  try {
+    const r = await createMyOrg(name)
+    setViewGroup(null)
+    emit('switched')
+    await goToOrg(r.org_id, '/overview')
+  } catch (e) { toast(msg(e, 'échec de la création')); switching.value = false }
 }
 
 // Org MCP (MAISON) : le SEUL geste qui touche le MCP (setActiveOrg = PUT active-org).
-// Distinct de la consultation ci-dessus (view-as, zéro effet MCP). Définir la maison
-// efface l'override de consultation → l'org affichée = la nouvelle maison.
+// Distinct de la consultation (navigation, zéro effet MCP). On définit la maison PUIS on
+// la consulte (navigation vers son URL).
 async function setHome(o: Org) {
   if (switching.value || o.id === me.value?.home_org) return
   switching.value = true
   try {
     await setActiveOrg(o.id)
-    setViewOrg(null); setViewGroup(null)
-    location.reload()
+    emit('switched')
+    await goToOrg(o.id)
   } catch (e) { toast(msg(e, "échec de la définition de l'org MCP")); switching.value = false }
 }
 

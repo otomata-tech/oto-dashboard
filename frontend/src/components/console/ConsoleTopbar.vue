@@ -21,7 +21,7 @@ const { level } = useScope()
 const markState = computed<MarkState>(() => (!me.value && !error.value ? 'think' : 'static'))
 
 const meta = computed(() =>
-  route.name === 'admin-user'
+  route.meta.detail === 'admin-user'
     ? { title: 'user fiche', crumb: 'plateforme' }
     : PAGE_META[String(route.meta.section)] ?? PAGE_META['/overview']!)
 </script>

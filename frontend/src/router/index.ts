@@ -1,19 +1,51 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import ConsoleLayout from '../views/console/ConsoleLayout.vue'
 import InviteAcceptView from '../views/InviteAcceptView.vue'
 import ImportProjectView from '../views/ImportProjectView.vue'
-import { NAV } from '@/lib/consoleNav'
+import { NAV, type NavLevel } from '@/lib/consoleNav'
+import { currentViewOrg, setViewOrgId, getViewGroup, setViewGroup, orgRedirectPath } from '@/lib/viewOrg'
 
-// Une route par section, dérivée de NAV : le `path` EST l'identité, le layout
-// résout path → vue. `meta.section` = path canonique (clé vue + surlignage),
-// `meta.level` pilote le switch de niveau et la sidebar.
-const sectionRoutes = NAV.flatMap((g) =>
-  g.items.map((it) => ({
-    path: it.path,
-    component: ConsoleLayout,
-    meta: { section: it.path, level: g.level },
-  })),
+// URL par org (ADR 0023, 2026-07-06) : l'org de CONSULTATION vit dans le chemin,
+// préfixe `/o/:orgId/…`. Chaque org a donc son URL (bookmarkable, deux onglets =
+// deux orgs, plus besoin de « switcher »). Une URL SANS préfixe = l'org maison (le
+// backend rend la maison quand `X-Oto-Org` est absent) ; `ConsoleLayout` la
+// canonicalise ensuite vers `/o/<maison>/…`.
+//
+// Sont org-scopés les niveaux work/group/org (leurs vues dépendent de l'org vue) ;
+// PAS la plateforme (cross-org) ni /account /activity (niveau user). Chaque section
+// org-scopée est enregistrée DEUX fois : nue (deep-links legacy + 1er load) et
+// préfixée (canonique). Une garde `beforeEach` réécrit tout lien nu org-scopé vers
+// `/o/<org courante>/…` → les `router.push('/connectors')` et `<RouterLink>` nus du
+// code restent inchangés, ils héritent de l'org courante automatiquement.
+
+const ORG_SCOPED: ReadonlySet<NavLevel> = new Set<NavLevel>(['work', 'group', 'org'])
+
+// section canonique d'un chemin de détail (`/projects/:id` → `/projects`).
+function sectionOf(path: string): string {
+  return path.replace(/\/:[^/]+.*$/, '')
+}
+
+// Une route par section, dérivée de NAV. `meta.section` = path canonique (clé vue +
+// surlignage), `meta.level` pilote le switch de niveau, `meta.orgScoped` la garde.
+const sectionRoutes: RouteRecordRaw[] = NAV.flatMap((g) =>
+  g.items.flatMap((it) => {
+    const orgScoped = ORG_SCOPED.has(g.level)
+    const meta = { section: it.path, level: g.level, orgScoped }
+    const routes: RouteRecordRaw[] = [{ path: it.path, component: ConsoleLayout, meta }]
+    if (orgScoped) routes.push({ path: `/o/:orgId(\\d+)${it.path}`, component: ConsoleLayout, meta })
+    return routes
+  }),
 )
+
+// Route de détail org-scopée (work) : nue + préfixée, portée par `meta.detail` (et non
+// le nom, pour éviter la collision de noms entre les deux enregistrements).
+function detailRoutes(path: string, detail: string): RouteRecordRaw[] {
+  const meta = { section: sectionOf(path), level: 'work' as NavLevel, orgScoped: true, detail }
+  return [
+    { path, component: ConsoleLayout, meta },
+    { path: `/o/:orgId(\\d+)${path}`, component: ConsoleLayout, meta },
+  ]
+}
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -49,52 +81,26 @@ const router = createRouter({
     // navigable d'un projet est rendu SERVER-SIDE sur `<slug>.share.oto.cx` (share_ui),
     // et `/p/d/<token>` (doc public) est rendu server-side par le backend via Caddy.
     {
-      // Fiche user (admin), sous /platform/users — résolue par le layout vers
-      // AdminUserView ; surlignage + niveau hérités de la section users.
+      // Fiche user (admin) — niveau plateforme (cross-org), donc NON préfixée par org.
+      // Résolue par le layout vers AdminUserView (via meta.detail).
       path: '/platform/users/:sub',
-      name: 'admin-user',
       component: ConsoleLayout,
-      meta: { section: '/platform/users', level: 'platform' },
+      meta: { section: '/platform/users', level: 'platform', orgScoped: false, detail: 'admin-user' },
     },
+    // Détails org-scopés (nus + préfixés `/o/:orgId/…`), portés par meta.detail.
+    ...detailRoutes('/projects/:id', 'project'),
+    ...detailRoutes('/data/:id', 'data'),
+    ...detailRoutes('/procedures/:id', 'procedure'),
     {
-      // Page dédiée d'un projet (objet de premier rang, ADR 0030) — résolue par le
-      // layout vers ProjectDetailView ; surlignage + niveau hérités de /projects.
-      path: '/projects/:id',
-      name: 'project-detail',
-      component: ConsoleLayout,
-      meta: { section: '/projects', level: 'work' },
-    },
-    {
-      // Tableau datastore ciblé `/data/:id` (id stable au renommage, ADR 0032) —
-      // section '/data' → DataView. La vue résout `:id` par id OU nom (liens agent) et
-      // absorbe l'ancien `?ns=` en le normalisant vers ce chemin.
-      path: '/data/:id',
-      name: 'data-detail',
-      component: ConsoleLayout,
-      meta: { section: '/data', level: 'work' },
-    },
-    {
-      // Procédure ciblée `/procedures/:id` (id surrogate stable, ADR 0032 —
-      // « stop using slug ») — section '/procedures' → DoctrineHubView (onglet mine). La
-      // vue résout `:id` par id OU slug (back-compat liens/`?doc=`), normalise vers l'id.
-      path: '/procedures/:id',
-      name: 'procedure-detail',
-      component: ConsoleLayout,
-      meta: { section: '/procedures', level: 'work' },
-    },
-    {
-      // /account (« manage account ») et /activity : retirés de la sidebar, déplacés
-      // dans le menu profil du pied (ConsoleUserMenu). Routes explicites — elles ne
-      // dérivent plus du groupe nav « account » (supprimé). Résolues par le layout
-      // via VIEWS[section] comme n'importe quelle section.
+      // /account (« manage account ») et /activity : niveau user, NON org-scopés.
       path: '/account',
       component: ConsoleLayout,
-      meta: { section: '/account', level: 'work' },
+      meta: { section: '/account', level: 'work', orgScoped: false },
     },
     {
       path: '/activity',
       component: ConsoleLayout,
-      meta: { section: '/activity', level: 'work' },
+      meta: { section: '/activity', level: 'work', orgScoped: false },
     },
     ...sectionRoutes,
     {
@@ -106,6 +112,24 @@ const router = createRouter({
     // Tout chemin inconnu retombe sur l'overview (pas d'écran 404 dédié).
     { path: '/:pathMatch(.*)*', redirect: '/overview' },
   ],
+})
+
+// Garde : un lien org-scopé NU (sans préfixe `/o/:orgId`) hérite de l'org courante.
+// Au tout premier chargement (org courante inconnue), on laisse passer la version nue
+// → le backend rend la maison, et ConsoleLayout canonicalise l'URL une fois `me` chargé.
+router.beforeEach((to) => {
+  const redirect = orgRedirectPath(
+    to.path, Boolean(to.meta.orgScoped), to.params.orgId != null, currentViewOrg(),
+  )
+  return redirect ? { path: redirect, query: to.query, hash: to.hash } : true
+})
+
+// Synchronise l'org de consultation (→ `viewHeaders`) sur l'URL résolue. Changer d'org
+// efface l'équipe consultée (une équipe appartient à une org — invariant ADR 0023).
+router.afterEach((to) => {
+  const oid = typeof to.params.orgId === 'string' ? to.params.orgId : null
+  if (currentViewOrg() !== oid && oid !== null && getViewGroup() !== null) setViewGroup(null)
+  setViewOrgId(oid)
 })
 
 export default router
