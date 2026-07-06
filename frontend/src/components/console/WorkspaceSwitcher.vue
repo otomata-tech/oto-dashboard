@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import Icon from './Icon.vue'
 import Avatar from './Avatar.vue'
 import { useMe } from '@/composables/useMe'
@@ -23,7 +23,6 @@ import type { Org, GroupListItem } from '@/types/api'
 const emit = defineEmits<{ switched: [] }>()
 
 const route = useRoute()
-const router = useRouter()
 const { me } = useMe()
 const { orgs, loadOrgs, loadMyTeams: loadTeamsOf } = useMyOrgs()
 const { toast } = useToast()
@@ -32,13 +31,16 @@ const { toast } = useToast()
 // seulement si elle est org-scopée (sinon `/o/:id/account` n'existe pas → overview).
 const landingSection = () =>
   route.meta.orgScoped ? String(route.meta.section || '/overview') : '/overview'
-// Naviguer vers une org (consultation, niveau org) : `/o/<id>/<section>`.
+// Changer d'org/équipe = navigation DURE (full reload) vers son URL. Les composants
+// persistants de la sidebar (identité, projets récents) et le profil `me` sont ainsi
+// re-fetchés proprement avec les nouveaux headers de scope — un simple router.push
+// laissait la sidebar sur l'org précédente (logo/menu périmés, liens projets → 404).
+// La navigation INTRA-org reste en SPA (la garde routeur conserve le préfixe).
 function goToOrg(orgId: number, section?: string) {
-  return router.push(`/o/${orgId}${section ?? landingSection()}`)
+  window.location.assign(`/o/${orgId}${section ?? landingSection()}`)
 }
-// Naviguer vers une équipe DANS une org (consultation) : `/o/<id>/g/<gid>/<section>`.
 function goToTeam(orgId: number, groupId: number) {
-  return router.push(`/o/${orgId}/g/${groupId}${landingSection()}`)
+  window.location.assign(`/o/${orgId}/g/${groupId}${landingSection()}`)
 }
 
 const loading = ref(false)
