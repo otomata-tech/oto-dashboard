@@ -5,7 +5,8 @@
 // d'authentification, ADR 0024 — widget dérivé de la méthode d'auth), outils
 // (toggles) et « à propos » (description + doc how-to). Réutilise les MÊMES widgets
 // d'auth que l'ex-ConnectorCard (source unique, zéro branche par nom).
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import Btn from './Btn.vue'
 import Toggle from './Toggle.vue'
 import Quota from './Quota.vue'
@@ -17,9 +18,9 @@ import ConnectorHostedWidget from './ConnectorHostedWidget.vue'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
-import { selectConnector, pauseConnector, unselectConnector, enableTool, disableTool, verifyConnector } from '@/api/console'
+import { selectConnector, pauseConnector, unselectConnector, enableTool, disableTool, verifyConnector, getOrgConnectorActivation } from '@/api/console'
 import type { ConnectorMode } from '@/lib/consoleTypes'
-import type { ConnectorState, MyConnector, ToolEntry, VerifyResult } from '@/types/api'
+import type { ConnectorState, MyConnector, OrgConnectorActivation, ToolEntry, VerifyResult } from '@/types/api'
 
 const props = defineProps<{
   connector: MyConnector
@@ -33,6 +34,21 @@ const emit = defineEmits<{
 
 const { me } = useMe()
 const { toast } = useToast()
+
+// Bandeau « côté org » (ADR 0044, B4) : résumé LECTURE SEULE de la gouvernance d'org
+// pour un org_admin (disponibilité + option) + deep-link vers la gestion. On ne MUTE
+// pas ici — couper la dispo depuis « mes connecteurs » ferait disparaître le
+// connecteur de la liste où on est (contradiction de scope). La fiche unifiée
+// complète (édition org inline) vient avec le catalogue unifié.
+const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin')
+const orgAct = ref<OrgConnectorActivation | null>(null)
+onMounted(async () => {
+  if (!isOrgAdmin.value || me.value?.active_org == null) return
+  try {
+    const list = (await getOrgConnectorActivation(me.value.active_org)).connectors
+    orgAct.value = list.find((a) => a.connector === props.connector.name) ?? null
+  } catch { /* le bloc org ne s'affiche simplement pas */ }
+})
 
 type Tab = 'connection' | 'tools' | 'about'
 const tab = ref<Tab>('connection')
@@ -225,6 +241,18 @@ async function setAllTools(on: boolean) {
         <p class="verdict" :class="verdict.tone">{{ verdict.text }}</p>
       </div>
 
+      <!-- côté org (ADR 0044, B4) — résumé LECTURE SEULE, org_admin seulement -->
+      <div v-if="isOrgAdmin && orgAct" class="dr-block">
+        <div class="eyebrow" style="margin-bottom: 9px">côté org · {{ me?.active_org_name || 'ton org' }}</div>
+        <div class="statrow">
+          <span class="spill"><span class="cdot" :class="orgAct.effective ? 'olive' : 'grey'"></span>{{ orgAct.effective ? 'disponible pour tes membres' : 'coupé pour tes membres' }}</span>
+          <span v-if="orgAct.paid_option" class="spill"><span class="cdot" :class="orgAct.subscribed ? 'olive' : 'saffron'"></span>option {{ orgAct.paid_option }}</span>
+        </div>
+        <p class="helptext" style="margin: 9px 0 0">
+          <RouterLink to="/org/connectors" class="org-link">gérer la disponibilité, l'accès et la clé d'org →</RouterLink>
+        </p>
+      </div>
+
       <!-- exposure (toujours en tête) -->
       <div class="dr-block">
         <div class="eyebrow" style="margin-bottom: 9px">exposure — what your agents see</div>
@@ -366,4 +394,6 @@ async function setAllTools(on: boolean) {
 .verdict { margin: 11px 0 0; font-size: 13px; font-weight: 600; }
 .verdict.olive { color: var(--color-olive-ink); }
 .verdict.saffron { color: var(--color-saffron-ink); }
+.org-link { color: var(--color-cobalt-ink); font-weight: 600; text-decoration: none; }
+.org-link:hover { text-decoration: underline; }
 </style>
