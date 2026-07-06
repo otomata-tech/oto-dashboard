@@ -197,6 +197,13 @@ Groupe nav **« memory »** (`consoleNav.ts`) = deux surfaces de mémoire :
   call) — le tag dit « injecté à chaque session ».
 - **procédure** (ex-skill / doctrine nommée) = déroulé opératoire **chargé à la demande**
   (`oto_get_doctrine(slug)`), publiable/forkable/partageable/liable à un projet.
+- **guide** (ADR 0042, prose PLATE **chargée à la demande** via `oto_guide` — pendant du
+  readme, mais pas injectée) = how-to éditable dans la console : `GuidesCard.vue` (créer/
+  éditer/supprimer, éditeur + confirmation **inline**, jamais de dialog natif), montée dans
+  la page « ce que voit ton agent » — scope **user** (`/context`, couche 2d) et **org**
+  (`/org/context`, admin d'org) ; les guides **plateforme** y figurent en référence lecture
+  seule. Client REST `getGuides`/`getGuide`/`setGuide`/`deleteGuide` (capacité backend
+  `me.guides.*`, `/api/me/guides…`), types `Guide`/`GuideScope`.
 
 ## Connecteurs & procédures — point d'entrée à onglets (découverte fusionnée)
 
