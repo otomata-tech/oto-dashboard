@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// « Gérer mon groupe » (niveau nav `group`, ADR 0012) — la surface du CHEF : gérer
-// LE groupe actif (membres, clés partagées, agent readme) sans passer par l'écran
-// org des départements (réservé org_admin). Centré sur `me.active_group` ; réutilise
+// « Gérer mon équipe » (niveau nav `group`, ADR 0012) — la surface du CHEF : gérer
+// L'équipe active (membres, clés partagées, agent readme) sans passer par l'écran
+// org des équipes (réservé org_admin). Centré sur `me.active_group` ; réutilise
 // GroupDetailCards + GroupDoctrineCard (mêmes cartes que la vue org, « derive don't
 // duplicate »). Le backend porte l'autz ; l'UI masque juste les contrôles.
 import { computed, onMounted, ref } from 'vue'
@@ -48,26 +48,26 @@ async function leaveActive() {
   <div class="content-inner fadein">
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
-    <ConsoleCard v-if="loaded && activeGroupId == null" title="no active group">
+    <ConsoleCard v-if="loaded && activeGroupId == null" title="no active team">
       <div class="helptext">
-        you have no active group. pick a team in the org switcher (top of the sidebar) to
-        work at group level — or ask an org admin to add you to a group.
+        you have no active team. pick a team in the org switcher (top of the sidebar) to
+        work at team level — or ask an org admin to add you to a team.
       </div>
     </ConsoleCard>
 
     <template v-else-if="detail">
-      <ConsoleCard :title="detail.group.name" :sub="detail.group.description || 'your active group'">
+      <ConsoleCard :title="detail.group.name" :sub="detail.group.description || 'your active team'">
         <template #actions>
-          <Btn kind="mini" @click="leaveActive">Leave group (operate at org level)</Btn>
+          <Btn kind="mini" @click="leaveActive">Leave team (operate at org level)</Btn>
         </template>
         <div class="helptext">
-          {{ canManage ? 'you lead this group — manage its members, shared keys and agent readme below.'
-                        : 'you are a member of this group. management is reserved to the team lead.' }}
+          {{ canManage ? 'you lead this team — manage its members, shared keys and agent readme below.'
+                        : 'you are a member of this team. management is reserved to the team lead.' }}
         </div>
       </ConsoleCard>
 
       <div class="grid23">
-        <GroupDetailCards :group-id="detail.group.id" :members="detail.members" :secrets="detail.secrets"
+        <GroupDetailCards :group-id="detail.group.id" :org-id="detail.group.org_id" :members="detail.members" :secrets="detail.secrets"
           :can-manage="canManage" :me-sub="meSub" @changed="load" />
       </div>
 

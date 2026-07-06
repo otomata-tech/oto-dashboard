@@ -63,7 +63,7 @@ export const NAV: NavGroup[] = [
     { path: '/org/context', label: 'context', icon: 'bolt' },
     { path: '/org', label: 'members & secrets', icon: 'users' },
     { path: '/org/connectors', label: 'connectors', icon: 'plug' },
-    { path: '/org/departments', label: 'groups', icon: 'users' },
+    { path: '/org/teams', label: 'teams', icon: 'users' },
     { path: '/org/billing', label: 'abonnement', icon: 'card' },
   ]},
   // ── Gérer la plateforme : réservé opérateur plateforme ─────────────────────
@@ -101,7 +101,7 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/org/context': { title: 'ce que voit l\'agent · org', crumb: 'gérer mon org' },
   '/org': { title: 'organization', crumb: 'gérer mon org' },
   '/org/connectors': { title: 'org connectors', crumb: 'gérer mon org' },
-  '/org/departments': { title: 'groups', crumb: 'gérer mon org' },
+  '/org/teams': { title: 'teams', crumb: 'gérer mon org' },
   '/platform/context': { title: 'ce que voit l\'agent · plateforme', crumb: 'plateforme' },
   '/platform/monitoring': { title: 'mcp monitoring', crumb: 'plateforme' },
   '/platform/usage': { title: 'usage & déroulés', crumb: 'plateforme' },

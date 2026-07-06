@@ -557,8 +557,9 @@ export const setGroupMemberRole = (id: number, sub: string, role: GroupRole) =>
   api(`/api/groups/${id}/members/${sub}`, { method: 'POST', ...j({ role }) })
 export const removeGroupMember = (id: number, sub: string) =>
   api(`/api/groups/${id}/members/${sub}`, { method: 'DELETE' })
-export const setGroupSecret = (id: number, provider: string, api_key: string, base_url?: string) =>
-  api(`/api/groups/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url }) })
+// Mono-champ (api_key) OU multi-champs (zoho/silae… → fields), même contrat que la clé d'org.
+export const setGroupSecret = (id: number, provider: string, api_key: string, base_url?: string, fields?: Record<string, string>) =>
+  api(`/api/groups/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url, fields }) })
 export const deleteGroupSecret = (id: number, provider: string) =>
   api(`/api/groups/${id}/secrets/${provider}`, { method: 'DELETE' })
 // doctrine & skills du groupe (lecture = membre, écriture = chef)

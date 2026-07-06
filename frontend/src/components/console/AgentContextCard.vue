@@ -2,7 +2,7 @@
 // Carte « contexte agent » (otomata-private#49) — transparence : ce que le Claude
 // de l'utilisateur reçoit d'oto au handshake, en 3 couches étiquetées par PROVENANCE
 // (plateforme-statique / readme cumulés org→équipe→user / dérivé). Lecture seule ;
-// l'édition des readme se fait sur /org (org), /org/departments (équipe) et /account
+// l'édition des readme se fait sur /org (org), /org/teams (équipe) et /account
 // (user) ; les procédures sur /procedures. Vit comme section de la page Account.
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from './ConsoleCard.vue'

@@ -73,12 +73,12 @@ onMounted(load)
 
       <!-- readme d'équipe -->
       <ConsoleCard title="readme d'équipe" flush
-        sub="chaque groupe peut ajouter sa prose, injectée après celle de l'org pour ses membres. édition par équipe.">
+        sub="chaque équipe peut ajouter sa prose, injectée après celle de l'org pour ses membres. édition par équipe.">
         <template #actions>
-          <RouterLink to="/org/departments"><Btn kind="mini">Gérer les groupes →</Btn></RouterLink>
+          <RouterLink to="/org/teams"><Btn kind="mini">Gérer les équipes →</Btn></RouterLink>
         </template>
         <p v-if="!loaded" class="helptext">chargement…</p>
-        <div v-else-if="!groups.length" class="helptext">aucun groupe — l'org n'a pas d'équipe pour l'instant.</div>
+        <div v-else-if="!groups.length" class="helptext">aucune équipe — l'org n'a pas d'équipe pour l'instant.</div>
         <div v-else class="rowlist">
           <div v-for="g in groups" :key="g.id" class="rowitem" style="gap: 10px">
             <Tag tone="saffron">{{ g.name }}</Tag>
