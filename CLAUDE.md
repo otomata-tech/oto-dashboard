@@ -188,10 +188,12 @@ Groupe nav **« memory »** (`consoleNav.ts`) = deux surfaces de mémoire :
 **Deux objets, deux mots, deux surfaces** (fin du bundle historique de l'écran doctrine) :
 - **agent readme** = prose libre **injectée à chaque session** (bloc C backend), **cumulable
   par niveau** : plateforme (`/platform/instructions`) → org (**carte sur `/org`**,
-  `AgentReadmeCard` branchée sur `putInstruction('claude_md')`, versions/restore conservés)
+  `AgentReadmeCard` branchée sur `putInstruction('claude_md')`)
   → équipe (`GroupDoctrineCard`, `/org/departments`) → user (**carte sur `/account`**,
   `GET/PUT /api/me/agent-readme`). Composant générique `AgentReadmeCard.vue` (props
-  load/save/loadVersions/restore). Pas de compteur d'usage (l'injection n'est pas un tool
+  load/save). **Prose PLATE, sans versioning** (ADR 0042 : le readme vit dans `guides`, l'UI
+  versions/restore retirée le 2026-07-06) — ≠ les PROCÉDURES nommées, qui gardent leur
+  versioning (DoctrineView). Pas de compteur d'usage (l'injection n'est pas un tool
   call) — le tag dit « injecté à chaque session ».
 - **procédure** (ex-skill / doctrine nommée) = déroulé opératoire **chargé à la demande**
   (`oto_get_doctrine(slug)`), publiable/forkable/partageable/liable à un projet.
