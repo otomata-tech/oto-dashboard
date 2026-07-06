@@ -1,15 +1,23 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import Avatar from './Avatar.vue'
+import Icon from './Icon.vue'
+import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
 import { useMe } from '@/composables/useMe'
+import { useMyOrgs } from '@/composables/useMyOrgs'
 import { useScope } from '@/composables/useScope'
 
-// En-tête de la sidebar = l'axe IDENTITÉ (« qui je suis » : org + équipe active),
-// AFFICHAGE SEUL. La bascule d'org/équipe a migré dans la popin compte (pied de
-// sidebar, WorkspaceSwitcher) — pattern SaaS classique. Le bloc s'adapte au niveau :
-// en « org » il se recompose en bannière centrée sur l'organisation gérée.
+// En-tête de la sidebar = l'axe IDENTITÉ (org + équipe active) ET le déclencheur du
+// SWITCH d'org : cliquer le bloc org/logo ouvre le WorkspaceSwitcher (consultation
+// pure ADR 0023, zéro effet MCP — jamais de bascule d'identité Claude depuis le FE).
+// La GESTION (« gérer mon org / profil / plateforme ») reste dans la popin compte au
+// pied de la sidebar (ConsoleUserMenu). Le bloc s'adapte au niveau : en « org » il se
+// recompose en bannière centrée sur l'organisation gérée.
 const { me } = useMe()
 const { level } = useScope()
+const { prefetch } = useMyOrgs()   // orgs+équipes préchargées au survol → popin instantanée
+
+const open = ref(false)
 
 const orgName = computed(() => me.value?.active_org_name || '…')
 const hasLogo = computed(() => !!(me.value?.active_org_name && me.value?.active_org_logo_url))
@@ -35,45 +43,73 @@ const kicker = computed(() => {
 </script>
 
 <template>
-  <div
-    class="ident"
-    :class="{ org: level === 'org', platform: level === 'platform' }"
-    aria-label="identité — organisation & équipe affichées"
-  >
-    <Avatar
-      v-if="hasLogo"
-      :src="me!.active_org_logo_url"
-      :name="orgName"
-      :size="level === 'org' ? 38 : 34"
-      shape="square"
-    />
-    <span v-else class="o-medallion" :class="level === 'org' ? 'o-medallion-md' : 'o-medallion-sm'">o</span>
+  <div class="identity" :class="{ open }">
+    <!-- backdrop : un clic dehors referme -->
+    <div v-if="open" class="id-backdrop" @click="open = false" />
 
-    <div class="ident-txt">
-      <div class="ident-kicker">{{ kicker }}</div>
-      <div class="ident-name">{{ orgName }}</div>
-      <div class="ident-meta">
-        <span v-if="orgRoleLabel" class="pill">{{ orgRoleLabel }}</span>
-        <span v-else class="pill faint">global</span>
-        <span v-if="me?.active_group" class="ident-team">
-          · {{ me.active_group_name }}
-          <span class="pill">{{ groupRoleLabel }}</span>
-        </span>
+    <!-- déclencheur : le bloc org/logo ouvre le switcher d'org -->
+    <button
+      class="ident"
+      :class="{ org: level === 'org', platform: level === 'platform' }"
+      :aria-expanded="open"
+      aria-haspopup="menu"
+      aria-label="changer d'organisation"
+      @pointerenter="prefetch"
+      @focus="prefetch"
+      @click="open = !open"
+    >
+      <Avatar
+        v-if="hasLogo"
+        :src="me!.active_org_logo_url"
+        :name="orgName"
+        :size="level === 'org' ? 38 : 34"
+        shape="square"
+      />
+      <span v-else class="o-medallion" :class="level === 'org' ? 'o-medallion-md' : 'o-medallion-sm'">o</span>
+
+      <div class="ident-txt">
+        <div class="ident-kicker">{{ kicker }}</div>
+        <div class="ident-name">{{ orgName }}</div>
+        <div class="ident-meta">
+          <span v-if="orgRoleLabel" class="pill">{{ orgRoleLabel }}</span>
+          <span v-else class="pill faint">global</span>
+          <span v-if="me?.active_group" class="ident-team">
+            · {{ me.active_group_name }}
+            <span class="pill">{{ groupRoleLabel }}</span>
+          </span>
+        </div>
       </div>
+
+      <Icon name="chevd" :size="13" class="ident-chev" />
+    </button>
+
+    <!-- popin switch d'org : surface CLAIRE, s'ouvre vers le BAS depuis l'en-tête -->
+    <div v-if="open" class="id-pop" role="menu">
+      <WorkspaceSwitcher @switched="open = false" />
     </div>
   </div>
 </template>
 
 <style scoped>
+.identity { position: relative; flex: 1; min-width: 0; }
+
+.id-backdrop { position: fixed; inset: 0; z-index: 40; }
+
 .ident {
-  flex: 1; min-width: 0;
+  position: relative; z-index: 10;
+  width: 100%;
   display: flex; align-items: center; gap: 10px;
   padding: 6px 8px; border-radius: var(--radius-md);
   border: 1px solid transparent; background: transparent;
-  text-align: left;
+  text-align: left; cursor: pointer; font-family: inherit;
+  transition: background var(--t-fast), border-color var(--t-fast);
 }
+.ident:hover,
+.identity.open .ident { background: var(--sidebar-hover-bg); border-color: var(--sidebar-hair); }
 /* En mode « org », le bloc devient une bannière claire (saffron doux) sur l'encre. */
 .ident.org { background: var(--color-saffron-soft); border-color: var(--color-hair); }
+.ident.org:hover,
+.identity.open .ident.org { border-color: var(--color-saffron-ink); }
 
 .ident-txt { flex: 1; min-width: 0; }
 .ident-kicker {
@@ -103,4 +139,20 @@ const kicker = computed(() => {
 .ident-meta > .pill:first-child { margin-left: 0; }
 .pill.faint { color: var(--sidebar-fg-mute); }
 .ident.org .pill.faint { color: var(--color-faint); }
+
+.ident-chev {
+  flex: none; color: var(--sidebar-fg-mute);
+  transition: transform var(--t-fast);
+}
+.ident.org .ident-chev { color: var(--color-saffron-ink); }
+.identity.open .ident-chev { transform: rotate(180deg); }
+
+/* popin CLAIRE (menu flottant), s'ouvre vers le BAS depuis l'en-tête de la sidebar */
+.id-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 50;
+  display: flex; flex-direction: column; gap: 2px; padding: 6px;
+  background: var(--color-surface); border: 1px solid var(--color-hair);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-pop);
+  max-height: min(72vh, 560px); overflow-y: auto;
+}
 </style>

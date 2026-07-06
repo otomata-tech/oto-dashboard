@@ -4,22 +4,18 @@ import { useRoute } from 'vue-router'
 import Icon from './Icon.vue'
 import Avatar from './Avatar.vue'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
-import { useMyOrgs } from '@/composables/useMyOrgs'
 import { useAuth } from '@/composables/useAuth'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
-import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
 import AccountViewAs from './AccountViewAs.vue'
 
 // Menu profil (pied de sidebar) = point d'entrée unique des destinations de
-// GESTION, à la place de l'ancien level-switch du topbar. On *entre* dans une
-// zone (profil / org / plateforme) puis on en *sort* — plus un cran de bascule
-// contextuelle. L'axe « sous quelle org j'agis » reste l'identité (en-tête,
-// ConsoleIdentity) ; ici c'est « qu'est-ce que je gère ». Gating par droits :
-// org = org_admin de l'org courante, plateforme = opérateur plateforme.
+// GESTION (profil / org / plateforme). On *entre* dans une zone puis on en *sort*.
+// Le SWITCH d'org, lui, a repris sa place en HAUT (ConsoleIdentity, sur l'org/logo) —
+// ici c'est « qu'est-ce que je gère », pas « sous quelle org j'agis ». Gating par
+// droits : org = org_admin de l'org courante, plateforme = opérateur plateforme.
 const route = useRoute()
 const { me } = useMe()
-const { prefetch } = useMyOrgs()   // orgs+équipes préchargées au survol → popin instantanée
 const { logout } = useAuth()
 const { closeNav } = useNav()
 const { level } = useScope()
@@ -95,14 +91,11 @@ function go() {
 
     <!-- menu déroulant (s'ouvre vers le haut depuis le pied de sidebar) -->
     <div v-if="open" class="um-pop" role="menu">
-      <!-- Switcher d'org (+ équipe) : consultation pure, zéro effet MCP -->
-      <WorkspaceSwitcher @switched="open = false" />
       <!-- Opérateur plateforme : naviguer entre comptes (view-as lecture seule) -->
       <template v-if="isPlatformOperator(me)">
-        <div class="um-sep" />
         <AccountViewAs />
+        <div class="um-sep" />
       </template>
-      <div class="um-sep" />
       <template v-for="e in entries" :key="e.key">
         <div v-if="e.tone === 'platform'" class="um-sep" />
         <RouterLink
@@ -129,8 +122,6 @@ function go() {
       :aria-expanded="open"
       aria-haspopup="menu"
       aria-label="menu du compte"
-      @pointerenter="prefetch"
-      @focus="prefetch"
       @click="open = !open"
     >
       <Avatar :src="me?.avatar_url" :name="me?.name || me?.email" :size="26" />
