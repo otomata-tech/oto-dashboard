@@ -81,6 +81,21 @@ export interface MyConnector extends ConnectorMeta {
   option_ok?: boolean          // l'option est-elle accordée pour moi (true si aucune requise)
 }
 
+// Instance de connecteur (ADR 0038 §B / 0044) — projection lecture du coffre :
+// une config possédée à un niveau (member/group/org/platform). Métadonnées seulement.
+export interface ConnectorInstance {
+  ref: string                  // handle opaque stable (cible de pin)
+  connector: string
+  level: 'member' | 'group' | 'org' | 'platform'
+  owner: { type: string; id: string | number; label?: string | null }
+  name: string                 // nom dérivé (Connecteur · compte)
+  account?: string
+  secret_kind?: string | null
+  set_by?: string | null
+  set_at?: string | null
+  via?: string                 // 'credential' | 'shared_with_me' | grant plateforme…
+}
+
 // ── bibliothèque publique de doctrines (marketplace, library.*) ──
 // Métadonnées d'une entrée publiée (sans body ; `snippet` présent si recherche).
 export interface LibraryEntry {

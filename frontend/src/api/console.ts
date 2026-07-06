@@ -2,7 +2,7 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, MyConnector,
   BillingStatus, BillingSubscribeResult, BillingPayment,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
@@ -35,6 +35,10 @@ export const getConnectors = () => api<{ connectors: ConnectorMeta[] }>('/api/co
 // verbose=true : le dashboard rend les cartes complètes (doc/auth/credential_fields).
 // L'agent MCP, lui, reçoit une vue compacte par défaut (oto-backend#109).
 export const getMyConnectors = () => api<{ connectors: MyConnector[] }>('/api/me/connectors?verbose=true')
+// Instances de connecteur visibles (ADR 0038/0044) : mes clés (member) + celles de mes
+// équipes/org + prêts « partagés avec moi » + grants plateforme, par proximité.
+export const getConnectorInstances = () =>
+  api<{ instances: ConnectorInstance[]; count: number }>('/api/me/connector-instances')
 export const selectConnector = (name: string) =>
   api(`/api/me/connectors/${encodeURIComponent(name)}/select`, { method: 'POST' })
 export const pauseConnector = (name: string) =>
