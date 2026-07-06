@@ -449,6 +449,8 @@ export interface Project {
   mcp_tools?: string[]                        // allowlist figée du preset exposé
   mcp_url?: string | null                     // URL dérivée `https://<slug>.mcp.oto.cx/mcp` (null si off)
   mcp_unresolvable_tools?: string[]           // (réponse publish) outils exposés MAIS non résolubles sans login → échouent à l'appel
+  mcp_expose_datastore?: boolean              // `secret` : datastore exposé en LECTURE sur l'endpoint partagé (tableaux liés au projet)
+  mcp_expose_datastore_write?: boolean        // opt-in ADDITIONNEL : écriture (data_write/data_set_schema) ; sans objet si lecture non exposée
   created_at?: string | null
   updated_at?: string | null
   archived_at?: string | null

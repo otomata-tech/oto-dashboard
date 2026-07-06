@@ -146,6 +146,48 @@ async function unpublishMcp() {
   finally { mcpBusy.value = false }
 }
 
+// ── Datastore exposé sur l'endpoint partagé (#193) ──
+// État EFFECTIF dérivé du backend (flag lecture + opt-in écriture). Réservé à `secret` :
+// un endpoint public/org n'expose jamais le datastore ainsi.
+const dsSecret = computed(() => mcpAccess.value === 'secret')
+const dsExposed = computed(() => dsSecret.value && !!props.project.mcp_expose_datastore)
+const dsWritable = computed(() => dsExposed.value && !!props.project.mcp_expose_datastore_write)
+// Legacy : des `data_*` dans l'allowlist figée = exposition posée par une ancienne UI
+// (avant le flag) → à normaliser (retirer les data_* de la liste, s'appuyer sur le flag).
+const dsLegacy = computed(() => (props.project.mcp_tools ?? []).some((t) => t.startsWith('data_')))
+
+// Republication ciblée (secret) : conserve slug/tools, change seulement les flags datastore.
+async function setDatastore(expose: boolean, write: boolean) {
+  if (mcpBusy.value || !dsSecret.value) return
+  mcpBusy.value = true
+  try {
+    await publishProjectMcp(projectId.value, {
+      mcp_slug: props.project.mcp_slug ?? '', mcp_access: 'secret',
+      mcp_tools: props.project.mcp_tools ?? [],
+      mcp_expose_datastore: expose, mcp_expose_datastore_write: write,
+    })
+    toast(expose ? (write ? 'datastore : lecture + écriture' : 'datastore exposé en lecture') : 'datastore fermé')
+    emit('reload-project')
+  } catch (e) { toast(humanize(e)) }
+  finally { mcpBusy.value = false }
+}
+// Normalise un endpoint legacy : retire les data_* de la liste d'outils, expose via le flag.
+async function normalizeLegacy() {
+  if (mcpBusy.value || !dsSecret.value) return
+  const tools = (props.project.mcp_tools ?? []).filter((t) => !t.startsWith('data_'))
+  if (!tools.length) { toast('la liste d’outils ne peut pas être vide — ajoute un outil métier d’abord'); return }
+  mcpBusy.value = true
+  try {
+    await publishProjectMcp(projectId.value, {
+      mcp_slug: props.project.mcp_slug ?? '', mcp_access: 'secret', mcp_tools: tools,
+      mcp_expose_datastore: true, mcp_expose_datastore_write: dsWritable.value,
+    })
+    toast('exposition normalisée — datastore piloté par le réglage dédié')
+    emit('reload-project')
+  } catch (e) { toast(humanize(e)) }
+  finally { mcpBusy.value = false }
+}
+
 // ── Transférer ──
 async function transfer() {
   const target = await pickTarget(props.project.name || `projet #${projectId.value}`)
@@ -222,6 +264,32 @@ async function transfer() {
                 <Btn kind="mini" icon="copy" @click="copyMcp">Copier</Btn>
               </div>
               <p class="sd__tools">{{ project.mcp_tools?.length ?? 0 }} outil(s) : {{ (project.mcp_tools ?? []).join(', ') }}</p>
+
+              <!-- Datastore (secret uniquement) : état effectif + réglage lecture/écriture -->
+              <div v-if="dsSecret" class="sd__ds">
+                <div class="sd__dsrow">
+                  <Icon name="database" :size="14" />
+                  <span class="sd__dslbl">Datastore</span>
+                  <Tag v-if="dsWritable" tone="olive">lecture + écriture</Tag>
+                  <Tag v-else-if="dsExposed" tone="cobalt">lecture</Tag>
+                  <Tag v-else tone="terra">fermé</Tag>
+                </div>
+                <p class="sd__desc">Les invités branchés voient les tableaux <strong>liés à ce projet</strong> (data_list_namespaces, data_rows) — jamais le reste du datastore de l’org.</p>
+                <div v-if="dsLegacy" class="sd__dswarn">
+                  <Icon name="triangle-alert" :size="13" />
+                  <span>Exposition configurée par une version antérieure (des <code>data_*</code> figurent dans la liste d’outils). Normalise pour t’appuyer sur le réglage ci-dessous.</span>
+                  <Btn v-if="!readOnly" kind="mini" :disabled="mcpBusy" @click="normalizeLegacy">Normaliser</Btn>
+                </div>
+                <div v-if="!readOnly" class="sd__mcpact">
+                  <Btn v-if="!dsExposed" kind="mini" icon="database" :disabled="mcpBusy" @click="setDatastore(true, false)">Exposer en lecture</Btn>
+                  <template v-else>
+                    <Btn v-if="!dsWritable" kind="mini" :disabled="mcpBusy" @click="setDatastore(true, true)">Autoriser l’écriture</Btn>
+                    <Btn v-else kind="mini" :disabled="mcpBusy" @click="setDatastore(true, false)">Repasser en lecture seule</Btn>
+                    <Btn kind="mini" :disabled="mcpBusy" @click="setDatastore(false, false)">Fermer le datastore</Btn>
+                  </template>
+                </div>
+              </div>
+
               <div v-if="!readOnly" class="sd__mcpact">
                 <Btn kind="mini" :disabled="mcpBusy" @click="publishMcp">Reconfigurer</Btn>
                 <Btn kind="danger" :disabled="mcpBusy" @click="unpublishMcp">Retirer</Btn>
@@ -271,7 +339,15 @@ async function transfer() {
 .sd__linkrow { display: flex; align-items: center; gap: 7px; }
 .sd__url { flex: 1; min-width: 0; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 7px 10px; font-family: var(--font-mono); font-size: 10.5px; color: var(--color-ink-soft); background: var(--color-paper-2); }
 .sd__tools { font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); line-height: 1.5; margin: 7px 0 0; }
-.sd__mcpact { display: flex; gap: 7px; margin-top: 9px; }
+.sd__mcpact { display: flex; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
+.sd__ds { margin-top: 12px; padding: 11px 12px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); background: var(--color-paper-2); }
+.sd__dsrow { display: flex; align-items: center; gap: 7px; }
+.sd__dsrow :deep(svg) { color: var(--color-mute); flex: none; }
+.sd__dslbl { font-size: 12.5px; font-weight: 700; color: var(--color-ink-soft); margin-right: 2px; }
+.sd__ds .sd__desc { margin: 7px 0 0; }
+.sd__dswarn { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-top: 9px; padding: 8px 10px; border-radius: var(--radius-md); background: var(--color-saffron-soft); font-size: 11px; line-height: 1.45; color: var(--color-saffron-ink); }
+.sd__dswarn :deep(svg) { color: var(--color-saffron-ink); flex: none; }
+.sd__dswarn code { font-family: var(--font-mono); font-size: 10px; }
 .modal-fade-enter-active, .modal-fade-leave-active { transition: opacity .16s ease; }
 .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
 </style>
