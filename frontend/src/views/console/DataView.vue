@@ -382,23 +382,49 @@ async function onDelete() {
       </ConsoleCard>
     </div>
 
-    <div class="grid2">
-      <ConsoleCard title="how agents use this">
-        <div class="helptext" style="font-size: 12.5px; line-height: 1.65">
-          <code style="font-size: 11px">data_write("prospects-q3", row)</code> appends a row ·
-          <code style="font-size: 11px">data_rows("prospects-q3", filter)</code> reads it back ·
-          <code style="font-size: 11px">data_share("prospects-q3", email)</code> shares it with a teammate.
-          schema-free — new fields just appear.
+    <ConsoleCard title="how agents use this">
+      <div class="helptext" style="font-size: 12.5px; line-height: 1.65; margin-bottom: 10px">
+        schema-free tables your agents read and write in plain language — no columns to define
+        upfront, new fields just appear as they're written.
+      </div>
+      <dl class="ds-verbs">
+        <div>
+          <dt>write</dt>
+          <dd>
+            <code>data_write(ns, row)</code> appends a row · pass an <code>id</code> to update
+            only the fields you give · new keys auto-create their columns.
+          </dd>
         </div>
-      </ConsoleCard>
-      <ConsoleCard title="backing store" sub="native, no external dependency.">
-        <div class="helptext">
-          rows live in oto's own database (postgres) — datastore works without connecting any
-          third-party account. exporting a namespace to a tool you control (sheets, notion…) is
-          on the roadmap.
+        <div>
+          <dt>read</dt>
+          <dd>
+            <code>data_rows(ns, filter)</code> lists rows (exact-match filter + limit), or fetches
+            one by <code>id</code>.
+          </dd>
         </div>
-      </ConsoleCard>
-    </div>
+        <div>
+          <dt>organize</dt>
+          <dd>
+            <code>data_create_namespace</code> / <code>data_list_namespaces</code> manage tables ·
+            <code>data_set_schema</code> turns a flat table into typed cards.
+          </dd>
+        </div>
+        <div>
+          <dt>share</dt>
+          <dd>
+            <code>data_share(ns, email, read|write)</code> gives a teammate access under their own
+            account · <code>data_delete_row</code> / <code>data_delete_namespace</code> clean up.
+          </dd>
+        </div>
+        <div>
+          <dt>see it</dt>
+          <dd>
+            <code>data_app</code> renders a sortable table right in the chat ·
+            <code>data_url</code> links back to this page.
+          </dd>
+        </div>
+      </dl>
+    </ConsoleCard>
 
     <RowDrawer :open="drawerOpen" :row="drawerRow" :fields="fields" :is-new="drawerNew"
       :read-only="readOnly" @save="onSave" @delete="onDelete" @close="closeDrawer" />
@@ -424,6 +450,14 @@ async function onDelete() {
 .ds-pager { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 16px; }
 .ds-pager .pj-x { border: 1px solid var(--color-hair-soft, #cfcfcf); background: #fff; border-radius: 6px; padding: 4px 10px; font-size: 12px; color: var(--color-ink-soft, #6b6b6b); cursor: pointer; }
 .ds-pager .pj-x:disabled { opacity: .4; cursor: default; }
+.ds-verbs { display: flex; flex-direction: column; gap: 8px; margin: 0; }
+.ds-verbs > div { display: grid; grid-template-columns: 84px 1fr; gap: 12px; align-items: baseline; }
+.ds-verbs dt { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--color-ink-soft, #6b6b6b); }
+.ds-verbs dd { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--color-ink-soft, #6b6b6b); }
+.ds-verbs code { font-size: 11px; }
+@media (max-width: 560px) {
+  .ds-verbs > div { grid-template-columns: 1fr; gap: 2px; }
+}
 @media (max-width: 720px) {
   .data-layout { grid-template-columns: 1fr; }
 }

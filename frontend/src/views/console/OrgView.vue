@@ -172,6 +172,22 @@ async function removeLogo() {
   } catch (err) { toast(humanize(err)) }
   finally { logoBusy.value = false }
 }
+
+// Suppression (archivage réversible) de l'org — org_admin, jamais l'espace perso.
+const isPersonalOrg = computed(() => detail.value?.org.personal === true)
+async function deleteOrg() {
+  if (activeOrgId.value == null) return
+  const label = detail.value?.org.name || 'this org'
+  if (!await confirmAction({ title: 'supprimer l\'organisation', danger: true, confirmLabel: 'supprimer',
+    message: `supprimer « ${label} » ? elle disparaît pour tous ses membres, qui retombent sur leurs autres espaces. les données sont conservées et un admin oto peut la restaurer.` })) return
+  try {
+    await archiveOrg(activeOrgId.value)
+    await reloadMe()            // l'org active a rebasculé → rafraîchit le badge identité
+    toast('organisation supprimée')
+    // Repart d'un contexte propre (la vue est scopée sur l'org active, désormais changée).
+    window.location.assign('/console')
+  } catch (e) { toast(humanize(e)) }
+}
 </script>
 
 <template>
@@ -277,6 +293,17 @@ async function removeLogo() {
                     hint="png, jpeg ou webp · max 2 Mo"
                     @select="onLogoDrop" @error="toast" />
                   <Btn v-if="detail?.org.logo_custom" kind="danger" :disabled="logoBusy" @click="removeLogo">remove logo</Btn>
+                </div>
+              </div>
+
+              <!-- Zone danger : archivage réversible de l'org (jamais l'espace perso).
+                   Symétrique de « edit » — org_admin seulement. -->
+              <div v-if="isOrgAdmin && !isPersonalOrg" style="border-top: 1px solid var(--color-hair); padding-top: 12px">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap">
+                  <div class="helptext" style="margin: 0">
+                    supprime cet espace pour tous ses membres — réversible par un admin oto, données conservées.
+                  </div>
+                  <Btn kind="danger" @click="deleteOrg">supprimer l'organisation</Btn>
                 </div>
               </div>
             </div>
