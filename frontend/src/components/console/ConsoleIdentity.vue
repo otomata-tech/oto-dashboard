@@ -36,6 +36,7 @@ const isConsulting = computed(() =>
 // Sous-titre selon le niveau : en org/platform on annonce le mode, sinon le contexte
 // (ou « consultation » si on regarde une org autre que sa maison).
 const kicker = computed(() => {
+  if (level.value === 'group') return 'gérer mon groupe'
   if (level.value === 'org') return 'gérer mon org'
   if (level.value === 'platform') return 'plateforme'
   return isConsulting.value ? 'consultation' : 'votre contexte'

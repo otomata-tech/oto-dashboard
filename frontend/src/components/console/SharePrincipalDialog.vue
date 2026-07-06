@@ -171,7 +171,7 @@ const kindLabel = (g: NamespaceShare) =>
             <Btn kind="mini" icon="plus" :disabled="busy || !principal" @click="add">Partager</Btn>
           </div>
           <p v-if="mode === 'team' && !groups.length && !loading" class="dim sp-hint">
-            aucune équipe dans ton org active — crée un département dans « groups ».
+            aucune équipe dans ton org active — crée un groupe dans « groupes ».
           </p>
           <p v-if="mode === 'orgid'" class="dim sp-hint">
             livraison client : donne l'accès à une org dont tu n'es pas membre, par son id.

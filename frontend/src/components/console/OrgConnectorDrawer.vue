@@ -28,7 +28,7 @@ const props = defineProps<{
   orgId: number | null
   isOrgAdmin: boolean
   acl?: ConnectorAclEntry[]        // ACL de CE connecteur (RBAC org, ADR 0025) ; vide = ouvert
-  groups?: GroupListItem[]         // départements de l'org (pour libeller les principals groupe)
+  groups?: GroupListItem[]         // groupes de l'org (pour libeller les principals groupe)
   members?: OrgMember[]            // membres de l'org (pour libeller les principals user)
 }>()
 

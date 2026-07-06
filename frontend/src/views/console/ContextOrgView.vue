@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Section « Context » — projection ORG (ADR 0022). Le SOCLE garanti à tout membre de
-// l'org active : readme org (éditable), readme d'équipe (par département), connecteurs
+// l'org active : readme org (éditable), readme d'équipe (par groupe), connecteurs
 // activés, baseline de toolset. PAS l'artefact d'un membre précis (il dépend de son
 // équipe) — « voir en tant que membre » viendra quand le backend autorisera un
 // org_admin à consulter le contexte composé d'un membre (view-as est opérateur-only).
@@ -76,12 +76,12 @@ onMounted(load)
 
       <!-- readme d'équipe -->
       <ConsoleCard title="readme d'équipe" flush
-        sub="chaque département peut ajouter sa prose, injectée après celle de l'org pour ses membres. édition par équipe.">
+        sub="chaque groupe peut ajouter sa prose, injectée après celle de l'org pour ses membres. édition par équipe.">
         <template #actions>
-          <RouterLink to="/org/departments"><Btn kind="mini">Gérer les départements →</Btn></RouterLink>
+          <RouterLink to="/org/departments"><Btn kind="mini">Gérer les groupes →</Btn></RouterLink>
         </template>
         <p v-if="!loaded" class="helptext">chargement…</p>
-        <div v-else-if="!groups.length" class="helptext">aucun département — l'org n'a pas d'équipe pour l'instant.</div>
+        <div v-else-if="!groups.length" class="helptext">aucun groupe — l'org n'a pas d'équipe pour l'instant.</div>
         <div v-else class="rowlist">
           <div v-for="g in groups" :key="g.id" class="rowitem" style="gap: 10px">
             <Tag tone="saffron">{{ g.name }}</Tag>

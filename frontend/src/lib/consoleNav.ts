@@ -2,6 +2,8 @@
 //
 //   • 'work'     (« mon espace »)      = surfaces de consommation, au niveau de
 //                                        l'utilisateur. Servies à la RACINE.
+//   • 'group'    (« gérer mon groupe ») = agir SUR le groupe actif, réservé au chef
+//                                        (group_admin) ou org_admin. Sous /group.
 //   • 'org'      (« gérer mon org »)   = agir SUR l'organisation active. Sous /org.
 //   • 'platform' (« gérer la plateforme ») = agir sur toute la plateforme, réservé
 //                                        à l'opérateur plateforme. Sous /platform.
@@ -11,7 +13,7 @@
 // synchro — « derive don't duplicate ». Le pill « profil actif » (quelle org) est
 // l'axe ORTHOGONAL : ne pas le confondre avec le niveau (quoi je fais).
 
-export type NavLevel = 'work' | 'org' | 'platform'
+export type NavLevel = 'work' | 'group' | 'org' | 'platform'
 
 export interface NavItem {
   path: string
@@ -52,12 +54,16 @@ export const NAV: NavGroup[] = [
   // « manage account » (/account) et « activity » (/activity) ne sont PLUS dans la
   // sidebar : ils vivent dans le menu profil du pied (ConsoleUserMenu). Leurs routes
   // sont déclarées explicitement dans le routeur (elles ne dérivent plus de NAV).
+  // ── Gérer mon groupe : agir SUR le groupe actif (chef / org_admin) ─────────
+  { group: 'group', level: 'group', items: [
+    { path: '/group', label: 'members & keys', icon: 'users' },
+  ]},
   // ── Gérer mon org : agir SUR l'organisation active ─────────────────────────
   { group: 'organization', level: 'org', items: [
     { path: '/org/context', label: 'context', icon: 'bolt' },
     { path: '/org', label: 'members & secrets', icon: 'users' },
     { path: '/org/connectors', label: 'connectors', icon: 'plug' },
-    { path: '/org/departments', label: 'departments', icon: 'users' },
+    { path: '/org/departments', label: 'groups', icon: 'users' },
   ]},
   // ── Gérer la plateforme : réservé opérateur plateforme ─────────────────────
   { group: 'platform · admin', level: 'platform', items: [
@@ -90,10 +96,11 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/documents': { title: 'documents', crumb: 'memory' },
   '/account': { title: 'manage account', crumb: 'account' },
   '/activity': { title: 'activity', crumb: 'account' },
+  '/group': { title: 'mon groupe', crumb: 'gérer mon groupe' },
   '/org/context': { title: 'ce que voit l\'agent · org', crumb: 'gérer mon org' },
   '/org': { title: 'organization', crumb: 'gérer mon org' },
   '/org/connectors': { title: 'org connectors', crumb: 'gérer mon org' },
-  '/org/departments': { title: 'departments', crumb: 'gérer mon org' },
+  '/org/departments': { title: 'groups', crumb: 'gérer mon org' },
   '/platform/context': { title: 'ce que voit l\'agent · plateforme', crumb: 'plateforme' },
   '/platform/monitoring': { title: 'mcp monitoring', crumb: 'plateforme' },
   '/platform/usage': { title: 'usage & déroulés', crumb: 'plateforme' },

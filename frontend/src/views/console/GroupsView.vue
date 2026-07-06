@@ -1,14 +1,15 @@
 <script setup lang="ts">
-// Groupes (départements) d'une org + chef d'équipe (ADR 0012).
-// Liste des groupes de l'org active, switch de groupe actif, et — pour le chef
-// (group_admin) ou un org_admin — gestion des membres, secrets partagés et
-// doctrine. Le backend porte l'autz (escalade roles.py) ; l'UI ne
-// fait que masquer les contrôles.
+// Groupes (équipes) d'une org — surface ORG (org_admin) : lister tous les groupes,
+// en créer, switcher le groupe actif, gérer un groupe sélectionné (ADR 0012). La
+// gestion d'UN groupe (membres + clés) est le composant partagé GroupDetailCards,
+// réutilisé par MyGroupView (niveau « gérer mon groupe », côté chef). Le backend
+// porte l'autz (escalade roles.py) ; l'UI ne fait que masquer les contrôles.
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Dot from '@/components/console/Dot.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
+import GroupDetailCards from '@/components/console/GroupDetailCards.vue'
 import GroupDoctrineCard from '@/components/console/GroupDoctrineCard.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
@@ -18,11 +19,8 @@ import { useDeepLink } from '@/composables/useDeepLink'
 import { useMe } from '@/composables/useMe'
 import {
   listGroups, getGroup, createGroup, updateGroup, deleteGroup, useGroup, clearActiveGroup,
-  addGroupMember, setGroupMemberRole, removeGroupMember,
-  setGroupSecret, deleteGroupSecret,
 } from '@/api/console'
-import type { GroupDetail, GroupListItem, GroupRole } from '@/types/api'
-import { fmtDate } from '@/types/api'
+import type { GroupDetail, GroupListItem } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
@@ -77,7 +75,7 @@ async function refresh() {
 
 function create() {
   openForm({
-    title: 'new department',
+    title: 'new group',
     description: 'a group inside your org, with its own team lead, agent readme, procedures, toolset and shared keys.',
     fields: [
       { key: 'name', label: 'name', placeholder: 'sales, ops, finance…', required: true },
@@ -87,7 +85,7 @@ function create() {
     onConfirm: async (v) => {
       try {
         const g = await createGroup(activeOrgId.value!, (v.name ?? ''), v.description || '')
-        toast(`department "${g.name}" created`)
+        toast(`group "${g.name}" created`)
         await load(); await select(g.group_id)
       } catch (e) { toast(humanize(e)); throw e }
     },
@@ -95,7 +93,7 @@ function create() {
 }
 
 async function switchTo(id: number) {
-  try { await useGroup(id); await reload(); await refresh(); toast('active department switched') }
+  try { await useGroup(id); await reload(); await refresh(); toast('active group switched') }
   catch (e) { toast(humanize(e)) }
 }
 async function leaveActive() {
@@ -103,60 +101,9 @@ async function leaveActive() {
   catch (e) { toast(humanize(e)) }
 }
 
-function addMember() {
-  openForm({
-    title: 'add to department',
-    description: 'the person must already be a member of the org.',
-    fields: [
-      { key: 'target', label: 'email or sub', placeholder: 'name@company.com', required: true },
-      { key: 'role', label: 'role', type: 'select', initial: 'group_member',
-        options: [{ value: 'group_member', label: 'member' }, { value: 'group_admin', label: 'team lead' }] },
-    ],
-    submitLabel: 'add',
-    onConfirm: async (v) => {
-      const role: GroupRole = v.role === 'group_admin' ? 'group_admin' : 'group_member'
-      try { await addGroupMember(selectedId.value!, (v.target ?? ''), role); toast('member added'); await select(selectedId.value!) }
-      catch (e) { toast(humanize(e)); throw e }
-    },
-  })
-}
-async function toggleMemberRole(sub: string, role: GroupRole) {
-  const next: GroupRole = role === 'group_admin' ? 'group_member' : 'group_admin'
-  try { await setGroupMemberRole(selectedId.value!, sub, next); toast('role updated'); await select(selectedId.value!) }
-  catch (e) { toast(humanize(e)) }
-}
-async function removeMember(sub: string) {
-  if (!await confirmAction({ title: 'remove member', danger: true, confirmLabel: 'Remove', message: 'remove this member from the department?' })) return
-  try { await removeGroupMember(selectedId.value!, sub); toast('member removed'); await select(selectedId.value!) }
-  catch (e) { toast(humanize(e)) }
-}
-
-function addSecret() {
-  openForm({
-    title: 'shared key',
-    description: 'an org-shareable provider key for this department — resolves before the org key for its members.',
-    fields: [
-      { key: 'provider', label: 'provider', placeholder: 'attio, pennylane…', required: true },
-      { key: 'api_key', label: 'api key', type: 'password', required: true },
-      { key: 'base_url', label: 'base url', placeholder: 'remote connectors only (optional)' },
-    ],
-    submitLabel: 'save key',
-    onConfirm: async (v) => {
-      try { await setGroupSecret(selectedId.value!, (v.provider ?? ''), (v.api_key ?? ''), v.base_url || undefined); toast('shared key saved'); await select(selectedId.value!) }
-      catch (e) { toast(humanize(e)); throw e }
-    },
-  })
-}
-async function removeSecret(provider: string) {
-  if (!await confirmAction({ title: 'remove shared key', danger: true, confirmLabel: 'Remove', message: `remove the shared ${provider} key?` })) return
-  try { await deleteGroupSecret(selectedId.value!, provider); toast('shared key removed'); await select(selectedId.value!) }
-  catch (e) { toast(humanize(e)) }
-}
-
-
 function rename() {
   openForm({
-    title: 'edit department',
+    title: 'edit group',
     fields: [
       { key: 'name', label: 'name', initial: detail.value?.group.name, required: true },
       { key: 'description', label: 'description', type: 'textarea', initial: detail.value?.group.description },
@@ -169,8 +116,8 @@ function rename() {
   })
 }
 async function removeGroup() {
-  if (!await confirmAction({ title: 'delete department', danger: true, confirmLabel: 'Delete', message: 'delete this department? members, readme, procedures and shared keys are purged. members stay in the org.' })) return
-  try { await deleteGroup(selectedId.value!); toast('department deleted'); detail.value = null; selectedId.value = null; dl.set(null); await load() }
+  if (!await confirmAction({ title: 'delete group', danger: true, confirmLabel: 'Delete', message: 'delete this group? members, readme, procedures and shared keys are purged. members stay in the org.' })) return
+  try { await deleteGroup(selectedId.value!); toast('group deleted'); detail.value = null; selectedId.value = null; dl.set(null); await load() }
   catch (e) { toast(humanize(e)) }
 }
 </script>
@@ -180,18 +127,18 @@ async function removeGroup() {
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
     <ConsoleCard v-if="loaded && activeOrgId == null" title="no active org">
-      <div class="helptext">join or create an organization first — departments live inside an org.</div>
+      <div class="helptext">join or create an organization first — groups live inside an org.</div>
     </ConsoleCard>
 
     <template v-else>
       <div class="grid23">
-        <ConsoleCard title="departments" flush
+        <ConsoleCard title="groups" flush
           sub="teams inside your org. switch the active one to load its readme, procedures, toolset and shared keys.">
           <template #actions>
             <Btn v-if="isOrgAdmin" kind="mini" icon="plus" @click="create">New</Btn>
           </template>
           <table class="tbl">
-            <thead><tr><th>department</th><th>you</th><th>active</th><th style="width: 150px"></th></tr></thead>
+            <thead><tr><th>group</th><th>you</th><th>active</th><th style="width: 150px"></th></tr></thead>
             <tbody>
               <tr v-for="g in groups" :key="g.id" :style="g.id === selectedId ? 'background: var(--color-wash)' : ''">
                 <td>
@@ -209,69 +156,30 @@ async function removeGroup() {
                   <Btn v-if="g.my_role && g.id !== activeGroupId" kind="mini" @click="switchTo(g.id)">Use</Btn>
                 </td>
               </tr>
-              <tr v-if="!groups.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no departments yet<span v-if="isOrgAdmin"> — create one</span>.</td></tr>
+              <tr v-if="!groups.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no groups yet<span v-if="isOrgAdmin"> — create one</span>.</td></tr>
             </tbody>
           </table>
           <div v-if="activeGroupId != null" style="padding: 10px 14px; border-top: 1px solid var(--color-hair)">
-            <Btn kind="mini" @click="leaveActive">Leave active department (operate at org level)</Btn>
+            <Btn kind="mini" @click="leaveActive">Leave active group (operate at org level)</Btn>
           </div>
         </ConsoleCard>
 
-        <ConsoleCard v-if="detail" :title="detail.group.name" flush :sub="detail.group.description || 'department'">
+        <ConsoleCard v-if="detail" :title="detail.group.name" flush :sub="detail.group.description || 'group'">
           <template #actions>
             <Btn v-if="canManage" kind="mini" @click="rename">Edit</Btn>
             <Btn v-if="canManage" kind="danger" @click="removeGroup">Delete</Btn>
           </template>
-          <table class="tbl">
-            <thead><tr><th>member</th><th>role</th><th v-if="canManage" style="width: 130px"></th></tr></thead>
-            <tbody>
-              <tr v-for="m in detail.members" :key="m.sub">
-                <td>
-                  <div style="font-weight: 600; color: var(--color-ink)">{{ m.name || m.email }}</div>
-                  <div style="font-size: 11px; color: var(--color-faint)">{{ m.email }}</div>
-                </td>
-                <td><Tag v-if="m.role === 'group_admin'" tone="ink">lead</Tag><Tag v-else>member</Tag></td>
-                <td v-if="canManage" style="text-align: right; white-space: nowrap">
-                  <template v-if="m.sub !== meSub">
-                    <Btn kind="mini" @click="toggleMemberRole(m.sub, m.role)">{{ m.role === 'group_admin' ? 'Demote' : 'Make lead' }}</Btn>
-                    <Btn kind="danger" @click="removeMember(m.sub)">Remove</Btn>
-                  </template>
-                  <span v-else class="dim" style="font-size: 11px">you</span>
-                </td>
-              </tr>
-              <tr v-if="!detail.members.length"><td :colspan="canManage ? 3 : 2" class="dim" style="text-align: center; padding: 14px">no members</td></tr>
-            </tbody>
-          </table>
-          <div v-if="canManage" style="padding: 10px 14px; border-top: 1px solid var(--color-hair)">
-            <Btn kind="mini" icon="plus" @click="addMember">Add member</Btn>
-          </div>
+          <div class="helptext" style="padding: 12px 14px">members, shared keys, readme and procedures below.</div>
         </ConsoleCard>
-        <ConsoleCard v-else title="department" sub="pick a department on the left to manage it.">
-          <div class="helptext">select a department to see its members, shared keys, readme and procedures.</div>
+        <ConsoleCard v-else title="group" sub="pick a group on the left to manage it.">
+          <div class="helptext">select a group to see its members, shared keys, readme and procedures.</div>
         </ConsoleCard>
       </div>
 
       <template v-if="detail">
         <div class="grid23">
-          <ConsoleCard title="shared keys" flush
-            sub="department-level credentials — resolve before the org key for this team's members.">
-            <template #actions>
-              <Btn v-if="canManage" kind="mini" icon="plus" @click="addSecret">Add key</Btn>
-            </template>
-            <table class="tbl">
-              <thead><tr><th>provider</th><th>type</th><th>set by</th><th>since</th><th v-if="canManage" style="width: 80px"></th></tr></thead>
-              <tbody>
-                <tr v-for="s in detail.secrets" :key="s.provider">
-                  <td style="font-weight: 600; color: var(--color-ink)">{{ s.provider }}</td>
-                  <td><Tag v-if="s.base_url" tone="cobalt">remote bridge</Tag><Tag v-else>api key</Tag></td>
-                  <td class="dim">{{ s.set_by ?? '—' }}</td>
-                  <td class="dim">{{ fmtDate(s.set_at) ?? '—' }}</td>
-                  <td v-if="canManage" style="text-align: right"><Btn kind="danger" @click="removeSecret(s.provider)">Remove</Btn></td>
-                </tr>
-                <tr v-if="!detail.secrets.length"><td :colspan="canManage ? 5 : 4" class="dim" style="text-align: center; padding: 14px">no shared keys</td></tr>
-              </tbody>
-            </table>
-          </ConsoleCard>
+          <GroupDetailCards :group-id="detail.group.id" :members="detail.members" :secrets="detail.secrets"
+            :can-manage="canManage" :me-sub="meSub" @changed="select(detail.group.id)" />
         </div>
 
         <GroupDoctrineCard :group-id="detail.group.id" :can-edit="canManage" />

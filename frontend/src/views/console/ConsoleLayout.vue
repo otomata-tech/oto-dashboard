@@ -34,6 +34,7 @@ const VIEWS: Record<string, Component> = {
   '/org/context': defineAsyncComponent(() => import('./ContextOrgView.vue')),
   '/platform/context': defineAsyncComponent(() => import('./ContextPlatformView.vue')),
   '/account': defineAsyncComponent(() => import('./AccountView.vue')),
+  '/group': defineAsyncComponent(() => import('./MyGroupView.vue')),
   '/org': defineAsyncComponent(() => import('./OrgView.vue')),
   '/org/connectors': defineAsyncComponent(() => import('./OrgConnectorsView.vue')),
   '/org/departments': defineAsyncComponent(() => import('./GroupsView.vue')),

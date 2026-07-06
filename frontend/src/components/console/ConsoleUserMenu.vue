@@ -58,6 +58,16 @@ const entries = computed<Entry[]>(() => {
       active: onActivity,
     },
   ]
+  // « gérer mon groupe » : visible dès qu'on opère dans un groupe (groupe actif posé).
+  // Le contenu est gaté plus finement (chef vs membre) côté vue.
+  if (me.value?.active_group != null)
+    out.push({
+      key: 'group',
+      label: 'gérer mon groupe',
+      icon: 'users',
+      to: '/group',
+      active: level.value === 'group',
+    })
   if (me.value?.org_role === 'org_admin')
     out.push({
       key: 'org',

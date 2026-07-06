@@ -47,7 +47,7 @@ const credOpen = ref(false)
 const credConn = ref<{ label: string; provider: string; fields: ConnectorMeta['credential_fields']; verifiable: boolean } | null>(null)
 const orgSecrets = ref<Set<string>>(new Set())        // connecteurs avec une clé partagée d'org
 const acl = ref<ConnectorAclEntry[]>([])              // RBAC connecteur (ADR 0025)
-const groups = ref<GroupListItem[]>([])               // départements de l'org (picker)
+const groups = ref<GroupListItem[]>([])               // groupes de l'org (picker)
 const members = ref<OrgMember[]>([])                  // membres de l'org (picker)
 const error = ref<string | null>(null)
 const loaded = ref(false)
@@ -209,10 +209,10 @@ function addAccess(r: OrgConnectorActivation) {
     ...groups.value.map((g) => ({ value: `group:${g.id}`, label: `équipe · ${g.name}` })),
     ...members.value.map((m) => ({ value: `user:${m.sub}`, label: `membre · ${m.name || m.email || m.sub}` })),
   ]
-  if (!opts.length) { toast('crée d\'abord un département ou ajoute des membres'); return }
+  if (!opts.length) { toast('crée d\'abord un groupe ou ajoute des membres'); return }
   openForm({
     title: `${r.label} — réserver l'accès`,
-    description: 'ajoute un département ou un membre autorisé. dès le 1er ajout, le connecteur devient RÉSERVÉ (invisible + bloqué pour les autres, même avec leur propre clé).',
+    description: 'ajoute un groupe ou un membre autorisé. dès le 1er ajout, le connecteur devient RÉSERVÉ (invisible + bloqué pour les autres, même avec leur propre clé).',
     fields: [{ key: 'principal', label: 'autoriser', type: 'select', required: true, options: opts }],
     submitLabel: 'autoriser',
     onConfirm: async (v) => {
