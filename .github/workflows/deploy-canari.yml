@@ -25,8 +25,8 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           VITE_LOGTO_APP_ID: u3dkbkd1ecxi0je880ebz
           VITE_LOGTO_ENDPOINT: https://auth.oto.ninja
-          VITE_LOGTO_AUDIENCE: https://mcp-canari.oto.ninja/mcp
-          VITE_OTO_MCP_BASE: https://mcp-canari.oto.ninja
+          VITE_LOGTO_AUDIENCE: https://mcp.oto.ninja/mcp
+          VITE_OTO_MCP_BASE: https://mcp.oto.ninja
           VITE_SENTRY_ENV: canari
           VITE_POSTHOG_KEY: ""
         run: cd frontend && npm run build
