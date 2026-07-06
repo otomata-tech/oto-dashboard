@@ -123,7 +123,7 @@ export const setConnectorIdentity = (connector: string, identity_id: string) =>
     { method: 'PUT', ...j({ identity_id }) })
 
 // ── autorisation de compte connecteur partagé (#55) — le PROPRIÉTAIRE accorde/
-// révoque à un membre nommé (d'une org commune) le droit d'opérer SON compte ──
+// révoque à un user nommé (email/sub, même hors de ses orgs) le droit d'opérer SON compte ──
 export const getAccountGrants = () =>
   api<{ granted_by_me: AccountGrant[]; granted_to_me: AccountGrant[] }>(
     '/api/me/connector-accounts/grants')

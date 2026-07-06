@@ -52,8 +52,13 @@ function idsFor(channelKey: string): ConnectorIdentity[] {
 function grantsFor(channelKey: string): AccountGrant[] {
   return myGrants.value.filter(g => (g.provider || '').toLowerCase() === channelKey)
 }
-const ownerLabel = (i: ConnectorIdentity) =>
-  i.owner ? (i.owner.name || i.owner.email || i.owner.sub) : null
+// « partagé par X · <org> » : l'org dit D'OÙ vient le partage (le compte du
+// propriétaire est connecté sous cette org — cf. owner.org_name, #55).
+const ownerLabel = (i: ConnectorIdentity) => {
+  if (!i.owner) return null
+  const who = i.owner.name || i.owner.email || i.owner.sub
+  return i.owner.org_name ? `${who} · ${i.owner.org_name}` : who
+}
 async function pick(id: string) {
   try { await setConnectorIdentity('unipile', id); toast('account selected'); await refresh() }
   catch (e) { toast(humanize(e)) }

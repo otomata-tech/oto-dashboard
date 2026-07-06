@@ -702,11 +702,13 @@ export interface ConnectorIdentity {
   is_default: boolean
   channel: string | null    // canal (unipile : LINKEDIN/…) ; null hors multi-canal
   granted?: boolean         // compte PARTAGÉ par son propriétaire (#55)
-  owner?: { sub: string; email?: string | null; name?: string | null } | null
+  // owner.org/org_name = l'org sous laquelle le propriétaire a connecté ce compte
+  // (d'où vient le partage ; le grant lui-même n'est pas scopé à une org).
+  owner?: { sub: string; email?: string | null; name?: string | null; org?: number | null; org_name?: string | null } | null
 }
 
 // Autorisation de compte connecteur partagé (#55) : le propriétaire accorde à un
-// membre nommé (d'une org commune) le droit d'OPÉRER son compte sur un canal.
+// user nommé (par email/sub, même hors de ses orgs) le droit d'OPÉRER son compte sur un canal.
 // Face owner (granted_by_me : grantee_*) et face grantee (granted_to_me : owner_*).
 export interface AccountGrant {
   provider: string          // canal DB (LINKEDIN/WHATSAPP/…)
@@ -718,6 +720,8 @@ export interface AccountGrant {
   owner_sub?: string
   owner_email?: string | null
   owner_name?: string | null
+  owner_org_id?: number | null    // org sous laquelle le owner a connecté ce compte
+  owner_org_name?: string | null  // (face grantee : d'où vient le partage)
   granted_by?: string
   granted_at?: string
   active?: boolean          // false = owner déconnecté du canal (grant inerte)
