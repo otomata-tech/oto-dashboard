@@ -37,7 +37,11 @@ const visibleGroups = computed(() =>
      .filter((g) => g.level !== 'platform' || isPlatformOperator(me.value))
      .map((g) => ({
        ...g,
-       items: g.items.filter((it) => !it.super || isSuperAdmin(me.value)),
+       items: g.items
+         .filter((it) => !it.super || isSuperAdmin(me.value))
+         // dark launch : un item gaté sur un feature flag ne sort que si le
+         // backend l'annonce (billing masqué en prod tant que le PSP dort).
+         .filter((it) => !it.feature || !!me.value?.features?.[it.feature]),
      })))
 </script>
 

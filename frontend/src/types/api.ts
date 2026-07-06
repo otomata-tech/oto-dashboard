@@ -182,6 +182,14 @@ export interface Me {
   access: AccessState                  // gate doux alpha (ADR 0013)
   memento?: MementoStatus              // fédération MCP (otomata#16) — auto-prompt connexion
   providers: Record<string, ProviderStatus | undefined>
+  features?: FeatureFlags              // flags par-déploiement (dark launch) — pilotent la nav
+}
+
+// Feature flags exposés par le backend (une source unique, ADR 0043) : ce qui est
+// activé au déploiement courant (prod vs canari). Ex. billing masqué en prod tant
+// que le PSP n'est pas live. Absent/false = surface non montée côté backend.
+export interface FeatureFlags {
+  billing?: boolean
 }
 
 // Accès plateforme alpha (ADR 0013) : status = gate doux, invites_left = budget

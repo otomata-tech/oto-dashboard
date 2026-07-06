@@ -22,6 +22,9 @@ export interface NavItem {
   warn?: boolean
   count?: string
   super?: boolean // visible au super_admin seul (action plateforme sensible)
+  // Gaté sur un feature flag backend (`me.features[feature]`, dark launch) : l'item
+  // ne sort que si le déploiement courant l'active (ex. billing en prod vs canari).
+  feature?: keyof NonNullable<import('@/types/api').Me['features']>
 }
 
 export interface NavGroup {
@@ -64,7 +67,7 @@ export const NAV: NavGroup[] = [
     { path: '/org', label: 'members & secrets', icon: 'users' },
     { path: '/org/connectors', label: 'connectors', icon: 'plug' },
     { path: '/org/departments', label: 'groups', icon: 'users' },
-    { path: '/org/billing', label: 'abonnement', icon: 'card' },
+    { path: '/org/billing', label: 'abonnement', icon: 'card', feature: 'billing' },
   ]},
   // ── Gérer la plateforme : réservé opérateur plateforme ─────────────────────
   { group: 'platform · admin', level: 'platform', items: [
