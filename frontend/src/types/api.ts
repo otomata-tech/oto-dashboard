@@ -738,6 +738,7 @@ export interface Org {
   location?: string | null
   member_count?: number
   my_role?: OrgRole
+  personal?: boolean   // espace perso : non supprimable
 }
 export interface OrgMember {
   sub: string
@@ -1110,6 +1111,51 @@ export interface ScheduledEmail {
 // le backend accepte les deux audiences) tandis que l'audience OAuth du dashboard
 // reste mcp.oto.ninja/mcp.
 export const MCP_URL = (import.meta.env.VITE_MCP_PUBLIC_URL as string) || 'https://mcp.oto.cx/mcp'
+
+// ── Billing / abonnement par org (ADR 0043) ──
+export interface BillingPlan {
+  plan: string
+  label: string
+  amount: number | null           // centimes ; null = sur devis (custom)
+  currency: string
+  interval: string                // 'month' | 'year'
+  unipile_accounts: number | null // plafond de comptes messagerie (null = illimité)
+  custom: boolean
+}
+export interface BillingStatus {
+  subscribed: boolean
+  plans?: BillingPlan[]           // présent seulement si pas encore abonné
+  plan?: string
+  label?: string | null
+  amount?: number | null
+  currency?: string
+  interval?: string
+  // 'incomplete'|'active'|'past_due'|'canceled' = statut miroir ; 'pending'|'failed'
+  // = états transitoires renvoyés par confirm (polling de l'intent/mandat).
+  status?: 'incomplete' | 'active' | 'past_due' | 'canceled' | 'pending' | 'failed'
+  method?: 'card' | 'sepa' | 'comp'
+  comp?: boolean                  // abonnement forcé par un admin (non payé)
+  current_period_end?: string | null
+  next_billing_at?: string | null
+  grace_until?: string | null
+  canceled_at?: string | null
+}
+export interface BillingSubscribeResult {
+  checkout_url: string            // page hébergée Stancer (paiement OU signature SEPA)
+  plan: string
+  method: 'card' | 'sepa'
+  payment_intent_id?: string
+  mandate_id?: string
+}
+export interface BillingPayment {
+  id: number
+  kind: string                    // initial | renewal | method_change
+  amount: number
+  currency: string
+  status: string
+  attempt: number
+  created_at: string
+}
 
 // Accepte les timestamps PG ("YYYY-MM-DD HH:MM:SS", UTC implicite) ET les ISO
 // portant déjà un offset/Z (ex. granted_at = datetime.isoformat() → "…+00:00").

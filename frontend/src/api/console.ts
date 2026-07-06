@@ -3,6 +3,7 @@
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
   AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
+  BillingStatus, BillingSubscribeResult, BillingPayment,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
@@ -665,6 +666,23 @@ export const setPlatformInstruction = (key: string, body_md: string) =>
   api<PlatformInstrBlock>(
     `/api/admin/platform-instructions/${encodeURIComponent(key)}`,
     { method: 'PUT', ...j({ body_md }) })
+
+// ── Billing / abonnement par org (ADR 0043) — scopé à l'org active (X-Oto-Org) ──
+export const getBilling = () => api<BillingStatus>('/api/me/billing')
+export const getBillingPayments = (limit = 20) =>
+  api<{ payments: BillingPayment[] }>(`/api/me/billing/payments?limit=${limit}`)
+// method='card' → checkout_url = page de paiement ; method='sepa' → page de
+// signature du mandat (iban+holder_name+mobile requis, le mobile reçoit l'OTP).
+export const subscribeBilling = (body: {
+  plan: string; return_url: string; method?: 'card' | 'sepa'
+  iban?: string; holder_name?: string; mobile?: string
+}) => api<BillingSubscribeResult | BillingStatus>('/api/me/billing/subscribe', { method: 'POST', ...j(body) })
+// Polle l'état après retour de la page hébergée (Stancer sans webhooks).
+export const confirmBilling = () => api<BillingStatus>('/api/me/billing/confirm', { method: 'POST' })
+export const cancelBilling = () => api<BillingStatus>('/api/me/billing/cancel', { method: 'POST' })
+// Admin (super_admin) : forcer un plan sur une org sans paiement (plan=null retire).
+export const adminSetPlan = (orgId: number, plan: string | null) =>
+  api<BillingStatus>(`/api/admin/orgs/${orgId}/plan`, { method: 'POST', ...j({ plan }) })
 
 // Activité de l'utilisateur courant (ses propres appels) — per-user, pas admin.
 export const getMyCalls = (params: { limit?: number; tool?: string; errors?: boolean; days?: number } = {}) => {

@@ -47,6 +47,7 @@ const ICONS: Record<string, string> = {
   bot: '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
   eye: '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
   image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+  'credit-card': '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
 }
 
 // Alias sémantiques → font vivre les anciens noms du repo ET des poignées Oto-friendly.
@@ -60,6 +61,7 @@ const ALIASES: Record<string, string> = {
   pen: 'pencil', edit: 'pencil', logout: 'log-out', close: 'x',
   chev: 'chevron-right', chevd: 'chevron-down', more: 'ellipsis', filter: 'list-filter',
   warn: 'triangle-alert', ok: 'circle-check', agent: 'sparkles', gear: 'settings',
+  card: 'credit-card', billing: 'credit-card',
 }
 
 const props = withDefaults(defineProps<{ name: string; size?: number; sw?: number }>(), {
