@@ -10,6 +10,7 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
+import GuidesCard from '@/components/console/GuidesCard.vue'
 import { useMe } from '@/composables/useMe'
 import {
   getInstruction, putInstruction, listGroups, getOrgConnectorActivation,
@@ -85,6 +86,10 @@ onMounted(load)
           </div>
         </div>
       </ConsoleCard>
+
+      <!-- guides ON-DEMAND de l'org (pendant du readme : chargés à la demande) -->
+      <GuidesCard scope="org" :can-edit="isOrgAdmin" title="guides de l'org"
+        sub="des how-to que l'agent de chaque membre charge à la demande (via oto_guide) — pas injectés à chaque session comme le readme. réservé aux admins d'org." />
 
       <!-- connecteurs activés (socle d'outils) -->
       <ConsoleCard title="connecteurs mis à disposition" flush

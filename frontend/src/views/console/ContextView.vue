@@ -14,6 +14,7 @@ import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import Icon from '@/components/console/Icon.vue'
 import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
+import GuidesCard from '@/components/console/GuidesCard.vue'
 import ContextProfileCard from '@/components/console/ContextProfileCard.vue'
 import { getAgentContext, getAgentReadme, setAgentReadme, getTools, enableTool, disableTool, getMyOrgs, setActiveOrg, clearActiveOrg } from '@/api/console'
 import type { AgentContext, ToolEntry, Org } from '@/types/api'
@@ -186,6 +187,10 @@ onMounted(load)
 
       <!-- Couche 2c — fiche profil « situation avec oto » (éditable in-situ) -->
       <ContextProfileCard />
+
+      <!-- Couche 2d — guides ON-DEMAND (pendant du readme : chargés à la demande, pas injectés) -->
+      <GuidesCard scope="user" :can-edit="true" title="tes guides"
+        sub="des how-to que ton agent charge à la demande (via oto_guide) quand la tâche s'y prête — pas injectés à chaque session comme le readme." />
 
       <!-- Couche 3 — outils visibles (éditable : toggles par namespace / outil) -->
       <ConsoleCard title="outils visibles" flush

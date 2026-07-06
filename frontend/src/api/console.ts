@@ -5,7 +5,7 @@ import type {
   AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
   BillingStatus, BillingSubscribeResult, BillingPayment,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
-  DoctrineBundle,
+  DoctrineBundle, Guide, GuideScope,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
@@ -267,6 +267,15 @@ export const revertInstruction = (slug: string, version: number) =>
   api(`/api/me/instructions/${slug}/revert`, { method: 'POST', ...j({ version }) })
 export const deleteInstruction = (slug: string) =>
   api(`/api/me/instructions/${slug}`, { method: 'DELETE' })
+// ── guides on-demand (ADR 0042) : prose how-to chargée à la demande par l'agent
+// (oto_guide). Distinct des readmes (injectés) et des procédures (versionnées). ──
+export const getGuides = () => api<{ guides: Guide[] }>('/api/me/guides')
+export const getGuide = (scope: GuideScope, slug: string) =>
+  api<Guide>(`/api/me/guides/${scope}/${encodeURIComponent(slug)}`)
+export const setGuide = (scope: GuideScope, slug: string, body_md: string, title?: string, description?: string) =>
+  api<Guide>(`/api/me/guides/${scope}/${encodeURIComponent(slug)}`, { method: 'PUT', ...j({ body_md, title, description }) })
+export const deleteGuide = (scope: GuideScope, slug: string) =>
+  api<{ scope: string; slug: string; deleted: boolean }>(`/api/me/guides/${scope}/${encodeURIComponent(slug)}`, { method: 'DELETE' })
 // Registre résolu des tools (ADR 0014) : alimente la résolution des marqueurs
 // <tool:slug>, l'autocomplétion @ et le manifeste « outils référencés ».
 export const getToolRegistry = () =>

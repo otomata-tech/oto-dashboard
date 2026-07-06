@@ -308,6 +308,16 @@ export interface AgentReadme {
   updated_at: string | null
 }
 
+// ── guides on-demand (ADR 0042) : how-to chargés par l'agent via oto_guide ──
+export type GuideScope = 'platform' | 'org' | 'user'
+export interface Guide {
+  slug: string
+  scope: GuideScope
+  title: string
+  description: string
+  body_md?: string   // présent seulement sur la lecture d'un guide précis (getGuide)
+}
+
 // ── procédures / instructions ──
 export interface InstructionMeta {
   id: number
