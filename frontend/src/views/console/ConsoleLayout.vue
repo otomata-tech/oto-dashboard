@@ -62,19 +62,23 @@ watch(isAuthenticated, (ok) => { if (ok) load() }, { immediate: true })
 // Referme le tiroir mobile à chaque navigation (sécurité si un lien ne le fait pas).
 watch(() => route.fullPath, () => closeNav())
 
-// Org de consultation portée par l'URL (`/o/:orgId/…`, ADR 0023).
+// Org & équipe de consultation portées par l'URL (`/o/:orgId[/g/:groupId]/…`, ADR 0023).
 const orgId = computed(() => (typeof route.params.orgId === 'string' ? route.params.orgId : null))
+const groupId = computed(() => (typeof route.params.groupId === 'string' ? route.params.groupId : null))
+const scopeKey = computed(() => `${orgId.value ?? ''}/${groupId.value ?? ''}`)
 
-// L'org de l'URL change → les headers de scope changent → refetch le profil.
-watch(orgId, () => { if (isAuthenticated.value) load() })
+// L'org/équipe de l'URL change → les headers de scope changent → refetch le profil.
+watch(scopeKey, () => { if (isAuthenticated.value) load() })
 
-// Canonicalise une URL org-scopée NUE vers `/o/<maison>/…` une fois `me` connu (le
-// backend a déjà rendu la maison sans header ; on aligne juste l'URL).
+// Canonicalise une URL org-scopée NUE vers `/o/<maison>[/g/<équipe maison>]/…` une fois
+// `me` connu (le backend a déjà rendu la maison sans header ; on aligne juste l'URL).
 watch([me, () => route.fullPath], () => {
   if (!me.value || !route.meta.orgScoped || orgId.value != null) return
   const home = me.value.home_org ?? me.value.active_org
   if (home == null) return
-  void router.replace({ path: `/o/${home}${route.path}`, query: route.query, hash: route.hash })
+  const grp = me.value.home_group ?? me.value.active_group
+  const prefix = `/o/${home}${grp != null ? `/g/${grp}` : ''}`
+  void router.replace({ path: `${prefix}${route.path}`, query: route.query, hash: route.hash })
 }, { immediate: true })
 
 const section = computed(() => String(route.meta.section || '/overview'))
@@ -84,14 +88,14 @@ const current = computed(() => {
   if (detail.value === 'project') return ProjectDetailView      // page /projects/:id
   return VIEWS[section.value] ?? OverviewView
 })
-// Clé de remount : org de l'URL + identité de la vue. Une page de détail remonte quand
-// son ID (ou l'org) change, pas sa query ; admin-user reste sur fullPath. Changer d'org
-// (préfixe `/o/:id`) remonte donc toujours la vue → refetch propre.
+// Clé de remount : contexte de l'URL (org + équipe) + identité de la vue. Une page de
+// détail remonte quand son ID (ou le contexte) change, pas sa query ; admin-user reste
+// sur fullPath. Changer d'org/équipe remonte donc toujours la vue → refetch propre.
 const viewKey = computed(() => {
-  const o = orgId.value ?? ''
+  const s = scopeKey.value
   if (detail.value === 'admin-user') return route.fullPath
-  if (detail.value === 'project') return `${o}:/projects/${route.params.id}`
-  return `${o}:${section.value}`
+  if (detail.value === 'project') return `${s}:/projects/${route.params.id}`
+  return `${s}:${section.value}`
 })
 </script>
 

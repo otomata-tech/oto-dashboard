@@ -1,28 +1,39 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw, type RouteMeta } from 'vue-router'
 import ConsoleLayout from '../views/console/ConsoleLayout.vue'
 import InviteAcceptView from '../views/InviteAcceptView.vue'
 import ImportProjectView from '../views/ImportProjectView.vue'
 import { NAV, type NavLevel } from '@/lib/consoleNav'
-import { currentViewOrg, setViewOrgId, getViewGroup, setViewGroup, orgRedirectPath } from '@/lib/viewOrg'
+import {
+  currentViewOrg, setViewOrgId, currentViewGroup, setViewGroupId, consultRedirectPath,
+} from '@/lib/viewOrg'
 
-// URL par org (ADR 0023, 2026-07-06) : l'org de CONSULTATION vit dans le chemin,
-// préfixe `/o/:orgId/…`. Chaque org a donc son URL (bookmarkable, deux onglets =
-// deux orgs, plus besoin de « switcher »). Une URL SANS préfixe = l'org maison (le
-// backend rend la maison quand `X-Oto-Org` est absent) ; `ConsoleLayout` la
-// canonicalise ensuite vers `/o/<maison>/…`.
+// URL par org & équipe (ADR 0023, 2026-07-06) : l'org ET l'équipe de CONSULTATION
+// vivent dans le chemin, préfixe `/o/:orgId[/g/:groupId]/…`. Chaque org (et chaque
+// équipe) a donc son URL (bookmarkable, deux onglets = deux contextes, plus besoin de
+// « switcher »). Une URL SANS préfixe = la maison (le backend la rend quand ni
+// `X-Oto-Org` ni `X-Oto-Group` ne sont présents) ; `ConsoleLayout` la canonicalise
+// ensuite vers `/o/<maison>[/g/<équipe maison>]/…`.
 //
 // Sont org-scopés les niveaux work/group/org (leurs vues dépendent de l'org vue) ;
 // PAS la plateforme (cross-org) ni /account /activity (niveau user). Chaque section
-// org-scopée est enregistrée DEUX fois : nue (deep-links legacy + 1er load) et
-// préfixée (canonique). Une garde `beforeEach` réécrit tout lien nu org-scopé vers
-// `/o/<org courante>/…` → les `router.push('/connectors')` et `<RouterLink>` nus du
-// code restent inchangés, ils héritent de l'org courante automatiquement.
+// org-scopée est enregistrée en TROIS formes : nue (deep-links legacy + 1er load),
+// préfixée org, préfixée org+équipe. Une garde `beforeEach` réécrit tout lien nu
+// org-scopé vers `/o/<org>[/g/<équipe>]/…` (contexte courant) → les
+// `router.push('/connectors')` et `<RouterLink>` nus du code restent inchangés.
 
 const ORG_SCOPED: ReadonlySet<NavLevel> = new Set<NavLevel>(['work', 'group', 'org'])
 
 // section canonique d'un chemin de détail (`/projects/:id` → `/projects`).
 function sectionOf(path: string): string {
   return path.replace(/\/:[^/]+.*$/, '')
+}
+
+// Les deux formes préfixées d'un chemin org-scopé : org seule, org + équipe.
+function scopedVariants(path: string, meta: RouteMeta): RouteRecordRaw[] {
+  return [
+    { path: `/o/:orgId(\\d+)${path}`, component: ConsoleLayout, meta },
+    { path: `/o/:orgId(\\d+)/g/:groupId(\\d+)${path}`, component: ConsoleLayout, meta },
+  ]
 }
 
 // Une route par section, dérivée de NAV. `meta.section` = path canonique (clé vue +
@@ -32,18 +43,18 @@ const sectionRoutes: RouteRecordRaw[] = NAV.flatMap((g) =>
     const orgScoped = ORG_SCOPED.has(g.level)
     const meta = { section: it.path, level: g.level, orgScoped }
     const routes: RouteRecordRaw[] = [{ path: it.path, component: ConsoleLayout, meta }]
-    if (orgScoped) routes.push({ path: `/o/:orgId(\\d+)${it.path}`, component: ConsoleLayout, meta })
+    if (orgScoped) routes.push(...scopedVariants(it.path, meta))
     return routes
   }),
 )
 
-// Route de détail org-scopée (work) : nue + préfixée, portée par `meta.detail` (et non
-// le nom, pour éviter la collision de noms entre les deux enregistrements).
+// Route de détail org-scopée (work) : nue + préfixées, portée par `meta.detail` (et non
+// le nom, pour éviter la collision de noms entre les enregistrements).
 function detailRoutes(path: string, detail: string): RouteRecordRaw[] {
   const meta = { section: sectionOf(path), level: 'work' as NavLevel, orgScoped: true, detail }
   return [
     { path, component: ConsoleLayout, meta },
-    { path: `/o/:orgId(\\d+)${path}`, component: ConsoleLayout, meta },
+    ...scopedVariants(path, meta),
   ]
 }
 
@@ -118,18 +129,19 @@ const router = createRouter({
 // Au tout premier chargement (org courante inconnue), on laisse passer la version nue
 // → le backend rend la maison, et ConsoleLayout canonicalise l'URL une fois `me` chargé.
 router.beforeEach((to) => {
-  const redirect = orgRedirectPath(
-    to.path, Boolean(to.meta.orgScoped), to.params.orgId != null, currentViewOrg(),
+  const redirect = consultRedirectPath(
+    to.path, Boolean(to.meta.orgScoped), to.params.orgId != null,
+    currentViewOrg(), currentViewGroup(),
   )
   return redirect ? { path: redirect, query: to.query, hash: to.hash } : true
 })
 
-// Synchronise l'org de consultation (→ `viewHeaders`) sur l'URL résolue. Changer d'org
-// efface l'équipe consultée (une équipe appartient à une org — invariant ADR 0023).
+// Synchronise l'org ET l'équipe de consultation (→ `viewHeaders`) sur l'URL résolue.
+// L'URL est la source de vérité : changer d'org (sans `/g/`) laisse naturellement
+// tomber l'équipe (invariant ADR 0023 — une équipe appartient à une org).
 router.afterEach((to) => {
-  const oid = typeof to.params.orgId === 'string' ? to.params.orgId : null
-  if (currentViewOrg() !== oid && oid !== null && getViewGroup() !== null) setViewGroup(null)
-  setViewOrgId(oid)
+  setViewOrgId(typeof to.params.orgId === 'string' ? to.params.orgId : null)
+  setViewGroupId(typeof to.params.groupId === 'string' ? to.params.groupId : null)
 })
 
 export default router

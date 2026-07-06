@@ -7,7 +7,6 @@ import { useMe } from '@/composables/useMe'
 import { useMyOrgs } from '@/composables/useMyOrgs'
 import { useToast } from '@/composables/useToast'
 import { createMyOrg, setActiveOrg } from '@/api/console'
-import { setViewGroup } from '@/lib/viewOrg'
 import type { Org, GroupListItem } from '@/types/api'
 
 // Switcher d'org (+ équipe). C'est de la CONSULTATION pure (ADR 0023), ZÉRO effet MCP
@@ -33,9 +32,13 @@ const { toast } = useToast()
 // seulement si elle est org-scopée (sinon `/o/:id/account` n'existe pas → overview).
 const landingSection = () =>
   route.meta.orgScoped ? String(route.meta.section || '/overview') : '/overview'
-// Naviguer vers une org (consultation) : `/o/<id>/<section>`.
+// Naviguer vers une org (consultation, niveau org) : `/o/<id>/<section>`.
 function goToOrg(orgId: number, section?: string) {
   return router.push(`/o/${orgId}${section ?? landingSection()}`)
+}
+// Naviguer vers une équipe DANS une org (consultation) : `/o/<id>/g/<gid>/<section>`.
+function goToTeam(orgId: number, groupId: number) {
+  return router.push(`/o/${orgId}/g/${groupId}${landingSection()}`)
 }
 
 const loading = ref(false)
@@ -88,14 +91,14 @@ async function pickOrg(o: Org) {
   await goToOrg(o.id)
 }
 
-// Bascule d'équipe DANS l'org courante (consultation aussi). L'équipe reste hors URL
-// (localStorage) → un reload re-scope les vues.
+// Bascule d'équipe DANS l'org courante (consultation) = navigation vers son URL
+// `/o/<org>/g/<gid>/…`. L'org courante = celle qu'on consulte (me.active_org).
 async function pickTeam(g: GroupListItem) {
-  if (switching.value || g.id === me.value?.active_group) return
+  const org = me.value?.active_org
+  if (switching.value || org == null || g.id === me.value?.active_group) return
   switching.value = true
-  setViewGroup(String(g.id))
   emit('switched')
-  location.reload()
+  await goToTeam(org, g.id)
 }
 
 async function createOrg() {
@@ -104,7 +107,6 @@ async function createOrg() {
   switching.value = true
   try {
     const r = await createMyOrg(name)
-    setViewGroup(null)
     emit('switched')
     await goToOrg(r.org_id, '/overview')
   } catch (e) { toast(msg(e, 'échec de la création')); switching.value = false }

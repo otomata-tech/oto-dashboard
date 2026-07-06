@@ -116,9 +116,11 @@ onMounted(loadAll)
 async function selectDoc(slug: string) {
   activeSlug.value = slug
   const d = docs.value.find((x) => x.slug === slug)
-  // Préfixe org de l'URL courante (`/o/:orgId/…`) conservé — sinon la garde routeur
-  // re-préfixe à chaque sélection (navigation dupliquée vers le même chemin).
-  const prefix = route.params.orgId ? `/o/${route.params.orgId}` : ''
+  // Préfixe de consultation de l'URL courante (`/o/:orgId[/g/:groupId]/…`) conservé —
+  // sinon la garde routeur re-préfixe à chaque sélection (navigation dupliquée) ou
+  // l'équipe consultée tombe de l'URL.
+  const o = route.params.orgId, g = route.params.groupId
+  const prefix = o ? `/o/${o}${g ? `/g/${g}` : ''}` : ''
   const target = `${prefix}${d?.id ? `/procedures/${d.id}` : '/procedures'}`
   if (route.path !== target) void router.replace(target)
   editing.value = false
