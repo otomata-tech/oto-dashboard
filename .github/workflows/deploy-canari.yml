@@ -1,0 +1,54 @@
+name: Deploy canari
+
+# Build (runner HOSTED, env VITE canari) → deploy (runner SELF-HOSTED otomata-0)
+# vers /opt/oto-dashboard-canari. Staging/canari de l'ADR 0040. Ne tourne QUE sur
+# la branche `canari` (ce fichier ne trigge pas sur main → prod non impactée).
+on:
+  push:
+    branches: [canari]
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: cd frontend && npm ci
+      - name: Build canari (env VITE staging)
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          VITE_LOGTO_APP_ID: u3dkbkd1ecxi0je880ebz
+          VITE_LOGTO_ENDPOINT: https://auth.oto.ninja
+          VITE_LOGTO_AUDIENCE: https://mcp-canari.oto.ninja/mcp
+          VITE_OTO_MCP_BASE: https://mcp-canari.oto.ninja
+          VITE_SENTRY_ENV: canari
+          VITE_POSTHOG_KEY: ""
+        run: cd frontend && npm run build
+      - name: Unit tests (vitest)
+        run: cd frontend && npm run test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-canari
+          path: frontend/dist
+          retention-days: 3
+          if-no-files-found: error
+
+  deploy:
+    needs: test
+    runs-on: [self-hosted, otomata-0]
+    concurrency:
+      group: deploy-dashboard-canari
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-canari
+          path: ${{ runner.temp }}/dist
+      - name: Deploy canari (artefact only, script root-restreint)
+        run: sudo /opt/deploy/oto-dashboard-canari-deploy.sh "${{ runner.temp }}/dist"
