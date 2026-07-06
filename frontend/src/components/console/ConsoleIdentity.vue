@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import Avatar from './Avatar.vue'
 import Icon from './Icon.vue'
 import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
@@ -8,16 +8,24 @@ import { useMyOrgs } from '@/composables/useMyOrgs'
 import { useScope } from '@/composables/useScope'
 
 // En-tête de la sidebar = l'axe IDENTITÉ (org + équipe active) ET le déclencheur du
-// SWITCH d'org : cliquer le bloc org/logo ouvre le WorkspaceSwitcher (consultation
-// pure ADR 0023, zéro effet MCP — jamais de bascule d'identité Claude depuis le FE).
-// La GESTION (« gérer mon org / profil / plateforme ») reste dans la popin compte au
-// pied de la sidebar (ConsoleUserMenu). Le bloc s'adapte au niveau : en « org » il se
-// recompose en bannière centrée sur l'organisation gérée.
+// SWITCH d'org : cliquer le bloc org/logo ouvre le WorkspaceSwitcher dans une MODALE
+// centrée (téléportée au body → non clippée par la sidebar, largeur confortable pour
+// lire les noms d'org). Consultation pure ADR 0023, zéro effet MCP — jamais de bascule
+// d'identité Claude depuis le FE. La GESTION (« gérer mon org / profil / plateforme »)
+// reste dans la popin compte au pied de la sidebar (ConsoleUserMenu). Le bloc s'adapte
+// au niveau : en « org » il se recompose en bannière centrée sur l'organisation gérée.
 const { me } = useMe()
 const { level } = useScope()
-const { prefetch } = useMyOrgs()   // orgs+équipes préchargées au survol → popin instantanée
+const { prefetch } = useMyOrgs()   // orgs+équipes préchargées au survol → modale instantanée
 
 const open = ref(false)
+
+// Échap referme la modale (listener posé seulement quand elle est ouverte).
+function onKey(e: KeyboardEvent) { if (e.key === 'Escape') open.value = false }
+watch(open, (o) => {
+  if (o) window.addEventListener('keydown', onKey)
+  else window.removeEventListener('keydown', onKey)
+})
 
 const orgName = computed(() => me.value?.active_org_name || '…')
 const hasLogo = computed(() => !!(me.value?.active_org_name && me.value?.active_org_logo_url))
@@ -45,15 +53,12 @@ const kicker = computed(() => {
 
 <template>
   <div class="identity" :class="{ open }">
-    <!-- backdrop : un clic dehors referme -->
-    <div v-if="open" class="id-backdrop" @click="open = false" />
-
-    <!-- déclencheur : le bloc org/logo ouvre le switcher d'org -->
+    <!-- déclencheur : le bloc org/logo ouvre la modale de switch d'org -->
     <button
       class="ident"
       :class="{ org: level === 'org', platform: level === 'platform' }"
       :aria-expanded="open"
-      aria-haspopup="menu"
+      aria-haspopup="dialog"
       aria-label="changer d'organisation"
       @pointerenter="prefetch"
       @focus="prefetch"
@@ -84,17 +89,28 @@ const kicker = computed(() => {
       <Icon name="chevd" :size="13" class="ident-chev" />
     </button>
 
-    <!-- popin switch d'org : surface CLAIRE, s'ouvre vers le BAS depuis l'en-tête -->
-    <div v-if="open" class="id-pop" role="menu">
-      <WorkspaceSwitcher @switched="open = false" />
-    </div>
+    <!-- modale switch d'org : téléportée au body, centrée, surface CLAIRE -->
+    <Teleport to="body">
+      <div v-if="open" class="id-modal-root">
+        <div class="id-backdrop" @click="open = false" />
+        <div class="id-modal" role="dialog" aria-modal="true" aria-label="changer d'organisation">
+          <div class="id-modal-head">
+            <span class="id-modal-title">changer d'organisation</span>
+            <button class="id-modal-close" aria-label="fermer" @click="open = false">
+              <Icon name="close" :size="16" />
+            </button>
+          </div>
+          <div class="id-modal-body">
+            <WorkspaceSwitcher @switched="open = false" />
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
 .identity { position: relative; flex: 1; min-width: 0; }
-
-.id-backdrop { position: fixed; inset: 0; z-index: 40; }
 
 .ident {
   position: relative; z-index: 10;
@@ -148,12 +164,33 @@ const kicker = computed(() => {
 .ident.org .ident-chev { color: var(--color-saffron-ink); }
 .identity.open .ident-chev { transform: rotate(180deg); }
 
-/* popin CLAIRE (menu flottant), s'ouvre vers le BAS depuis l'en-tête de la sidebar */
-.id-pop {
-  position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 50;
-  display: flex; flex-direction: column; gap: 2px; padding: 6px;
-  background: var(--color-surface); border: 1px solid var(--color-hair);
-  border-radius: var(--radius-md); box-shadow: var(--shadow-pop);
-  max-height: min(72vh, 560px); overflow-y: auto;
+/* ── Modale de switch d'org (téléportée au body, centrée) ──────────────────── */
+.id-modal-root { position: fixed; inset: 0; z-index: 200; }
+.id-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(44, 33, 18, 0.42);
 }
+.id-modal {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(440px, calc(100vw - 32px));
+  display: flex; flex-direction: column;
+  max-height: min(80vh, 620px);
+  background: var(--color-surface); border: 1px solid var(--color-hair);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-drawer);
+  overflow: hidden;
+}
+.id-modal-head {
+  flex: none; display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; border-bottom: 1px solid var(--color-hair);
+}
+.id-modal-title {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--color-mute);
+}
+.id-modal-close {
+  display: inline-flex; padding: 4px; border-radius: var(--radius-pill);
+  border: 0; background: transparent; color: var(--color-mute); cursor: pointer;
+}
+.id-modal-close:hover { background: var(--color-paper-2); color: var(--color-ink); }
+.id-modal-body { padding: 8px; overflow-y: auto; }
 </style>
