@@ -692,6 +692,7 @@ export const getBillingPayments = (limit = 20) =>
 export const subscribeBilling = (body: {
   plan: string; return_url: string; method?: 'card' | 'sepa'
   iban?: string; holder_name?: string; mobile?: string
+  accept_terms?: boolean   // acceptation CGU/CGV/DPA (obligatoire à l'achat)
 }) => api<BillingSubscribeResult | BillingStatus>('/api/me/billing/subscribe', { method: 'POST', ...j(body) })
 // Polle l'état après retour de la page hébergée (Stancer sans webhooks).
 export const confirmBilling = () => api<BillingStatus>('/api/me/billing/confirm', { method: 'POST' })

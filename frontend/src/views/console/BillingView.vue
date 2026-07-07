@@ -27,6 +27,9 @@ const payments = ref<BillingPayment[]>([])
 const loading = ref(true)
 const busy = ref(false)
 const error = ref<string | null>(null)
+// Acceptation CGU/CGV/DPA — obligatoire avant de souscrire (le backend regarde
+// aussi, l'UI ne fait que gater les boutons + tracer l'acceptation à la souscription).
+const accepted = ref(false)
 
 // Souscrire/résilier réservé à l'org_admin (le backend le garde aussi — l'UI ne
 // fait que masquer les leviers).
@@ -80,7 +83,8 @@ onMounted(async () => {
 const returnUrl = `${window.location.origin}/org/billing?billing=return`
 
 async function subscribeCard(plan: string) {
-  await go(() => subscribeBilling({ plan, return_url: returnUrl, method: 'card' }))
+  await go(() => subscribeBilling({ plan, return_url: returnUrl, method: 'card',
+    accept_terms: accepted.value }))
 }
 
 async function subscribeSepa(plan: string) {
@@ -98,7 +102,8 @@ async function subscribeSepa(plan: string) {
   })
   if (!f) return
   await go(() => subscribeBilling({ plan, return_url: returnUrl, method: 'sepa',
-    iban: f.iban, holder_name: f.holder_name, mobile: f.mobile }))
+    iban: f.iban, holder_name: f.holder_name, mobile: f.mobile,
+    accept_terms: accepted.value }))
 }
 
 // Ouvre la page hébergée Stancer (paiement OU signature) dans le même onglet.
@@ -214,11 +219,21 @@ async function resiliate() {
               Nous contacter
             </Btn>
             <div v-else-if="canManage" class="plan-cta">
-              <Btn :disabled="busy" @click="subscribeCard(p.plan)">Carte bancaire</Btn>
-              <Btn kind="ghost" :disabled="busy" @click="subscribeSepa(p.plan)">Prélèvement</Btn>
+              <Btn :disabled="busy || !accepted" @click="subscribeCard(p.plan)">Carte bancaire</Btn>
+              <Btn kind="ghost" :disabled="busy || !accepted" @click="subscribeSepa(p.plan)">Prélèvement</Btn>
             </div>
           </div>
         </div>
+
+        <label v-if="canManage" class="consent">
+          <input type="checkbox" v-model="accepted" />
+          <span>
+            j'ai lu et j'accepte les
+            <a href="https://oto.cx/terms" target="_blank" rel="noopener">CGU</a>,
+            les <a href="https://oto.cx/cgv" target="_blank" rel="noopener">CGV</a>
+            et l'<a href="https://oto.cx/dpa" target="_blank" rel="noopener">accord de sous-traitance (DPA)</a>.
+          </span>
+        </label>
       </ConsoleCard>
 
       <!-- ── Historique des paiements ── -->
@@ -282,6 +297,13 @@ async function resiliate() {
   font-weight: 700;
 }
 .plan-cta { display: flex; flex-direction: column; gap: 7px; margin-top: auto; }
+
+.consent {
+  display: flex; align-items: flex-start; gap: 9px; margin-top: 16px;
+  font-size: 12.5px; color: var(--color-ink-soft); line-height: 1.5; cursor: pointer;
+}
+.consent input { margin-top: 2px; flex: none; accent-color: var(--color-saffron, #d97706); }
+.consent a { color: var(--color-saffron-ink, #b45309); text-decoration: underline; }
 
 .pay-rows { display: flex; flex-direction: column; }
 .pay-row {
