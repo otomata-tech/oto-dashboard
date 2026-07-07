@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import Btn from './Btn.vue'
-import { analyticsEnabled, consent, grantConsent, denyConsent, reopenConsent } from '@/lib/analytics'
+import { analyticsEnabled, consent, grantConsent, denyConsent } from '@/lib/analytics'
 
 // Affiché uniquement si l'analytics est actif (clé présente) ET aucun choix fait.
 // En dev (pas de clé) ou après décision, le bandeau ne s'affiche jamais.
 const show = computed(() => analyticsEnabled() && consent.value === null)
-// Déclencheur de retrait (RGPD) : visible une fois un choix fait ; ré-ouvre le bandeau.
-const showReopen = computed(() => analyticsEnabled() && consent.value !== null)
 </script>
 
 <template>
@@ -24,7 +22,6 @@ const showReopen = computed(() => analyticsEnabled() && consent.value !== null)
       </div>
     </div>
   </Transition>
-  <button v-if="showReopen" type="button" class="consent-reopen" @click="reopenConsent">Cookies</button>
 </template>
 
 <style scoped>
@@ -40,12 +37,4 @@ const showReopen = computed(() => analyticsEnabled() && consent.value !== null)
 .consent__actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .consent-enter-active, .consent-leave-active { transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out); }
 .consent-enter-from, .consent-leave-to { opacity: 0; transform: translateY(8px); }
-/* Déclencheur de retrait discret, persistant une fois le choix fait. */
-.consent-reopen {
-  position: fixed; left: 16px; bottom: 12px; z-index: 150;
-  appearance: none; border: 0; background: transparent; cursor: pointer; padding: 4px 6px;
-  font-size: 11px; color: var(--color-mute); opacity: 0.6;
-  transition: opacity 120ms var(--ease-out), color 120ms var(--ease-out);
-}
-.consent-reopen:hover { opacity: 1; color: var(--color-ink); text-decoration: underline; }
 </style>
