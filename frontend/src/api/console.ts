@@ -2,12 +2,12 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorMeta, MyConnector,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, MyConnector,
   BillingStatus, BillingSubscribeResult, BillingPayment,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
-  InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
+  InstructionVersion, LibraryEntry, LibraryDoctrine, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
   ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
@@ -21,6 +21,8 @@ const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
 
 // ── identité ──
 export const getMe = () => api<Me>('/api/me')
+export const putLocale = (locale: Locale) =>
+  api<{ locale: Locale }>('/api/me/locale', { method: 'PUT', ...j({ locale }) })
 export const uploadAvatar = (file: File) =>
   apiUpload<{ ok: boolean; avatar_url: string }>('/api/me/avatar', file)
 export const deleteAvatar = () => api('/api/me/avatar', { method: 'DELETE' })
@@ -35,6 +37,10 @@ export const getConnectors = () => api<{ connectors: ConnectorMeta[] }>('/api/co
 // verbose=true : le dashboard rend les cartes complètes (doc/auth/credential_fields).
 // L'agent MCP, lui, reçoit une vue compacte par défaut (oto-backend#109).
 export const getMyConnectors = () => api<{ connectors: MyConnector[] }>('/api/me/connectors?verbose=true')
+// Instances de connecteur visibles (ADR 0038/0044) : mes clés (member) + celles de mes
+// équipes/org + prêts « partagés avec moi » + grants plateforme, par proximité.
+export const getConnectorInstances = () =>
+  api<{ instances: ConnectorInstance[]; count: number }>('/api/me/connector-instances')
 export const selectConnector = (name: string) =>
   api(`/api/me/connectors/${encodeURIComponent(name)}/select`, { method: 'POST' })
 export const pauseConnector = (name: string) =>
@@ -123,7 +129,7 @@ export const setConnectorIdentity = (connector: string, identity_id: string) =>
     { method: 'PUT', ...j({ identity_id }) })
 
 // ── autorisation de compte connecteur partagé (#55) — le PROPRIÉTAIRE accorde/
-// révoque à un membre nommé (d'une org commune) le droit d'opérer SON compte ──
+// révoque à un user nommé (email/sub, même hors de ses orgs) le droit d'opérer SON compte ──
 export const getAccountGrants = () =>
   api<{ granted_by_me: AccountGrant[]; granted_to_me: AccountGrant[] }>(
     '/api/me/connector-accounts/grants')
@@ -218,9 +224,9 @@ export type ProjectAudit = {
   inert_procedures: string[]
 }
 export const getProjectInventory = (id: number) =>
-  projectsApi<{ id: number; tools: string[]; connectors: string[]; audit?: ProjectAudit }>({ op: 'inventory', project_id: id })
+  projectsApi<{ id: number; tools: string[]; connectors: string[]; connector_sources?: Record<string, string[]>; audit?: ProjectAudit }>({ op: 'inventory', project_id: id })
 // Publier / retirer un projet comme endpoint MCP dédié `<slug>.mcp.oto.cx` (ADR 0032, amende #44).
-export const publishProjectMcp = (id: number, fields: { mcp_slug: string; mcp_access: 'anonymous' | 'secret' | 'org'; mcp_tools: string[] }) =>
+export const publishProjectMcp = (id: number, fields: { mcp_slug: string; mcp_access: 'anonymous' | 'secret' | 'org'; mcp_tools: string[]; mcp_expose_datastore?: boolean; mcp_expose_datastore_write?: boolean }) =>
   projectsApi<Project>({ op: 'publish_mcp', project_id: id, ...fields })
 export const unpublishProjectMcp = (id: number) =>
   projectsApi<Project>({ op: 'unpublish_mcp', project_id: id })
@@ -557,8 +563,9 @@ export const setGroupMemberRole = (id: number, sub: string, role: GroupRole) =>
   api(`/api/groups/${id}/members/${sub}`, { method: 'POST', ...j({ role }) })
 export const removeGroupMember = (id: number, sub: string) =>
   api(`/api/groups/${id}/members/${sub}`, { method: 'DELETE' })
-export const setGroupSecret = (id: number, provider: string, api_key: string, base_url?: string) =>
-  api(`/api/groups/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url }) })
+// Mono-champ (api_key) OU multi-champs (zoho/silae… → fields), même contrat que la clé d'org.
+export const setGroupSecret = (id: number, provider: string, api_key: string, base_url?: string, fields?: Record<string, string>) =>
+  api(`/api/groups/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url, fields }) })
 export const deleteGroupSecret = (id: number, provider: string) =>
   api(`/api/groups/${id}/secrets/${provider}`, { method: 'DELETE' })
 // doctrine & skills du groupe (lecture = membre, écriture = chef)

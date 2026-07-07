@@ -77,6 +77,23 @@ export interface MyConnector extends ConnectorMeta {
   state: ConnectorState
   recommended: boolean       // proposé par l'org active (baseline default_connectors)
   doctrine_ref_count?: number  // nb de doctrines de l'org qui le référencent (posture doctrine-only, ADR 0024)
+  paid_option?: string | null  // option payante requise (couche 3, ADR 0043/0044) ou null
+  option_ok?: boolean          // l'option est-elle accordée pour moi (true si aucune requise)
+}
+
+// Instance de connecteur (ADR 0038 §B / 0044) — projection lecture du coffre :
+// une config possédée à un niveau (member/group/org/platform). Métadonnées seulement.
+export interface ConnectorInstance {
+  ref: string                  // handle opaque stable (cible de pin)
+  connector: string
+  level: 'member' | 'group' | 'org' | 'platform'
+  owner: { type: string; id: string | number; label?: string | null }
+  name: string                 // nom dérivé (Connecteur · compte)
+  account?: string
+  secret_kind?: string | null
+  set_by?: string | null
+  set_at?: string | null
+  via?: string                 // 'credential' | 'shared_with_me' | grant plateforme…
 }
 
 // ── bibliothèque publique de doctrines (marketplace, library.*) ──
@@ -162,12 +179,17 @@ export interface ProviderStatus {
   identity_label?: string | null
 }
 
+// Langue de l'UI (i18n EN/FR). Défini ici pour que `lib/i18n.ts` l'importe sans
+// créer un cycle types→lib.
+export type Locale = 'en' | 'fr'
+
 export interface Me {
   sub: string
   email: string | null
   name: string | null
   avatar_url: string | null
   role: Role
+  locale?: Locale | null             // préférence de langue du compte (i18n) ; absent/null = non réglée
   active_org: number | null          // org EFFECTIVE affichée = consultation (view-as) ?? maison
   active_org_name: string | null
   active_org_logo_url: string | null
@@ -182,14 +204,6 @@ export interface Me {
   access: AccessState                  // gate doux alpha (ADR 0013)
   memento?: MementoStatus              // fédération MCP (otomata#16) — auto-prompt connexion
   providers: Record<string, ProviderStatus | undefined>
-  features?: FeatureFlags              // flags par-déploiement (dark launch) — pilotent la nav
-}
-
-// Feature flags exposés par le backend (une source unique, ADR 0043) : ce qui est
-// activé au déploiement courant (prod vs canari). Ex. billing masqué en prod tant
-// que le PSP n'est pas live. Absent/false = surface non montée côté backend.
-export interface FeatureFlags {
-  billing?: boolean
 }
 
 // Accès plateforme alpha (ADR 0013) : status = gate doux, invites_left = budget
@@ -440,6 +454,8 @@ export interface Project {
   mcp_tools?: string[]                        // allowlist figée du preset exposé
   mcp_url?: string | null                     // URL dérivée `https://<slug>.mcp.oto.cx/mcp` (null si off)
   mcp_unresolvable_tools?: string[]           // (réponse publish) outils exposés MAIS non résolubles sans login → échouent à l'appel
+  mcp_expose_datastore?: boolean              // `secret` : datastore exposé en LECTURE sur l'endpoint partagé (tableaux liés au projet)
+  mcp_expose_datastore_write?: boolean        // opt-in ADDITIONNEL : écriture (data_write/data_set_schema) ; sans objet si lecture non exposée
   created_at?: string | null
   updated_at?: string | null
   archived_at?: string | null
@@ -708,11 +724,13 @@ export interface ConnectorIdentity {
   is_default: boolean
   channel: string | null    // canal (unipile : LINKEDIN/…) ; null hors multi-canal
   granted?: boolean         // compte PARTAGÉ par son propriétaire (#55)
-  owner?: { sub: string; email?: string | null; name?: string | null } | null
+  // owner.org/org_name = l'org sous laquelle le propriétaire a connecté ce compte
+  // (d'où vient le partage ; le grant lui-même n'est pas scopé à une org).
+  owner?: { sub: string; email?: string | null; name?: string | null; org?: number | null; org_name?: string | null } | null
 }
 
 // Autorisation de compte connecteur partagé (#55) : le propriétaire accorde à un
-// membre nommé (d'une org commune) le droit d'OPÉRER son compte sur un canal.
+// user nommé (par email/sub, même hors de ses orgs) le droit d'OPÉRER son compte sur un canal.
 // Face owner (granted_by_me : grantee_*) et face grantee (granted_to_me : owner_*).
 export interface AccountGrant {
   provider: string          // canal DB (LINKEDIN/WHATSAPP/…)
@@ -724,6 +742,8 @@ export interface AccountGrant {
   owner_sub?: string
   owner_email?: string | null
   owner_name?: string | null
+  owner_org_id?: number | null    // org sous laquelle le owner a connecté ce compte
+  owner_org_name?: string | null  // (face grantee : d'où vient le partage)
   granted_by?: string
   granted_at?: string
   active?: boolean          // false = owner déconnecté du canal (grant inerte)

@@ -1,10 +1,15 @@
 // Humanisation des erreurs backend : api() lève `Error("<status> <code>")`
 // (ex. "409 namespace_exists") ou une string nue ("stale_session"). `humanize`
 // doit extraire le code et le mapper — sans jamais masquer un code inconnu.
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { humanize } from './errors'
+import { i18n } from './i18n'
 
 describe('humanize', () => {
+  // Les messages attendus sont en anglais : figer la locale (indépendant de
+  // navigator.language du runner) puisque humanize résout désormais via i18n.
+  beforeAll(() => { i18n.global.locale.value = 'en' })
+
   it('maps a "<status> <code>" error to its message', () => {
     expect(humanize(new Error('409 namespace_exists')))
       .toBe('a namespace with that name already exists')

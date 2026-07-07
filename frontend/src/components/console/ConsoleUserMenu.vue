@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import Icon from './Icon.vue'
 import Avatar from './Avatar.vue'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
@@ -8,6 +9,7 @@ import { useAuth } from '@/composables/useAuth'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
 import AccountViewAs from './AccountViewAs.vue'
+import LocaleSwitch from './LocaleSwitch.vue'
 
 // Menu profil (pied de sidebar) = point d'entrée unique des destinations de
 // GESTION (profil / org / plateforme). On *entre* dans une zone puis on en *sort*.
@@ -15,6 +17,7 @@ import AccountViewAs from './AccountViewAs.vue'
 // ici c'est « qu'est-ce que je gère », pas « sous quelle org j'agis ». Gating par
 // droits : org = org_admin de l'org courante, plateforme = opérateur plateforme.
 const route = useRoute()
+const { t } = useI18n()
 const { me } = useMe()
 const { logout } = useAuth()
 const { closeNav } = useNav()
@@ -38,21 +41,21 @@ const entries = computed<Entry[]>(() => {
   const out: Entry[] = [
     {
       key: 'work',
-      label: 'mon espace',
+      label: 'userMenu.mySpace',
       icon: 'home',
       to: '/overview',
       active: level.value === 'work' && !onAccount && !onActivity,
     },
     {
       key: 'profile',
-      label: 'gérer mon profil',
+      label: 'userMenu.manageProfile',
       icon: 'user',
       to: '/account',
       active: onAccount,
     },
     {
       key: 'activity',
-      label: 'activity',
+      label: 'userMenu.activity',
       icon: 'pulse',
       to: '/activity',
       active: onActivity,
@@ -63,7 +66,7 @@ const entries = computed<Entry[]>(() => {
   if (me.value?.active_group != null)
     out.push({
       key: 'group',
-      label: 'gérer mon groupe',
+      label: 'userMenu.manageGroup',
       icon: 'users',
       to: '/group',
       active: level.value === 'group',
@@ -71,7 +74,7 @@ const entries = computed<Entry[]>(() => {
   if (me.value?.org_role === 'org_admin')
     out.push({
       key: 'org',
-      label: 'gérer mon org',
+      label: 'userMenu.manageOrg',
       icon: 'building',
       to: '/org',
       active: level.value === 'org',
@@ -79,7 +82,7 @@ const entries = computed<Entry[]>(() => {
   if (isPlatformOperator(me.value))
     out.push({
       key: 'platform',
-      label: 'gérer la plateforme',
+      label: 'userMenu.managePlatform',
       icon: 'shield',
       to: '/platform/monitoring',
       active: level.value === 'platform',
@@ -116,13 +119,18 @@ function go() {
           @click="go"
         >
           <span class="ic"><Icon :name="e.icon" :size="15" /></span>
-          {{ e.label }}
+          {{ t(e.label) }}
         </RouterLink>
       </template>
       <div class="um-sep" />
+      <div class="um-lang">
+        <span class="um-lang-lbl">{{ t('common.language') }}</span>
+        <LocaleSwitch />
+      </div>
+      <div class="um-sep" />
       <button class="um-item danger" role="menuitem" @click="() => { open = false; logout() }">
         <span class="ic"><Icon name="logout" :size="15" /></span>
-        se déconnecter
+        {{ t('common.signOut') }}
       </button>
     </div>
 
@@ -131,7 +139,7 @@ function go() {
       class="um-trigger"
       :aria-expanded="open"
       aria-haspopup="menu"
-      aria-label="menu du compte"
+      :aria-label="t('userMenu.accountMenu')"
       @click="open = !open"
     >
       <Avatar :src="me?.avatar_url" :name="me?.name || me?.email" :size="26" />
@@ -196,4 +204,11 @@ function go() {
 .um-item.danger:hover { background: var(--color-paper-2); color: var(--color-ink); }
 
 .um-sep { height: 1px; margin: 4px 2px; background: var(--color-hair); }
+
+/* Ligne « langue » : libellé + segmented EN/FR. */
+.um-lang {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 4px 9px;
+}
+.um-lang-lbl { font-size: 12px; font-weight: 600; color: var(--color-mute); }
 </style>
