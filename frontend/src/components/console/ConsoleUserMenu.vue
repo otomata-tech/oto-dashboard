@@ -10,7 +10,6 @@ import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
 import { useScopedLink } from '@/composables/useScopedLink'
 import AccountViewAs from './AccountViewAs.vue'
-import LocaleSwitch from './LocaleSwitch.vue'
 
 // Menu profil (pied de sidebar) = point d'entrée unique des destinations de
 // GESTION (profil / org / plateforme). On *entre* dans une zone puis on en *sort*.
@@ -125,11 +124,6 @@ function go() {
         </RouterLink>
       </template>
       <div class="um-sep" />
-      <div class="um-lang">
-        <span class="um-lang-lbl">{{ t('common.language') }}</span>
-        <LocaleSwitch />
-      </div>
-      <div class="um-sep" />
       <button class="um-item danger" role="menuitem" @click="() => { open = false; logout() }">
         <span class="ic"><Icon name="logout" :size="15" /></span>
         {{ t('common.signOut') }}
@@ -206,11 +200,4 @@ function go() {
 .um-item.danger:hover { background: var(--color-paper-2); color: var(--color-ink); }
 
 .um-sep { height: 1px; margin: 4px 2px; background: var(--color-hair); }
-
-/* Ligne « langue » : libellé + segmented EN/FR. */
-.um-lang {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 4px 9px;
-}
-.um-lang-lbl { font-size: 12px; font-weight: 600; color: var(--color-mute); }
 </style>
