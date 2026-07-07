@@ -36,6 +36,7 @@
     "section": {
       "workspace": "espace de travail",
       "memory": "mémoire",
+      "enterprise": "gestion entreprise",
       "group": "équipe",
       "organization": "organisation",
       "platformAdmin": "plateforme · admin"
