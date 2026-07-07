@@ -399,6 +399,14 @@ export const createMyOrg = (name: string) =>
   api<{ org_id: number; name: string; active_org: number; org_role: string }>(
     '/api/me/orgs', { method: 'POST', ...j({ name }) })
 export const getOrg = (id: number) => api<OrgDetail>(`/api/orgs/${id}`)
+// MFA obligatoire de l'org : impose un 2ᵉ facteur à TOUS les membres à leur
+// prochaine connexion (enforcé par Logto via l'org miroir). Lecture = membre,
+// écriture = org_admin. `provisioned` = l'org Logto miroir existe.
+export const getOrgMfa = (id: number) =>
+  api<{ org_id: number; require_mfa: boolean; provisioned: boolean }>(`/api/orgs/${id}/mfa`)
+export const setOrgMfa = (id: number, require: boolean) =>
+  api<{ ok: boolean; org_id: number; require_mfa: boolean }>(
+    `/api/orgs/${id}/mfa`, { method: 'PUT', ...j({ require }) })
 // Profil d'entreprise : chaîne vide = effacer le champ ; `domain` normalisé
 // backend (acme.com) et dérive le logo via logo.dev sans upload.
 export const updateOrg = (id: number, patch: {
