@@ -12,8 +12,10 @@ import type { Project } from '@/types/api'
 import { useMe, isPlatformOperator, isSuperAdmin } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
+import { useScopedLink } from '@/composables/useScopedLink'
 
 const route = useRoute()
+const { scoped } = useScopedLink()
 const { t } = useI18n()
 
 // Projet en exergue (ADR 0032 §1 / réunion 30/06) : les 5 derniers projets affichés
@@ -58,7 +60,7 @@ const visibleGroups = computed(() =>
           <RouterLink
             class="sb-item"
             :class="{ on: route.meta.section === it.path }"
-            :to="it.path"
+            :to="scoped(it.path)"
             @click="closeNav"
           >
             <span class="ic"><Icon :name="it.icon" :size="15" /></span>
@@ -71,8 +73,8 @@ const visibleGroups = computed(() =>
             v-for="p in (it.path === '/projects' ? recentProjects : [])"
             :key="`p${p.id}`"
             class="sb-item sb-subitem"
-            :class="{ on: route.fullPath === `/projects/${p.id}` }"
-            :to="`/projects/${p.id}`"
+            :class="{ on: route.path.endsWith(`/projects/${p.id}`) }"
+            :to="scoped(`/projects/${p.id}`)"
             @click="closeNav"
           >
             <span class="ic"></span>{{ p.name }}
