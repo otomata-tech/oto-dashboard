@@ -271,7 +271,8 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
 .pj-btn { height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; border: 1px solid var(--color-hair); background: var(--color-surface); border-radius: var(--radius-pill); font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; color: var(--color-ink-soft); cursor: pointer; white-space: nowrap; transition: background var(--t-fast), transform var(--t-fast) var(--ease-out); }
 .pj-btn:hover { background: var(--color-paper-2); }
 .pj-btn--primary { background: var(--color-ink); color: var(--color-bg); border-color: var(--color-ink); padding: 0 16px; }
-.pj-btn--primary:hover { background: var(--color-ink); transform: translateY(-1px); }
+/* Lift réservé au survol souris (sur tactile, capterait le 1er tap). */
+@media (hover: hover) { .pj-btn--primary:hover { transform: translateY(-1px); } }
 .pj-btn--icon { width: 36px; padding: 0; justify-content: center; }
 .pj-menu { position: relative; display: inline-flex; flex: none; }
 .pj-menu__scrim { position: fixed; inset: 0; z-index: 60; }
