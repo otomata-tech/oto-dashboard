@@ -94,6 +94,14 @@ async function archiveOrg() {
   } catch (e) { toast(humanize(e)) }
 }
 
+// Entrer dans l'org EN LECTURE (opérateur plateforme) via la consultation par URL
+// (`/o/:id/…`, ADR 0023) : le backend autorise un non-membre en GET-only. Navigation
+// dure (recharge `me` + sidebar avec le header X-Oto-Org). Sortie = bandeau ConsultOrgBanner.
+function consultOrg() {
+  if (selectedId.value == null) return
+  window.location.assign(`/o/${selectedId.value}/overview`)
+}
+
 function addMember() {
   if (selectedId.value == null) return
   const orgId = selectedId.value
@@ -247,6 +255,7 @@ async function revokeOrgKey(g: AdminGrant) {
     <template v-if="detail">
       <ConsoleCard flush :title="`${detail.org.name} · members`">
         <template #actions>
+          <Btn kind="mini" icon="eye" @click="consultOrg">Consulter (lecture)</Btn>
           <Btn kind="mini" icon="plus" @click="addMember">Add member</Btn>
           <Btn kind="danger" @click="archiveOrg">Archive org</Btn>
         </template>
