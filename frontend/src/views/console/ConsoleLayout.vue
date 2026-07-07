@@ -9,6 +9,7 @@ import StateError from '@/components/console/StateError.vue'
 import SkeletonOverview from '@/components/console/SkeletonOverview.vue'
 import WaitlistView from './WaitlistView.vue'
 import LoginGate from './LoginGate.vue'
+import LegalGate from '@/components/console/LegalGate.vue'
 import { useToast } from '@/composables/useToast'
 import { useAuth } from '@/composables/useAuth'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
@@ -102,6 +103,7 @@ const viewKey = computed(() => {
 <template>
   <LoginGate v-if="!isAuthenticated" />
   <div v-else class="console-root">
+    <LegalGate v-if="me" />
     <div class="shell" :class="{ 'nav-open': navOpen }">
       <ConsoleSidebar />
       <div class="nav-backdrop" @click="closeNav" />
