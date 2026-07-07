@@ -51,8 +51,8 @@ export const unselectConnector = (name: string) =>
 // par le connecteur (`credential_fields`). api_key → {key}, basic_auth (planity) →
 // {email,password}, silae → {client_id,client_secret,subscription_key}. Le serveur
 // pack/chiffre selon la forme. Une seule surface, zéro branche par connecteur.
-export const setCredential = (provider: string, fields: Record<string, string>) =>
-  api(`/api/settings/api-keys/${provider}`, { method: 'POST', ...j(fields) })
+export const setCredential = (provider: string, fields: Record<string, string>, api_version?: string) =>
+  api(`/api/settings/api-keys/${provider}`, { method: 'POST', ...j(api_version ? { ...fields, api_version } : fields) })
 export const deleteApiKey = (provider: string) =>
   api(`/api/settings/api-keys/${provider}`, { method: 'DELETE' })
 

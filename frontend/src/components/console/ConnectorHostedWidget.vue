@@ -3,13 +3,15 @@
 // ConnectorCard (fin de la carte ancrée #messaging). Option de connecteur : login
 // hébergé Unipile (pas de cookie/extension), les outils agissent comme toi. L'option
 // est débloquée par un admin (comp) ou par ta propre clé Unipile (BYO). Auto-suffisant.
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import Btn from './Btn.vue'
 import Dot from './Dot.vue'
 import Tag from './Tag.vue'
+import FormDialog from './FormDialog.vue'
 import AccountShareSection from './AccountShareSection.vue'
-import { getUnipileStatus, connectUnipile, disconnectUnipile,
+import { getUnipileStatus, connectUnipile, disconnectUnipile, setCredential, deleteApiKey,
   getConnectorIdentities, setConnectorIdentity, getAccountGrants } from '@/api/console'
+import { useFormDialog, type FormDialogField } from '@/composables/useFormDialog'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
@@ -18,6 +20,7 @@ import type { UnipileStatus, ConnectorIdentity, AccountGrant } from '@/types/api
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
+const { formDialog, formDialogOpen, openForm } = useFormDialog()
 const unipile = ref<UnipileStatus | null>(null)
 const identities = ref<ConnectorIdentity[]>([])
 const myGrants = ref<AccountGrant[]>([])   // grants accordés PAR moi (#55, face owner)
@@ -71,6 +74,42 @@ async function drop(channel: string) {
   if (!await confirmAction({ title: `disconnect ${channel} (unipile)`, danger: true, confirmLabel: 'Disconnect', message: `disconnect your ${channel}? the unipile tools will stop acting as you on this channel.` })) return
   try { await disconnectUnipile(channel); toast(`${channel} disconnected`); await refresh() } catch (e) { toast(humanize(e)) }
 }
+
+// ── ma clé Unipile perso (BYO member) + version d'API ──────────────────────
+// Clé personnelle scopée à l'org courante → PRIME sur la clé d'org/plateforme
+// (cascade user > group > org > platform). La version v1/v2 SUIT cette clé
+// (une clé v2 = compte Unipile v2 dédié). C'est le « switch v1/v2 depuis mon compte ».
+const modeLabel = computed(() => {
+  const m = unipile.value?.mode
+  return m === 'user' ? 'ta clé perso' : m === 'group' ? "la clé d'équipe" : m === 'org' ? "la clé d'org"
+    : m === 'platform' ? 'la clé plateforme oto' : '—'
+})
+function editMyKey() {
+  const fields: FormDialogField[] = [
+    { key: 'key', label: 'ta clé Unipile', type: 'password', required: true, placeholder: 'colle ta clé Unipile' },
+    { key: 'api_version', label: "version de l'API", type: 'select', initial: unipile.value?.api_version || 'v1',
+      options: [
+        { value: 'v1', label: 'v1 (legacy)' },
+        { value: 'v2', label: 'v2 (beta — clé/compte Unipile v2 dédiés)' },
+      ] },
+  ]
+  openForm({
+    title: 'ma clé Unipile (perso)',
+    description: "ta clé personnelle Unipile, scopée à l'org courante — elle prime sur la clé d'org. la version d'API suit cette clé (une clé v2 = compte Unipile v2 dédié).",
+    fields, submitLabel: 'enregistrer',
+    onConfirm: async (v) => {
+      try {
+        await setCredential('unipile', { key: String(v.key ?? '') }, String(v.api_version || 'v1'))
+        toast('clé perso enregistrée'); await refresh()
+      } catch (e) { toast(humanize(e)); throw e }
+    },
+  })
+}
+async function dropMyKey() {
+  if (!await confirmAction({ title: 'retirer ma clé Unipile perso', danger: true, confirmLabel: 'Retirer',
+    message: "retirer ta clé perso ? tu repasseras sur la clé d'org / plateforme." })) return
+  try { await deleteApiKey('unipile'); toast('clé perso retirée'); await refresh() } catch (e) { toast(humanize(e)) }
+}
 </script>
 
 <template>
@@ -78,6 +117,15 @@ async function drop(channel: string) {
     <div class="hw-head">
       <span class="dim hw-sub">hosted login (no cookie/extension); the tools then act as you.</span>
       <Tag v-if="!loading && !unipile?.subscribed" tone="saffron">ask an admin to enable</Tag>
+    </div>
+    <!-- Ma clé Unipile (perso) + version d'API — prime sur la clé d'org ; la
+         version v1/v2 suit CETTE clé (le « switch v1/v2 depuis mon compte »). -->
+    <div v-if="!loading" class="hw-mykey">
+      <span class="dim hw-mykey-lbl">résout via {{ modeLabel }}
+        <Tag :tone="unipile?.api_version === 'v2' ? 'cobalt' : 'olive'">{{ unipile?.api_version === 'v2' ? 'v2' : 'v1' }}</Tag>
+      </span>
+      <Btn kind="mini" @click="editMyKey">{{ unipile?.mode === 'user' ? 'changer ma clé' : 'poser ma clé (v1/v2)' }}</Btn>
+      <Btn v-if="unipile?.mode === 'user'" kind="danger" @click="dropMyKey">retirer</Btn>
     </div>
     <div v-for="c in channels" :key="c.key" class="hw-channel">
       <div class="hw-row">
@@ -117,6 +165,9 @@ async function drop(channel: string) {
       <AccountShareSection v-if="unipile?.channels?.[c.key]?.connected"
         :channel="c.key" :grants="grantsFor(c.key)" @changed="refresh" />
     </div>
+    <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
+      :title="formDialog.title" :description="formDialog.description"
+      :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
   </div>
 </template>
 
@@ -124,6 +175,8 @@ async function drop(channel: string) {
 .hw { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .hw-head { display: flex; align-items: baseline; gap: 10px; justify-content: space-between; }
 .hw-sub { font-size: 11.5px; }
+.hw-mykey { display: flex; align-items: center; gap: 10px; padding: 4px 0 6px; border-bottom: 1px solid var(--color-hair-soft); }
+.hw-mykey-lbl { flex: 1; min-width: 0; font-size: 12px; display: flex; gap: 6px; align-items: center; }
 .hw-channel { display: flex; flex-direction: column; border-bottom: 1px solid var(--color-hair-soft); }
 .hw-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
 .hw-id { min-width: 0; flex: 1; }
