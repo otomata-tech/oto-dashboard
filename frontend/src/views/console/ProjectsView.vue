@@ -48,12 +48,15 @@ onMounted(load)
 function openProject(id: number) { router.push(`/projects/${id}`) }
 function ownerLabel(p: Project): string { return p.owner_type === 'org' ? 'org' : 'perso' }
 // Pastilles ORIENTÉES ÉTAT — dérivées des seuls champs portés par la liste (pas d'appel
-// backend par carte) : modèle + endpoint MCP live. (partagé/entités = ajouts backend futurs.)
-function chipsFor(p: Project): { tone: 'saffron' | 'olive' | 'cobalt'; label: string }[] {
-  const out: { tone: 'saffron' | 'olive' | 'cobalt'; label: string }[] = []
+// backend par carte) : modèle / mcp live / partagé / lecture / à vérifier (règle `chipsFor`
+// de la maquette). Tons sémantiques ; `lecture` = neutre (pas de ton).
+type Chip = { tone?: 'saffron' | 'olive' | 'cobalt'; label: string }
+function chipsFor(p: Project): Chip[] {
+  const out: Chip[] = []
   if (p.is_template) out.push({ tone: 'saffron', label: 'modèle' })
   if (p.mcp_access && p.mcp_access !== 'off') out.push({ tone: 'olive', label: 'mcp live' })
   if (p.shared) out.push({ tone: 'cobalt', label: 'partagé' })
+  if (p.can_write === false) out.push({ label: 'lecture' })
   if (p.has_audit) out.push({ tone: 'saffron', label: 'à vérifier' })
   return out
 }
