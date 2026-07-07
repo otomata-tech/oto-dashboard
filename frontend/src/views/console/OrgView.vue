@@ -12,6 +12,7 @@ import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
 import { useMe } from '@/composables/useMe'
 import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
+import OrgMfaCard from '@/components/console/OrgMfaCard.vue'
 import { getOrg, setOrgMemberRole, removeOrgMember,
   listInvitations, inviteMember, revokeInvitation, uploadOrgLogo, deleteOrgLogo, updateOrg, archiveOrg,
   getInstruction, putInstruction } from '@/api/console'
@@ -326,6 +327,9 @@ async function deleteOrg() {
         :can-edit="isOrgAdmin"
         placeholder="ex. nous vendons des audits RGPD à des ETI ; toujours vérifier le SIREN via fr_get avant d'écrire au CRM."
         :load="loadOrgReadme" :save="saveOrgReadme" />
+
+      <!-- MFA obligatoire de l'org (org_admin bascule ; enforcé par Logto au login). -->
+      <OrgMfaCard v-if="activeOrgId != null" :org-id="activeOrgId" :can-manage="isOrgAdmin" />
 
     </template>
 
