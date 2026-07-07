@@ -194,6 +194,7 @@ export interface Me {
   active_org_name: string | null
   active_org_logo_url: string | null
   org_role: OrgRole | null
+  active_org_readonly?: boolean       // org active consultée EN LECTURE par un opérateur non-membre (ADR 0023)
   home_org: number | null            // org MAISON (défaut MCP des nouvelles conversations)
   home_org_name: string | null
   active_group: number | null        // équipe EFFECTIVE affichée = consultation ?? maison
