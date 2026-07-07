@@ -9,7 +9,7 @@ import Btn from './Btn.vue'
 import Tag from './Tag.vue'
 import FormDialog from './FormDialog.vue'
 import { getOrg, grantAccountAccess, revokeAccountAccess } from '@/api/console'
-import { useFormDialog } from '@/composables/useFormDialog'
+import { useFormDialog, type FormDialogField } from '@/composables/useFormDialog'
 import { usePrompt } from '@/composables/usePrompt'
 import { useToast } from '@/composables/useToast'
 import { useMe } from '@/composables/useMe'
@@ -40,14 +40,21 @@ async function addGrant() {
     const opts = (org.members ?? [])
       .filter((m) => m.sub !== me.value?.sub && !already.has(m.sub))
       .map((m) => ({ value: m.sub, label: m.name || m.email || m.sub }))
-    if (!opts.length) { toast('aucun autre membre à autoriser dans ton org active'); return }
+    // Cross-org assumé : membre de l'org active en raccourci OU n'importe qui par
+    // email (freelance/agence hors org). L'un OU l'autre suffit.
+    const fields: FormDialogField[] = []
+    if (opts.length) fields.push({ key: 'member', label: 'membre de ton org active', type: 'select', options: opts })
+    fields.push({ key: 'email', label: opts.length ? 'ou email (hors org)' : 'email de la personne',
+                 type: 'text', placeholder: 'personne@exemple.com' })
     openForm({
-      title: `${props.channel} — autoriser un membre à opérer ton compte`,
-      description: 'le membre autorisé pourra agir SOUS ton identité sur ce canal (messages, actions). révocable à tout moment, effet immédiat.',
-      fields: [{ key: 'member', label: 'membre', type: 'select', required: true, options: opts }],
+      title: `${props.channel} — autoriser quelqu'un à opérer ton compte`,
+      description: "la personne autorisée pourra agir SOUS ton identité sur ce canal (messages, actions), même hors de tes orgs. révocable à tout moment, effet immédiat.",
+      fields,
       submitLabel: 'autoriser',
       onConfirm: async (v) => {
-        try { await grantAccountAccess(props.channel, String(v.member)); toast('membre autorisé'); emit('changed') }
+        const who = String(v.email ?? '').trim() || (v.member ? String(v.member) : '')
+        if (!who) { toast('indique un membre ou un email'); throw new Error('no grantee') }
+        try { await grantAccountAccess(props.channel, who); toast('accès autorisé'); emit('changed') }
         catch (e) { toast(humanize(e)); throw e }
       },
     })
@@ -70,7 +77,7 @@ async function revoke(g: AccountGrant) {
   <div class="asx">
     <div class="asx-head">
       <span class="dim asx-title">opéré aussi par</span>
-      <Btn kind="mini" :disabled="busy" @click="addGrant">Autoriser un membre</Btn>
+      <Btn kind="mini" :disabled="busy" @click="addGrant">Autoriser quelqu'un</Btn>
     </div>
     <div v-for="g in grants" :key="g.grantee_sub ?? ''" class="asx-row">
       <span class="asx-who">{{ who(g) }}

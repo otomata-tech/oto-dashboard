@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory, type RouteRecordRaw, type RouteMeta } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw, type RouteMeta, type LocationQuery } from 'vue-router'
 import ConsoleLayout from '../views/console/ConsoleLayout.vue'
 import InviteAcceptView from '../views/InviteAcceptView.vue'
 import ImportProjectView from '../views/ImportProjectView.vue'
@@ -58,6 +58,13 @@ function detailRoutes(path: string, detail: string): RouteRecordRaw[] {
   ]
 }
 
+// Renomme le deep-link legacy `?dept=<id>` en `?team=<id>` (redirections départements→teams).
+function deptToTeamQuery(q: LocationQuery): LocationQuery {
+  if (q.dept === undefined) return q
+  const { dept, ...rest } = q
+  return { ...rest, team: dept }
+}
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -80,6 +87,12 @@ const router = createRouter({
     { path: '/org/redaction', redirect: '/connectors' },
     // Clés plateforme fusionnées dans le cockpit connecteurs plateforme (ADR 0022).
     { path: '/platform/keys', redirect: '/platform/connectors' },
+    // « départements » → « teams » (renommage vocabulaire produit 2026-07-06) : la
+    // section vit désormais en /org/teams (?team=), on garde les identifiants de code
+    // (group/getGroup). Redirections pour les bookmarks legacy — nue + préfixées.
+    { path: '/org/departments', redirect: (to) => ({ path: '/org/teams', query: deptToTeamQuery(to.query) }) },
+    { path: '/o/:orgId(\\d+)/org/departments', redirect: (to) => ({ path: `/o/${to.params.orgId}/org/teams`, query: deptToTeamQuery(to.query) }) },
+    { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/org/departments', redirect: (to) => ({ path: `/o/${to.params.orgId}/g/${to.params.groupId}/org/teams`, query: deptToTeamQuery(to.query) }) },
     // Acceptation d'invitation (hors shell console) — gère sa propre auth.
     // /invite?token= = lien mail legacy ; /invitation/<carrier>[/<code>] = lien
     // partageable (referral réutilisable si carrier seul, nominatif si +code).

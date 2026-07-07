@@ -7,23 +7,30 @@
 //                   mon org / mon équipe (lentille de consommation, lecture seule).
 //   • marketplace — catalogue navigable de tous les connecteurs (ex-bibliothèque).
 // Les ex-routes /library/connectors redirigent ici (?tab=marketplace).
-import { defineAsyncComponent, ref } from 'vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import SubTabs, { type SubTab } from '@/components/console/SubTabs.vue'
 import { useDeepLink } from '@/composables/useDeepLink'
+import { useMe } from '@/composables/useMe'
 
 const MyConnectors = defineAsyncComponent(() => import('./ConnectorsView.vue'))
 const SharedConnectors = defineAsyncComponent(() => import('./ConnectorsSharedView.vue'))
 const ConnectorLibrary = defineAsyncComponent(() => import('./ConnectorLibraryView.vue'))
+const ConnectorKeys = defineAsyncComponent(() => import('./ConnectorKeysPanel.vue'))
 
-const TABS: SubTab[] = [
+const { me } = useMe()
+const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin')
+
+// L'onglet « clés » (audit des clés partagées) n'apparaît qu'à l'org_admin.
+const TABS = computed<SubTab[]>(() => [
   { key: 'mine', label: 'mes connecteurs', hint: 'connexion, clés et outils' },
   { key: 'shared', label: 'partagés', hint: 'connecteurs fournis par mon org / équipe' },
+  ...(isOrgAdmin.value ? [{ key: 'keys', label: 'clés partagées', hint: "audit des clés d'org & d'équipe" }] : []),
   { key: 'marketplace', label: 'marketplace', hint: 'parcourir tout le catalogue' },
-]
-const VALID = new Set(TABS.map((t) => t.key))
+])
+const VALID = computed(() => new Set(TABS.value.map((t) => t.key)))
 
-const dl = useDeepLink('tab', (v) => { tab.value = v && VALID.has(v) ? v : 'mine' })
-const tab = ref(VALID.has(dl.read() ?? '') ? dl.read()! : 'mine')
+const dl = useDeepLink('tab', (v) => { tab.value = v && VALID.value.has(v) ? v : 'mine' })
+const tab = ref(VALID.value.has(dl.read() ?? '') ? dl.read()! : 'mine')
 
 function select(key: string) {
   tab.value = key
@@ -36,6 +43,7 @@ function select(key: string) {
     <SubTabs :tabs="TABS" :model-value="tab" @update:model-value="select" />
     <MyConnectors v-if="tab === 'mine'" />
     <SharedConnectors v-else-if="tab === 'shared'" />
+    <ConnectorKeys v-else-if="tab === 'keys'" />
     <ConnectorLibrary v-else />
   </div>
 </template>

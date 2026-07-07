@@ -38,7 +38,7 @@ const VIEWS: Record<string, Component> = {
   '/group': defineAsyncComponent(() => import('./MyGroupView.vue')),
   '/org': defineAsyncComponent(() => import('./OrgView.vue')),
   '/org/connectors': defineAsyncComponent(() => import('./OrgConnectorsView.vue')),
-  '/org/departments': defineAsyncComponent(() => import('./GroupsView.vue')),
+  '/org/teams': defineAsyncComponent(() => import('./GroupsView.vue')),
   '/org/billing': defineAsyncComponent(() => import('./BillingView.vue')),
   '/platform/monitoring': defineAsyncComponent(() => import('./MonitoringView.vue')),
   '/platform/usage': defineAsyncComponent(() => import('./UsageView.vue')),
@@ -67,17 +67,19 @@ watch(isAuthenticated, (ok) => { if (ok) load() }, { immediate: true })
 watch(() => route.fullPath, () => closeNav())
 
 const section = computed(() => String(route.meta.section || '/overview'))
+// Les pages de détail sont portées par `meta.detail` (les routes n'ont plus de `name`
+// depuis la refonte URL-par-org, ADR 0023) — pas par `route.name` (toujours undefined).
 const current = computed(() => {
-  if (route.name === 'admin-user') return AdminUserView          // fiche /platform/users/:sub
-  if (route.name === 'project-detail') return ProjectDetailView  // page /projects/:id
+  if (route.meta.detail === 'admin-user') return AdminUserView    // fiche /platform/users/:sub
+  if (route.meta.detail === 'project') return ProjectDetailView   // page /projects/:id
   return VIEWS[section.value] ?? OverviewView
 })
 // Clé de remount : une page de détail remonte quand son ID change, pas sa query.
-// (project-detail keye sur :id seul → le deep-link wiki `?doc=` ne remonte pas la vue ;
+// (project keye sur :id seul → le deep-link wiki `?doc=` ne remonte pas la vue ;
 // admin-user reste sur fullPath.) Sinon = la section.
 const viewKey = computed(() => {
-  if (route.name === 'admin-user') return route.fullPath
-  if (route.name === 'project-detail') return `/projects/${route.params.id}`
+  if (route.meta.detail === 'admin-user') return route.fullPath
+  if (route.meta.detail === 'project') return `/projects/${route.params.id}`
   return section.value
 })
 </script>

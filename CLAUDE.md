@@ -54,6 +54,12 @@ cliente par client, issue otomata-private#31) : la cible courante vient de
 `me.providers[name].identity_label` (zéro coût), le **listing** (`getConnectorIdentities`)
 loue une session Browserbase (~10 s) → chargé au clic seulement ; choix via
 `setConnectorIdentity`.
+> **Session navigateur (`connKind='session'` : brevo/crunchbase).** `ConnectorSessionWidget`
+> dérive l'état de `me.providers[name]` (`user_key_configured` + `session_set_at`, plus de
+> `me.crunchbase`). « Connecter » ouvre `ConnectorSessionConnect.vue` = **Live View Browserbase
+> en iframe** (`startConnectorSession` → login → `finalizeConnectorSession`) ; au succès, reload
+> du `me` → « session set / disconnect ». Déconnexion = `deleteApiKey(name)`. PLUS d'extension
+> cookie ni de renvoi vers le MCP. Backend : `oto-backend/CLAUDE.md` §Browser automation.
 La carte dit en clair **quelle clé résout** (`status.mode` → « ta clé perso / la clé de ton org /
 la clé plateforme oto »). Les toggles d'outils restent `enableTool`/`disableTool`. Les **presets**
 de toolbox vivent en bas de la même vue. Les **tokens CLI** ont migré vers le **hub compte**
@@ -180,7 +186,7 @@ dans `api/console.ts` (POST op-aware `/api/me/{projects,docs}`). Backend : `oto-
 ## Mémoire — datastore + knowledge (ADR 0016)
 
 Groupe nav **« memory »** (`consoleNav.ts`) = deux surfaces de mémoire :
-- **Datastore** (`/console/data`, `DataView.vue`) — stockage tabulaire, **substrat PG natif** (plus Google Sheets). Grille **server-driven** (`DataTable.vue` : tri 3 états/recherche/pagination/**filtres par colonne** côté API via `getNamespaceRows({offset,limit,order_by,order_dir,q,filters})` — ops par type dérivé `datastoreFilters.ts` (text/number/date/bool), cellule `ColumnFilterCell.vue`, chips des filtres actifs retirables, taille de page 25/50/100, header sticky ; rendu cellules typé `cellRender.ts`) ; clic row → détail/édition (`RowDrawer.vue`). **Deeplink par id** (`?ns=<id>`, `NamespaceEntry.id` BIGSERIAL stable → le **renommage** ne casse pas l'URL) **+ état du tableau MIROIR dans l'URL** (`?q/sort/dir/page/ps/f`, `readTableQuery`/`syncTableQuery` — refresh et partage de lien conservent la vue filtrée ; `?f=` sérialisé par `filtersToParam`/`filtersFromParam`, param malformé ignoré). **Ownership ADR 0030** : les droits viennent du payload (`can_write`/`can_govern`/`owner_type`), plus de `isOwner` dérivé du flag `shared` ; read-only = `can_write===false`, boutons share/rename/transfer/delete gatés par `can_govern`. **org-owned activé** : la création propose un scope (perso / classeur d'org active) via `promptForm` select → `createNamespace(ns, {type:'org', id})` ; badge « org »/« team » sur la liste. **share** (`ShareDialog.vue`), **rename**, **transfer** (l'ancien proprio repasse en grant write). Plus de gate Google.
+- **Datastore** (`/console/data`, `DataView.vue`) — stockage tabulaire, **substrat PG natif** (plus Google Sheets). Grille **server-driven** (`DataTable.vue` : tri 3 états/recherche/pagination/**filtres par colonne** côté API via `getNamespaceRows({offset,limit,order_by,order_dir,q,filters})` — ops par type dérivé `datastoreFilters.ts` (text/number/date/bool), cellule `ColumnFilterCell.vue`, chips des filtres actifs retirables, taille de page 25/50/100, header sticky ; rendu cellules typé `cellRender.ts`) ; clic row → détail/édition (`RowDrawer.vue`). **Deeplink par id** (`?ns=<id>`, `NamespaceEntry.id` BIGSERIAL stable → le **renommage** ne casse pas l'URL) **+ état du tableau MIROIR dans l'URL** (`?q/sort/dir/page/ps/f`, `readTableQuery`/`syncTableQuery` — refresh et partage de lien conservent la vue filtrée ; `?f=` sérialisé par `filtersToParam`/`filtersFromParam`, param malformé ignoré). **Ownership ADR 0030** : les droits viennent du payload (`can_write`/`can_govern`/`owner_type`), plus de `isOwner` dérivé du flag `shared` ; read-only = `can_write===false`, boutons share/rename/transfer/delete gatés par `can_govern`. **org-owned activé** : la création propose un scope (perso / classeur d'org active) via `promptForm` select → `createNamespace(ns, {type:'org', id})` ; badge « org »/« team » sur la liste. **share** (`SharePrincipalDialog.vue`, dialog de partage unifié membre/équipe/org via `oto_resource` — aussi utilisé par projets et doctrines), **rename**, **transfer** (l'ancien proprio repasse en grant write). Plus de gate Google.
 - **Knowledge** (`/console/knowledge`, `KnowledgeView.vue`) — connexion **Memento opt-in** (réutilise `getMementoStatus`/`startMementoOauth`/`disconnectMemento`, mêmes endpoints que la carte federated mcp de `ConnectorsView`) ; pas de browse des KB (déféré). Retour OAuth `?memento=connected|error`.
 
 ## Agent readme (ex-« doctrine de base ») — unbundlé des procédures (2026-07)
@@ -345,11 +351,15 @@ logo **« O ouvert »**.
 - Le DS est fourni en **React** : **porter en Vue**, ne pas copier les `.jsx` tels quels.
 - Toute nouvelle vue rend **empty / error / loading** explicitement.
 
-> **État d'intégration (barreaux vérifiés au build, commits locaux — pas encore poussés).**
+> **État d'intégration (poussé + déployé le 2026-07-04).**
 > Faits : **b1** fondations tokens (couleurs WCAG, rayons md/pill, sidebar/ombres, Spline Sans
 > Mono) · **b2** sidebar encre (item actif saffron) · **b3** retrait du lowercase forcé sur les
-> boutons · **b5** icônes Lucide (`Icon.vue`, API inchangée) · **b6** logo « O ouvert » (`lib/mark.ts`,
-> `.o-medallion`) + favicons régénérés. Restent : **b4** champs (radio classique + select en
-> dropdown stylé) · **b7** composants manquants (Popover, SearchableSelect, Alert, Badge, Breadcrumb,
-> Pagination, Accordion…) · **b8** audit des scoped-styles (rayons magiques résiduels dans ~60 vues) ·
-> recapitalisation effective des libellés de boutons. Plan : `design-system/handoff-alexis.md`.
+> boutons · **b4** champs (focus saffron, skin select natif, repli des classes ad-hoc sur `.inp` —
+> variantes `.inp.sm`/`.inp:disabled` ajoutées) · **b5** icônes Lucide (`Icon.vue`, API inchangée) ·
+> **b6** logo « O ouvert » (`lib/mark.ts`, `.o-medallion`) + favicons régénérés · **recapitalisation**
+> des libellés de boutons (casse de phrase sur les CTA ; segmented/tabs/chips restent lowercase —
+> voix « jeton »). Restent : **b7** composants manquants (Popover, SearchableSelect, Alert, Badge,
+> Breadcrumb, Pagination, Accordion… — à porter au fil des besoins) · **b8** audit des scoped-styles
+> (rayons magiques résiduels ; fait sur les composants partagés + 2 vues) · recapitaliser
+> `ContextProfileCard`/`DataView`/`OrgView` (exclus le 04/07, WIP parallèle) · revue visuelle des
+> écrans authentifiés (seul LoginGate vérifié au rendu). Plan : `design-system/handoff-alexis.md`.

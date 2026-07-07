@@ -5,7 +5,8 @@
 // d'authentification, ADR 0024 — widget dérivé de la méthode d'auth), outils
 // (toggles) et « à propos » (description + doc how-to). Réutilise les MÊMES widgets
 // d'auth que l'ex-ConnectorCard (source unique, zéro branche par nom).
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import Btn from './Btn.vue'
 import Toggle from './Toggle.vue'
 import Quota from './Quota.vue'
@@ -17,9 +18,9 @@ import ConnectorHostedWidget from './ConnectorHostedWidget.vue'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
-import { selectConnector, pauseConnector, unselectConnector, enableTool, disableTool, verifyConnector } from '@/api/console'
+import { selectConnector, pauseConnector, unselectConnector, enableTool, disableTool, verifyConnector, getOrgConnectorActivation } from '@/api/console'
 import type { ConnectorMode } from '@/lib/consoleTypes'
-import type { ConnectorState, MyConnector, ToolEntry, VerifyResult } from '@/types/api'
+import type { ConnectorState, MyConnector, OrgConnectorActivation, ToolEntry, VerifyResult } from '@/types/api'
 
 const props = defineProps<{
   connector: MyConnector
@@ -33,6 +34,21 @@ const emit = defineEmits<{
 
 const { me } = useMe()
 const { toast } = useToast()
+
+// Bandeau « côté org » (ADR 0044, B4) : résumé LECTURE SEULE de la gouvernance d'org
+// pour un org_admin (disponibilité + option) + deep-link vers la gestion. On ne MUTE
+// pas ici — couper la dispo depuis « mes connecteurs » ferait disparaître le
+// connecteur de la liste où on est (contradiction de scope). La fiche unifiée
+// complète (édition org inline) vient avec le catalogue unifié.
+const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin')
+const orgAct = ref<OrgConnectorActivation | null>(null)
+onMounted(async () => {
+  if (!isOrgAdmin.value || me.value?.active_org == null) return
+  try {
+    const list = (await getOrgConnectorActivation(me.value.active_org)).connectors
+    orgAct.value = list.find((a) => a.connector === props.connector.name) ?? null
+  } catch { /* le bloc org ne s'affiche simplement pas */ }
+})
 
 type Tab = 'connection' | 'tools' | 'about'
 const tab = ref<Tab>('connection')
@@ -132,6 +148,35 @@ const EXPOSURE = computed(() => {
   return { explain: "not added to your workspace — your agents don't see it. set it live to expose its tools." }
 })
 
+// Bandeau « État pour toi » (ADR 0044) : le ET-logique des 3 couches (Disponibilité
+// ∧ Connexion ∧ Option) + un verdict qui nomme LAQUELLE manque. Dérivé des champs déjà
+// présents (zéro fetch) ; `paid_option`/`option_ok` viennent de /api/me/connectors.
+type Tone = 'olive' | 'saffron' | 'grey'
+const availOk = computed(() => status.value?.mode !== 'forbidden')
+const connOk = computed(() => isOpenData.value || statusMode.value !== 'none')
+const connSource = computed(() => {
+  if (isOpenData.value) return 'open data'
+  const m = statusMode.value
+  return m === 'user' ? 'ta clé' : m === 'group' ? "clé d'équipe"
+    : m === 'org' ? "clé d'org" : m === 'platform' ? 'clé oto' : ''
+})
+const optionRequired = computed(() => c.value.paid_option ?? null)
+const optionOk = computed(() => c.value.option_ok !== false)
+const availTone = computed<Tone>(() => (availOk.value ? 'olive' : 'saffron'))
+const connTone = computed<Tone>(() => (isOpenData.value ? 'grey' : connOk.value ? 'olive' : 'saffron'))
+const optTone = computed<Tone>(() => (!optionRequired.value ? 'grey' : optionOk.value ? 'olive' : 'saffron'))
+const verdict = computed<{ tone: Tone; text: string }>(() => {
+  if (!availOk.value)
+    return { tone: 'saffron', text: 'Réservé à certaines équipes/personnes de ton org — demande l’accès à un admin.' }
+  if (!optionOk.value)
+    return { tone: 'saffron', text: `Bloqué : l’option « ${optionRequired.value} » n’est pas accordée pour toi.` }
+  if (!connOk.value)
+    return { tone: 'saffron', text: 'Exposé mais pas connecté — branche une clé ci-dessous.' }
+  if (status.value?.mode === 'over_quota')
+    return { tone: 'saffron', text: 'Quota de la clé plateforme atteint pour aujourd’hui.' }
+  return { tone: 'olive', text: 'Prêt à l’emploi.' }
+})
+
 async function setState(s: ConnectorState) {
   if (state.value === s) return
   try {
@@ -185,6 +230,29 @@ async function setAllTools(on: boolean) {
     </div>
 
     <div class="dr-scroll">
+      <!-- État pour toi (ADR 0044) — le ET-logique des 3 conditions, dit LAQUELLE manque -->
+      <div class="dr-block">
+        <div class="eyebrow" style="margin-bottom: 9px">état pour toi</div>
+        <div class="statrow">
+          <span class="spill"><span class="cdot" :class="availTone"></span>disponibilité</span>
+          <span class="spill"><span class="cdot" :class="connTone"></span>connexion<span v-if="connSource" class="dim"> · {{ connSource }}</span></span>
+          <span class="spill"><span class="cdot" :class="optTone"></span>option<span v-if="!optionRequired" class="dim"> · n/a</span></span>
+        </div>
+        <p class="verdict" :class="verdict.tone">{{ verdict.text }}</p>
+      </div>
+
+      <!-- côté org (ADR 0044, B4) — résumé LECTURE SEULE, org_admin seulement -->
+      <div v-if="isOrgAdmin && orgAct" class="dr-block">
+        <div class="eyebrow" style="margin-bottom: 9px">côté org · {{ me?.active_org_name || 'ton org' }}</div>
+        <div class="statrow">
+          <span class="spill"><span class="cdot" :class="orgAct.effective ? 'olive' : 'grey'"></span>{{ orgAct.effective ? 'disponible pour tes membres' : 'coupé pour tes membres' }}</span>
+          <span v-if="orgAct.paid_option" class="spill"><span class="cdot" :class="orgAct.subscribed ? 'olive' : 'saffron'"></span>option {{ orgAct.paid_option }}</span>
+        </div>
+        <p class="helptext" style="margin: 9px 0 0">
+          <RouterLink to="/org/connectors" class="org-link">gérer la disponibilité, l'accès et la clé d'org →</RouterLink>
+        </p>
+      </div>
+
       <!-- exposure (toujours en tête) -->
       <div class="dr-block">
         <div class="eyebrow" style="margin-bottom: 9px">exposure — what your agents see</div>
@@ -321,4 +389,11 @@ async function setAllTools(on: boolean) {
 .trow:last-child { border-bottom: 0; }
 .about-l { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--color-mute); }
 .dim { color: var(--color-faint); font-weight: 500; }
+.statrow { display: flex; flex-wrap: wrap; gap: 14px; }
+.spill { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--color-ink); }
+.verdict { margin: 11px 0 0; font-size: 13px; font-weight: 600; }
+.verdict.olive { color: var(--color-olive-ink); }
+.verdict.saffron { color: var(--color-saffron-ink); }
+.org-link { color: var(--color-cobalt-ink); font-weight: 600; text-decoration: none; }
+.org-link:hover { text-decoration: underline; }
 </style>

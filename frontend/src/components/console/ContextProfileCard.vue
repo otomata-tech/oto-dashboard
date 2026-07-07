@@ -130,7 +130,7 @@ const draftRows = computed(() =>
 }
 .pf-row:first-child { border-top: 0; }
 .pf-k { color: var(--color-mute); }
-.pf-v { color: var(--color-ink); white-space: pre-wrap; }
+.pf-v { color: var(--color-ink); white-space: pre-wrap; min-width: 0; overflow-wrap: anywhere; }
 
 .pf-edit-row { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; }
 .pf-label { font-size: 12.5px; color: var(--color-ink); font-weight: 600; }
