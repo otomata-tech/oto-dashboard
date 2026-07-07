@@ -111,6 +111,13 @@ const router = createRouter({
       component: ConsoleLayout,
       meta: { section: '/platform/users', level: 'platform', orgScoped: false, detail: 'admin-user' },
     },
+    {
+      // Fiche org (admin) — niveau plateforme (cross-org), NON préfixée par org.
+      // Résolue par le layout vers AdminOrgView (via meta.detail).
+      path: '/platform/orgs/:id(\\d+)',
+      component: ConsoleLayout,
+      meta: { section: '/platform/orgs', level: 'platform', orgScoped: false, detail: 'admin-org' },
+    },
     // Détails org-scopés (nus + préfixés `/o/:orgId/…`), portés par meta.detail.
     ...detailRoutes('/projects/:id', 'project'),
     ...detailRoutes('/data/:id', 'data'),
