@@ -48,12 +48,15 @@ onMounted(load)
 function openProject(id: number) { router.push(`/projects/${id}`) }
 function ownerLabel(p: Project): string { return p.owner_type === 'org' ? 'org' : 'perso' }
 // Pastilles ORIENTÉES ÉTAT — dérivées des seuls champs portés par la liste (pas d'appel
-// backend par carte) : modèle + endpoint MCP live. (partagé/entités = ajouts backend futurs.)
-function chipsFor(p: Project): { tone: 'saffron' | 'olive' | 'cobalt'; label: string }[] {
-  const out: { tone: 'saffron' | 'olive' | 'cobalt'; label: string }[] = []
+// backend par carte) : modèle / mcp live / partagé / lecture / à vérifier (règle `chipsFor`
+// de la maquette). Tons sémantiques ; `lecture` = neutre (pas de ton).
+type Chip = { tone?: 'saffron' | 'olive' | 'cobalt'; label: string }
+function chipsFor(p: Project): Chip[] {
+  const out: Chip[] = []
   if (p.is_template) out.push({ tone: 'saffron', label: 'modèle' })
   if (p.mcp_access && p.mcp_access !== 'off') out.push({ tone: 'olive', label: 'mcp live' })
   if (p.shared) out.push({ tone: 'cobalt', label: 'partagé' })
+  if (p.can_write === false) out.push({ label: 'lecture' })
   if (p.has_audit) out.push({ tone: 'saffron', label: 'à vérifier' })
   return out
 }
@@ -176,7 +179,6 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
 .pl-seg__b { border: 0; background: transparent; border-radius: var(--radius-pill); padding: 5px 13px; font-family: var(--font-sans); font-size: 12px; font-weight: 600; color: var(--color-mute); cursor: pointer; }
 .pl-seg__b.on { background: var(--color-saffron-soft); color: var(--color-saffron-ink); }
 .pl-new { height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 0 16px; border: 1px solid var(--color-saffron); background: var(--color-saffron); border-radius: var(--radius-pill); font-family: var(--font-sans); font-size: 12.5px; font-weight: 700; color: var(--color-ink); cursor: pointer; white-space: nowrap; transition: transform var(--t-fast) var(--ease-out); }
-.pl-new:hover { transform: translateY(-1px); }
 
 /* empty */
 .pl-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 22px; border: 1px dashed var(--color-hair); border-radius: var(--radius-md); background: var(--color-paper); }
@@ -186,7 +188,6 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
 /* cartes */
 .pl-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(288px, 1fr)); gap: 14px; }
 .pl-card { display: flex; flex-direction: column; gap: 10px; text-align: left; cursor: pointer; padding: 16px 17px; border: 1px solid var(--border-card); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-card); font: inherit; transition: transform .15s var(--ease-out), box-shadow .15s; }
-.pl-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-pop); }
 .pl-card__head { display: flex; align-items: flex-start; gap: 8px; }
 .pl-card__name { flex: 1; min-width: 0; font-weight: 700; font-size: 15px; letter-spacing: -.01em; color: var(--color-ink); }
 .pl-card__owner { display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; padding: 2.5px 8px; border-radius: var(--radius-pill); border: 1px solid var(--color-hair); color: var(--color-mute); }
@@ -197,13 +198,11 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
 .pl-card__go { margin-left: auto; display: inline-flex; color: var(--color-mute); }
 .pl-card__sep { width: 3px; height: 3px; border-radius: var(--radius-pill); background: var(--color-faint); }
 .pl-card--tpl { cursor: default; box-shadow: none; border-style: dashed; background: var(--color-paper); }
-.pl-card--tpl:hover { transform: none; box-shadow: none; }
 
 /* tableau dense */
 .pl-table { border: 1px solid var(--border-card); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-card); overflow: hidden; }
 .pl-row { display: grid; grid-template-columns: 1fr auto 132px 72px 28px; gap: 14px; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: 0; border-bottom: 1px solid var(--color-hair-soft); background: transparent; font: inherit; cursor: pointer; }
 .pl-row:last-child { border-bottom: 0; }
-.pl-row:hover:not(.pl-row--head) { background: var(--color-paper-2); }
 .pl-row--head { cursor: default; border-bottom: 1px solid var(--color-hair); font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--color-faint); }
 .pl-row__name { min-width: 0; display: flex; align-items: center; gap: 9px; }
 .pl-row__nt { font-weight: 600; font-size: 13.5px; color: var(--color-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -220,4 +219,14 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
 .pl-tpl-hd__line { flex: 1; height: 1px; background: var(--color-hair-soft); }
 .pl-tpl-hd__s { font-size: 12px; color: var(--color-faint); }
 @media (max-width: 560px) { .pl-tpl-hd__s { display: none; } }
+
+/* Effets de survol réservés aux pointeurs qui savent survoler (souris). Sur tactile,
+ * un :hover à transform capture le 1er tap (la carte « se soulève » au lieu d'ouvrir) —
+ * on ne les sert donc pas là où hover n'existe pas, pour que le tap = clic direct. */
+@media (hover: hover) {
+  .pl-new:hover { transform: translateY(-1px); }
+  .pl-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-pop); }
+  .pl-card--tpl:hover { transform: none; box-shadow: none; }
+  .pl-row:hover:not(.pl-row--head) { background: var(--color-paper-2); }
+}
 </style>
