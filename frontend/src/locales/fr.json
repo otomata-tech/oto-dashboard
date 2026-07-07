@@ -138,6 +138,15 @@
     "readmeTitle": "agent readme · toi",
     "readmeSub": "ta prose libre, injectée au début de chaque session de ton agent — après celles de la plateforme, de ton org et de ton équipe.",
     "readmePlaceholder": "ex. je préfère des réponses courtes ; mes clients sont des PME ; signe mes emails « Alexis ».",
+    "privacyTitle": "confidentialité",
+    "privacySub": "analytics produit — activés uniquement avec ton accord.",
+    "privacyState": "analytics",
+    "privacyGranted": "activés",
+    "privacyDenied": "désactivés",
+    "privacyOn": "Analytics activés (PostHog, EU) ; les saisies sont masquées dans les enregistrements. Tu peux te retirer à tout moment.",
+    "privacyOff": "Analytics désactivés — rien n'est collecté.",
+    "privacyEnable": "Activer les analytics",
+    "privacyDisable": "Désactiver les analytics",
     "role": { "super": "super admin", "admin": "admin", "member": "membre" }
   },
   "auth": {

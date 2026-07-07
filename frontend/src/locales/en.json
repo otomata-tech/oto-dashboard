@@ -138,6 +138,15 @@
     "readmeTitle": "agent readme · you",
     "readmeSub": "your free-form prose, injected at the start of each agent session — after the platform, org and team ones.",
     "readmePlaceholder": "e.g. I prefer short answers; my clients are SMBs; sign my emails “Alexis”.",
+    "privacyTitle": "privacy",
+    "privacySub": "product analytics — enabled only with your consent.",
+    "privacyState": "analytics",
+    "privacyGranted": "on",
+    "privacyDenied": "off",
+    "privacyOn": "Analytics enabled (PostHog, EU); inputs are masked in recordings. You can withdraw at any time.",
+    "privacyOff": "Analytics disabled — nothing is collected.",
+    "privacyEnable": "Enable analytics",
+    "privacyDisable": "Disable analytics",
     "role": { "super": "super admin", "admin": "admin", "member": "member" }
   },
   "auth": {
