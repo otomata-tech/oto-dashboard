@@ -69,90 +69,108 @@ async function remove() {
 
 <template>
   <div class="content-inner narrow fadein">
-    <ConsoleCard :title="t('account.profileTitle')" :sub="t('account.profileSub')">
-      <div class="profile-row">
-        <Avatar :src="me?.avatar_url" :name="displayName" :size="72" />
-        <div class="profile-meta">
-          <div class="profile-name">{{ displayName || '—' }}</div>
-          <div class="profile-email">{{ me?.email }}</div>
+    <!-- ── compte : profil + connexion ── -->
+    <section class="acc-section">
+      <div class="eyebrow">{{ t('account.section.account') }}</div>
+
+      <ConsoleCard :title="t('account.profileTitle')" :sub="t('account.profileSub')">
+        <div class="profile-row">
+          <Avatar :src="me?.avatar_url" :name="displayName" :size="72" />
+          <div class="profile-meta">
+            <div class="profile-name">{{ displayName || '—' }}</div>
+            <div class="profile-email">{{ me?.email }}</div>
+          </div>
         </div>
-      </div>
 
-      <Dropzone
-        class="mt-4"
-        :accept="IMAGE_ACCEPT_ATTR"
-        :max-size-mb="2"
-        :busy="busy"
-        :label="me?.avatar_url ? t('account.changeAvatar') : t('account.dropAvatar')"
-        :hint="t('account.avatarHint')"
-        @select="onDropFile"
-        @error="toast"
-      />
-      <div v-if="me?.avatar_url" class="profile-actions">
-        <Btn kind="danger" :disabled="busy" @click="remove">{{ t('account.removeAvatarBtn') }}</Btn>
-      </div>
-    </ConsoleCard>
-
-    <ConsoleCard :title="t('account.accessTitle')" :sub="t('account.accessSub')">
-      <div class="acc-rows">
-        <div class="acc-row">
-          <span class="acc-k">{{ t('account.email') }}</span>
-          <span class="acc-v">{{ me?.email || '—' }}</span>
+        <Dropzone
+          class="mt-4"
+          :accept="IMAGE_ACCEPT_ATTR"
+          :max-size-mb="2"
+          :busy="busy"
+          :label="me?.avatar_url ? t('account.changeAvatar') : t('account.dropAvatar')"
+          :hint="t('account.avatarHint')"
+          @select="onDropFile"
+          @error="toast"
+        />
+        <div v-if="me?.avatar_url" class="profile-actions">
+          <Btn kind="danger" :disabled="busy" @click="remove">{{ t('account.removeAvatarBtn') }}</Btn>
         </div>
-        <div class="acc-row">
-          <span class="acc-k">{{ t('account.platformRole') }}</span>
-          <span class="acc-v"><Tag :tone="me?.role === 'member' ? 'ink' : 'saffron'">{{ roleLabel }}</Tag></span>
+      </ConsoleCard>
+
+      <ConsoleCard :title="t('account.accessTitle')" :sub="t('account.accessSub')">
+        <div class="acc-rows">
+          <div class="acc-row">
+            <span class="acc-k">{{ t('account.email') }}</span>
+            <span class="acc-v">{{ me?.email || '—' }}</span>
+          </div>
+          <div class="acc-row">
+            <span class="acc-k">{{ t('account.platformRole') }}</span>
+            <span class="acc-v"><Tag :tone="me?.role === 'member' ? 'ink' : 'saffron'">{{ roleLabel }}</Tag></span>
+          </div>
         </div>
-        <div class="acc-row">
-          <span class="acc-k">{{ t('common.language') }}</span>
-          <span class="acc-v"><LocaleSwitch /></span>
+        <p class="acc-note">{{ t('account.accessNote') }}</p>
+        <div class="profile-actions">
+          <Btn icon="logout" @click="() => logout()">{{ t('common.signOut') }}</Btn>
         </div>
-      </div>
-      <p class="acc-note">
-        {{ t('account.accessNote') }}
-      </p>
-      <div class="profile-actions">
-        <Btn icon="logout" @click="() => logout()">{{ t('common.signOut') }}</Btn>
-      </div>
-    </ConsoleCard>
+      </ConsoleCard>
+    </section>
 
-    <SecurityCard />
-
-    <!-- Confidentialité : retrait/révision du consentement analytics (RGPD), déplacé
-         ici depuis le bouton flottant. Caché si PostHog n'est pas configuré. -->
-    <ConsoleCard v-if="analyticsOn" :title="t('account.privacyTitle')" :sub="t('account.privacySub')">
-      <div class="acc-rows">
-        <div class="acc-row">
-          <span class="acc-k">{{ t('account.privacyState') }}</span>
-          <span class="acc-v">
-            <Tag :tone="analyticsGranted ? 'olive' : 'ink'">
-              {{ analyticsGranted ? t('account.privacyGranted') : t('account.privacyDenied') }}
-            </Tag>
-          </span>
+    <!-- ── préférences : langue + confidentialité (analytics RGPD, si PostHog configuré) ── -->
+    <section class="acc-section">
+      <div class="eyebrow">{{ t('account.section.preferences') }}</div>
+      <ConsoleCard :title="t('account.prefsTitle')" :sub="t('account.prefsSub')">
+        <div class="acc-rows">
+          <div class="acc-row">
+            <span class="acc-k">{{ t('common.language') }}</span>
+            <span class="acc-v"><LocaleSwitch /></span>
+          </div>
+          <div v-if="analyticsOn" class="acc-row">
+            <span class="acc-k">{{ t('account.privacyState') }}</span>
+            <span class="acc-v acc-v-inline">
+              <Tag :tone="analyticsGranted ? 'olive' : 'ink'">
+                {{ analyticsGranted ? t('account.privacyGranted') : t('account.privacyDenied') }}
+              </Tag>
+              <Btn kind="ghost" @click="analyticsGranted ? denyConsent() : grantConsent()">
+                {{ analyticsGranted ? t('account.privacyDisable') : t('account.privacyEnable') }}
+              </Btn>
+            </span>
+          </div>
         </div>
-      </div>
-      <p class="acc-note">{{ analyticsGranted ? t('account.privacyOn') : t('account.privacyOff') }}</p>
-      <div class="profile-actions">
-        <Btn v-if="analyticsGranted" @click="denyConsent">{{ t('account.privacyDisable') }}</Btn>
-        <Btn v-else @click="grantConsent">{{ t('account.privacyEnable') }}</Btn>
-      </div>
-    </ConsoleCard>
+        <p v-if="analyticsOn" class="acc-note">{{ analyticsGranted ? t('account.privacyOn') : t('account.privacyOff') }}</p>
+      </ConsoleCard>
+    </section>
 
-    <!-- Niveau USER du concept agent_readme : injecté à chaque session, après les
-         readme plateforme / org / équipe (cumulable). -->
-    <AgentReadmeCard :title="t('account.readmeTitle')"
-      :sub="t('account.readmeSub')"
-      :can-edit="true" allow-empty
-      :placeholder="t('account.readmePlaceholder')"
-      :load="getAgentReadme" :save="setAgentReadme" />
+    <!-- ── sécurité (2FA) ── -->
+    <section class="acc-section">
+      <div class="eyebrow">{{ t('account.section.security') }}</div>
+      <SecurityCard />
+    </section>
 
-    <AgentContextCard />
+    <!-- ── ton agent : readme (injecté chaque session) + contexte résolu ── -->
+    <section class="acc-section">
+      <div class="eyebrow">{{ t('account.section.agent') }}</div>
+      <AgentReadmeCard :title="t('account.readmeTitle')"
+        :sub="t('account.readmeSub')"
+        :can-edit="true" allow-empty
+        :placeholder="t('account.readmePlaceholder')"
+        :load="getAgentReadme" :save="setAgentReadme" />
+      <AgentContextCard />
+    </section>
 
-    <AccountTokensCard />
+    <!-- ── développeurs : tokens CLI / API ── -->
+    <section class="acc-section">
+      <div class="eyebrow">{{ t('account.section.developers') }}</div>
+      <AccountTokensCard />
+    </section>
   </div>
 </template>
 
 <style scoped>
+/* Chaque section = son eyebrow + ses cartes, serrés ensemble ; les sections sont
+   espacées entre elles par le gap du .content-inner. */
+.acc-section { display: flex; flex-direction: column; gap: 12px; }
+.acc-section .eyebrow { padding: 2px 2px 0; }
+
 .profile-row { display: flex; align-items: center; gap: 18px; }
 .profile-name { font-weight: 600; font-size: 15px; color: var(--color-ink); }
 .profile-email { font-size: 12.5px; color: var(--color-mute); }
@@ -169,5 +187,6 @@ async function remove() {
   text-transform: uppercase; color: var(--color-faint); width: 130px; flex: none;
 }
 .acc-v { font-size: 13px; color: var(--color-ink); font-weight: 500; }
+.acc-v-inline { display: flex; align-items: center; gap: 10px; }
 .acc-note { font-size: 12px; color: var(--color-mute); line-height: 1.5; margin: 14px 0 0; }
 </style>

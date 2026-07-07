@@ -147,6 +147,15 @@
     "privacyOff": "Analytics désactivés — rien n'est collecté.",
     "privacyEnable": "Activer les analytics",
     "privacyDisable": "Désactiver les analytics",
+    "prefsTitle": "langue & confidentialité",
+    "prefsSub": "préférences pour ce dashboard.",
+    "section": {
+      "account": "compte",
+      "preferences": "préférences",
+      "security": "sécurité",
+      "agent": "ton agent",
+      "developers": "développeurs"
+    },
     "role": { "super": "super admin", "admin": "admin", "member": "membre" }
   },
   "auth": {
