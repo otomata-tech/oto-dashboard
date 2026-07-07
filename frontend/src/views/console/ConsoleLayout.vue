@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, watch, defineAsyncComponent, type Component } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import ConsoleSidebar from '@/components/console/ConsoleSidebar.vue'
 import ConsoleTopbar from '@/components/console/ConsoleTopbar.vue'
 import PromptDialog from '@/components/console/PromptDialog.vue'
 import FormPromptHost from '@/components/console/FormPromptHost.vue'
 import StateError from '@/components/console/StateError.vue'
+import SessionExpired from '@/components/console/SessionExpired.vue'
 import SkeletonOverview from '@/components/console/SkeletonOverview.vue'
 import WaitlistView from './WaitlistView.vue'
 import LoginGate from './LoginGate.vue'
@@ -50,10 +51,13 @@ const VIEWS: Record<string, Component> = {
 }
 
 const route = useRoute()
-const router = useRouter()
-const { isAuthenticated, logout } = useAuth()
+const { isAuthenticated } = useAuth()
 const { message } = useToast()
 const { me, error, load } = useMe()
+
+// Session Logto morte : on ne rend PAS le shell (menu inerte, vues vides) — on bascule
+// sur l'écran de reconnexion plein écran qui relance Logto (cf. SessionExpired.vue).
+const isStale = computed(() => error.value === 'stale_session')
 const { navOpen, closeNav } = useNav()
 
 // Charge le profil dès qu'on est authentifié (pilote identité + gating admin).
@@ -62,45 +66,25 @@ watch(isAuthenticated, (ok) => { if (ok) load() }, { immediate: true })
 // Referme le tiroir mobile à chaque navigation (sécurité si un lien ne le fait pas).
 watch(() => route.fullPath, () => closeNav())
 
-// Org & équipe de consultation portées par l'URL (`/o/:orgId[/g/:groupId]/…`, ADR 0023).
-const orgId = computed(() => (typeof route.params.orgId === 'string' ? route.params.orgId : null))
-const groupId = computed(() => (typeof route.params.groupId === 'string' ? route.params.groupId : null))
-const scopeKey = computed(() => `${orgId.value ?? ''}/${groupId.value ?? ''}`)
-
-// L'org/équipe de l'URL change → les headers de scope changent → refetch le profil.
-watch(scopeKey, () => { if (isAuthenticated.value) load() })
-
-// Canonicalise une URL org-scopée NUE vers `/o/<maison>[/g/<équipe maison>]/…` une fois
-// `me` connu (le backend a déjà rendu la maison sans header ; on aligne juste l'URL).
-watch([me, () => route.fullPath], () => {
-  if (!me.value || !route.meta.orgScoped || orgId.value != null) return
-  const home = me.value.home_org ?? me.value.active_org
-  if (home == null) return
-  const grp = me.value.home_group ?? me.value.active_group
-  const prefix = `/o/${home}${grp != null ? `/g/${grp}` : ''}`
-  void router.replace({ path: `${prefix}${route.path}`, query: route.query, hash: route.hash })
-}, { immediate: true })
-
 const section = computed(() => String(route.meta.section || '/overview'))
-const detail = computed(() => route.meta.detail as string | undefined)
 const current = computed(() => {
-  if (detail.value === 'admin-user') return AdminUserView       // fiche /platform/users/:sub
-  if (detail.value === 'project') return ProjectDetailView      // page /projects/:id
+  if (route.name === 'admin-user') return AdminUserView          // fiche /platform/users/:sub
+  if (route.name === 'project-detail') return ProjectDetailView  // page /projects/:id
   return VIEWS[section.value] ?? OverviewView
 })
-// Clé de remount : contexte de l'URL (org + équipe) + identité de la vue. Une page de
-// détail remonte quand son ID (ou le contexte) change, pas sa query ; admin-user reste
-// sur fullPath. Changer d'org/équipe remonte donc toujours la vue → refetch propre.
+// Clé de remount : une page de détail remonte quand son ID change, pas sa query.
+// (project-detail keye sur :id seul → le deep-link wiki `?doc=` ne remonte pas la vue ;
+// admin-user reste sur fullPath.) Sinon = la section.
 const viewKey = computed(() => {
-  const s = scopeKey.value
-  if (detail.value === 'admin-user') return route.fullPath
-  if (detail.value === 'project') return `${s}:/projects/${route.params.id}`
-  return `${s}:${section.value}`
+  if (route.name === 'admin-user') return route.fullPath
+  if (route.name === 'project-detail') return `/projects/${route.params.id}`
+  return section.value
 })
 </script>
 
 <template>
   <LoginGate v-if="!isAuthenticated" />
+  <SessionExpired v-else-if="isStale" />
   <div v-else class="console-root">
     <div class="shell" :class="{ 'nav-open': navOpen }">
       <ConsoleSidebar />
@@ -108,7 +92,7 @@ const viewKey = computed(() => {
       <div class="main">
         <ConsoleTopbar />
         <div class="content">
-          <StateError v-if="error" :message="error" @retry="load(true)" @relogin="logout()" />
+          <StateError v-if="error" :message="error" @retry="load(true)" />
           <WaitlistView v-else-if="me && me.access?.status === 'pending' && !isPlatformOperator(me)" />
           <component :is="current" v-else-if="me" :key="viewKey" />
           <SkeletonOverview v-else />

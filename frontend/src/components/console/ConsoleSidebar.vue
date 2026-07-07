@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import Icon from './Icon.vue'
 import Dot from './Dot.vue'
 import ConsoleIdentity from './ConsoleIdentity.vue'
@@ -11,8 +12,11 @@ import type { Project } from '@/types/api'
 import { useMe, isPlatformOperator, isSuperAdmin } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
+import { useScopedLink } from '@/composables/useScopedLink'
 
 const route = useRoute()
+const { scoped } = useScopedLink()
+const { t } = useI18n()
 
 // Projet en exergue (ADR 0032 §1 / réunion 30/06) : les 5 derniers projets affichés
 // directement sous l'entrée « projects ». La liste est déjà triée par récence côté
@@ -45,22 +49,22 @@ const visibleGroups = computed(() =>
   <aside class="sb" :class="{ open: navOpen }">
     <div class="sb-brand">
       <ConsoleIdentity />
-      <button class="sb-close" aria-label="fermer le menu" @click="closeNav">
+      <button class="sb-close" :aria-label="t('common.close')" @click="closeNav">
         <Icon name="close" :size="18" />
       </button>
     </div>
     <nav class="sb-nav">
       <div v-for="(g, gi) in visibleGroups" :key="gi" class="sb-group">
-        <div v-if="g.group" class="sb-group-label">{{ g.group }}</div>
+        <div v-if="g.group" class="sb-group-label">{{ t(g.group) }}</div>
         <template v-for="it in g.items" :key="it.path">
           <RouterLink
             class="sb-item"
             :class="{ on: route.meta.section === it.path }"
-            :to="it.path"
+            :to="scoped(it.path)"
             @click="closeNav"
           >
             <span class="ic"><Icon :name="it.icon" :size="15" /></span>
-            {{ it.label }}
+            {{ t(it.label) }}
             <span v-if="it.warn" class="warn-dot"><Dot tone="saffron" :size="7" /></span>
             <span v-else-if="it.count" class="count">{{ it.count }}</span>
           </RouterLink>
@@ -69,8 +73,8 @@ const visibleGroups = computed(() =>
             v-for="p in (it.path === '/projects' ? recentProjects : [])"
             :key="`p${p.id}`"
             class="sb-item sb-subitem"
-            :class="{ on: route.fullPath === `/projects/${p.id}` }"
-            :to="`/projects/${p.id}`"
+            :class="{ on: route.path.endsWith(`/projects/${p.id}`) }"
+            :to="scoped(`/projects/${p.id}`)"
             @click="closeNav"
           >
             <span class="ic"></span>{{ p.name }}
@@ -79,7 +83,7 @@ const visibleGroups = computed(() =>
       </div>
     </nav>
     <div class="sb-foot">
-      <div class="sb-mcp"><Dot tone="olive" :size="7" /> mcp connected</div>
+      <div class="sb-mcp"><Dot tone="olive" :size="7" /> {{ t('nav.mcpConnected') }}</div>
       <ConsoleUserMenu />
     </div>
   </aside>

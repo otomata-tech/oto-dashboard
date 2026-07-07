@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Dot from '@/components/console/Dot.vue'
@@ -22,12 +23,12 @@ import { toDayBars } from '@/lib/monitoring'
 import { humanize } from '@/lib/errors'
 
 type Variant = 'status' | 'activity'
-const VARIANT_LABEL: Record<Variant, string> = { status: 'status', activity: 'activity' }
 const explicitPref = localStorage.getItem('oto.overview') as Variant | null
 const variant = ref<Variant>(explicitPref || 'status')
 function setVariant(v: Variant) { variant.value = v; localStorage.setItem('oto.overview', v) }
 
 const router = useRouter()
+const { t } = useI18n()
 const { me } = useMe()
 
 const catalog = ref<ConnectorMeta[]>([])
@@ -79,17 +80,17 @@ const platformQuotas = computed(() =>
   keyProviders.value
     .map((c) => ({ c, p: me.value?.providers?.[c.name] }))
     .filter((x) => x.p?.mode === 'platform' && x.p.quota_daily)
-    .map((x) => ({ label: `${x.c.label} · platform pool`, used: x.p!.quota_used_today, total: x.p!.quota_daily! })),
+    .map((x) => ({ label: t('overview.quotas.poolSuffix', { label: x.c.label }), used: x.p!.quota_used_today, total: x.p!.quota_daily! })),
 )
 
 // ── onboarding (checklist réelle) ──
 const steps = computed(() => [
-  { done: true, t: 'connect a client', d: 'add mcp.oto.cx to claude desktop, cursor or any mcp client — auth runs over oauth.', act: null as [string, string] | null },
-  { done: userKeysCount.value > 0, t: 'add your first api key', d: 'paste a provider key (serper, hunter, …) so your tools can call out.', act: ['/connectors', 'add a key'] as [string, string] },
-  { done: !!google.value?.connected, t: 'link google workspace', d: 'unlock gmail, drive, sheets and the datastore.', act: ['/connectors', 'link google'] as [string, string] },
-  { done: hasDocs.value, t: 'build your knowledge base', d: 'capture reference pages in Documents — shared, sourced org knowledge your agents read every session.', act: ['/documents', 'open documents'] as [string, string] },
-  { done: doctrineExists.value, t: 'write your agent readme', d: 'injected at the start of every session: business context, crm rules, tone, guardrails.', act: ['/org', 'open the editor'] as [string, string] },
-  { done: me.value?.active_org != null, t: 'join an organization', d: 'share org keys so teammates inherit your setup.', act: ['/org', 'manage organization'] as [string, string] },
+  { done: true, t: t('overview.steps.connectClient.t'), d: t('overview.steps.connectClient.d'), act: null as [string, string] | null },
+  { done: userKeysCount.value > 0, t: t('overview.steps.firstKey.t'), d: t('overview.steps.firstKey.d'), act: ['/connectors', t('overview.steps.firstKey.act')] as [string, string] },
+  { done: !!google.value?.connected, t: t('overview.steps.google.t'), d: t('overview.steps.google.d'), act: ['/connectors', t('overview.steps.google.act')] as [string, string] },
+  { done: hasDocs.value, t: t('overview.steps.kb.t'), d: t('overview.steps.kb.d'), act: ['/documents', t('overview.steps.kb.act')] as [string, string] },
+  { done: doctrineExists.value, t: t('overview.steps.readme.t'), d: t('overview.steps.readme.d'), act: ['/org', t('overview.steps.readme.act')] as [string, string] },
+  { done: me.value?.active_org != null, t: t('overview.steps.org.t'), d: t('overview.steps.org.d'), act: ['/org', t('overview.steps.org.act')] as [string, string] },
 ])
 const doneCount = computed(() => steps.value.filter((s) => s.done).length)
 const nextStep = computed(() => steps.value.find((s) => !s.done))
@@ -118,31 +119,30 @@ onMounted(async () => {
     <div class="eyebrow-row" style="justify-content: space-between">
       <div style="display: flex; align-items: center; gap: 9px">
         <Dot tone="olive" :size="7" />
-        <span class="eyebrow">studio open · all systems nominal</span>
+        <span class="eyebrow">{{ t('overview.eyebrow') }}</span>
       </div>
       <div class="seg">
         <button v-for="v in (['status', 'activity'] as Variant[])" :key="v"
-          :class="{ on: variant === v }" @click="setVariant(v)">{{ VARIANT_LABEL[v] }}</button>
+          :class="{ on: variant === v }" @click="setVariant(v)">{{ t('overview.variant.' + v) }}</button>
       </div>
     </div>
 
     <!-- ── status ── -->
     <template v-if="variant === 'status'">
       <StateEmpty v-if="isEmpty">
-        <template #title>your console is <Squiggle>quiet</Squiggle>.</template>
-        no tools have run yet. connect a client, add a provider key, and your agents start
-        showing up here — calls, quotas, errors, the lot.
+        <template #title>{{ t('overview.empty.titlePre') }} <Squiggle>{{ t('overview.empty.titleWord') }}</Squiggle>.</template>
+        {{ t('overview.empty.body') }}
         <template #cta>
-          <Btn @click="router.push('/connectors')">Add a key</Btn>
-          <Btn kind="ghost" @click="router.push('/projects')">Open your projects</Btn>
+          <Btn @click="router.push('/connectors')">{{ t('overview.empty.addKey') }}</Btn>
+          <Btn kind="ghost" @click="router.push('/projects')">{{ t('overview.empty.openProjects') }}</Btn>
         </template>
       </StateEmpty>
       <template v-else>
         <div :class="summary ? 'grid4' : 'grid3'">
-          <Stat label="connectors live" :value="configuredCount" :unit="'/ ' + keyProviders.length" sub="api keys resolvable for your tools" />
-          <Stat label="sessions" :value="sessionsActive" unit="/ 2" sub="crunchbase · google" />
-          <Stat v-if="summary" label="calls · 7 days" :value="summary.total_calls.toLocaleString('en-US')" :spark="callsSpark" :sub="`${summary.error_count} errors · ${errRate}%`" />
-          <Stat label="active org" :value="me?.active_org_name ?? '—'" :sub="me?.active_org ? `you · ${me.org_role}` : 'no active org'" />
+          <Stat :label="t('overview.stat.connectorsLive')" :value="configuredCount" :unit="'/ ' + keyProviders.length" :sub="t('overview.stat.connectorsLiveSub')" />
+          <Stat :label="t('overview.stat.sessions')" :value="sessionsActive" unit="/ 2" :sub="t('overview.stat.sessionsSub')" />
+          <Stat v-if="summary" :label="t('overview.stat.calls7d')" :value="summary.total_calls.toLocaleString('en-US')" :spark="callsSpark" :sub="t('overview.stat.callsSub', { errors: summary.error_count, rate: errRate })" />
+          <Stat :label="t('overview.stat.activeOrg')" :value="me?.active_org_name ?? '—'" :sub="me?.active_org ? t('overview.stat.activeOrgYou', { role: me.org_role }) : t('overview.stat.activeOrgNone')" />
         </div>
         <ContextPreviewCard />
         <div class="grid23">
@@ -150,20 +150,20 @@ onMounted(async () => {
           <McpEndpointCard />
         </div>
         <InviteFriendCard v-if="me?.access?.status === 'active'" />
-        <ConsoleCard v-if="summary" title="calls · last 7 days" sub="terra segments are failures.">
+        <ConsoleCard v-if="summary" :title="t('overview.callsCard.title')" :sub="t('overview.callsCard.sub')">
           <template #actions>
-            <RouterLink class="linklike" to="/platform/monitoring">monitoring →</RouterLink>
+            <RouterLink class="linklike" to="/platform/monitoring">{{ t('overview.monitoring') }} →</RouterLink>
           </template>
           <CallsBarChart :days="bars" />
         </ConsoleCard>
         <div class="grid23">
-          <ConsoleCard v-if="platformQuotas.length" title="shared quotas" sub="platform keys you use, with today's burn.">
+          <ConsoleCard v-if="platformQuotas.length" :title="t('overview.quotas.title')" :sub="t('overview.quotas.sub')">
             <div style="display: flex; flex-direction: column; gap: 14px">
               <Quota v-for="q in platformQuotas" :key="q.label" :used="q.used" :total="q.total" :label="q.label" />
             </div>
           </ConsoleCard>
           <div v-else />
-          <ConsoleCard title="next step" :sub="`${doneCount} of ${steps.length} done — finish setting up.`">
+          <ConsoleCard :title="t('overview.nextStep.title')" :sub="t('overview.nextStep.sub', { done: doneCount, total: steps.length })">
             <div style="margin-bottom: 4px">
               <Quota :used="doneCount" :total="steps.length" label="" />
             </div>
@@ -177,7 +177,7 @@ onMounted(async () => {
                 </div>
               </div>
             </div>
-            <Btn v-else kind="mini" @click="router.push('/connectors')">Review setup →</Btn>
+            <Btn v-else kind="mini" @click="router.push('/connectors')">{{ t('overview.nextStep.review') }} →</Btn>
           </ConsoleCard>
         </div>
       </template>
@@ -185,33 +185,33 @@ onMounted(async () => {
 
     <!-- ── activity (admin: monitoring) ── -->
     <template v-else-if="variant === 'activity'">
-      <ConsoleCard v-if="!summary" title="activity">
+      <ConsoleCard v-if="!summary" :title="t('overview.activity.title')">
         <div class="helptext">
-          aggregate activity is a platform-admin view. see your own tool calls under
-          <RouterLink class="linklike" to="/activity">activity</RouterLink>.
+          {{ t('overview.activity.adminNotePre') }}
+          <RouterLink class="linklike" to="/activity">{{ t('overview.activity.adminNoteLink') }}</RouterLink>.
         </div>
       </ConsoleCard>
       <template v-else>
         <div class="grid3">
-          <Stat label="calls · 7 days" :value="summary.total_calls.toLocaleString('en-US')" :sub="`${summary.active_users} active users`" />
-          <Stat label="errors" :value="summary.error_count" :unit="errRate + '%'" tone="var(--color-terra-ink)" sub="across all callers" />
-          <Stat label="top tool" :value="summary.by_tool[0]?.tool_name ?? '—'" :sub="`${summary.by_tool[0]?.calls ?? 0} calls`" />
+          <Stat :label="t('overview.stat.calls7d')" :value="summary.total_calls.toLocaleString('en-US')" :sub="t('overview.stat.activeUsersSub', { n: summary.active_users })" />
+          <Stat :label="t('overview.stat.errors')" :value="summary.error_count" :unit="errRate + '%'" tone="var(--color-terra-ink)" :sub="t('overview.stat.errorsSub')" />
+          <Stat :label="t('overview.stat.topTool')" :value="summary.by_tool[0]?.tool_name ?? '—'" :sub="t('overview.stat.topToolSub', { n: summary.by_tool[0]?.calls ?? 0 })" />
         </div>
-        <ConsoleCard title="calls · last 7 days" sub="terra segments are failures.">
+        <ConsoleCard :title="t('overview.callsCard.title')" :sub="t('overview.callsCard.sub')">
           <CallsBarChart :days="bars" />
         </ConsoleCard>
         <div class="grid23">
-          <ConsoleCard title="recent · top tools" flush>
+          <ConsoleCard :title="t('overview.activity.recentTopTools')" flush>
             <template #actions>
-              <RouterLink class="linklike" to="/platform/monitoring">monitoring →</RouterLink>
+              <RouterLink class="linklike" to="/platform/monitoring">{{ t('overview.monitoring') }} →</RouterLink>
             </template>
             <table class="tbl">
               <tbody>
-                <tr v-for="t in summary.by_tool.slice(0, 7)" :key="t.tool_name">
-                  <td style="width: 18px"><Dot :tone="t.errors ? 'terra' : 'olive'" :size="7" /></td>
-                  <td><code class="mono">{{ t.tool_name }}</code></td>
-                  <td class="num dim">{{ t.calls }} calls</td>
-                  <td class="num dim">{{ t.errors }} err</td>
+                <tr v-for="row in summary.by_tool.slice(0, 7)" :key="row.tool_name">
+                  <td style="width: 18px"><Dot :tone="row.errors ? 'terra' : 'olive'" :size="7" /></td>
+                  <td><code class="mono">{{ row.tool_name }}</code></td>
+                  <td class="num dim">{{ t('overview.activity.callsCell', { n: row.calls }) }}</td>
+                  <td class="num dim">{{ t('overview.activity.errCell', { n: row.errors }) }}</td>
                 </tr>
               </tbody>
             </table>

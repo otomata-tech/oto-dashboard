@@ -138,13 +138,17 @@ const router = createRouter({
   ],
 })
 
-// Garde : un lien org-scopé NU (sans préfixe `/o/:orgId`) hérite de l'org courante.
-// Au tout premier chargement (org courante inconnue), on laisse passer la version nue
-// → le backend rend la maison, et ConsoleLayout canonicalise l'URL une fois `me` chargé.
-router.beforeEach((to) => {
+// Garde : un lien org-scopé NU (sans préfixe `/o/:orgId`) hérite du contexte de l'URL
+// D'OÙ L'ON PART (`from.params`) — pas d'un état module mutable, qui se perd dès qu'on
+// visite une page non-org. Ainsi un `router.push('/connectors')` ou un lien nu cliqué
+// depuis `/o/81/…` reste dans l'org 81. Repli sur `currentViewOrg()` (seed URL au boot)
+// quand `from` n'a pas encore de contexte (navigation programmatique initiale). Contexte
+// inconnu ⇒ on laisse passer la version nue (le backend rend la maison).
+router.beforeEach((to, from) => {
+  const curOrg = (typeof from.params.orgId === 'string' ? from.params.orgId : null) ?? currentViewOrg()
+  const curGroup = (typeof from.params.groupId === 'string' ? from.params.groupId : null) ?? currentViewGroup()
   const redirect = consultRedirectPath(
-    to.path, Boolean(to.meta.orgScoped), to.params.orgId != null,
-    currentViewOrg(), currentViewGroup(),
+    to.path, Boolean(to.meta.orgScoped), to.params.orgId != null, curOrg, curGroup,
   )
   return redirect ? { path: redirect, query: to.query, hash: to.hash } : true
 })

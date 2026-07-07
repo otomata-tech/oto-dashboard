@@ -4,6 +4,7 @@ import './assets/console.css'
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
+import { i18n } from './lib/i18n'
 import { useAuth } from './composables/useAuth'
 import { initAnalytics, capturePageview } from './lib/analytics'
 import { initSentry } from './lib/sentry'
@@ -30,6 +31,7 @@ void (async () => {
   // Error tracking front (Sentry) — no-op si VITE_SENTRY_DSN absent. Tôt, pour
   // capturer aussi les erreurs au montage.
   initSentry(app)
+  app.use(i18n)
   app.use(router)
   app.mount('#app')
 })()

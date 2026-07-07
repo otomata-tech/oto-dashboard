@@ -7,7 +7,7 @@ import type {
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
-  InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
+  InstructionVersion, LibraryEntry, LibraryDoctrine, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
   ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
@@ -21,6 +21,8 @@ const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
 
 // ── identité ──
 export const getMe = () => api<Me>('/api/me')
+export const putLocale = (locale: Locale) =>
+  api<{ locale: Locale }>('/api/me/locale', { method: 'PUT', ...j({ locale }) })
 export const uploadAvatar = (file: File) =>
   apiUpload<{ ok: boolean; avatar_url: string }>('/api/me/avatar', file)
 export const deleteAvatar = () => api('/api/me/avatar', { method: 'DELETE' })

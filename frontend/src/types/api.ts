@@ -179,12 +179,17 @@ export interface ProviderStatus {
   identity_label?: string | null
 }
 
+// Langue de l'UI (i18n EN/FR). Défini ici pour que `lib/i18n.ts` l'importe sans
+// créer un cycle types→lib.
+export type Locale = 'en' | 'fr'
+
 export interface Me {
   sub: string
   email: string | null
   name: string | null
   avatar_url: string | null
   role: Role
+  locale?: Locale | null             // préférence de langue du compte (i18n) ; absent/null = non réglée
   active_org: number | null          // org EFFECTIVE affichée = consultation (view-as) ?? maison
   active_org_name: string | null
   active_org_logo_url: string | null

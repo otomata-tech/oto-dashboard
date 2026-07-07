@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import Icon from './Icon.vue'
 import OtoMark from './OtoMark.vue'
 import type { MarkState } from '@/lib/mark'
@@ -8,8 +9,11 @@ import { PAGE_META } from '@/lib/consoleNav'
 import { useMe } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
+import { useScopedLink } from '@/composables/useScopedLink'
 
 const route = useRoute()
+const { t } = useI18n()
+const { scoped } = useScopedLink()
 const { me, error } = useMe()
 const { toggleNav } = useNav()
 // `level` est dérivé de la route — il pilote encore le bandeau de gouvernance
@@ -20,23 +24,24 @@ const { level } = useScope()
 // chargement du profil (boot), elle passe en `think` (« réfléchit »).
 const markState = computed<MarkState>(() => (!me.value && !error.value ? 'think' : 'static'))
 
+// `title`/`crumb` sont des clés i18n (cf. consoleNav) — résolues par `t()` au rendu.
 const meta = computed(() =>
   route.meta.detail === 'admin-user'
-    ? { title: 'user fiche', crumb: 'plateforme' }
+    ? { title: 'pageMeta.adminUser.title', crumb: 'pageMeta.adminUser.crumb' }
     : PAGE_META[String(route.meta.section)] ?? PAGE_META['/overview']!)
 </script>
 
 <template>
   <header class="topbar">
-    <button class="nav-toggle" aria-label="ouvrir le menu" @click="toggleNav">
+    <button class="nav-toggle" :aria-label="t('topbar.openMenu')" @click="toggleNav">
       <Icon name="menu" :size="18" />
     </button>
-    <RouterLink to="/overview" class="oto-brand" aria-label="Oto · accueil">
+    <RouterLink :to="scoped('/overview')" class="oto-brand" :aria-label="t('topbar.home')">
       <OtoMark variant="mono" :state="markState" :size="26" />
     </RouterLink>
     <div class="topbar-title">
-      <h1>{{ meta.title }}</h1>
-      <span class="crumb">{{ meta.crumb }}</span>
+      <h1>{{ t(meta.title) }}</h1>
+      <span class="crumb">{{ t(meta.crumb) }}</span>
     </div>
   </header>
 
@@ -45,7 +50,7 @@ const meta = computed(() =>
        l'en-tête d'identité (ConsoleIdentity) — le répéter ici était redondant. -->
   <div v-if="me && level === 'platform'" class="gov-banner platform">
     <Icon name="shield" :size="13" />
-    administration plateforme — tes actions touchent <strong>toute la plateforme</strong>
+    <span>{{ t('topbar.platformBannerPre') }} <strong>{{ t('topbar.platformBannerStrong') }}</strong></span>
   </div>
 </template>
 

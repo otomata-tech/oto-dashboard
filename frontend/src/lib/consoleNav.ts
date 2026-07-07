@@ -30,23 +30,26 @@ export interface NavGroup {
   items: NavItem[]
 }
 
+// NB : `label`/`group`/`title`/`crumb` portent des **clés i18n** (résolues via `t()`
+// à l'affichage dans ConsoleSidebar/ConsoleTopbar, réactif au changement de locale) —
+// pas du texte. Le `path` reste l'identité brute (routage/surlignage), jamais traduit.
 export const NAV: NavGroup[] = [
   // ── Mon espace : consommation, niveau utilisateur (racine) ─────────────────
   { group: null, level: 'work', items: [
-    { path: '/overview', label: 'overview', icon: 'home' },
-    { path: '/context', label: 'context', icon: 'bolt' },
+    { path: '/overview', label: 'nav.overview', icon: 'home' },
+    { path: '/context', label: 'nav.context', icon: 'bolt' },
   ]},
-  { group: 'workspace', level: 'work', items: [
-    { path: '/projects', label: 'projects', icon: 'home' },
-    { path: '/connectors', label: 'connectors', icon: 'plug' },
-    { path: '/procedures', label: 'procédures', icon: 'doc' },
+  { group: 'nav.section.workspace', level: 'work', items: [
+    { path: '/projects', label: 'nav.projects', icon: 'home' },
+    { path: '/connectors', label: 'nav.connectors', icon: 'plug' },
+    { path: '/procedures', label: 'nav.procedures', icon: 'doc' },
   ]},
-  { group: 'memory', level: 'work', items: [
-    { path: '/data', label: 'données', icon: 'db' },
+  { group: 'nav.section.memory', level: 'work', items: [
+    { path: '/data', label: 'nav.data', icon: 'db' },
     // « documents » = RACCOURCI vers le projet KB de l'org (oto-dashboard#37 : la base
     // de connaissance est un projet, ses pages SONT des documents — plus d'entité à part).
     // /documents résout oto_kb et redirige vers /projects/:id (DocumentsView).
-    { path: '/documents', label: 'documents', icon: 'book' },
+    { path: '/documents', label: 'nav.documents', icon: 'book' },
     // memento masqué (2026-07-02) : on privilégie « documents » comme surface de
     // connaissance. Vue MementoView + endpoints /api/memento/* conservés en sommeil
     // (browse réactivable en réajoutant cette entrée + le master connector_activation).
@@ -55,28 +58,28 @@ export const NAV: NavGroup[] = [
   // sidebar : ils vivent dans le menu profil du pied (ConsoleUserMenu). Leurs routes
   // sont déclarées explicitement dans le routeur (elles ne dérivent plus de NAV).
   // ── Gérer mon groupe : agir SUR le groupe actif (chef / org_admin) ─────────
-  { group: 'group', level: 'group', items: [
-    { path: '/group', label: 'members & keys', icon: 'users' },
+  { group: 'nav.section.group', level: 'group', items: [
+    { path: '/group', label: 'nav.membersKeys', icon: 'users' },
   ]},
   // ── Gérer mon org : agir SUR l'organisation active ─────────────────────────
-  { group: 'organization', level: 'org', items: [
-    { path: '/org/context', label: 'context', icon: 'bolt' },
-    { path: '/org', label: 'members & secrets', icon: 'users' },
-    { path: '/org/connectors', label: 'connectors', icon: 'plug' },
-    { path: '/org/teams', label: 'teams', icon: 'users' },
-    { path: '/org/billing', label: 'abonnement', icon: 'card' },
+  { group: 'nav.section.organization', level: 'org', items: [
+    { path: '/org/context', label: 'nav.context', icon: 'bolt' },
+    { path: '/org', label: 'nav.membersSecrets', icon: 'users' },
+    { path: '/org/connectors', label: 'nav.connectors', icon: 'plug' },
+    { path: '/org/teams', label: 'nav.teams', icon: 'users' },
+    { path: '/org/billing', label: 'nav.billing', icon: 'card' },
   ]},
   // ── Gérer la plateforme : réservé opérateur plateforme ─────────────────────
-  { group: 'platform · admin', level: 'platform', items: [
-    { path: '/platform/context', label: 'context', icon: 'bolt' },
-    { path: '/platform/monitoring', label: 'monitoring', icon: 'chart' },
-    { path: '/platform/usage', label: 'usage & déroulés', icon: 'pulse' },
-    { path: '/platform/users', label: 'users & grants', icon: 'shield' },
-    { path: '/platform/access', label: 'alpha access', icon: 'shield' },
-    { path: '/platform/orgs', label: 'orgs', icon: 'building' },
-    { path: '/platform/objects', label: 'objects', icon: 'db' },
-    { path: '/platform/connectors', label: 'connectors & keys', icon: 'plug' },
-    { path: '/platform/instructions', label: 'server instructions', icon: 'doc' },
+  { group: 'nav.section.platformAdmin', level: 'platform', items: [
+    { path: '/platform/context', label: 'nav.context', icon: 'bolt' },
+    { path: '/platform/monitoring', label: 'nav.monitoring', icon: 'chart' },
+    { path: '/platform/usage', label: 'nav.usage', icon: 'pulse' },
+    { path: '/platform/users', label: 'nav.usersGrants', icon: 'shield' },
+    { path: '/platform/access', label: 'nav.alphaAccess', icon: 'shield' },
+    { path: '/platform/orgs', label: 'nav.orgs', icon: 'building' },
+    { path: '/platform/objects', label: 'nav.objects', icon: 'db' },
+    { path: '/platform/connectors', label: 'nav.connectorsKeys', icon: 'plug' },
+    { path: '/platform/instructions', label: 'nav.serverInstructions', icon: 'doc' },
   ]},
 ]
 
@@ -88,27 +91,28 @@ export function levelOf(path: string): NavLevel {
   return groupOfPath(path)?.level ?? 'work'
 }
 
+// Valeurs = clés i18n (cf. NAV). Résolues par `t()` dans ConsoleTopbar.
 export const PAGE_META: Record<string, { title: string; crumb: string }> = {
-  '/overview': { title: 'overview', crumb: 'app.oto.ninja' },
-  '/context': { title: 'ce que voit ton agent', crumb: 'mon espace' },
-  '/connectors': { title: 'connectors', crumb: 'workspace' },
-  '/procedures': { title: 'procédures', crumb: 'workspace' },
-  '/data': { title: 'données', crumb: 'memory' },
-  '/documents': { title: 'documents', crumb: 'memory' },
-  '/account': { title: 'manage account', crumb: 'account' },
-  '/activity': { title: 'activity', crumb: 'account' },
-  '/group': { title: 'mon groupe', crumb: 'gérer mon groupe' },
-  '/org/context': { title: 'ce que voit l\'agent · org', crumb: 'gérer mon org' },
-  '/org': { title: 'organization', crumb: 'gérer mon org' },
-  '/org/connectors': { title: 'org connectors', crumb: 'gérer mon org' },
-  '/org/teams': { title: 'teams', crumb: 'gérer mon org' },
-  '/platform/context': { title: 'ce que voit l\'agent · plateforme', crumb: 'plateforme' },
-  '/platform/monitoring': { title: 'mcp monitoring', crumb: 'plateforme' },
-  '/platform/usage': { title: 'usage & déroulés', crumb: 'plateforme' },
-  '/platform/users': { title: 'users & grants', crumb: 'plateforme' },
-  '/platform/access': { title: 'alpha access', crumb: 'plateforme' },
-  '/platform/orgs': { title: 'organizations', crumb: 'plateforme' },
-  '/platform/objects': { title: 'owned objects', crumb: 'plateforme' },
-  '/platform/connectors': { title: 'platform connectors', crumb: 'plateforme' },
-  '/platform/instructions': { title: 'server instructions', crumb: 'plateforme' },
+  '/overview': { title: 'pageMeta.overview.title', crumb: 'pageMeta.overview.crumb' },
+  '/context': { title: 'pageMeta.context.title', crumb: 'pageMeta.context.crumb' },
+  '/connectors': { title: 'pageMeta.connectors.title', crumb: 'pageMeta.connectors.crumb' },
+  '/procedures': { title: 'pageMeta.procedures.title', crumb: 'pageMeta.procedures.crumb' },
+  '/data': { title: 'pageMeta.data.title', crumb: 'pageMeta.data.crumb' },
+  '/documents': { title: 'pageMeta.documents.title', crumb: 'pageMeta.documents.crumb' },
+  '/account': { title: 'pageMeta.account.title', crumb: 'pageMeta.account.crumb' },
+  '/activity': { title: 'pageMeta.activity.title', crumb: 'pageMeta.activity.crumb' },
+  '/group': { title: 'pageMeta.group.title', crumb: 'pageMeta.group.crumb' },
+  '/org/context': { title: 'pageMeta.orgContext.title', crumb: 'pageMeta.orgContext.crumb' },
+  '/org': { title: 'pageMeta.org.title', crumb: 'pageMeta.org.crumb' },
+  '/org/connectors': { title: 'pageMeta.orgConnectors.title', crumb: 'pageMeta.orgConnectors.crumb' },
+  '/org/teams': { title: 'pageMeta.orgTeams.title', crumb: 'pageMeta.orgTeams.crumb' },
+  '/platform/context': { title: 'pageMeta.platformContext.title', crumb: 'pageMeta.platformContext.crumb' },
+  '/platform/monitoring': { title: 'pageMeta.platformMonitoring.title', crumb: 'pageMeta.platformMonitoring.crumb' },
+  '/platform/usage': { title: 'pageMeta.platformUsage.title', crumb: 'pageMeta.platformUsage.crumb' },
+  '/platform/users': { title: 'pageMeta.platformUsers.title', crumb: 'pageMeta.platformUsers.crumb' },
+  '/platform/access': { title: 'pageMeta.platformAccess.title', crumb: 'pageMeta.platformAccess.crumb' },
+  '/platform/orgs': { title: 'pageMeta.platformOrgs.title', crumb: 'pageMeta.platformOrgs.crumb' },
+  '/platform/objects': { title: 'pageMeta.platformObjects.title', crumb: 'pageMeta.platformObjects.crumb' },
+  '/platform/connectors': { title: 'pageMeta.platformConnectors.title', crumb: 'pageMeta.platformConnectors.crumb' },
+  '/platform/instructions': { title: 'pageMeta.platformInstructions.title', crumb: 'pageMeta.platformInstructions.crumb' },
 }
