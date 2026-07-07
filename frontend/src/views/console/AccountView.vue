@@ -18,6 +18,7 @@ import { useAuth } from '@/composables/useAuth'
 import { uploadAvatar, deleteAvatar, getAgentReadme, setAgentReadme } from '@/api/console'
 import { humanize } from '@/lib/errors'
 import { validateImage, IMAGE_ACCEPT_ATTR } from '@/lib/imageUpload'
+import { analyticsEnabled, consent, grantConsent, denyConsent } from '@/lib/analytics'
 
 const { t } = useI18n()
 const { toast } = useToast()
@@ -28,6 +29,10 @@ const { logout } = useAuth()
 const busy = ref(false)
 
 const displayName = computed(() => me.value?.name || me.value?.email || '')
+// Consentement analytics (RGPD) : n'a de sens que si PostHog est configuré. `granted`
+// = capture active ; tout autre état (denied/null) = rien collecté. Retrait à tout moment.
+const analyticsOn = analyticsEnabled()
+const analyticsGranted = computed(() => consent.value === 'granted')
 // Rôle plateforme lisible (3 paliers, cf. useMe). Pas le rôle d'org (porté par l'identité).
 const roleLabel = computed(() =>
   me.value?.role === 'super_admin' ? t('account.role.super')
@@ -112,6 +117,26 @@ async function remove() {
     </ConsoleCard>
 
     <SecurityCard />
+
+    <!-- Confidentialité : retrait/révision du consentement analytics (RGPD), déplacé
+         ici depuis le bouton flottant. Caché si PostHog n'est pas configuré. -->
+    <ConsoleCard v-if="analyticsOn" :title="t('account.privacyTitle')" :sub="t('account.privacySub')">
+      <div class="acc-rows">
+        <div class="acc-row">
+          <span class="acc-k">{{ t('account.privacyState') }}</span>
+          <span class="acc-v">
+            <Tag :tone="analyticsGranted ? 'olive' : 'ink'">
+              {{ analyticsGranted ? t('account.privacyGranted') : t('account.privacyDenied') }}
+            </Tag>
+          </span>
+        </div>
+      </div>
+      <p class="acc-note">{{ analyticsGranted ? t('account.privacyOn') : t('account.privacyOff') }}</p>
+      <div class="profile-actions">
+        <Btn v-if="analyticsGranted" @click="denyConsent">{{ t('account.privacyDisable') }}</Btn>
+        <Btn v-else @click="grantConsent">{{ t('account.privacyEnable') }}</Btn>
+      </div>
+    </ConsoleCard>
 
     <!-- Niveau USER du concept agent_readme : injecté à chaque session, après les
          readme plateforme / org / équipe (cumulable). -->
