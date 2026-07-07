@@ -747,6 +747,21 @@ export const subscribeBilling = (body: {
 // Polle l'état après retour de la page hébergée (Stancer sans webhooks).
 export const confirmBilling = () => api<BillingStatus>('/api/me/billing/confirm', { method: 'POST' })
 export const cancelBilling = () => api<BillingStatus>('/api/me/billing/cancel', { method: 'POST' })
+
+// ── Documents légaux (acceptation CGU/CGV/DPA) — journal côté oto-mcp ──
+export interface LegalDocState {
+  slug: string; version: string; url: string; label: string
+  accepted: boolean; accepted_version: string | null; accepted_at: string | null
+}
+export interface LegalStatus {
+  documents: LegalDocState[]
+  contexts: Record<string, { required: string[]; outstanding: string[] }>
+}
+export const getLegal = () => api<LegalStatus>('/api/me/legal')
+// context = 'access' (inscription/CGU) | 'purchase' (achat) ; enregistre l'acceptation
+// des documents requis du contexte à leur version courante.
+export const acceptLegal = (context: string) =>
+  api<LegalStatus>('/api/me/legal/accept', { method: 'POST', ...j({ context }) })
 // Admin (super_admin) : forcer un plan sur une org sans paiement (plan=null retire).
 export const adminSetPlan = (orgId: number, plan: string | null) =>
   api<BillingStatus>(`/api/admin/orgs/${orgId}/plan`, { method: 'POST', ...j({ plan }) })

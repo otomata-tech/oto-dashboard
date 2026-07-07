@@ -9,6 +9,7 @@ import StateError from '@/components/console/StateError.vue'
 import SessionExpired from '@/components/console/SessionExpired.vue'
 import SkeletonOverview from '@/components/console/SkeletonOverview.vue'
 import LoginGate from './LoginGate.vue'
+import LegalGate from '@/components/console/LegalGate.vue'
 import { useToast } from '@/composables/useToast'
 import { useAuth } from '@/composables/useAuth'
 import { useMe } from '@/composables/useMe'
@@ -98,6 +99,7 @@ const viewKey = computed(() => {
   <LoginGate v-if="!isAuthenticated" />
   <SessionExpired v-else-if="isStale" />
   <div v-else class="console-root">
+    <LegalGate v-if="me" />
     <div class="shell" :class="{ 'nav-open': navOpen }">
       <ConsoleSidebar />
       <div class="nav-backdrop" @click="closeNav" />
