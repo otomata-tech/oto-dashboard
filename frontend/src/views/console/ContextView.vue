@@ -126,7 +126,7 @@ onMounted(load)
 
     <template v-else-if="ctx">
       <!-- Réglage org maison — n'a de sens qu'avec un CHOIX d'org (≥2). Sinon masqué. -->
-      <ConsoleCard v-if="orgs.length > 1" title="org par défaut" flush
+      <ConsoleCard v-if="orgs.length > 1" title="org par défaut"
         sub="l'org sous laquelle ton agent agit par défaut dans une nouvelle conversation. seul réglage ici qui change ce que FAIT ton Claude, pas juste l'affichage.">
         <template #actions>
           <Tag :tone="me?.home_org ? 'olive' : undefined">{{ me?.home_org_name || 'aucune · généraliste' }}</Tag>
@@ -151,7 +151,7 @@ onMounted(load)
       </div>
 
       <!-- Hérité org / équipe : n'apparaît QUE s'il y a une prose d'org ou une équipe -->
-      <ConsoleCard v-if="hasOrgReadme || doctrine?.group" title="hérité de ton org / ton équipe" flush
+      <ConsoleCard v-if="hasOrgReadme || doctrine?.group" title="hérité de ton org / ton équipe"
         sub="la prose de ton org et de ton équipe, injectée avant la tienne — éditée par un admin, pas ici.">
         <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
           <Tag v-if="hasOrgReadme" tone="olive">note d'org : {{ doctrine?.org }}</Tag>
@@ -246,8 +246,9 @@ onMounted(load)
   border-radius: 8px; padding: 12px 14px; color: var(--color-ink-soft, #4a463d);
 }
 
-/* En-têtes de section : donnent la colonne vertébrale (injecté / à la demande / outils). */
-.sec { margin: 26px 0 10px; }
+/* En-têtes de section : donnent la colonne vertébrale (injecté / à la demande / outils).
+   content-inner porte déjà gap:16px → marge-haut seule (sépare d'au-dessus, gap normal dessous). */
+.sec { margin: 12px 0 0; }
 .sec-t { font-weight: 700; font-size: 14.5px; color: var(--color-ink); letter-spacing: -0.01em; }
 .sec-s { font-size: 12.5px; color: var(--color-mute); line-height: 1.55; margin-top: 3px; max-width: 640px; }
 .sec-s code { font-family: var(--font-mono); font-size: 11.5px; color: var(--color-saffron-ink); }

@@ -27,8 +27,9 @@ const loaded = ref(false)
 const error = ref<string | null>(null)
 const busy = ref(false)
 const confirming = ref<string | null>(null)     // slug en attente de confirmation de suppression
-const openPlatform = ref<Set<string>>(new Set()) // corps plateforme dépliés (lecture seule)
-const platformBody = ref<Record<string, string>>({})
+const openInherited = ref<Set<string>>(new Set()) // corps hérités dépliés (lecture seule)
+const inheritedBody = ref<Record<string, string>>({})
+const SCOPE_LABEL: Record<string, string> = { platform: 'plateforme', org: 'org', user: 'perso' }
 
 // Éditeur inline : slug ciblé ('' = création), + brouillon. `creating` = slug libre.
 const editing = ref<string | null>(null)
@@ -36,7 +37,9 @@ const creating = ref(false)
 const draft = ref({ slug: '', title: '', description: '', body_md: '' })
 
 const mine = computed(() => guides.value.filter((g) => g.scope === props.scope))
-const platform = computed(() => guides.value.filter((g) => g.scope === 'platform'))
+// hérités (lecture seule) = tout ce qui n'est pas du scope éditable de la carte :
+// carte USER → plateforme + org ; carte ORG → plateforme. L'agent les charge aussi.
+const inherited = computed(() => guides.value.filter((g) => g.scope !== props.scope))
 
 async function load() {
   try {
@@ -96,12 +99,14 @@ async function remove(g: Guide) {
   finally { busy.value = false }
 }
 
-async function togglePlatform(g: Guide) {
-  const s = new Set(openPlatform.value)
-  if (s.has(g.slug)) { s.delete(g.slug); openPlatform.value = s; return }
-  s.add(g.slug); openPlatform.value = s
-  if (platformBody.value[g.slug] === undefined) {
-    try { platformBody.value = { ...platformBody.value, [g.slug]: (await getGuide('platform', g.slug)).body_md || '' } }
+function inheritedKey(g: Guide) { return `${g.scope}:${g.slug}` }
+async function toggleInherited(g: Guide) {
+  const k = inheritedKey(g)
+  const s = new Set(openInherited.value)
+  if (s.has(k)) { s.delete(k); openInherited.value = s; return }
+  s.add(k); openInherited.value = s
+  if (inheritedBody.value[k] === undefined) {
+    try { inheritedBody.value = { ...inheritedBody.value, [k]: (await getGuide(g.scope, g.slug)).body_md || '' } }
     catch (e) { toast(humanize(e)) }
   }
 }
@@ -157,17 +162,19 @@ async function togglePlatform(g: Guide) {
         {{ canEdit ? '' : "seul un admin d'org peut en créer." }}
       </p>
 
-      <!-- Guides plateforme (référence, lecture seule) -->
-      <div v-if="platform.length" class="gd-platform">
-        <div class="gd-plat-head">guides de la plateforme · lecture seule</div>
-        <div v-for="g in platform" :key="g.slug" class="gd-plat-row">
-          <div class="gd-plat-line" @click="togglePlatform(g)">
-            <Icon name="chevd" :size="12" class="gd-chev" :class="{ open: openPlatform.has(g.slug) }" />
+      <!-- Guides hérités (plateforme + org pour la carte user), référence lecture seule.
+           L'agent les charge aussi à la demande — tu ne les édites pas ici. -->
+      <div v-if="inherited.length" class="gd-platform">
+        <div class="gd-plat-head">hérités · lecture seule · chargés aussi par ton agent</div>
+        <div v-for="g in inherited" :key="inheritedKey(g)" class="gd-plat-row">
+          <div class="gd-plat-line" @click="toggleInherited(g)">
+            <Icon name="chevd" :size="12" class="gd-chev" :class="{ open: openInherited.has(inheritedKey(g)) }" />
             <span class="gd-title">{{ g.title || g.slug }}</span>
             <code class="gd-slug">{{ g.slug }}</code>
+            <span class="gd-plat-scope">{{ SCOPE_LABEL[g.scope] || g.scope }}</span>
             <span v-if="g.description" class="dim-note gd-plat-desc">{{ g.description }}</span>
           </div>
-          <pre v-if="openPlatform.has(g.slug)" class="gd-plat-body">{{ platformBody[g.slug] ?? '…' }}</pre>
+          <pre v-if="openInherited.has(inheritedKey(g))" class="gd-plat-body">{{ inheritedBody[inheritedKey(g)] ?? '…' }}</pre>
         </div>
       </div>
     </template>
@@ -201,6 +208,12 @@ async function togglePlatform(g: Guide) {
 .gd-plat-head {
   font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--color-mute); margin-bottom: 6px;
+}
+.gd-plat-scope {
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--color-cobalt-ink, #35507a);
+  background: var(--color-cobalt-soft, #e6ecf5); border-radius: var(--radius-pill, 999px);
+  padding: 1px 7px; flex: none;
 }
 .gd-plat-line { display: flex; align-items: center; gap: 8px; padding: 6px 0; cursor: pointer; }
 .gd-plat-desc { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
