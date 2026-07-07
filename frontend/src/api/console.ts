@@ -7,7 +7,7 @@ import type {
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
-  InstructionVersion, LibraryEntry, LibraryDoctrine, Me, MonitoringSummary,
+  InstructionVersion, LibraryEntry, LibraryDoctrine, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
   ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
@@ -21,6 +21,8 @@ const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
 
 // ── identité ──
 export const getMe = () => api<Me>('/api/me')
+export const putLocale = (locale: Locale) =>
+  api<{ locale: Locale }>('/api/me/locale', { method: 'PUT', ...j({ locale }) })
 export const uploadAvatar = (file: File) =>
   apiUpload<{ ok: boolean; avatar_url: string }>('/api/me/avatar', file)
 export const deleteAvatar = () => api('/api/me/avatar', { method: 'DELETE' })
@@ -535,9 +537,9 @@ export const setOrgMemberRole = (id: number, sub: string, role: string) =>
 export const removeOrgMember = (id: number, sub: string) =>
   api(`/api/orgs/${id}/members/${sub}`, { method: 'DELETE' })
 // Pose/rotation de la clé partagée d'org (org_admin, self-service, ADR 0022).
-export const setOrgSecret = (id: number, provider: string, api_key: string, base_url?: string, fields?: Record<string, string>) =>
+export const setOrgSecret = (id: number, provider: string, api_key: string, base_url?: string, fields?: Record<string, string>, api_version?: string) =>
   api<{ ok: boolean; org_id: number; provider: string }>(
-    `/api/orgs/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url, fields }) })
+    `/api/orgs/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url, fields, api_version }) })
 export const deleteOrgSecret = (id: number, provider: string) =>
   api(`/api/orgs/${id}/secrets/${provider}`, { method: 'DELETE' })
 

@@ -17,7 +17,7 @@ import FormDialog from '@/components/console/FormDialog.vue'
 import CredentialFieldsDialog from '@/components/console/CredentialFieldsDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
-import { useFormDialog } from '@/composables/useFormDialog'
+import { useFormDialog, type FormDialogField } from '@/composables/useFormDialog'
 import { useMe } from '@/composables/useMe'
 import {
   getOrgConnectorActivation, setOrgConnectorActivation, clearOrgConnectorActivation,
@@ -128,14 +128,30 @@ function setKey(r: OrgConnectorActivation) {
     credOpen.value = true
     return
   }
+  // Unipile : la version d'API suit la CLÉ (v1/v2 « selon la BYO ») — une clé v2
+  // (compte Unipile v2 dédié) marque le credential v2 ; sinon v1 (legacy).
+  const isUnipile = r.connector === 'unipile'
+  const fields: FormDialogField[] = [
+    { key: 'api_key', label: 'clé api', type: 'password', required: true, placeholder: `colle la clé ${r.label}` },
+  ]
+  if (isUnipile) fields.push({
+    key: 'api_version', label: 'version de l\'API', type: 'select', initial: 'v1',
+    options: [
+      { value: 'v1', label: 'v1 (legacy)' },
+      { value: 'v2', label: 'v2 (beta — clé/compte Unipile v2 dédiés)' },
+    ],
+  })
   openForm({
     title: `${r.label} — clé partagée d'org`,
     description: 'clé du compte de l\'org, héritée par tous les membres (cascade : clé perso > équipe > org > plateforme). stockée chiffrée.',
-    fields: [{ key: 'api_key', label: 'clé api', type: 'password', required: true, placeholder: `colle la clé ${r.label}` }],
+    fields,
     submitLabel: 'enregistrer',
     onConfirm: async (v) => {
-      try { await setOrgSecret(activeOrgId.value!, r.connector, v.api_key ?? ''); toast(`${r.label} : clé d'org enregistrée`); await load() }
-      catch (e) { toast(humanize(e)); throw e }
+      try {
+        await setOrgSecret(activeOrgId.value!, r.connector, v.api_key ?? '', undefined, undefined,
+                           isUnipile ? String(v.api_version || 'v1') : undefined)
+        toast(`${r.label} : clé d'org enregistrée`); await load()
+      } catch (e) { toast(humanize(e)); throw e }
     },
   })
 }
