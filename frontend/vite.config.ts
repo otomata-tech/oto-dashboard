@@ -32,6 +32,13 @@ export default defineConfig({
         ]
       : []),
   ],
+  // Feature flags vue-i18n (build esm-bundler) : on n'utilise que l'API Composition
+  // (legacy:false) → tree-shake l'API legacy et coupe le warning runtime du bundler.
+  define: {
+    __VUE_I18N_FULL_INSTALL__: true,
+    __VUE_I18N_LEGACY_API__: false,
+    __INTLIFY_PROD_DEVTOOLS__: false,
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

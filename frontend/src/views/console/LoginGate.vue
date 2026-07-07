@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuth } from '@/composables/useAuth'
 
+const { t } = useI18n()
 const { login } = useAuth()
 const route = useRoute()
 // Arrivée depuis « rejoindre la waitlist » (oto.ninja, ?join) → on enchaîne
@@ -35,26 +37,26 @@ onMounted(() => {
 
         <template v-if="join || otl">
           <div>
-            <div style="font-size: 18px; font-weight: 700; letter-spacing: -0.02em">{{ otl ? 'connexion à oto' : 'rejoindre oto' }}</div>
-            <div class="env" style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-faint); margin-top: 3px">{{ otl ? 'alpha · sur invitation' : 'alpha · accès anticipé' }}</div>
+            <div style="font-size: 18px; font-weight: 700; letter-spacing: -0.02em">{{ otl ? t('auth.login.titleConnect') : t('auth.login.titleJoin') }}</div>
+            <div class="env" style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-faint); margin-top: 3px">{{ otl ? t('auth.login.envInvite') : t('auth.login.envJoin') }}</div>
           </div>
           <p class="helptext" style="margin: 4px 0 6px">
-            {{ otl ? 'connexion en cours…' : 'redirection vers la création de compte…' }}
+            {{ otl ? t('auth.login.connecting') : t('auth.login.redirectingSignup') }}
           </p>
           <a href="#" @click.prevent="go" style="font-size: 13px; color: var(--color-mute); text-decoration: underline">
-            la redirection ne se lance pas ? {{ otl ? 'Se connecter' : 'Créer mon compte' }}
+            {{ t('auth.login.fallbackPrefix') }} {{ otl ? t('auth.login.signIn') : t('auth.login.createAccount') }}
           </a>
         </template>
 
         <template v-else>
           <div>
-            <div style="font-size: 18px; font-weight: 700; letter-spacing: -0.02em">oto console</div>
-            <div class="env" style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-faint); margin-top: 3px">app.oto.ninja</div>
+            <div style="font-size: 18px; font-weight: 700; letter-spacing: -0.02em">{{ t('auth.login.consoleTitle') }}</div>
+            <div class="env" style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-faint); margin-top: 3px">{{ t('auth.login.consoleEnv') }}</div>
           </div>
           <p class="helptext" style="margin: 4px 0 6px">
-            connectez-vous avec votre compte otomata pour gérer vos connecteurs, vos procédures et votre org.
+            {{ t('auth.login.consoleHelp') }}
           </p>
-          <button class="btn" @click="() => login()">Se connecter</button>
+          <button class="btn" @click="() => login()">{{ t('auth.login.signInBtn') }}</button>
         </template>
       </div>
     </section>

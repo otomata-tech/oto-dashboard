@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import Icon from './Icon.vue'
 import Dot from './Dot.vue'
 import ConsoleIdentity from './ConsoleIdentity.vue'
@@ -13,6 +14,7 @@ import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
 
 const route = useRoute()
+const { t } = useI18n()
 
 // Projet en exergue (ADR 0032 §1 / réunion 30/06) : les 5 derniers projets affichés
 // directement sous l'entrée « projects ». La liste est déjà triée par récence côté
@@ -37,11 +39,7 @@ const visibleGroups = computed(() =>
      .filter((g) => g.level !== 'platform' || isPlatformOperator(me.value))
      .map((g) => ({
        ...g,
-       items: g.items
-         .filter((it) => !it.super || isSuperAdmin(me.value))
-         // dark launch : un item gaté sur un feature flag ne sort que si le
-         // backend l'annonce (billing masqué en prod tant que le PSP dort).
-         .filter((it) => !it.feature || !!me.value?.features?.[it.feature]),
+       items: g.items.filter((it) => !it.super || isSuperAdmin(me.value)),
      })))
 </script>
 
@@ -49,13 +47,13 @@ const visibleGroups = computed(() =>
   <aside class="sb" :class="{ open: navOpen }">
     <div class="sb-brand">
       <ConsoleIdentity />
-      <button class="sb-close" aria-label="fermer le menu" @click="closeNav">
+      <button class="sb-close" :aria-label="t('common.close')" @click="closeNav">
         <Icon name="close" :size="18" />
       </button>
     </div>
     <nav class="sb-nav">
       <div v-for="(g, gi) in visibleGroups" :key="gi" class="sb-group">
-        <div v-if="g.group" class="sb-group-label">{{ g.group }}</div>
+        <div v-if="g.group" class="sb-group-label">{{ t(g.group) }}</div>
         <template v-for="it in g.items" :key="it.path">
           <RouterLink
             class="sb-item"
@@ -64,7 +62,7 @@ const visibleGroups = computed(() =>
             @click="closeNav"
           >
             <span class="ic"><Icon :name="it.icon" :size="15" /></span>
-            {{ it.label }}
+            {{ t(it.label) }}
             <span v-if="it.warn" class="warn-dot"><Dot tone="saffron" :size="7" /></span>
             <span v-else-if="it.count" class="count">{{ it.count }}</span>
           </RouterLink>
@@ -83,7 +81,7 @@ const visibleGroups = computed(() =>
       </div>
     </nav>
     <div class="sb-foot">
-      <div class="sb-mcp"><Dot tone="olive" :size="7" /> mcp connected</div>
+      <div class="sb-mcp"><Dot tone="olive" :size="7" /> {{ t('nav.mcpConnected') }}</div>
       <ConsoleUserMenu />
     </div>
   </aside>
