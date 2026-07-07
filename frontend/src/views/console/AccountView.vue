@@ -1,4 +1,7 @@
 <script setup lang="ts">
+// Hub « gérer mon compte » (/account) DÉCOUPÉ en onglets (`?tab=`, même patron que
+// /connectors et /procedures) : un seul groupe à la fois, plus un long scroll.
+//   compte · préférences · sécurité · ton agent · développeurs
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
@@ -6,6 +9,7 @@ import Btn from '@/components/console/Btn.vue'
 import Avatar from '@/components/console/Avatar.vue'
 import Tag from '@/components/console/Tag.vue'
 import Dropzone from '@/components/console/Dropzone.vue'
+import SubTabs, { type SubTab } from '@/components/console/SubTabs.vue'
 import AccountTokensCard from '@/components/console/AccountTokensCard.vue'
 import SecurityCard from '@/components/console/SecurityCard.vue'
 import AgentContextCard from '@/components/console/AgentContextCard.vue'
@@ -15,6 +19,7 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
 import { useAuth } from '@/composables/useAuth'
+import { useDeepLink } from '@/composables/useDeepLink'
 import { uploadAvatar, deleteAvatar, getAgentReadme, setAgentReadme } from '@/api/console'
 import { humanize } from '@/lib/errors'
 import { validateImage, IMAGE_ACCEPT_ATTR } from '@/lib/imageUpload'
@@ -37,6 +42,22 @@ const analyticsGranted = computed(() => consent.value === 'granted')
 const roleLabel = computed(() =>
   me.value?.role === 'super_admin' ? t('account.role.super')
     : me.value?.role === 'admin' ? t('account.role.admin') : t('account.role.member'))
+
+// ── onglets (déclarés une fois, libellés i18n réactifs) ──
+const tabs = computed<SubTab[]>(() => [
+  { key: 'account', label: t('account.section.account') },
+  { key: 'preferences', label: t('account.section.preferences') },
+  { key: 'security', label: t('account.section.security') },
+  { key: 'agent', label: t('account.section.agent') },
+  { key: 'developers', label: t('account.section.developers') },
+])
+const VALID = new Set(['account', 'preferences', 'security', 'agent', 'developers'])
+const dl = useDeepLink('tab', (v) => { tab.value = v && VALID.has(v) ? v : 'account' })
+const tab = ref(VALID.has(dl.read() ?? '') ? dl.read()! : 'account')
+function select(key: string) {
+  tab.value = key
+  dl.set(key === 'account' ? null : key) // onglet par défaut ⇒ URL propre
+}
 
 async function onDropFile(file: File) {
   try {
@@ -69,10 +90,10 @@ async function remove() {
 
 <template>
   <div class="content-inner narrow fadein">
-    <!-- ── compte : profil + connexion ── -->
-    <section class="acc-section">
-      <div class="eyebrow">{{ t('account.section.account') }}</div>
+    <SubTabs :tabs="tabs" :model-value="tab" @update:model-value="select" />
 
+    <!-- ── compte : profil + connexion & accès ── -->
+    <template v-if="tab === 'account'">
       <ConsoleCard :title="t('account.profileTitle')" :sub="t('account.profileSub')">
         <div class="profile-row">
           <Avatar :src="me?.avatar_url" :name="displayName" :size="72" />
@@ -113,64 +134,49 @@ async function remove() {
           <Btn icon="logout" @click="() => logout()">{{ t('common.signOut') }}</Btn>
         </div>
       </ConsoleCard>
-    </section>
+    </template>
 
     <!-- ── préférences : langue + confidentialité (analytics RGPD, si PostHog configuré) ── -->
-    <section class="acc-section">
-      <div class="eyebrow">{{ t('account.section.preferences') }}</div>
-      <ConsoleCard :title="t('account.prefsTitle')" :sub="t('account.prefsSub')">
-        <div class="acc-rows">
-          <div class="acc-row">
-            <span class="acc-k">{{ t('common.language') }}</span>
-            <span class="acc-v"><LocaleSwitch /></span>
-          </div>
-          <div v-if="analyticsOn" class="acc-row">
-            <span class="acc-k">{{ t('account.privacyState') }}</span>
-            <span class="acc-v acc-v-inline">
-              <Tag :tone="analyticsGranted ? 'olive' : 'ink'">
-                {{ analyticsGranted ? t('account.privacyGranted') : t('account.privacyDenied') }}
-              </Tag>
-              <Btn kind="ghost" @click="analyticsGranted ? denyConsent() : grantConsent()">
-                {{ analyticsGranted ? t('account.privacyDisable') : t('account.privacyEnable') }}
-              </Btn>
-            </span>
-          </div>
+    <ConsoleCard v-else-if="tab === 'preferences'" :title="t('account.prefsTitle')" :sub="t('account.prefsSub')">
+      <div class="acc-rows">
+        <div class="acc-row">
+          <span class="acc-k">{{ t('common.language') }}</span>
+          <span class="acc-v"><LocaleSwitch /></span>
         </div>
-        <p v-if="analyticsOn" class="acc-note">{{ analyticsGranted ? t('account.privacyOn') : t('account.privacyOff') }}</p>
-      </ConsoleCard>
-    </section>
+        <div v-if="analyticsOn" class="acc-row">
+          <span class="acc-k">{{ t('account.privacyState') }}</span>
+          <span class="acc-v acc-v-inline">
+            <Tag :tone="analyticsGranted ? 'olive' : 'ink'">
+              {{ analyticsGranted ? t('account.privacyGranted') : t('account.privacyDenied') }}
+            </Tag>
+            <Btn kind="ghost" @click="analyticsGranted ? denyConsent() : grantConsent()">
+              {{ analyticsGranted ? t('account.privacyDisable') : t('account.privacyEnable') }}
+            </Btn>
+          </span>
+        </div>
+      </div>
+      <p v-if="analyticsOn" class="acc-note">{{ analyticsGranted ? t('account.privacyOn') : t('account.privacyOff') }}</p>
+    </ConsoleCard>
 
     <!-- ── sécurité (2FA) ── -->
-    <section class="acc-section">
-      <div class="eyebrow">{{ t('account.section.security') }}</div>
-      <SecurityCard />
-    </section>
+    <SecurityCard v-else-if="tab === 'security'" />
 
     <!-- ── ton agent : readme (injecté chaque session) + contexte résolu ── -->
-    <section class="acc-section">
-      <div class="eyebrow">{{ t('account.section.agent') }}</div>
+    <template v-else-if="tab === 'agent'">
       <AgentReadmeCard :title="t('account.readmeTitle')"
         :sub="t('account.readmeSub')"
         :can-edit="true" allow-empty
         :placeholder="t('account.readmePlaceholder')"
         :load="getAgentReadme" :save="setAgentReadme" />
       <AgentContextCard />
-    </section>
+    </template>
 
     <!-- ── développeurs : tokens CLI / API ── -->
-    <section class="acc-section">
-      <div class="eyebrow">{{ t('account.section.developers') }}</div>
-      <AccountTokensCard />
-    </section>
+    <AccountTokensCard v-else-if="tab === 'developers'" />
   </div>
 </template>
 
 <style scoped>
-/* Chaque section = son eyebrow + ses cartes, serrés ensemble ; les sections sont
-   espacées entre elles par le gap du .content-inner. */
-.acc-section { display: flex; flex-direction: column; gap: 12px; }
-.acc-section .eyebrow { padding: 2px 2px 0; }
-
 .profile-row { display: flex; align-items: center; gap: 18px; }
 .profile-name { font-weight: 600; font-size: 15px; color: var(--color-ink); }
 .profile-email { font-size: 12.5px; color: var(--color-mute); }
