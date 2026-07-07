@@ -9,9 +9,11 @@ import { PAGE_META } from '@/lib/consoleNav'
 import { useMe } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
+import { useScopedLink } from '@/composables/useScopedLink'
 
 const route = useRoute()
 const { t } = useI18n()
+const { scoped } = useScopedLink()
 const { me, error } = useMe()
 const { toggleNav } = useNav()
 // `level` est dérivé de la route — il pilote encore le bandeau de gouvernance
@@ -34,7 +36,7 @@ const meta = computed(() =>
     <button class="nav-toggle" :aria-label="t('topbar.openMenu')" @click="toggleNav">
       <Icon name="menu" :size="18" />
     </button>
-    <RouterLink to="/overview" class="oto-brand" :aria-label="t('topbar.home')">
+    <RouterLink :to="scoped('/overview')" class="oto-brand" :aria-label="t('topbar.home')">
       <OtoMark variant="mono" :state="markState" :size="26" />
     </RouterLink>
     <div class="topbar-title">

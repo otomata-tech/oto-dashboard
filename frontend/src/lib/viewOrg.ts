@@ -39,12 +39,20 @@ export function setViewGroupId(value: string | null): void { viewGroupId = value
 // `/o/:orgId`) hérite du contexte courant (org + équipe). Retourne le chemin préfixé à
 // rediriger, ou null (laisser passer : non org-scopé, déjà préfixé, ou contexte inconnu
 // au 1er chargement — canonicalisé ensuite par ConsoleLayout).
+// Préfixe un chemin canonique par le contexte org/équipe (`/o/<org>[/g/<group>]/…`).
+// `orgId == null` ⇒ chemin nu (la maison). Source unique du préfixe : consommé par la
+// garde routeur ET par `useScopedLink` (génération de liens déterministe).
+export function scopedPath(path: string, orgId: string | null, groupId: string | null): string {
+  if (!orgId) return path
+  return `/o/${orgId}${groupId ? `/g/${groupId}` : ''}${path}`
+}
+
 export function consultRedirectPath(
   path: string, orgScoped: boolean, hasOrgParam: boolean,
   curOrg: string | null, curGroup: string | null,
 ): string | null {
   if (!orgScoped || hasOrgParam || curOrg == null) return null
-  return `/o/${curOrg}${curGroup ? `/g/${curGroup}` : ''}${path}`
+  return scopedPath(path, curOrg, curGroup)
 }
 
 // « Voir en tant que » (ADR 0023, axe USER, LECTURE SEULE) — opérateur plateforme

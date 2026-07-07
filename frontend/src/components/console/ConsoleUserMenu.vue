@@ -8,6 +8,7 @@ import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { useAuth } from '@/composables/useAuth'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
+import { useScopedLink } from '@/composables/useScopedLink'
 import AccountViewAs from './AccountViewAs.vue'
 import LocaleSwitch from './LocaleSwitch.vue'
 
@@ -18,6 +19,7 @@ import LocaleSwitch from './LocaleSwitch.vue'
 // droits : org = org_admin de l'org courante, plateforme = opérateur plateforme.
 const route = useRoute()
 const { t } = useI18n()
+const { scoped } = useScopedLink()
 const { me } = useMe()
 const { logout } = useAuth()
 const { closeNav } = useNav()
@@ -115,7 +117,7 @@ function go() {
           class="um-item"
           :class="{ on: e.active, plat: e.tone === 'platform' }"
           role="menuitem"
-          :to="e.to"
+          :to="scoped(e.to)"
           @click="go"
         >
           <span class="ic"><Icon :name="e.icon" :size="15" /></span>

@@ -6,7 +6,7 @@
 // `setViewOrgId`/`setViewGroupId`, plus localStorage. Le view-as USER reste localStorage.
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
-  parseOrgFromPath, parseGroupFromPath, consultRedirectPath,
+  parseOrgFromPath, parseGroupFromPath, consultRedirectPath, scopedPath,
   currentViewOrg, setViewOrgId, currentViewGroup, setViewGroupId,
   getViewUser, setViewUser,
   viewHeaders,
@@ -46,6 +46,23 @@ describe('org / équipe de consultation (variables module, URL-synced)', () => {
     setViewOrgId(null); setViewGroupId(null)
     expect(currentViewOrg()).toBeNull()
     expect(currentViewGroup()).toBeNull()
+  })
+})
+
+describe('scopedPath (préfixe partagé garde ↔ useScopedLink)', () => {
+  it('préfixe org seule', () => {
+    expect(scopedPath('/connectors', '81', null)).toBe('/o/81/connectors')
+    expect(scopedPath('/projects/8', '81', null)).toBe('/o/81/projects/8')
+  })
+  it('préfixe org + équipe', () => {
+    expect(scopedPath('/data/3', '81', '7')).toBe('/o/81/g/7/data/3')
+  })
+  it('chemin nu quand pas d\'org (maison)', () => {
+    expect(scopedPath('/connectors', null, null)).toBe('/connectors')
+    expect(scopedPath('/connectors', null, '7')).toBe('/connectors')
+  })
+  it('préserve la query en la gardant après le préfixe', () => {
+    expect(scopedPath('/connectors?tab=marketplace', '81', null)).toBe('/o/81/connectors?tab=marketplace')
   })
 })
 
