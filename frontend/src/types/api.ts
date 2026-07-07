@@ -189,6 +189,7 @@ export interface Me {
   active_org_name: string | null
   active_org_logo_url: string | null
   org_role: OrgRole | null
+  active_org_readonly?: boolean      // consultation LECTURE SEULE d'une org tierce (opérateur plateforme, non-membre) — bandeau
   home_org: number | null            // org MAISON (défaut MCP des nouvelles conversations)
   home_org_name: string | null
   active_group: number | null        // équipe EFFECTIVE affichée = consultation ?? maison
@@ -787,15 +788,10 @@ export interface OrgSecret {
   set_at?: string | null
   set_by?: string | null
 }
-export interface OrgEntitlement {
-  namespace: string
-  granted_at?: string | null
-}
 export interface OrgDetail {
   org: Org
   members: OrgMember[]
-  secrets: OrgSecret[]
-  entitlements?: OrgEntitlement[]
+  secrets: OrgSecret[]   // BYO d'org, encore renvoyé par le backend ; géré désormais par connecteur (/org/connectors, ADR 0044)
   option_comps?: string[]   // options payantes offertes (comp admin) à l'ORG
   platform_grants?: AdminGrant[]   // clés plateforme partagées à TOUTE l'org (couche 2)
 }

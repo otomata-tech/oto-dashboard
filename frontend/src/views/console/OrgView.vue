@@ -308,14 +308,6 @@ async function deleteOrg() {
               </div>
             </div>
           </ConsoleCard>
-          <ConsoleCard v-if="detail?.entitlements?.length" title="entitlements" sub="controlled namespaces unlocked for this org.">
-            <div class="rowlist">
-              <div v-for="e in detail.entitlements" :key="e.namespace" class="rowitem">
-                <Tag tone="cobalt">{{ e.namespace }}</Tag>
-                <span style="margin-left: auto; font-size: 11px; color: var(--color-faint)">{{ fmtDate(e.granted_at) }}</span>
-              </div>
-            </div>
-          </ConsoleCard>
         </div>
       </div>
 

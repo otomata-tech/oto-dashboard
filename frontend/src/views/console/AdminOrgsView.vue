@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Tag from '@/components/console/Tag.vue'
@@ -9,60 +10,64 @@ import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
-import { useDeepLink } from '@/composables/useDeepLink'
 import {
   getAdminOrgs, createOrg, getAdminOrg, archiveAdminOrg, addAdminOrgMember, setAdminOrgMemberRole,
-  removeAdminOrgMember, putAdminOrgSecret, deleteAdminOrgSecret,
-  grantOrgEntitlement, revokeOrgEntitlement, getConnectors, setOptionComp,
+  removeAdminOrgMember, setOptionComp,
   getPlatformKeys, grantOrgPlatformKey, revokeOrgPlatformKey,
 } from '@/api/console'
-import type { AdminGrant, AdminOrgSummary, ConnectorMeta, OrgDetail, OrgMember, OrgSecret, OrgEntitlement, OrgRole, PlatformKey } from '@/types/api'
-import { fmtDate } from '@/types/api'
+import type { AdminGrant, AdminOrgSummary, OrgDetail, OrgMember, OrgRole, PlatformKey } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
+const route = useRoute()
+const router = useRouter()
 const orgs = ref<AdminOrgSummary[]>([])
 const detail = ref<OrgDetail | null>(null)
 const selectedId = ref<number | null>(null)
-const catalog = ref<ConnectorMeta[]>([])
 const pkeys = ref<PlatformKey[]>([])
 const error = ref<string | null>(null)
 
-// Org sélectionnée portée par `?org=<id>` (lien direct + retour).
-const dl = useDeepLink('org', (id) => {
-  if (id != null && id !== selectedId.value) select(id)
-  else if (id == null && selectedId.value != null) { selectedId.value = null; detail.value = null }
-}, { parse: Number })
-
-// Namespaces grant-only (sensibles) = connecteurs platform_granted du registre.
-const nsOptions = computed(() =>
-  [...new Set(catalog.value.filter((c) => c.availability === 'platform_granted').flatMap((c) => c.namespaces))],
-)
+// Org sélectionnée portée par le PATH `/platform/orgs/:id` (bookmarkable, back/forward).
+const routeOrgId = computed(() => {
+  const id = Number(route.params.id)
+  return Number.isFinite(id) && id > 0 ? id : null
+})
 
 async function loadOrgs() { orgs.value = (await getAdminOrgs()).orgs }
 async function refresh() { if (selectedId.value != null) detail.value = await getAdminOrg(selectedId.value) }
 
 onMounted(async () => {
   try {
-    const [, cat, pk] = await Promise.all([
+    const [, pk] = await Promise.all([
       loadOrgs(),
-      getConnectors().catch(() => ({ connectors: [] })),
       getPlatformKeys().catch(() => ({ platform_keys: [] })),
     ])
-    catalog.value = cat.connectors
     pkeys.value = pk.platform_keys
-    const id = dl.read()
-    if (id != null) await select(id)
+    if (routeOrgId.value != null) await select(routeOrgId.value)
   } catch (e) { error.value = humanize(e) }
+})
+
+// Le path fait autorité : lien direct + navigation back/forward rechargent la fiche.
+watch(routeOrgId, (id) => {
+  if (id != null && id !== selectedId.value) select(id)
+  else if (id == null && selectedId.value != null) { selectedId.value = null; detail.value = null }
 })
 
 async function select(id: number) {
   selectedId.value = id
-  dl.set(id)
+  if (routeOrgId.value !== id) router.push(`/platform/orgs/${id}`)
   try { detail.value = await getAdminOrg(id) }
   catch (e) { toast(humanize(e)) }
+}
+
+// Entrer dans l'org (LECTURE SEULE, opérateur plateforme) : navigue vers la console
+// scopée `/o/:orgId/…`. Le backend autorise la consultation read-only d'une org tierce
+// (ViewAsMiddleware) ; toute la console org rend alors la vue de cette org, en lecture.
+function enterOrg() {
+  if (selectedId.value == null) return
+  router.push(`/o/${selectedId.value}/overview`)
 }
 
 function newOrg() {
@@ -89,7 +94,7 @@ async function archiveOrg() {
   try {
     await archiveAdminOrg(selectedId.value)
     toast(`org "${name}" archived`)
-    selectedId.value = null; detail.value = null; dl.set(null)
+    selectedId.value = null; detail.value = null; router.push('/platform/orgs')
     await loadOrgs()
   } catch (e) { toast(humanize(e)) }
 }
@@ -121,53 +126,6 @@ async function removeMember(m: OrgMember) {
   if (selectedId.value == null) return
   if (!await confirmAction({ title: 'remove member', danger: true, confirmLabel: 'Remove', message: `remove ${m.email || m.sub}?` })) return
   try { await removeAdminOrgMember(selectedId.value, m.sub); toast('member removed'); await refresh(); await loadOrgs() }
-  catch (e) { toast(humanize(e)) }
-}
-
-function putSecret() {
-  if (selectedId.value == null) return
-  const orgId = selectedId.value
-  openForm({
-    title: 'shared org key', description: 'inherited by every member of this org.',
-    submitLabel: 'set key',
-    fields: [
-      { key: 'provider', label: 'provider', required: true, placeholder: 'e.g. attio, lemlist' },
-      { key: 'api_key', label: 'api key', type: 'password', required: true, placeholder: 'paste the key' },
-      { key: 'base_url', label: 'base url', placeholder: 'optional' },
-    ],
-    onConfirm: async (v) => {
-      try { await putAdminOrgSecret(orgId, v.provider ?? '', v.api_key ?? '', v.base_url || undefined); toast(`${v.provider} key set`); await refresh() }
-      catch (e) { toast(humanize(e)); throw e }
-    },
-  })
-}
-async function removeSecret(s: OrgSecret) {
-  if (selectedId.value == null) return
-  if (!await confirmAction({ title: 'remove shared key', danger: true, confirmLabel: 'Remove', message: `remove shared ${s.provider} key?` })) return
-  try { await deleteAdminOrgSecret(selectedId.value, s.provider); toast('shared key removed'); await refresh() }
-  catch (e) { toast(humanize(e)) }
-}
-
-function grantEnt() {
-  if (selectedId.value == null) return
-  const orgId = selectedId.value
-  openForm({
-    title: 'grant entitlement', description: 'unlock a controlled namespace for the whole org.',
-    submitLabel: 'grant',
-    fields: nsOptions.value.length
-      ? [{ key: 'ns', label: 'namespace', type: 'select', required: true, placeholder: 'choose a namespace',
-          options: nsOptions.value.map((n) => ({ value: n, label: n })) }]
-      : [{ key: 'ns', label: 'namespace', required: true, hint: 'no controlled namespace in catalog — type one' }],
-    onConfirm: async (v) => {
-      try { await grantOrgEntitlement(orgId, v.ns ?? ''); toast(`granted ${v.ns}`); await refresh() }
-      catch (e) { toast(humanize(e)); throw e }
-    },
-  })
-}
-async function revokeEnt(e0: OrgEntitlement) {
-  if (selectedId.value == null) return
-  if (!await confirmAction({ title: 'revoke entitlement', danger: true, confirmLabel: 'Revoke', message: `revoke ${e0.namespace}?` })) return
-  try { await revokeOrgEntitlement(selectedId.value, e0.namespace); toast('entitlement revoked'); await refresh() }
   catch (e) { toast(humanize(e)) }
 }
 
@@ -247,6 +205,7 @@ async function revokeOrgKey(g: AdminGrant) {
     <template v-if="detail">
       <ConsoleCard flush :title="`${detail.org.name} · members`">
         <template #actions>
+          <Btn kind="mini" icon="eye" @click="enterOrg">Entrer (lecture seule)</Btn>
           <Btn kind="mini" icon="plus" @click="addMember">Add member</Btn>
           <Btn kind="danger" @click="archiveOrg">Archive org</Btn>
         </template>
@@ -271,33 +230,6 @@ async function revokeOrgKey(g: AdminGrant) {
       </ConsoleCard>
 
       <div class="grid2">
-        <ConsoleCard title="shared keys" sub="org-wide credentials inherited by every member.">
-          <template #actions><Btn kind="mini" icon="plus" @click="putSecret">Add key</Btn></template>
-          <div class="rowlist">
-            <div v-for="s in detail.secrets" :key="s.provider" class="rowitem" style="gap: 12px">
-              <Dot tone="olive" :size="8" />
-              <div style="min-width: 0; flex: 1">
-                <div style="font-weight: 600; font-size: 13px">{{ s.provider }}</div>
-                <div style="font-size: 11.5px; color: var(--color-mute)">{{ s.base_url || 'set' }}{{ s.set_at ? ` · ${fmtDate(s.set_at)}` : '' }}</div>
-              </div>
-              <Btn kind="danger" @click="removeSecret(s)">Remove</Btn>
-            </div>
-            <div v-if="!detail.secrets.length" class="helptext">no shared keys yet.</div>
-          </div>
-        </ConsoleCard>
-
-        <ConsoleCard title="entitlements" sub="controlled namespaces unlocked for the whole org.">
-          <template #actions><Btn kind="mini" icon="plus" @click="grantEnt">Grant</Btn></template>
-          <div class="rowlist">
-            <div v-for="e in (detail.entitlements ?? [])" :key="e.namespace" class="rowitem" style="gap: 12px">
-              <div style="min-width: 0; flex: 1"><Tag tone="cobalt">{{ e.namespace }}</Tag></div>
-              <span v-if="e.granted_at" class="dim" style="font-size: 11px">{{ fmtDate(e.granted_at) }}</span>
-              <Btn kind="danger" @click="revokeEnt(e)">Revoke</Btn>
-            </div>
-            <div v-if="!(detail.entitlements ?? []).length" class="helptext">no entitlements granted.</div>
-          </div>
-        </ConsoleCard>
-
         <ConsoleCard title="options de connecteur" sub="accorder une option de connecteur à TOUTE l'org (comp admin). couvre tous ses membres.">
           <div class="rowlist">
             <div v-for="o in PAID_OPTIONS" :key="o.key" class="rowitem" style="gap: 12px">

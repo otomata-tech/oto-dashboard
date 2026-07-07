@@ -2,8 +2,8 @@
 // Cockpit connecteurs PLATEFORME (/platform/connectors, ADR 0022) — la projection
 // « plateforme » du connecteur : ce que la plateforme autorise. Par connecteur :
 // master switch d'activation (deny-by-default) + clé plateforme (studio-owned,
-// prêtée aux users via grants). Absorbe l'ex-écran « platform keys ». Les
-// entitlements de namespace restent indexés par org dans /platform/orgs (naturel).
+// prêtée aux users via grants). Absorbe l'ex-écran « platform keys ».
+// (Les entitlements de namespace grant-only ont été retirés — ADR 0031.)
 // Même présentation que les projections user/org : une CARTE par connecteur
 // (`ConnectorAdminCard`, shell partagé ADR 0024 §3) — plus de table.
 import { computed, onMounted, ref } from 'vue'
@@ -121,7 +121,7 @@ async function removeKey(k: PlatformKey) {
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
     <ConsoleCard title="platform connectors"
-      sub="what the platform allows. master switch (deny-by-default, effective on next restart) + studio-owned platform key (lent via grants with a daily quota). namespace entitlements stay per-org in « orgs ».">
+      sub="what the platform allows. master switch (deny-by-default, effective on next restart) + studio-owned platform key (lent via grants with a daily quota).">
       <template #actions>
         <input v-model="q" class="cc-search" placeholder="search…" />
       </template>

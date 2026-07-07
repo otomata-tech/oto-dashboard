@@ -623,14 +623,6 @@ export const setAdminOrgMemberRole = (id: number, sub: string, role: OrgRole) =>
   api(`/api/admin/orgs/${id}/members/${sub}`, { method: 'POST', ...j({ role }) })
 export const removeAdminOrgMember = (id: number, sub: string) =>
   api(`/api/admin/orgs/${id}/members/${sub}`, { method: 'DELETE' })
-export const putAdminOrgSecret = (id: number, provider: string, api_key: string, base_url?: string) =>
-  api(`/api/admin/orgs/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url }) })
-export const deleteAdminOrgSecret = (id: number, provider: string) =>
-  api(`/api/admin/orgs/${id}/secrets/${provider}`, { method: 'DELETE' })
-export const grantOrgEntitlement = (id: number, namespace: string) =>
-  api(`/api/admin/orgs/${id}/entitlements/${namespace}`, { method: 'POST' })
-export const revokeOrgEntitlement = (id: number, namespace: string) =>
-  api(`/api/admin/orgs/${id}/entitlements/${namespace}`, { method: 'DELETE' })
 
 // ── admin connectors (cran d'activation, ADR 0010) ──
 export const getAdminConnectors = () =>
