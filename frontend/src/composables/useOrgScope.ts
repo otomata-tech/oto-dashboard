@@ -1,5 +1,5 @@
 import { computed, ref, watch } from 'vue'
-import { useMe } from '@/composables/useMe'
+import { useMe, isSuperAdmin } from '@/composables/useMe'
 import { getOrg } from '@/api/console'
 import type { OrgDetail } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -16,7 +16,14 @@ export function useOrgScope() {
   const detail = ref<OrgDetail | null>(null)
   const error = ref<string | null>(null)
   const loaded = ref(false)
-  const isOrgAdmin = computed(() => detail.value?.org.my_role === 'org_admin')
+  // Parité avec le backend `roles.is_org_admin` : org_admin de l'org affichée (via le
+  // détail OU le rôle d'org actif de /api/me) OU escalade super_admin (platform_admin =
+  // super_admin, qui gère n'importe quelle org). Sans l'escalade, un super_admin non
+  // org_admin nominal voyait les membres mais AUCUN contrôle (bug hérité de l'ex-OrgView).
+  const isOrgAdmin = computed(() =>
+    detail.value?.org.my_role === 'org_admin'
+    || me.value?.org_role === 'org_admin'
+    || isSuperAdmin(me.value))
 
   async function reload() {
     const id = activeOrgId.value
