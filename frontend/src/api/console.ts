@@ -354,6 +354,11 @@ export const getNamespaceRows = (ns: string, opts: RowQuery = {}) => {
   return api<{ rows: DatastoreRow[]; total: number; offset: number; limit: number }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows${qs ? `?${qs}` : ''}`)
 }
+// Agrégat serveur (ADR 0046 b1) — compteurs du cockpit (par statut) sans
+// rapatrier les rows. `groups` = [{<groupBy>: valeur, count: n}].
+export const getNamespaceAggregate = (ns: string, groupBy: string) =>
+  api<{ groups: Array<Record<string, unknown> & { count: number }> }>(
+    `/api/datastore/namespaces/${encodeURIComponent(ns)}/aggregate?group_by=${encodeURIComponent(groupBy)}`)
 export const renameNamespace = (ns: string, name: string) =>
   api<{ ok: boolean; namespace: string }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}`, { method: 'PATCH', ...j({ name }) })
