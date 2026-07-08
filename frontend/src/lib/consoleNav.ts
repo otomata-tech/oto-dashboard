@@ -68,9 +68,13 @@ export const NAV: NavGroup[] = [
     { path: '/team/procedures', label: 'nav.procedures', icon: 'doc' },
   ]},
   // ── Gérer mon org : agir SUR l'organisation active ─────────────────────────
+  // Une PAGE par sujet (plus d'empilement) : contexte · membres · paramètres (profil/
+  // logo/entitlements/danger) · sécurité (MFA) · connecteurs · équipes · abonnement.
   { group: 'nav.section.organization', level: 'org', items: [
     { path: '/org/context', label: 'nav.context', icon: 'bolt' },
-    { path: '/org', label: 'nav.membersSecrets', icon: 'users' },
+    { path: '/org', label: 'nav.members', icon: 'users' },
+    { path: '/org/settings', label: 'nav.settings', icon: 'gear' },
+    { path: '/org/security', label: 'nav.security', icon: 'shield' },
     { path: '/org/connectors', label: 'nav.connectors', icon: 'plug' },
     { path: '/org/teams', label: 'nav.teams', icon: 'users' },
     { path: '/org/billing', label: 'nav.billing', icon: 'card' },
@@ -113,6 +117,8 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/team/procedures': { title: 'pageMeta.teamProcedures.title', crumb: 'pageMeta.teamProcedures.crumb' },
   '/org/context': { title: 'pageMeta.orgContext.title', crumb: 'pageMeta.orgContext.crumb' },
   '/org': { title: 'pageMeta.org.title', crumb: 'pageMeta.org.crumb' },
+  '/org/settings': { title: 'pageMeta.orgSettings.title', crumb: 'pageMeta.orgSettings.crumb' },
+  '/org/security': { title: 'pageMeta.orgSecurity.title', crumb: 'pageMeta.orgSecurity.crumb' },
   '/org/connectors': { title: 'pageMeta.orgConnectors.title', crumb: 'pageMeta.orgConnectors.crumb' },
   '/org/teams': { title: 'pageMeta.orgTeams.title', crumb: 'pageMeta.orgTeams.crumb' },
   '/platform/context': { title: 'pageMeta.platformContext.title', crumb: 'pageMeta.platformContext.crumb' },
