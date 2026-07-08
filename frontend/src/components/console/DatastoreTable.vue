@@ -318,7 +318,7 @@ async function transfer() {
       @update:search="onSearch" @update:filters="onFilters" />
 
     <RowDrawer :open="drawerOpen" :row="drawerRow" :fields="fields" :is-new="drawerNew"
-      :read-only="readOnly" :schema="meta.schema ?? null"
+      :read-only="readOnly" :schema="meta.schema ?? null" :namespace="name"
       @save="onSave" @delete="onDelete" @close="closeDrawer" />
     <SharePrincipalDialog :open="shareOpen" resource-type="datastore_namespace"
       :resource-id="String(meta.id)" :resource-label="name ?? undefined"
