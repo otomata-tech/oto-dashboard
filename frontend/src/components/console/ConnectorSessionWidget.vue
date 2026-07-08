@@ -30,8 +30,24 @@ const { confirmAction } = usePrompt()
 
 const status = computed(() => me.value?.providers?.[props.connector.name])
 const configured = computed(() => !!status.value?.user_key_configured)
-const setAt = computed(() => status.value?.session_set_at ?? null)
 const connecting = ref(false)
+// Connecteur org-partageable (byo_org) → session configurable aussi en équipe/org.
+const shareable = computed(() => !!props.connector.auth_modes?.includes('byo_org'))
+
+// Sessions posées, une par niveau (ADR 0038/0044) : perso, équipe, org. Un connecteur
+// org-partageable (Pennylane GED) peut en avoir plusieurs — on liste celles qui existent.
+type Scope = 'member' | 'org' | 'group'
+const sessions = computed(() => {
+  const s = status.value
+  const rows: { scope: Scope; label: string; setAt: string | null }[] = []
+  if (s?.session_set_at || s?.user_key_configured)
+    rows.push({ scope: 'member', label: 'toi', setAt: s?.session_set_at ?? null })
+  if (s?.group_session_set_at)
+    rows.push({ scope: 'group', label: me.value?.active_group_name || 'ton équipe', setAt: s.group_session_set_at })
+  if (s?.org_session_set_at)
+    rows.push({ scope: 'org', label: me.value?.active_org_name || 'ton org', setAt: s.org_session_set_at })
+  return rows
+})
 
 // ── cible par défaut (identités) ──
 const target = computed(() => status.value?.identity_label || status.value?.identity_id || null)
@@ -55,24 +71,30 @@ async function pick(id: string) {
   } catch (e) { toast(humanize(e)) }
 }
 
-async function drop() {
-  if (!await confirmAction({ title: `disconnect ${props.connector.label}`, danger: true, confirmLabel: 'Disconnect', message: `disconnect your ${props.connector.label} session?` })) return
-  try { await deleteApiKey(props.connector.name); toast('session removed'); await reload() } catch (e) { toast(humanize(e)) }
+async function drop(scope: Scope, who: string) {
+  if (!await confirmAction({ title: `disconnect ${props.connector.label}`, danger: true, confirmLabel: 'Disconnect', message: `disconnect the ${props.connector.label} session for ${who}?` })) return
+  try { await deleteApiKey(props.connector.name, scope); toast('session removed'); await reload() } catch (e) { toast(humanize(e)) }
 }
 </script>
 
 <template>
   <div class="sw">
-    <div class="sw-row">
-      <Dot :tone="configured ? 'olive' : 'faint'" :size="8" />
-      <span class="sw-status dim">
-        {{ configured
-          ? `session set ${fmtDate(setAt) ?? ''} — never shared with your org`
-          : 'no session — connect to log in through a remote browser' }}
-      </span>
-      <Btn v-if="configured" kind="danger" @click="drop">Disconnect</Btn>
-      <Btn v-else kind="mini" @click="connecting = true">Connecter</Btn>
+    <div v-if="!sessions.length" class="sw-row">
+      <Dot tone="faint" :size="8" />
+      <span class="sw-status dim">no session — connect to log in through a remote browser</span>
+      <Btn kind="mini" @click="connecting = true">Connecter</Btn>
     </div>
+    <template v-else>
+      <div v-for="s in sessions" :key="s.scope" class="sw-row">
+        <Dot tone="olive" :size="8" />
+        <span class="sw-status dim">session · {{ s.label }} — set {{ fmtDate(s.setAt) ?? '' }}</span>
+        <Btn kind="danger" @click="drop(s.scope, s.label)">Disconnect</Btn>
+      </div>
+      <div v-if="shareable" class="sw-row sw-add">
+        <span class="sw-status dim">connect another level (you, team, org)</span>
+        <Btn kind="mini" @click="connecting = true">Connecter</Btn>
+      </div>
+    </template>
 
     <!-- cible par défaut (pennylaneged : la GED du client en cours) -->
     <div v-if="configured && connector.identities" class="sw-row sw-target">
@@ -105,6 +127,8 @@ async function drop() {
 .sw { display: flex; flex-direction: column; gap: 6px; width: 100%; }
 .sw-row { display: flex; align-items: center; gap: 10px; width: 100%; }
 .sw-status { font-size: 12px; flex: 1; min-width: 0; }
+.sw-add { padding-left: 18px; }
+.sw-add .sw-status { font-size: 11.5px; }
 .sw-picker { display: flex; flex-direction: column; gap: 4px; padding: 2px 0 4px 18px; }
 .sw-load { font-size: 11.5px; }
 .sw-acct { display: flex; align-items: center; gap: 8px; }

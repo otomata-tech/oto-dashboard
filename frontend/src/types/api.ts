@@ -172,7 +172,11 @@ export interface ProviderStatus {
   quota_daily: number | null
   // Connecteurs à session navigateur (cookie/personal_session : brevo, crunchbase) —
   // quand la session a été posée (Live View Browserbase). Absent pour les keyés.
+  // `session_set_at` = session MEMBRE (perso) ; les deux ci-dessous = sessions
+  // PARTAGÉES d'un connecteur org-partageable (ex. Pennylane GED cabinet).
   session_set_at?: string | null
+  group_session_set_at?: string | null
+  org_session_set_at?: string | null
   // Identité/cible par défaut du sélecteur ADR 0024 (pennylaneged : la société
   // cliente = SA GED) — satellites publics du meta credential, rendus sans listing.
   identity_id?: string | null
