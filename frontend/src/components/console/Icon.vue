@@ -48,6 +48,8 @@ const ICONS: Record<string, string> = {
   eye: '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
   image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
   'credit-card': '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
+  'maximize-2': '<path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/>',
+  'minimize-2': '<path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="m14 10 7-7"/><path d="m3 21 7-7"/>',
 }
 
 // Alias sémantiques → font vivre les anciens noms du repo ET des poignées Oto-friendly.
@@ -62,6 +64,7 @@ const ALIASES: Record<string, string> = {
   chev: 'chevron-right', chevd: 'chevron-down', more: 'ellipsis', filter: 'list-filter',
   warn: 'triangle-alert', ok: 'circle-check', agent: 'sparkles', gear: 'settings',
   card: 'credit-card', billing: 'credit-card',
+  maximize: 'maximize-2', expand: 'maximize-2', minimize: 'minimize-2', collapse: 'minimize-2',
 }
 
 const props = withDefaults(defineProps<{ name: string; size?: number; sw?: number }>(), {
