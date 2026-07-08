@@ -11,8 +11,11 @@ import ConnectorEmail from '@/components/console/ConnectorEmail.vue'
 import ConnectorAvailabilityPanel from './ConnectorAvailabilityPanel.vue'
 import ConnectorCredentialPanel from './ConnectorCredentialPanel.vue'
 import ConnectorAccessPanel from './ConnectorAccessPanel.vue'
+import ConnectorConnectionPanel from './ConnectorConnectionPanel.vue'
+import ConnectorToolsPanel from './ConnectorToolsPanel.vue'
 import ConnectorAboutPanel from './ConnectorAboutPanel.vue'
-import type { ConnectorScopeAdapter } from './adapter'
+import type { ConnectorScopeAdapter, ConnectionLever, ToolsLever } from './adapter'
+import type { MyConnector } from '@/types/api'
 
 const props = defineProps<{ adapter: ConnectorScopeAdapter<R>; row: R }>()
 const emit = defineEmits<{ close: [] }>()
@@ -33,6 +36,10 @@ const meta = computed(() => props.adapter.meta(props.row))
     <!-- contenu par onglet -->
     <ConnectorCredentialPanel v-if="(tab === 'main' || tab === 'credential') && adapter.credential"
       :lever="adapter.credential" :row="row" />
+    <ConnectorConnectionPanel v-else-if="tab === 'connection' && adapter.connection"
+      :lever="(adapter.connection as unknown as ConnectionLever<MyConnector>)" :connector="(row as unknown as MyConnector)" />
+    <ConnectorToolsPanel v-else-if="tab === 'tools' && adapter.tools"
+      :lever="(adapter.tools as unknown as ToolsLever<MyConnector>)" :row="(row as unknown as MyConnector)" />
     <ConnectorAccessPanel v-else-if="tab === 'access' && adapter.access" :lever="adapter.access" :row="row" />
     <div v-else-if="tab === 'redaction' && adapter.redaction" class="csd-pad">
       <ConnectorTransforms v-bind="adapter.redaction.props(row)" @changed="adapter.redaction.onChanged()" />

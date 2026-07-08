@@ -5,6 +5,7 @@ import type { ConnectorScopeAdapter, ScopeCtx } from './adapter'
 import { useTeamAdapter } from './useTeamAdapter'
 import { useOrgAdapter } from './useOrgAdapter'
 import { usePlatformAdapter } from './usePlatformAdapter'
+import { useUserAdapter } from './useUserAdapter'
 
 // Retourne `<any>` : la vue traite les lignes de façon opaque, chaque adaptateur
 // porte le typage précis de SON type de ligne (évite l'invariance de R au bord vue).
@@ -16,8 +17,7 @@ export function pickAdapter(level: NavLevel, ctx: ScopeCtx): ConnectorScopeAdapt
       return useOrgAdapter(ctx)
     case 'platform':
       return usePlatformAdapter(ctx)
-    default:
-      // Les autres scopes (user/org/platform) migrent dans les étapes suivantes.
-      throw new Error(`connector-scope: adaptateur non encore migré pour le niveau « ${level} »`)
+    default:   // 'work' = user (mon espace)
+      return useUserAdapter(ctx)
   }
 }

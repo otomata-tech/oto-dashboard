@@ -12,7 +12,7 @@ import SubTabs, { type SubTab } from '@/components/console/SubTabs.vue'
 import { useDeepLink } from '@/composables/useDeepLink'
 import { useMe } from '@/composables/useMe'
 
-const MyConnectors = defineAsyncComponent(() => import('./ConnectorsView.vue'))
+const MyConnectors = defineAsyncComponent(() => import('@/components/console/connector-scope/ConnectorScopeView.vue'))
 const SharedConnectors = defineAsyncComponent(() => import('./ConnectorsSharedView.vue'))
 const ConnectorLibrary = defineAsyncComponent(() => import('./ConnectorLibraryView.vue'))
 const ConnectorKeys = defineAsyncComponent(() => import('./ConnectorKeysPanel.vue'))
@@ -41,7 +41,7 @@ function select(key: string) {
 <template>
   <div class="fadein">
     <SubTabs :tabs="TABS" :model-value="tab" @update:model-value="select" />
-    <MyConnectors v-if="tab === 'mine'" />
+    <div v-if="tab === 'mine'" class="content-inner"><MyConnectors /></div>
     <SharedConnectors v-else-if="tab === 'shared'" />
     <ConnectorKeys v-else-if="tab === 'keys'" />
     <ConnectorLibrary v-else />

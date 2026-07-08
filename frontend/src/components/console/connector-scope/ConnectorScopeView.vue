@@ -35,17 +35,50 @@ const adapter = pickAdapter(level.value, ctx)
 const selectedKey = ref<string | null>(null)
 const selectedRow = computed(() => adapter.rows.value.find((r) => adapter.key(r) === selectedKey.value) ?? null)
 
-onMounted(() => adapter.load())
+// Lentilles (pré-filtre segmenté, scope USER) : la vue tient l'état + filtre en amont
+// (ConnectorList fait ensuite recherche/chips/tri sur les lignes filtrées).
+const lensKey = ref<string | null>(adapter.lenses?.[0]?.key ?? null)
+const shownRows = computed(() => {
+  const l = adapter.lenses?.find((x) => x.key === lensKey.value)
+  return l ? adapter.rows.value.filter((r) => l.match(r)) : adapter.rows.value
+})
+const lensCount = (key: string) => {
+  const l = adapter.lenses?.find((x) => x.key === key)
+  return l ? adapter.rows.value.filter((r) => l.match(r)).length : 0
+}
+
+onMounted(async () => {
+  await adapter.load()
+  // Retour d'un flux de connexion (oauth google/fédéré, hosted unipile) : ?<x>=connected|error
+  // (scope USER seulement — les autres surfaces ne déclenchent pas de redirect d'auth).
+  if (adapter.scope !== 'user') return
+  const sp = new URLSearchParams(window.location.search)
+  let touched = false
+  for (const [k, v] of sp.entries()) {
+    if (k === 'channel') continue
+    if (v === 'connected' || v === 'subscribed') { toast(`${k} connecté`); touched = true }
+    else if (v === 'error' || v === 'failed') { toast(`échec de la connexion ${k}`); touched = true }
+    else if (v === 'cancel') touched = true
+  }
+  if (touched) window.history.replaceState({}, '', window.location.pathname)
+})
 </script>
 
 <template>
   <p v-if="adapter.error.value" class="helptext" style="color: var(--color-terra-ink)">{{ adapter.error.value }}</p>
 
-  <ConnectorList :items="adapter.rows.value" :item-key="adapter.key" :label="adapter.label"
+  <ConnectorList :items="shownRows" :item-key="adapter.key" :label="adapter.label"
     :search-text="adapter.searchText" :category="adapter.category" :sort-rank="adapter.sortRank"
     :title="adapter.listTitle" :sub="adapter.listSub" :search-placeholder="adapter.searchPlaceholder"
     :category-values="adapter.categoryValues?.()" :selectable="adapter.hasDrawer"
     v-model:selected-key="selectedKey">
+    <template v-if="adapter.lenses" #controls>
+      <div class="seg" role="tablist">
+        <button v-for="l in adapter.lenses" :key="l.key" :class="{ on: lensKey === l.key }" @click="lensKey = l.key">
+          {{ l.label }} <span class="dim">{{ lensCount(l.key) }}</span>
+        </button>
+      </div>
+    </template>
     <template #head>
       <th style="width: 42%">connector</th>
       <th v-for="col in adapter.columns" :key="col.key" :style="col.width ? { width: col.width } : undefined">{{ col.label }}</th>
@@ -75,4 +108,5 @@ onMounted(() => adapter.load())
 
 <style scoped>
 .csv-chev { text-align: right; color: var(--color-faint); font-size: 15px; }
+.dim { opacity: .6; }
 </style>

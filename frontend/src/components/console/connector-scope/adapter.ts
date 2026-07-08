@@ -28,10 +28,14 @@ export interface CellVM {
   label?: string
   sub?: string
   muted?: boolean
+  bar?: { pct: number }   // barre de progression (ex. outils actifs/total, scope user)
 }
 
 export interface Column { key: string; label: string; width?: string; num?: boolean }
 export interface DrawerTab { key: string; label: string; badge?: string }
+// Lentille = pré-filtre optionnel (segmented au-dessus de la liste) — spécificité USER
+// (all/connected/available/shared). La vue en dérive les compteurs + filtre les lignes.
+export interface Lens<R> { key: string; label: string; match(r: R): boolean }
 
 // ── leviers (tous optionnels) ────────────────────────────────────────────────
 
@@ -110,6 +114,23 @@ export interface EmailPanel {
 }
 export interface EmailLever<R> { visible(r: R): boolean; props(r: R): EmailPanel; onChanged(): void }
 
+// Connexion (USER) : la couche d'authentification (ADR 0024) — widgets dérivés de la
+// méthode d'auth (clé/oauth/session/hosted/fédéré). Le panneau lit lui-même l'état résolu
+// (`me.providers`) ; l'adaptateur ne porte que les ACTIONS de la clé keyée.
+export interface ConnectionLever<R> {
+  configureKey(r: R): void   // ouvre CredentialFieldsDialog (clé keyée)
+  removeKey(r: R): void
+  verify?(r: R): Promise<VerifyResult>
+}
+
+// Outils (USER) : toggles de visibilité par outil (connector_selection + user tools).
+export interface ToolsLever<R> {
+  list(r: R): ToolRow[]
+  toggle(t: ToolRow): void
+  setAll(r: R, on: boolean): void
+}
+export interface ToolRow { name: string; enabled: boolean; protected?: boolean; description?: string }
+
 // L'adaptateur : tout ce dont `ConnectorScopeView` a besoin, dérivé du scope.
 export interface ConnectorScopeAdapter<R = unknown> {
   scope: ConnectorScope
@@ -131,6 +152,7 @@ export interface ConnectorScopeAdapter<R = unknown> {
   searchText(r: R): string
   sortRank(r: R): number
   categoryValues?(): string[]
+  lenses?: Lens<R>[]        // pré-filtres segmentés (USER) ; absent ⇒ pas de segmented
   columns: Column[]
   cell(r: R, colKey: string): CellVM | undefined
   // drawer
@@ -142,6 +164,8 @@ export interface ConnectorScopeAdapter<R = unknown> {
   access?: AccessLever<R>
   redaction?: RedactionLever<R>
   email?: EmailLever<R>
+  connection?: ConnectionLever<R>
+  tools?: ToolsLever<R>
 }
 
 // Édition d'un credential = formulaire dynamique `CredentialFieldsDialog` (vee-validate),
