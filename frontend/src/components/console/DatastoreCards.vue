@@ -3,6 +3,9 @@
 // row devient une fiche dont la mise en page DÉRIVE des rôles de rendu du schéma
 // (title/badge/metric/status/qualif/note) — vs le tableau plat. Les champs non
 // déclarés au schéma restent affichés en pied de fiche (rien n'est masqué).
+// v2 (ADR 0046) : les champs IMBRIQUÉS déclarés (`object`+fields, `list`+of) sont
+// rendus en sous-sections structurées (ex. contacts[]) au lieu d'un JSON brut,
+// et une row sous bail de file de travail porte le badge « en cours · worker ».
 import { computed } from 'vue'
 import Tag from '@/components/console/Tag.vue'
 import type { DatastoreRow, DatastoreSchema, DatastoreField } from '@/types/api'
@@ -12,12 +15,17 @@ const emit = defineEmits<{ open: [row: DatastoreRow] }>()
 
 const fields = computed<DatastoreField[]>(() => props.schema.fields ?? [])
 const byRole = (role: string) => fields.value.filter((f) => f.role === role)
+const isComposite = (f: DatastoreField) => f.type === 'object' || f.type === 'list'
 const titleF = computed(() => byRole('title')[0])
-const badgeF = computed(() => byRole('badge'))
+const badgeF = computed(() => byRole('badge').filter((f) => !isComposite(f)))
 const metricF = computed(() => byRole('metric'))
 const statusF = computed(() => byRole('status')[0])
-const qualifF = computed(() => byRole('qualif'))
-const noteF = computed(() => byRole('note'))
+const qualifF = computed(() => byRole('qualif').filter((f) => !isComposite(f)))
+const noteF = computed(() => byRole('note').filter((f) => !isComposite(f)))
+// Champs imbriqués déclarés (hors rôles déjà rendus title/status/metric) → sections.
+const compositeF = computed(() =>
+  fields.value.filter((f) => isComposite(f) &&
+    f !== titleF.value && f !== statusF.value && !metricF.value.includes(f)))
 const declaredKeys = computed(() => new Set(fields.value.map((f) => f.key)))
 
 const label = (f: DatastoreField) => f.label || f.key
@@ -35,6 +43,32 @@ function otherEntries(row: DatastoreRow) {
 function titleOf(row: DatastoreRow): string {
   return titleF.value ? fmt(row[titleF.value.key]) : row._id
 }
+
+// ── sous-records (object / list) ─────────────────────────────────────────────
+type Pair = [string, string]
+const subFields = (f: DatastoreField): DatastoreField[] =>
+  f.type === 'object' ? (f.fields ?? [])
+    : ((f.of && 'fields' in f.of && f.of.fields) || [])
+function subLabel(f: DatastoreField, key: string): string {
+  const sf = subFields(f).find((s) => s.key === key)
+  return sf?.label || key
+}
+/** Un item (dict) → paires [label, valeur] rendables ; champs déclarés d'abord. */
+function pairsOf(f: DatastoreField, item: unknown): Pair[] {
+  if (item == null || typeof item !== 'object' || Array.isArray(item))
+    return [['', fmt(item)]]
+  const rec = item as Record<string, unknown>
+  const declared = subFields(f).map((s) => s.key)
+  const keys = [...declared.filter((k) => rec[k] != null && rec[k] !== ''),
+                ...Object.keys(rec).filter((k) => !declared.includes(k) && rec[k] != null && rec[k] !== '')]
+  return keys.map((k) => [subLabel(f, k), fmt(rec[k])])
+}
+/** Items d'un champ composite : object → [lui-même] ; list → ses items. */
+function itemsOf(row: DatastoreRow, f: DatastoreField): unknown[] {
+  const v = row[f.key]
+  if (v == null || v === '') return []
+  return f.type === 'list' ? (Array.isArray(v) ? v : [v]) : [v]
+}
 </script>
 
 <template>
@@ -43,6 +77,9 @@ function titleOf(row: DatastoreRow): string {
       <header class="ds-card__head">
         <h4 class="ds-card__title">{{ titleOf(row) }}</h4>
         <Tag v-if="present(row, statusF)" tone="saffron">{{ fmt(row[statusF!.key]) }}</Tag>
+        <Tag v-if="row._claimed_by" tone="cobalt" :title="`bail de traitement (file de travail) jusqu'à ${row._claimed_until ?? '?'}`">
+          en cours · {{ row._claimed_by }}
+        </Tag>
         <Tag v-for="f in badgeF" :key="f.key" v-show="present(row, f)" tone="cobalt">{{ fmt(row[f.key]) }}</Tag>
       </header>
 
@@ -52,6 +89,18 @@ function titleOf(row: DatastoreRow): string {
           <span class="ds-metric__l">{{ label(f) }}</span>
         </div>
       </div>
+
+      <section v-for="f in compositeF" :key="f.key" v-show="itemsOf(row, f).length" class="ds-sub">
+        <span class="ds-fieldlabel">
+          {{ label(f) }}<template v-if="f.type === 'list' && itemsOf(row, f).length > 1"> · {{ itemsOf(row, f).length }}</template>
+        </span>
+        <div v-for="(item, i) in itemsOf(row, f)" :key="i" class="ds-sub__item">
+          <template v-for="([k, v], j) in pairsOf(f, item)" :key="j">
+            <span class="ds-sub__pair"><b v-if="j === 0">{{ v }}</b><template v-else>
+              <span v-if="k" class="ds-sub__k">{{ k }}</span> {{ v }}</template></span>
+          </template>
+        </div>
+      </section>
 
       <div v-for="f in qualifF" :key="f.key" v-show="present(row, f)" class="ds-qualif">
         <span class="ds-fieldlabel">{{ label(f) }}</span>
@@ -84,6 +133,15 @@ function titleOf(row: DatastoreRow): string {
 .ds-qualif p { margin: 2px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--color-ink-soft, #4a463d); white-space: pre-wrap; }
 .ds-fieldlabel { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--color-faint, #9a9a9a); font-weight: 700; }
 .ds-note { margin: 4px 0; font-size: 12px; color: var(--color-ink-soft, #6b6b6b); white-space: pre-wrap; }
+.ds-sub { margin: 6px 0; }
+.ds-sub__item {
+  margin: 3px 0 0; padding: 4px 8px; font-size: 12px; line-height: 1.5;
+  border-left: 2px solid var(--color-hair-soft, #e6e6e3);
+  color: var(--color-ink-soft, #4a463d);
+}
+.ds-sub__pair { margin-right: 10px; }
+.ds-sub__pair b { color: var(--color-ink, #2a2a2a); font-weight: 600; }
+.ds-sub__k { color: var(--color-faint, #9a9a9a); font-size: 11px; }
 .ds-other { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 8px 0 0; padding-top: 8px; border-top: 1px dashed var(--color-hair-soft, #e6e6e3); }
 .ds-other dt { font-size: 11px; color: var(--color-faint, #9a9a9a); }
 .ds-other dd { margin: 0; font-size: 11px; color: var(--color-ink-soft, #4a463d); overflow: hidden; text-overflow: ellipsis; }
