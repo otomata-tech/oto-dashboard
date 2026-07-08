@@ -164,6 +164,15 @@ export interface GroupConnectorActivation {
   effective: boolean
 }
 
+// ACL connecteur au grain ÉQUIPE (ADR 0012 B2, restrict-only) : réserver un connecteur
+// à des MEMBRES de l'équipe. Intersection avec l'ACL d'org (narrowing pur).
+export interface GroupAclEntry {
+  connector: string
+  principal_sub: string
+  granted_by?: string | null
+  granted_at?: string
+}
+
 // RBAC connecteur interne à l'org (ADR 0025) : une entrée = un principal (département
 // ou membre) autorisé sur un connecteur. ≥1 entrée pour un connecteur ⟹ il est réservé.
 export interface ConnectorAclEntry {
