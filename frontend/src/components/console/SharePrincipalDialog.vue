@@ -16,22 +16,26 @@ import {
 } from '@/api/console'
 import type { GroupListItem, NamespaceShare, Org, OrgMember, SharePrincipal } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { ROLE_OPTIONS, roleLabel, roleTone, type ResourceRole } from '@/lib/resourceRole'
 
 const props = withDefaults(defineProps<{
   open: boolean
   resourceType: 'project' | 'datastore_namespace' | 'doctrine'
   resourceId: string
   resourceLabel?: string
-  permissions?: ('read' | 'write')[]
-}>(), { permissions: () => ['write', 'read'] })
+  // ADR 0048 : rôles offerts (défaut = éditeur/lecteur/gérant). Une ressource
+  // consommée en lecture seule (ex. procédure) passe `:roles="['viewer']"`.
+  roles?: ResourceRole[]
+}>(), { roles: () => ROLE_OPTIONS.map((o) => o.value) })
 const emit = defineEmits<{ (e: 'close'): void; (e: 'changed'): void }>()
 
 const { toast } = useToast()
 const { me } = useMe()
 
+const roleChoices = computed(() => ROLE_OPTIONS.filter((o) => props.roles.includes(o.value)))
 type Mode = 'member' | 'team' | 'org' | 'orgid' | 'email'
 const mode = ref<Mode>('member')
-const permission = ref<'read' | 'write'>(props.permissions[0] ?? 'write')
+const role = ref<ResourceRole>(props.roles[0] ?? 'editor')
 const memberSub = ref('')
 const groupId = ref('')
 const orgId = ref('')
@@ -65,7 +69,7 @@ async function loadPickers() {
 watch(() => props.open, async (o) => {
   if (!o) return
   mode.value = 'member'
-  permission.value = props.permissions[0] ?? 'write'
+  role.value = props.roles[0] ?? 'editor'
   memberSub.value = ''; groupId.value = ''; orgId.value = ''; orgIdFree.value = ''; email.value = ''
   loading.value = true
   try { await Promise.all([refreshGrants(), loadPickers()]) }
@@ -92,7 +96,7 @@ async function add() {
   if (!principal.value || busy.value) return
   busy.value = true
   try {
-    await shareResource(props.resourceType, props.resourceId, principal.value, permission.value)
+    await shareResource(props.resourceType, props.resourceId, principal.value, role.value)
     toast('partagé')
     memberSub.value = ''; groupId.value = ''; orgId.value = ''; orgIdFree.value = ''; email.value = ''
     await refreshGrants()
@@ -164,9 +168,8 @@ const kindLabel = (g: NamespaceShare) =>
             <input v-else v-model="email" class="inp sp-grow" type="email"
               placeholder="collègue@exemple.com" @keyup.enter="add" />
 
-            <select v-if="permissions.length > 1" v-model="permission" class="inp" aria-label="droit">
-              <option value="write">édition</option>
-              <option value="read">lecture</option>
+            <select v-if="roleChoices.length > 1" v-model="role" class="inp" aria-label="rôle">
+              <option v-for="r in roleChoices" :key="r.value" :value="r.value">{{ r.label }}</option>
             </select>
             <Btn kind="mini" icon="plus" :disabled="busy || !principal" @click="add">Partager</Btn>
           </div>
@@ -184,9 +187,7 @@ const kindLabel = (g: NamespaceShare) =>
               <Tag :tone="g.principal_type === 'group' ? 'saffron' : g.principal_type === 'org' ? 'terra' : 'ink'">
                 {{ kindLabel(g) }}
               </Tag>
-              <Tag :tone="g.permission === 'write' ? 'olive' : 'cobalt'">
-                {{ g.permission === 'write' ? 'édition' : 'lecture' }}
-              </Tag>
+              <Tag :tone="roleTone(g.role, g.permission)">{{ roleLabel(g.role, g.permission) }}</Tag>
               <Btn v-if="principalOf(g)" kind="danger" icon="trash" @click="revoke(g)" />
             </div>
             <div v-if="!loading && !grants.length" class="dim" style="padding: 8px 0">
