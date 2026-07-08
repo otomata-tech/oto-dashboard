@@ -5,8 +5,9 @@
 // viewer polymorphe (gauche) + rail d'entités (droite) ; audit en bandeau pleine largeur ;
 // partage en modale, activité en drawer. La logique data (get/update/link/doc/file…) est
 // CONSERVÉE — c'est le rendu qui est ré-agencé (viewer/rail + dialogs).
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useScopedLink } from '@/composables/useScopedLink'
 import Tag from '@/components/console/Tag.vue'
 import Icon from '@/components/console/Icon.vue'
 import NameDialog from '@/components/console/NameDialog.vue'
@@ -154,7 +155,20 @@ async function loadAudit() {
     connectorSources.value = inv.connector_sources ?? {}
   } catch { audit.value = null; connectorSources.value = {} }
 }
-onMounted(load)
+const { scoped } = useScopedLink()
+
+// Sélection ↔ URL pour les TABLEAUX : `/projects/:id/data/:nsRef` ouvre le tableau lié
+// correspondant (les autres entités restent en sélection interne `sel`). Navigation
+// directe / refresh / back : on resynchronise depuis l'URL.
+function selectFromRoute() {
+  const ref = route.params.nsRef
+  if (typeof ref !== 'string' || !ref) return
+  const l = linksOf('tableau').find((x) => x.target_ref === ref || String(x.namespace ?? '') === ref)
+  if (l) sel.value = bindingKey(l)
+}
+watch(() => route.params.nsRef, selectFromRoute)
+
+onMounted(async () => { await load(); selectFromRoute() })
 
 // ── actions d'en-tête ──
 async function saveBrief(value: string) {
@@ -186,7 +200,16 @@ async function archive() {
 }
 
 // ── navigateur : sélection + ajout ──
-function onSelect(it: RailItem) { sel.value = it.key }
+function onSelect(it: RailItem) {
+  sel.value = it.key
+  // Un tableau lié ouvre sa vue COMPLÈTE dans le projet et pose l'URL dédiée ;
+  // toute autre entité quitte la vue tableau (retour à /projects/:id).
+  if (it.kind === 'tableau' && it.link) {
+    void router.push(scoped(`/projects/${projectId}/data/${it.link.target_ref}`))
+  } else if (route.params.nsRef != null) {
+    void router.push(scoped(`/projects/${projectId}`))
+  }
+}
 function openAdd(kind: NonNullable<typeof addKind.value>) { addParent.value = null; addKind.value = kind }
 function openSubPage(parentId: number) { addParent.value = parentId; addKind.value = 'page' }
 async function onLinked() { await Promise.all([reloadProject(), loadActivity(), loadAudit()]) }
