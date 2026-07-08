@@ -256,6 +256,19 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-small); 
 .tbl .num { text-align: right; font-family: var(--font-mono); font-size: 11px; }
 .tbl .dim { color: var(--color-faint); }
 
+/* Ligne de connecteur/liste sélectionnable (ConnectorList + surfaces connecteur). Global
+   car les <td> sont rendus dans des slots #row → scope de la vue parente, pas du composant. */
+.crow { cursor: pointer; }
+.crow.sel td { background: var(--color-saffron-soft) !important; }
+.crow.sel td:first-child { box-shadow: inset 3px 0 0 var(--color-saffron); }
+
+/* Champ de recherche compact des barres de liste (connecteurs, admin…). */
+.cc-search {
+  font-size: 12px; padding: 5px 10px; border: 1px solid var(--color-hair-classic);
+  border-radius: 8px; background: var(--color-surface); color: var(--color-ink); width: 200px;
+}
+.cc-search:focus { outline: none; border-color: var(--color-ink); }
+
 .rowlist { display: flex; flex-direction: column; }
 .rowitem {
   display: flex; align-items: center; gap: 10px;
