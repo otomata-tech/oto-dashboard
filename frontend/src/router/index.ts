@@ -59,11 +59,22 @@ function detailRoutes(path: string, detail: string): RouteRecordRaw[] {
 }
 
 // Renomme le deep-link legacy `?dept=<id>` en `?team=<id>` (redirections départements→teams).
+// GroupsView normalise ensuite `?team=<id>` vers la sous-route `/org/teams/<id>`.
 function deptToTeamQuery(q: LocationQuery): LocationQuery {
   if (q.dept === undefined) return q
   const { dept, ...rest } = q
   return { ...rest, team: dept }
 }
+
+// Équipe ouverte = sous-route PATH `/org/teams/:teamId` (bookmarkable, remplace `?team=`).
+// MÊME section que /org/teams → monte GroupsView (pas de vue de détail dédiée), qui lit
+// `:teamId` et normalise le legacy `?team=`. Nue + préfixées org/équipe, comme les autres
+// sections org-scopées (la garde `beforeEach` re-préfixe les `router.push` nus).
+const teamSectionMeta = { section: '/org/teams', level: 'org' as NavLevel, orgScoped: true }
+const teamDetailRoutes: RouteRecordRaw[] = [
+  { path: '/org/teams/:teamId(\\d+)', component: ConsoleLayout, meta: teamSectionMeta },
+  ...scopedVariants('/org/teams/:teamId(\\d+)', teamSectionMeta),
+]
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -88,8 +99,9 @@ const router = createRouter({
     // Clés plateforme fusionnées dans le cockpit connecteurs plateforme (ADR 0022).
     { path: '/platform/keys', redirect: '/platform/connectors' },
     // « départements » → « teams » (renommage vocabulaire produit 2026-07-06) : la
-    // section vit désormais en /org/teams (?team=), on garde les identifiants de code
-    // (group/getGroup). Redirections pour les bookmarks legacy — nue + préfixées.
+    // section vit désormais en /org/teams, une équipe ouverte en /org/teams/<id> (path),
+    // on garde les identifiants de code (group/getGroup). Redirections pour les bookmarks
+    // legacy — nue + préfixées ; `?dept=`→`?team=` normalisé ensuite en path par GroupsView.
     { path: '/org/departments', redirect: (to) => ({ path: '/org/teams', query: deptToTeamQuery(to.query) }) },
     { path: '/o/:orgId(\\d+)/org/departments', redirect: (to) => ({ path: `/o/${to.params.orgId}/org/teams`, query: deptToTeamQuery(to.query) }) },
     { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/org/departments', redirect: (to) => ({ path: `/o/${to.params.orgId}/g/${to.params.groupId}/org/teams`, query: deptToTeamQuery(to.query) }) },
@@ -125,6 +137,7 @@ const router = createRouter({
     ...detailRoutes('/projects/:id/data/:nsRef', 'project'),
     ...detailRoutes('/data/:id', 'data'),
     ...detailRoutes('/procedures/:id', 'procedure'),
+    ...teamDetailRoutes,
     {
       // /account (« manage account ») et /activity : niveau user, NON org-scopés.
       path: '/account',

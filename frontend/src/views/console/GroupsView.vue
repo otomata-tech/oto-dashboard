@@ -5,18 +5,19 @@
 // identifiants de code restent `group`/`getGroup`). La gestion d'UNE équipe (membres +
 // clés) est le composant partagé GroupDetailCards, réutilisé par MyGroupView (« gérer
 // mon équipe », côté chef). Le backend porte l'autz (escalade roles.py) ; l'UI masque.
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Dot from '@/components/console/Dot.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import GroupDetailCards from '@/components/console/GroupDetailCards.vue'
+import GroupConnectorsCard from '@/components/console/GroupConnectorsCard.vue'
 import GroupDoctrineCard from '@/components/console/GroupDoctrineCard.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
-import { useDeepLink } from '@/composables/useDeepLink'
 import { useMe } from '@/composables/useMe'
 import {
   listGroups, getGroup, createGroup, updateGroup, deleteGroup, useGroup, clearActiveGroup,
@@ -28,6 +29,8 @@ const { toast } = useToast()
 const { confirmAction } = usePrompt()
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
 const { me, reload } = useMe()
+const route = useRoute()
+const router = useRouter()
 
 const groups = ref<GroupListItem[]>([])
 const detail = ref<GroupDetail | null>(null)
@@ -35,11 +38,28 @@ const selectedId = ref<number | null>(null)
 const error = ref<string | null>(null)
 const loaded = ref(false)
 
-// Équipe ouverte portée par `?team=<id>` (lien direct + retour ; ex-`?dept=`).
-const dl = useDeepLink('team', (id) => {
-  if (id != null && id !== selectedId.value) select(id)
-  else if (id == null && selectedId.value != null) { selectedId.value = null; detail.value = null }
-}, { parse: Number })
+// Équipe ouverte pilotée par le CHEMIN `/org/teams/:teamId` (bookmarkable, deux onglets =
+// deux équipes) — le legacy `?team=<id>` (ex-`?dept=`) est normalisé vers le path. On pousse
+// des chemins NUS : la garde du routeur les re-préfixe vers `/o/<org>[/g/<équipe>]/…`.
+const selParam = computed(() => {
+  const p = route.params.teamId
+  if (typeof p === 'string' && p) return p
+  const q = route.query.team
+  return typeof q === 'string' && q ? q : null
+})
+async function applySelection(raw: string | null) {
+  const id = raw != null ? Number(raw) : null
+  // legacy `?team=` (pas de param de chemin) → réécrit vers `/org/teams/<id>`.
+  if (id != null && route.params.teamId == null) {
+    const { team: _team, ...rest } = route.query
+    void router.replace({ path: `/org/teams/${id}`, query: rest })
+    return
+  }
+  if (id == null) { selectedId.value = null; detail.value = null; return }
+  if (id === selectedId.value && detail.value) return
+  await select(id)
+}
+watch(selParam, (v) => { void applySelection(v) })
 
 const activeOrgId = computed(() => me.value?.active_org ?? null)
 const activeGroupId = computed(() => me.value?.active_group ?? null)
@@ -57,15 +77,15 @@ async function load() {
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
-onMounted(() => {
-  const id = dl.read()
-  if (id != null) selectedId.value = id
-  return load()
+onMounted(async () => {
+  await load()
+  await applySelection(selParam.value)
 })
+
+function open(id: number) { void router.push(`/org/teams/${id}`) }
 
 async function select(id: number) {
   selectedId.value = id
-  dl.set(id)
   try { detail.value = await getGroup(id) }
   catch (e) { toast(humanize(e)); detail.value = null }
 }
@@ -87,7 +107,7 @@ function create() {
       try {
         const g = await createGroup(activeOrgId.value!, (v.name ?? ''), v.description || '')
         toast(`team "${g.name}" created`)
-        await load(); await select(g.group_id)
+        await load(); open(g.group_id)
       } catch (e) { toast(humanize(e)); throw e }
     },
   })
@@ -118,7 +138,7 @@ function rename() {
 }
 async function removeGroup() {
   if (!await confirmAction({ title: 'delete team', danger: true, confirmLabel: 'Delete', message: 'delete this team? members, readme, procedures and shared keys are purged. members stay in the org.' })) return
-  try { await deleteGroup(selectedId.value!); toast('team deleted'); detail.value = null; selectedId.value = null; dl.set(null); await load() }
+  try { await deleteGroup(selectedId.value!); toast('team deleted'); detail.value = null; selectedId.value = null; void router.replace('/org/teams'); await load() }
   catch (e) { toast(humanize(e)) }
 }
 </script>
@@ -143,7 +163,7 @@ async function removeGroup() {
             <tbody>
               <tr v-for="g in groups" :key="g.id" :style="g.id === selectedId ? 'background: var(--color-wash)' : ''">
                 <td>
-                  <div style="font-weight: 600; color: var(--color-ink); cursor: pointer" @click="select(g.id)">{{ g.name }}</div>
+                  <div style="font-weight: 600; color: var(--color-ink); cursor: pointer" @click="open(g.id)">{{ g.name }}</div>
                   <div style="font-size: 11px; color: var(--color-faint)">{{ g.member_count }} members<span v-if="g.description"> · {{ g.description }}</span></div>
                 </td>
                 <td>
@@ -153,7 +173,7 @@ async function removeGroup() {
                 </td>
                 <td><Dot :tone="g.id === activeGroupId ? 'saffron' : 'faint'" :size="7" /></td>
                 <td style="text-align: right; white-space: nowrap">
-                  <Btn kind="mini" @click="select(g.id)">Open</Btn>
+                  <Btn kind="mini" @click="open(g.id)">Open</Btn>
                   <Btn v-if="g.my_role && g.id !== activeGroupId" kind="mini" @click="switchTo(g.id)">Use</Btn>
                 </td>
               </tr>
@@ -178,10 +198,11 @@ async function removeGroup() {
       </div>
 
       <template v-if="detail">
-        <div class="grid23">
-          <GroupDetailCards :group-id="detail.group.id" :org-id="detail.group.org_id" :members="detail.members" :secrets="detail.secrets"
-            :can-manage="canManage" :me-sub="meSub" @changed="select(detail.group.id)" />
-        </div>
+        <GroupDetailCards :group-id="detail.group.id" :org-id="detail.group.org_id" :members="detail.members"
+          :can-manage="canManage" :me-sub="meSub" @changed="select(detail.group.id)" />
+
+        <GroupConnectorsCard :group-id="detail.group.id" :secrets="detail.secrets"
+          :can-manage="canManage" @changed="select(detail.group.id)" />
 
         <GroupDoctrineCard :group-id="detail.group.id" :can-edit="canManage" />
       </template>
