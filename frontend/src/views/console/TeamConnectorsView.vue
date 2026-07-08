@@ -1,18 +1,17 @@
 <script setup lang="ts">
-// Connecteurs de l'équipe consultée (scope team, /team/connectors). Monte le cockpit
-// GroupConnectorsCard (clé partagée d'équipe, même dialecte que /org/connectors), keyé
-// par groupId. Le SEUL levier au grain équipe est la clé partagée (cascade perso › équipe
-// › org › plateforme) ; disponibilité/ACL restent des concepts d'org.
-import GroupConnectorsCard from '@/components/console/GroupConnectorsCard.vue'
+// Connecteurs de l'équipe consultée (/team/connectors). Wrapper mince : garde
+// « aucune équipe » (TeamScopeHeader) + la coquille unifiée `ConnectorScopeView`
+// (scope=team dérivé de la route). L'adaptateur team porte la clé partagée d'équipe
+// (et, à venir, disponibilité/accès d'équipe — backend B1/B2).
 import TeamScopeHeader from '@/components/console/TeamScopeHeader.vue'
+import ConnectorScopeView from '@/components/console/connector-scope/ConnectorScopeView.vue'
 import { useTeamScope } from '@/composables/useTeamScope'
 
-const { groupId, detail, error, loaded, canManage, reload } = useTeamScope()
+const { groupId, detail, error, loaded } = useTeamScope()
 </script>
 
 <template>
-  <TeamScopeHeader :detail="detail" :loaded="loaded" :error="error" :group-id="groupId" v-slot="{ detail: d }">
-    <GroupConnectorsCard :key="d.group.id" :group-id="d.group.id" :secrets="d.secrets"
-      :can-manage="canManage" @changed="reload" />
+  <TeamScopeHeader :detail="detail" :loaded="loaded" :error="error" :group-id="groupId">
+    <ConnectorScopeView />
   </TeamScopeHeader>
 </template>
