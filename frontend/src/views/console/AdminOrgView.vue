@@ -1,40 +1,51 @@
 <script setup lang="ts">
 // Fiche d'une organisation (plateforme) — page DÉDIÉE navigable `/platform/orgs/:id`
 // (comme la fiche user `/platform/users/:sub`), montée par ConsoleLayout via
-// `meta.detail === 'admin-org'`. Gouvernance admin (membres / clés / entitlements /
-// options / clés plateforme) + entrée en CONSULTATION lecture (ADR 0023).
+// `meta.detail === 'admin-org'`. Cockpit admin : profil / plan / membres / clés BYO /
+// entitlements / options + entrée en CONSULTATION lecture (ADR 0023).
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import Dot from '@/components/console/Dot.vue'
+import Avatar from '@/components/console/Avatar.vue'
+import Dropzone from '@/components/console/Dropzone.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
+import { useMe, isSuperAdmin } from '@/composables/useMe'
 import {
   getAdminOrg, archiveAdminOrg, addAdminOrgMember, setAdminOrgMemberRole,
   removeAdminOrgMember, putAdminOrgSecret, deleteAdminOrgSecret,
   grantOrgEntitlement, revokeOrgEntitlement, getConnectors, setOptionComp,
-  getPlatformKeys, grantOrgPlatformKey, revokeOrgPlatformKey,
+  updateOrg, uploadOrgLogo, deleteOrgLogo, adminSetPlan, getPlans,
 } from '@/api/console'
-import type { AdminGrant, ConnectorMeta, OrgDetail, OrgMember, OrgSecret, OrgEntitlement, OrgRole, PlatformKey } from '@/types/api'
+import type { BillingPlan, ConnectorMeta, OrgDetail, OrgMember, OrgSecret, OrgEntitlement, OrgRole } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { validateImage, IMAGE_ACCEPT_ATTR } from '@/lib/imageUpload'
 
 const route = useRoute()
 const router = useRouter()
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
+const { me } = useMe()
 
 const orgId = computed(() => Number(route.params.id))
 const detail = ref<OrgDetail | null>(null)
 const catalog = ref<ConnectorMeta[]>([])
-const pkeys = ref<PlatformKey[]>([])
+const plans = ref<BillingPlan[]>([])
+const logoBusy = ref(false)
 const error = ref<string | null>(null)
 const loading = ref(true)
+
+// Écriture sensible (profil, logo, plan comp) = super_admin seul — l'opérateur `admin`
+// supervise en lecture (le backend renvoie 403 sinon : updateOrg/logo escaladent
+// super_admin, adminSetPlan est SUPER_ADMIN). cf. useMe.ts.
+const canWrite = computed(() => isSuperAdmin(me.value))
 
 const nsOptions = computed(() =>
   [...new Set(catalog.value.filter((c) => c.availability === 'platform_granted').flatMap((c) => c.namespaces))],
@@ -44,14 +55,14 @@ async function refresh() { detail.value = await getAdminOrg(orgId.value) }
 
 onMounted(async () => {
   try {
-    const [d, cat, pk] = await Promise.all([
+    const [d, cat, pl] = await Promise.all([
       getAdminOrg(orgId.value),
       getConnectors().catch(() => ({ connectors: [] })),
-      getPlatformKeys().catch(() => ({ platform_keys: [] })),
+      getPlans().catch(() => ({ plans: [] })),
     ])
     detail.value = d
     catalog.value = cat.connectors
-    pkeys.value = pk.platform_keys
+    plans.value = pl.plans
   } catch (e) { error.value = humanize(e) }
   finally { loading.value = false }
 })
@@ -77,6 +88,99 @@ async function archiveOrg() {
   } catch (e) { toast(humanize(e)) }
 }
 
+// ── profil de l'org (nom, domaine, secteur, localisation, logo) ──────────────
+function editOrg() {
+  if (!detail.value) return
+  const o = detail.value.org
+  openForm({
+    title: 'éditer l\'organisation', submitLabel: 'enregistrer',
+    fields: [
+      { key: 'name', label: 'nom', initial: o.name ?? '', required: true },
+      { key: 'description', label: 'description', type: 'textarea',
+        placeholder: 'à quoi sert cette org (optionnel)', initial: o.description ?? '' },
+      { key: 'domain', label: 'domaine', placeholder: 'acme.com',
+        hint: 'domaine de marque — récupère aussi le logo (logo.dev) tant qu\'aucun n\'est uploadé',
+        initial: o.domain ?? '' },
+      { key: 'industry', label: 'secteur', placeholder: 'ex. logiciel, comptabilité (optionnel)',
+        initial: o.industry ?? '' },
+      { key: 'location', label: 'localisation', placeholder: 'ex. Paris, France (optionnel)',
+        initial: o.location ?? '' },
+    ],
+    onConfirm: async (v) => {
+      try {
+        await updateOrg(orgId.value, {
+          name: (v.name ?? '').trim(), description: v.description ?? '',
+          domain: (v.domain ?? '').trim(), industry: (v.industry ?? '').trim(),
+          location: (v.location ?? '').trim(),
+        })
+        await refresh()
+        toast('organisation mise à jour')
+      } catch (e) { toast(humanize(e)); throw e }
+    },
+  })
+}
+async function onLogoDrop(file: File) {
+  try {
+    validateImage(file) // miroir backend (png/jpeg/webp ≤ 2 Mo)
+    logoBusy.value = true
+    await uploadOrgLogo(orgId.value, file)
+    await refresh()
+    toast('logo mis à jour')
+  } catch (err) { toast(humanize(err)) }
+  finally { logoBusy.value = false }
+}
+async function removeLogo() {
+  if (!await confirmAction({ title: 'retirer le logo', danger: true, confirmLabel: 'Retirer',
+    message: 'retirer le logo de cette org ?' })) return
+  try {
+    logoBusy.value = true
+    await deleteOrgLogo(orgId.value)
+    await refresh()
+    toast('logo retiré')
+  } catch (err) { toast(humanize(err)) }
+  finally { logoBusy.value = false }
+}
+
+// ── plan / abonnement (ADR 0043) ─────────────────────────────────────────────
+// Le plan ouvre l'entitlement (options + plafond messagerie). `admin_set_plan` force
+// un plan COMP (sans PSP, jamais facturé) ; on ne touche JAMAIS un abonnement payant
+// depuis ici (le backend refuse admin_clear_plan dessus).
+const billing = computed(() => detail.value?.billing ?? null)
+const isCompPlan = computed(() => billing.value?.comp === true)
+const isPaidPlan = computed(() => billing.value?.subscribed === true && billing.value?.comp === false)
+
+function fmtAmount(p: BillingPlan): string {
+  if (p.amount == null) return 'sur devis'
+  return `${(p.amount / 100).toLocaleString('fr-FR')} €/${p.interval === 'year' ? 'an' : 'mois'}`
+}
+const currentPlanMeta = computed(() =>
+  billing.value?.plan ? plans.value.find((p) => p.plan === billing.value?.plan) ?? null : null)
+
+function forcePlan() {
+  if (!plans.value.length) { toast('catalogue de plans indisponible'); return }
+  openForm({
+    title: 'forcer un plan (comp)',
+    description: 'ouvre l\'entitlement du plan (options + plafond messagerie) immédiatement, sans paiement ni PSP. écrase l\'abonnement existant.',
+    submitLabel: 'forcer le plan',
+    fields: [
+      { key: 'plan', label: 'plan', type: 'select', required: true,
+        initial: billing.value?.plan,
+        options: plans.value.map((p) => ({ value: p.plan, label: `${p.label} · ${fmtAmount(p)}` })) },
+    ],
+    onConfirm: async (v) => {
+      try { await adminSetPlan(orgId.value, v.plan ?? ''); toast('plan forcé (comp)'); await refresh() }
+      catch (e) { toast(humanize(e)); throw e }
+    },
+  })
+}
+async function clearPlan() {
+  if (!await confirmAction({ title: 'retirer le plan comp', danger: true, confirmLabel: 'Retirer',
+    message: 'retirer l\'abonnement comp de l\'org ? l\'entitlement du plan (options + plafond messagerie) tombe aussitôt.' })) return
+  try { await adminSetPlan(orgId.value, null); toast('plan retiré'); await refresh() }
+  catch (e) { toast(humanize(e)) }
+}
+
+// ── membres ──────────────────────────────────────────────────────────────────
 function addMember() {
   openForm({
     title: 'add member', description: `to ${detail.value?.org.name}`, submitLabel: 'add',
@@ -102,6 +206,7 @@ async function removeMember(m: OrgMember) {
   catch (e) { toast(humanize(e)) }
 }
 
+// ── clés BYO de l'org ─────────────────────────────────────────────────────────
 function putSecret() {
   openForm({
     title: 'shared org key', description: 'inherited by every member of this org.', submitLabel: 'set key',
@@ -122,6 +227,7 @@ async function removeSecret(s: OrgSecret) {
   catch (e) { toast(humanize(e)) }
 }
 
+// ── entitlements (namespaces contrôlés) ──────────────────────────────────────
 function grantEnt() {
   openForm({
     title: 'grant entitlement', description: 'unlock a controlled namespace for the whole org.', submitLabel: 'grant',
@@ -141,7 +247,7 @@ async function revokeEnt(e0: OrgEntitlement) {
   catch (e) { toast(humanize(e)) }
 }
 
-// Options de connecteur (couche 3) : accorder l'option à toute l'org (comp admin).
+// ── options de connecteur (couche 3, comp admin org-level) ───────────────────
 const PAID_OPTIONS = [{ key: 'unipile', label: 'messagerie hébergée (unipile)' }]
 const orgOptionComped = (opt: string) => detail.value?.option_comps?.includes(opt) ?? false
 async function toggleOrgOption(opt: string) {
@@ -151,32 +257,6 @@ async function toggleOrgOption(opt: string) {
     toast(on ? `${opt} offert à l'org (comp)` : `${opt} retiré de l'org`)
     await refresh()
   } catch (e) { toast(humanize(e)) }
-}
-
-// Clé plateforme partagée à TOUTE l'org (couche 2).
-function grantOrgKey() {
-  if (!pkeys.value.length) { toast('aucune clé plateforme — créez-en une dans platform · connectors'); return }
-  openForm({
-    title: 'partager une clé plateforme à l\'org',
-    description: 'tous les membres de l\'org utiliseront cette clé plateforme (métré per-membre, jamais révélée).',
-    submitLabel: 'partager',
-    fields: [
-      // ADR 0044 §F : on partage la clé plateforme d'un CONNECTEUR (par provider), plus par id.
-      { key: 'key', label: 'clé plateforme', type: 'select', required: true,
-        options: pkeys.value.map((k) => ({ value: k.provider, label: `${k.provider}/${k.label}` })) },
-      { key: 'quota', label: 'quota/jour par membre', placeholder: 'vide = défaut provider' },
-    ],
-    onConfirm: async (v) => {
-      const quota = v.quota ? Math.max(1, Number(v.quota)) : undefined
-      try { await grantOrgPlatformKey(orgId.value, String(v.key), quota); toast('clé partagée à l\'org'); await refresh() }
-      catch (e) { toast(humanize(e)); throw e }
-    },
-  })
-}
-async function revokeOrgKey(g: AdminGrant) {
-  if (!await confirmAction({ title: 'retirer le partage', danger: true, confirmLabel: 'Retirer', message: `retirer ${g.provider}/${g.label} de l'org ?` })) return
-  try { await revokeOrgPlatformKey(orgId.value, g.provider); toast('partage retiré'); await refresh() }
-  catch (e) { toast(humanize(e)) }
 }
 </script>
 
@@ -191,7 +271,7 @@ async function revokeOrgKey(g: AdminGrant) {
       <!-- En-tête de l'org : identité + actions transverses -->
       <div class="org-head">
         <div class="org-id">
-          <span class="o-medallion o-medallion-sm" aria-hidden="true" />
+          <Avatar :src="detail.org.logo_url" :name="detail.org.name" :size="40" shape="square" />
           <div>
             <h1>{{ detail.org.name }}</h1>
             <div class="org-sub">{{ detail.members.length }} membre{{ detail.members.length === 1 ? '' : 's' }}</div>
@@ -199,8 +279,75 @@ async function revokeOrgKey(g: AdminGrant) {
         </div>
         <div class="org-actions">
           <Btn kind="mini" icon="eye" @click="consultOrg">Consulter (lecture)</Btn>
-          <Btn kind="danger" @click="archiveOrg">Archive org</Btn>
+          <Btn v-if="canWrite" kind="danger" @click="archiveOrg">Archive org</Btn>
         </div>
+      </div>
+
+      <!-- Profil & abonnement -->
+      <div class="grid2">
+        <ConsoleCard title="général" sub="nom, logo, description et profil d'entreprise.">
+          <template v-if="canWrite" #actions>
+            <Btn kind="mini" icon="pen" @click="editOrg">éditer</Btn>
+          </template>
+          <div class="rowlist">
+            <div>
+              <div v-if="detail.org.domain || detail.org.industry || detail.org.location"
+                style="font-size: 11.5px; color: var(--color-faint); display: flex; flex-wrap: wrap; gap: 4px 10px">
+                <a v-if="detail.org.domain" :href="`https://${detail.org.domain}`" target="_blank" rel="noopener"
+                  style="color: var(--color-mute); text-decoration: underline; text-underline-offset: 2px">{{ detail.org.domain }}</a>
+                <span v-if="detail.org.industry">{{ detail.org.industry }}</span>
+                <span v-if="detail.org.location">{{ detail.org.location }}</span>
+              </div>
+              <div v-if="detail.org.description" style="font-size: 12.5px; color: var(--color-mute); margin-top: 8px; white-space: pre-wrap">{{ detail.org.description }}</div>
+              <div v-else class="helptext" style="margin-top: 8px">no description.</div>
+            </div>
+
+            <div v-if="canWrite" style="border-top: 1px solid var(--color-hair); padding-top: 12px">
+              <div v-if="!detail.org.logo_custom && detail.org.domain && detail.org.logo_url" class="helptext" style="margin-bottom: 8px">
+                logo dérivé de <strong>{{ detail.org.domain }}</strong> (logo.dev) — dépose-en un pour le remplacer.
+              </div>
+              <div v-else-if="!detail.org.logo_url" class="helptext" style="margin-bottom: 8px">
+                aucun logo — renseigne un domaine dans « éditer » pour le récupérer, ou dépose-en un.
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+                <Dropzone :accept="IMAGE_ACCEPT_ATTR" :max-size-mb="2" :busy="logoBusy"
+                  :label="detail.org.logo_custom ? 'changer le logo' : 'déposer un logo'"
+                  hint="png, jpeg ou webp · max 2 Mo"
+                  @select="onLogoDrop" @error="toast" />
+                <Btn v-if="detail.org.logo_custom" kind="danger" :disabled="logoBusy" @click="removeLogo">retirer le logo</Btn>
+              </div>
+            </div>
+          </div>
+        </ConsoleCard>
+
+        <ConsoleCard title="plan / abonnement" sub="le plan ouvre l'entitlement (options + plafond messagerie). « comp » = forcé par un admin, jamais facturé.">
+          <template v-if="canWrite" #actions>
+            <Btn kind="mini" icon="pen" @click="forcePlan">{{ billing?.subscribed ? 'changer' : 'forcer un plan' }}</Btn>
+          </template>
+          <div class="rowlist">
+            <div v-if="billing?.subscribed" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+              <div style="min-width: 0; flex: 1">
+                <div style="font-weight: 600; font-size: 15px; color: var(--color-ink)">
+                  {{ billing.label || currentPlanMeta?.label || billing.plan }}
+                </div>
+                <div class="helptext" style="margin: 2px 0 0">
+                  <span v-if="currentPlanMeta">{{ fmtAmount(currentPlanMeta) }}</span>
+                  <span v-if="billing.current_period_end"> · échéance {{ fmtDate(billing.current_period_end) }}</span>
+                </div>
+              </div>
+              <Tag :tone="isCompPlan ? 'saffron' : 'olive'">{{ isCompPlan ? 'comp' : (billing.method === 'sepa' ? 'sepa' : 'payé') }}</Tag>
+              <Tag v-if="billing.status && billing.status !== 'active'" tone="terra">{{ billing.status }}</Tag>
+            </div>
+            <div v-else class="helptext" style="margin: 0">aucun plan — l'org est sur la gratuité (pas d'options débloquées par un plan).</div>
+
+            <div v-if="canWrite && isCompPlan" style="border-top: 1px solid var(--color-hair); padding-top: 12px; display: flex; justify-content: flex-end">
+              <Btn kind="danger" @click="clearPlan">Retirer le plan comp</Btn>
+            </div>
+            <div v-else-if="isPaidPlan" class="helptext" style="border-top: 1px solid var(--color-hair); padding-top: 12px; margin: 0">
+              abonnement payant — la résiliation passe par l'org (facturation), pas par l'admin.
+            </div>
+          </div>
+        </ConsoleCard>
       </div>
 
       <!-- Membres -->
@@ -228,34 +375,20 @@ async function revokeOrgKey(g: AdminGrant) {
 
       <!-- Accès partagés : ce dont héritent tous les membres -->
       <div class="eyebrow" style="margin-top: 4px">accès partagés</div>
-      <div class="grid2">
-        <ConsoleCard title="clés BYO de l'org" sub="credentials posés par l'org, hérités par chaque membre.">
-          <template #actions><Btn kind="mini" icon="plus" @click="putSecret">Add key</Btn></template>
-          <div class="rowlist">
-            <div v-for="s in detail.secrets" :key="s.provider" class="rowitem" style="gap: 12px">
-              <Dot tone="olive" :size="8" />
-              <div style="min-width: 0; flex: 1">
-                <div style="font-weight: 600; font-size: 13px">{{ s.provider }}</div>
-                <div style="font-size: 11.5px; color: var(--color-mute)">{{ s.base_url || 'set' }}{{ s.set_at ? ` · ${fmtDate(s.set_at)}` : '' }}</div>
-              </div>
-              <Btn kind="danger" @click="removeSecret(s)">Remove</Btn>
+      <ConsoleCard title="clés BYO de l'org" sub="credentials posés par l'org, hérités par chaque membre.">
+        <template #actions><Btn kind="mini" icon="plus" @click="putSecret">Add key</Btn></template>
+        <div class="rowlist">
+          <div v-for="s in detail.secrets" :key="s.provider" class="rowitem" style="gap: 12px">
+            <Dot tone="olive" :size="8" />
+            <div style="min-width: 0; flex: 1">
+              <div style="font-weight: 600; font-size: 13px">{{ s.provider }}</div>
+              <div style="font-size: 11.5px; color: var(--color-mute)">{{ s.base_url || 'set' }}{{ s.set_at ? ` · ${fmtDate(s.set_at)}` : '' }}</div>
             </div>
-            <div v-if="!detail.secrets.length" class="helptext">no shared keys yet.</div>
+            <Btn kind="danger" @click="removeSecret(s)">Remove</Btn>
           </div>
-        </ConsoleCard>
-
-        <ConsoleCard title="clés plateforme prêtées" sub="prêter une clé plateforme à toute l'org (métré per-membre, jamais révélée) — distinct des clés BYO.">
-          <template #actions><Btn kind="mini" icon="plus" @click="grantOrgKey">Partager une clé</Btn></template>
-          <div class="rowlist">
-            <div v-for="g in (detail.platform_grants ?? [])" :key="g.provider + g.label" class="rowitem" style="gap: 12px">
-              <div style="min-width: 0; flex: 1"><Tag tone="saffron">{{ g.provider }}/{{ g.label }}</Tag></div>
-              <span class="dim" style="font-size: 11px">{{ g.daily_quota ? `${g.daily_quota}/j` : '∞' }}</span>
-              <Btn kind="danger" @click="revokeOrgKey(g)">Retirer</Btn>
-            </div>
-            <div v-if="!(detail.platform_grants ?? []).length" class="helptext">aucune clé plateforme partagée.</div>
-          </div>
-        </ConsoleCard>
-      </div>
+          <div v-if="!detail.secrets.length" class="helptext">no shared keys yet.</div>
+        </div>
+      </ConsoleCard>
 
       <!-- Débloqués : ce que l'org a le droit d'utiliser -->
       <div class="eyebrow" style="margin-top: 4px">débloqués</div>
