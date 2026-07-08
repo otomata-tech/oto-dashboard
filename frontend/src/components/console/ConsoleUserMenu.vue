@@ -36,59 +36,38 @@ type Entry = {
   tone?: 'platform'
 }
 
-const entries = computed<Entry[]>(() => {
-  const onAccount = section.value.startsWith('/account')
-  const onActivity = section.value.startsWith('/activity')
+const onAccount = computed(() => section.value.startsWith('/account'))
+const onActivity = computed(() => section.value.startsWith('/activity'))
+
+// SWITCH d'espace (3 crans) : « où je travaille ». Mon Espace (consommation, niveau
+// user) · Espace Entreprise (gouvernance de l'org, org_admin) · Gérer mon compte.
+// L'entreprise n'apparaît que si j'administre l'org (sinon le switch a 2 crans).
+const spaces = computed<Entry[]>(() => {
   const out: Entry[] = [
-    {
-      key: 'work',
-      label: 'userMenu.mySpace',
-      icon: 'home',
-      to: '/overview',
-      active: level.value === 'work' && !onAccount && !onActivity,
-    },
-    {
-      key: 'profile',
-      label: 'userMenu.manageProfile',
-      icon: 'user',
-      to: '/account',
-      active: onAccount,
-    },
-    {
-      key: 'activity',
-      label: 'userMenu.activity',
-      icon: 'pulse',
-      to: '/activity',
-      active: onActivity,
-    },
+    { key: 'work', label: 'userMenu.spaceMine', icon: 'home', to: '/overview',
+      active: level.value === 'work' && !onAccount.value && !onActivity.value },
   ]
-  // « gérer mon groupe » : visible dès qu'on opère dans un groupe (groupe actif posé).
-  // Le contenu est gaté plus finement (chef vs membre) côté vue.
-  if (me.value?.active_group != null)
-    out.push({
-      key: 'group',
-      label: 'userMenu.manageGroup',
-      icon: 'users',
-      to: '/group',
-      active: level.value === 'group',
-    })
   if (me.value?.org_role === 'org_admin')
-    out.push({
-      key: 'org',
-      label: 'userMenu.manageOrg',
-      icon: 'building',
-      to: '/org',
-      active: level.value === 'org',
-    })
+    out.push({ key: 'org', label: 'userMenu.spaceOrg', icon: 'building', to: '/org',
+      active: level.value === 'org' })
+  out.push({ key: 'account', label: 'userMenu.spaceAccount', icon: 'user', to: '/account',
+    active: onAccount.value })
+  return out
+})
+
+// Entrées auxiliaires (hors switch d'espace) : activité, équipe, plateforme.
+const aux = computed<Entry[]>(() => {
+  const out: Entry[] = [
+    { key: 'activity', label: 'userMenu.activity', icon: 'pulse', to: '/activity',
+      active: onActivity.value },
+  ]
+  // « gérer mon groupe » : visible dès qu'un groupe actif est posé (gating fin en vue).
+  if (me.value?.active_group != null)
+    out.push({ key: 'group', label: 'userMenu.manageGroup', icon: 'users', to: '/group',
+      active: level.value === 'group' })
   if (isPlatformOperator(me.value))
-    out.push({
-      key: 'platform',
-      label: 'userMenu.managePlatform',
-      icon: 'shield',
-      to: '/platform/monitoring',
-      active: level.value === 'platform',
-      tone: 'platform',
-    })
+    out.push({ key: 'platform', label: 'userMenu.managePlatform', icon: 'shield',
+      to: '/platform/monitoring', active: level.value === 'platform', tone: 'platform' })
   return out
 })
 
@@ -110,7 +89,20 @@ function go() {
         <AccountViewAs />
         <div class="um-sep" />
       </template>
-      <template v-for="e in entries" :key="e.key">
+      <!-- Switch d'espace : sélecteur exclusif « où je travaille » (3 crans max). -->
+      <div class="um-switch" role="group">
+        <RouterLink
+          v-for="s in spaces" :key="s.key"
+          class="um-switch-item" :class="{ on: s.active }"
+          role="menuitemradio" :aria-checked="s.active"
+          :to="scoped(s.to)" @click="go"
+        >
+          <span class="ic"><Icon :name="s.icon" :size="15" /></span>
+          {{ t(s.label) }}
+        </RouterLink>
+      </div>
+      <div class="um-sep" />
+      <template v-for="e in aux" :key="e.key">
         <div v-if="e.tone === 'platform'" class="um-sep" />
         <RouterLink
           class="um-item"
@@ -200,4 +192,21 @@ function go() {
 .um-item.danger:hover { background: var(--color-paper-2); color: var(--color-ink); }
 
 .um-sep { height: 1px; margin: 4px 2px; background: var(--color-hair); }
+
+/* Switch d'espace : segmented vertical (crans exclusifs, actif en aplat encre). */
+.um-switch {
+  display: flex; flex-direction: column; gap: 2px; padding: 3px;
+  border: 1px solid var(--color-hair); border-radius: var(--radius-md);
+  background: var(--color-paper); margin-bottom: 2px;
+}
+.um-switch-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 9px; border-radius: var(--radius-md);
+  font-size: 13px; font-weight: 600; color: var(--color-ink-soft); text-decoration: none;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.um-switch-item .ic { display: inline-flex; color: var(--color-mute); }
+.um-switch-item:hover { background: var(--color-paper-2); color: var(--color-ink); }
+.um-switch-item.on { background: var(--color-ink); color: var(--color-bg); }
+.um-switch-item.on .ic { color: var(--color-bg); }
 </style>
