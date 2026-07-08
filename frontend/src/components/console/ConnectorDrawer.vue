@@ -1,16 +1,17 @@
 <script setup lang="ts">
-// Drawer latéral de détail d'UN connecteur (design Connectors.dc.html) — ouvert
-// depuis une ligne de la table. Coiffé d'un contrôle d'exposition (off/muted/live,
-// câblé sur connector_selection, ADR 0019) et 3 onglets : connexion (couche
-// d'authentification, ADR 0024 — widget dérivé de la méthode d'auth), outils
-// (toggles) et « à propos » (description + doc how-to). Réutilise les MÊMES widgets
+// Détail d'UN connecteur (projection USER) — ouvert depuis une ligne de ConnectorList,
+// rendu dans une MODALE centrée (ConnectorModal, ex-drawer latéral). Coiffé d'un contrôle
+// d'exposition (off/muted/live, câblé sur connector_selection, ADR 0019) et 3 onglets :
+// connexion (couche d'authentification, ADR 0024 — widget dérivé de la méthode d'auth),
+// outils (toggles) et « à propos » (description + doc how-to). Réutilise les MÊMES widgets
 // d'auth que l'ex-ConnectorCard (source unique, zéro branche par nom).
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import ConnectorModal from './ConnectorModal.vue'
 import Btn from './Btn.vue'
 import Toggle from './Toggle.vue'
 import Quota from './Quota.vue'
-import Avatar from './Avatar.vue'
+import Dot from './Dot.vue'
 import ConnectorOAuthAccounts from './ConnectorOAuthAccounts.vue'
 import ConnectorFederatedWidget from './ConnectorFederatedWidget.vue'
 import ConnectorSessionWidget from './ConnectorSessionWidget.vue'
@@ -19,7 +20,7 @@ import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
 import { selectConnector, pauseConnector, unselectConnector, enableTool, disableTool, verifyConnector, getOrgConnectorActivation } from '@/api/console'
-import type { ConnectorMode } from '@/lib/consoleTypes'
+import type { ConnectorMode, DotTone } from '@/lib/consoleTypes'
 import type { ConnectorState, MyConnector, OrgConnectorActivation, ToolEntry, VerifyResult } from '@/types/api'
 
 const props = defineProps<{
@@ -36,10 +37,7 @@ const { me } = useMe()
 const { toast } = useToast()
 
 // Bandeau « côté org » (ADR 0044, B4) : résumé LECTURE SEULE de la gouvernance d'org
-// pour un org_admin (disponibilité + option) + deep-link vers la gestion. On ne MUTE
-// pas ici — couper la dispo depuis « mes connecteurs » ferait disparaître le
-// connecteur de la liste où on est (contradiction de scope). La fiche unifiée
-// complète (édition org inline) vient avec le catalogue unifié.
+// pour un org_admin (disponibilité + option) + deep-link vers la gestion.
 const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin')
 const orgAct = ref<OrgConnectorActivation | null>(null)
 onMounted(async () => {
@@ -58,6 +56,13 @@ const state = computed<ConnectorState>(() => props.connector.state)
 const myTools = computed(() => [...props.tools].sort((a, b) => a.name.localeCompare(b.name)))
 const enabledCount = computed(() => myTools.value.filter((t) => t.enabled).length)
 
+// Onglets de la modale (badge = compteur d'outils actifs).
+const TABS = computed(() => [
+  { key: 'connection', label: 'connection' },
+  { key: 'tools', label: 'tools', badge: `${enabledCount.value}/${myTools.value.length}` },
+  { key: 'about', label: 'about' },
+])
+
 // Widget de connexion à rendre — dérivé du descripteur d'auth unifié (ADR 0024).
 type Conn = 'key' | 'session' | 'google' | 'memento' | 'unipile' | 'none'
 const connKind = computed<Conn>(() => {
@@ -71,7 +76,6 @@ const connKind = computed<Conn>(() => {
 })
 const isOpenData = computed(() => c.value.auth.method === 'none')
 const isRemote = computed(() => c.value.auth.method === 'remote')
-const isOauthLike = computed(() => ['google', 'memento', 'session', 'unipile'].includes(connKind.value))
 
 // Libellé court + explication de la méthode d'auth (couche Authentification).
 const nFields = computed(() => (c.value.credential_fields ?? []).length)
@@ -111,8 +115,7 @@ const statusMode = computed<ConnectorMode>(() => {
 const keyConfigured = computed(() => !!status.value?.user_key_configured)
 const needsKey = computed(() => connKind.value === 'key')
 
-// Sonde « tester la connexion » (self-contained, patron ConnectorSessionConnect) :
-// dispo si le connecteur a une sonde ET qu'un credential résout (perso ou en cascade).
+// Sonde « tester la connexion » (self-contained, patron ConnectorSessionConnect).
 const canTest = computed(() => c.value.verifiable && statusMode.value !== 'none')
 const testing = ref(false)
 const testRes = ref<VerifyResult | null>(null)
@@ -149,9 +152,7 @@ const EXPOSURE = computed(() => {
 })
 
 // Bandeau « État pour toi » (ADR 0044) : le ET-logique des 3 couches (Disponibilité
-// ∧ Connexion ∧ Option) + un verdict qui nomme LAQUELLE manque. Dérivé des champs déjà
-// présents (zéro fetch) ; `paid_option`/`option_ok` viennent de /api/me/connectors.
-type Tone = 'olive' | 'saffron' | 'grey'
+// ∧ Connexion ∧ Option) + un verdict qui nomme LAQUELLE manque.
 const availOk = computed(() => status.value?.mode !== 'forbidden')
 const connOk = computed(() => isOpenData.value || statusMode.value !== 'none')
 const connSource = computed(() => {
@@ -162,10 +163,10 @@ const connSource = computed(() => {
 })
 const optionRequired = computed(() => c.value.paid_option ?? null)
 const optionOk = computed(() => c.value.option_ok !== false)
-const availTone = computed<Tone>(() => (availOk.value ? 'olive' : 'saffron'))
-const connTone = computed<Tone>(() => (isOpenData.value ? 'grey' : connOk.value ? 'olive' : 'saffron'))
-const optTone = computed<Tone>(() => (!optionRequired.value ? 'grey' : optionOk.value ? 'olive' : 'saffron'))
-const verdict = computed<{ tone: Tone; text: string }>(() => {
+const availTone = computed<DotTone>(() => (availOk.value ? 'olive' : 'saffron'))
+const connTone = computed<DotTone>(() => (isOpenData.value ? 'faint' : connOk.value ? 'olive' : 'saffron'))
+const optTone = computed<DotTone>(() => (!optionRequired.value ? 'faint' : optionOk.value ? 'olive' : 'saffron'))
+const verdict = computed<{ tone: DotTone; text: string }>(() => {
   if (!availOk.value)
     return { tone: 'saffron', text: 'Réservé à certaines équipes/personnes de ton org — demande l’accès à un admin.' }
   if (!optionOk.value)
@@ -204,175 +205,138 @@ async function setAllTools(on: boolean) {
 </script>
 
 <template>
-  <div class="backdrop" @click="emit('close')"></div>
-  <aside class="drawer" role="dialog" aria-modal="true">
-    <!-- header -->
-    <div class="dr-head">
-      <Avatar :src="c.logo_url" :name="c.label" :size="44" shape="square" />
-      <div style="flex: 1; min-width: 0">
-        <div class="dr-title">{{ c.label }}</div>
-        <div class="dr-pub">{{ c.publisher }}</div>
-        <div class="dr-tags">
-          <span class="tag ink">{{ c.category }}</span>
-          <span class="tag cobalt">{{ authLabel }}</span>
-          <span v-if="c.family === 'federated'" class="tag saffron">federated</span>
-          <span v-if="c.free_tier" class="tag olive">free · {{ c.free_tier.daily_quota }}/day</span>
-        </div>
+  <ConnectorModal :label="c.label" :logo-url="c.logo_url" :publisher="c.publisher"
+    :tabs="TABS" :tab="tab" @update:tab="(k) => tab = (k as Tab)" @close="emit('close')">
+    <template #tags>
+      <span class="tag ink">{{ c.category }}</span>
+      <span class="tag cobalt">{{ authLabel }}</span>
+      <span v-if="c.family === 'federated'" class="tag saffron">federated</span>
+      <span v-if="c.free_tier" class="tag olive">free · {{ c.free_tier.daily_quota }}/day</span>
+    </template>
+
+    <!-- État pour toi (ADR 0044) — le ET-logique des 3 conditions, dit LAQUELLE manque -->
+    <div class="dr-block">
+      <div class="eyebrow" style="margin-bottom: 9px">état pour toi</div>
+      <div class="statrow">
+        <span class="spill"><Dot :tone="availTone" />disponibilité</span>
+        <span class="spill"><Dot :tone="connTone" />connexion<span v-if="connSource" class="dim"> · {{ connSource }}</span></span>
+        <span class="spill"><Dot :tone="optTone" />option<span v-if="!optionRequired" class="dim"> · n/a</span></span>
       </div>
-      <button class="closebtn" aria-label="close" @click="emit('close')">×</button>
+      <p class="verdict" :class="verdict.tone">{{ verdict.text }}</p>
     </div>
 
-    <!-- tabs -->
-    <div class="dr-tabs">
-      <button class="dtab" :class="{ on: tab === 'connection' }" @click="tab = 'connection'">connection</button>
-      <button class="dtab" :class="{ on: tab === 'tools' }" @click="tab = 'tools'">tools <span class="dim">{{ enabledCount }}/{{ myTools.length }}</span></button>
-      <button class="dtab" :class="{ on: tab === 'about' }" @click="tab = 'about'">about</button>
+    <!-- côté org (ADR 0044, B4) — résumé LECTURE SEULE, org_admin seulement -->
+    <div v-if="isOrgAdmin && orgAct" class="dr-block">
+      <div class="eyebrow" style="margin-bottom: 9px">côté org · {{ me?.active_org_name || 'ton org' }}</div>
+      <div class="statrow">
+        <span class="spill"><Dot :tone="orgAct.effective ? 'olive' : 'faint'" />{{ orgAct.effective ? 'disponible pour tes membres' : 'coupé pour tes membres' }}</span>
+        <span v-if="orgAct.paid_option" class="spill"><Dot :tone="orgAct.subscribed ? 'olive' : 'saffron'" />option {{ orgAct.paid_option }}</span>
+      </div>
+      <p class="helptext" style="margin: 9px 0 0">
+        <RouterLink to="/org/connectors" class="org-link">gérer la disponibilité, l'accès et la clé d'org →</RouterLink>
+      </p>
     </div>
 
-    <div class="dr-scroll">
-      <!-- État pour toi (ADR 0044) — le ET-logique des 3 conditions, dit LAQUELLE manque -->
-      <div class="dr-block">
-        <div class="eyebrow" style="margin-bottom: 9px">état pour toi</div>
-        <div class="statrow">
-          <span class="spill"><span class="cdot" :class="availTone"></span>disponibilité</span>
-          <span class="spill"><span class="cdot" :class="connTone"></span>connexion<span v-if="connSource" class="dim"> · {{ connSource }}</span></span>
-          <span class="spill"><span class="cdot" :class="optTone"></span>option<span v-if="!optionRequired" class="dim"> · n/a</span></span>
-        </div>
-        <p class="verdict" :class="verdict.tone">{{ verdict.text }}</p>
+    <!-- exposure (toujours en tête) -->
+    <div class="dr-block">
+      <div class="eyebrow" style="margin-bottom: 9px">exposure — what your agents see</div>
+      <div class="expseg">
+        <button :class="{ on: state === 'not_selected', off: true }" @click="setState('not_selected')"><Dot tone="faint" /><span class="el">off</span></button>
+        <button :class="{ on: state === 'paused', muted: true }" @click="setState('paused')"><Dot tone="saffron" /><span class="el">muted</span></button>
+        <button :class="{ on: state === 'active', live: true }" @click="setState('active')"><Dot tone="olive" /><span class="el">live</span></button>
       </div>
+      <p class="helptext" style="margin-top: 9px">{{ EXPOSURE.explain }}</p>
+    </div>
 
-      <!-- côté org (ADR 0044, B4) — résumé LECTURE SEULE, org_admin seulement -->
-      <div v-if="isOrgAdmin && orgAct" class="dr-block">
-        <div class="eyebrow" style="margin-bottom: 9px">côté org · {{ me?.active_org_name || 'ton org' }}</div>
-        <div class="statrow">
-          <span class="spill"><span class="cdot" :class="orgAct.effective ? 'olive' : 'grey'"></span>{{ orgAct.effective ? 'disponible pour tes membres' : 'coupé pour tes membres' }}</span>
-          <span v-if="orgAct.paid_option" class="spill"><span class="cdot" :class="orgAct.subscribed ? 'olive' : 'saffron'"></span>option {{ orgAct.paid_option }}</span>
+    <!-- CONNECTION -->
+    <div v-if="tab === 'connection'" class="dr-block">
+      <div class="eyebrow" style="margin-bottom: 8px">connection · {{ authLabel }}</div>
+      <p class="helptext" style="margin: 0 0 14px">{{ authExplain }}</p>
+
+      <div v-if="needsKey" class="dr-box">
+        <div style="font-size: 12.5px; font-weight: 600; margin-bottom: 10px">key resolution — first match wins</div>
+        <div class="cascade">
+          <span :class="nodeCls('user')">you</span><span class="arr">→</span>
+          <span :class="nodeCls('group')">team</span><span class="arr">→</span>
+          <span :class="nodeCls('org')">org</span><span class="arr">→</span>
+          <span :class="nodeCls('platform')">oto platform</span>
         </div>
-        <p class="helptext" style="margin: 9px 0 0">
-          <RouterLink to="/org/connectors" class="org-link">gérer la disponibilité, l'accès et la clé d'org →</RouterLink>
+        <p class="helptext" style="margin: 11px 0 0">{{ keyStatus }}<span v-if="statusMode === 'platform' && status?.platform_key_label" class="dim"> ({{ status.platform_key_label }})</span></p>
+        <Quota v-if="status?.quota_daily" style="margin-top: 12px" :used="status.quota_used_today" :total="status.quota_daily" label="daily quota" />
+        <div style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap">
+          <template v-if="keyConfigured">
+            <Btn kind="mini" @click="emit('configure', c)">Override key</Btn>
+            <Btn kind="danger" @click="emit('remove', c)">Remove key</Btn>
+          </template>
+          <Btn v-else kind="mini" @click="emit('configure', c)">Connect {{ c.label }}</Btn>
+          <Btn v-if="canTest" kind="mini" :disabled="testing" @click="testConnection">
+            {{ testing ? 'Test…' : 'Test connection' }}
+          </Btn>
+        </div>
+        <p v-if="testRes" class="helptext" style="margin: 10px 0 0"
+           :style="{ color: testRes.ok ? 'var(--color-olive)' : 'var(--color-terra-ink)' }">
+          {{ testRes.ok ? '✓ connexion OK' : `✗ ${testRes.error}` }}
         </p>
       </div>
 
-      <!-- exposure (toujours en tête) -->
-      <div class="dr-block">
-        <div class="eyebrow" style="margin-bottom: 9px">exposure — what your agents see</div>
-        <div class="expseg">
-          <button :class="{ on: state === 'not_selected', off: true }" @click="setState('not_selected')"><span class="cdot grey"></span><span class="el">off</span></button>
-          <button :class="{ on: state === 'paused', muted: true }" @click="setState('paused')"><span class="cdot saffron"></span><span class="el">muted</span></button>
-          <button :class="{ on: state === 'active', live: true }" @click="setState('active')"><span class="cdot olive"></span><span class="el">live</span></button>
-        </div>
-        <p class="helptext" style="margin-top: 9px">{{ EXPOSURE.explain }}</p>
+      <ConnectorOAuthAccounts v-else-if="connKind === 'google'" />
+      <ConnectorFederatedWidget v-else-if="connKind === 'memento'" :connector="c" />
+      <ConnectorSessionWidget v-else-if="connKind === 'session'" :connector="c" />
+      <ConnectorHostedWidget v-else-if="connKind === 'unipile'" />
+
+      <div v-else-if="isRemote" class="dr-box dashed">
+        <div style="display: flex; align-items: center; gap: 9px"><Dot tone="cobalt" /><span style="font-size: 12.5px; font-weight: 600">org bridge — provisioned by your org</span></div>
+        <p class="helptext" style="margin: 8px 0 0">your org admin places the machine credential; members just use it, read-only.</p>
+      </div>
+      <div v-else-if="isOpenData" class="dr-box dashed">
+        <div style="display: flex; align-items: center; gap: 9px"><Dot tone="cobalt" /><span style="font-size: 12.5px; font-weight: 600">open data — no credential needed</span></div>
+        <p class="helptext" style="margin: 8px 0 0">tools work out of the box. flip exposure to <strong>live</strong> and your agents can call them immediately.</p>
       </div>
 
-      <!-- CONNECTION -->
-      <div v-if="tab === 'connection'" class="dr-block">
-        <div class="eyebrow" style="margin-bottom: 8px">connection · {{ authLabel }}</div>
-        <p class="helptext" style="margin: 0 0 14px">{{ authExplain }}</p>
+      <p v-if="docRefCount > 0" class="helptext" style="margin-top: 14px; color: var(--color-mute)">↳ referenced by <strong style="color: var(--color-ink-soft)">{{ docRefCount }}</strong> procedure{{ docRefCount > 1 ? 's' : '' }} — connect it to run them.</p>
+    </div>
 
-        <div v-if="needsKey" class="dr-box">
-          <div style="font-size: 12.5px; font-weight: 600; margin-bottom: 10px">key resolution — first match wins</div>
-          <div class="cascade">
-            <span :class="nodeCls('user')">you</span><span class="arr">→</span>
-            <span :class="nodeCls('group')">team</span><span class="arr">→</span>
-            <span :class="nodeCls('org')">org</span><span class="arr">→</span>
-            <span :class="nodeCls('platform')">oto platform</span>
-          </div>
-          <p class="helptext" style="margin: 11px 0 0">{{ keyStatus }}<span v-if="statusMode === 'platform' && status?.platform_key_label" class="dim"> ({{ status.platform_key_label }})</span></p>
-          <Quota v-if="status?.quota_daily" style="margin-top: 12px" :used="status.quota_used_today" :total="status.quota_daily" label="daily quota" />
-          <div style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap">
-            <template v-if="keyConfigured">
-              <Btn kind="mini" @click="emit('configure', c)">Override key</Btn>
-              <Btn kind="danger" @click="emit('remove', c)">Remove key</Btn>
-            </template>
-            <Btn v-else kind="mini" @click="emit('configure', c)">Connect {{ c.label }}</Btn>
-            <Btn v-if="canTest" kind="mini" :disabled="testing" @click="testConnection">
-              {{ testing ? 'Test…' : 'Test connection' }}
-            </Btn>
-          </div>
-          <p v-if="testRes" class="helptext" style="margin: 10px 0 0"
-             :style="{ color: testRes.ok ? 'var(--color-olive)' : 'var(--color-terra-ink)' }">
-            {{ testRes.ok ? '✓ connexion OK' : `✗ ${testRes.error}` }}
-          </p>
+    <!-- TOOLS -->
+    <div v-else-if="tab === 'tools'" class="dr-block">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px">
+        <div class="eyebrow">{{ enabledCount }} of {{ myTools.length }} tools enabled</div>
+        <div style="display: flex; gap: 12px">
+          <button class="linklike" @click="setAllTools(true)">Enable all</button>
+          <button class="linklike" @click="setAllTools(false)">Disable all</button>
         </div>
-
-        <ConnectorOAuthAccounts v-else-if="connKind === 'google'" />
-        <ConnectorFederatedWidget v-else-if="connKind === 'memento'" :connector="c" />
-        <ConnectorSessionWidget v-else-if="connKind === 'session'" :connector="c" />
-        <ConnectorHostedWidget v-else-if="connKind === 'unipile'" />
-
-        <div v-else-if="isRemote" class="dr-box dashed">
-          <div style="display: flex; align-items: center; gap: 9px"><span class="cdot cobalt"></span><span style="font-size: 12.5px; font-weight: 600">org bridge — provisioned by your org</span></div>
-          <p class="helptext" style="margin: 8px 0 0">your org admin places the machine credential; members just use it, read-only.</p>
-        </div>
-        <div v-else-if="isOpenData" class="dr-box dashed">
-          <div style="display: flex; align-items: center; gap: 9px"><span class="cdot cobalt"></span><span style="font-size: 12.5px; font-weight: 600">open data — no credential needed</span></div>
-          <p class="helptext" style="margin: 8px 0 0">tools work out of the box. flip exposure to <strong>live</strong> and your agents can call them immediately.</p>
-        </div>
-
-        <p v-if="docRefCount > 0" class="helptext" style="margin-top: 14px; color: var(--color-mute)">↳ referenced by <strong style="color: var(--color-ink-soft)">{{ docRefCount }}</strong> procedure{{ docRefCount > 1 ? 's' : '' }} — connect it to run them.</p>
       </div>
-
-      <!-- TOOLS -->
-      <div v-else-if="tab === 'tools'" class="dr-block">
-        <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px">
-          <div class="eyebrow">{{ enabledCount }} of {{ myTools.length }} tools enabled</div>
-          <div style="display: flex; gap: 12px">
-            <button class="linklike" @click="setAllTools(true)">Enable all</button>
-            <button class="linklike" @click="setAllTools(false)">Disable all</button>
-          </div>
+      <p v-if="state === 'paused'" class="helptext" style="color: var(--color-saffron-ink); margin: 0 0 8px">this connector is muted — your selection is saved but hidden from agents until you set it live.</p>
+      <div v-for="t in myTools" :key="t.name" class="trow">
+        <div style="min-width: 0; flex: 1">
+          <code class="mono" style="font-size: 12px; color: var(--color-ink-soft)">{{ t.name }}</code>
+          <div v-if="t.description" style="font-size: 11px; line-height: 1.45; color: var(--color-mute); margin-top: 2px">{{ t.description }}</div>
+          <span v-if="t.protected" class="tag" style="font-size: 8.5px; padding: 1.5px 6px; margin-top: 5px">always on</span>
         </div>
-        <p v-if="state === 'paused'" class="helptext" style="color: var(--color-saffron-ink); margin: 0 0 8px">this connector is muted — your selection is saved but hidden from agents until you set it live.</p>
-        <div v-for="t in myTools" :key="t.name" class="trow">
-          <div style="min-width: 0; flex: 1">
-            <code class="mono" style="font-size: 12px; color: var(--color-ink-soft)">{{ t.name }}</code>
-            <div v-if="t.description" style="font-size: 11px; line-height: 1.45; color: var(--color-mute); margin-top: 2px">{{ t.description }}</div>
-            <span v-if="t.protected" class="tag" style="font-size: 8.5px; padding: 1.5px 6px; margin-top: 5px">always on</span>
-          </div>
-          <Toggle :on="t.enabled && state === 'active'" :disabled="t.protected" @change="toggleTool(t)" />
-        </div>
-        <p v-if="!myTools.length" class="helptext">no tools loaded for this connector.</p>
+        <Toggle :on="t.enabled && state === 'active'" :disabled="t.protected" @change="toggleTool(t)" />
       </div>
+      <p v-if="!myTools.length" class="helptext">no tools loaded for this connector.</p>
+    </div>
 
-      <!-- ABOUT -->
-      <div v-else class="dr-block">
-        <p style="font-size: 13.5px; line-height: 1.6; color: var(--color-ink-soft); margin: 0 0 16px; text-wrap: pretty">{{ c.description || c.help }}</p>
-        <div v-for="d in (c.doc_sections ?? [])" :key="d.title" style="margin-bottom: 14px">
-          <div class="eyebrow" style="margin-bottom: 5px">{{ d.title }}</div>
-          <p class="helptext" style="margin: 0">{{ d.body_md }}</p>
-        </div>
-        <hr class="divider-dotted" style="margin: 16px 0" />
-        <div style="display: flex; flex-wrap: wrap; gap: 24px">
-          <div><div class="about-l">namespaces</div><div class="mono" style="font-size: 12px; margin-top: 4px">{{ c.namespaces.join(' · ') }}</div></div>
-          <div><div class="about-l">tools</div><div class="mono" style="font-size: 12px; margin-top: 4px">{{ myTools.length }}</div></div>
-        </div>
+    <!-- ABOUT -->
+    <div v-else class="dr-block">
+      <p style="font-size: 13.5px; line-height: 1.6; color: var(--color-ink-soft); margin: 0 0 16px; text-wrap: pretty">{{ c.description || c.help }}</p>
+      <div v-for="d in (c.doc_sections ?? [])" :key="d.title" style="margin-bottom: 14px">
+        <div class="eyebrow" style="margin-bottom: 5px">{{ d.title }}</div>
+        <p class="helptext" style="margin: 0">{{ d.body_md }}</p>
+      </div>
+      <hr class="divider-dotted" style="margin: 16px 0" />
+      <div style="display: flex; flex-wrap: wrap; gap: 24px">
+        <div><div class="about-l">namespaces</div><div class="mono" style="font-size: 12px; margin-top: 4px">{{ c.namespaces.join(' · ') }}</div></div>
+        <div><div class="about-l">tools</div><div class="mono" style="font-size: 12px; margin-top: 4px">{{ myTools.length }}</div></div>
       </div>
     </div>
-  </aside>
+  </ConnectorModal>
 </template>
 
 <style scoped>
-.backdrop { position: fixed; inset: 0; z-index: 55; background: rgba(44, 33, 18, .34); backdrop-filter: blur(2px); animation: bd-in var(--t-fast) var(--ease-out); }
-@keyframes bd-in { from { opacity: 0; } to { opacity: 1; } }
-.drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 60; width: min(520px, 94vw); background: var(--color-bg); border-left: 1px solid var(--color-hair); box-shadow: -18px 0 44px -18px rgba(44, 33, 18, .30); display: flex; flex-direction: column; animation: dr-in 240ms var(--ease-out); }
-@keyframes dr-in { from { transform: translateX(24px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-.dr-head { padding: 16px 20px; border-bottom: 1px solid var(--color-hair); display: flex; align-items: flex-start; gap: 13px; }
-.dr-title { font-size: 17px; font-weight: 700; letter-spacing: -.01em; line-height: 1.15; }
-.dr-pub { font-size: 11.5px; color: var(--color-faint); margin-top: 2px; }
-.dr-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
-.dr-tabs { display: flex; gap: 18px; padding: 0 20px; border-bottom: 1px solid var(--color-hair); }
-.dtab { font-size: 12.5px; padding: 9px 2px 8px; border: 0; background: transparent; cursor: pointer; color: var(--color-mute); border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 500; }
-.dtab.on { color: var(--color-ink); border-bottom-color: var(--color-ink); font-weight: 700; }
-.dr-scroll { flex: 1; overflow-y: auto; min-height: 0; }
 .dr-block { padding: 18px 20px; border-bottom: 1px solid var(--color-hair-soft); }
 .dr-box { border: 1px solid var(--color-hair); border-radius: 10px; padding: 14px; background: var(--color-surface); }
 .dr-box.dashed { border-style: dashed; border-color: var(--color-hair-classic); }
-.closebtn { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--color-hair); background: var(--color-surface); color: var(--color-mute); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 17px; line-height: 1; flex: 0 0 auto; }
-.closebtn:hover { background: var(--color-paper-2); color: var(--color-ink); }
-.cdot { width: 8px; height: 8px; border-radius: 999px; display: inline-block; flex: 0 0 auto; }
-.cdot.olive { background: var(--color-olive); }
-.cdot.saffron { background: var(--color-saffron); }
-.cdot.cobalt { background: var(--color-cobalt); }
-.cdot.grey { background: var(--color-hair-classic); }
 .expseg { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
 .expseg button { border: 1px solid var(--color-hair); background: var(--color-surface); border-radius: 9px; padding: 9px 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; font-family: var(--font-sans); color: var(--color-mute); transition: border-color var(--t-fast), background var(--t-fast); }
 .expseg button:hover { border-color: var(--color-ink-soft); }

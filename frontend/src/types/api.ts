@@ -714,6 +714,7 @@ export interface UnipileStatus {
   subscribed: boolean       // option débloquée (BYO ou comp admin) — gate l'étape « connecter »
   mode?: string             // user|group|org|platform|over_quota|forbidden (origine de la clé)
   byo?: boolean             // clé propre (user/groupe/org), pas la clé plateforme
+  api_version?: string      // v1|v2 de la clé RÉSOLUE (v1/v2 selon la BYO)
   channels: { linkedin: UnipileChannel; whatsapp: UnipileChannel; telegram: UnipileChannel; instagram: UnipileChannel; messenger: UnipileChannel; twitter: UnipileChannel }
 }
 
@@ -910,11 +911,8 @@ export interface GroupInstructionsBundle {
 
 // ── admin ──
 export interface AdminGrant {
-  platform_key_id: number
   provider: string
   label: string
-  granted_at: string
-  granted_by: string | null
   daily_quota: number | null
 }
 export interface AdminUser {
@@ -971,12 +969,11 @@ export interface AdminOrgSummary {
   name: string
   member_count: number
 }
+// ADR 0044 §F : instance scope PLATFORM du coffre (identité = provider+label, plus d'id/secret).
 export interface PlatformKey {
-  id: number
   provider: string
   label: string
-  api_key_tail: string
-  created_at: string
+  set_at: string
 }
 
 // ── monitoring ──

@@ -163,28 +163,24 @@ const grantFor = (provider: string) => detail.value?.grants.find((g) => g.provid
 const platformKeysFor = (provider: string) => keys.value.filter((k) => k.provider === provider)
 
 function grantKey(provider: string) {
-  const pool = platformKeysFor(provider)
-  if (!pool.length) { toast(`no platform key for ${provider} — create one in platform keys first`); return }
-  const fields: FormDialogField[] = []
-  if (pool.length > 1) {
-    fields.push({ key: 'key', label: 'platform key', type: 'select', required: true,
-      options: pool.map((k) => ({ value: String(k.id), label: `${k.provider}/${k.label}` })) })
-  }
-  fields.push({ key: 'quota', label: 'daily quota', placeholder: 'blank = provider default', hint: 'max calls per day' })
+  // ADR 0044 §F : grant keyé par PROVIDER (l'instance plateforme du connecteur), plus par id.
+  if (!platformKeysFor(provider).length) { toast(`no platform key for ${provider} — create one in platform keys first`); return }
+  const fields: FormDialogField[] = [
+    { key: 'quota', label: 'daily quota', placeholder: 'blank = provider default', hint: 'max calls per day' },
+  ]
   openForm({
     title: `grant ${provider}`, description: `lend the shared ${provider} platform key to this user (quota-metered, key never revealed).`,
     fields, submitLabel: 'grant',
     onConfirm: async (v) => {
-      const keyId = pool.length > 1 ? Number(v.key) : pool[0]!.id
       const quota = v.quota ? Math.max(1, Number(v.quota)) : undefined
-      try { await grantPlatformKey(sub.value, keyId, quota); toast(`${provider} granted`); await loadDetail() }
+      try { await grantPlatformKey(sub.value, provider, quota); toast(`${provider} granted`); await loadDetail() }
       catch (e) { toast(humanize(e)); throw e }
     },
   })
 }
 async function revokeKey(g: AdminGrant) {
-  if (!await confirmAction({ title: 'revoke grant', danger: true, confirmLabel: 'Revoke', message: `revoke ${g.provider}/${g.label}?` })) return
-  try { await revokePlatformKey(sub.value, g.platform_key_id); toast('grant revoked'); await loadDetail() }
+  if (!await confirmAction({ title: 'revoke grant', danger: true, confirmLabel: 'Revoke', message: `revoke ${g.provider}?` })) return
+  try { await revokePlatformKey(sub.value, g.provider); toast('grant revoked'); await loadDetail() }
   catch (e) { toast(humanize(e)) }
 }
 // Options de connecteur (couche 3, oto-backend/docs/connector-model.md) : accorder

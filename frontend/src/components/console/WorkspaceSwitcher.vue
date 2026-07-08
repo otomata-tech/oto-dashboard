@@ -39,8 +39,11 @@ const landingSection = () =>
 function goToOrg(orgId: number, section?: string) {
   window.location.assign(`/o/${orgId}${section ?? landingSection()}`)
 }
+// Entrer dans une équipe = ENTRER dans son scope (menu team dédié), pas juste ajouter le
+// header groupe à la section courante : on atterrit donc sur /team/context (et non sur
+// landingSection(), qui resterait au niveau org/work).
 function goToTeam(orgId: number, groupId: number) {
-  window.location.assign(`/o/${orgId}/g/${groupId}${landingSection()}`)
+  window.location.assign(`/o/${orgId}/g/${groupId}/team/context`)
 }
 
 const loading = ref(false)

@@ -10,7 +10,7 @@ import { useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
 import ConnectorCardShell from '@/components/console/ConnectorCardShell.vue'
-import ConnectorBadges from '@/components/console/ConnectorBadges.vue'
+import ConnectorTileBody from '@/components/console/ConnectorTileBody.vue'
 import { useMe } from '@/composables/useMe'
 import { getMyConnectors } from '@/api/console'
 import type { MyConnector, ConnectorState } from '@/types/api'
@@ -69,12 +69,12 @@ const ficheTo = (c: MyConnector) =>
               {{ modeOf(c.name) === 'group' ? 'team key' : 'org key' }}
             </Tag>
           </template>
-          <p class="sh-help">{{ c.help || '—' }}</p>
-          <div class="sh-tags"><ConnectorBadges :meta="c" /></div>
-          <div class="sh-foot">
-            <span class="sh-src">résolu par <strong>{{ sourceLabel(c.name) }}</strong></span>
-            <span class="sh-state" :class="c.state">{{ STATE_LABEL[c.state] }}</span>
-          </div>
+          <ConnectorTileBody :description="c.help" :meta="c">
+            <template #footer>
+              <span class="sh-src">résolu par <strong>{{ sourceLabel(c.name) }}</strong></span>
+              <span class="sh-state" :class="c.state">{{ STATE_LABEL[c.state] }}</span>
+            </template>
+          </ConnectorTileBody>
         </ConnectorCardShell>
       </div>
 
@@ -91,10 +91,8 @@ const ficheTo = (c: MyConnector) =>
 </template>
 
 <style scoped>
-/* Le chrome de tuile (logo/nom/éditeur) vit dans ConnectorCardShell. Ici : le corps. */
-.sh-help { font-size: 12.5px; line-height: 1.5; color: var(--color-ink-soft); margin: 0; flex: 1; }
-.sh-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.sh-foot { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+/* Chrome de tuile → ConnectorCardShell ; desc+badges+pied → ConnectorTileBody.
+   Ici : seulement le contenu propre du pied (source résolue + état). */
 .sh-src { font-size: 11.5px; color: var(--color-mute); }
 .sh-src strong { color: var(--color-ink-soft); font-weight: 600; }
 .sh-state {

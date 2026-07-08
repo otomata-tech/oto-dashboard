@@ -161,20 +161,21 @@ function grantOrgKey() {
     description: 'tous les membres de l\'org utiliseront cette clé plateforme (métré per-membre, jamais révélée).',
     submitLabel: 'partager',
     fields: [
+      // ADR 0044 §F : on partage la clé plateforme d'un CONNECTEUR (par provider), plus par id.
       { key: 'key', label: 'clé plateforme', type: 'select', required: true,
-        options: pkeys.value.map((k) => ({ value: String(k.id), label: `${k.provider}/${k.label}` })) },
+        options: pkeys.value.map((k) => ({ value: k.provider, label: `${k.provider}/${k.label}` })) },
       { key: 'quota', label: 'quota/jour par membre', placeholder: 'vide = défaut provider' },
     ],
     onConfirm: async (v) => {
       const quota = v.quota ? Math.max(1, Number(v.quota)) : undefined
-      try { await grantOrgPlatformKey(orgId.value, Number(v.key), quota); toast('clé partagée à l\'org'); await refresh() }
+      try { await grantOrgPlatformKey(orgId.value, String(v.key), quota); toast('clé partagée à l\'org'); await refresh() }
       catch (e) { toast(humanize(e)); throw e }
     },
   })
 }
 async function revokeOrgKey(g: AdminGrant) {
   if (!await confirmAction({ title: 'retirer le partage', danger: true, confirmLabel: 'Retirer', message: `retirer ${g.provider}/${g.label} de l'org ?` })) return
-  try { await revokeOrgPlatformKey(orgId.value, g.platform_key_id); toast('partage retiré'); await refresh() }
+  try { await revokeOrgPlatformKey(orgId.value, g.provider); toast('partage retiré'); await refresh() }
   catch (e) { toast(humanize(e)) }
 }
 </script>
@@ -246,7 +247,7 @@ async function revokeOrgKey(g: AdminGrant) {
         <ConsoleCard title="clés plateforme prêtées" sub="prêter une clé plateforme à toute l'org (métré per-membre, jamais révélée) — distinct des clés BYO.">
           <template #actions><Btn kind="mini" icon="plus" @click="grantOrgKey">Partager une clé</Btn></template>
           <div class="rowlist">
-            <div v-for="g in (detail.platform_grants ?? [])" :key="g.platform_key_id" class="rowitem" style="gap: 12px">
+            <div v-for="g in (detail.platform_grants ?? [])" :key="g.provider + g.label" class="rowitem" style="gap: 12px">
               <div style="min-width: 0; flex: 1"><Tag tone="saffron">{{ g.provider }}/{{ g.label }}</Tag></div>
               <span class="dim" style="font-size: 11px">{{ g.daily_quota ? `${g.daily_quota}/j` : '∞' }}</span>
               <Btn kind="danger" @click="revokeOrgKey(g)">Retirer</Btn>

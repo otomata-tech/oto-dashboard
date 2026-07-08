@@ -10,7 +10,7 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import CategoryChips from '@/components/console/CategoryChips.vue'
 import ConnectorCardShell from '@/components/console/ConnectorCardShell.vue'
-import ConnectorBadges from '@/components/console/ConnectorBadges.vue'
+import ConnectorTileBody from '@/components/console/ConnectorTileBody.vue'
 import ConnectorDetail from '@/components/console/library/ConnectorDetail.vue'
 import { useDeepLink } from '@/composables/useDeepLink'
 import { getMyConnectors, getToolRegistry, selectConnector } from '@/api/console'
@@ -116,21 +116,21 @@ const filtered = computed(() => {
         <ConnectorCardShell v-for="c in filtered" :key="c.name"
           :label="c.label" :logo-url="c.logo_url" :subtitle="c.publisher"
           clickable fill @open="open(c)">
-          <p class="lib-desc">{{ c.description || c.help || '—' }}</p>
-          <div class="lib-tags"><ConnectorBadges :meta="c" /></div>
-          <div class="lib-foot">
-            <span class="lib-count dim">
-              {{ toolsOf(c).length ? `${toolsOf(c).length} outils` : c.namespaces.join(' ') }}
-            </span>
-            <div class="lib-actions">
-              <span class="lib-more">détails →</span>
-              <Btn v-if="c.state === 'not_selected'" kind="mini" :disabled="busy === c.name"
-                @click.stop="install(c)">
-                {{ busy === c.name ? '…' : 'Install' }}
-              </Btn>
-              <RouterLink v-else to="/connectors" class="lib-installed" @click.stop>installed →</RouterLink>
-            </div>
-          </div>
+          <ConnectorTileBody :description="c.description || c.help" :meta="c" clamp>
+            <template #footer>
+              <span class="lib-count dim">
+                {{ toolsOf(c).length ? `${toolsOf(c).length} outils` : c.namespaces.join(' ') }}
+              </span>
+              <div class="lib-actions">
+                <span class="lib-more">détails →</span>
+                <Btn v-if="c.state === 'not_selected'" kind="mini" :disabled="busy === c.name"
+                  @click.stop="install(c)">
+                  {{ busy === c.name ? '…' : 'Install' }}
+                </Btn>
+                <RouterLink v-else to="/connectors" class="lib-installed" @click.stop>installed →</RouterLink>
+              </div>
+            </template>
+          </ConnectorTileBody>
         </ConnectorCardShell>
       </div>
 
@@ -146,13 +146,8 @@ const filtered = computed(() => {
 .lib-controls { display: flex; flex-direction: column; gap: 12px; }
 .lib-controls .inp { width: 100%; max-width: 420px; }
 
-/* Le chrome de tuile (logo/nom/éditeur/hover) vit dans ConnectorCardShell. Ici : le corps. */
-.lib-desc {
-  font-size: 12.5px; line-height: 1.5; color: var(--color-ink-soft); margin: 0; flex: 1;
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-}
-.lib-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.lib-foot { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+/* Chrome de tuile → ConnectorCardShell ; desc+badges+pied → ConnectorTileBody.
+   Ici : seulement le contenu propre du pied (compteur + actions install). */
 .lib-count { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lib-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
 .lib-more { font-size: 11px; color: var(--color-faint); }

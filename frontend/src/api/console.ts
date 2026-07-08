@@ -51,8 +51,8 @@ export const unselectConnector = (name: string) =>
 // par le connecteur (`credential_fields`). api_key → {key}, basic_auth (planity) →
 // {email,password}, silae → {client_id,client_secret,subscription_key}. Le serveur
 // pack/chiffre selon la forme. Une seule surface, zéro branche par connecteur.
-export const setCredential = (provider: string, fields: Record<string, string>) =>
-  api(`/api/settings/api-keys/${provider}`, { method: 'POST', ...j(fields) })
+export const setCredential = (provider: string, fields: Record<string, string>, api_version?: string) =>
+  api(`/api/settings/api-keys/${provider}`, { method: 'POST', ...j(api_version ? { ...fields, api_version } : fields) })
 export const deleteApiKey = (provider: string) =>
   api(`/api/settings/api-keys/${provider}`, { method: 'DELETE' })
 
@@ -544,10 +544,14 @@ export const setOrgMemberRole = (id: number, sub: string, role: string) =>
   api(`/api/orgs/${id}/members/${sub}`, { method: 'POST', ...j({ role }) })
 export const removeOrgMember = (id: number, sub: string) =>
   api(`/api/orgs/${id}/members/${sub}`, { method: 'DELETE' })
+// Auto-retrait : quitter une org dont on est membre (self-service, SUB_ONLY). Refusé sur
+// l'org perso ou si on est le dernier admin (409). L'org active bascule côté backend.
+export const leaveOrg = (id: number) =>
+  api<{ ok: boolean; org_id: number; left: boolean }>(`/api/me/orgs/${id}/membership`, { method: 'DELETE' })
 // Pose/rotation de la clé partagée d'org (org_admin, self-service, ADR 0022).
-export const setOrgSecret = (id: number, provider: string, api_key: string, base_url?: string, fields?: Record<string, string>) =>
+export const setOrgSecret = (id: number, provider: string, api_key: string, base_url?: string, fields?: Record<string, string>, api_version?: string) =>
   api<{ ok: boolean; org_id: number; provider: string }>(
-    `/api/orgs/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url, fields }) })
+    `/api/orgs/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url, fields, api_version }) })
 export const deleteOrgSecret = (id: number, provider: string) =>
   api(`/api/orgs/${id}/secrets/${provider}`, { method: 'DELETE' })
 
@@ -561,10 +565,6 @@ export const getGroup = (id: number) => api<GroupDetail>(`/api/groups/${id}`)
 export const updateGroup = (id: number, patch: { name?: string; description?: string }) =>
   api(`/api/groups/${id}`, { method: 'PATCH', ...j(patch) })
 export const deleteGroup = (id: number) => api(`/api/groups/${id}`, { method: 'DELETE' })
-export const useGroup = (group_id: number) =>
-  api<{ active_group: number; name: string; active_org: number }>(
-    '/api/me/active-group', { method: 'PUT', ...j({ group_id }) })
-export const clearActiveGroup = () => api('/api/me/active-group', { method: 'DELETE' })
 export const addGroupMember = (id: number, target: string, role: GroupRole) =>
   api(`/api/groups/${id}/members`, { method: 'POST', ...j({ target, role }) })
 export const setGroupMemberRole = (id: number, sub: string, role: GroupRole) =>
@@ -596,22 +596,25 @@ export const getAdminUser = (sub: string) =>
   api<AdminUserDetail>(`/api/admin/users/${encodeURIComponent(sub)}`)
 export const setUserRole = (sub: string, role: Role) =>
   api(`/api/admin/users/${sub}/role`, { method: 'POST', ...j({ role }) })
+// ADR 0044 §F : la clé plateforme est une instance du coffre (identité = provider+label,
+// plus de surrogate id). Grants keyés par PROVIDER (le connecteur ciblé).
 export const getPlatformKeys = () => api<{ platform_keys: PlatformKey[] }>('/api/admin/platform-keys')
-export const createPlatformKey = (provider: string, label: string, api_key: string) =>
-  api<{ id: number; provider: string; label: string }>('/api/admin/platform-keys', { method: 'POST', ...j({ provider, label, api_key }) })
-export const deletePlatformKey = (id: number) => api(`/api/admin/platform-keys/${id}`, { method: 'DELETE' })
+export const createPlatformKey = (provider: string, label: string, api_key: string, api_version?: string) =>
+  api<{ provider: string; label: string; api_version: string }>('/api/admin/platform-keys', { method: 'POST', ...j({ provider, label, api_key, api_version }) })
+export const deletePlatformKey = (provider: string, label: string) =>
+  api(`/api/admin/platform-keys/${encodeURIComponent(provider)}/${encodeURIComponent(label)}`, { method: 'DELETE' })
 
-// platform key grants per-user (lent platform keys with a daily quota)
-export const grantPlatformKey = (sub: string, keyId: number, daily_quota?: number) =>
-  api(`/api/admin/users/${sub}/grants/${keyId}`, { method: 'POST', ...j({ daily_quota }) })
-export const revokePlatformKey = (sub: string, keyId: number) =>
-  api(`/api/admin/users/${sub}/grants/${keyId}`, { method: 'DELETE' })
+// platform key grants per-user (accès à la clé plateforme d'un connecteur + quota/jour)
+export const grantPlatformKey = (sub: string, provider: string, daily_quota?: number) =>
+  api(`/api/admin/users/${sub}/grants/${encodeURIComponent(provider)}`, { method: 'POST', ...j({ daily_quota }) })
+export const revokePlatformKey = (sub: string, provider: string) =>
+  api(`/api/admin/users/${sub}/grants/${encodeURIComponent(provider)}`, { method: 'DELETE' })
 
 // platform key grants au niveau ORG (couche 2, partage à tous les membres) — super_admin
-export const grantOrgPlatformKey = (orgId: number, keyId: number, daily_quota?: number) =>
-  api(`/api/admin/orgs/${orgId}/grants/${keyId}`, { method: 'POST', ...j({ daily_quota }) })
-export const revokeOrgPlatformKey = (orgId: number, keyId: number) =>
-  api(`/api/admin/orgs/${orgId}/grants/${keyId}`, { method: 'DELETE' })
+export const grantOrgPlatformKey = (orgId: number, provider: string, daily_quota?: number) =>
+  api(`/api/admin/orgs/${orgId}/grants/${encodeURIComponent(provider)}`, { method: 'POST', ...j({ daily_quota }) })
+export const revokeOrgPlatformKey = (orgId: number, provider: string) =>
+  api(`/api/admin/orgs/${orgId}/grants/${encodeURIComponent(provider)}`, { method: 'DELETE' })
 
 // option comps (offrir/retirer GRATUITEMENT une option payante — couche abonnement,
 // oto-backend/docs/connector-model.md). entity_type user|org, super_admin only.

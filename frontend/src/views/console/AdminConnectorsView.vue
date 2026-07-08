@@ -100,9 +100,14 @@ function setKey(c: ConnectorActivation) {
       { key: 'label', label: 'label', initial: 'prod', required: true,
         hint: 're-posting the same label rotates the key' },
       { key: 'api_key', label: 'api key', type: 'password', required: true, placeholder: 'paste the key' },
+      // ADR 0044 §F : version d'API portée par la clé (unipile v2 = compte/clé distincts).
+      ...(c.connector === 'unipile'
+        ? [{ key: 'api_version', label: 'API version', type: 'select' as const, initial: 'v1',
+            options: [{ value: 'v1', label: 'v1 (par défaut)' }, { value: 'v2', label: 'v2' }] }]
+        : []),
     ],
     onConfirm: async (v) => {
-      try { await createPlatformKey(c.connector, v.label ?? '', v.api_key ?? ''); toast(`${c.connector}/${v.label} saved`); await load() }
+      try { await createPlatformKey(c.connector, v.label ?? '', v.api_key ?? '', v.api_version); toast(`${c.connector}/${v.label} saved`); await load() }
       catch (e) { toast(humanize(e)); throw e }
     },
   })
@@ -111,7 +116,7 @@ function setKey(c: ConnectorActivation) {
 async function removeKey(k: PlatformKey) {
   if (!await confirmAction({ title: 'delete platform key', danger: true, confirmLabel: 'Delete',
     message: `delete "${k.provider}/${k.label}"? grants using it will stop resolving.` })) return
-  try { await deletePlatformKey(k.id); toast('key deleted'); await load() }
+  try { await deletePlatformKey(k.provider, k.label); toast('key deleted'); await load() }
   catch (e) { toast(humanize(e)) }
 }
 </script>

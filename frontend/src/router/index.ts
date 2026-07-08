@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory, type RouteRecordRaw, type RouteMeta, type LocationQuery } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw, type RouteMeta } from 'vue-router'
 import ConsoleLayout from '../views/console/ConsoleLayout.vue'
 import InviteAcceptView from '../views/InviteAcceptView.vue'
 import ImportProjectView from '../views/ImportProjectView.vue'
@@ -58,24 +58,6 @@ function detailRoutes(path: string, detail: string): RouteRecordRaw[] {
   ]
 }
 
-// Renomme le deep-link legacy `?dept=<id>` en `?team=<id>` (redirections départements→teams).
-// GroupsView normalise ensuite `?team=<id>` vers la sous-route `/org/teams/<id>`.
-function deptToTeamQuery(q: LocationQuery): LocationQuery {
-  if (q.dept === undefined) return q
-  const { dept, ...rest } = q
-  return { ...rest, team: dept }
-}
-
-// Équipe ouverte = sous-route PATH `/org/teams/:teamId` (bookmarkable, remplace `?team=`).
-// MÊME section que /org/teams → monte GroupsView (pas de vue de détail dédiée), qui lit
-// `:teamId` et normalise le legacy `?team=`. Nue + préfixées org/équipe, comme les autres
-// sections org-scopées (la garde `beforeEach` re-préfixe les `router.push` nus).
-const teamSectionMeta = { section: '/org/teams', level: 'org' as NavLevel, orgScoped: true }
-const teamDetailRoutes: RouteRecordRaw[] = [
-  { path: '/org/teams/:teamId(\\d+)', component: ConsoleLayout, meta: teamSectionMeta },
-  ...scopedVariants('/org/teams/:teamId(\\d+)', teamSectionMeta),
-]
-
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -98,13 +80,17 @@ const router = createRouter({
     { path: '/org/redaction', redirect: '/connectors' },
     // Clés plateforme fusionnées dans le cockpit connecteurs plateforme (ADR 0022).
     { path: '/platform/keys', redirect: '/platform/connectors' },
-    // « départements » → « teams » (renommage vocabulaire produit 2026-07-06) : la
-    // section vit désormais en /org/teams, une équipe ouverte en /org/teams/<id> (path),
-    // on garde les identifiants de code (group/getGroup). Redirections pour les bookmarks
-    // legacy — nue + préfixées ; `?dept=`→`?team=` normalisé ensuite en path par GroupsView.
-    { path: '/org/departments', redirect: (to) => ({ path: '/org/teams', query: deptToTeamQuery(to.query) }) },
-    { path: '/o/:orgId(\\d+)/org/departments', redirect: (to) => ({ path: `/o/${to.params.orgId}/org/teams`, query: deptToTeamQuery(to.query) }) },
-    { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/org/departments', redirect: (to) => ({ path: `/o/${to.params.orgId}/g/${to.params.groupId}/org/teams`, query: deptToTeamQuery(to.query) }) },
+    // « gérer mon groupe » (/group, ex mono-item niveau group) → scope team dédié, atterrit
+    // sur /team/context. Nue + préfixées (la garde beforeEach re-préfixe la nue au besoin).
+    { path: '/group', redirect: '/team/context' },
+    { path: '/o/:orgId(\\d+)/group', redirect: (to) => `/o/${to.params.orgId}/team/context` },
+    { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/group', redirect: (to) => `/o/${to.params.orgId}/g/${to.params.groupId}/team/context` },
+    // « départements » → « teams » (renommage vocabulaire produit 2026-07-06). Le roster
+    // vit en /org/teams ; l'ancien deep-link `?dept=<id>` n'est plus consommé (on retombe
+    // sur la liste). Nue + préfixées pour les bookmarks legacy.
+    { path: '/org/departments', redirect: '/org/teams' },
+    { path: '/o/:orgId(\\d+)/org/departments', redirect: (to) => `/o/${to.params.orgId}/org/teams` },
+    { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/org/departments', redirect: (to) => `/o/${to.params.orgId}/g/${to.params.groupId}/org/teams` },
     // Acceptation d'invitation (hors shell console) — gère sa propre auth.
     // /invite?token= = lien mail legacy ; /invitation/<carrier>[/<code>] = lien
     // partageable (referral réutilisable si carrier seul, nominatif si +code).
@@ -137,14 +123,16 @@ const router = createRouter({
     ...detailRoutes('/projects/:id/data/:nsRef', 'project'),
     ...detailRoutes('/data/:id', 'data'),
     ...detailRoutes('/procedures/:id', 'procedure'),
-    ...teamDetailRoutes,
+    // Équipe ouverte (ex `/org/teams/:teamId`, blocs empilés) → DESCENTE dans le scope
+    // team dédié `/o/:org/g/:teamId/team/context`. Préfixées : on connaît l'org → on
+    // construit le préfixe `/g/`. Nue (sans org) : on retombe sur la liste (la garde
+    // re-préfixe /org/teams vers l'org courante).
+    { path: '/o/:orgId(\\d+)/org/teams/:teamId(\\d+)', redirect: (to) => `/o/${to.params.orgId}/g/${to.params.teamId}/team/context` },
+    { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/org/teams/:teamId(\\d+)', redirect: (to) => `/o/${to.params.orgId}/g/${to.params.teamId}/team/context` },
+    { path: '/org/teams/:teamId(\\d+)', redirect: '/org/teams' },
     {
-      // /account (« manage account ») et /activity : niveau user, NON org-scopés.
-      path: '/account',
-      component: ConsoleLayout,
-      meta: { section: '/account', level: 'work', orgScoped: false },
-    },
-    {
+      // /activity : niveau user, NON org-scopé, hors sidebar (footer). Les pages
+      // /account/* dérivent de NAV (niveau 'account', voir sectionRoutes).
       path: '/activity',
       component: ConsoleLayout,
       meta: { section: '/activity', level: 'work', orgScoped: false },
