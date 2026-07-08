@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Icon from './Icon.vue'
 import Avatar from './Avatar.vue'
-import { useMe } from '@/composables/useMe'
+import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { useAuth } from '@/composables/useAuth'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
@@ -62,8 +62,33 @@ const entries = computed<Entry[]>(() => {
       active: onActivity,
     },
   ]
-  // La gouvernance (équipe / org / plateforme) a migré dans la sidebar : une zone
-  // « Gestion Entreprise » adaptative par droits (oto-dashboard#51). Plus de switch ici.
+  // « gérer mon groupe » : visible dès qu'on opère dans un groupe (groupe actif posé).
+  // Le contenu est gaté plus finement (chef vs membre) côté vue.
+  if (me.value?.active_group != null)
+    out.push({
+      key: 'group',
+      label: 'userMenu.manageGroup',
+      icon: 'users',
+      to: '/group',
+      active: level.value === 'group',
+    })
+  if (me.value?.org_role === 'org_admin')
+    out.push({
+      key: 'org',
+      label: 'userMenu.manageOrg',
+      icon: 'building',
+      to: '/org',
+      active: level.value === 'org',
+    })
+  if (isPlatformOperator(me.value))
+    out.push({
+      key: 'platform',
+      label: 'userMenu.managePlatform',
+      icon: 'shield',
+      to: '/platform/monitoring',
+      active: level.value === 'platform',
+      tone: 'platform',
+    })
   return out
 })
 

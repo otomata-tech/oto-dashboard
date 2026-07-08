@@ -11,6 +11,7 @@ import { listProjects } from '@/api/console'
 import type { Project } from '@/types/api'
 import { useMe, isPlatformOperator, isSuperAdmin } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
+import { useScope } from '@/composables/useScope'
 import { useScopedLink } from '@/composables/useScopedLink'
 
 const route = useRoute()
@@ -27,23 +28,21 @@ onMounted(async () => {
 })
 const { me } = useMe()
 const { navOpen, closeNav } = useNav()
-// « Gestion Entreprise » (oto-dashboard#51) : plus de level-switch — la gouvernance
-// (équipe / org / plateforme) est montrée par les DROITS du user, dans UNE zone
-// adaptative sous l'espace de travail. Le user voit ce qu'il gouverne : chef → son
-// équipe, org_admin → l'org (+ équipes), opérateur plateforme → la plateforme. Les
-// items `super` (ex. clés plateforme) restent réservés au super_admin.
-const withSuper = (g: (typeof NAV)[number]) =>
-  ({ ...g, items: g.items.filter((it) => !it.super || isSuperAdmin(me.value)) })
-const workGroups = computed(() => NAV.filter((g) => g.level === 'work').map(withSuper))
-const canGovern = (lvl: string): boolean =>
-  lvl === 'group' ? me.value?.active_group != null
-    : lvl === 'org' ? me.value?.org_role === 'org_admin'
-    : lvl === 'platform' ? isPlatformOperator(me.value)
-    : false
-const govGroups = computed(() => NAV.filter((g) => g.level !== 'work' && canGovern(g.level)).map(withSuper))
-// Rendu à plat : espace de travail, puis la zone gouvernance sous l'umbrella.
-const renderGroups = computed(() => [...workGroups.value, ...govGroups.value])
-const govStart = computed(() => workGroups.value.length)
+// Niveau dérivé de la route : il filtre les groupes de nav ci-dessous. Le CHOIX
+// du niveau (mon espace / org / plateforme) a migré dans le menu profil du pied.
+const { level } = useScope()
+
+// La sidebar ne montre que le niveau actif. Le niveau plateforme reste gaté par
+// le rôle plateforme (opérateur admin OU super_admin ; l'API l'impose aussi côté
+// serveur, l'UI ne fait que masquer). Les items marqués `super` (ex. platform
+// keys) ne sortent qu'au super_admin — les autres restent visibles à l'opérateur.
+const visibleGroups = computed(() =>
+  NAV.filter((g) => g.level === level.value)
+     .filter((g) => g.level !== 'platform' || isPlatformOperator(me.value))
+     .map((g) => ({
+       ...g,
+       items: g.items.filter((it) => !it.super || isSuperAdmin(me.value)),
+     })))
 </script>
 
 <template>
@@ -55,9 +54,7 @@ const govStart = computed(() => workGroups.value.length)
       </button>
     </div>
     <nav class="sb-nav">
-      <template v-for="(g, gi) in renderGroups" :key="gi">
-        <div v-if="gi === govStart && govGroups.length" class="sb-ent-label">{{ t('nav.section.enterprise') }}</div>
-        <div class="sb-group">
+      <div v-for="(g, gi) in visibleGroups" :key="gi" class="sb-group">
         <div v-if="g.group" class="sb-group-label">{{ t(g.group) }}</div>
         <template v-for="it in g.items" :key="it.path">
           <RouterLink
@@ -83,8 +80,7 @@ const govStart = computed(() => workGroups.value.length)
             <span class="ic"></span>{{ p.name }}
           </RouterLink>
         </template>
-        </div>
-      </template>
+      </div>
     </nav>
     <div class="sb-foot">
       <div class="sb-mcp"><Dot tone="olive" :size="7" /> {{ t('nav.mcpConnected') }}</div>
