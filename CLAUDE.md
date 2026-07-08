@@ -33,6 +33,24 @@ Section `/console/groups` (`GroupsView.vue` + `GroupDoctrineCard.vue`) : départ
 
 ## Connecteurs — surface unifiée (connexion + outils, 3 états)
 
+> **⚠️ Refonte « connector-scope » (08/07/2026) — le détail ci-dessous est en partie PÉRIMÉ.**
+> Les **4 surfaces** de gestion de connecteurs (user/team/org/plateforme) tournent désormais
+> sur **UN moteur unique** : `components/console/connector-scope/` — `ConnectorScopeView`
+> (fragment) + `pickAdapter(useScope().level)` → `use{User,Team,Org,Platform}Adapter`,
+> réutilisant `ConnectorList` (table générique) + `ConnectorModal` (drawer à onglets). Chaque
+> adaptateur porte des **leviers OPTIONNELS** (availability variants master/binary/exposure3/
+> readonly · credential single/multi · access · redaction+email [org] · connection+tools+lenses
+> [user]) — un levier absent ⇒ colonne/onglet omis (jamais inerte). Panneaux de drawer :
+> `Connector{Availability,Credential,Access,Connection,Tools,About}Panel`. Les widgets de
+> connexion (`ConnectorOAuthAccounts`/`SessionWidget`/`HostedWidget`/`FederatedWidget`) sont
+> **réutilisés verbatim** dans `ConnectorConnectionPanel`. Chaque scope garde un wrapper mince
+> (`AdminConnectorsView`/`OrgConnectorsView`/`TeamConnectorsView` + le panneau `mine` du hub)
+> qui fournit `.content-inner` + ses cartes header/footer propres. **SUPPRIMÉS** : `ConnectorsView`,
+> `ConnectorDrawer`, `GroupConnectorsCard`, `ConnectorAdminCard`, `OrgConnectorDrawer`. Nouveau
+> pouvoir **team** (gouvernance d'équipe restrict-only) : dispo + accès, cf. oto-backend B1/B2.
+> La prose historique ci-dessous reste utile pour le VOCABULAIRE (3 projections, cascade, 3 états)
+> mais les noms de composants (`ConnectorCard`, `ConnectorsView`…) ne valent plus.
+
 Section unique `/console/connectors` (`ConnectorsView.vue`) : **fusion** des ex-écrans
 `/my-connectors` + `/connectors` + `/toolbox` (qui redirigent désormais ici). Un connecteur
 = **UNE chose à deux faces** : la **config de la connexion** (credential) ET le **paramétrage
