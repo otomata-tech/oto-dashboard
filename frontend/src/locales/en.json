@@ -36,7 +36,7 @@
     "section": {
       "workspace": "workspace",
       "memory": "memory",
-      "group": "team",
+      "team": "team",
       "organization": "organization",
       "platformAdmin": "platform · admin"
     }
@@ -50,7 +50,10 @@
     "documents": { "title": "documents", "crumb": "memory" },
     "account": { "title": "manage account", "crumb": "account" },
     "activity": { "title": "activity", "crumb": "account" },
-    "group": { "title": "my team", "crumb": "manage my team" },
+    "teamContext": { "title": "what the agent sees · team", "crumb": "manage my team" },
+    "team": { "title": "team members", "crumb": "manage my team" },
+    "teamConnectors": { "title": "team connectors", "crumb": "manage my team" },
+    "teamProcedures": { "title": "team procedures", "crumb": "manage my team" },
     "orgContext": { "title": "what the agent sees · org", "crumb": "manage my org" },
     "org": { "title": "organization", "crumb": "manage my org" },
     "orgConnectors": { "title": "org connectors", "crumb": "manage my org" },
@@ -185,7 +188,7 @@
     "mySpace": "my space",
     "manageProfile": "manage my profile",
     "activity": "activity",
-    "manageGroup": "manage my team",
+    "manageTeam": "my team",
     "manageOrg": "manage my org",
     "managePlatform": "manage the platform",
     "accountMenu": "account menu",

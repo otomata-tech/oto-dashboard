@@ -17,7 +17,12 @@ import {
 import type { GroupInstructionsBundle } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
-const props = defineProps<{ groupId: number; canEdit: boolean }>()
+// `section` : 'all' = readme + procédures (défaut) ; 'procedures' = procédures seules
+// (le readme s'édite ailleurs, p.ex. /team/context). Diff minimal, zéro backend.
+const props = withDefaults(
+  defineProps<{ groupId: number; canEdit: boolean; section?: 'all' | 'procedures' }>(),
+  { section: 'all' },
+)
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
@@ -80,14 +85,17 @@ async function removeSkill(slug: string) {
 </script>
 
 <template>
-  <ConsoleCard title="agent readme & procédures · équipe"
-    sub="the team's agent readme (injected each session, after the org's) + its procedures (loaded on demand).">
+  <ConsoleCard
+    :title="section === 'procedures' ? 'procédures · équipe' : 'agent readme & procédures · équipe'"
+    :sub="section === 'procedures'
+      ? 'the team\'s procedures (named instructions, loaded on demand). the team readme is edited under « context ».'
+      : 'the team\'s agent readme (injected each session, after the org\'s) + its procedures (loaded on demand).'">
     <template #actions v-if="canEdit">
-      <Btn kind="mini" @click="editDoctrine">Edit readme</Btn>
+      <Btn v-if="section !== 'procedures'" kind="mini" @click="editDoctrine">Edit readme</Btn>
       <Btn kind="mini" icon="plus" @click="editSkill()">Procedure</Btn>
     </template>
     <div v-if="bundle">
-      <div class="rowitem" style="gap: 10px; padding-bottom: 8px">
+      <div v-if="section !== 'procedures'" class="rowitem" style="gap: 10px; padding-bottom: 8px">
         <Tag tone="saffron">readme</Tag>
         <span class="dim" style="font-size: 12px">{{ bundle.doctrine ? 'injecté à chaque session' : 'no team readme yet' }}</span>
       </div>

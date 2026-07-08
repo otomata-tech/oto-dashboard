@@ -102,6 +102,11 @@ const router = createRouter({
     // section vit désormais en /org/teams, une équipe ouverte en /org/teams/<id> (path),
     // on garde les identifiants de code (group/getGroup). Redirections pour les bookmarks
     // legacy — nue + préfixées ; `?dept=`→`?team=` normalisé ensuite en path par GroupsView.
+    // « gérer mon groupe » (/group, ex mono-item niveau group) → scope team dédié, atterrit
+    // sur /team/context. Nue + préfixées (la garde beforeEach re-préfixe la nue au besoin).
+    { path: '/group', redirect: '/team/context' },
+    { path: '/o/:orgId(\\d+)/group', redirect: (to) => `/o/${to.params.orgId}/team/context` },
+    { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/group', redirect: (to) => `/o/${to.params.orgId}/g/${to.params.groupId}/team/context` },
     { path: '/org/departments', redirect: (to) => ({ path: '/org/teams', query: deptToTeamQuery(to.query) }) },
     { path: '/o/:orgId(\\d+)/org/departments', redirect: (to) => ({ path: `/o/${to.params.orgId}/org/teams`, query: deptToTeamQuery(to.query) }) },
     { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/org/departments', redirect: (to) => ({ path: `/o/${to.params.orgId}/g/${to.params.groupId}/org/teams`, query: deptToTeamQuery(to.query) }) },

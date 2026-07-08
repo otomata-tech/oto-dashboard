@@ -36,7 +36,7 @@
     "section": {
       "workspace": "espace de travail",
       "memory": "mémoire",
-      "group": "équipe",
+      "team": "équipe",
       "organization": "organisation",
       "platformAdmin": "plateforme · admin"
     }
@@ -50,7 +50,10 @@
     "documents": { "title": "documents", "crumb": "mémoire" },
     "account": { "title": "gérer mon compte", "crumb": "compte" },
     "activity": { "title": "activité", "crumb": "compte" },
-    "group": { "title": "mon équipe", "crumb": "gérer mon équipe" },
+    "teamContext": { "title": "ce que voit l'agent · équipe", "crumb": "gérer mon équipe" },
+    "team": { "title": "membres de l'équipe", "crumb": "gérer mon équipe" },
+    "teamConnectors": { "title": "connecteurs de l'équipe", "crumb": "gérer mon équipe" },
+    "teamProcedures": { "title": "procédures de l'équipe", "crumb": "gérer mon équipe" },
     "orgContext": { "title": "ce que voit l'agent · org", "crumb": "gérer mon org" },
     "org": { "title": "organisation", "crumb": "gérer mon org" },
     "orgConnectors": { "title": "connecteurs de l'org", "crumb": "gérer mon org" },
@@ -185,7 +188,7 @@
     "mySpace": "mon espace",
     "manageProfile": "gérer mon profil",
     "activity": "activité",
-    "manageGroup": "gérer mon groupe",
+    "manageTeam": "mon équipe",
     "manageOrg": "gérer mon org",
     "managePlatform": "gérer la plateforme",
     "accountMenu": "menu du compte",

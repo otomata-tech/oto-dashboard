@@ -57,9 +57,15 @@ export const NAV: NavGroup[] = [
   // « manage account » (/account) et « activity » (/activity) ne sont PLUS dans la
   // sidebar : ils vivent dans le menu profil du pied (ConsoleUserMenu). Leurs routes
   // sont déclarées explicitement dans le routeur (elles ne dérivent plus de NAV).
-  // ── Gérer mon groupe : agir SUR le groupe actif (chef / org_admin) ─────────
-  { group: 'nav.section.group', level: 'group', items: [
-    { path: '/group', label: 'nav.membersKeys', icon: 'users' },
+  // ── Gérer mon équipe : agir SUR l'équipe consultée (chef / org_admin) ──────
+  // Scope Team à part entière (parallèle à l'org), pages sous /team/*, pilotées par le
+  // préfixe d'URL /o/:org/g/:group/ (repli `me.active_group` si absent). L'id de code
+  // reste `group` ; « team » n'est qu'un label produit.
+  { group: 'nav.section.team', level: 'group', items: [
+    { path: '/team/context', label: 'nav.context', icon: 'bolt' },
+    { path: '/team', label: 'nav.membersSecrets', icon: 'users' },
+    { path: '/team/connectors', label: 'nav.connectors', icon: 'plug' },
+    { path: '/team/procedures', label: 'nav.procedures', icon: 'doc' },
   ]},
   // ── Gérer mon org : agir SUR l'organisation active ─────────────────────────
   { group: 'nav.section.organization', level: 'org', items: [
@@ -101,7 +107,10 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/documents': { title: 'pageMeta.documents.title', crumb: 'pageMeta.documents.crumb' },
   '/account': { title: 'pageMeta.account.title', crumb: 'pageMeta.account.crumb' },
   '/activity': { title: 'pageMeta.activity.title', crumb: 'pageMeta.activity.crumb' },
-  '/group': { title: 'pageMeta.group.title', crumb: 'pageMeta.group.crumb' },
+  '/team/context': { title: 'pageMeta.teamContext.title', crumb: 'pageMeta.teamContext.crumb' },
+  '/team': { title: 'pageMeta.team.title', crumb: 'pageMeta.team.crumb' },
+  '/team/connectors': { title: 'pageMeta.teamConnectors.title', crumb: 'pageMeta.teamConnectors.crumb' },
+  '/team/procedures': { title: 'pageMeta.teamProcedures.title', crumb: 'pageMeta.teamProcedures.crumb' },
   '/org/context': { title: 'pageMeta.orgContext.title', crumb: 'pageMeta.orgContext.crumb' },
   '/org': { title: 'pageMeta.org.title', crumb: 'pageMeta.org.crumb' },
   '/org/connectors': { title: 'pageMeta.orgConnectors.title', crumb: 'pageMeta.orgConnectors.crumb' },
