@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import Avatar from './Avatar.vue'
 import Icon from './Icon.vue'
 import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
-import { useMe } from '@/composables/useMe'
+import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { useMyOrgs } from '@/composables/useMyOrgs'
 import { useScope } from '@/composables/useScope'
 
@@ -28,7 +28,17 @@ watch(open, (o) => {
 })
 
 const orgName = computed(() => me.value?.active_org_name || '…')
+const teamName = computed(() => me.value?.active_group_name || '…')
 const hasLogo = computed(() => !!(me.value?.active_org_name && me.value?.active_org_logo_url))
+const isOperator = computed(() => isPlatformOperator(me.value))
+
+// Fil d'ariane Plateforme ▸ Org ▸ Team (niveau group) : REMONTER = nav DURE qui DROPPE le
+// préfixe `/g/` (une URL sans /g/ = niveau org), pour que `me`/la sidebar/l'identité se
+// recomposent proprement au niveau parent. Un router.push SPA les laisserait périmés.
+function goUpToOrg() {
+  if (me.value?.active_org != null) window.location.assign(`/o/${me.value.active_org}/org/context`)
+}
+function goUpToPlatform() { window.location.assign('/platform/monitoring') }
 
 const orgRoleLabel = computed(() =>
   me.value?.active_org == null ? null
@@ -44,7 +54,7 @@ const isConsulting = computed(() =>
 // Sous-titre selon le niveau : en org/platform on annonce le mode, sinon le contexte
 // (ou « consultation » si on regarde une org autre que sa maison).
 const kicker = computed(() => {
-  if (level.value === 'group') return 'gérer mon groupe'
+  if (level.value === 'group') return 'gérer mon équipe'
   if (level.value === 'org') return 'gérer mon org'
   if (level.value === 'platform') return 'plateforme'
   return isConsulting.value ? 'consultation' : 'votre contexte'
@@ -56,7 +66,7 @@ const kicker = computed(() => {
     <!-- déclencheur : le bloc org/logo ouvre la modale de switch d'org -->
     <button
       class="ident"
-      :class="{ org: level === 'org', platform: level === 'platform' }"
+      :class="{ org: level === 'org', team: level === 'group', platform: level === 'platform' }"
       :aria-expanded="open"
       aria-haspopup="dialog"
       aria-label="changer d'organisation"
@@ -75,15 +85,33 @@ const kicker = computed(() => {
 
       <div class="ident-txt">
         <div class="ident-kicker">{{ kicker }}</div>
-        <div class="ident-name">{{ orgName }}</div>
-        <div class="ident-meta">
-          <span v-if="orgRoleLabel" class="pill">{{ orgRoleLabel }}</span>
-          <span v-else class="pill faint">global</span>
-          <span v-if="me?.active_group" class="ident-team">
-            · {{ me.active_group_name }}
-            <span class="pill">{{ groupRoleLabel }}</span>
-          </span>
-        </div>
+        <!-- Niveau ÉQUIPE : le fil d'ariane EST l'identité — Plateforme ▸ Org ▸ Team, les
+             parents cliquables (nav dure @click.stop, ne rouvre pas le switcher), Team
+             courant. Segments = <span role=link> (valides dans le <button> parent). -->
+        <template v-if="level === 'group'">
+          <nav class="ident-crumb" aria-label="fil d'ariane">
+            <template v-if="isOperator">
+              <span class="crumb-seg" role="link" tabindex="0"
+                    @click.stop="goUpToPlatform" @keydown.enter.stop="goUpToPlatform">Plateforme</span>
+              <span class="crumb-sep" aria-hidden="true">›</span>
+            </template>
+            <span class="crumb-seg" role="link" tabindex="0"
+                  @click.stop="goUpToOrg" @keydown.enter.stop="goUpToOrg">{{ orgName }}</span>
+            <span class="crumb-sep" aria-hidden="true">›</span>
+            <span class="crumb-cur">{{ teamName }}<span class="pill">{{ groupRoleLabel }}</span></span>
+          </nav>
+        </template>
+        <template v-else>
+          <div class="ident-name">{{ orgName }}</div>
+          <div class="ident-meta">
+            <span v-if="orgRoleLabel" class="pill">{{ orgRoleLabel }}</span>
+            <span v-else class="pill faint">global</span>
+            <span v-if="me?.active_group" class="ident-team">
+              · {{ me.active_group_name }}
+              <span class="pill">{{ groupRoleLabel }}</span>
+            </span>
+          </div>
+        </template>
       </div>
 
       <Icon name="chevd" :size="13" class="ident-chev" />
@@ -127,6 +155,10 @@ const kicker = computed(() => {
 .ident.org { background: var(--color-saffron-soft); border-color: var(--color-hair); }
 .ident.org:hover,
 .identity.open .ident.org { border-color: var(--color-saffron-ink); }
+/* En mode « équipe », même bannière claire mais teinte COBALT (distincte de l'org). */
+.ident.team { background: var(--color-cobalt-soft); border-color: var(--color-hair); }
+.ident.team:hover,
+.identity.open .ident.team { border-color: var(--color-cobalt-ink); }
 
 .ident-txt { flex: 1; min-width: 0; }
 .ident-kicker {
@@ -134,6 +166,7 @@ const kicker = computed(() => {
   text-transform: uppercase; color: var(--sidebar-fg-mute); line-height: 1.2;
 }
 .ident.org .ident-kicker { color: var(--color-saffron-ink); }
+.ident.team .ident-kicker { color: var(--color-cobalt-ink); }
 .ident-name {
   font-weight: 700; font-size: 15px; letter-spacing: -0.02em; color: var(--sidebar-fg-strong);
   line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -150,10 +183,29 @@ const kicker = computed(() => {
   padding: 1px 6px; border-radius: var(--radius-pill); margin-left: 3px;
   background: rgba(255, 255, 255, 0.08); border: 1px solid var(--sidebar-hair); color: var(--sidebar-fg);
 }
-.ident.org .pill {
+.ident.org .pill,
+.ident.team .pill {
   background: var(--color-surface); border-color: var(--color-hair); color: var(--color-ink-soft);
 }
 .ident-meta > .pill:first-child { margin-left: 0; }
+
+/* Fil d'ariane (niveau équipe) : Plateforme ▸ Org ▸ Team, parents cliquables. */
+.ident-crumb {
+  display: flex; align-items: center; gap: 5px; margin-top: 3px;
+  font-size: 11px; color: var(--color-mute); min-width: 0; flex-wrap: wrap;
+}
+.crumb-seg {
+  color: var(--color-cobalt-ink); cursor: pointer; white-space: nowrap;
+  border-radius: 4px; padding: 0 2px;
+}
+.crumb-seg:hover { text-decoration: underline; }
+.crumb-seg:focus-visible { outline: 2px solid var(--color-cobalt); outline-offset: 1px; }
+.crumb-sep { color: var(--color-faint); }
+.crumb-cur {
+  display: inline-flex; align-items: center; min-width: 0;
+  font-weight: 700; color: var(--color-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .pill.faint { color: var(--sidebar-fg-mute); }
 .ident.org .pill.faint { color: var(--color-faint); }
 
@@ -162,6 +214,7 @@ const kicker = computed(() => {
   transition: transform var(--t-fast);
 }
 .ident.org .ident-chev { color: var(--color-saffron-ink); }
+.ident.team .ident-chev { color: var(--color-cobalt-ink); }
 .identity.open .ident-chev { transform: rotate(180deg); }
 
 /* ── Modale de switch d'org (téléportée au body, centrée) ──────────────────── */
