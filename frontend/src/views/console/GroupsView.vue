@@ -12,6 +12,7 @@ import Dot from '@/components/console/Dot.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import GroupDetailCards from '@/components/console/GroupDetailCards.vue'
+import GroupConnectorsCard from '@/components/console/GroupConnectorsCard.vue'
 import GroupDoctrineCard from '@/components/console/GroupDoctrineCard.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
@@ -197,10 +198,11 @@ async function removeGroup() {
       </div>
 
       <template v-if="detail">
-        <div class="grid23">
-          <GroupDetailCards :group-id="detail.group.id" :org-id="detail.group.org_id" :members="detail.members" :secrets="detail.secrets"
-            :can-manage="canManage" :me-sub="meSub" @changed="select(detail.group.id)" />
-        </div>
+        <GroupDetailCards :group-id="detail.group.id" :org-id="detail.group.org_id" :members="detail.members"
+          :can-manage="canManage" :me-sub="meSub" @changed="select(detail.group.id)" />
+
+        <GroupConnectorsCard :group-id="detail.group.id" :secrets="detail.secrets"
+          :can-manage="canManage" @changed="select(detail.group.id)" />
 
         <GroupDoctrineCard :group-id="detail.group.id" :can-edit="canManage" />
       </template>
