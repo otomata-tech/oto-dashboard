@@ -596,22 +596,25 @@ export const getAdminUser = (sub: string) =>
   api<AdminUserDetail>(`/api/admin/users/${encodeURIComponent(sub)}`)
 export const setUserRole = (sub: string, role: Role) =>
   api(`/api/admin/users/${sub}/role`, { method: 'POST', ...j({ role }) })
+// ADR 0044 §F : la clé plateforme est une instance du coffre (identité = provider+label,
+// plus de surrogate id). Grants keyés par PROVIDER (le connecteur ciblé).
 export const getPlatformKeys = () => api<{ platform_keys: PlatformKey[] }>('/api/admin/platform-keys')
-export const createPlatformKey = (provider: string, label: string, api_key: string) =>
-  api<{ id: number; provider: string; label: string }>('/api/admin/platform-keys', { method: 'POST', ...j({ provider, label, api_key }) })
-export const deletePlatformKey = (id: number) => api(`/api/admin/platform-keys/${id}`, { method: 'DELETE' })
+export const createPlatformKey = (provider: string, label: string, api_key: string, api_version?: string) =>
+  api<{ provider: string; label: string; api_version: string }>('/api/admin/platform-keys', { method: 'POST', ...j({ provider, label, api_key, api_version }) })
+export const deletePlatformKey = (provider: string, label: string) =>
+  api(`/api/admin/platform-keys/${encodeURIComponent(provider)}/${encodeURIComponent(label)}`, { method: 'DELETE' })
 
-// platform key grants per-user (lent platform keys with a daily quota)
-export const grantPlatformKey = (sub: string, keyId: number, daily_quota?: number) =>
-  api(`/api/admin/users/${sub}/grants/${keyId}`, { method: 'POST', ...j({ daily_quota }) })
-export const revokePlatformKey = (sub: string, keyId: number) =>
-  api(`/api/admin/users/${sub}/grants/${keyId}`, { method: 'DELETE' })
+// platform key grants per-user (accès à la clé plateforme d'un connecteur + quota/jour)
+export const grantPlatformKey = (sub: string, provider: string, daily_quota?: number) =>
+  api(`/api/admin/users/${sub}/grants/${encodeURIComponent(provider)}`, { method: 'POST', ...j({ daily_quota }) })
+export const revokePlatformKey = (sub: string, provider: string) =>
+  api(`/api/admin/users/${sub}/grants/${encodeURIComponent(provider)}`, { method: 'DELETE' })
 
 // platform key grants au niveau ORG (couche 2, partage à tous les membres) — super_admin
-export const grantOrgPlatformKey = (orgId: number, keyId: number, daily_quota?: number) =>
-  api(`/api/admin/orgs/${orgId}/grants/${keyId}`, { method: 'POST', ...j({ daily_quota }) })
-export const revokeOrgPlatformKey = (orgId: number, keyId: number) =>
-  api(`/api/admin/orgs/${orgId}/grants/${keyId}`, { method: 'DELETE' })
+export const grantOrgPlatformKey = (orgId: number, provider: string, daily_quota?: number) =>
+  api(`/api/admin/orgs/${orgId}/grants/${encodeURIComponent(provider)}`, { method: 'POST', ...j({ daily_quota }) })
+export const revokeOrgPlatformKey = (orgId: number, provider: string) =>
+  api(`/api/admin/orgs/${orgId}/grants/${encodeURIComponent(provider)}`, { method: 'DELETE' })
 
 // option comps (offrir/retirer GRATUITEMENT une option payante — couche abonnement,
 // oto-backend/docs/connector-model.md). entity_type user|org, super_admin only.

@@ -54,8 +54,8 @@ const ficheTo = computed(() =>
         <span class="ac-help">clé studio, prêtée aux users via grants (quota/jour)</span>
         <div class="ac-keys">
           <template v-if="platformEligible">
-            <span v-for="k in keys" :key="k.id" class="ac-pk">
-              <code class="mono">{{ k.label }} …{{ k.api_key_tail }}</code>
+            <span v-for="k in keys" :key="k.provider + k.label" class="ac-pk">
+              <code class="mono">{{ k.label }}</code>
               <button v-if="isSuperAdmin" class="ac-pk-x" title="supprimer"
                 @click="emit('remove-key', k)">×</button>
             </span>
