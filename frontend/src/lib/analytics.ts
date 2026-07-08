@@ -93,9 +93,9 @@ export function capturePageview(): void {
   if (enabled) posthog.capture('$pageview')
 }
 
-// Relie la session courante à l'alpha user nommé + propriétés de segmentation
-// (rôle plateforme, org active, état d'accès alpha). Mémorise le dernier Me pour
-// pouvoir ré-identifier après un consentement donné en cours de session.
+// Relie la session courante à l'utilisateur nommé + propriétés de segmentation
+// (rôle plateforme, org active). Mémorise le dernier Me pour pouvoir ré-identifier
+// après un consentement donné en cours de session.
 export function identifyUser(m: Me): void {
   lastMe = m
   if (enabled) {
@@ -104,7 +104,6 @@ export function identifyUser(m: Me): void {
       role: m.role,
       active_org: m.active_org ?? undefined,
       active_org_name: m.active_org_name ?? undefined,
-      access_status: m.access?.status,
     })
   }
 }

@@ -18,7 +18,7 @@ async function load(force = false): Promise<Me | null> {
     try {
       me.value = await getMe()
       error.value = null
-      // Relie la session PostHog à l'alpha user (segmentation rôle/org/accès).
+      // Relie la session PostHog à l'utilisateur (segmentation rôle/org).
       // La préférence de langue du compte fait autorité une fois `me` chargé.
       if (me.value) { identifyUser(me.value); setSentryUser(me.value.sub); applyMeLocale(me.value.locale) }
     } catch (e) {

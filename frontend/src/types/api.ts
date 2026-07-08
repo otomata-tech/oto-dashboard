@@ -228,60 +228,23 @@ export interface Me {
   group_role: GroupRole | null
   home_group: number | null          // équipe MAISON (défaut MCP)
   home_group_name: string | null         // effectif (escalade org_admin/platform incluse)
-  access: AccessState                  // gate doux alpha (ADR 0013)
   memento?: MementoStatus              // fédération MCP (otomata#16) — auto-prompt connexion
   providers: Record<string, ProviderStatus | undefined>
 }
 
-// Accès plateforme alpha (ADR 0013) : status = gate doux, invites_left = budget
-// referral restant, invited_by = parrain.
-export interface AccessState {
-  status: 'pending' | 'active' | 'blocked' | null
-  invites_left: number
-  invited_by: string | null
-}
-
-export interface WaitlistEntry {
-  sub: string
-  email: string | null
-  name: string | null
-  created_at: string
-}
-
 export interface InvitePreview {
   email: string | null
-  referral: boolean
   inviter: string | null
   org_name: string | null
-  exhausted?: boolean   // lien referral : le porteur n'a plus de budget
 }
 
-// Lien referral réutilisable du compte (à diffuser au réseau).
-export interface ReferralLink {
-  referral_code: string
-  url: string
-  invites_left: number
-  active: boolean
-}
-
-// Résultat d'une émission d'invitation (directe ou alpha).
+// Résultat d'une émission d'invitation d'org.
 export interface InviteResult {
   ok: boolean
   email: string | null
   code: string
   invite_url: string
   emailed: boolean
-  invites_left?: number
-}
-
-export interface AlphaInvite {
-  id: number
-  email: string | null
-  code?: string | null
-  invited_by: string | null
-  source: string | null
-  created_at: string
-  expires_at: string
 }
 
 // ── tools ──
@@ -982,8 +945,6 @@ export interface AdminUserDetail {
   name: string | null
   role: Role
   active_org: number | null
-  access_status: string | null
-  pending_invite: { id: number; created_at: string; expires_at: string } | null
   orgs: AdminUserOrg[]
   providers: Record<string, ProviderStatus | undefined>
   grants: AdminGrant[]

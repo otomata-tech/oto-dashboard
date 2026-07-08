@@ -91,11 +91,10 @@ const router = createRouter({
     { path: '/org/departments', redirect: '/org/teams' },
     { path: '/o/:orgId(\\d+)/org/departments', redirect: (to) => `/o/${to.params.orgId}/org/teams` },
     { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/org/departments', redirect: (to) => `/o/${to.params.orgId}/g/${to.params.groupId}/org/teams` },
-    // Acceptation d'invitation (hors shell console) — gère sa propre auth.
-    // /invite?token= = lien mail legacy ; /invitation/<carrier>[/<code>] = lien
-    // partageable (referral réutilisable si carrier seul, nominatif si +code).
+    // Acceptation d'invitation d'org (hors shell console) — gère sa propre auth.
+    // /invite?token= = lien mail legacy ; /invitation/<code> = lien partageable nominatif.
     { path: '/invite', name: 'invite', component: InviteAcceptView },
-    { path: '/invitation/:carrier/:code?', name: 'invitation', component: InviteAcceptView },
+    { path: '/invitation/:code', name: 'invitation', component: InviteAcceptView },
     // « Ajouter à mon Oto » depuis un partage public (`<slug>.share.oto.cx`) — forke le
     // projet publié dans l'org active puis l'ouvre. Hors shell console (gère sa propre auth).
     { path: '/import', name: 'import-project', component: ImportProjectView },
