@@ -561,10 +561,6 @@ export const getGroup = (id: number) => api<GroupDetail>(`/api/groups/${id}`)
 export const updateGroup = (id: number, patch: { name?: string; description?: string }) =>
   api(`/api/groups/${id}`, { method: 'PATCH', ...j(patch) })
 export const deleteGroup = (id: number) => api(`/api/groups/${id}`, { method: 'DELETE' })
-export const useGroup = (group_id: number) =>
-  api<{ active_group: number; name: string; active_org: number }>(
-    '/api/me/active-group', { method: 'PUT', ...j({ group_id }) })
-export const clearActiveGroup = () => api('/api/me/active-group', { method: 'DELETE' })
 export const addGroupMember = (id: number, target: string, role: GroupRole) =>
   api(`/api/groups/${id}/members`, { method: 'POST', ...j({ target, role }) })
 export const setGroupMemberRole = (id: number, sub: string, role: GroupRole) =>

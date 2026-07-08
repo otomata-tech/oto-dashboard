@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory, type RouteRecordRaw, type RouteMeta, type LocationQuery } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw, type RouteMeta } from 'vue-router'
 import ConsoleLayout from '../views/console/ConsoleLayout.vue'
 import InviteAcceptView from '../views/InviteAcceptView.vue'
 import ImportProjectView from '../views/ImportProjectView.vue'
@@ -58,14 +58,6 @@ function detailRoutes(path: string, detail: string): RouteRecordRaw[] {
   ]
 }
 
-// Renomme le deep-link legacy `?dept=<id>` en `?team=<id>` (redirections départements→teams).
-// GroupsView normalise ensuite `?team=<id>` vers la sous-route `/org/teams/<id>`.
-function deptToTeamQuery(q: LocationQuery): LocationQuery {
-  if (q.dept === undefined) return q
-  const { dept, ...rest } = q
-  return { ...rest, team: dept }
-}
-
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -88,18 +80,17 @@ const router = createRouter({
     { path: '/org/redaction', redirect: '/connectors' },
     // Clés plateforme fusionnées dans le cockpit connecteurs plateforme (ADR 0022).
     { path: '/platform/keys', redirect: '/platform/connectors' },
-    // « départements » → « teams » (renommage vocabulaire produit 2026-07-06) : la
-    // section vit désormais en /org/teams, une équipe ouverte en /org/teams/<id> (path),
-    // on garde les identifiants de code (group/getGroup). Redirections pour les bookmarks
-    // legacy — nue + préfixées ; `?dept=`→`?team=` normalisé ensuite en path par GroupsView.
     // « gérer mon groupe » (/group, ex mono-item niveau group) → scope team dédié, atterrit
     // sur /team/context. Nue + préfixées (la garde beforeEach re-préfixe la nue au besoin).
     { path: '/group', redirect: '/team/context' },
     { path: '/o/:orgId(\\d+)/group', redirect: (to) => `/o/${to.params.orgId}/team/context` },
     { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/group', redirect: (to) => `/o/${to.params.orgId}/g/${to.params.groupId}/team/context` },
-    { path: '/org/departments', redirect: (to) => ({ path: '/org/teams', query: deptToTeamQuery(to.query) }) },
-    { path: '/o/:orgId(\\d+)/org/departments', redirect: (to) => ({ path: `/o/${to.params.orgId}/org/teams`, query: deptToTeamQuery(to.query) }) },
-    { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/org/departments', redirect: (to) => ({ path: `/o/${to.params.orgId}/g/${to.params.groupId}/org/teams`, query: deptToTeamQuery(to.query) }) },
+    // « départements » → « teams » (renommage vocabulaire produit 2026-07-06). Le roster
+    // vit en /org/teams ; l'ancien deep-link `?dept=<id>` n'est plus consommé (on retombe
+    // sur la liste). Nue + préfixées pour les bookmarks legacy.
+    { path: '/org/departments', redirect: '/org/teams' },
+    { path: '/o/:orgId(\\d+)/org/departments', redirect: (to) => `/o/${to.params.orgId}/org/teams` },
+    { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/org/departments', redirect: (to) => `/o/${to.params.orgId}/g/${to.params.groupId}/org/teams` },
     // Acceptation d'invitation (hors shell console) — gère sa propre auth.
     // /invite?token= = lien mail legacy ; /invitation/<carrier>[/<code>] = lien
     // partageable (referral réutilisable si carrier seul, nominatif si +code).
