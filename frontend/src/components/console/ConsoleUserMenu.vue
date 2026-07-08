@@ -61,9 +61,10 @@ const aux = computed<Entry[]>(() => {
     { key: 'activity', label: 'userMenu.activity', icon: 'pulse', to: '/activity',
       active: onActivity.value },
   ]
-  // « gérer mon groupe » : visible dès qu'un groupe actif est posé (gating fin en vue).
+  // « mon équipe » : entre dans le scope team (menu dédié). Visible dès qu'une équipe
+  // active est posée (repli sur me.active_group dans la vue si l'URL n'a pas de /g/).
   if (me.value?.active_group != null)
-    out.push({ key: 'group', label: 'userMenu.manageGroup', icon: 'users', to: '/group',
+    out.push({ key: 'group', label: 'userMenu.manageTeam', icon: 'users', to: '/team/context',
       active: level.value === 'group' })
   if (isPlatformOperator(me.value))
     out.push({ key: 'platform', label: 'userMenu.managePlatform', icon: 'shield',

@@ -66,16 +66,6 @@ function deptToTeamQuery(q: LocationQuery): LocationQuery {
   return { ...rest, team: dept }
 }
 
-// Équipe ouverte = sous-route PATH `/org/teams/:teamId` (bookmarkable, remplace `?team=`).
-// MÊME section que /org/teams → monte GroupsView (pas de vue de détail dédiée), qui lit
-// `:teamId` et normalise le legacy `?team=`. Nue + préfixées org/équipe, comme les autres
-// sections org-scopées (la garde `beforeEach` re-préfixe les `router.push` nus).
-const teamSectionMeta = { section: '/org/teams', level: 'org' as NavLevel, orgScoped: true }
-const teamDetailRoutes: RouteRecordRaw[] = [
-  { path: '/org/teams/:teamId(\\d+)', component: ConsoleLayout, meta: teamSectionMeta },
-  ...scopedVariants('/org/teams/:teamId(\\d+)', teamSectionMeta),
-]
-
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -142,7 +132,13 @@ const router = createRouter({
     ...detailRoutes('/projects/:id/data/:nsRef', 'project'),
     ...detailRoutes('/data/:id', 'data'),
     ...detailRoutes('/procedures/:id', 'procedure'),
-    ...teamDetailRoutes,
+    // Équipe ouverte (ex `/org/teams/:teamId`, blocs empilés) → DESCENTE dans le scope
+    // team dédié `/o/:org/g/:teamId/team/context`. Préfixées : on connaît l'org → on
+    // construit le préfixe `/g/`. Nue (sans org) : on retombe sur la liste (la garde
+    // re-préfixe /org/teams vers l'org courante).
+    { path: '/o/:orgId(\\d+)/org/teams/:teamId(\\d+)', redirect: (to) => `/o/${to.params.orgId}/g/${to.params.teamId}/team/context` },
+    { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/org/teams/:teamId(\\d+)', redirect: (to) => `/o/${to.params.orgId}/g/${to.params.teamId}/team/context` },
+    { path: '/org/teams/:teamId(\\d+)', redirect: '/org/teams' },
     {
       // /account (« manage account ») et /activity : niveau user, NON org-scopés.
       path: '/account',
