@@ -11,6 +11,7 @@ import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
 import DataTable from '@/components/console/DataTable.vue'
 import DatastoreCards from '@/components/console/DatastoreCards.vue'
+import DatastoreStatusBar from '@/components/console/DatastoreStatusBar.vue'
 import RowDrawer from '@/components/console/RowDrawer.vue'
 import SharePrincipalDialog from '@/components/console/SharePrincipalDialog.vue'
 import NameDialog from '@/components/console/NameDialog.vue'
@@ -18,7 +19,8 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useTransferOwnership } from '@/composables/useTransferOwnership'
 import {
-  getNamespaces, getNamespaceRows, appendNamespaceRow, updateNamespaceRow, deleteNamespaceRow,
+  getNamespaces, getNamespaceRows, getNamespaceAggregate,
+  appendNamespaceRow, updateNamespaceRow, deleteNamespaceRow,
   deleteNamespace, renameNamespace, transferNamespace,
 } from '@/api/console'
 import type { NamespaceEntry, DatastoreRow, ColumnFilter } from '@/types/api'
@@ -66,6 +68,45 @@ const readOnly = computed(() => !!meta.value && meta.value.can_write === false)
 const canGovern = computed(() => (props.govern ?? true) && !!meta.value?.can_govern)
 const isTyped = computed(() => !!meta.value?.schema?.fields?.length)
 const cardView = ref(true)
+
+// ── cockpit (ADR 0046 b1) : DÉRIVÉ du schéma v2 — le field role="status" avec
+// un lifecycle donne une barre de statuts (compteurs serveur) + filtre 1-clic.
+const statusField = computed(() =>
+  (meta.value?.schema?.fields ?? []).find((f) => f.role === 'status') ?? null)
+const lifecycleStates = computed<string[]>(() =>
+  statusField.value?.lifecycle?.states ?? [])
+const cockpit = computed(() => !!statusField.value && lifecycleStates.value.length > 0)
+const statusCounts = ref<Record<string, number>>({})
+const statusTotal = ref(0)
+const activeStatus = computed<string | null>(() => {
+  const k = statusField.value?.key
+  if (!k) return null
+  const f = filters.value.find((x) => x.field === k && x.op === 'eq')
+  return f ? String(f.value) : null
+})
+async function fetchStatusCounts() {
+  const n = name.value
+  const k = statusField.value?.key
+  if (!n || !k || !cockpit.value) return
+  try {
+    const { groups } = await getNamespaceAggregate(n, k)
+    const counts: Record<string, number> = {}
+    let tot = 0
+    for (const g of groups) {
+      const v = g[k]
+      counts[v == null ? '—' : String(v)] = g.count
+      tot += g.count
+    }
+    statusCounts.value = counts
+    statusTotal.value = tot
+  } catch { statusCounts.value = {}; statusTotal.value = 0 }
+}
+function onStatusSelect(state: string | null) {
+  const k = statusField.value?.key
+  if (!k) return
+  const rest = filters.value.filter((x) => x.field !== k)
+  onFilters(state === null ? rest : [...rest, { field: k, op: 'eq', value: state }])
+}
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
 const fields = computed<string[]>(() => {
@@ -137,6 +178,7 @@ async function reload() {
   await resolveMeta()
   readTableQuery()
   await fetchRows()
+  await fetchStatusCounts()
 }
 
 function onPage(p: number) { page.value = p; syncTableQuery(); fetchRows() }
@@ -165,7 +207,7 @@ async function onSave(payload: Record<string, unknown>) {
   try {
     if (drawerNew.value) { await appendNamespaceRow(n, payload); toast('row added') }
     else if (drawerRow.value) { await updateNamespaceRow(n, drawerRow.value._id, payload); toast('row saved') }
-    closeDrawer(); await fetchRows()
+    closeDrawer(); await fetchRows(); void fetchStatusCounts()
   } catch (e) { toast(humanize(e)) }
 }
 async function onDelete() {
@@ -173,7 +215,7 @@ async function onDelete() {
   if (!n || !drawerRow.value) return
   const id = drawerRow.value._id
   if (!await confirmAction({ title: 'delete row?', message: 'this row is permanently removed.', confirmLabel: 'delete', danger: true })) return
-  try { await deleteNamespaceRow(n, id); toast('row deleted'); closeDrawer(); await fetchRows() }
+  try { await deleteNamespaceRow(n, id); toast('row deleted'); closeDrawer(); await fetchRows(); void fetchStatusCounts() }
   catch (e) { toast(humanize(e)) }
 }
 
@@ -254,6 +296,9 @@ async function transfer() {
       </span>
     </div>
 
+    <DatastoreStatusBar v-if="cockpit" :states="lifecycleStates" :counts="statusCounts"
+      :active="activeStatus" :total="statusTotal" @select="onStatusSelect" />
+
     <p v-if="rowsError" class="helptext" style="color: var(--color-terra-ink); padding: 12px 16px">{{ rowsError }}</p>
     <div v-else-if="!rowsLoading && !total && !search && !filters.length" class="dim" style="text-align: center; padding: 24px">
       no rows yet — add one above, or your agents append with
@@ -273,7 +318,8 @@ async function transfer() {
       @update:search="onSearch" @update:filters="onFilters" />
 
     <RowDrawer :open="drawerOpen" :row="drawerRow" :fields="fields" :is-new="drawerNew"
-      :read-only="readOnly" @save="onSave" @delete="onDelete" @close="closeDrawer" />
+      :read-only="readOnly" :schema="meta.schema ?? null"
+      @save="onSave" @delete="onDelete" @close="closeDrawer" />
     <SharePrincipalDialog :open="shareOpen" resource-type="datastore_namespace"
       :resource-id="String(meta.id)" :resource-label="name ?? undefined"
       @close="shareOpen = false" @changed="emit('changed')" />

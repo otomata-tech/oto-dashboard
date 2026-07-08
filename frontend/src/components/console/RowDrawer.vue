@@ -4,7 +4,7 @@ import Btn from './Btn.vue'
 import Icon from './Icon.vue'
 import FormDialog from './FormDialog.vue'
 import { useFormDialog } from '@/composables/useFormDialog'
-import type { DatastoreRow } from '@/types/api'
+import type { DatastoreRow, DatastoreSchema } from '@/types/api'
 import { cellKind, absDate } from '@/lib/cellRender'
 
 const props = defineProps<{
@@ -13,6 +13,7 @@ const props = defineProps<{
   fields: string[]           // colonnes connues du namespace (pour l'ajout)
   isNew: boolean
   readOnly: boolean
+  schema?: DatastoreSchema | null  // v2 (ADR 0046) : transitions de cycle de vie
 }>()
 const emit = defineEmits<{
   (e: 'save', payload: Record<string, unknown>): void
@@ -90,6 +91,29 @@ function urlOf(field: string): string | null {
 }
 
 const title = computed(() => props.isNew ? 'new row' : (props.row?._id ?? 'row'))
+
+// ── cycle de vie (ADR 0046 b1) : boutons de transition DÉRIVÉS du schéma — seuls
+// les états atteignables depuis l'état courant sont proposés ; le backend refuse
+// de toute façon une transition illégale ou un état incomplet (required_when).
+const statusField = computed(() =>
+  (props.schema?.fields ?? []).find((f) => f.role === 'status') ?? null)
+const currentStatus = computed<string | null>(() => {
+  const k = statusField.value?.key
+  const v = k ? props.row?.[k] : null
+  return v == null || v === '' ? null : String(v)
+})
+const transitions = computed<string[]>(() => {
+  const lc = statusField.value?.lifecycle
+  if (!lc?.states?.length || props.isNew || props.readOnly) return []
+  const cur = currentStatus.value
+  if (cur == null) return lc.states.map(String)          // pas encore d'état → tous
+  return (lc.transitions?.[cur] ?? []).map(String)       // sinon les cibles déclarées
+})
+function applyTransition(state: string) {
+  const k = statusField.value?.key
+  if (!k) return
+  emit('save', { [k]: state })                            // patch partiel ; erreurs (guard-rail) en toast
+}
 </script>
 
 <template>
@@ -131,6 +155,11 @@ const title = computed(() => props.isNew ? 'new row' : (props.row?._id ?? 'row')
               « {{ row._claimed_by }} »<template v-if="row?._claimed_until"> (bail
               jusqu'à {{ absDate(String(row._claimed_until)) }})</template></template>
           </div>
+        </div>
+
+        <div v-if="transitions.length" class="rd-lifecycle">
+          <span class="rd-label" style="margin: 0">statut<template v-if="currentStatus"> : {{ currentStatus }}</template></span>
+          <Btn v-for="t in transitions" :key="t" kind="mini" @click="applyTransition(t)">→ {{ t }}</Btn>
         </div>
 
         <footer class="rd-foot">
@@ -181,6 +210,11 @@ const title = computed(() => props.isNew ? 'new row' : (props.row?._id ?? 'row')
 .rd-input:focus { outline: none; border-color: var(--color-cobalt); }
 .rd-area { resize: vertical; line-height: 1.5; font-family: var(--font-mono); font-size: 12px; }
 .rd-meta { padding: 4px 0 2px; font-size: 11px; }
+.rd-lifecycle {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 10px 18px 0;
+  border-top: 1px solid var(--color-hair-soft);
+}
 .rd-foot {
   display: flex; align-items: center; gap: 8px; padding: 12px 18px 16px;
   border-top: 1px solid var(--color-hair-soft);
