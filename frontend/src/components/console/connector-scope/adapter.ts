@@ -54,13 +54,19 @@ export interface AvailabilityLever<R> {
 
 // Credential = l'instance possédée à CE scope (clé perso/équipe/org/plateforme).
 export interface CredentialState { present: boolean; label: string; sub?: string }
+// Item d'une instance multi-clés (plateforme : N clés/labels par provider).
+export interface CredentialItem { key: string; label: string; sub?: string }
 export interface CredentialLever<R> {
   title: string
   state(r: R): CredentialState
   canEdit(r: R): boolean
-  edit(r: R): void            // ouvre le formulaire propre au scope (via ctx.openForm)
-  remove?(r: R): void
+  edit(r: R): void            // ajoute/rotate (ouvre FormDialog ou CredentialFieldsDialog)
+  remove?(r: R): void         // retrait single-instance
   verify?(r: R): Promise<VerifyResult>
+  // multi-instance (plateforme). Si `items` présent, le panneau liste ces items
+  // (chacun retirable via `removeItem`) + un bouton « ajouter » (edit). Sinon single.
+  items?(r: R): CredentialItem[]
+  removeItem?(r: R, key: string): void
 }
 
 // L'adaptateur : tout ce dont `ConnectorScopeView` a besoin, dérivé du scope.

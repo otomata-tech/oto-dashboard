@@ -5,6 +5,7 @@
 // ses onglets/leviers (les autres panneaux ne sont pas montés).
 import { computed, ref } from 'vue'
 import ConnectorModal from '@/components/console/ConnectorModal.vue'
+import ConnectorAvailabilityPanel from './ConnectorAvailabilityPanel.vue'
 import ConnectorCredentialPanel from './ConnectorCredentialPanel.vue'
 import ConnectorAboutPanel from './ConnectorAboutPanel.vue'
 import type { ConnectorScopeAdapter } from './adapter'
@@ -20,8 +21,9 @@ const meta = computed(() => props.adapter.meta(props.row))
 <template>
   <ConnectorModal :label="adapter.label(row)" :logo-url="meta?.logo_url" :publisher="meta?.publisher"
     :tabs="tabs" v-model:tab="tab" @close="emit('close')">
-    <!-- onglet principal : credential (+ availability quand le scope l'a, ajouté plus tard) -->
+    <!-- onglet principal : disponibilité (si le scope l'a) + credential -->
     <template v-if="tab === 'credential' || tab === 'main'">
+      <ConnectorAvailabilityPanel v-if="adapter.availability" :lever="adapter.availability" :row="row" />
       <ConnectorCredentialPanel v-if="adapter.credential" :lever="adapter.credential" :row="row" />
     </template>
     <ConnectorAboutPanel v-else-if="tab === 'about'" :meta="meta" />
