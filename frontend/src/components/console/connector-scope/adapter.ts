@@ -8,7 +8,11 @@
 // grise pas). Les écritures restent divergentes par scope : chaque adaptateur
 // mappe les mêmes opérations vers les bonnes fonctions `api/console.ts`.
 import type { Ref } from 'vue'
-import type { ConnectorMeta, CredentialField, VerifyResult } from '@/types/api'
+import type {
+  ConnectorMeta, CredentialField, VerifyResult,
+  ConnectorFieldSchema, FieldRule, FieldFilterTemplate, FieldActionSchema,
+  EmailBlock, QuietHours,
+} from '@/types/api'
 import type { DotTone } from '@/lib/consoleTypes'
 import type { FormDialogConfig } from '@/composables/useFormDialog'
 import type { ConfirmConfig } from '@/composables/usePrompt'
@@ -69,6 +73,43 @@ export interface CredentialLever<R> {
   removeItem?(r: R, key: string): void
 }
 
+// Accès (RBAC connecteur, ADR 0025 — org : réserver à des principals ; team B2 à venir).
+export interface AclPrincipal { type: string; id: string; label: string }
+export interface AccessLever<R> {
+  restricted(r: R): boolean
+  principals(r: R): AclPrincipal[]
+  canEdit(r: R): boolean
+  add(r: R): void
+  remove(r: R, type: string, id: string): void
+  force?(r: R): void          // pousser le connecteur à un membre (org)
+}
+
+// Rédaction de champs (org) : props typées pour `ConnectorTransforms`, montées par le drawer.
+export interface RedactionPanel {
+  service: string
+  fields: ConnectorFieldSchema[]
+  rules: FieldRule[]
+  defaultRules: FieldRule[]
+  templates?: Record<string, FieldFilterTemplate>
+  actionSchema: FieldActionSchema[]
+  customized: boolean
+  orgId: number | null
+  isOrgAdmin: boolean
+}
+export interface RedactionLever<R> { props(r: R): RedactionPanel; onChanged(): void }
+
+// Email par connecteur (org, connecteurs d'envoi) : props typées pour `ConnectorEmail`.
+export interface EmailPanel {
+  connector: string
+  block: EmailBlock | null
+  transport: string
+  quietDefault: QuietHours
+  resendKeySet: boolean
+  orgId: number
+  isOrgAdmin: boolean
+}
+export interface EmailLever<R> { visible(r: R): boolean; props(r: R): EmailPanel; onChanged(): void }
+
 // L'adaptateur : tout ce dont `ConnectorScopeView` a besoin, dérivé du scope.
 export interface ConnectorScopeAdapter<R = unknown> {
   scope: ConnectorScope
@@ -95,9 +136,12 @@ export interface ConnectorScopeAdapter<R = unknown> {
   // drawer
   hasDrawer: boolean
   tabs(r: R): DrawerTab[]
-  // leviers
+  // leviers (absents ⇒ colonne/onglet non rendu)
   availability?: AvailabilityLever<R>
   credential?: CredentialLever<R>
+  access?: AccessLever<R>
+  redaction?: RedactionLever<R>
+  email?: EmailLever<R>
 }
 
 // Édition d'un credential = formulaire dynamique `CredentialFieldsDialog` (vee-validate),

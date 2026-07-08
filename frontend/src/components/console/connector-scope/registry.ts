@@ -3,6 +3,7 @@
 import type { NavLevel } from '@/lib/consoleNav'
 import type { ConnectorScopeAdapter, ScopeCtx } from './adapter'
 import { useTeamAdapter } from './useTeamAdapter'
+import { useOrgAdapter } from './useOrgAdapter'
 import { usePlatformAdapter } from './usePlatformAdapter'
 
 // Retourne `<any>` : la vue traite les lignes de façon opaque, chaque adaptateur
@@ -11,6 +12,8 @@ export function pickAdapter(level: NavLevel, ctx: ScopeCtx): ConnectorScopeAdapt
   switch (level) {
     case 'group':
       return useTeamAdapter(ctx)
+    case 'org':
+      return useOrgAdapter(ctx)
     case 'platform':
       return usePlatformAdapter(ctx)
     default:
