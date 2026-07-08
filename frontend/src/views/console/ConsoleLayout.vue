@@ -7,12 +7,11 @@ import PromptDialog from '@/components/console/PromptDialog.vue'
 import FormPromptHost from '@/components/console/FormPromptHost.vue'
 import StateError from '@/components/console/StateError.vue'
 import SkeletonOverview from '@/components/console/SkeletonOverview.vue'
-import WaitlistView from './WaitlistView.vue'
 import LoginGate from './LoginGate.vue'
 import LegalGate from '@/components/console/LegalGate.vue'
 import { useToast } from '@/composables/useToast'
 import { useAuth } from '@/composables/useAuth'
-import { useMe, isPlatformOperator } from '@/composables/useMe'
+import { useMe } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 
 // Vues splittées par route : chaque écran = son propre chunk, chargé à la demande
@@ -46,7 +45,6 @@ const VIEWS: Record<string, Component> = {
   '/platform/orgs': defineAsyncComponent(() => import('./AdminOrgsView.vue')),
   '/platform/objects': defineAsyncComponent(() => import('./AdminObjectsView.vue')),
   '/platform/connectors': defineAsyncComponent(() => import('./AdminConnectorsView.vue')),
-  '/platform/access': defineAsyncComponent(() => import('./AdminAccessView.vue')),
   '/platform/instructions': defineAsyncComponent(() => import('./AdminPlatformInstructionsView.vue')),
 }
 
@@ -111,7 +109,6 @@ const viewKey = computed(() => {
         <ConsoleTopbar />
         <div class="content">
           <StateError v-if="error" :message="error" @retry="load(true)" @relogin="logout()" />
-          <WaitlistView v-else-if="me && me.access?.status === 'pending' && !isPlatformOperator(me)" />
           <component :is="current" v-else-if="me" :key="viewKey" />
           <SkeletonOverview v-else />
         </div>

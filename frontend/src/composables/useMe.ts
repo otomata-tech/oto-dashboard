@@ -17,7 +17,7 @@ async function load(force = false): Promise<Me | null> {
     try {
       me.value = await getMe()
       error.value = null
-      // Relie la session PostHog à l'alpha user (segmentation rôle/org/accès).
+      // Relie la session PostHog à l'utilisateur (segmentation rôle/org).
       if (me.value) { identifyUser(me.value); setSentryUser(me.value.sub) }
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)

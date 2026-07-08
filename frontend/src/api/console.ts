@@ -11,8 +11,8 @@ import type {
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
   ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
-  MementoStatus, MementoWorkspaces, MementoPages, MementoDocument, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, WaitlistEntry, AlphaInvite, InvitePreview,
-  ReferralLink, InviteResult,
+  MementoStatus, MementoWorkspaces, MementoPages, MementoDocument, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
+  InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
   EmailSettingsBundle, EmailSender, QuietHours, ScheduledEmail,
 } from '@/types/api'
@@ -511,42 +511,10 @@ export const previewInvite = (token: string) =>
   apiPublic<InvitePreview>(`/api/invitations/${encodeURIComponent(token)}`)
 export const previewInviteByCode = (code: string) =>
   apiPublic<InvitePreview>(`/api/invitations/code/${encodeURIComponent(code)}`)
-export const previewReferral = (carrier: string) =>
-  apiPublic<InvitePreview>(`/api/invitations/referral/${encodeURIComponent(carrier)}`)
-// Accept par token mail (legacy), code court nominatif, ou code porteur (referral).
-export const acceptInvite = (payload: { token?: string; code?: string; carrier?: string }) =>
-  api<{ ok: boolean; referral: boolean; org_id: number | null; org_role: string | null; name: string | null; self?: boolean }>(
+// Accept par token mail (legacy) ou code court nominatif d'org.
+export const acceptInvite = (payload: { token?: string; code?: string }) =>
+  api<{ ok: boolean; org_id: number | null; org_role: string | null; name: string | null; self?: boolean }>(
     '/api/me/invitations/accept', { method: 'POST', ...j(payload) })
-
-// ── accès plateforme & invitation virale (alpha, ADR 0013) ──
-// Lien referral réutilisable du compte (à diffuser au réseau).
-export const getReferralLink = () =>
-  api<ReferralLink>('/api/me/referral-link')
-// Un alpha-user actif invite quelqu'un (budget débité à l'acceptation). send_email
-// =false → renvoie le code à partager soi-même. L'invité crée sa propre org.
-export const sendAlphaInvite = (email: string | null, sendEmail = true) =>
-  api<InviteResult>('/api/me/alpha-invites', { method: 'POST', ...j({ email, send_email: sendEmail }) })
-// Admin : invite un tiers au service, SANS entamer de quota referral.
-export const adminAlphaInvite = (email: string | null, sendEmail = true) =>
-  api<InviteResult>('/api/admin/alpha-invites', { method: 'POST', ...j({ email, send_email: sendEmail }) })
-export const listAlphaInvites = () =>
-  api<{ invitations: AlphaInvite[] }>('/api/admin/alpha-invites')
-export const revokeAlphaInvite = (id: number) =>
-  api(`/api/admin/alpha-invites/${id}`, { method: 'DELETE' })
-export const resendAlphaInvite = (email: string) =>
-  api<InviteResult>('/api/admin/alpha-invites/resend', { method: 'POST', ...j({ email }) })
-// Admin : file d'attente + approbation (active + quota) + ajustement de quota.
-export const getWaitlist = () =>
-  api<{ waitlist: WaitlistEntry[]; count: number }>('/api/admin/waitlist')
-export const grantAlphaAccess = (sub: string, quota?: number) =>
-  api<{ ok: boolean; sub: string; access_status: string; invite_quota: number; emailed: boolean }>(
-    `/api/admin/users/${sub}/access`, { method: 'POST', ...j(quota == null ? {} : { quota }) })
-export const rejectAlphaAccess = (sub: string) =>
-  api<{ ok: boolean; sub: string; access_status: string }>(
-    `/api/admin/users/${sub}/block`, { method: 'POST' })
-export const setUserQuota = (sub: string, quota: number) =>
-  api<{ ok: boolean; sub: string; invite_quota: number }>(
-    `/api/admin/users/${sub}/quota`, { method: 'PUT', ...j({ quota }) })
 export const setOrgMemberRole = (id: number, sub: string, role: string) =>
   api(`/api/orgs/${id}/members/${sub}`, { method: 'POST', ...j({ role }) })
 export const removeOrgMember = (id: number, sub: string) =>
