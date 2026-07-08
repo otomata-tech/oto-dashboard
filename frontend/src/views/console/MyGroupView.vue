@@ -8,6 +8,7 @@ import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import GroupDetailCards from '@/components/console/GroupDetailCards.vue'
+import GroupConnectorsCard from '@/components/console/GroupConnectorsCard.vue'
 import GroupDoctrineCard from '@/components/console/GroupDoctrineCard.vue'
 import { useToast } from '@/composables/useToast'
 import { useMe } from '@/composables/useMe'
@@ -66,10 +67,11 @@ async function leaveActive() {
         </div>
       </ConsoleCard>
 
-      <div class="grid23">
-        <GroupDetailCards :group-id="detail.group.id" :org-id="detail.group.org_id" :members="detail.members" :secrets="detail.secrets"
-          :can-manage="canManage" :me-sub="meSub" @changed="load" />
-      </div>
+      <GroupDetailCards :group-id="detail.group.id" :org-id="detail.group.org_id" :members="detail.members"
+        :can-manage="canManage" :me-sub="meSub" @changed="load" />
+
+      <GroupConnectorsCard :group-id="detail.group.id" :secrets="detail.secrets"
+        :can-manage="canManage" @changed="load" />
 
       <GroupDoctrineCard :group-id="detail.group.id" :can-edit="canManage" />
     </template>
