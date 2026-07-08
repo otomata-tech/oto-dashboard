@@ -79,6 +79,8 @@ Sparkline optionnelle : `.stat .v.with-spark` + `.spark`.
 ## Tables & listes
 
 - **Table** : `table.tbl` (th mono uppercase `--color-faint`, td `--color-ink-soft`, hover ligne, `.mono`/`.num`/`.dim` pour les cellules). Pour pleine largeur : l'envelopper dans `.card.flush`.
+- **Ligne sélectionnable** (table de sélection → détail) : `.crow` (curseur pointer) + `.crow.sel` (surbrillance saffron + filet gauche). Global car les `<td>` sont souvent rendus dans des slots (scope de la vue parente). Base partagée du composant **`ConnectorList`**.
+- **Recherche compacte** de barre de liste : `input.cc-search` (200px, focus encre). Réutilisée par les listes connecteurs/admin.
 - **Liste de lignes** légère : `.rowlist` + `.rowitem` (flex, hairline-soft entre items, dernier sans filet).
 
 ## Tags, pills, dots
