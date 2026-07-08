@@ -138,7 +138,6 @@ async function reload() {
   readTableQuery()
   await fetchRows()
 }
-watch(() => props.nsRef, reload, { immediate: true })
 
 function onPage(p: number) { page.value = p; syncTableQuery(); fetchRows() }
 function onSort(field: string, dir: 'asc' | 'desc') { sortField.value = field; sortDir.value = dir; page.value = 0; syncTableQuery(); fetchRows() }
@@ -153,6 +152,12 @@ const drawerNew = ref(false)
 function openRow(row: DatastoreRow) { drawerRow.value = row; drawerNew.value = false; drawerOpen.value = true }
 function openNew() { drawerRow.value = null; drawerNew.value = true; drawerOpen.value = true }
 function closeDrawer() { drawerOpen.value = false; drawerRow.value = null; drawerNew.value = false }
+
+// nsRef → recharge. `immediate` DOIT être déclaré APRÈS le bloc drawer : `reload`
+// appelle `closeDrawer()` qui lit `drawerOpen`/`drawerRow`/`drawerNew` ; placé plus
+// haut, le watch immédiat tourne pendant le setup avant l'init de ces refs → TDZ
+// (« Cannot access … before initialization », OTO-DASHBOARD-8).
+watch(() => props.nsRef, reload, { immediate: true })
 
 async function onSave(payload: Record<string, unknown>) {
   const n = name.value
