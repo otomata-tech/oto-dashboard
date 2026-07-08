@@ -14,7 +14,7 @@ import { useFormDialog, type FormDialogField } from '@/composables/useFormDialog
 import { useMe, isSuperAdmin } from '@/composables/useMe'
 import {
   getAdminUser, setUserRole, getPlatformKeys, getConnectors, getMonitoringCalls,
-  grantPlatformKey, revokePlatformKey, resendAlphaInvite,
+  grantPlatformKey, revokePlatformKey,
   setAdminOrgMemberRole, setOptionComp,
 } from '@/api/console'
 import { setViewUser } from '@/lib/viewOrg'
@@ -28,8 +28,6 @@ const route = useRoute()
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
-// Dialog séparé pour la révélation du lien d'invitation (ouvert depuis resendInvite).
-const { formDialog: revealDialog, formDialogOpen: revealOpen, openForm: openReveal } = useFormDialog()
 const { me } = useMe()
 
 // La gestion des rôles plateforme est réservée au super_admin (le backend rejette
@@ -59,11 +57,6 @@ const roleLabel = computed(() =>
   currentRole.value === 'super_admin' ? 'super admin'
   : currentRole.value === 'admin' ? 'operator admin'
   : 'member')
-const accessStatus = computed(() => detail.value?.access_status ?? null)
-// On propose le renvoi tant que l'accès n'est pas actif (waitlist/pending ou bloqué),
-// ou s'il reste une invitation en attente pour son email.
-const canResend = computed(() =>
-  !!detail.value?.email && (accessStatus.value !== 'active' || !!detail.value?.pending_invite))
 const callsErrCount = computed(() => calls.value.filter((c) => !c.ok).length)
 // Accès effectif par provider keyé (la question « a-t-il déjà accès ? »).
 const providerRows = computed(() =>
@@ -99,27 +92,6 @@ async function loadStatic() {
 function loadAll() { error.value = null; loadDetail(); loadActivity(); loadStatic() }
 onMounted(loadAll)
 watch(sub, loadAll)
-
-const resending = ref(false)
-async function resendInvite() {
-  if (!detail.value?.email) return
-  resending.value = true
-  try {
-    const res = await resendAlphaInvite(detail.value.email)
-    if (res.emailed) {
-      toast(`invitation re-sent to ${res.email}`)
-    } else {
-      openReveal({
-        title: 'share this invitation link',
-        description: 'email delivery is off on this server — copy and send it yourself.',
-        fields: [{ key: 'url', label: 'invitation link', initial: res.invite_url }],
-        submitLabel: 'done',
-        onConfirm: async () => {},
-      })
-    }
-    await loadDetail()
-  } catch (e) { toast(humanize(e)) } finally { resending.value = false }
-}
 
 // Pose explicitement un des 3 paliers plateforme. Confirmation requise ;
 // rétrograder un super_admin (perte des droits sensibles) est marqué danger.
@@ -249,15 +221,9 @@ async function toggleOrgRole(o: AdminUserOrg) {
       <!-- identité + rôle -->
       <ConsoleCard :title="detail.name || detail.email || detail.sub" sub="platform-admin user fiche.">
         <template #actions>
-          <Tag v-if="accessStatus === 'active'" tone="olive">active</Tag>
-          <Tag v-else-if="accessStatus === 'blocked'" tone="terra">blocked</Tag>
-          <Tag v-else-if="accessStatus" tone="saffron">{{ accessStatus }}</Tag>
           <Tag v-if="currentRole === 'super_admin'" tone="terra">{{ roleLabel }}</Tag>
           <Tag v-else-if="currentRole === 'admin'" tone="ink">{{ roleLabel }}</Tag>
           <Tag v-else tone="olive">member</Tag>
-          <Btn v-if="canResend" kind="mini" :disabled="resending" @click="resendInvite">
-            {{ resending ? 'Sending…' : 'Resend invite' }}
-          </Btn>
           <Btn v-if="canViewAs" kind="mini" icon="user" @click="viewAsUser">Voir en tant que</Btn>
           <!-- gestion des rôles plateforme : super_admin seul. Les deux paliers admin
                (operator → super) sont fusionnés dans un dropdown ; member reste un bouton. -->
@@ -282,9 +248,6 @@ async function toggleOrgRole(o: AdminUserOrg) {
         </template>
         <div class="helptext">
           {{ detail.email }} · <code class="mono">{{ detail.sub }}</code>
-        </div>
-        <div v-if="detail.pending_invite" class="helptext" style="margin-top: 6px">
-          pending alpha invitation · expires {{ fmtDate(detail.pending_invite.expires_at) }} — resend issues a fresh link.
         </div>
         <div class="helptext" style="margin-top: 6px">
           platform role has three tiers — <strong>super admin</strong> (full power: manages platform roles &amp; platform keys),
@@ -408,9 +371,6 @@ async function toggleOrgRole(o: AdminUserOrg) {
     <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
       :title="formDialog.title" :description="formDialog.description"
       :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
-    <FormDialog v-if="revealDialog" v-model:open="revealOpen"
-      :title="revealDialog.title" :description="revealDialog.description"
-      :fields="revealDialog.fields" :submit-label="revealDialog.submitLabel" :on-confirm="revealDialog.onConfirm" />
   </div>
 </template>
 

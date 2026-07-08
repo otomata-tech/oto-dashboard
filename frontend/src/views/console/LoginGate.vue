@@ -7,13 +7,12 @@ import { useAuth } from '@/composables/useAuth'
 const { t } = useI18n()
 const { login } = useAuth()
 const route = useRoute()
-// Arrivée depuis « rejoindre la waitlist » (oto.ninja, ?join) → on enchaîne
-// DIRECTEMENT sur l'écran d'inscription Logto, sans interstitiel à bouton
-// (l'ancien écran « créer mon compte » était un double écran inutile). On garde
-// un état de redirection minimal + un repli cliquable si le rebond JS traîne.
-// Arrivée avec ?otl (magic link, ex. email d'approbation waitlist) → connexion
-// silencieuse avec l'OTT (pas de saisie de code).
-const join = computed(() => route.query.join !== undefined)
+// Arrivée depuis « créer un compte » (oto.cx, ?signup) → on enchaîne DIRECTEMENT
+// sur l'écran d'inscription Logto, sans interstitiel à bouton. On garde un état de
+// redirection minimal + un repli cliquable si le rebond JS traîne.
+// Arrivée avec ?otl (magic link Logto) → connexion silencieuse avec l'OTT (pas de
+// saisie de code).
+const signup = computed(() => route.query.signup !== undefined)
 const otl = computed(() => (route.query.otl as string) || '')
 const loginHint = computed(() => (route.query.login_hint as string) || '')
 const redirecting = ref(false)
@@ -25,7 +24,7 @@ function go() {
 }
 
 onMounted(() => {
-  if (join.value || otl.value) go()
+  if (signup.value || otl.value) go()
 })
 </script>
 
@@ -35,7 +34,7 @@ onMounted(() => {
       <div style="display: flex; flex-direction: column; align-items: center; gap: 14px">
         <span class="o-medallion o-medallion-sm" style="width: 44px; height: 44px" aria-label="Oto" role="img" />
 
-        <template v-if="join || otl">
+        <template v-if="signup || otl">
           <div>
             <div style="font-size: 18px; font-weight: 700; letter-spacing: -0.02em">{{ otl ? t('auth.login.titleConnect') : t('auth.login.titleJoin') }}</div>
             <div class="env" style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-faint); margin-top: 3px">{{ otl ? t('auth.login.envInvite') : t('auth.login.envJoin') }}</div>
