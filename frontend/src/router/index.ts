@@ -120,6 +120,9 @@ const router = createRouter({
     },
     // Détails org-scopés (nus + préfixés `/o/:orgId/…`), portés par meta.detail.
     ...detailRoutes('/projects/:id', 'project'),
+    // Un tableau lié ouvert DANS la page projet (`ProjectDetailView` lit `:nsRef`) —
+    // même `detail='project'` → ProjectDetailView reste monté (viewKey keyé sur :id).
+    ...detailRoutes('/projects/:id/data/:nsRef', 'project'),
     ...detailRoutes('/data/:id', 'data'),
     ...detailRoutes('/procedures/:id', 'procedure'),
     {
