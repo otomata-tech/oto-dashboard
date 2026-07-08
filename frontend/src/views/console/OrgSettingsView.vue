@@ -14,7 +14,7 @@ import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
 import { useMe } from '@/composables/useMe'
 import { useOrgScope } from '@/composables/useOrgScope'
-import { uploadOrgLogo, deleteOrgLogo, updateOrg, archiveOrg } from '@/api/console'
+import { uploadOrgLogo, deleteOrgLogo, updateOrg, archiveOrg, leaveOrg } from '@/api/console'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { validateImage, IMAGE_ACCEPT_ATTR } from '@/lib/imageUpload'
@@ -83,6 +83,22 @@ async function removeLogo() {
     toast('org logo removed')
   } catch (err) { toast(humanize(err)) }
   finally { logoBusy.value = false }
+}
+
+// Quitter l'org — auto-retrait (TOUT membre, pas seulement admin), jamais l'espace perso.
+// Le backend refuse si on est le dernier admin (409 → toast). L'org active bascule côté
+// serveur ; on recharge en dur pour reconstruire identité/sidebar sur la nouvelle org.
+async function leave() {
+  if (activeOrgId.value == null) return
+  const label = detail.value?.org.name || 'cette organisation'
+  if (!await confirmAction({ title: 'quitter l\'organisation', danger: true, confirmLabel: 'quitter',
+    message: `quitter « ${label} » ? tu perds l'accès à ses clés partagées, connecteurs et outils. tu peux y être réinvité·e plus tard.` })) return
+  try {
+    await leaveOrg(activeOrgId.value)
+    await reloadMe()
+    toast('tu as quitté l\'organisation')
+    window.location.assign('/overview')   // repart propre sur la nouvelle org active
+  } catch (e) { toast(humanize(e)) }
 }
 
 // Suppression (archivage réversible) de l'org — org_admin, jamais l'espace perso.
@@ -170,6 +186,18 @@ async function deleteOrg() {
             <Tag tone="cobalt">{{ e.namespace }}</Tag>
             <span style="margin-left: auto; font-size: 11px; color: var(--color-faint)">{{ fmtDate(e.granted_at) }}</span>
           </div>
+        </div>
+      </ConsoleCard>
+
+      <!-- Quitter l'org : self-service, TOUT membre (≠ « supprimer » réservé admin).
+           Masqué sur l'espace perso (jamais quittable). -->
+      <ConsoleCard v-if="detail && !isPersonalOrg" title="quitter l'organisation"
+        sub="te retirer de cette org. tu perds l'accès à ses clés partagées, connecteurs et outils.">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap">
+          <div class="helptext" style="margin: 0">
+            tu restes libre d'y être réinvité·e plus tard. si tu es le dernier admin, nomme d'abord un successeur.
+          </div>
+          <Btn kind="danger" @click="leave">quitter l'organisation</Btn>
         </div>
       </ConsoleCard>
     </template>

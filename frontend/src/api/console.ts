@@ -544,6 +544,10 @@ export const setOrgMemberRole = (id: number, sub: string, role: string) =>
   api(`/api/orgs/${id}/members/${sub}`, { method: 'POST', ...j({ role }) })
 export const removeOrgMember = (id: number, sub: string) =>
   api(`/api/orgs/${id}/members/${sub}`, { method: 'DELETE' })
+// Auto-retrait : quitter une org dont on est membre (self-service, SUB_ONLY). Refusé sur
+// l'org perso ou si on est le dernier admin (409). L'org active bascule côté backend.
+export const leaveOrg = (id: number) =>
+  api<{ ok: boolean; org_id: number; left: boolean }>(`/api/me/orgs/${id}/membership`, { method: 'DELETE' })
 // Pose/rotation de la clé partagée d'org (org_admin, self-service, ADR 0022).
 export const setOrgSecret = (id: number, provider: string, api_key: string, base_url?: string, fields?: Record<string, string>, api_version?: string) =>
   api<{ ok: boolean; org_id: number; provider: string }>(

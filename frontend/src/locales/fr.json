@@ -221,6 +221,7 @@
     "unknown_org": "organisation inconnue",
     "unknown_key": "clé plateforme inconnue",
     "not_a_member": "tu n'es pas membre de cette org",
+    "personal_org": "on ne peut pas quitter son espace personnel",
     "missing_fields": "remplis tous les champs requis",
     "empty_api_key": "la clé d'API est vide",
     "missing_name": "un nom est requis",
