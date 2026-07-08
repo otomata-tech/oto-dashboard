@@ -188,7 +188,10 @@
     "manageGroup": "manage my team",
     "manageOrg": "manage my org",
     "managePlatform": "manage the platform",
-    "accountMenu": "account menu"
+    "accountMenu": "account menu",
+    "spaceMine": "My space",
+    "spaceOrg": "Company space",
+    "spaceAccount": "Manage my account"
   },
   "errors": {
     "namespace_exists": "a namespace with that name already exists",

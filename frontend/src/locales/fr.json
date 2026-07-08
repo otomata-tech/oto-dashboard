@@ -188,7 +188,10 @@
     "manageGroup": "gérer mon groupe",
     "manageOrg": "gérer mon org",
     "managePlatform": "gérer la plateforme",
-    "accountMenu": "menu du compte"
+    "accountMenu": "menu du compte",
+    "spaceMine": "Mon Espace",
+    "spaceOrg": "Espace Entreprise",
+    "spaceAccount": "Gérer mon compte"
   },
   "errors": {
     "namespace_exists": "un tableau porte déjà ce nom",
