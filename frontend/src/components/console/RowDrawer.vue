@@ -21,7 +21,8 @@ const emit = defineEmits<{
 }>()
 
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
-const META = new Set(['_id', '_created_at', '_updated_at'])
+// Tout champ `_…` est méta (id/timestamps + bail de claim v2) : jamais éditable.
+const META = { has: (k: string) => k.startsWith('_') }
 
 const draft = ref<Record<string, string>>({})
 const extra = ref<string[]>([])
@@ -126,6 +127,9 @@ const title = computed(() => props.isNew ? 'new row' : (props.row?._id ?? 'row')
 
           <div v-if="!isNew && row?._updated_at" class="rd-meta dim mono">
             updated {{ absDate(String(row._updated_at)) }}
+            <template v-if="row?._claimed_by"> · en cours de traitement par
+              « {{ row._claimed_by }} »<template v-if="row?._claimed_until"> (bail
+              jusqu'à {{ absDate(String(row._claimed_until)) }})</template></template>
           </div>
         </div>
 

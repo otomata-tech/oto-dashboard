@@ -25,10 +25,23 @@ export function cellShort(value: unknown, kind: CellKind = cellKind(value)): str
     case 'empty': return ''
     case 'bool': return value ? 'true' : 'false'
     case 'number': return String(value)
-    case 'json': return Array.isArray(value) ? `[${value.length}]` : '{…}'
+    case 'json': return jsonPreview(value)
     case 'date': return absDate(String(value))
     default: return String(value)
   }
+}
+
+/** Aperçu 1-ligne d'une valeur imbriquée (schéma v2 : sous-record / liste) —
+ * `n × {1er item}` pour une liste, JSON compact tronqué pour un objet. */
+function jsonPreview(value: unknown, limit = 60): string {
+  let s: string
+  try {
+    if (Array.isArray(value)) {
+      const head = value.length ? JSON.stringify(value[0]) : ''
+      s = head ? `${value.length} × ${head}` : '0 item'
+    } else s = JSON.stringify(value)
+  } catch { s = String(value) }
+  return s.length > limit ? s.slice(0, limit - 1) + '…' : s
 }
 
 /** Date absolue lisible « 2026-06-22 09:07 » (tronquée à la minute). */

@@ -33,16 +33,17 @@ const emit = defineEmits<{
   (e: 'update:filters', filters: ColumnFilter[]): void
 }>()
 
-const META = new Set(['_id', '_created_at', '_updated_at'])
 const DEFAULT_SORT = '_updated_at'
 const PAGE_SIZES = [25, 50, 100]
 
 // Colonnes = champs user de la page courante (ordre de 1re apparition) + « updated ».
+// Tout champ méta `_…` est exclu (dont `_claimed_by`/`_claimed_until`, bail de la
+// file de travail v2 — rendu en badge dans les fiches, pas en colonne).
 const fields = computed<string[]>(() => {
   const seen: string[] = []
   for (const row of props.rows)
     for (const k of Object.keys(row))
-      if (!META.has(k) && !seen.includes(k)) seen.push(k)
+      if (!k.startsWith('_') && !seen.includes(k)) seen.push(k)
   return seen
 })
 const columns = computed(() => [...fields.value, '_updated_at'])

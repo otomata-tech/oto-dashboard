@@ -640,15 +640,30 @@ export interface NamespaceEntry {
 }
 
 // Schéma typé d'un namespace (ADR 0032 §6 / 0029, B6) — champs + rôles de rendu.
+// v2 (ADR 0046) : types imbriqués (`object`+fields / `list`+of), validation
+// opt-in (required / required_when) et cycle de vie sur le field status. Le
+// front ne VALIDE pas (le backend refuse à l'écriture) — il REND ces formes.
 export type DatastoreFieldRole = 'title' | 'badge' | 'metric' | 'status' | 'qualif' | 'note'
+export interface DatastoreLifecycle {
+  states?: string[]
+  transitions?: Record<string, string[]>
+  terminal?: string[]
+}
 export interface DatastoreField {
   key: string
   label?: string
-  type?: 'text' | 'number' | 'date' | 'bool' | 'json'
+  type?: 'text' | 'number' | 'date' | 'bool' | 'json' | 'object' | 'list'
   role?: DatastoreFieldRole
+  fields?: DatastoreField[]                            // type=object
+  of?: DatastoreField | { fields?: DatastoreField[] }  // type=list
+  required?: boolean
+  required_when?: Record<string, string>
+  lifecycle?: DatastoreLifecycle                       // sur role=status
 }
 export interface DatastoreSchema {
   fields?: DatastoreField[]
+  key?: string
+  strict?: boolean
 }
 
 // Bénéficiaire d'un partage de ressource (vue propriétaire).
