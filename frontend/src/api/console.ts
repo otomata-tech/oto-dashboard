@@ -6,7 +6,7 @@ import type {
   BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
-  GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
+  GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
   ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
@@ -598,6 +598,22 @@ export const setGroupSecret = (id: number, provider: string, api_key: string, ba
   api(`/api/groups/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url, fields }) })
 export const deleteGroupSecret = (id: number, provider: string) =>
   api(`/api/groups/${id}/secrets/${provider}`, { method: 'DELETE' })
+// Disponibilité de connecteur au grain équipe (ADR 0012, restrict-only). L'équipe
+// ne peut que COUPER (set enabled=false) / ré-ouvrir (clear) ce que l'org expose.
+export const getGroupConnectorActivation = (id: number) =>
+  api<{ group_id: number; connectors: GroupConnectorActivation[] }>(`/api/groups/${id}/connectors/activation`)
+export const setGroupConnectorActivation = (id: number, name: string, enabled: boolean) =>
+  api(`/api/groups/${id}/connectors/${name}/activation`, { method: 'PUT', ...j({ enabled }) })
+export const clearGroupConnectorActivation = (id: number, name: string) =>
+  api(`/api/groups/${id}/connectors/${name}/activation`, { method: 'DELETE' })
+// ACL connecteur au grain équipe (ADR 0012 B2, restrict-only) : réserver un connecteur
+// à des membres de l'équipe (narrowing de l'ACL d'org).
+export const getGroupConnectorAcl = (id: number) =>
+  api<{ group_id: number; access: GroupAclEntry[]; restricted: string[] }>(`/api/groups/${id}/connectors/acl`)
+export const setGroupConnectorAccess = (id: number, connector: string, member: string) =>
+  api(`/api/groups/${id}/connectors/${connector}/access`, { method: 'POST', ...j({ member }) })
+export const clearGroupConnectorAccess = (id: number, connector: string, member: string) =>
+  api(`/api/groups/${id}/connectors/${connector}/access?member=${encodeURIComponent(member)}`, { method: 'DELETE' })
 // doctrine & skills du groupe (lecture = membre, écriture = chef)
 export const getGroupInstructions = (id: number) =>
   api<GroupInstructionsBundle>(`/api/groups/${id}/instructions`)

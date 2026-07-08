@@ -151,6 +151,28 @@ export interface OrgConnectorActivation {
   subscribed?: boolean          // l'org a l'option débloquée (comp admin)
 }
 
+// Activation de connecteur au grain ÉQUIPE (ADR 0012, restrict-only). L'équipe ne peut
+// que COUPER ce que l'org expose (jamais exposer au-delà). `effective` = org_available
+// ET pas coupé par l'équipe.
+export interface GroupConnectorActivation {
+  connector: string
+  label: string
+  help: string
+  namespaces: string[]
+  org_available: boolean
+  group_cut: boolean
+  effective: boolean
+}
+
+// ACL connecteur au grain ÉQUIPE (ADR 0012 B2, restrict-only) : réserver un connecteur
+// à des MEMBRES de l'équipe. Intersection avec l'ACL d'org (narrowing pur).
+export interface GroupAclEntry {
+  connector: string
+  principal_sub: string
+  granted_by?: string | null
+  granted_at?: string
+}
+
 // RBAC connecteur interne à l'org (ADR 0025) : une entrée = un principal (département
 // ou membre) autorisé sur un connecteur. ≥1 entrée pour un connecteur ⟹ il est réservé.
 export interface ConnectorAclEntry {
