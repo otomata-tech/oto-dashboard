@@ -10,16 +10,17 @@ import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import MarkdownView from '@/components/console/MarkdownView.vue'
 import AttachmentViewer from '@/components/console/AttachmentViewer.vue'
+import DatastoreTable from '@/components/console/DatastoreTable.vue'
 import {
   updateDoc, deleteDoc, setDocPublic, getDocRevisions,
   requestDocChange, listDocChanges, resolveDocChange,
   getConnectorIdentities, linkProject, unlinkProject,
   setProjectFilePublic, deleteProjectFile,
-  getToolRegistry, getConnectors, getNamespaceRows, getProjectRuns,
+  getToolRegistry, getConnectors, getProjectRuns,
 } from '@/api/console'
 import type {
   Doc, DocKind, DocRevision, DocChangeRequest, ProjectLink, ConnectorIdentity,
-  ToolRegistryEntry, ConnectorMeta, DatastoreRow, ProjectRun, ProjectFile,
+  ToolRegistryEntry, ConnectorMeta, ProjectRun, ProjectFile,
 } from '@/types/api'
 
 // Caches module-level : le registre d'outils et le catalogue de connecteurs ne changent
@@ -178,16 +179,14 @@ const cfgSaving = ref(false)
 const connectorTools = ref<{ name: string; description: string }[]>([])
 const toolsLoading = ref(false)
 
-// ═══════════ TABLEAU (aperçu) / PROCÉDURE (runs) — extras chargés à la sélection ═══════════
-const tableRows = ref<DatastoreRow[] | null>(null)
-const tableError = ref<string | null>(null)
-const tableLoading = ref(false)
+// ═══════════ PROCÉDURE (runs) / CONNECTEUR — extras chargés à la sélection ═══════════
+// (Le TABLEAU affiche sa vue complète via <DatastoreTable>, plus d'aperçu à charger ici.)
 const runs = ref<ProjectRun[]>([])
 const runsLoading = ref(false)
 
-// Charge les extras de l'entité sélectionnée (identités+outils / lignes / runs) selon son type.
+// Charge les extras de l'entité sélectionnée (identités+outils / runs) selon son type.
 watch(item, async () => {
-  identities.value = []; connectorTools.value = []; tableRows.value = null; tableError.value = null; runs.value = []
+  identities.value = []; connectorTools.value = []; runs.value = []
   const l = link.value
   if (kind.value === 'connecteur' && l) {
     chosenIdentity.value = l.identity_ref ?? ''
@@ -206,12 +205,6 @@ watch(item, async () => {
       })
       .catch(() => { connectorTools.value = [] })
       .finally(() => { toolsLoading.value = false })
-  } else if (kind.value === 'tableau' && l) {
-    tableLoading.value = true
-    getNamespaceRows(l.target_ref, { limit: 5 })
-      .then((r) => { tableRows.value = r.rows; tableError.value = null })
-      .catch((e) => { tableRows.value = null; tableError.value = tableErrMsg(e) })
-      .finally(() => { tableLoading.value = false })
   } else if (kind.value === 'procedure' && l) {
     runsLoading.value = true
     getProjectRuns(props.projectId, l.target_ref)
@@ -221,23 +214,6 @@ watch(item, async () => {
   }
 }, { immediate: true })
 
-// Message d'aperçu quand le chargement échoue — api() lève Error("<status> <code>").
-// On distingue le hors-scope (403/404 : le tableau existe mais pas dans l'org active
-// consultée) du reste, au lieu d'un « indisponible » muet.
-function tableErrMsg(e: unknown): string {
-  const m = e instanceof Error ? e.message : String(e)
-  if (/^40[34]\b/.test(m) || /namespace_not_found/.test(m))
-    return "Ce tableau n'est pas visible dans l'org active — il appartient peut-être à une autre org. Ouvre-le pour voir/éditer."
-  return 'Aperçu indisponible ici — ouvre le tableau pour voir et éditer ses lignes.'
-}
-
-// Colonnes de l'aperçu tableau : union des clés « métier » (hors _id/_created_at…), cap 5.
-const tableCols = computed<string[]>(() => {
-  const cols: string[] = []
-  for (const row of tableRows.value ?? [])
-    for (const k of Object.keys(row)) if (!k.startsWith('_') && !cols.includes(k)) cols.push(k)
-  return cols.slice(0, 5)
-})
 const RUN_DOT: Record<string, string> = {
   done: 'var(--color-olive)', failed: 'var(--color-terra-ink)', blocked: 'var(--color-terra-ink)',
   abandoned: 'var(--color-mute)',
@@ -268,19 +244,12 @@ const openHref = computed<string | null>(() => {
   const l = link.value
   if (!l) return null
   const ref = encodeURIComponent(l.target_ref)
-  if (kind.value === 'tableau') return `/data/${ref}`
   if (kind.value === 'procedure') return `/procedures/${ref}`
   if (kind.value === 'doc') return l.doc_project_id ? `/projects/${l.doc_project_id}` : null
   return null
 })
 
 // ═══════════ FICHIER importé ═══════════
-function cell(v: unknown): string {
-  if (v == null) return ''
-  if (typeof v === 'object') return Array.isArray(v) ? v.join(', ') : JSON.stringify(v)
-  return String(v)
-}
-
 const file = computed(() => item.value?.file ?? null)
 const preview = ref<ProjectFile | null>(null)   // fichier ouvert dans le lightbox AttachmentViewer
 function fmtSize(n?: number | null): string {
@@ -439,18 +408,9 @@ async function removeFile() {
         </RouterLink>
       </div>
 
-      <!-- ═══ TABLEAU (aperçu des premières lignes) ═══ -->
-      <div v-else-if="kind === 'tableau'" class="vw__block" style="max-width: 800px">
-        <p v-if="tableLoading" class="dim" style="font-size: 13px">chargement de l'aperçu…</p>
-        <div v-else-if="tableRows && tableRows.length && tableCols.length" class="vw__tbl">
-          <div class="vw__tblhd"><span v-for="c in tableCols" :key="c" class="vw__tblc">{{ c }}</span></div>
-          <div v-for="(row, i) in tableRows" :key="i" class="vw__tblr">
-            <span v-for="c in tableCols" :key="c" class="vw__tblc">{{ cell(row[c]) }}</span>
-          </div>
-        </div>
-        <p v-else-if="tableRows && !tableRows.length" class="dim" style="font-size: 13px; line-height: 1.6">Ce tableau est vide.</p>
-        <p v-else class="dim" style="font-size: 13px; line-height: 1.6">{{ tableError ?? 'Aperçu indisponible ici — ouvre le tableau pour voir et éditer ses lignes.' }}</p>
-        <RouterLink v-if="openHref" class="vw__open" :to="openHref">Ouvrir le tableau <Icon name="ext" :size="12" /></RouterLink>
+      <!-- ═══ TABLEAU : vue COMPLÈTE inline (lignes + tri/filtres/pagination + édition) ═══ -->
+      <div v-else-if="kind === 'tableau' && link" class="vw__block">
+        <DatastoreTable :ns-ref="link.target_ref" :govern="false" />
       </div>
 
       <!-- ═══ PROCÉDURE (déroulé + derniers runs) ═══ -->
