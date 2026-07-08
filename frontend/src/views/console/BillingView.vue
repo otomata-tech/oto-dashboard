@@ -148,7 +148,7 @@ async function resiliate() {
 <template>
   <div class="content-inner fadein">
     <SkeletonOverview v-if="loading" />
-    <StateError v-else-if="error" :message="error" @retry="load" @relogin="load" />
+    <StateError v-else-if="error" :message="error" @retry="load" />
 
     <template v-else-if="status">
       <!-- ── Abonné : état courant ── -->

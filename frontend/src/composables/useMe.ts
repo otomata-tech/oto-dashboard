@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { getMe } from '@/api/console'
 import { identifyUser } from '@/lib/analytics'
+import { applyMeLocale } from '@/lib/i18n'
 import { setSentryUser } from '@/lib/sentry'
 import type { Me, Role } from '@/types/api'
 
@@ -18,7 +19,8 @@ async function load(force = false): Promise<Me | null> {
       me.value = await getMe()
       error.value = null
       // Relie la session PostHog à l'utilisateur (segmentation rôle/org).
-      if (me.value) { identifyUser(me.value); setSentryUser(me.value.sub) }
+      // La préférence de langue du compte fait autorité une fois `me` chargé.
+      if (me.value) { identifyUser(me.value); setSentryUser(me.value.sub); applyMeLocale(me.value.locale) }
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)
     } finally {

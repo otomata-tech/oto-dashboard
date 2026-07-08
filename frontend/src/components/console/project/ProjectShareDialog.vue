@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Modale PARTAGER d'un projet (refonte UX, ADR 0032) — un seul endroit à 4 sections :
-// Équipe (membres/org, absorbe SharePrincipalDialog) · Lien public chiffré (mode `secret`
-// navigable) · Endpoint MCP (publish) · Transférer la propriété. Absorbe l'ancienne carte
+// Équipe (membres/org, absorbe SharePrincipalDialog) · Lien public navigable (mode `secret`,
+// URL secrète non devinable) · Endpoint MCP (publish) · Transférer la propriété. Absorbe l'ancienne carte
 // « Endpoint MCP & partage » + le bouton Transférer. Réutilise le câblage existant.
 import { computed, ref, watch } from 'vue'
 import Icon from '@/components/console/Icon.vue'
@@ -87,7 +87,7 @@ function initials(g: NamespaceShare): string {
   return s.replace(/[^\p{L}\p{N} ]/gu, '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('') || '?'
 }
 
-// ── Lien public chiffré (= accès `secret` navigable) ──
+// ── Lien public navigable (= accès `secret`, URL non devinable) ──
 const shareUrl = computed(() =>
   props.project.mcp_access === 'secret' && props.project.mcp_slug
     ? `https://${props.project.mcp_slug}.share.oto.cx` : null)
@@ -237,15 +237,15 @@ async function transfer() {
 
           <div class="sd__hr"></div>
 
-          <!-- Lien public chiffré -->
+          <!-- Lien public navigable (accès « secret ») -->
           <section>
-            <div class="sd__sec"><Icon name="ext" :size="16" /><span>Lien public · chiffré</span><Tag v-if="shareUrl" tone="olive">actif</Tag></div>
-            <p class="sd__desc">Un instantané lecture seule (brief + pages), navigable — l'URL secrète n'est pas devinable. Techniquement = accès « secret ».</p>
+            <div class="sd__sec"><Icon name="ext" :size="16" /><span>Lien public · navigable</span><Tag v-if="shareUrl" tone="olive">actif</Tag></div>
+            <p class="sd__desc">Un instantané lecture seule (brief + pages), navigable via une URL secrète non devinable.</p>
             <div v-if="shareUrl" class="sd__linkrow">
               <input class="sd__url" :value="shareUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
               <Btn kind="mini" icon="copy" @click="copyShareUrl">Copier</Btn>
             </div>
-            <Btn v-else-if="!readOnly" kind="mini" icon="external-link" @click="publishMcp">Partager par lien chiffré</Btn>
+            <Btn v-else-if="!readOnly" kind="mini" icon="external-link" @click="publishMcp">Partager par lien public</Btn>
           </section>
 
           <div class="sd__hr"></div>
