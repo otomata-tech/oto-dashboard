@@ -183,12 +183,17 @@ export interface ProviderStatus {
   identity_label?: string | null
 }
 
+// Langue de l'UI (i18n EN/FR). Défini ici pour que `lib/i18n.ts` l'importe sans
+// créer un cycle types→lib.
+export type Locale = 'en' | 'fr'
+
 export interface Me {
   sub: string
   email: string | null
   name: string | null
   avatar_url: string | null
   role: Role
+  locale?: Locale | null             // préférence de langue du compte (i18n) ; absent/null = non réglée
   active_org: number | null          // org EFFECTIVE affichée = consultation (view-as) ?? maison
   active_org_name: string | null
   active_org_logo_url: string | null
@@ -760,7 +765,7 @@ export interface OrgDetail {
   members: OrgMember[]
   secrets: OrgSecret[]   // BYO d'org, encore renvoyé par le backend ; géré désormais par connecteur (/org/connectors, ADR 0044)
   option_comps?: string[]   // options payantes offertes (comp admin) à l'ORG
-  platform_grants?: AdminGrant[]   // clés plateforme partagées à TOUTE l'org (couche 2)
+  billing?: BillingStatus   // plan/abonnement de l'org (ADR 0043) — cockpit admin
 }
 // ── redaction de champs par connecteur (FieldFilter, ADR 0015) ──
 export interface FieldRule {

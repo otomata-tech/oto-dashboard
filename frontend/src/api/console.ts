@@ -3,7 +3,7 @@
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
   AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, MyConnector,
-  BillingStatus, BillingSubscribeResult, BillingPayment,
+  BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
   GoogleOauthStatus, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
@@ -515,6 +515,7 @@ export const previewInviteByCode = (code: string) =>
 export const acceptInvite = (payload: { token?: string; code?: string }) =>
   api<{ ok: boolean; org_id: number | null; org_role: string | null; name: string | null; self?: boolean }>(
     '/api/me/invitations/accept', { method: 'POST', ...j(payload) })
+
 export const setOrgMemberRole = (id: number, sub: string, role: string) =>
   api(`/api/orgs/${id}/members/${sub}`, { method: 'POST', ...j({ role }) })
 export const removeOrgMember = (id: number, sub: string) =>
@@ -659,6 +660,8 @@ export const setPlatformInstruction = (key: string, body_md: string) =>
     { method: 'PUT', ...j({ body_md }) })
 
 // ── Billing / abonnement par org (ADR 0043) — scopé à l'org active (X-Oto-Org) ──
+// Catalogue public des plans (indépendant de l'abonnement) — cockpit admin + achat.
+export const getPlans = () => api<{ plans: BillingPlan[] }>('/api/billing/plans')
 export const getBilling = () => api<BillingStatus>('/api/me/billing')
 export const getBillingPayments = (limit = 20) =>
   api<{ payments: BillingPayment[] }>(`/api/me/billing/payments?limit=${limit}`)
