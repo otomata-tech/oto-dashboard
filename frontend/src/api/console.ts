@@ -53,8 +53,11 @@ export const unselectConnector = (name: string) =>
 // pack/chiffre selon la forme. Une seule surface, zéro branche par connecteur.
 export const setCredential = (provider: string, fields: Record<string, string>, api_version?: string) =>
   api(`/api/settings/api-keys/${provider}`, { method: 'POST', ...j(api_version ? { ...fields, api_version } : fields) })
-export const deleteApiKey = (provider: string) =>
-  api(`/api/settings/api-keys/${provider}`, { method: 'DELETE' })
+// `scope` (défaut 'member') = niveau de l'instance à effacer : ma clé/session perso,
+// celle de l'équipe active, ou celle de l'org (org/group réservés aux admins du scope).
+export const deleteApiKey = (provider: string, scope: 'member' | 'org' | 'group' = 'member') =>
+  api(`/api/settings/api-keys/${provider}${scope !== 'member' ? `?scope=${scope}` : ''}`,
+    { method: 'DELETE' })
 
 // Sonde « tester la connexion » (framework de vérification de credential). Résout le
 // credential et vérifie qu'il authentifie réellement, en remontant le vrai message
@@ -72,10 +75,14 @@ export const verifyConnector = (provider: string, level: 'auto' | 'org' = 'auto'
 export const startConnectorSession = (name: string) =>
   api<{ live_view_url: string; context_id: string; session_id: string }>(
     `/api/me/connectors/${encodeURIComponent(name)}/session/start`, { method: 'POST' })
+// `scope` (défaut 'member') = niveau où poser la session : ma session perso, celle de
+// l'équipe active (group) ou de l'org — les niveaux partagés exigent d'être admin du scope
+// et un connecteur org-partageable (ex. Pennylane GED : session cabinet mutualisée).
 export const finalizeConnectorSession = (
-  name: string, ctx: { context_id: string; session_id: string },
+  name: string,
+  ctx: { context_id: string; session_id: string; scope?: 'member' | 'org' | 'group' },
 ) =>
-  api<{ connected: boolean }>(
+  api<{ connected: boolean; scope: string }>(
     `/api/me/connectors/${encodeURIComponent(name)}/session/finalize`, { method: 'POST', ...j(ctx) })
 
 // ── google ──
