@@ -413,7 +413,7 @@ async function removeSkill(slug: string, label: string) {
          Le destinataire lit cross-org par id (oto_get_doctrine doctrine_id). -->
     <SharePrincipalDialog v-if="activeDoc && activeDoc.id > 0" :open="shareOpen"
       resource-type="doctrine" :resource-id="String(activeDoc.id)"
-      :resource-label="activeDoc.title" :permissions="['read']" @close="shareOpen = false" />
+      :resource-label="activeDoc.title" :roles="['viewer']" @close="shareOpen = false" />
   </div>
 </template>
 
