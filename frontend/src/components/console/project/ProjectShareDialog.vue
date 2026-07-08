@@ -13,6 +13,7 @@ import {
 } from '@/api/console'
 import type { GroupListItem, NamespaceShare, Org, OrgMember, SharePrincipal, Project } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { ROLE_OPTIONS, roleLabel, roleTone, type ResourceRole } from '@/lib/resourceRole'
 import { useToast } from '@/composables/useToast'
 import { useMe } from '@/composables/useMe'
 import { usePrompt } from '@/composables/usePrompt'
@@ -31,7 +32,7 @@ const projectId = computed(() => props.project.id)
 // ── Équipe (principals) ──
 type Mode = 'member' | 'team' | 'org' | 'email'
 const mode = ref<Mode>('member')
-const permission = ref<'read' | 'write'>('write')
+const role = ref<ResourceRole>('editor')
 const memberSub = ref(''); const groupId = ref(''); const orgId = ref(''); const email = ref('')
 const members = ref<OrgMember[]>([]); const groups = ref<GroupListItem[]>([]); const myOrgs = ref<Org[]>([])
 const busy = ref(false)
@@ -49,7 +50,7 @@ async function loadPickers() {
 }
 watch(() => props.open, (o) => {
   if (!o) return
-  mode.value = 'member'; permission.value = 'write'
+  mode.value = 'member'; role.value = 'editor'
   memberSub.value = ''; groupId.value = ''; orgId.value = ''; email.value = ''
   void loadPickers()
 })
@@ -65,7 +66,7 @@ async function addPrincipal() {
   if (!principal.value || busy.value) return
   busy.value = true
   try {
-    await shareResource('project', String(projectId.value), principal.value, permission.value)
+    await shareResource('project', String(projectId.value), principal.value, role.value)
     toast('partagé'); memberSub.value = ''; groupId.value = ''; orgId.value = ''; email.value = ''
     emit('changed')
   } catch (e) { toast(humanize(e)) }
@@ -216,7 +217,7 @@ async function transfer() {
                 <span class="sd__gname">{{ g.label || g.email || g.principal_id }}</span>
                 <Tag v-if="g.principal_type === 'group'" tone="saffron">équipe</Tag>
                 <Tag v-else-if="g.principal_type === 'org'" tone="terra">org</Tag>
-                <Tag :tone="g.permission === 'write' ? 'olive' : 'cobalt'">{{ g.permission === 'write' ? 'édition' : 'lecture' }}</Tag>
+                <Tag :tone="roleTone(g.role, g.permission)">{{ roleLabel(g.role, g.permission) }}</Tag>
                 <button v-if="!readOnly && principalOf(g)" class="sd__rev" title="Retirer l'accès" @click="revoke(g)"><Icon name="x" :size="13" /></button>
               </div>
             </div>
@@ -229,7 +230,7 @@ async function transfer() {
               <select v-else-if="mode === 'team'" v-model="groupId" class="sd__in sd__grow"><option value="" disabled>choisir une équipe…</option><option v-for="g in groups" :key="g.group_id" :value="String(g.group_id)">{{ g.name }}</option></select>
               <select v-else-if="mode === 'org'" v-model="orgId" class="sd__in sd__grow"><option value="" disabled>choisir une org…</option><option v-for="o in myOrgs" :key="o.id" :value="String(o.id)">{{ o.name }}</option></select>
               <input v-else v-model="email" class="sd__in sd__grow" type="email" placeholder="collègue@exemple.com" @keyup.enter="addPrincipal" />
-              <select v-model="permission" class="sd__in" aria-label="droit"><option value="write">édition</option><option value="read">lecture</option></select>
+              <select v-model="role" class="sd__in" aria-label="rôle"><option v-for="r in ROLE_OPTIONS" :key="r.value" :value="r.value">{{ r.label }}</option></select>
               <Btn kind="mini" icon="plus" :disabled="busy || !principal" @click="addPrincipal">Inviter</Btn>
             </div>
             <p v-else class="dim sd__ro">Tu es en lecture seule — gestion réservée au propriétaire.</p>

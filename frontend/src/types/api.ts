@@ -692,7 +692,8 @@ export interface DatastoreSchema {
 export interface NamespaceShare {
   email: string | null
   label?: string | null   // libellé résolu backend : email (user) / nom (org, équipe)
-  permission: string
+  role?: string | null    // ADR 0048 : viewer | editor | manager (surface produit)
+  permission: string      // rétro-compat (read | write) — projeté depuis le rôle
   principal_type?: string
   principal_id?: string
   created_at?: string | null

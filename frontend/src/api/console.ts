@@ -394,8 +394,8 @@ export const transferResource = (resource_type: string, resource_id: string, tar
 export const getResource = (resource_type: string, resource_id: string) =>
   api<ResourceEntry & { grants: NamespaceShare[] }>(
     '/api/resources', { method: 'POST', ...j({ op: 'get', resource_type, resource_id }) })
-export const shareResource = (resource_type: string, resource_id: string, principal: SharePrincipal, permission: 'read' | 'write' = 'write') =>
-  api<{ ok: boolean }>('/api/resources', { method: 'POST', ...j({ op: 'share', resource_type, resource_id, ...principal, permission }) })
+export const shareResource = (resource_type: string, resource_id: string, principal: SharePrincipal, role: 'viewer' | 'editor' | 'manager' = 'editor') =>
+  api<{ ok: boolean }>('/api/resources', { method: 'POST', ...j({ op: 'share', resource_type, resource_id, ...principal, role }) })
 export const unshareResource = (resource_type: string, resource_id: string, principal: SharePrincipal) =>
   api<{ ok: boolean }>('/api/resources', { method: 'POST', ...j({ op: 'unshare', resource_type, resource_id, ...principal }) })
 export const appendNamespaceRow = (ns: string, row: Record<string, unknown>) =>
