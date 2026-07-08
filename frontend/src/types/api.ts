@@ -804,7 +804,7 @@ export interface OrgDetail {
   secrets: OrgSecret[]
   entitlements?: OrgEntitlement[]
   option_comps?: string[]   // options payantes offertes (comp admin) à l'ORG
-  platform_grants?: AdminGrant[]   // clés plateforme partagées à TOUTE l'org (couche 2)
+  billing?: BillingStatus   // plan/abonnement de l'org (ADR 0043) — cockpit admin
 }
 // ── redaction de champs par connecteur (FieldFilter, ADR 0015) ──
 export interface FieldRule {
