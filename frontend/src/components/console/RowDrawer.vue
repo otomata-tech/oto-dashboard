@@ -5,7 +5,8 @@ import Icon from './Icon.vue'
 import FormDialog from './FormDialog.vue'
 import { useFormDialog } from '@/composables/useFormDialog'
 import type { DatastoreRow, DatastoreSchema } from '@/types/api'
-import { cellKind, absDate } from '@/lib/cellRender'
+import { cellKind, absDate, relDate } from '@/lib/cellRender'
+import { getRowActivity, type RowActivityEntry } from '@/api/console'
 
 const props = defineProps<{
   open: boolean
@@ -14,6 +15,7 @@ const props = defineProps<{
   isNew: boolean
   readOnly: boolean
   schema?: DatastoreSchema | null  // v2 (ADR 0046) : transitions de cycle de vie
+  namespace?: string | null        // b4 : parcours de l'agent (fetch lazy à l'ouverture)
 }>()
 const emit = defineEmits<{
   (e: 'save', payload: Record<string, unknown>): void
@@ -114,6 +116,22 @@ function applyTransition(state: string) {
   if (!k) return
   emit('save', { [k]: state })                            // patch partiel ; erreurs (guard-rail) en toast
 }
+
+// ── parcours de l'agent (ADR 0046 b4) : les appels data_* corrélés à cette
+// fiche + leur run — chargé LAZY à l'ouverture (jamais en mode ajout).
+const activity = ref<RowActivityEntry[] | null>(null)
+const activityFailed = ref(false)
+watch(() => [props.open, props.row?._id], async () => {
+  activity.value = null
+  activityFailed.value = false
+  if (!props.open || props.isNew || !props.row?._id || !props.namespace) return
+  try {
+    activity.value = (await getRowActivity(props.namespace, props.row._id)).activity
+  } catch { activityFailed.value = true }
+}, { immediate: true })
+function actorOf(a: RowActivityEntry): string {
+  return a.run_label ? `run « ${a.run_label} »` : (a.email ?? a.sub ?? '—')
+}
 </script>
 
 <template>
@@ -148,6 +166,20 @@ function applyTransition(state: string) {
           </div>
 
           <p v-if="!editFields.length" class="dim" style="padding: 8px 0">no fields yet — add one below.</p>
+
+          <div v-if="activity && activity.length" class="rd-activity">
+            <span class="rd-label">parcours de l'agent</span>
+            <ul class="rd-activity-list">
+              <li v-for="(a, i) in activity" :key="i" :class="{ err: !a.ok }">
+                <span class="mono dim" :title="absDate(a.created_at)">{{ relDate(a.created_at) }}</span>
+                <code class="mono">{{ a.tool }}</code>
+                <span class="dim">· {{ actorOf(a) }}</span>
+                <span v-if="a.doctrine" class="dim">· {{ a.doctrine }}</span>
+                <span v-if="!a.ok" class="rd-activity-err" :title="a.error ?? undefined">échec</span>
+              </li>
+            </ul>
+            <p class="rd-activity-note dim">journal de travail (rétention ~30 j), pas un audit permanent.</p>
+          </div>
 
           <div v-if="!isNew && row?._updated_at" class="rd-meta dim mono">
             updated {{ absDate(String(row._updated_at)) }}
@@ -210,6 +242,13 @@ function applyTransition(state: string) {
 .rd-input:focus { outline: none; border-color: var(--color-cobalt); }
 .rd-area { resize: vertical; line-height: 1.5; font-family: var(--font-mono); font-size: 12px; }
 .rd-meta { padding: 4px 0 2px; font-size: 11px; }
+.rd-activity { margin: 10px 0 4px; padding-top: 8px; border-top: 1px dashed var(--color-hair-soft); }
+.rd-activity-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.rd-activity-list li { font-size: 11.5px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; color: var(--color-ink-soft); }
+.rd-activity-list li.err { color: var(--color-terra-ink); }
+.rd-activity-list code { font-size: 11px; }
+.rd-activity-err { font-size: 10px; color: var(--color-terra-ink); border: 1px solid currentColor; border-radius: var(--radius-pill); padding: 0 6px; }
+.rd-activity-note { margin: 6px 0 0; font-size: 10.5px; }
 .rd-lifecycle {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
   padding: 10px 18px 0;

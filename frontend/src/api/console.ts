@@ -359,6 +359,23 @@ export const getNamespaceRows = (ns: string, opts: RowQuery = {}) => {
 export const getNamespaceAggregate = (ns: string, groupBy: string) =>
   api<{ groups: Array<Record<string, unknown> & { count: number }> }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}/aggregate?group_by=${encodeURIComponent(groupBy)}`)
+// Parcours de l'agent d'une row (ADR 0046 b4) : appels data_* du calllog
+// corrélés à la fiche + leur run. Fenêtre = rétention calllog (~30 j).
+export interface RowActivityEntry {
+  created_at: string
+  tool: string
+  ok: boolean
+  error: string | null
+  sub: string | null
+  email: string | null
+  run_id: string | null
+  run_label: string | null
+  doctrine: string | null
+  outcome: string | null
+}
+export const getRowActivity = (ns: string, rowId: string) =>
+  api<{ activity: RowActivityEntry[]; key: string | null; retention_days: number }>(
+    `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}/activity`)
 export const renameNamespace = (ns: string, name: string) =>
   api<{ ok: boolean; namespace: string }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}`, { method: 'PATCH', ...j({ name }) })
