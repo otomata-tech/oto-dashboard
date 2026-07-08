@@ -1,0 +1,109 @@
+<script setup lang="ts">
+// « Profil » (/account) — identité (avatar) + connexion & accès (email, rôle plateforme,
+// déconnexion). Ex-onglet « compte » d'AccountView, promu en page de la sidebar « compte ».
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import ConsoleCard from '@/components/console/ConsoleCard.vue'
+import Btn from '@/components/console/Btn.vue'
+import Avatar from '@/components/console/Avatar.vue'
+import Tag from '@/components/console/Tag.vue'
+import Dropzone from '@/components/console/Dropzone.vue'
+import { useToast } from '@/composables/useToast'
+import { usePrompt } from '@/composables/usePrompt'
+import { useMe } from '@/composables/useMe'
+import { useAuth } from '@/composables/useAuth'
+import { uploadAvatar, deleteAvatar } from '@/api/console'
+import { humanize } from '@/lib/errors'
+import { validateImage, IMAGE_ACCEPT_ATTR } from '@/lib/imageUpload'
+
+const { t } = useI18n()
+const { toast } = useToast()
+const { confirmAction } = usePrompt()
+const { me, reload } = useMe()
+const { logout } = useAuth()
+
+const busy = ref(false)
+const displayName = computed(() => me.value?.name || me.value?.email || '')
+const roleLabel = computed(() =>
+  me.value?.role === 'super_admin' ? t('account.role.super')
+    : me.value?.role === 'admin' ? t('account.role.admin') : t('account.role.member'))
+
+async function onDropFile(file: File) {
+  try {
+    validateImage(file) // miroir backend (png/jpeg/webp ≤ 2 Mo) — le Dropzone pré-valide déjà
+    busy.value = true
+    await uploadAvatar(file)
+    await reload()
+    toast(t('account.avatarUpdated'))
+  } catch (err) { toast(humanize(err)) }
+  finally { busy.value = false }
+}
+async function remove() {
+  if (!await confirmAction({ title: t('account.removeAvatarTitle'), danger: true, confirmLabel: t('common.remove'), message: t('account.removeAvatarConfirm') })) return
+  try {
+    busy.value = true
+    await deleteAvatar()
+    await reload()
+    toast(t('account.avatarRemoved'))
+  } catch (err) { toast(humanize(err)) }
+  finally { busy.value = false }
+}
+</script>
+
+<template>
+  <div class="content-inner narrow fadein">
+    <ConsoleCard :title="t('account.profileTitle')" :sub="t('account.profileSub')">
+      <div class="profile-row">
+        <Avatar :src="me?.avatar_url" :name="displayName" :size="72" />
+        <div class="profile-meta">
+          <div class="profile-name">{{ displayName || '—' }}</div>
+          <div class="profile-email">{{ me?.email }}</div>
+        </div>
+      </div>
+
+      <Dropzone class="mt-4" :accept="IMAGE_ACCEPT_ATTR" :max-size-mb="2" :busy="busy"
+        :label="me?.avatar_url ? t('account.changeAvatar') : t('account.dropAvatar')"
+        :hint="t('account.avatarHint')" @select="onDropFile" @error="toast" />
+      <div v-if="me?.avatar_url" class="profile-actions">
+        <Btn kind="danger" :disabled="busy" @click="remove">{{ t('account.removeAvatarBtn') }}</Btn>
+      </div>
+    </ConsoleCard>
+
+    <ConsoleCard :title="t('account.accessTitle')" :sub="t('account.accessSub')">
+      <div class="acc-rows">
+        <div class="acc-row">
+          <span class="acc-k">{{ t('account.email') }}</span>
+          <span class="acc-v">{{ me?.email || '—' }}</span>
+        </div>
+        <div class="acc-row">
+          <span class="acc-k">{{ t('account.platformRole') }}</span>
+          <span class="acc-v"><Tag :tone="me?.role === 'member' ? 'ink' : 'saffron'">{{ roleLabel }}</Tag></span>
+        </div>
+      </div>
+      <p class="acc-note">{{ t('account.accessNote') }}</p>
+      <div class="profile-actions">
+        <Btn icon="logout" @click="() => logout()">{{ t('common.signOut') }}</Btn>
+      </div>
+    </ConsoleCard>
+  </div>
+</template>
+
+<style scoped>
+.profile-row { display: flex; align-items: center; gap: 18px; }
+.profile-name { font-weight: 600; font-size: 15px; color: var(--color-ink); }
+.profile-email { font-size: 12.5px; color: var(--color-mute); }
+.profile-actions { display: flex; gap: 10px; margin-top: 18px; }
+
+.acc-rows { display: flex; flex-direction: column; gap: 2px; }
+.acc-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 2px; border-bottom: 1px solid var(--color-hair-soft);
+}
+.acc-row:last-child { border-bottom: 0; }
+.acc-k {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--color-faint); width: 130px; flex: none;
+}
+.acc-v { font-size: 13px; color: var(--color-ink); font-weight: 500; }
+.acc-note { font-size: 12px; color: var(--color-mute); line-height: 1.5; margin: 14px 0 0; }
+</style>

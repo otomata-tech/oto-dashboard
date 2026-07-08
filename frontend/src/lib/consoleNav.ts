@@ -13,7 +13,7 @@
 // synchro — « derive don't duplicate ». Le pill « profil actif » (quelle org) est
 // l'axe ORTHOGONAL : ne pas le confondre avec le niveau (quoi je fais).
 
-export type NavLevel = 'work' | 'group' | 'org' | 'platform'
+export type NavLevel = 'work' | 'account' | 'group' | 'org' | 'platform'
 
 export interface NavItem {
   path: string
@@ -54,9 +54,16 @@ export const NAV: NavGroup[] = [
     // connaissance. Vue MementoView + endpoints /api/memento/* conservés en sommeil
     // (browse réactivable en réajoutant cette entrée + le master connector_activation).
   ]},
-  // « manage account » (/account) et « activity » (/activity) ne sont PLUS dans la
-  // sidebar : ils vivent dans le menu profil du pied (ConsoleUserMenu). Leurs routes
-  // sont déclarées explicitement dans le routeur (elles ne dérivent plus de NAV).
+  // ── Gérer mon compte : niveau user-perso (non org-scopé), sa propre sidebar ────
+  // Atteint par le menu profil du pied (ConsoleUserMenu) ; une PAGE par sujet au lieu
+  // des ex-sous-onglets `?tab=`. « activity » reste hors sidebar (route explicite).
+  { group: 'nav.section.account', level: 'account', items: [
+    { path: '/account', label: 'nav.profile', icon: 'user' },
+    { path: '/account/preferences', label: 'nav.preferences', icon: 'gear' },
+    { path: '/account/security', label: 'nav.security', icon: 'shield' },
+    { path: '/account/agent', label: 'nav.agent', icon: 'agent' },
+    { path: '/account/developers', label: 'nav.developers', icon: 'key' },
+  ]},
   // ── Gérer mon équipe : agir SUR l'équipe consultée (chef / org_admin) ──────
   // Scope Team à part entière (parallèle à l'org), pages sous /team/*, pilotées par le
   // préfixe d'URL /o/:org/g/:group/ (repli `me.active_group` si absent). L'id de code
@@ -110,6 +117,10 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/data': { title: 'pageMeta.data.title', crumb: 'pageMeta.data.crumb' },
   '/documents': { title: 'pageMeta.documents.title', crumb: 'pageMeta.documents.crumb' },
   '/account': { title: 'pageMeta.account.title', crumb: 'pageMeta.account.crumb' },
+  '/account/preferences': { title: 'pageMeta.accountPreferences.title', crumb: 'pageMeta.accountPreferences.crumb' },
+  '/account/security': { title: 'pageMeta.accountSecurity.title', crumb: 'pageMeta.accountSecurity.crumb' },
+  '/account/agent': { title: 'pageMeta.accountAgent.title', crumb: 'pageMeta.accountAgent.crumb' },
+  '/account/developers': { title: 'pageMeta.accountDevelopers.title', crumb: 'pageMeta.accountDevelopers.crumb' },
   '/activity': { title: 'pageMeta.activity.title', crumb: 'pageMeta.activity.crumb' },
   '/team/context': { title: 'pageMeta.teamContext.title', crumb: 'pageMeta.teamContext.crumb' },
   '/team': { title: 'pageMeta.team.title', crumb: 'pageMeta.team.crumb' },

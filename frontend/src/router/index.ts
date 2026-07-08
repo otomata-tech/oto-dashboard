@@ -131,12 +131,8 @@ const router = createRouter({
     { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/org/teams/:teamId(\\d+)', redirect: (to) => `/o/${to.params.orgId}/g/${to.params.teamId}/team/context` },
     { path: '/org/teams/:teamId(\\d+)', redirect: '/org/teams' },
     {
-      // /account (« manage account ») et /activity : niveau user, NON org-scopés.
-      path: '/account',
-      component: ConsoleLayout,
-      meta: { section: '/account', level: 'work', orgScoped: false },
-    },
-    {
+      // /activity : niveau user, NON org-scopé, hors sidebar (footer). Les pages
+      // /account/* dérivent de NAV (niveau 'account', voir sectionRoutes).
       path: '/activity',
       component: ConsoleLayout,
       meta: { section: '/activity', level: 'work', orgScoped: false },
