@@ -23,6 +23,12 @@ export function usePlatformAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<Connect
 
   const meta = (c: ConnectorActivation) => metaMap.value[c.connector]
   const keysOf = (name: string) => keys.value.filter((k) => k.provider === name)
+  // Accès plateforme pertinent ssi il y a de quoi ouvrir : clé plateforme (couche 2)
+  // OU provider platform-éligible OU option payante (couche 3).
+  const hasPlatformAccess = (c: ConnectorActivation) =>
+    keysOf(c.connector).length > 0
+    || !!meta(c)?.auth_modes?.includes('platform')
+    || !!c.paid_option
 
   async function load() {
     try {
@@ -107,7 +113,14 @@ export function usePlatformAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<Connect
       return undefined
     },
     hasDrawer: true,
-    tabs: () => [{ key: 'main', label: 'activation' }, { key: 'about', label: 'à propos' }],
+    // « accès plateforme » (ADR 0044 §H) : onglet montré ssi il y a quelque chose à
+    // ouvrir — clé plateforme (couche 2) OU option payante (couche 3). Sinon omis
+    // (DESIGN.md : jamais d'onglet inerte).
+    tabs: (c) => [
+      { key: 'main', label: 'activation' },
+      ...(hasPlatformAccess(c) ? [{ key: 'access', label: 'accès plateforme' }] : []),
+      { key: 'about', label: 'à propos' },
+    ],
     availability: {
       variant: 'master',
       title: 'master switch',
@@ -130,6 +143,10 @@ export function usePlatformAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<Connect
         const idx = key.indexOf('/')
         removeKey(key.slice(0, idx), key.slice(idx + 1))
       },
+    },
+    platformAccess: {
+      provider: (c) => c.connector,
+      isSuperAdmin: isSuperAdmin.value,
     },
   }
 }

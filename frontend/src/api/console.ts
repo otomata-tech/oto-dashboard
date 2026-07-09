@@ -9,7 +9,7 @@ import type {
   GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
-  ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
+  ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   MementoStatus, MementoWorkspaces, MementoPages, MementoDocument, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult,
@@ -658,6 +658,13 @@ export const revokeOrgPlatformKey = (orgId: number, provider: string) =>
 // oto-backend/docs/connector-model.md). entity_type user|org, super_admin only.
 export const setOptionComp = (entity_type: 'user' | 'org', entity_id: string, option: string, on: boolean) =>
   api('/api/admin/option-comps', { method: 'POST', ...j({ entity_type, entity_id, option, on }) })
+
+// accès plateforme connecteur-centrique (ADR 0044 §H) : « qui, au niveau plateforme, a
+// droit à ce connecteur » = grant de clé (couche 2) ∪ option comp (couche 3) en UN acte.
+export const getPlatformAccess = (provider: string) =>
+  api<PlatformAccess>(`/api/admin/connectors/${encodeURIComponent(provider)}/platform-access`)
+export const setPlatformAccess = (provider: string, scope: 'org' | 'user', id: string, on: boolean) =>
+  api(`/api/admin/connectors/${encodeURIComponent(provider)}/platform-access`, { method: 'POST', ...j({ scope, id, on }) })
 
 // ── admin orgs (cross-org governance) ──
 export const getAdminOrgs = () => api<{ orgs: AdminOrgSummary[] }>('/api/admin/orgs')

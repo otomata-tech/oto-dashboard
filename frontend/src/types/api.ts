@@ -132,6 +132,7 @@ export interface ConnectorActivation {
   namespaces: string[]
   enabled: boolean | null
   overrides: { org_id: number; enabled: boolean }[]
+  paid_option: string | null   // option payante (couche 3, ADR 0044 §H) ou null
 }
 
 // Gouvernance d'activation d'un connecteur, vue côté ORG (cockpit /org/connectors,
@@ -993,6 +994,24 @@ export interface PlatformKey {
   provider: string
   label: string
   set_at: string
+}
+
+// Accès plateforme d'un connecteur (ADR 0044 §H) — « qui y a droit » côté plateforme.
+export interface PlatformAccessBeneficiary {
+  scope: 'org' | 'user'
+  id: string
+  label: string
+  has_key: boolean       // puise dans la clé plateforme (couche 2)
+  has_option: boolean    // option payante offerte (comp, couche 3)
+  logo_url?: string | null   // org
+  email?: string | null      // user
+}
+export interface PlatformAccess {
+  connector: string
+  paid_option: string | null   // null = pas d'option payante
+  platform_key: boolean        // une clé plateforme existe
+  open_tier: boolean           // free-tier : ouvert à tous sans grant
+  beneficiaries: PlatformAccessBeneficiary[]
 }
 
 // ── monitoring ──

@@ -88,6 +88,15 @@ export interface AccessLever<R> {
   force?(r: R): void          // pousser le connecteur à un membre (org)
 }
 
+// Accès PLATEFORME (ADR 0044 §H, scope plateforme) : « qui, au niveau plateforme, a
+// droit à ce connecteur » = grant de clé (couche 2) ∪ option comp (couche 3), en un acte.
+// Le panneau est autonome (fetch/grant/revoke via l'API) ; le levier ne porte que le
+// provider ciblé + le droit d'écrire (super_admin).
+export interface PlatformAccessLever<R> {
+  provider(r: R): string
+  isSuperAdmin: boolean
+}
+
 // Rédaction de champs (org) : props typées pour `ConnectorTransforms`, montées par le drawer.
 export interface RedactionPanel {
   service: string
@@ -162,6 +171,7 @@ export interface ConnectorScopeAdapter<R = unknown> {
   availability?: AvailabilityLever<R>
   credential?: CredentialLever<R>
   access?: AccessLever<R>
+  platformAccess?: PlatformAccessLever<R>
   redaction?: RedactionLever<R>
   email?: EmailLever<R>
   connection?: ConnectionLever<R>
