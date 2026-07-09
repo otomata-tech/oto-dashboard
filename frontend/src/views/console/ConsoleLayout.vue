@@ -19,7 +19,6 @@ import { useNav } from '@/composables/useNav'
 // (le chargement initial ne tire que le shell + la vue courante, pas toute la console).
 const OverviewView = defineAsyncComponent(() => import('./OverviewView.vue'))
 const AdminUserView = defineAsyncComponent(() => import('./AdminUserView.vue'))
-const AdminOrgView = defineAsyncComponent(() => import('./AdminOrgView.vue'))
 const ProjectDetailView = defineAsyncComponent(() => import('./ProjectDetailView.vue'))
 
 // Keyé par path canonique (= meta.section porté par chaque route, cf. consoleNav).
@@ -80,7 +79,6 @@ const section = computed(() => String(route.meta.section || '/overview'))
 // depuis la refonte URL-par-org, ADR 0023) — pas par `route.name` (toujours undefined).
 const current = computed(() => {
   if (route.meta.detail === 'admin-user') return AdminUserView    // fiche /platform/users/:sub
-  if (route.meta.detail === 'admin-org') return AdminOrgView      // fiche /platform/orgs/:id
   if (route.meta.detail === 'project') return ProjectDetailView   // page /projects/:id
   return VIEWS[section.value] ?? OverviewView
 })
@@ -89,7 +87,6 @@ const current = computed(() => {
 // admin-user reste sur fullPath.) Sinon = la section.
 const viewKey = computed(() => {
   if (route.meta.detail === 'admin-user') return route.fullPath
-  if (route.meta.detail === 'admin-org') return `/platform/orgs/${route.params.id}`
   if (route.meta.detail === 'project') return `/projects/${route.params.id}`
   return section.value
 })
