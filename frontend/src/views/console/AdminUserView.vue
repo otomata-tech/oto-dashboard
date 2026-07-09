@@ -6,7 +6,7 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import Dot from '@/components/console/Dot.vue'
-import ErrLabel from '@/components/console/ErrLabel.vue'
+import CallLogCard from '@/components/console/monitoring/CallLogCard.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
@@ -49,7 +49,7 @@ const keys = ref<PlatformKey[]>([])
 const catalog = ref<ConnectorMeta[]>([])
 const calls = ref<ToolCall[]>([])
 const error = ref<string | null>(null)
-const callsBusy = ref(false)
+const callsBusy = ref(true)
 
 const currentRole = computed<Role>(() => detail.value?.role ?? 'member')
 // Libellés des 3 paliers plateforme, pour le Tag de la fiche.
@@ -57,7 +57,6 @@ const roleLabel = computed(() =>
   currentRole.value === 'super_admin' ? 'super admin'
   : currentRole.value === 'admin' ? 'operator admin'
   : 'member')
-const callsErrCount = computed(() => calls.value.filter((c) => !c.ok).length)
 // Accès effectif par provider keyé (la question « a-t-il déjà accès ? »).
 const providerRows = computed(() =>
   Object.entries(detail.value?.providers ?? {})
@@ -346,26 +345,11 @@ async function toggleOrgRole(o: AdminUserOrg) {
         <div v-else class="helptext">membre d'aucune org — pas de messagerie.</div>
       </ConsoleCard>
 
-      <!-- activité -->
-      <ConsoleCard flush title="activity" sub="recent tool calls (last 30 days, up to 100).">
-        <template #actions>
-          <span class="dim" style="font-size: 11.5px">{{ calls.length }} calls · <ErrLabel v-if="callsErrCount">{{ callsErrCount }} err</ErrLabel><span v-else class="dim">0 err</span></span>
-        </template>
-        <table class="tbl">
-          <thead><tr><th style="width: 18px"></th><th>tool</th><th>when</th><th class="num">duration</th><th>status</th></tr></thead>
-          <tbody>
-            <tr v-for="c in calls" :key="c.id">
-              <td><Dot :tone="c.ok ? 'olive' : 'terra'" :size="7" /></td>
-              <td><code class="mono">{{ c.tool_name }}</code></td>
-              <td class="dim">{{ fmtDate(c.called_at) }}</td>
-              <td class="num dim">{{ c.duration_ms != null ? c.duration_ms + ' ms' : '—' }}</td>
-              <td><ErrLabel v-if="!c.ok">{{ c.error || 'error' }}</ErrLabel><span v-else class="dim">ok</span></td>
-            </tr>
-            <tr v-if="callsBusy"><td colspan="5" class="dim" style="text-align: center; padding: 16px">loading…</td></tr>
-            <tr v-else-if="!calls.length"><td colspan="5" class="dim" style="text-align: center; padding: 16px">no calls in the window</td></tr>
-          </tbody>
-        </table>
-      </ConsoleCard>
+      <!-- activité : journal brut réutilisé (même carte que /platform/monitoring), scopé
+           à ce user via `sub` (getMonitoringCalls) -->
+      <CallLogCard :calls="calls" :loaded="!callsBusy" :busy="callsBusy"
+        title="activity" sub="recent tool calls (last 30 days, up to 100)."
+        empty-label="no calls in the window" />
     </template>
 
     <FormDialog v-if="formDialog" v-model:open="formDialogOpen"

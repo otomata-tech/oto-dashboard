@@ -1,177 +1,101 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import ConsoleCard from '@/components/console/ConsoleCard.vue'
-import Stat from '@/components/console/Stat.vue'
-import { defineAsyncComponent } from 'vue'
-const CallsBarChart = defineAsyncComponent(() => import('@/components/console/CallsBarChart.vue'))
-import ErrLabel from '@/components/console/ErrLabel.vue'
-import SubTabs from '@/components/console/SubTabs.vue'
-import { getMonitoringSummary, getMonitoringRest, getMonitoringConnectors, getMonitoringFunnel } from '@/api/console'
-import type { MonitoringSummary, MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel } from '@/types/api'
-import { toDayBars, fmtMs } from '@/lib/monitoring'
+// Monitoring plateforme — UNE seule page, sans navigation par onglets (2026-07-09) :
+// funnel + MCP + REST + connecteurs + journal brut sont empilés, tout visible d'un coup.
+// Les sections sont des composants RÉUTILISABLES (components/console/monitoring/*),
+// purement présentationnels (données par prop) → prêts à être branchés dans les fiches
+// admin org / équipe / user quand le backend scopera les agrégats (aujourd'hui la
+// plateforme est globale, cf. oto-backend §Monitoring). Le journal brut, lui, sait déjà
+// filtrer par `sub` (fiche user admin).
+import { ref, watch } from 'vue'
+import MonitoringWindowPicker from '@/components/console/monitoring/MonitoringWindowPicker.vue'
+import ActivationFunnelCard from '@/components/console/monitoring/ActivationFunnelCard.vue'
+import ToolCallsCard from '@/components/console/monitoring/ToolCallsCard.vue'
+import RestCallsCard from '@/components/console/monitoring/RestCallsCard.vue'
+import ConnectorHealthCard from '@/components/console/monitoring/ConnectorHealthCard.vue'
+import CallLogCard from '@/components/console/monitoring/CallLogCard.vue'
+import {
+  getMonitoringSummary, getMonitoringRest, getMonitoringConnectors,
+  getMonitoringFunnel, getMonitoringCalls,
+} from '@/api/console'
+import type {
+  MonitoringSummary, MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, ToolCall,
+} from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useDeepLink } from '@/composables/useDeepLink'
 
 const WINDOWS = [7, 30, 90]
-const TABS = [
-  { key: 'mcp', label: 'mcp tools', hint: 'tool invocations (the agent acting)' },
-  { key: 'rest', label: 'rest api', hint: 'dashboard & API requests' },
-  { key: 'connectors', label: 'connectors', hint: 'credential resolution failures' },
-]
 const win = ref(7)
-const tab = ref('mcp')
 const error = ref<string | null>(null)
+const loading = ref(false)
+const callsLoaded = ref(false)
 
 const summary = ref<MonitoringSummary | null>(null)
 const rest = ref<MonitoringRestStats | null>(null)
 const conn = ref<MonitoringConnectorStats | null>(null)
 const funnel = ref<ActivationFunnel | null>(null)
+const calls = ref<ToolCall[]>([])
 
-// Fenêtre `?win=` + onglet `?tab=` (liens partageables ; valeurs par défaut = param effacé).
+// Fenêtre `?win=` (lien partageable ; défaut 7 = param effacé). Plus de `?tab=` — la
+// page n'a plus d'onglets.
 const dlWin = useDeepLink('win', (w) => { if (w != null && WINDOWS.includes(w) && w !== win.value) win.value = w }, { parse: Number })
 const wInit = dlWin.read(); if (wInit != null && WINDOWS.includes(wInit)) win.value = wInit
-const dlTab = useDeepLink('tab', (t) => { if (t && TABS.some(x => x.key === t)) tab.value = t })
-const tInit = dlTab.read(); if (tInit && TABS.some(x => x.key === tInit)) tab.value = tInit
 
-const errRate = computed(() => {
-  const s = summary.value
-  return s && s.total_calls ? Math.round((s.error_count / s.total_calls) * 100) : 0
-})
-const bars = computed(() => (summary.value ? toDayBars(summary.value.by_day, win.value) : []))
-const shortTs = (s: string | null) => (s ? s.slice(0, 16) : '—')
-
-async function loadFunnel() {
-  try { funnel.value = await getMonitoringFunnel(win.value) } catch (e) { error.value = humanize(e) }
-}
-async function loadTab() {
+async function loadAll() {
+  error.value = null
+  loading.value = true
+  callsLoaded.value = false
+  summary.value = null; rest.value = null; conn.value = null; funnel.value = null; calls.value = []
+  const w = win.value
   try {
-    if (tab.value === 'mcp') summary.value = await getMonitoringSummary(win.value)
-    else if (tab.value === 'rest') rest.value = await getMonitoringRest(win.value)
-    else if (tab.value === 'connectors') conn.value = await getMonitoringConnectors(win.value)
-  } catch (e) { error.value = humanize(e) }
+    const [s, r, c, f, cl] = await Promise.all([
+      getMonitoringSummary(w),
+      getMonitoringRest(w),
+      getMonitoringConnectors(w),
+      getMonitoringFunnel(w),
+      getMonitoringCalls({ limit: 100, days: w }),
+    ])
+    // Course anti-obsolète : ignorer si la fenêtre a changé entre-temps.
+    if (w !== win.value) return
+    summary.value = s; rest.value = r; conn.value = c; funnel.value = f; calls.value = cl.calls
+  } catch (e) {
+    if (w === win.value) error.value = humanize(e)
+  } finally {
+    if (w === win.value) { loading.value = false; callsLoaded.value = true }
+  }
 }
 
-// Toute bascule de fenêtre invalide les caches (les chiffres dépendent de la fenêtre).
-watch(win, (w) => {
-  dlWin.set(w === 7 ? null : w)
-  summary.value = null; rest.value = null; conn.value = null
-  loadFunnel(); loadTab()
-}, { immediate: true })
-watch(tab, (t) => { dlTab.set(t === 'mcp' ? null : t); loadTab() })
+watch(win, (w) => { dlWin.set(w === 7 ? null : w); loadAll() }, { immediate: true })
 </script>
 
 <template>
   <div class="content-inner fadein">
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
-    <div style="display: flex; align-items: center; gap: 6px">
-      <button v-for="w in WINDOWS" :key="w" class="btn-mini"
-        :style="win === w ? { background: 'var(--color-ink)', color: 'var(--color-bg)', borderColor: 'var(--color-ink)' } : undefined"
-        @click="win = w">{{ w }} days</button>
-      <span class="helptext" style="margin-left: 8px">unauthenticated stdio sessions show as anonymous.</span>
+    <div class="mon-head">
+      <MonitoringWindowPicker v-model="win" :windows="WINDOWS" />
+      <span class="helptext" style="margin: 0">unauthenticated stdio sessions show as anonymous.</span>
     </div>
 
-    <!-- Funnel d'activation : COMPTE ≠ USAGE. Toujours visible (santé du compte). -->
-    <ConsoleCard title="activation funnel">
-      <div class="grid3">
-        <Stat label="accounts" :value="funnel?.total_accounts ?? 0" sub="total signed up" />
-        <Stat label="active" :value="funnel?.active ?? 0" :sub="`invoked a tool · ${win}d`"
-          :tone="funnel && funnel.active ? 'var(--color-olive-ink)' : undefined" />
-        <Stat label="never active" :value="funnel?.never_active ?? 0" sub="0 tool calls ever"
-          :tone="funnel && funnel.never_active ? 'var(--color-terra-ink)' : undefined" />
-        <Stat label="idle (rest only)" :value="funnel?.rest_only ?? 0" sub="opened, never invoked" />
-        <Stat label="blocked" :value="funnel?.blocked_by_connector ?? 0" :sub="`connector failures · ${win}d`"
-          :tone="funnel && funnel.blocked_by_connector ? 'var(--color-terra-ink)' : undefined" />
-      </div>
-    </ConsoleCard>
+    <!-- COMPTE ≠ USAGE : santé du compte, toujours en tête. -->
+    <ActivationFunnelCard :funnel="funnel" :window-days="win" :loading="loading" />
 
-    <SubTabs :tabs="TABS" v-model="tab" />
+    <div class="eyebrow" style="margin-top: 4px">mcp tools · the agent acting</div>
+    <ToolCallsCard :summary="summary" :window-days="win" :loading="loading" link-users />
 
-    <!-- ── MCP tools ── -->
-    <template v-if="tab === 'mcp'">
-      <div class="grid3">
-        <Stat label="total calls" :value="(summary?.total_calls ?? 0).toLocaleString('en-US')" :sub="`${win}-day window`" />
-        <Stat label="errors" :value="summary?.error_count ?? 0" :unit="errRate + '%'" :tone="summary?.error_count ? 'var(--color-terra-ink)' : undefined" sub="across all callers" />
-        <Stat label="active users" :value="summary?.active_users ?? 0" sub="authenticated callers" />
-      </div>
-      <ConsoleCard :title="`volume · last ${bars.length} days`">
-        <CallsBarChart :days="bars" :height="96" />
-      </ConsoleCard>
-      <div class="grid2">
-        <ConsoleCard flush title="by tool">
-          <table class="tbl">
-            <thead><tr><th>tool</th><th class="num">calls</th><th class="num">errors</th><th class="num">avg</th><th class="num">p95</th></tr></thead>
-            <tbody>
-              <tr v-for="t in summary?.by_tool ?? []" :key="t.tool_name">
-                <td><code class="mono">{{ t.tool_name }}</code></td>
-                <td class="num">{{ t.calls }}</td>
-                <td class="num"><ErrLabel v-if="t.errors">{{ t.errors }}</ErrLabel><span v-else class="dim">0</span></td>
-                <td class="num dim">{{ fmtMs(t.avg_ms) }}</td>
-                <td class="num dim">{{ fmtMs(t.p95_ms ?? null) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </ConsoleCard>
-        <ConsoleCard flush title="by user">
-          <table class="tbl">
-            <thead><tr><th>caller</th><th class="num">calls</th><th class="num">errors</th></tr></thead>
-            <tbody>
-              <tr v-for="(u, i) in summary?.by_user ?? []" :key="i">
-                <td class="dim" style="color: var(--color-ink-soft)">{{ u.email || u.name || 'anonymous (stdio)' }}</td>
-                <td class="num">{{ u.calls }}</td>
-                <td class="num"><ErrLabel v-if="u.errors">{{ u.errors }}</ErrLabel><span v-else class="dim">0</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </ConsoleCard>
-      </div>
-    </template>
+    <div class="eyebrow" style="margin-top: 4px">rest api · dashboard &amp; api requests</div>
+    <RestCallsCard :rest="rest" :window-days="win" :loading="loading" />
 
-    <!-- ── REST api ── -->
-    <template v-else-if="tab === 'rest'">
-      <div class="grid3">
-        <Stat label="total requests" :value="(rest?.total_calls ?? 0).toLocaleString('en-US')" :sub="`${win}-day window`" />
-        <Stat label="errors (≥400)" :value="rest?.error_count ?? 0" :tone="rest?.error_count ? 'var(--color-terra-ink)' : undefined" sub="4xx + 5xx" />
-        <Stat label="active users" :value="rest?.active_users ?? 0" sub="authenticated callers" />
-      </div>
-      <ConsoleCard flush title="by route">
-        <table class="tbl">
-          <thead><tr><th>route</th><th class="num">calls</th><th class="num">errors</th><th class="num">avg</th><th class="num">p95</th></tr></thead>
-          <tbody>
-            <tr v-for="r in rest?.by_route ?? []" :key="r.route">
-              <td><code class="mono">{{ r.route }}</code></td>
-              <td class="num">{{ r.calls }}</td>
-              <td class="num"><ErrLabel v-if="r.errors">{{ r.errors }}</ErrLabel><span v-else class="dim">0</span></td>
-              <td class="num dim">{{ fmtMs(r.avg_ms) }}</td>
-              <td class="num dim">{{ fmtMs(r.p95_ms) }}</td>
-            </tr>
-            <tr v-if="rest && !rest.by_route.length"><td colspan="5" class="dim">no rest traffic in window.</td></tr>
-          </tbody>
-        </table>
-      </ConsoleCard>
-    </template>
+    <div class="eyebrow" style="margin-top: 4px">connectors · credential resolution</div>
+    <ConnectorHealthCard :conn="conn" :window-days="win" :loading="loading" />
 
-    <!-- ── Connectors ── -->
-    <template v-else-if="tab === 'connectors'">
-      <div class="grid3">
-        <Stat label="resolution failures" :value="conn?.total_failures ?? 0" :tone="conn?.total_failures ? 'var(--color-terra-ink)' : undefined" :sub="`${win}-day window`" />
-        <Stat label="connectors failing" :value="conn?.by_provider.length ?? 0" sub="distinct providers" />
-      </div>
-      <ConsoleCard flush title="credential resolution failures">
-        <p class="helptext" style="padding: 0 14px 8px">a failure = a user tried to use a connector with no valid credential (blocked, often a never-finished oauth handshake).</p>
-        <table class="tbl">
-          <thead><tr><th>connector</th><th class="num">failures</th><th class="num">users</th><th class="num">last</th></tr></thead>
-          <tbody>
-            <tr v-for="p in conn?.by_provider ?? []" :key="p.provider">
-              <td><code class="mono">{{ p.provider }}</code></td>
-              <td class="num"><ErrLabel>{{ p.failures }}</ErrLabel></td>
-              <td class="num">{{ p.users_affected }}</td>
-              <td class="num dim">{{ shortTs(p.last_at) }}</td>
-            </tr>
-            <tr v-if="conn && !conn.by_provider.length"><td colspan="4" class="dim">no connector failures in window — all good.</td></tr>
-          </tbody>
-        </table>
-      </ConsoleCard>
-    </template>
+    <div class="eyebrow" style="margin-top: 4px">recent calls · raw journal</div>
+    <CallLogCard :calls="calls" :loaded="callsLoaded" :busy="loading" filterable
+      sub="last 100 mcp tool calls across all callers in the window." />
   </div>
 </template>
+
+<style scoped>
+.mon-head {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+</style>
