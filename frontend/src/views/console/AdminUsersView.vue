@@ -4,14 +4,20 @@ import { useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Tag from '@/components/console/Tag.vue'
+import InvitationsCard from '@/components/console/InvitationsCard.vue'
 import { getAdminUsers } from '@/api/console'
+import { useMe } from '@/composables/useMe'
 import type { AdminUser } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const router = useRouter()
+const { me } = useMe()
 const users = ref<AdminUser[]>([])
 const error = ref<string | null>(null)
 const q = ref('')
+
+// Inviter un user sur la plateforme = sommet de la feature cascade (admin plateforme).
+const canInvite = computed(() => me.value?.role === 'admin' || me.value?.role === 'super_admin')
 
 const filtered = computed(() =>
   users.value.filter((u) => !q.value || ((u.email ?? '') + (u.name ?? '')).toLowerCase().includes(q.value.toLowerCase())),
@@ -63,5 +69,7 @@ onMounted(async () => {
         </tbody>
       </table>
     </ConsoleCard>
+
+    <InvitationsCard v-if="canInvite" :scope="{ level: 'platform' }" :can-manage="canInvite" />
   </div>
 </template>

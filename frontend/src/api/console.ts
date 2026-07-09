@@ -518,7 +518,9 @@ export const setOrgConnectors = (id: number, connectors: string[]) =>
   api<{ org_id: number; recommended: string[] }>(
     `/api/orgs/${id}/default-connectors`, { method: 'PUT', ...j({ connectors }) })
 
-// ── invitations d'équipe (onboarding SaaS) ──
+// ── invitations — feature cascade plateforme / org / équipe ──
+// Émettre à un niveau = mêmes 3 gestes (lister / inviter / révoquer), une seule
+// acceptation commune. ORG :
 export const listInvitations = (id: number) =>
   api<{ invitations: OrgInvitation[] }>(`/api/orgs/${id}/invitations`)
 // send_email=false → pas d'envoi, le retour porte le code/lien à partager soi-même.
@@ -527,15 +529,38 @@ export const inviteMember = (id: number, email: string | null, role: OrgRole, se
     `/api/orgs/${id}/invitations`, { method: 'POST', ...j({ email, role, send_email: sendEmail }) })
 export const revokeInvitation = (id: number, inviteId: number) =>
   api(`/api/orgs/${id}/invitations/${inviteId}`, { method: 'DELETE' })
+// ÉQUIPE (l'invité rejoint l'org parente PUIS l'équipe à l'acceptation) :
+export const listGroupInvitations = (id: number) =>
+  api<{ invitations: OrgInvitation[] }>(`/api/groups/${id}/invitations`)
+export const inviteGroupMember = (id: number, email: string | null, role: GroupRole, sendEmail = true) =>
+  api<InviteResult & { role: string }>(
+    `/api/groups/${id}/invitations`, { method: 'POST', ...j({ email, role, send_email: sendEmail }) })
+export const revokeGroupInvitation = (id: number, inviteId: number) =>
+  api(`/api/groups/${id}/invitations/${inviteId}`, { method: 'DELETE' })
+// PLATEFORME (admin plateforme — org cible optionnelle : vide = onboarding pur) :
+export const listPlatformInvitations = () =>
+  api<{ invitations: OrgInvitation[] }>(`/api/admin/invitations`)
+export const invitePlatformUser = (
+  email: string | null,
+  opts: { orgId?: number | null; role?: OrgRole; sendEmail?: boolean } = {},
+) =>
+  api<InviteResult & { role: string }>(
+    `/api/admin/invitations`, { method: 'POST', ...j({
+      email, org_id: opts.orgId ?? null, role: opts.role ?? 'org_member',
+      send_email: opts.sendEmail ?? true }) })
+export const revokePlatformInvitation = (inviteId: number) =>
+  api(`/api/admin/invitations/${inviteId}`, { method: 'DELETE' })
 // Aperçus publics (sans auth — le code/token EST le secret). Alimentent la page
 // d'accueil « vous êtes invité·e » avant la création de compte.
 export const previewInvite = (token: string) =>
   apiPublic<InvitePreview>(`/api/invitations/${encodeURIComponent(token)}`)
 export const previewInviteByCode = (code: string) =>
   apiPublic<InvitePreview>(`/api/invitations/code/${encodeURIComponent(code)}`)
-// Accept par token mail (legacy) ou code court nominatif d'org.
+// Accept par token mail (legacy) ou code court nominatif — commun aux 3 scopes.
 export const acceptInvite = (payload: { token?: string; code?: string }) =>
-  api<{ ok: boolean; org_id: number | null; org_role: string | null; name: string | null; self?: boolean }>(
+  api<{ ok: boolean; org_id: number | null; org_role: string | null;
+        group_id?: number | null; group_role?: string | null;
+        name: string | null; self?: boolean }>(
     '/api/me/invitations/accept', { method: 'POST', ...j(payload) })
 export const setOrgMemberRole = (id: number, sub: string, role: string) =>
   api(`/api/orgs/${id}/members/${sub}`, { method: 'POST', ...j({ role }) })

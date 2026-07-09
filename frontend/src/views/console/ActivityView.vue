@@ -1,28 +1,21 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
-import Dot from '@/components/console/Dot.vue'
 import { defineAsyncComponent } from 'vue'
 const CallsBarChart = defineAsyncComponent(() => import('@/components/console/CallsBarChart.vue'))
-import ErrLabel from '@/components/console/ErrLabel.vue'
+import CallLogCard from '@/components/console/monitoring/CallLogCard.vue'
 import { getMyCalls } from '@/api/console'
 import type { ToolCall } from '@/types/api'
-import { fmtMs } from '@/lib/monitoring'
 import { humanize } from '@/lib/errors'
 
-// Activité de l'utilisateur courant — endpoint per-user /api/me/calls,
-// accessible à tout membre (≠ monitoring admin qui agrège tout le monde).
+// Activité de l'utilisateur courant — endpoint per-user /api/me/calls, accessible à tout
+// membre (≠ monitoring admin qui agrège tout le monde). Le journal réutilise la carte
+// partagée `CallLogCard` (même table que /platform/monitoring et la fiche user admin).
 const calls = ref<ToolCall[]>([])
 const error = ref<string | null>(null)
 const loaded = ref(false)
 
-type Filter = 'all' | 'ok' | 'errors'
-const filter = ref<Filter>('all')
-const filtered = computed(() =>
-  calls.value.filter((c) => filter.value === 'all' || (filter.value === 'errors' ? !c.ok : c.ok)),
-)
-
-// Bucketise les appels en 14 jours [ok, err] pour <DayBars>.
+// Bucketise les appels en 14 jours [ok, err] pour <CallsBarChart>.
 const bars = computed<[number, number][]>(() => {
   const days: [number, number][] = Array.from({ length: 14 }, () => [0, 0])
   const now = Date.now()
@@ -52,27 +45,6 @@ onMounted(async () => {
       <CallsBarChart :days="bars" :height="96" />
     </ConsoleCard>
 
-    <ConsoleCard flush title="call log">
-      <template #actions>
-        <div style="display: flex; gap: 6px">
-          <button v-for="f in (['all', 'ok', 'errors'] as Filter[])" :key="f" class="btn-mini"
-            :style="filter === f ? { background: 'var(--color-hair-soft)', color: 'var(--color-ink)' } : undefined"
-            @click="filter = f">{{ f }}</button>
-        </div>
-      </template>
-      <table class="tbl">
-        <thead><tr><th style="width: 18px"></th><th>tool</th><th>detail</th><th class="num">duration</th><th class="num">at</th></tr></thead>
-        <tbody>
-          <tr v-for="c in filtered" :key="c.id">
-            <td><Dot :tone="c.ok ? 'olive' : 'terra'" :size="7" /></td>
-            <td><code class="mono">{{ c.tool_name }}</code></td>
-            <td><ErrLabel v-if="c.error">{{ c.error }}</ErrLabel><span v-else class="dim">ok</span></td>
-            <td class="num dim">{{ fmtMs(c.duration_ms) }}</td>
-            <td class="num dim">{{ new Date(c.called_at.replace(' ', 'T') + 'Z').toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) }}</td>
-          </tr>
-          <tr v-if="loaded && !filtered.length"><td colspan="5" class="dim" style="text-align: center; padding: 16px">no calls in this window</td></tr>
-        </tbody>
-      </table>
-    </ConsoleCard>
+    <CallLogCard :calls="calls" :loaded="loaded" filterable />
   </div>
 </template>

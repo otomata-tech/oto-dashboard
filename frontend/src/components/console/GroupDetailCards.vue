@@ -12,6 +12,7 @@ import ConsoleCard from './ConsoleCard.vue'
 import Tag from './Tag.vue'
 import Btn from './Btn.vue'
 import FormDialog from './FormDialog.vue'
+import InvitationsCard from './InvitationsCard.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
@@ -48,7 +49,7 @@ async function addMember() {
   if (!candidates.length) { toast('everyone in the org is already in this team.'); return }
   openForm({
     title: 'add to team',
-    description: 'pick an org member to add. invite new people to the org from « organization ».',
+    description: 'pick an org member to add. to invite someone NEW, use « invitations » below.',
     fields: [
       { key: 'target', label: 'member', type: 'select', required: true, options: candidates },
       { key: 'role', label: 'role', type: 'select', initial: 'group_member',
@@ -100,6 +101,10 @@ async function removeMember(sub: string) {
       </tbody>
     </table>
   </ConsoleCard>
+
+  <!-- Invitations d'équipe : inviter une personne NOUVELLE directement dans l'équipe
+       (rejoint l'org parente puis l'équipe à l'acceptation). Feature cascade. -->
+  <InvitationsCard v-if="canManage" :scope="{ level: 'team', id: groupId }" :can-manage="canManage" />
 
   <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
     :title="formDialog.title" :description="formDialog.description"
