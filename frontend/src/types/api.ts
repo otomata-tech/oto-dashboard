@@ -985,6 +985,8 @@ export interface AdminOrgSummary {
   id: number
   name: string
   member_count: number
+  logo_url: string | null   // logo effectif (upload > logo.dev du domaine), null si absent
+  domain: string | null
 }
 // ADR 0044 §F : instance scope PLATFORM du coffre (identité = provider+label, plus d'id/secret).
 export interface PlatformKey {
