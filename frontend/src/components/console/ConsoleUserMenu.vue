@@ -9,7 +9,6 @@ import { useAuth } from '@/composables/useAuth'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
 import { useScopedLink } from '@/composables/useScopedLink'
-import AccountViewAs from './AccountViewAs.vue'
 
 // Menu profil (pied de sidebar) = point d'entrée unique des destinations de
 // GESTION (profil / org / plateforme). On *entre* dans une zone puis on en *sort*.
@@ -85,11 +84,6 @@ function go() {
 
     <!-- menu déroulant (s'ouvre vers le haut depuis le pied de sidebar) -->
     <div v-if="open" class="um-pop" role="menu">
-      <!-- Opérateur plateforme : naviguer entre comptes (view-as lecture seule) -->
-      <template v-if="isPlatformOperator(me)">
-        <AccountViewAs />
-        <div class="um-sep" />
-      </template>
       <!-- Switch d'espace : sélecteur exclusif « où je travaille » (3 crans max). -->
       <div class="um-switch" role="group">
         <RouterLink

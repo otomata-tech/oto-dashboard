@@ -9,7 +9,7 @@ import type {
   GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
-  ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
+  ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   MementoStatus, MementoWorkspaces, MementoPages, MementoDocument, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult,
@@ -659,6 +659,13 @@ export const revokeOrgPlatformKey = (orgId: number, provider: string) =>
 export const setOptionComp = (entity_type: 'user' | 'org', entity_id: string, option: string, on: boolean) =>
   api('/api/admin/option-comps', { method: 'POST', ...j({ entity_type, entity_id, option, on }) })
 
+// accès plateforme connecteur-centrique (ADR 0044 §H) : « qui, au niveau plateforme, a
+// droit à ce connecteur » = grant de clé (couche 2) ∪ option comp (couche 3) en UN acte.
+export const getPlatformAccess = (provider: string) =>
+  api<PlatformAccess>(`/api/admin/connectors/${encodeURIComponent(provider)}/platform-access`)
+export const setPlatformAccess = (provider: string, scope: 'org' | 'user', id: string, on: boolean) =>
+  api(`/api/admin/connectors/${encodeURIComponent(provider)}/platform-access`, { method: 'POST', ...j({ scope, id, on }) })
+
 // ── admin orgs (cross-org governance) ──
 export const getAdminOrgs = () => api<{ orgs: AdminOrgSummary[] }>('/api/admin/orgs')
 export const createOrg = (name: string) =>
@@ -747,6 +754,21 @@ export const subscribeBilling = (body: {
 // Polle l'état après retour de la page hébergée (Stancer sans webhooks).
 export const confirmBilling = () => api<BillingStatus>('/api/me/billing/confirm', { method: 'POST' })
 export const cancelBilling = () => api<BillingStatus>('/api/me/billing/cancel', { method: 'POST' })
+
+// ── Documents légaux (acceptation CGU/CGV/DPA) — journal côté oto-mcp ──
+export interface LegalDocState {
+  slug: string; version: string; url: string; label: string
+  accepted: boolean; accepted_version: string | null; accepted_at: string | null
+}
+export interface LegalStatus {
+  documents: LegalDocState[]
+  contexts: Record<string, { required: string[]; outstanding: string[] }>
+}
+export const getLegal = () => api<LegalStatus>('/api/me/legal')
+// context = 'access' (inscription/CGU) | 'purchase' (achat) ; enregistre l'acceptation
+// des documents requis du contexte à leur version courante.
+export const acceptLegal = (context: string) =>
+  api<LegalStatus>('/api/me/legal/accept', { method: 'POST', ...j({ context }) })
 // Admin (super_admin) : forcer un plan sur une org sans paiement (plan=null retire).
 export const adminSetPlan = (orgId: number, plan: string | null) =>
   api<BillingStatus>(`/api/admin/orgs/${orgId}/plan`, { method: 'POST', ...j({ plan }) })
