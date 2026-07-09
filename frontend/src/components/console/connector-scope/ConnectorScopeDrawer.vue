@@ -11,6 +11,7 @@ import ConnectorEmail from '@/components/console/ConnectorEmail.vue'
 import ConnectorAvailabilityPanel from './ConnectorAvailabilityPanel.vue'
 import ConnectorCredentialPanel from './ConnectorCredentialPanel.vue'
 import ConnectorAccessPanel from './ConnectorAccessPanel.vue'
+import ConnectorPlatformAccessPanel from './ConnectorPlatformAccessPanel.vue'
 import ConnectorConnectionPanel from './ConnectorConnectionPanel.vue'
 import ConnectorToolsPanel from './ConnectorToolsPanel.vue'
 import ConnectorAboutPanel from './ConnectorAboutPanel.vue'
@@ -41,6 +42,8 @@ const meta = computed(() => props.adapter.meta(props.row))
     <ConnectorToolsPanel v-else-if="tab === 'tools' && adapter.tools"
       :lever="(adapter.tools as unknown as ToolsLever<MyConnector>)" :row="(row as unknown as MyConnector)" />
     <ConnectorAccessPanel v-else-if="tab === 'access' && adapter.access" :lever="adapter.access" :row="row" />
+    <ConnectorPlatformAccessPanel v-else-if="tab === 'access' && adapter.platformAccess"
+      :lever="adapter.platformAccess" :row="row" />
     <div v-else-if="tab === 'redaction' && adapter.redaction" class="csd-pad">
       <ConnectorTransforms v-bind="adapter.redaction.props(row)" @changed="adapter.redaction.onChanged()" />
     </div>
