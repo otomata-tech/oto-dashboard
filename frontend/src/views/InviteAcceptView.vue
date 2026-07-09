@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Btn from '@/components/console/Btn.vue'
 import Squiggle from '@/components/console/Squiggle.vue'
@@ -36,6 +36,14 @@ function codeOf(e: unknown): string {
   const raw = e instanceof Error ? e.message : String(e)
   return raw.includes(' ') ? raw.slice(raw.indexOf(' ') + 1) : raw
 }
+
+// Ce que l'invité rejoint (feature cascade) : équipe > org > (rien = onboarding plateforme).
+const joinTarget = computed<string | null>(() => {
+  const p = preview.value
+  if (!p) return null
+  if (p.scope === 'team' && p.group_name) return `l'équipe ${p.group_name}`
+  return p.org_name ?? null
+})
 
 // Retour post-login = l'URL courante (préserve code/token), OTT réinjecté par login().
 const returnTo = () => `${window.location.pathname}${window.location.search}`
@@ -117,7 +125,8 @@ onMounted(async () => {
         <div class="se-body">
           <template v-if="preview?.inviter">{{ preview.inviter }} vous invite</template>
           <template v-else>vous êtes invité·e</template>
-          <template v-if="preview?.org_name"> à rejoindre <strong>{{ preview.org_name }}</strong></template>.
+          <template v-if="joinTarget"> à rejoindre <strong>{{ joinTarget }}</strong></template>
+          <template v-else> à rejoindre <strong>oto</strong></template>.
           créez votre compte<template v-if="preview?.email"> en <strong>{{ preview.email }}</strong></template> pour entrer.
         </div>
         <div class="se-cta se-cta-col">

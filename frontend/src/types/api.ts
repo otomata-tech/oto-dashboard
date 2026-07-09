@@ -232,10 +232,15 @@ export interface Me {
   providers: Record<string, ProviderStatus | undefined>
 }
 
+// Scope d'une invitation (feature cascade) — DÉRIVÉ des cibles côté backend.
+export type InviteScopeKind = 'platform' | 'org' | 'team'
+
 export interface InvitePreview {
   email: string | null
   inviter: string | null
   org_name: string | null
+  group_name?: string | null
+  scope?: InviteScopeKind
 }
 
 // Résultat d'une émission d'invitation d'org.
@@ -859,11 +864,20 @@ export interface FieldFiltersBundle {
   schemas: Record<string, ConnectorFieldSchema[]>  // champs déclarés par connecteur
 }
 
+// Invitation en attente, tous scopes (org/équipe/plateforme — feature cascade). Le
+// backend enrichit chaque ligne de son scope dérivé + noms d'org/équipe.
 export interface OrgInvitation {
   id: number
   email: string | null
   code?: string | null
   org_role: OrgRole
+  group_role?: GroupRole | null
+  scope?: InviteScopeKind
+  org_id?: number | null
+  group_id?: number | null
+  org_name?: string | null
+  group_name?: string | null
+  source?: string | null
   invited_by?: string | null
   created_at?: string | null
   expires_at?: string | null
