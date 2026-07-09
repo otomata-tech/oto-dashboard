@@ -7,12 +7,13 @@ import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import Dot from '@/components/console/Dot.vue'
 import Avatar from '@/components/console/Avatar.vue'
+import PlatformFinder from '@/components/console/PlatformFinder.vue'
 import Dropzone from '@/components/console/Dropzone.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
-import { useMe, isSuperAdmin } from '@/composables/useMe'
+import { useMe, isSuperAdmin, isPlatformOperator } from '@/composables/useMe'
 import {
   getAdminOrgs, createOrg, getAdminOrg, archiveAdminOrg, addAdminOrgMember, setAdminOrgMemberRole,
   removeAdminOrgMember, setOptionComp, updateOrg, uploadOrgLogo, deleteOrgLogo,
@@ -39,6 +40,13 @@ const error = ref<string | null>(null)
 // Écriture sensible (profil org, logo, plan comp) = super_admin seul — l'opérateur
 // `admin` supervise en lecture (le backend renvoie 403 sinon, cf. useMe.ts).
 const canWrite = computed(() => isSuperAdmin(me.value))
+// Un opérateur plateforme peut REJOINDRE une org tierce en org_admin (chemin admin
+// `POST /api/admin/orgs/{id}/members`, escalade `ORG_ADMIN_OF`) → devient membre RÉEL,
+// ce qui lève la garde read-only de l'inspection (ViewAsMiddleware) et ouvre l'écriture
+// (clés d'org, settings). Trace visible : il apparaît dans les membres de l'org.
+const isOperator = computed(() => isPlatformOperator(me.value))
+const myMembership = computed(() =>
+  detail.value?.members.find((m) => m.sub === me.value?.sub) ?? null)
 
 // Org sélectionnée portée par le PATH `/platform/orgs/:id` (bookmarkable, back/forward).
 const routeOrgId = computed(() => {
@@ -201,6 +209,27 @@ async function removeMember(m: OrgMember) {
   try { await removeAdminOrgMember(selectedId.value, m.sub); toast('member removed'); await refresh(); await loadOrgs() }
   catch (e) { toast(humanize(e)) }
 }
+async function joinAsAdmin() {
+  if (selectedId.value == null || !me.value) return
+  const name = detail.value?.org.name ?? 'cette org'
+  if (!await confirmAction({
+    title: 'Rejoindre en org_admin',
+    confirmLabel: 'Rejoindre',
+    message: `Devenir org_admin de « ${name} » : tu apparaîtras dans ses membres (trace visible par l'org) et pourras écrire (clés d'org, settings). Retire-toi après si besoin.`,
+  })) return
+  try { await addAdminOrgMember(selectedId.value, me.value.sub, 'org_admin'); toast(`tu es org_admin de ${name}`); await refresh(); await loadOrgs() }
+  catch (e) { toast(humanize(e)) }
+}
+async function leaveOrg() {
+  if (selectedId.value == null || !me.value) return
+  const name = detail.value?.org.name ?? 'cette org'
+  if (!await confirmAction({
+    title: 'Quitter l\'org', danger: true, confirmLabel: 'Quitter',
+    message: `Te retirer des membres de « ${name} » ? Tu repasses en inspection lecture seule.`,
+  })) return
+  try { await removeAdminOrgMember(selectedId.value, me.value.sub); toast(`tu as quitté ${name}`); await refresh(); await loadOrgs() }
+  catch (e) { toast(humanize(e)) }
+}
 
 // ── plan / abonnement (ADR 0043) ─────────────────────────────────────────────
 // Le plan pilote l'entitlement (options + plafond messagerie). `admin_set_plan`
@@ -263,6 +292,8 @@ async function toggleOrgOption(opt: string) {
   <div class="content-inner fadein">
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
+    <PlatformFinder :orgs="orgs" @select-org="select" />
+
     <div class="grid3">
       <Stat label="organizations" :value="orgs.length" sub="shared perimeters" />
       <Stat label="total members" :value="orgs.reduce((a, o) => a + o.member_count, 0)" sub="across all orgs" />
@@ -279,7 +310,12 @@ async function toggleOrgOption(opt: string) {
         <tbody>
           <tr v-for="o in orgs" :key="o.id" :class="{ on: o.id === selectedId }"
             style="cursor: pointer" @click="select(o.id)">
-            <td style="font-weight: 600; color: var(--color-ink)">{{ o.name }}</td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 9px">
+                <Avatar :src="o.logo_url" :name="o.name" :size="24" shape="square" />
+                <span style="font-weight: 600; color: var(--color-ink)">{{ o.name }}</span>
+              </div>
+            </td>
             <td class="num">{{ o.member_count }}</td>
             <td style="text-align: right"><Btn kind="mini" @click.stop="select(o.id)">Manage</Btn></td>
           </tr>
@@ -372,7 +408,9 @@ async function toggleOrgOption(opt: string) {
 
       <ConsoleCard flush :title="`${detail.org.name} · members`">
         <template #actions>
-          <Btn kind="mini" icon="eye" @click="enterOrg">Entrer (lecture seule)</Btn>
+          <Btn kind="mini" icon="eye" @click="enterOrg">{{ myMembership ? 'Entrer' : 'Entrer (lecture seule)' }}</Btn>
+          <Btn v-if="isOperator && !myMembership" kind="mini" icon="shield" @click="joinAsAdmin">Rejoindre en admin</Btn>
+          <Btn v-else-if="isOperator && myMembership" kind="mini" icon="log-out" @click="leaveOrg">Quitter</Btn>
           <Btn kind="mini" icon="plus" @click="addMember">Add member</Btn>
         </template>
         <table class="tbl">
