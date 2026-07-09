@@ -1,0 +1,61 @@
+<script setup lang="ts">
+// Journal brut d'appels d'outils (récent d'abord) — carte réutilisable. Consomme une
+// liste `ToolCall[]` par prop, donc branchable partout : plateforme (tous), fiche user
+// admin (via sub), activité perso (mes appels). Filtre ok/erreurs optionnel intégré.
+import { computed, ref } from 'vue'
+import ConsoleCard from '@/components/console/ConsoleCard.vue'
+import Dot from '@/components/console/Dot.vue'
+import ErrLabel from '@/components/console/ErrLabel.vue'
+import type { ToolCall } from '@/types/api'
+import { fmtDateTime } from '@/types/api'
+import { fmtMs } from '@/lib/monitoring'
+
+const props = withDefaults(defineProps<{
+  calls: ToolCall[]
+  loaded: boolean
+  busy?: boolean
+  title?: string
+  sub?: string
+  filterable?: boolean
+  emptyLabel?: string
+}>(), { filterable: false })
+
+type Filter = 'all' | 'ok' | 'errors'
+const filter = ref<Filter>('all')
+const filtered = computed(() =>
+  props.filterable
+    ? props.calls.filter((c) => filter.value === 'all' || (filter.value === 'errors' ? !c.ok : c.ok))
+    : props.calls,
+)
+const errCount = computed(() => props.calls.filter((c) => !c.ok).length)
+</script>
+
+<template>
+  <ConsoleCard flush :title="title || 'call log'" :sub="sub">
+    <template #actions>
+      <slot name="actions">
+        <div v-if="filterable" class="seg">
+          <button v-for="f in (['all', 'ok', 'errors'] as Filter[])" :key="f"
+            type="button" :class="{ on: filter === f }" @click="filter = f">{{ f }}</button>
+        </div>
+        <span v-else class="dim" style="font-size: 11.5px">
+          {{ calls.length }} calls · <ErrLabel v-if="errCount">{{ errCount }} err</ErrLabel><span v-else class="dim">0 err</span>
+        </span>
+      </slot>
+    </template>
+    <table class="tbl">
+      <thead><tr><th style="width: 18px"></th><th>tool</th><th>detail</th><th class="num">duration</th><th class="num">when</th></tr></thead>
+      <tbody>
+        <tr v-for="c in filtered" :key="c.id">
+          <td><Dot :tone="c.ok ? 'olive' : 'terra'" :size="7" /></td>
+          <td><code class="mono">{{ c.tool_name }}</code></td>
+          <td><ErrLabel v-if="c.error">{{ c.error }}</ErrLabel><span v-else class="dim">ok</span></td>
+          <td class="num dim">{{ fmtMs(c.duration_ms) }}</td>
+          <td class="num dim">{{ fmtDateTime(c.called_at) }}</td>
+        </tr>
+        <tr v-if="busy"><td colspan="5" class="dim" style="text-align: center; padding: 16px">loading…</td></tr>
+        <tr v-else-if="loaded && !filtered.length"><td colspan="5" class="dim" style="text-align: center; padding: 16px">{{ emptyLabel || 'no calls in this window' }}</td></tr>
+      </tbody>
+    </table>
+  </ConsoleCard>
+</template>
