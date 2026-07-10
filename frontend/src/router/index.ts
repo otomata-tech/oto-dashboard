@@ -122,6 +122,10 @@ const router = createRouter({
     // même `detail='project'` → ProjectDetailView reste monté (viewKey keyé sur :id).
     ...detailRoutes('/projects/:id/data/:nsRef', 'project'),
     ...detailRoutes('/data/:id', 'data'),
+    // Deep-link d'une ROW (`…/item/<rowId>`) : l'URL porte la fiche ouverte dans le
+    // drawer (DatastoreTable lit `:rowId`) — partageable, survit au refresh.
+    ...detailRoutes('/data/:id/item/:rowId', 'data'),
+    ...detailRoutes('/projects/:id/data/:nsRef/item/:rowId', 'project'),
     ...detailRoutes('/procedures/:id', 'procedure'),
     // Équipe ouverte (ex `/org/teams/:teamId`, blocs empilés) → DESCENTE dans le scope
     // team dédié `/o/:org/g/:teamId/team/context`. Préfixées : on connaît l'org → on

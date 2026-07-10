@@ -39,6 +39,7 @@
     "connectorsKeys": "connecteurs & clés",
     "serverInstructions": "instructions serveur",
     "mcpConnected": "mcp connecté",
+    "moreProjects": "{n} projets restants",
     "section": {
       "workspace": "espace de travail",
       "memory": "mémoire",
@@ -51,6 +52,7 @@
   "pageMeta": {
     "overview": { "title": "aperçu", "crumb": "app.oto.ninja" },
     "context": { "title": "ce que voit ton agent", "crumb": "mon espace" },
+    "projects": { "title": "projets", "crumb": "espace de travail" },
     "connectors": { "title": "connecteurs", "crumb": "espace de travail" },
     "procedures": { "title": "procédures", "crumb": "espace de travail" },
     "data": { "title": "données", "crumb": "mémoire" },

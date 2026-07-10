@@ -11,6 +11,8 @@ import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
 import DataTable from '@/components/console/DataTable.vue'
 import DatastoreCards from '@/components/console/DatastoreCards.vue'
+import DatastoreMetrics from '@/components/console/DatastoreMetrics.vue'
+import DatastoreQueueBar from '@/components/console/DatastoreQueueBar.vue'
 import DatastoreStatusBar from '@/components/console/DatastoreStatusBar.vue'
 import RowDrawer from '@/components/console/RowDrawer.vue'
 import SharePrincipalDialog from '@/components/console/SharePrincipalDialog.vue'
@@ -19,7 +21,8 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useTransferOwnership } from '@/composables/useTransferOwnership'
 import {
-  getNamespaces, getNamespaceRows, getNamespaceAggregate,
+  getNamespaces, getNamespaceRows, getNamespaceRow, getNamespaceAggregate,
+  getNamespaceQueue, releaseRowClaim,
   appendNamespaceRow, updateNamespaceRow, deleteNamespaceRow,
   deleteNamespace, renameNamespace, transferNamespace,
 } from '@/api/console'
@@ -89,13 +92,14 @@ async function fetchStatusCounts() {
   const k = statusField.value?.key
   if (!n || !k || !cockpit.value) return
   try {
-    const { groups } = await getNamespaceAggregate(n, k)
+    const { groups } = await getNamespaceAggregate(n, { groupBy: k })
     const counts: Record<string, number> = {}
     let tot = 0
     for (const g of groups) {
       const v = g[k]
-      counts[v == null ? '—' : String(v)] = g.count
-      tot += g.count
+      const c = Number(g.count ?? 0)
+      counts[v == null ? '—' : String(v)] = c
+      tot += c
     }
     statusCounts.value = counts
     statusTotal.value = tot
@@ -106,6 +110,58 @@ function onStatusSelect(state: string | null) {
   if (!k) return
   const rest = filters.value.filter((x) => x.field !== k)
   onFilters(state === null ? rest : [...rest, { field: k, op: 'eq', value: state }])
+}
+
+// ── tuiles metric (ADR 0046) : sum/avg SERVEUR des champs role="metric" (number),
+// sur le MÊME jeu filtré que la table (q + filters) — refetch quand ils changent.
+const metricFields = computed(() => (meta.value?.schema?.fields ?? [])
+  .filter((f) => f.role === 'metric' && (f.type ?? 'number') === 'number'))
+const metricTiles = ref<Array<{ key: string; label: string; value: string; sub?: string }>>([])
+const numFmt = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 })
+async function fetchMetricTiles() {
+  const n = name.value
+  if (!n || !metricFields.value.length) { metricTiles.value = []; return }
+  try {
+    const metrics = metricFields.value.flatMap((f) => [
+      { op: 'sum' as const, field: f.key }, { op: 'avg' as const, field: f.key }])
+    const { groups } = await getNamespaceAggregate(n, {
+      metrics,
+      q: search.value || undefined,
+      filters: filters.value.length ? filters.value : undefined,
+    })
+    const g = groups[0] ?? {}
+    metricTiles.value = metricFields.value.flatMap((f) => {
+      const sum = g[`sum_${f.key}`]
+      const avg = g[`avg_${f.key}`]
+      if (sum == null && avg == null) return []
+      return [{
+        key: f.key,
+        label: `total ${f.label || f.key}`,
+        value: sum == null ? '—' : numFmt.format(Number(sum)),
+        sub: avg == null ? undefined : `moy. ${numFmt.format(Number(avg))}`,
+      }]
+    })
+  } catch { metricTiles.value = [] }
+}
+
+// ── file de travail (ADR 0046 D) : rows sous bail + libération forcée.
+const queueRows = ref<DatastoreRow[]>([])
+const titleFieldKey = computed(() =>
+  (meta.value?.schema?.fields ?? []).find((f) => f.role === 'title')?.key ?? null)
+async function fetchQueue() {
+  const n = name.value
+  if (!n) { queueRows.value = []; return }
+  try { queueRows.value = (await getNamespaceQueue(n)).rows } catch { queueRows.value = [] }
+}
+async function onRelease(rowId: string) {
+  const n = name.value
+  if (!n) return
+  try {
+    await releaseRowClaim(n, rowId)
+    toast('bail libéré')
+    closeDrawer()
+    await Promise.all([fetchQueue(), fetchRows()])
+  } catch (e) { toast(humanize(e)) }
 }
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
@@ -174,26 +230,58 @@ async function fetchRows() {
 }
 
 async function reload() {
-  closeDrawer()
+  resetDrawer()
   await resolveMeta()
   readTableQuery()
   await fetchRows()
+  await openFromRoute()   // deep-link `…/item/<rowId>` → drawer ouvert sur la fiche
   await fetchStatusCounts()
+  void fetchMetricTiles()
+  void fetchQueue()
 }
 
 function onPage(p: number) { page.value = p; syncTableQuery(); fetchRows() }
 function onSort(field: string, dir: 'asc' | 'desc') { sortField.value = field; sortDir.value = dir; page.value = 0; syncTableQuery(); fetchRows() }
-function onSearch(q: string) { search.value = q; page.value = 0; syncTableQuery(); fetchRows() }
-function onFilters(f: ColumnFilter[]) { filters.value = f; page.value = 0; syncTableQuery(); fetchRows() }
+function onSearch(q: string) { search.value = q; page.value = 0; syncTableQuery(); fetchRows(); void fetchMetricTiles() }
+function onFilters(f: ColumnFilter[]) { filters.value = f; page.value = 0; syncTableQuery(); fetchRows(); void fetchMetricTiles() }
 function onPageSize(ps: number) { pageSize.value = ps; page.value = 0; syncTableQuery(); fetchRows() }
 
-// ── drawer (détail / édition / ajout) ──
+// ── drawer (détail / édition / ajout) — la fiche ouverte est DANS l'URL
+// (`…/item/<rowId>`, deep-link partageable). Ouvrir/fermer = replace du path ;
+// `resetDrawer` ferme SANS toucher l'URL (rechargements internes, sinon le
+// reload initial effacerait le segment porté par le deep-link).
 const drawerOpen = ref(false)
 const drawerRow = ref<DatastoreRow | null>(null)
 const drawerNew = ref(false)
-function openRow(row: DatastoreRow) { drawerRow.value = row; drawerNew.value = false; drawerOpen.value = true }
+const itemBasePath = computed(() => route.path.replace(/\/item\/[^/]+$/, ''))
+const routeRowId = computed<string | null>(() => {
+  const v = route.params.rowId
+  return typeof v === 'string' && v ? v : null
+})
+function openRow(row: DatastoreRow) {
+  drawerRow.value = row; drawerNew.value = false; drawerOpen.value = true
+  if (routeRowId.value !== row._id)
+    void router.replace({ path: `${itemBasePath.value}/item/${row._id}`, query: route.query })
+}
 function openNew() { drawerRow.value = null; drawerNew.value = true; drawerOpen.value = true }
-function closeDrawer() { drawerOpen.value = false; drawerRow.value = null; drawerNew.value = false }
+function resetDrawer() { drawerOpen.value = false; drawerRow.value = null; drawerNew.value = false }
+function closeDrawer() {
+  resetDrawer()
+  if (routeRowId.value)
+    void router.replace({ path: itemBasePath.value, query: route.query })
+}
+// Ouvre la fiche portée par l'URL : dans la page courante si présente, sinon
+// fetch dédié (la row peut être hors page/filtre). Row inconnue = table nue.
+async function openFromRoute() {
+  const id = routeRowId.value
+  const n = name.value
+  if (!id || !n || (drawerOpen.value && drawerRow.value?._id === id)) return
+  try {
+    const row = rows.value.find((r) => r._id === id) ?? await getNamespaceRow(n, id)
+    drawerRow.value = row; drawerNew.value = false; drawerOpen.value = true
+  } catch { /* row supprimée / autre namespace : on laisse la table */ }
+}
+watch(routeRowId, (id) => { if (id) void openFromRoute(); else resetDrawer() })
 
 // nsRef → recharge. `immediate` DOIT être déclaré APRÈS le bloc drawer : `reload`
 // appelle `closeDrawer()` qui lit `drawerOpen`/`drawerRow`/`drawerNew` ; placé plus
@@ -207,7 +295,7 @@ async function onSave(payload: Record<string, unknown>) {
   try {
     if (drawerNew.value) { await appendNamespaceRow(n, payload); toast('row added') }
     else if (drawerRow.value) { await updateNamespaceRow(n, drawerRow.value._id, payload); toast('row saved') }
-    closeDrawer(); await fetchRows(); void fetchStatusCounts()
+    closeDrawer(); await fetchRows(); void fetchStatusCounts(); void fetchMetricTiles(); void fetchQueue()
   } catch (e) { toast(humanize(e)) }
 }
 async function onDelete() {
@@ -215,7 +303,7 @@ async function onDelete() {
   if (!n || !drawerRow.value) return
   const id = drawerRow.value._id
   if (!await confirmAction({ title: 'delete row?', message: 'this row is permanently removed.', confirmLabel: 'delete', danger: true })) return
-  try { await deleteNamespaceRow(n, id); toast('row deleted'); closeDrawer(); await fetchRows(); void fetchStatusCounts() }
+  try { await deleteNamespaceRow(n, id); toast('row deleted'); closeDrawer(); await fetchRows(); void fetchStatusCounts(); void fetchMetricTiles(); void fetchQueue() }
   catch (e) { toast(humanize(e)) }
 }
 
@@ -299,6 +387,11 @@ async function transfer() {
     <DatastoreStatusBar v-if="cockpit" :states="lifecycleStates" :counts="statusCounts"
       :active="activeStatus" :total="statusTotal" @select="onStatusSelect" />
 
+    <DatastoreMetrics v-if="metricTiles.length" :tiles="metricTiles" />
+
+    <DatastoreQueueBar v-if="queueRows.length" :rows="queueRows" :can-write="!readOnly"
+      :title-field="titleFieldKey" @open="openRow" @release="onRelease" />
+
     <p v-if="rowsError" class="helptext" style="color: var(--color-terra-ink); padding: 12px 16px">{{ rowsError }}</p>
     <div v-else-if="!rowsLoading && !total && !search && !filters.length" class="dim" style="text-align: center; padding: 24px">
       no rows yet — add one above, or your agents append with
@@ -319,7 +412,8 @@ async function transfer() {
 
     <RowDrawer :open="drawerOpen" :row="drawerRow" :fields="fields" :is-new="drawerNew"
       :read-only="readOnly" :schema="meta.schema ?? null" :namespace="name"
-      @save="onSave" @delete="onDelete" @close="closeDrawer" />
+      @save="onSave" @delete="onDelete" @close="closeDrawer"
+      @release="drawerRow && onRelease(drawerRow._id)" />
     <SharePrincipalDialog :open="shareOpen" resource-type="datastore_namespace"
       :resource-id="String(meta.id)" :resource-label="name ?? undefined"
       @close="shareOpen = false" @changed="emit('changed')" />

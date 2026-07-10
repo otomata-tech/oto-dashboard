@@ -19,11 +19,18 @@ const { scoped } = useScopedLink()
 const { t } = useI18n()
 
 // Projet en exergue (ADR 0032 §1 / réunion 30/06) : les 5 derniers projets affichés
-// directement sous l'entrée « projects ». La liste est déjà triée par récence côté
-// backend. Best-effort : la sidebar reste fonctionnelle si le fetch échoue.
+// directement sous l'entrée « projects », + « N projets restants » vers l'index quand
+// la liste est tronquée (sinon un projet hors top-5 semble ne pas exister). La liste
+// est déjà triée par récence côté backend. Best-effort : la sidebar reste
+// fonctionnelle si le fetch échoue.
 const recentProjects = ref<Project[]>([])
+const remainingProjects = ref(0)
 onMounted(async () => {
-  try { recentProjects.value = (await listProjects()).projects.slice(0, 5) }
+  try {
+    const all = (await listProjects()).projects
+    recentProjects.value = all.slice(0, 5)
+    remainingProjects.value = Math.max(0, all.length - 5)
+  }
   catch { /* no-op */ }
 })
 const { me } = useMe()
@@ -79,6 +86,14 @@ const visibleGroups = computed(() =>
           >
             <span class="ic"></span>{{ p.name }}
           </RouterLink>
+          <RouterLink
+            v-if="it.path === '/projects' && remainingProjects > 0"
+            class="sb-item sb-subitem sb-more"
+            :to="scoped('/projects')"
+            @click="closeNav"
+          >
+            <span class="ic"></span>{{ t('nav.moreProjects', { n: remainingProjects }) }}
+          </RouterLink>
         </template>
       </div>
     </nav>
@@ -96,4 +111,6 @@ const visibleGroups = computed(() =>
 .sb-subitem .ic { width: 15px; }
 /* état actif : couleurs portées par .sb-item.on (aplat saffron) ; on garde juste le poids. */
 .sb-subitem.on { font-weight: 700; }
+/* « N projets restants » : voix discrète, renvoie à l'index complet. */
+.sb-more { font-style: italic; opacity: 0.75; }
 </style>

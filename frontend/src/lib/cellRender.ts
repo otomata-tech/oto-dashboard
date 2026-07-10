@@ -32,16 +32,29 @@ export function cellShort(value: unknown, kind: CellKind = cellKind(value)): str
 }
 
 /** Aperçu 1-ligne d'une valeur imbriquée (schéma v2 : sous-record / liste) —
- * `n × {1er item}` pour une liste, JSON compact tronqué pour un objet. */
+ * liste de sous-records : `n · <identité du 1er>` (1re valeur scalaire, ex.
+ * `2 · Jean Dupont`) ; liste scalaire : valeurs jointes ; objet : JSON compact. */
 function jsonPreview(value: unknown, limit = 60): string {
   let s: string
   try {
     if (Array.isArray(value)) {
-      const head = value.length ? JSON.stringify(value[0]) : ''
-      s = head ? `${value.length} × ${head}` : '0 item'
+      if (!value.length) s = '0 item'
+      else if (typeof value[0] === 'object' && value[0] !== null) {
+        const head = firstScalar(value[0] as Record<string, unknown>)
+        s = head != null ? `${value.length} · ${head}` : `${value.length} × ${JSON.stringify(value[0])}`
+      } else s = value.map(String).join(', ')
     } else s = JSON.stringify(value)
   } catch { s = String(value) }
   return s.length > limit ? s.slice(0, limit - 1) + '…' : s
+}
+
+/** Première valeur scalaire non vide d'un sous-record — son « identité » d'aperçu. */
+function firstScalar(rec: Record<string, unknown>): string | null {
+  for (const v of Object.values(rec)) {
+    if (typeof v === 'string' && v) return v
+    if (typeof v === 'number') return String(v)
+  }
+  return null
 }
 
 /** Date absolue lisible « 2026-06-22 09:07 » (tronquée à la minute). */

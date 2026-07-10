@@ -3,12 +3,14 @@
 // Rend l'entité/page sélectionnée dans le rail selon son `kind` (6 formes). Réutilise la
 // logique de câblage existante (ProjectWiki pour les pages, ProjectEntities pour la
 // surcharge connecteur) — même appels API, remontés au parent par events.
-import { computed, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import Icon from '@/components/console/Icon.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import MarkdownView from '@/components/console/MarkdownView.vue'
+// Éditeur TipTap en chunk séparé : chargé au premier passage en mode édition seulement.
+const MarkdownEditor = defineAsyncComponent(() => import('@/components/console/MarkdownEditor.vue'))
 import AttachmentViewer from '@/components/console/AttachmentViewer.vue'
 import DatastoreTable from '@/components/console/DatastoreTable.vue'
 import {
@@ -310,9 +312,9 @@ async function removeFile() {
         <!-- édition (brief ou doc) -->
         <template v-if="editing">
           <input v-if="!isHome && draft" v-model="draft.title" class="vw__titlein" placeholder="Titre de la page" />
-          <textarea v-if="isHome" v-model="briefDraft" class="vw__area" rows="14"
-            placeholder="Le but du projet, le contexte, ce que l'agent doit savoir au démarrage…"></textarea>
-          <textarea v-else-if="draft" v-model="draft.body_md" class="vw__area" rows="16" placeholder="Contenu de la page (markdown)…"></textarea>
+          <MarkdownEditor v-if="isHome" v-model="briefDraft"
+            placeholder="Le but du projet, le contexte, ce que l'agent doit savoir au démarrage…" />
+          <MarkdownEditor v-else-if="draft" v-model="draft.body_md" placeholder="Contenu de la page…" />
           <div class="vw__editact">
             <template v-if="isHome"><Btn kind="mini" @click="saveBrief">Enregistrer</Btn><button class="vw__x" @click="cancelBrief">Annuler</button></template>
             <template v-else-if="!readOnly">

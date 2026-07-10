@@ -40,7 +40,10 @@ async function applySelection(raw: string | null) {
   if (!ns) { selectedId.value = null; return }
   if (String(route.params.id) !== String(ns.id)) {
     const { ns: _drop, ...rest } = route.query
-    void router.replace({ path: `/data/${ns.id}`, query: rest })
+    // préserve le deep-link de row (`…/item/<rowId>`) quand on normalise nom → id
+    const item = typeof route.params.rowId === 'string' && route.params.rowId
+      ? `/item/${route.params.rowId}` : ''
+    void router.replace({ path: `/data/${ns.id}${item}`, query: rest })
   }
   selectedId.value = ns.id
 }
