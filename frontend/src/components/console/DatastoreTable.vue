@@ -21,7 +21,7 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useTransferOwnership } from '@/composables/useTransferOwnership'
 import {
-  getNamespaces, getNamespaceRows, getNamespaceAggregate,
+  getNamespaces, getNamespaceRows, getNamespaceRow, getNamespaceAggregate,
   getNamespaceQueue, releaseRowClaim,
   appendNamespaceRow, updateNamespaceRow, deleteNamespaceRow,
   deleteNamespace, renameNamespace, transferNamespace,
@@ -230,10 +230,11 @@ async function fetchRows() {
 }
 
 async function reload() {
-  closeDrawer()
+  resetDrawer()
   await resolveMeta()
   readTableQuery()
   await fetchRows()
+  await openFromRoute()   // deep-link `…/item/<rowId>` → drawer ouvert sur la fiche
   await fetchStatusCounts()
   void fetchMetricTiles()
   void fetchQueue()
@@ -245,13 +246,42 @@ function onSearch(q: string) { search.value = q; page.value = 0; syncTableQuery(
 function onFilters(f: ColumnFilter[]) { filters.value = f; page.value = 0; syncTableQuery(); fetchRows(); void fetchMetricTiles() }
 function onPageSize(ps: number) { pageSize.value = ps; page.value = 0; syncTableQuery(); fetchRows() }
 
-// ── drawer (détail / édition / ajout) ──
+// ── drawer (détail / édition / ajout) — la fiche ouverte est DANS l'URL
+// (`…/item/<rowId>`, deep-link partageable). Ouvrir/fermer = replace du path ;
+// `resetDrawer` ferme SANS toucher l'URL (rechargements internes, sinon le
+// reload initial effacerait le segment porté par le deep-link).
 const drawerOpen = ref(false)
 const drawerRow = ref<DatastoreRow | null>(null)
 const drawerNew = ref(false)
-function openRow(row: DatastoreRow) { drawerRow.value = row; drawerNew.value = false; drawerOpen.value = true }
+const itemBasePath = computed(() => route.path.replace(/\/item\/[^/]+$/, ''))
+const routeRowId = computed<string | null>(() => {
+  const v = route.params.rowId
+  return typeof v === 'string' && v ? v : null
+})
+function openRow(row: DatastoreRow) {
+  drawerRow.value = row; drawerNew.value = false; drawerOpen.value = true
+  if (routeRowId.value !== row._id)
+    void router.replace({ path: `${itemBasePath.value}/item/${row._id}`, query: route.query })
+}
 function openNew() { drawerRow.value = null; drawerNew.value = true; drawerOpen.value = true }
-function closeDrawer() { drawerOpen.value = false; drawerRow.value = null; drawerNew.value = false }
+function resetDrawer() { drawerOpen.value = false; drawerRow.value = null; drawerNew.value = false }
+function closeDrawer() {
+  resetDrawer()
+  if (routeRowId.value)
+    void router.replace({ path: itemBasePath.value, query: route.query })
+}
+// Ouvre la fiche portée par l'URL : dans la page courante si présente, sinon
+// fetch dédié (la row peut être hors page/filtre). Row inconnue = table nue.
+async function openFromRoute() {
+  const id = routeRowId.value
+  const n = name.value
+  if (!id || !n || (drawerOpen.value && drawerRow.value?._id === id)) return
+  try {
+    const row = rows.value.find((r) => r._id === id) ?? await getNamespaceRow(n, id)
+    drawerRow.value = row; drawerNew.value = false; drawerOpen.value = true
+  } catch { /* row supprimée / autre namespace : on laisse la table */ }
+}
+watch(routeRowId, (id) => { if (id) void openFromRoute(); else resetDrawer() })
 
 // nsRef → recharge. `immediate` DOIT être déclaré APRÈS le bloc drawer : `reload`
 // appelle `closeDrawer()` qui lit `drawerOpen`/`drawerRow`/`drawerNew` ; placé plus

@@ -384,6 +384,10 @@ export const getNamespaceAggregate = (ns: string, opts: AggregateQuery = {}) => 
   return api<{ groups: Array<Record<string, unknown>> }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}/aggregate${qs ? `?${qs}` : ''}`)
 }
+// Une row par _id (deep-link `…/item/<rowId>` : la fiche peut être hors page courante).
+export const getNamespaceRow = (ns: string, rowId: string) =>
+  api<DatastoreRow>(
+    `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`)
 // File de travail (ADR 0046 D) — supervision : rows sous bail (_claimed_by/_claimed_until).
 export const getNamespaceQueue = (ns: string) =>
   api<{ rows: DatastoreRow[] }>(`/api/datastore/namespaces/${encodeURIComponent(ns)}/queue`)
