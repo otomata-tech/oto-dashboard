@@ -1,12 +1,16 @@
 <script setup lang="ts">
-// Drawer détail / édition / ajout d'une row. v2 (ADR 0046) : le FORMULAIRE
-// DÉRIVE du schéma — ordre déclaré, labels, requis (*), inputs typés
-// (number/bool/date), select d'état à la création, et composites déclarés
-// (object / list de sous-records) édités STRUCTURÉS via SubRecordEditor
-// (plus de textarea JSON). Les champs non déclarés gardent l'édition libre.
+// Drawer détail / édition / ajout d'une row. v2 (ADR 0046) : la MISE EN PAGE
+// s'auto-adapte au schéma — les RÔLES pilotent le layout (zéro métier en dur) :
+//   title  → titre éditable de l'en-tête (l'_id passe en sous-titre)
+//   status → chip d'en-tête + barre de transitions (plus un input libre)
+//   note / qualif → textareas pleine largeur en pied de fiche
+//   object / list de sous-records → sections structurées (SubRecordEditor)
+//   le reste (badge/metric/scalaires, déclarés ou non) → grille compacte 2 col,
+//   inputs typés (number/bool), requis marqués (* / required_when).
 import { computed, ref, watch } from 'vue'
 import Btn from './Btn.vue'
 import Icon from './Icon.vue'
+import Tag from './Tag.vue'
 import FormDialog from './FormDialog.vue'
 import SubRecordEditor from './SubRecordEditor.vue'
 import { useFormDialog } from '@/composables/useFormDialog'
@@ -24,7 +28,7 @@ const props = defineProps<{
   fields: string[]           // colonnes connues du namespace (pour l'ajout)
   isNew: boolean
   readOnly: boolean
-  schema?: DatastoreSchema | null  // v2 (ADR 0046) : formulaire typé + transitions
+  schema?: DatastoreSchema | null  // v2 (ADR 0046) : layout typé + transitions
   namespace?: string | null        // b4 : parcours de l'agent (fetch lazy à l'ouverture)
 }>()
 const emit = defineEmits<{
@@ -43,6 +47,25 @@ const extra = ref<string[]>([])
 
 const editFields = computed<FieldDesc[]>(() =>
   formFields(props.schema, props.row, props.fields, extra.value))
+
+// ── répartition PAR RÔLE (l'auto-adaptation au schéma) ──────────────────────
+const titleDesc = computed(() => editFields.value.find((d) => d.role === 'title') ?? null)
+const statusField = computed(() =>
+  (props.schema?.fields ?? []).find((f) => f.role === 'status') ?? null)
+const lifecycleStates = computed<string[]>(() =>
+  (statusField.value?.lifecycle?.states ?? []).map(String))
+const isLifecycleStatus = (d: FieldDesc) =>
+  d.role === 'status' && lifecycleStates.value.length > 0
+const compositeFields = computed(() =>
+  editFields.value.filter((d) => d.declared && isComposite(d.field)))
+const longFields = computed(() =>
+  editFields.value.filter((d) => d.role === 'note' || d.role === 'qualif'))
+const gridFields = computed(() =>
+  editFields.value.filter((d) =>
+    d !== titleDesc.value &&
+    !(d.declared && isComposite(d.field)) &&
+    d.role !== 'note' && d.role !== 'qualif' &&
+    !(isLifecycleStatus(d) && !props.isNew))) // le statut vit dans l'en-tête (sauf création)
 
 watch(() => [props.open, props.row], () => {
   if (!props.open) return
@@ -97,17 +120,9 @@ function reqWhenLabel(d: FieldDesc): string {
   return Object.entries(d.requiredWhen ?? {}).map(([k, v]) => `${k} = ${v}`).join(', ')
 }
 
-const title = computed(() => props.isNew ? 'new row' : (props.row?._id ?? 'row'))
-
-// ── cycle de vie (ADR 0046 b1) : boutons de transition DÉRIVÉS du schéma — seuls
-// les états atteignables depuis l'état courant sont proposés ; le backend refuse
-// de toute façon une transition illégale ou un état incomplet (required_when).
-const statusField = computed(() =>
-  (props.schema?.fields ?? []).find((f) => f.role === 'status') ?? null)
-const lifecycleStates = computed<string[]>(() =>
-  (statusField.value?.lifecycle?.states ?? []).map(String))
-const isLifecycleStatus = (d: FieldDesc) =>
-  d.role === 'status' && lifecycleStates.value.length > 0
+// ── cycle de vie (ADR 0046 b1) : chip d'état en tête + transitions DÉRIVÉES du
+// schéma — seuls les états atteignables sont proposés ; le backend refuse de
+// toute façon une transition illégale ou un état incomplet (required_when).
 const currentStatus = computed<string | null>(() => {
   const k = statusField.value?.key
   const v = k ? props.row?.[k] : null
@@ -158,52 +173,83 @@ function actorOf(a: RowActivityEntry): string {
       <div class="modal" role="dialog" aria-modal="true" aria-label="row detail">
         <header class="rd-head">
           <div class="rd-head-txt">
-            <h3 class="modal-title">{{ isNew ? 'new row' : 'row detail' }}</h3>
-            <p v-if="!isNew" class="modal-desc mono">{{ title }}</p>
+            <!-- le field role=title EST le titre de la fiche -->
+            <template v-if="titleDesc">
+              <input v-if="!readOnly" v-model="scalars[titleDesc.key]" class="rd-title-input"
+                :placeholder="titleDesc.label" />
+              <h3 v-else class="modal-title">{{ scalars[titleDesc.key] || '—' }}</h3>
+            </template>
+            <h3 v-else class="modal-title">{{ isNew ? 'new row' : 'row detail' }}</h3>
+            <p v-if="!isNew" class="modal-desc mono">{{ row?._id ?? '' }}</p>
           </div>
+          <Tag v-if="currentStatus" tone="saffron">{{ currentStatus }}</Tag>
+          <Tag v-if="row?._claimed_by" tone="cobalt"
+            :title="`bail de traitement jusqu'à ${row?._claimed_until ?? '?'}`">
+            en cours · {{ row._claimed_by }}
+          </Tag>
           <button class="rd-close" aria-label="fermer" @click="emit('close')">
             <Icon name="close" :size="15" />
           </button>
         </header>
 
+        <!-- transitions du cycle de vie, sous l'en-tête (l'état courant est le chip) -->
+        <div v-if="transitions.length" class="rd-lifecycle">
+          <Btn v-for="t in transitions" :key="t" kind="mini"
+            :title="terminalStates.has(t) ? 'état terminal (fin de traitement)' : undefined"
+            @click="applyTransition(t)">→ {{ t }}<template v-if="terminalStates.has(t)"> ◼</template></Btn>
+          <Btn v-if="row?._claimed_by && !readOnly" kind="mini" @click="emit('release')">Libérer le bail</Btn>
+        </div>
+
         <div class="rd-body">
-          <div v-for="d in editFields" :key="d.key" class="rd-field">
+          <!-- scalaires courts : grille compacte 2 colonnes -->
+          <div v-if="gridFields.length" class="rd-grid">
+            <div v-for="d in gridFields" :key="d.key" class="rd-field"
+              :class="{ wide: !readOnly && isLong(d.key) }">
+              <label class="rd-label">{{ d.label }}<span v-if="d.required" class="rd-req"
+                  title="champ requis">*</span><span v-else-if="d.requiredWhen" class="rd-req rd-req--soft"
+                  :title="`requis quand ${reqWhenLabel(d)}`">*</span></label>
+
+              <template v-if="readOnly">
+                <a v-if="urlOf(d.key)" :href="urlOf(d.key)!" target="_blank" rel="noopener" class="rd-link">
+                  {{ row?.[d.key] }}
+                </a>
+                <p v-else class="rd-readval">{{ readVal(d.key) }}</p>
+              </template>
+              <template v-else-if="isLifecycleStatus(d)">
+                <select v-model="scalars[d.key]" class="rd-input">
+                  <option value="">—</option>
+                  <option v-for="s in lifecycleStates" :key="s" :value="s">{{ s }}</option>
+                </select>
+              </template>
+              <select v-else-if="d.type === 'bool'" v-model="scalars[d.key]" class="rd-input">
+                <option value="">—</option>
+                <option value="true">true</option>
+                <option value="false">false</option>
+              </select>
+              <input v-else-if="d.type === 'number'" v-model="scalars[d.key]" class="rd-input"
+                inputmode="decimal" :placeholder="d.label" />
+              <textarea v-else-if="isLong(d.key)" v-model="scalars[d.key]" class="rd-input rd-area" rows="4" />
+              <input v-else v-model="scalars[d.key]" class="rd-input" :placeholder="d.label" />
+            </div>
+          </div>
+
+          <!-- sous-records déclarés : sections structurées -->
+          <div v-for="d in compositeFields" :key="d.key" class="rd-field rd-section">
+            <label class="rd-label">{{ d.label }}<span v-if="d.required" class="rd-req"
+                title="champ requis">*</span></label>
+            <p v-if="readOnly" class="rd-readval">{{ readVal(d.key) }}</p>
+            <SubRecordEditor v-else :field="d.field!"
+              :model-value="composites[d.key]" @update:model-value="composites[d.key] = $event" />
+          </div>
+
+          <!-- prose (note / qualif) : pleine largeur en pied de fiche -->
+          <div v-for="d in longFields" :key="d.key" class="rd-field rd-section">
             <label class="rd-label">{{ d.label }}<span v-if="d.required" class="rd-req"
                 title="champ requis">*</span><span v-else-if="d.requiredWhen" class="rd-req rd-req--soft"
                 :title="`requis quand ${reqWhenLabel(d)}`">*</span></label>
-
-            <!-- lecture seule : valeur formatée -->
-            <template v-if="readOnly">
-              <a v-if="urlOf(d.key)" :href="urlOf(d.key)!" target="_blank" rel="noopener" class="rd-link">
-                {{ row?.[d.key] }}
-              </a>
-              <p v-else class="rd-readval">{{ readVal(d.key) }}</p>
-            </template>
-
-            <!-- composite déclaré (object / list) : éditeur structuré -->
-            <SubRecordEditor v-else-if="d.declared && isComposite(d.field)" :field="d.field!"
-              :model-value="composites[d.key]" @update:model-value="composites[d.key] = $event" />
-
-            <!-- statut à cycle de vie : select à la création, transitions ensuite -->
-            <template v-else-if="isLifecycleStatus(d)">
-              <select v-if="isNew" v-model="scalars[d.key]" class="rd-input">
-                <option value="">—</option>
-                <option v-for="s in lifecycleStates" :key="s" :value="s">{{ s }}</option>
-              </select>
-              <p v-else class="rd-readval">{{ scalars[d.key] || '—' }}
-                <span class="dim rd-hint">(changer via les transitions ci-dessous)</span></p>
-            </template>
-
-            <!-- scalaires typés -->
-            <select v-else-if="d.type === 'bool'" v-model="scalars[d.key]" class="rd-input">
-              <option value="">—</option>
-              <option value="true">true</option>
-              <option value="false">false</option>
-            </select>
-            <input v-else-if="d.type === 'number'" v-model="scalars[d.key]" class="rd-input"
-              inputmode="decimal" :placeholder="d.label" />
-            <textarea v-else-if="isLong(d.key)" v-model="scalars[d.key]" class="rd-input rd-area" rows="5" />
-            <input v-else v-model="scalars[d.key]" class="rd-input" :placeholder="d.label" />
+            <p v-if="readOnly" class="rd-readval">{{ readVal(d.key) }}</p>
+            <textarea v-else v-model="scalars[d.key]" class="rd-input rd-area" rows="4"
+              :placeholder="d.label" />
           </div>
 
           <p v-if="!editFields.length" class="dim" style="padding: 8px 0">no fields yet — add one below.</p>
@@ -224,20 +270,9 @@ function actorOf(a: RowActivityEntry): string {
 
           <div v-if="!isNew && row?._updated_at" class="rd-meta dim mono">
             updated {{ absDate(String(row._updated_at)) }}
-            <template v-if="row?._claimed_by"> · en cours de traitement par
-              « {{ row._claimed_by }} »<template v-if="row?._claimed_until"> (bail
-              jusqu'à {{ absDate(String(row._claimed_until)) }})</template>
-              <Btn v-if="!readOnly" kind="mini" @click="emit('release')">Libérer le bail</Btn>
-            </template>
+            <template v-if="row?._claimed_by"> · bail
+              jusqu'à {{ absDate(String(row._claimed_until ?? '?')) }}</template>
           </div>
-        </div>
-
-        <div v-if="transitions.length" class="rd-lifecycle">
-          <span class="rd-label" style="margin: 0">statut<template v-if="currentStatus"> :
-              {{ currentStatus }}</template></span>
-          <Btn v-for="t in transitions" :key="t" kind="mini"
-            :title="terminalStates.has(t) ? 'état terminal (fin de traitement)' : undefined"
-            @click="applyTransition(t)">→ {{ t }}<template v-if="terminalStates.has(t)"> ◼</template></Btn>
         </div>
 
         <footer class="rd-foot">
@@ -262,26 +297,40 @@ function actorOf(a: RowActivityEntry): string {
   padding: 24px; background: color-mix(in srgb, var(--color-ink) 30%, transparent); backdrop-filter: blur(2px);
 }
 .modal {
-  width: 100%; max-width: 600px; max-height: 85vh; display: flex; flex-direction: column;
+  width: 100%; max-width: 680px; max-height: 85vh; display: flex; flex-direction: column;
   background: var(--color-bg); border: 1px solid var(--color-hair); border-radius: 14px;
   box-shadow: 0 18px 50px -12px color-mix(in srgb, var(--color-ink) 35%, transparent);
 }
-.rd-head { display: flex; align-items: flex-start; gap: 11px; padding: 16px 18px 10px; }
+.rd-head { display: flex; align-items: flex-start; gap: 8px; padding: 16px 18px 10px; }
 .rd-head-txt { flex: 1; min-width: 0; }
-.modal-title { font-size: 15px; font-weight: 600; color: var(--color-ink); margin: 0; }
-.modal-desc { font-size: 11.5px; color: var(--color-mute); margin: 3px 0 0; word-break: break-all; }
+.modal-title { font-size: 16px; font-weight: 700; color: var(--color-ink); margin: 0; }
+.modal-desc { font-size: 11px; color: var(--color-faint); margin: 3px 0 0; word-break: break-all; }
+.rd-title-input {
+  width: 100%; font: inherit; font-size: 16px; font-weight: 700; color: var(--color-ink);
+  padding: 2px 6px; margin-left: -6px; border: 1px solid transparent; border-radius: 6px;
+  background: transparent;
+}
+.rd-title-input:hover { border-color: var(--color-hair-soft); }
+.rd-title-input:focus { outline: none; border-color: var(--color-cobalt); background: var(--color-surface); }
 .rd-close {
   flex: none; border: 0; background: transparent; cursor: pointer; padding: 3px;
   border-radius: 7px; color: var(--color-faint); line-height: 0;
 }
 .rd-close:hover { background: var(--color-paper-2); color: var(--color-ink); }
-.rd-body { overflow-y: auto; padding: 4px 18px 8px; }
-.rd-field { margin-bottom: 12px; }
-.rd-label { display: block; font-size: 11px; font-weight: 600; color: var(--color-mute); margin-bottom: 4px; }
+.rd-lifecycle {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 0 18px 10px;
+  border-bottom: 1px solid var(--color-hair-soft);
+}
+.rd-body { overflow-y: auto; padding: 10px 18px 8px; }
+.rd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+.rd-grid .rd-field.wide { grid-column: 1 / -1; }
+.rd-field { min-width: 0; margin-bottom: 2px; }
+.rd-section { grid-column: 1 / -1; margin-top: 12px; }
+.rd-label { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--color-mute); margin-bottom: 4px; }
 .rd-req { color: var(--color-terra-ink); margin-left: 2px; }
 .rd-req--soft { opacity: .55; }
-.rd-hint { font-size: 11px; }
-.rd-readval { margin: 0; font-size: 13px; color: var(--color-ink); white-space: pre-wrap; line-height: 1.5; }
+.rd-readval { margin: 0; font-size: 13px; color: var(--color-ink); white-space: pre-wrap; line-height: 1.5; overflow-wrap: break-word; }
 .rd-link { font-size: 13px; color: var(--color-cobalt); word-break: break-all; }
 .rd-input {
   width: 100%; font: inherit; font-size: 13px; padding: 6px 8px;
@@ -290,19 +339,14 @@ function actorOf(a: RowActivityEntry): string {
 }
 .rd-input:focus { outline: none; border-color: var(--color-cobalt); }
 .rd-area { resize: vertical; line-height: 1.5; font-family: var(--font-mono); font-size: 12px; }
-.rd-meta { padding: 4px 0 2px; font-size: 11px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.rd-activity { margin: 10px 0 4px; padding-top: 8px; border-top: 1px dashed var(--color-hair-soft); }
+.rd-meta { padding: 10px 0 2px; font-size: 11px; }
+.rd-activity { margin: 14px 0 4px; padding-top: 8px; border-top: 1px dashed var(--color-hair-soft); }
 .rd-activity-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .rd-activity-list li { font-size: 11.5px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; color: var(--color-ink-soft); }
 .rd-activity-list li.err { color: var(--color-terra-ink); }
 .rd-activity-list code { font-size: 11px; }
 .rd-activity-err { font-size: 10px; color: var(--color-terra-ink); border: 1px solid currentColor; border-radius: var(--radius-pill); padding: 0 6px; }
 .rd-activity-note { margin: 6px 0 0; font-size: 10.5px; }
-.rd-lifecycle {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-  padding: 10px 18px 0;
-  border-top: 1px solid var(--color-hair-soft);
-}
 .rd-foot {
   display: flex; align-items: center; gap: 8px; padding: 12px 18px 16px;
   border-top: 1px solid var(--color-hair-soft);
