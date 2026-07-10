@@ -1,11 +1,21 @@
 <script setup lang="ts">
+// Drawer détail / édition / ajout d'une row. v2 (ADR 0046) : le FORMULAIRE
+// DÉRIVE du schéma — ordre déclaré, labels, requis (*), inputs typés
+// (number/bool/date), select d'état à la création, et composites déclarés
+// (object / list de sous-records) édités STRUCTURÉS via SubRecordEditor
+// (plus de textarea JSON). Les champs non déclarés gardent l'édition libre.
 import { computed, ref, watch } from 'vue'
 import Btn from './Btn.vue'
 import Icon from './Icon.vue'
 import FormDialog from './FormDialog.vue'
+import SubRecordEditor from './SubRecordEditor.vue'
 import { useFormDialog } from '@/composables/useFormDialog'
 import type { DatastoreRow, DatastoreSchema } from '@/types/api'
 import { cellKind, absDate, relDate } from '@/lib/cellRender'
+import {
+  compositeDraft, formFields, isComposite, isEmptyPayloadValue, payloadValue,
+  scalarDraft, type FieldDesc,
+} from '@/lib/datastoreForm'
 import { getRowActivity, type RowActivityEntry } from '@/api/console'
 
 const props = defineProps<{
@@ -14,51 +24,38 @@ const props = defineProps<{
   fields: string[]           // colonnes connues du namespace (pour l'ajout)
   isNew: boolean
   readOnly: boolean
-  schema?: DatastoreSchema | null  // v2 (ADR 0046) : transitions de cycle de vie
+  schema?: DatastoreSchema | null  // v2 (ADR 0046) : formulaire typé + transitions
   namespace?: string | null        // b4 : parcours de l'agent (fetch lazy à l'ouverture)
 }>()
 const emit = defineEmits<{
   (e: 'save', payload: Record<string, unknown>): void
   (e: 'delete'): void
   (e: 'close'): void
+  (e: 'release'): void       // libération forcée du bail (file de travail)
 }>()
 
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
-// Tout champ `_…` est méta (id/timestamps + bail de claim v2) : jamais éditable.
-const META = { has: (k: string) => k.startsWith('_') }
 
-const draft = ref<Record<string, string>>({})
+// Drafts : scalaires en string d'input, composites déclarés en valeur structurée.
+const scalars = ref<Record<string, string>>({})
+const composites = ref<Record<string, unknown>>({})
 const extra = ref<string[]>([])
 
-// String d'input ⇄ valeur. JSON si possible (nombre/bool/null/objet), sinon string.
-function toInput(v: unknown): string {
-  if (v === null || v === undefined) return ''
-  if (typeof v === 'object') return JSON.stringify(v, null, 2)
-  return String(v)
-}
-function parseVal(s: string): unknown {
-  const t = s.trim()
-  if (t === '') return ''
-  try { return JSON.parse(t) } catch { return s }
-}
-
-// Champs éditables = union des champs de la row + colonnes connues + ajoutés.
-const editFields = computed<string[]>(() => {
-  const out: string[] = []
-  for (const k of Object.keys(props.row ?? {})) if (!META.has(k) && !out.includes(k)) out.push(k)
-  for (const f of props.fields) if (!out.includes(f)) out.push(f)
-  for (const f of extra.value) if (!out.includes(f)) out.push(f)
-  return out
-})
+const editFields = computed<FieldDesc[]>(() =>
+  formFields(props.schema, props.row, props.fields, extra.value))
 
 watch(() => [props.open, props.row], () => {
   if (!props.open) return
   extra.value = []
-  const d: Record<string, string> = {}
+  const s: Record<string, string> = {}
+  const c: Record<string, unknown> = {}
   const base: Record<string, unknown> = props.row ?? {}
-  const keys = new Set([...Object.keys(base).filter((k) => !META.has(k)), ...props.fields])
-  for (const k of keys) d[k] = toInput(base[k])
-  draft.value = d
+  for (const d of formFields(props.schema, props.row, props.fields, [])) {
+    if (d.declared && isComposite(d.field)) c[d.key] = compositeDraft(d.field!, base[d.key])
+    else s[d.key] = scalarDraft(base[d.key])
+  }
+  scalars.value = s
+  composites.value = c
 }, { immediate: true })
 
 function addField() {
@@ -67,29 +64,37 @@ function addField() {
     fields: [{ key: 'value', label: 'field name', required: true, placeholder: 'e.g. status' }],
     onConfirm: async (v) => {
       const name = v.value
-      if (!name || META.has(name) || name in draft.value) return
+      if (!name || name.startsWith('_') || name in scalars.value || name in composites.value) return
       extra.value.push(name)
-      draft.value[name] = ''
+      scalars.value[name] = ''
     },
   })
 }
 
 function save() {
   const payload: Record<string, unknown> = {}
-  for (const [k, v] of Object.entries(draft.value)) {
-    if (props.isNew && v.trim() === '') continue  // ajout : on n'écrit pas les vides
-    payload[k] = parseVal(v)
+  for (const d of editFields.value) {
+    const raw = d.declared && isComposite(d.field) ? composites.value[d.key] : (scalars.value[d.key] ?? '')
+    const v = payloadValue(d, raw)
+    if (props.isNew && isEmptyPayloadValue(v)) continue // ajout : on n'écrit pas les vides
+    payload[d.key] = v
   }
   emit('save', payload)
 }
 
-function isLong(field: string): boolean {
-  const v = draft.value[field] ?? ''
+function isLong(key: string): boolean {
+  const v = scalars.value[key] ?? ''
   return v.includes('\n') || v.length > 60
 }
-function urlOf(field: string): string | null {
-  const v = props.row?.[field]
+function urlOf(key: string): string | null {
+  const v = props.row?.[key]
   return cellKind(v) === 'url' ? String(v) : null
+}
+function readVal(key: string): string {
+  return scalarDraft(props.row?.[key]) || '—'
+}
+function reqWhenLabel(d: FieldDesc): string {
+  return Object.entries(d.requiredWhen ?? {}).map(([k, v]) => `${k} = ${v}`).join(', ')
 }
 
 const title = computed(() => props.isNew ? 'new row' : (props.row?._id ?? 'row'))
@@ -99,6 +104,10 @@ const title = computed(() => props.isNew ? 'new row' : (props.row?._id ?? 'row')
 // de toute façon une transition illégale ou un état incomplet (required_when).
 const statusField = computed(() =>
   (props.schema?.fields ?? []).find((f) => f.role === 'status') ?? null)
+const lifecycleStates = computed<string[]>(() =>
+  (statusField.value?.lifecycle?.states ?? []).map(String))
+const isLifecycleStatus = (d: FieldDesc) =>
+  d.role === 'status' && lifecycleStates.value.length > 0
 const currentStatus = computed<string | null>(() => {
   const k = statusField.value?.key
   const v = k ? props.row?.[k] : null
@@ -110,6 +119,15 @@ const transitions = computed<string[]>(() => {
   const cur = currentStatus.value
   if (cur == null) return lc.states.map(String)          // pas encore d'état → tous
   return (lc.transitions?.[cur] ?? []).map(String)       // sinon les cibles déclarées
+})
+const terminalStates = computed<Set<string>>(() => {
+  const lc = statusField.value?.lifecycle
+  if (!lc) return new Set()
+  if (lc.terminal?.length) return new Set(lc.terminal.map(String))
+  // dérivés : états sans transition sortante déclarée
+  const outgoing = new Set(Object.entries(lc.transitions ?? {})
+    .filter(([, tos]) => tos?.length).map(([from]) => from))
+  return new Set((lc.states ?? []).map(String).filter((s) => !outgoing.has(s)))
 })
 function applyTransition(state: string) {
   const k = statusField.value?.key
@@ -149,20 +167,43 @@ function actorOf(a: RowActivityEntry): string {
         </header>
 
         <div class="rd-body">
-          <div v-for="f in editFields" :key="f" class="rd-field">
-            <label class="rd-label">{{ f }}</label>
+          <div v-for="d in editFields" :key="d.key" class="rd-field">
+            <label class="rd-label">{{ d.label }}<span v-if="d.required" class="rd-req"
+                title="champ requis">*</span><span v-else-if="d.requiredWhen" class="rd-req rd-req--soft"
+                :title="`requis quand ${reqWhenLabel(d)}`">*</span></label>
 
             <!-- lecture seule : valeur formatée -->
             <template v-if="readOnly">
-              <a v-if="urlOf(f)" :href="urlOf(f)!" target="_blank" rel="noopener" class="rd-link">
-                {{ row?.[f] }}
+              <a v-if="urlOf(d.key)" :href="urlOf(d.key)!" target="_blank" rel="noopener" class="rd-link">
+                {{ row?.[d.key] }}
               </a>
-              <p v-else class="rd-readval">{{ toInput(row?.[f]) || '—' }}</p>
+              <p v-else class="rd-readval">{{ readVal(d.key) }}</p>
             </template>
 
-            <!-- édition -->
-            <textarea v-else-if="isLong(f)" v-model="draft[f]" class="rd-input rd-area" rows="5" />
-            <input v-else v-model="draft[f]" class="rd-input" :placeholder="f" />
+            <!-- composite déclaré (object / list) : éditeur structuré -->
+            <SubRecordEditor v-else-if="d.declared && isComposite(d.field)" :field="d.field!"
+              :model-value="composites[d.key]" @update:model-value="composites[d.key] = $event" />
+
+            <!-- statut à cycle de vie : select à la création, transitions ensuite -->
+            <template v-else-if="isLifecycleStatus(d)">
+              <select v-if="isNew" v-model="scalars[d.key]" class="rd-input">
+                <option value="">—</option>
+                <option v-for="s in lifecycleStates" :key="s" :value="s">{{ s }}</option>
+              </select>
+              <p v-else class="rd-readval">{{ scalars[d.key] || '—' }}
+                <span class="dim rd-hint">(changer via les transitions ci-dessous)</span></p>
+            </template>
+
+            <!-- scalaires typés -->
+            <select v-else-if="d.type === 'bool'" v-model="scalars[d.key]" class="rd-input">
+              <option value="">—</option>
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+            <input v-else-if="d.type === 'number'" v-model="scalars[d.key]" class="rd-input"
+              inputmode="decimal" :placeholder="d.label" />
+            <textarea v-else-if="isLong(d.key)" v-model="scalars[d.key]" class="rd-input rd-area" rows="5" />
+            <input v-else v-model="scalars[d.key]" class="rd-input" :placeholder="d.label" />
           </div>
 
           <p v-if="!editFields.length" class="dim" style="padding: 8px 0">no fields yet — add one below.</p>
@@ -185,13 +226,18 @@ function actorOf(a: RowActivityEntry): string {
             updated {{ absDate(String(row._updated_at)) }}
             <template v-if="row?._claimed_by"> · en cours de traitement par
               « {{ row._claimed_by }} »<template v-if="row?._claimed_until"> (bail
-              jusqu'à {{ absDate(String(row._claimed_until)) }})</template></template>
+              jusqu'à {{ absDate(String(row._claimed_until)) }})</template>
+              <Btn v-if="!readOnly" kind="mini" @click="emit('release')">Libérer le bail</Btn>
+            </template>
           </div>
         </div>
 
         <div v-if="transitions.length" class="rd-lifecycle">
-          <span class="rd-label" style="margin: 0">statut<template v-if="currentStatus"> : {{ currentStatus }}</template></span>
-          <Btn v-for="t in transitions" :key="t" kind="mini" @click="applyTransition(t)">→ {{ t }}</Btn>
+          <span class="rd-label" style="margin: 0">statut<template v-if="currentStatus"> :
+              {{ currentStatus }}</template></span>
+          <Btn v-for="t in transitions" :key="t" kind="mini"
+            :title="terminalStates.has(t) ? 'état terminal (fin de traitement)' : undefined"
+            @click="applyTransition(t)">→ {{ t }}<template v-if="terminalStates.has(t)"> ◼</template></Btn>
         </div>
 
         <footer class="rd-foot">
@@ -232,6 +278,9 @@ function actorOf(a: RowActivityEntry): string {
 .rd-body { overflow-y: auto; padding: 4px 18px 8px; }
 .rd-field { margin-bottom: 12px; }
 .rd-label { display: block; font-size: 11px; font-weight: 600; color: var(--color-mute); margin-bottom: 4px; }
+.rd-req { color: var(--color-terra-ink); margin-left: 2px; }
+.rd-req--soft { opacity: .55; }
+.rd-hint { font-size: 11px; }
 .rd-readval { margin: 0; font-size: 13px; color: var(--color-ink); white-space: pre-wrap; line-height: 1.5; }
 .rd-link { font-size: 13px; color: var(--color-cobalt); word-break: break-all; }
 .rd-input {
@@ -241,7 +290,7 @@ function actorOf(a: RowActivityEntry): string {
 }
 .rd-input:focus { outline: none; border-color: var(--color-cobalt); }
 .rd-area { resize: vertical; line-height: 1.5; font-family: var(--font-mono); font-size: 12px; }
-.rd-meta { padding: 4px 0 2px; font-size: 11px; }
+.rd-meta { padding: 4px 0 2px; font-size: 11px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .rd-activity { margin: 10px 0 4px; padding-top: 8px; border-top: 1px dashed var(--color-hair-soft); }
 .rd-activity-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .rd-activity-list li { font-size: 11.5px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; color: var(--color-ink-soft); }

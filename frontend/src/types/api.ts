@@ -649,8 +649,8 @@ export interface DatastoreField {
   label?: string
   type?: 'text' | 'number' | 'date' | 'bool' | 'json' | 'object' | 'list'
   role?: DatastoreFieldRole
-  fields?: DatastoreField[]                            // type=object
-  of?: DatastoreField | { fields?: DatastoreField[] }  // type=list
+  fields?: DatastoreField[]  // type=object
+  of?: Partial<DatastoreField>  // type=list — field-def d'item, key optionnelle (scalaire n'en a pas)
   required?: boolean
   required_when?: Record<string, string>
   lifecycle?: DatastoreLifecycle                       // sur role=status

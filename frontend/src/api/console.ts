@@ -364,11 +364,34 @@ export const getNamespaceRows = (ns: string, opts: RowQuery = {}) => {
   return api<{ rows: DatastoreRow[]; total: number; offset: number; limit: number }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows${qs ? `?${qs}` : ''}`)
 }
-// Agrégat serveur (ADR 0046 b1) — compteurs du cockpit (par statut) sans
-// rapatrier les rows. `groups` = [{<groupBy>: valeur, count: n}].
-export const getNamespaceAggregate = (ns: string, groupBy: string) =>
-  api<{ groups: Array<Record<string, unknown> & { count: number }> }>(
-    `/api/datastore/namespaces/${encodeURIComponent(ns)}/aggregate?group_by=${encodeURIComponent(groupBy)}`)
+// Agrégat serveur (ADR 0046 b1) — compteurs du cockpit et tuiles metric, sans
+// rapatrier les rows. `metrics` = [{op, field?}] (count/sum/avg/min/max, défaut
+// count) ; `q`/`filters` = les MÊMES params que /rows → on agrège le jeu filtré
+// affiché. `groups` = [{<groupBy>?: valeur, count?: n, sum_<f>?: n, …}].
+export interface AggregateQuery {
+  groupBy?: string
+  metrics?: Array<{ op: 'count' | 'sum' | 'avg' | 'min' | 'max'; field?: string }>
+  q?: string
+  filters?: ColumnFilter[]
+}
+export const getNamespaceAggregate = (ns: string, opts: AggregateQuery = {}) => {
+  const p = new URLSearchParams()
+  if (opts.groupBy) p.set('group_by', opts.groupBy)
+  if (opts.metrics?.length) p.set('metrics', JSON.stringify(opts.metrics))
+  if (opts.q) p.set('q', opts.q)
+  if (opts.filters?.length) p.set('filters', JSON.stringify(opts.filters))
+  const qs = p.toString()
+  return api<{ groups: Array<Record<string, unknown>> }>(
+    `/api/datastore/namespaces/${encodeURIComponent(ns)}/aggregate${qs ? `?${qs}` : ''}`)
+}
+// File de travail (ADR 0046 D) — supervision : rows sous bail (_claimed_by/_claimed_until).
+export const getNamespaceQueue = (ns: string) =>
+  api<{ rows: DatastoreRow[] }>(`/api/datastore/namespaces/${encodeURIComponent(ns)}/queue`)
+// Libération FORCÉE du bail d'une row (humain superviseur — pas de garde de worker).
+export const releaseRowClaim = (ns: string, rowId: string) =>
+  api<{ ok: boolean; released: boolean; id: string }>(
+    `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}/release`,
+    { method: 'POST' })
 // Parcours de l'agent d'une row (ADR 0046 b4) : appels data_* du calllog
 // corrélés à la fiche + leur run. Fenêtre = rétention calllog (~30 j).
 export interface RowActivityEntry {
