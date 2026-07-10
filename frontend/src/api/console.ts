@@ -190,7 +190,10 @@ export const getKbProject = () =>
 // Modèles (templates) copiables visibles par l'acteur — bibliothèque (ADR 0032 §7 B5a).
 export const listProjectTemplates = () => projectsApi<{ projects: Project[] }>({ op: 'list_templates' })
 export const getProject = (id: number) => projectsApi<Project>({ op: 'get', project_id: id })
-export const createProject = (name: string, brief_md = '', owner?: { owner_type: 'org'; owner_id: string }) =>
+// ADR 0049 : owner = scope du projet — org (une de mes orgs), group (pôle/équipe :
+// cloisonné à ses membres + admins d'org) ou platform (bibliothèque, admin plateforme).
+export const createProject = (name: string, brief_md = '',
+                              owner?: { owner_type: 'org' | 'group' | 'platform'; owner_id?: string }) =>
   projectsApi<Project>({ op: 'create', name, brief_md, ...(owner ?? {}) })
 export const updateProject = (id: number, fields: { name?: string; brief_md?: string; is_template?: boolean }) =>
   projectsApi<Project>({ op: 'update', project_id: id, ...fields })

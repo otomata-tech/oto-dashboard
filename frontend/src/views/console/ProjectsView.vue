@@ -9,14 +9,18 @@ import Icon from '@/components/console/Icon.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import NameDialog from '@/components/console/NameDialog.vue'
-import { listProjects, listProjectTemplates, createProject, copyProject } from '@/api/console'
+import ProjectCreateDialog from '@/components/console/ProjectCreateDialog.vue'
+import type { ProjectOwnerPayload } from '@/components/console/ProjectCreateDialog.vue'
+import { listProjects, listProjectTemplates, createProject, copyProject, listGroups } from '@/api/console'
 import type { Project } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
+import { useMe, isPlatformOperator } from '@/composables/useMe'
 
 const router = useRouter()
 const { toast } = useToast()
+const { me } = useMe()
 
 const projects = ref<Project[]>([])
 const templates = ref<Project[]>([])
@@ -46,7 +50,13 @@ async function load() {
 onMounted(load)
 
 function openProject(id: number) { router.push(`/projects/${id}`) }
-function ownerLabel(p: Project): string { return p.owner_type === 'org' ? 'org' : 'perso' }
+// ADR 0049 : le badge dit le SCOPE owner — org / équipe (pôle) / oto (bibliothèque) / perso.
+function ownerLabel(p: Project): string {
+  if (p.owner_type === 'org') return 'org'
+  if (p.owner_type === 'group') return 'équipe'
+  if (p.owner_type === 'platform') return 'oto'
+  return 'perso'
+}
 // Pastilles ORIENTÉES ÉTAT — dérivées des seuls champs portés par la liste (pas d'appel
 // backend par carte) : modèle / mcp live / partagé / lecture / à vérifier (règle `chipsFor`
 // de la maquette). Tons sémantiques ; `lecture` = neutre (pas de ton).
@@ -65,12 +75,31 @@ function briefSnippet(p: Project): string {
   return s.length > 140 ? s.slice(0, 140) + '…' : s
 }
 
-function create() {
-  nameConfig.value = {
-    title: 'Nouveau projet', description: 'Un conteneur de travail (un but + ses entités).', initial: '', submitLabel: 'Créer',
-    onConfirm: async (name) => { try { const p = await createProject(name); toast('projet créé'); openProject(p.id) } catch (e) { toast(humanize(e)); throw e } },
+// Création SCOPÉE (ADR 0049) : org active (défaut) / une de mes équipes / bibliothèque
+// plateforme (opérateur). Les équipes sont chargées à l'ouverture du dialog — celles où
+// je suis membre, ou TOUTES celles de l'org si j'en suis admin (même règle que le backend).
+const createOpen = ref(false)
+const createGroups = ref<{ id: number; name: string }[]>([])
+async function create() {
+  createGroups.value = []
+  const orgId = me.value?.active_org
+  if (orgId) {
+    try {
+      const { groups } = await listGroups(orgId)
+      const admin = me.value?.org_role === 'org_admin'
+      createGroups.value = groups
+        .filter((g) => admin || g.my_role != null)
+        .map((g) => ({ id: g.group_id ?? g.id, name: g.name }))
+    } catch { /* pas d'équipes proposées — le scope org reste disponible */ }
   }
-  nameOpen.value = true
+  createOpen.value = true
+}
+async function doCreate(payload: ProjectOwnerPayload) {
+  try {
+    const p = await createProject(payload.name, '', payload.owner)
+    toast('projet créé')
+    openProject(p.id)
+  } catch (e) { toast(humanize(e)); throw e }
 }
 function useTemplate(t: Project) {
   nameConfig.value = {
@@ -166,6 +195,10 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
       :title="nameConfig.title" :description="nameConfig.description"
       :initial="nameConfig.initial" :submit-label="nameConfig.submitLabel"
       :on-confirm="nameConfig.onConfirm" placeholder="Prospection Marseille" />
+
+    <!-- Création scopée (ADR 0049) : org / équipe / bibliothèque plateforme. -->
+    <ProjectCreateDialog v-model:open="createOpen" :org-name="me?.active_org_name"
+      :groups="createGroups" :can-platform="isPlatformOperator(me)" :on-confirm="doCreate" />
   </div>
 </template>
 
