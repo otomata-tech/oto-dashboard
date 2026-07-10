@@ -52,6 +52,7 @@
   "pageMeta": {
     "overview": { "title": "overview", "crumb": "app.oto.ninja" },
     "context": { "title": "what your agent sees", "crumb": "my space" },
+    "projects": { "title": "projects", "crumb": "workspace" },
     "connectors": { "title": "connectors", "crumb": "workspace" },
     "procedures": { "title": "procedures", "crumb": "workspace" },
     "data": { "title": "data", "crumb": "memory" },
