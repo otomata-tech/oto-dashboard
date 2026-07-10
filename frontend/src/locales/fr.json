@@ -39,6 +39,7 @@
     "connectorsKeys": "connecteurs & clés",
     "serverInstructions": "instructions serveur",
     "mcpConnected": "mcp connecté",
+    "moreProjects": "{n} projets restants",
     "section": {
       "workspace": "espace de travail",
       "memory": "mémoire",

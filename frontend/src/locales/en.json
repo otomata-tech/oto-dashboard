@@ -39,6 +39,7 @@
     "connectorsKeys": "connectors & keys",
     "serverInstructions": "server instructions",
     "mcpConnected": "mcp connected",
+    "moreProjects": "{n} more projects",
     "section": {
       "workspace": "workspace",
       "memory": "memory",
