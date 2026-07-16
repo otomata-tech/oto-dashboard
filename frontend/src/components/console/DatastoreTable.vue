@@ -207,7 +207,12 @@ async function resolveMeta() {
   }
   try {
     const all = (await getNamespaces()).namespaces
-    meta.value = all.find((n) => String(n.id) === props.nsRef || n.namespace === props.nsRef) ?? null
+    const found = all.find((n) => String(n.id) === props.nsRef || n.namespace === props.nsRef)
+    if (found) { meta.value = found; return }
+    // Introuvable SANS exception (tableau d'une autre org, ou renommé) : ne pas
+    // laisser meta=null muet → page blanche. Poser une erreur actionnable.
+    meta.value = null
+    rowsError.value = 'Tableau introuvable dans ce contexte — il appartient peut-être à une autre organisation.'
   } catch (e) { rowsError.value = humanize(e); meta.value = null }
 }
 

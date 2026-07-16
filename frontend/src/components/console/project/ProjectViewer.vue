@@ -93,8 +93,10 @@ const showHistory = ref(false)
 const changeRequests = ref<DocChangeRequest[]>([])
 const KIND_LABEL: Record<DocKind, string> = { doc: 'doc', note: 'note agent', source: 'source' }
 
-// Resynchronise l'édition quand la sélection change (rail) ou que le brief bouge côté parent.
-watch(item, () => resetPage(), { immediate: true })
+// Resynchronise l'édition quand la sélection CHANGE (clé du rail), pas à chaque
+// recalcul de la référence `item` : le parent recrée l'objet `selItem` (ex. après
+// avoir lié un connecteur) → sans la clé, resetPage() jetait le brouillon en cours.
+watch(() => item.value?.key, () => resetPage(), { immediate: true })
 watch(() => props.brief, (v) => { if (!editing.value || !isHome.value) briefDraft.value = v ?? '' })
 
 function resetPage() {
