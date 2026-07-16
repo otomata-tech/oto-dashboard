@@ -5,6 +5,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import Btn from './Btn.vue'
 import Icon from './Icon.vue'
+import OtoSelect from './OtoSelect.vue'
 import { useFieldFilters } from '@/composables/useFieldFilters'
 import type { FieldActionSchema, FieldRule } from '@/types/api'
 
@@ -24,6 +25,8 @@ const fieldsStr = ref<string>('')
 const params = reactive<Record<string, string>>({})
 
 const currentParams = computed(() => schemaFor(props.actionSchema, action.value)?.params ?? [])
+const actionOpts = computed(() => props.actionSchema.map((s) => ({ value: s.action, label: s.label })))
+const paramOpts = (opts?: string[] | null) => (opts ?? []).filter((o) => o !== '').map((o) => ({ value: o, label: o }))
 const canSave = computed(() => (props.fixedField ?? fieldsStr.value).trim().length > 0)
 
 watch(() => props.open, (o) => {
@@ -68,16 +71,13 @@ function submit() {
 
           <label class="fr-row">
             <span class="fr-lbl">action</span>
-            <select v-model="action" class="inp">
-              <option v-for="s in actionSchema" :key="s.action" :value="s.action">{{ s.label }}</option>
-            </select>
+            <OtoSelect v-model="action" :options="actionOpts" trigger-class="w-full" />
           </label>
 
           <label v-for="p in currentParams" :key="p.key" class="fr-row">
             <span class="fr-lbl">{{ p.label }} <span class="dim">(optionnel)</span></span>
-            <select v-if="p.type === 'select'" v-model="params[p.key]" class="inp">
-              <option v-for="o in (p.options ?? [])" :key="o" :value="o">{{ o || '— défaut —' }}</option>
-            </select>
+            <OtoSelect v-if="p.type === 'select'" :model-value="params[p.key] ?? ''" @update:model-value="(v: string) => (params[p.key] = v)" :options="paramOpts(p.options)"
+              :none-label="(p.options ?? []).includes('') ? '— défaut —' : undefined" trigger-class="w-full" />
             <input v-else v-model="params[p.key]" class="inp" inputmode="numeric" placeholder="nombre" />
           </label>
           <p v-if="!currentParams.length" class="dim fr-note">aucune option pour cette action.</p>

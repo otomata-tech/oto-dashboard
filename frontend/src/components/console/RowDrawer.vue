@@ -11,6 +11,7 @@ import { computed, ref, watch } from 'vue'
 import Btn from './Btn.vue'
 import Icon from './Icon.vue'
 import Tag from './Tag.vue'
+import OtoSelect from './OtoSelect.vue'
 import FormDialog from './FormDialog.vue'
 import SubRecordEditor from './SubRecordEditor.vue'
 import { useFormDialog } from '@/composables/useFormDialog'
@@ -54,6 +55,8 @@ const statusField = computed(() =>
   (props.schema?.fields ?? []).find((f) => f.role === 'status') ?? null)
 const lifecycleStates = computed<string[]>(() =>
   (statusField.value?.lifecycle?.states ?? []).map(String))
+const lifecycleOpts = computed(() => lifecycleStates.value.map((s) => ({ value: s, label: s })))
+const BOOL_OPTIONS = [{ value: 'true', label: 'true' }, { value: 'false', label: 'false' }]
 const isLifecycleStatus = (d: FieldDesc) =>
   d.role === 'status' && lifecycleStates.value.length > 0
 const compositeFields = computed(() =>
@@ -216,16 +219,9 @@ function actorOf(a: RowActivityEntry): string {
                 <p v-else class="rd-readval">{{ readVal(d.key) }}</p>
               </template>
               <template v-else-if="isLifecycleStatus(d)">
-                <select v-model="scalars[d.key]" class="rd-input">
-                  <option value="">—</option>
-                  <option v-for="s in lifecycleStates" :key="s" :value="s">{{ s }}</option>
-                </select>
+                <OtoSelect :model-value="scalars[d.key] ?? ''" @update:model-value="(v: string) => (scalars[d.key] = v)" :options="lifecycleOpts" none-label="—" trigger-class="w-full" />
               </template>
-              <select v-else-if="d.type === 'bool'" v-model="scalars[d.key]" class="rd-input">
-                <option value="">—</option>
-                <option value="true">true</option>
-                <option value="false">false</option>
-              </select>
+              <OtoSelect v-else-if="d.type === 'bool'" :model-value="scalars[d.key] ?? ''" @update:model-value="(v: string) => (scalars[d.key] = v)" :options="BOOL_OPTIONS" none-label="—" trigger-class="w-full" />
               <input v-else-if="d.type === 'number'" v-model="scalars[d.key]" class="rd-input"
                 inputmode="decimal" :placeholder="d.label" />
               <textarea v-else-if="isLong(d.key)" v-model="scalars[d.key]" class="rd-input rd-area" rows="4" />
