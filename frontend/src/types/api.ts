@@ -725,7 +725,6 @@ export interface UnipileStatus {
   subscribed: boolean       // option débloquée (BYO ou comp admin) — gate l'étape « connecter »
   mode?: string             // user|group|org|platform|over_quota|forbidden (origine de la clé)
   byo?: boolean             // clé propre (user/groupe/org), pas la clé plateforme
-  api_version?: string      // v1|v2 de la clé RÉSOLUE (v1/v2 selon la BYO)
   channels: { linkedin: UnipileChannel; whatsapp: UnipileChannel; telegram: UnipileChannel; instagram: UnipileChannel; messenger: UnipileChannel; twitter: UnipileChannel }
 }
 

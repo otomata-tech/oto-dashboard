@@ -48,6 +48,7 @@ const shareOpen = ref(false)
 const histOpen = ref(false)
 const menuOpen = ref(false)
 const copyOpen = ref(false)
+const renameOpen = ref(false)
 // picker d'ajout : { kind, parentId? } ouvert par un (+) du rail ou « + sous-page »
 const addKind = ref<null | 'connecteur' | 'tableau' | 'procedure' | 'doc' | 'page' | 'file'>(null)
 const addParent = ref<number | null>(null)
@@ -185,6 +186,12 @@ async function doCopy(name: string) {
   try { const c = await copyProject(projectId, name); toast('projet copié'); router.push(`/projects/${c.id}`) }
   catch (e) { toast(humanize(e)); throw e }
 }
+function rename() { menuOpen.value = false; if (project.value) renameOpen.value = true }
+async function doRename(name: string) {
+  if (!project.value) return
+  try { project.value = { ...project.value, ...(await updateProject(projectId, { name })) }; await loadActivity(); toast('projet renommé') }
+  catch (e) { toast(humanize(e)); throw e }
+}
 async function toggleTemplate() {
   menuOpen.value = false
   if (!project.value) return
@@ -251,6 +258,7 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
             <template v-if="menuOpen">
               <span class="pj-menu__scrim" @click="menuOpen = false"></span>
               <div class="pj-menu__pop">
+                <button v-if="!readOnly" class="pj-mi" @click="rename"><Icon name="pencil" :size="14" /> Renommer le projet</button>
                 <button class="pj-mi" @click="copy"><Icon name="copy" :size="14" /> Copier le projet</button>
                 <template v-if="!readOnly">
                   <button class="pj-mi" @click="toggleTemplate"><Icon name="sparkles" :size="14" /> {{ project.is_template ? 'Retirer des modèles' : 'Publier comme modèle' }}</button>
@@ -293,6 +301,8 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
       @close="addKind = null" @linked="onLinked" @created-doc="onCreatedDoc" @reload-files="onReloadFiles" />
     <NameDialog v-if="project" v-model:open="copyOpen" title="copier ce projet" label="nom de la copie"
       :initial="'Copie de ' + project.name" submit-label="copier" :on-confirm="doCopy" />
+    <NameDialog v-if="project" v-model:open="renameOpen" title="renommer le projet" label="nom du projet"
+      :initial="project.name" submit-label="renommer" :on-confirm="doRename" />
   </div>
 </template>
 

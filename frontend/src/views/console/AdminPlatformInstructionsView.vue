@@ -6,6 +6,7 @@
 // c'est un projet « Découverte », ADR 0032 §7.)
 import { onMounted, reactive, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
+import GuidesCard from '@/components/console/GuidesCard.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import { getPlatformInstructions, setPlatformInstruction } from '@/api/console'
@@ -107,6 +108,12 @@ onMounted(load)
         </Btn>
       </div>
     </ConsoleCard>
+
+    <!-- Guides plateforme on-demand (ADR 0042, tout-DB) : les how-to que TOUT agent
+         peut charger via oto_guide. Éditables ici (platform_admin, le backend l'impose) ;
+         les fichiers guides/*.md du repo ne sont que les seeds du premier boot. -->
+    <GuidesCard scope="platform" :can-edit="true" title="guides plateforme"
+      sub="how-to chargés à la demande par l'agent (oto_guide), servis à TOUS les comptes. distincts des blocs injectés ci-dessus : l'agent les lit quand la tâche le demande." />
   </div>
 </template>
 

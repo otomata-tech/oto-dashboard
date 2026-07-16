@@ -1,8 +1,10 @@
 <script setup lang="ts">
-// Carte « guides on-demand » (ADR 0042) — les how-to que l'agent CHARGE à la demande
-// via `oto_guide`, par opposition aux readmes (injectés à chaque session). Un scope
-// éditable (org | user) : liste + créer / éditer / supprimer, éditeur inline. Les guides
-// PLATEFORME (fichiers, PR) sont listés en RÉFÉRENCE lecture seule (découverte).
+// Carte « guides on-demand » (ADR 0042, tout-DB) — les how-to que l'agent CHARGE à la
+// demande via `oto_guide`, par opposition aux readmes (injectés à chaque session). Un
+// scope éditable (platform | org | user) : liste + créer / éditer / supprimer, éditeur
+// inline. Les guides des AUTRES scopes visibles sont listés en référence lecture seule
+// (découverte) — sauf sur la carte platform (les guides org/user de l'admin n'y ont
+// pas leur place).
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from './ConsoleCard.vue'
 import Btn from './Btn.vue'
@@ -13,7 +15,7 @@ import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
 
 const props = defineProps<{
-  scope: Extract<GuideScope, 'org' | 'user'>
+  scope: GuideScope
   canEdit: boolean
   title: string
   sub: string
@@ -38,8 +40,10 @@ const draft = ref({ slug: '', title: '', description: '', body_md: '' })
 
 const mine = computed(() => guides.value.filter((g) => g.scope === props.scope))
 // hérités (lecture seule) = tout ce qui n'est pas du scope éditable de la carte :
-// carte USER → plateforme + org ; carte ORG → plateforme. L'agent les charge aussi.
-const inherited = computed(() => guides.value.filter((g) => g.scope !== props.scope))
+// carte USER → plateforme + org ; carte ORG → plateforme ; carte PLATFORM → rien
+// (les guides org/user de l'admin connecté ne concernent pas l'écran plateforme).
+const inherited = computed(() =>
+  props.scope === 'platform' ? [] : guides.value.filter((g) => g.scope !== props.scope))
 
 async function load() {
   try {
@@ -157,7 +161,8 @@ async function toggleInherited(g: Guide) {
         </div>
       </div>
       <p v-else-if="!editing" class="dim-note">
-        aucun guide {{ scope === 'org' ? "d'org" : 'perso' }} — un how-to que l'agent charge à la demande
+        aucun guide {{ scope === 'platform' ? 'plateforme' : scope === 'org' ? "d'org" : 'perso' }} —
+        un how-to que l'agent charge à la demande
         (waterfall d'enrichissement, cadence d'outreach, diagnostic d'un connecteur…).
         {{ canEdit ? '' : "seul un admin d'org peut en créer." }}
       </p>
