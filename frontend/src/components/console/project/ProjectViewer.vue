@@ -180,6 +180,10 @@ const hasBody = computed(() => !!body.value && body.value.trim().length > 0)
 const identities = ref<ConnectorIdentity[]>([])
 const identLoading = ref(false)
 const chosenIdentity = ref('')      // identité cible (défaut = celle du binding)
+const identityOpts = computed(() => identities.value.map((idn) => ({
+  value: idn.id,
+  label: `${idn.label || idn.id}${idn.channel ? ` · ${idn.channel}` : ''}${idn.granted ? ' · partagé' : ''}`,
+})))
 const surcharge = ref('')
 const cfgSaving = ref(false)
 const connectorTools = ref<{ name: string; description: string }[]>([])
@@ -374,10 +378,9 @@ async function removeFile() {
       <!-- ═══ CONNECTEUR ═══ -->
       <div v-else-if="kind === 'connecteur' && link" class="vw__block">
         <div class="vw__sub">résolution — compte utilisé</div>
-        <select v-if="identities.length || identLoading" v-model="chosenIdentity" class="vw__select" :disabled="readOnly || identLoading">
-          <option value="">{{ identLoading ? 'chargement…' : '(défaut du compte)' }}</option>
-          <option v-for="idn in identities" :key="idn.id" :value="idn.id">{{ idn.label || idn.id }}{{ idn.channel ? ` · ${idn.channel}` : '' }}{{ idn.granted ? ' · partagé' : '' }}</option>
-        </select>
+        <OtoSelect v-if="identities.length || identLoading" v-model="chosenIdentity" :options="identityOpts"
+          :none-label="identLoading ? 'chargement…' : '(défaut du compte)'"
+          :disabled="readOnly || identLoading" trigger-class="w-full max-w-[340px]" />
         <p v-else class="dim" style="font-size: 12.5px">Ce connecteur n'a pas de sélecteur de compte — il résout la clé perso / d'org / plateforme.</p>
 
         <template v-if="toolsLoading || connectorTools.length">
