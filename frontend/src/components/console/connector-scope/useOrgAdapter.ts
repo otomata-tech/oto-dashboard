@@ -78,7 +78,7 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
     } catch (e) { ctx.toast(humanize(e)) }
   }
 
-  // ── clé partagée d'org (simple / multi-champs / unipile api_version) ──
+  // ── clé partagée d'org (simple / multi-champs) ──
   function editKey(r: OrgConnectorActivation) {
     if (!isOrgAdmin.value || orgId.value == null) return
     const m = metaMap.value[r.connector]
@@ -93,22 +93,16 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
       })
       return
     }
-    const isUnipile = r.connector === 'unipile'
     const fields: FormDialogField[] = [
       { key: 'api_key', label: 'clé api', type: 'password', required: true, placeholder: `colle la clé ${r.label}` },
     ]
-    if (isUnipile) fields.push({
-      key: 'api_version', label: "version de l'API", type: 'select', initial: 'v1',
-      options: [{ value: 'v1', label: 'v1 (legacy)' }, { value: 'v2', label: 'v2 (beta — clé/compte Unipile v2 dédiés)' }],
-    })
     ctx.openForm({
       title: `${r.label} — clé partagée d'org`,
       description: "clé du compte de l'org, héritée par tous les membres (cascade : perso > équipe > org > plateforme). stockée chiffrée.",
       fields, submitLabel: 'enregistrer',
       onConfirm: async (v) => {
         try {
-          await setOrgSecret(orgId.value!, r.connector, v.api_key ?? '', undefined, undefined,
-            isUnipile ? String(v.api_version || 'v1') : undefined)
+          await setOrgSecret(orgId.value!, r.connector, v.api_key ?? '')
           ctx.toast(`${r.label} : clé d'org enregistrée`); await load()
         } catch (e) { ctx.toast(humanize(e)); throw e }
       },

@@ -63,13 +63,9 @@ export function usePlatformAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<Connect
       fields: [
         { key: 'label', label: 'label', initial: 'prod', required: true, hint: 're-posting the same label rotates the key' },
         { key: 'api_key', label: 'api key', type: 'password', required: true, placeholder: 'paste the key' },
-        ...(c.connector === 'unipile'
-          ? [{ key: 'api_version', label: 'API version', type: 'select' as const, initial: 'v1',
-              options: [{ value: 'v1', label: 'v1 (par défaut)' }, { value: 'v2', label: 'v2' }] }]
-          : []),
       ],
       onConfirm: async (v) => {
-        try { await createPlatformKey(c.connector, v.label ?? '', v.api_key ?? '', v.api_version); ctx.toast(`${c.connector}/${v.label} saved`); await load() }
+        try { await createPlatformKey(c.connector, v.label ?? '', v.api_key ?? ''); ctx.toast(`${c.connector}/${v.label} saved`); await load() }
         catch (e) { ctx.toast(humanize(e)); throw e }
       },
     })

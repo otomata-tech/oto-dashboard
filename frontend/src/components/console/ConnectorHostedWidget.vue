@@ -87,19 +87,14 @@ const modeLabel = computed(() => {
 function editMyKey() {
   const fields: FormDialogField[] = [
     { key: 'key', label: 'ta clé Unipile', type: 'password', required: true, placeholder: 'colle ta clé Unipile' },
-    { key: 'api_version', label: "version de l'API", type: 'select', initial: unipile.value?.api_version || 'v1',
-      options: [
-        { value: 'v1', label: 'v1 (legacy)' },
-        { value: 'v2', label: 'v2 (beta — clé/compte Unipile v2 dédiés)' },
-      ] },
   ]
   openForm({
     title: 'ma clé Unipile (perso)',
-    description: "ta clé personnelle Unipile, scopée à l'org courante — elle prime sur la clé d'org. la version d'API suit cette clé (une clé v2 = compte Unipile v2 dédié).",
+    description: "ta clé personnelle Unipile, scopée à l'org courante — elle prime sur la clé d'org. stockée chiffrée.",
     fields, submitLabel: 'enregistrer',
     onConfirm: async (v) => {
       try {
-        await setCredential('unipile', { key: String(v.key ?? '') }, String(v.api_version || 'v1'))
+        await setCredential('unipile', { key: String(v.key ?? '') })
         toast('clé perso enregistrée'); await refresh()
       } catch (e) { toast(humanize(e)); throw e }
     },
@@ -118,13 +113,10 @@ async function dropMyKey() {
       <span class="dim hw-sub">hosted login (no cookie/extension); the tools then act as you.</span>
       <Tag v-if="!loading && !unipile?.subscribed" tone="saffron">ask an admin to enable</Tag>
     </div>
-    <!-- Ma clé Unipile (perso) + version d'API — prime sur la clé d'org ; la
-         version v1/v2 suit CETTE clé (le « switch v1/v2 depuis mon compte »). -->
+    <!-- Ma clé Unipile (perso) — prime sur la clé d'org. -->
     <div v-if="!loading" class="hw-mykey">
-      <span class="dim hw-mykey-lbl">résout via {{ modeLabel }}
-        <Tag :tone="unipile?.api_version === 'v2' ? 'cobalt' : 'olive'">{{ unipile?.api_version === 'v2' ? 'v2' : 'v1' }}</Tag>
-      </span>
-      <Btn kind="mini" @click="editMyKey">{{ unipile?.mode === 'user' ? 'changer ma clé' : 'poser ma clé (v1/v2)' }}</Btn>
+      <span class="dim hw-mykey-lbl">résout via {{ modeLabel }}</span>
+      <Btn kind="mini" @click="editMyKey">{{ unipile?.mode === 'user' ? 'changer ma clé' : 'poser ma clé' }}</Btn>
       <Btn v-if="unipile?.mode === 'user'" kind="danger" @click="dropMyKey">retirer</Btn>
     </div>
     <div v-for="c in channels" :key="c.key" class="hw-channel">

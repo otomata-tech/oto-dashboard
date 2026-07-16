@@ -51,8 +51,8 @@ export const unselectConnector = (name: string) =>
 // par le connecteur (`credential_fields`). api_key → {key}, basic_auth (planity) →
 // {email,password}, silae → {client_id,client_secret,subscription_key}. Le serveur
 // pack/chiffre selon la forme. Une seule surface, zéro branche par connecteur.
-export const setCredential = (provider: string, fields: Record<string, string>, api_version?: string) =>
-  api(`/api/settings/api-keys/${provider}`, { method: 'POST', ...j(api_version ? { ...fields, api_version } : fields) })
+export const setCredential = (provider: string, fields: Record<string, string>) =>
+  api(`/api/settings/api-keys/${provider}`, { method: 'POST', ...j(fields) })
 // `scope` (défaut 'member') = niveau de l'instance à effacer : ma clé/session perso,
 // celle de l'équipe active, ou celle de l'org (org/group réservés aux admins du scope).
 export const deleteApiKey = (provider: string, scope: 'member' | 'org' | 'group' = 'member') =>
@@ -601,9 +601,9 @@ export const removeOrgMember = (id: number, sub: string) =>
 export const leaveOrg = (id: number) =>
   api<{ ok: boolean; org_id: number; left: boolean }>(`/api/me/orgs/${id}/membership`, { method: 'DELETE' })
 // Pose/rotation de la clé partagée d'org (org_admin, self-service, ADR 0022).
-export const setOrgSecret = (id: number, provider: string, api_key: string, base_url?: string, fields?: Record<string, string>, api_version?: string) =>
+export const setOrgSecret = (id: number, provider: string, api_key: string, base_url?: string, fields?: Record<string, string>) =>
   api<{ ok: boolean; org_id: number; provider: string }>(
-    `/api/orgs/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url, fields, api_version }) })
+    `/api/orgs/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url, fields }) })
 export const deleteOrgSecret = (id: number, provider: string) =>
   api(`/api/orgs/${id}/secrets/${provider}`, { method: 'DELETE' })
 
@@ -667,8 +667,8 @@ export const setUserRole = (sub: string, role: Role) =>
 // ADR 0044 §F : la clé plateforme est une instance du coffre (identité = provider+label,
 // plus de surrogate id). Grants keyés par PROVIDER (le connecteur ciblé).
 export const getPlatformKeys = () => api<{ platform_keys: PlatformKey[] }>('/api/admin/platform-keys')
-export const createPlatformKey = (provider: string, label: string, api_key: string, api_version?: string) =>
-  api<{ provider: string; label: string; api_version: string }>('/api/admin/platform-keys', { method: 'POST', ...j({ provider, label, api_key, api_version }) })
+export const createPlatformKey = (provider: string, label: string, api_key: string) =>
+  api<{ provider: string; label: string }>('/api/admin/platform-keys', { method: 'POST', ...j({ provider, label, api_key }) })
 export const deletePlatformKey = (provider: string, label: string) =>
   api(`/api/admin/platform-keys/${encodeURIComponent(provider)}/${encodeURIComponent(label)}`, { method: 'DELETE' })
 
