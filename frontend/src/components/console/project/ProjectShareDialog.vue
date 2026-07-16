@@ -322,7 +322,7 @@ async function transfer() {
 </template>
 
 <style scoped>
-.sd-ov { position: fixed; inset: 0; z-index: 100; background: color-mix(in srgb, var(--color-ink) 42%, transparent); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.sd-ov { position: fixed; inset: 0; z-index: var(--z-modal); background: color-mix(in srgb, var(--color-ink) 42%, transparent); display: flex; align-items: center; justify-content: center; padding: 24px; }
 .sd { width: min(540px, 100%); max-height: 86vh; overflow-y: auto; background: var(--color-surface); border: 1px solid var(--border-card); border-radius: var(--radius-md); box-shadow: var(--shadow-pop); }
 .sd__hd { position: sticky; top: 0; display: flex; align-items: center; gap: 9px; padding: 10px 16px; border-bottom: 1px solid var(--color-hair); background: var(--color-saffron-soft); z-index: 1; }
 .sd__hdic { display: inline-flex; color: var(--color-saffron-ink); }

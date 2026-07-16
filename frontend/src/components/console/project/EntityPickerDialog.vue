@@ -179,7 +179,7 @@ async function onFile(file: File) {
 </template>
 
 <style scoped>
-.ep-ov { position: fixed; inset: 0; z-index: 110; background: color-mix(in srgb, var(--color-ink) 42%, transparent); display: flex; align-items: flex-start; justify-content: center; padding: 90px 24px 24px; }
+.ep-ov { position: fixed; inset: 0; z-index: var(--z-modal); background: color-mix(in srgb, var(--color-ink) 42%, transparent); display: flex; align-items: flex-start; justify-content: center; padding: 90px 24px 24px; }
 .ep { width: min(460px, 100%); background: var(--color-surface); border: 1px solid var(--border-card); border-radius: var(--radius-md); box-shadow: var(--shadow-pop); }
 .ep__hd { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--color-hair); background: var(--color-saffron-soft); border-radius: var(--radius-md) var(--radius-md) 0 0; }
 .ep__hdic { display: inline-flex; flex: none; color: var(--color-saffron-ink); }
