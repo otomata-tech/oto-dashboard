@@ -8,6 +8,7 @@ import type { MarkState } from '@/lib/mark'
 import { PAGE_META } from '@/lib/consoleNav'
 import { useMe } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
+import { useTopbar } from '@/composables/useTopbar'
 import { useScope } from '@/composables/useScope'
 import { useScopedLink } from '@/composables/useScopedLink'
 
@@ -16,6 +17,9 @@ const { t } = useI18n()
 const { scoped } = useScopedLink()
 const { me, error } = useMe()
 const { toggleNav } = useNav()
+// Une page peut injecter son propre en-tête (TopbarPage) → on masque alors le
+// titre statique générique (fin du double en-tête, retour 8).
+const { claimed } = useTopbar()
 // `level` est dérivé de la route — il pilote encore le bandeau de gouvernance
 // ci-dessous. Le choix du niveau, lui, a migré dans le menu profil (sidebar).
 const { level } = useScope()
@@ -39,10 +43,12 @@ const meta = computed(() =>
     <RouterLink :to="scoped('/overview')" class="oto-brand" :aria-label="t('topbar.home')">
       <OtoMark variant="mono" :state="markState" :size="26" />
     </RouterLink>
-    <div class="topbar-title">
+    <div v-show="!claimed" class="topbar-title">
       <h1>{{ t(meta.title) }}</h1>
       <span class="crumb">{{ t(meta.crumb) }}</span>
     </div>
+    <!-- Cible de téléportation : une page y injecte son en-tête via TopbarPage. -->
+    <div id="topbar-page" class="topbar-page"></div>
   </header>
 
   <!-- Signal franc réservé au niveau PLATEFORME (action sur TOUTE la plateforme).
@@ -55,6 +61,10 @@ const meta = computed(() =>
 </template>
 
 <style scoped>
+/* Cible d'en-tête de page : occupe la place restante du topbar ; vide (aucune page
+   ne l'a prise), elle est invisible et le titre statique s'affiche à côté. */
+.topbar-page { flex: 1; display: flex; align-items: center; min-width: 0; }
+
 /* ── Marque Oto (présence au repos / réfléchit au chargement) ── */
 .oto-brand {
   display: inline-flex; align-items: center; flex: none;

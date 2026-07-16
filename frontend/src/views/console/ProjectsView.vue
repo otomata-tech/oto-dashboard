@@ -8,6 +8,7 @@ import { useRouter } from 'vue-router'
 import Icon from '@/components/console/Icon.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
+import TopbarPage from '@/components/console/TopbarPage.vue'
 import NameDialog from '@/components/console/NameDialog.vue'
 import ProjectCreateDialog from '@/components/console/ProjectCreateDialog.vue'
 import type { ProjectOwnerPayload } from '@/components/console/ProjectCreateDialog.vue'
@@ -114,17 +115,19 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
 <template>
   <div class="content-inner fadein">
     <!-- barre d'en-tête -->
-    <header class="pl-head">
-      <div class="pl-head__id">
-        <h1 class="pl-head__t">Projets</h1>
-        <span v-if="hasProjects" class="pl-head__n">{{ projects.length }} projets</span>
+    <TopbarPage>
+      <div class="pl-head">
+        <div class="pl-head__id">
+          <h1 class="pl-head__t">Projets</h1>
+          <span v-if="hasProjects" class="pl-head__n">{{ projects.length }} projets</span>
+        </div>
+        <div v-if="hasProjects" class="pl-seg" role="group" aria-label="disposition">
+          <button class="pl-seg__b" :class="{ on: layout === 'cards' }" @click="setLayout('cards')">cartes</button>
+          <button class="pl-seg__b" :class="{ on: layout === 'rows' }" @click="setLayout('rows')">tableau</button>
+        </div>
+        <button class="pl-new" @click="create"><Icon name="plus" :size="14" /> Nouveau projet</button>
       </div>
-      <div v-if="hasProjects" class="pl-seg" role="group" aria-label="disposition">
-        <button class="pl-seg__b" :class="{ on: layout === 'cards' }" @click="setLayout('cards')">cartes</button>
-        <button class="pl-seg__b" :class="{ on: layout === 'rows' }" @click="setLayout('rows')">tableau</button>
-      </div>
-      <button class="pl-new" @click="create"><Icon name="plus" :size="14" /> Nouveau projet</button>
-    </header>
+    </TopbarPage>
 
     <!-- états -->
     <p v-if="error" class="dim" style="font-size: 13px">{{ error }}</p>
