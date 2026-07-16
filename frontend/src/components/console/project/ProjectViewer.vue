@@ -306,6 +306,14 @@ async function removeFile() {
             <button v-if="!readOnly" class="vw__x" @click="isHome ? editBrief() : editDoc()"><Icon name="pencil" :size="12" /> éditer</button>
             <button v-else-if="!isHome" class="vw__x" @click="editDoc"><Icon name="pencil" :size="12" /> proposer une modif</button>
           </template>
+          <template v-else>
+            <template v-if="isHome"><Btn kind="mini" @click="saveBrief">Enregistrer</Btn><button class="vw__x" @click="cancelBrief">Annuler</button></template>
+            <template v-else-if="!readOnly">
+              <select v-if="draft" v-model="draft.kind" class="vw__kind"><option value="doc">doc</option><option value="note">note agent</option><option value="source">source</option></select>
+              <Btn kind="mini" @click="saveDoc">Enregistrer</Btn><button class="vw__x" @click="cancelDoc">Annuler</button>
+            </template>
+            <template v-else><Btn kind="mini" @click="proposeChange">Proposer une modif</Btn><button class="vw__x" @click="cancelDoc">Annuler</button></template>
+          </template>
         </div>
       </header>
 
@@ -317,14 +325,6 @@ async function removeFile() {
           <MarkdownEditor v-if="isHome" v-model="briefDraft"
             placeholder="Le but du projet, le contexte, ce que l'agent doit savoir au démarrage…" />
           <MarkdownEditor v-else-if="draft" v-model="draft.body_md" placeholder="Contenu de la page…" />
-          <div class="vw__editact">
-            <template v-if="isHome"><Btn kind="mini" @click="saveBrief">Enregistrer</Btn><button class="vw__x" @click="cancelBrief">Annuler</button></template>
-            <template v-else-if="!readOnly">
-              <select v-if="draft" v-model="draft.kind" class="vw__kind"><option value="doc">doc</option><option value="note">note agent</option><option value="source">source</option></select>
-              <Btn kind="mini" @click="saveDoc">Enregistrer</Btn><button class="vw__x" @click="cancelDoc">Annuler</button>
-            </template>
-            <template v-else><Btn kind="mini" @click="proposeChange">Proposer une modif</Btn><button class="vw__x" @click="cancelDoc">Annuler</button></template>
-          </div>
         </template>
 
         <!-- lecture -->
