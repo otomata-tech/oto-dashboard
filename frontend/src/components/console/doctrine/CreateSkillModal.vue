@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { slugify } from '@/lib/slug'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: []; create: [{ title: string; slug: string; summary: string }] }>()
@@ -10,12 +11,11 @@ const summary = ref('')
 const slugTouched = ref(false)
 const busy = ref(false)
 
-function slugify(s: string): string {
-  return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
-}
+// Slug de procédure = séparateur `_`.
+const procSlug = (s: string) => slugify(s, { sep: '_' })
 
 watch(title, (v) => {
-  if (!slugTouched.value) slug.value = slugify(v)
+  if (!slugTouched.value) slug.value = procSlug(v)
 })
 watch(() => props.open, (o) => {
   if (o) { title.value = ''; slug.value = ''; summary.value = ''; slugTouched.value = false; busy.value = false }
@@ -23,7 +23,7 @@ watch(() => props.open, (o) => {
 
 async function submit() {
   const t = title.value.trim()
-  const s = slug.value.trim() || slugify(t)
+  const s = slug.value.trim() || procSlug(t)
   if (!t || !s) return
   busy.value = true
   emit('create', { title: t, slug: s, summary: summary.value.trim() })

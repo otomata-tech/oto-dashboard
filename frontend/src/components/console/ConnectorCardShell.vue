@@ -51,7 +51,7 @@ const monogram = computed(() => (props.label || '?').charAt(0).toUpperCase())
 </template>
 
 <style scoped>
-.cc-card { border: 1px solid var(--color-hair); border-radius: 12px; background: var(--color-paper); overflow: hidden; }
+.cc-card { border: 1px solid var(--color-hair); border-radius: var(--radius-md); background: var(--color-paper); overflow: hidden; }
 .cc-card.off { background: var(--color-surface); opacity: 0.78; }
 .cc-card.click { cursor: pointer; transition: border-color 180ms var(--ease-out); }
 .cc-card.click:hover { border-color: var(--color-ink-soft); }

@@ -13,6 +13,7 @@ import {
 } from '@/api/console'
 import type { GroupListItem, NamespaceShare, Org, OrgMember, SharePrincipal, Project } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { slugify } from '@/lib/slug'
 import { ROLE_OPTIONS, roleLabel, roleTone, type ResourceRole } from '@/lib/resourceRole'
 import { useToast } from '@/composables/useToast'
 import { useMe } from '@/composables/useMe'
@@ -102,6 +103,12 @@ const mcpActive = computed(() => !!props.project.mcp_access && props.project.mcp
 const mcpAccess = computed(() => props.project.mcp_access)
 async function copyMcp() { if (mcpConnectUrl.value) { await navigator.clipboard.writeText(mcpConnectUrl.value).catch(() => {}); toast('URL copiée') } }
 const { promptForm } = usePrompt()
+// Défaut de sous-domaine : `slugify(org)-slugify(projet)` (marque l'org, unique par
+// projet) — évite d'imposer un slug vide « requis » que l'utilisateur doit inventer.
+function defaultSlug(): string {
+  return [slugify(me.value?.active_org_name, { maxLen: 24 }), slugify(props.project.name, { maxLen: 24 })]
+    .filter(Boolean).join('-')
+}
 async function publishMcp() {
   if (mcpBusy.value) return
   let toolsDefault = (props.project.mcp_tools ?? []).join('\n')
@@ -116,7 +123,7 @@ async function publishMcp() {
     title: 'Publier en endpoint MCP',
     description: 'Un sous-domaine dédié exposant un jeu d’outils figé, à brancher dans Claude/Mistral. En « secret », le sous-domaine `<slug>.share.oto.cx` est aussi une UI navigable (lecture seule).',
     fields: [
-      { key: 'slug', label: 'Sous-domaine', value: props.project.mcp_slug ?? '', placeholder: 'french-tech-marseille', required: false,
+      { key: 'slug', label: 'Sous-domaine', value: props.project.mcp_slug || defaultSlug(), placeholder: 'french-tech-marseille', required: false,
         hint: '→ <slug>.mcp.oto.cx (public/org) ou <slug>.share.oto.cx (secret). Min. 3 car., a-z 0-9 -.' },
       { key: 'access', label: 'Accès', type: 'select', value: mcpActive.value ? props.project.mcp_access! : 'anonymous',
         options: [

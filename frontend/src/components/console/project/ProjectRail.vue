@@ -64,7 +64,7 @@ const nonEmpty = computed(() => props.groups.filter((g) => g.items.length || g.a
 .rail__hdic { display: inline-flex; flex: none; color: color-mix(in srgb, var(--color-saffron) 55%, var(--color-saffron-ink)); }
 .rail__hdl { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--color-saffron-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rail__add { height: 20px; width: 20px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--color-hair); background: var(--color-surface); border-radius: var(--radius-pill); color: var(--color-mute); cursor: pointer; flex: none; padding: 0; transition: background var(--t-fast), color var(--t-fast); }
-.rail__add:hover { background: var(--color-saffron); border-color: var(--color-saffron); color: var(--color-ink); }
+.rail__add:hover { background: var(--color-paper-2); border-color: var(--color-hair); color: var(--color-ink); }
 .rail__items { display: flex; flex-direction: column; gap: 1px; }
 .rail__it { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; padding: 6.5px 10px; border: 0; border-radius: 6px; cursor: pointer; font-family: var(--font-sans); font-size: 12.5px; background: transparent; color: var(--color-ink-soft); font-weight: 500; }
 .rail__it:hover { background: var(--color-paper-2); }
