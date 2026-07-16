@@ -89,7 +89,7 @@ async function toggleLink() {
 </template>
 
 <style scoped>
-.mde { width: 100%; max-width: 720px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); background: var(--color-surface); }
+.mde { width: 100%; max-width: 720px; margin-inline: auto; border: 1px solid var(--color-hair); border-radius: var(--radius-md); background: var(--color-surface); }
 .mde:focus-within { border-color: var(--color-saffron); }
 
 .mde__bar { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; padding: 5px 7px; border-bottom: 1px solid var(--color-hair-soft); }

@@ -485,13 +485,13 @@ async function removeFile() {
 .vw__x:hover { background: var(--color-paper-2); }
 .vw__x--danger { color: var(--color-terra-ink); border-color: var(--color-terra-soft); }
 
-.vw__page { max-width: 720px; }
+.vw__page { max-width: 720px; margin-inline: auto; }
 .vw__pageact { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 16px; }
-.vw__titlein { width: 100%; max-width: 720px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 8px 11px; font: inherit; font-size: 16px; font-weight: 700; color: var(--color-ink); background: var(--color-surface); margin-bottom: 10px; }
-.vw__area { width: 100%; max-width: 720px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 11px 13px; font-family: var(--font-sans); font-size: 13.5px; line-height: 1.6; color: var(--color-ink-soft); background: var(--color-surface); resize: vertical; box-sizing: border-box; }
+.vw__titlein { width: 100%; max-width: 720px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 8px 11px; font: inherit; font-size: 16px; font-weight: 700; color: var(--color-ink); background: var(--color-surface); margin-bottom: 10px; margin-inline: auto; }
+.vw__area { width: 100%; max-width: 720px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 11px 13px; font-family: var(--font-sans); font-size: 13.5px; line-height: 1.6; color: var(--color-ink-soft); background: var(--color-surface); resize: vertical; box-sizing: border-box; margin-inline: auto; }
 .vw__editact { display: flex; align-items: center; gap: 9px; margin-top: 10px; }
 .vw__kind { border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 4px 8px; font: inherit; font-size: 11.5px; background: var(--color-surface); }
-.vw__panel { margin-top: 16px; border-top: 1px solid var(--color-hair-soft); padding-top: 10px; max-width: 720px; }
+.vw__panel { margin-top: 16px; border-top: 1px solid var(--color-hair-soft); padding-top: 10px; max-width: 720px; margin-inline: auto; }
 .vw__rev { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
 
 .vw__block { max-width: 660px; display: flex; flex-direction: column; align-items: flex-start; gap: 0; }
