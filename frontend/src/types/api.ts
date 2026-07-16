@@ -204,6 +204,10 @@ export interface ProviderStatus {
   // cliente = SA GED) — satellites publics du meta credential, rendus sans listing.
   identity_id?: string | null
   identity_label?: string | null
+  // Clé d'équipe « à portée » (mode=forbidden seulement) : une équipe dont je suis
+  // membre détient un secret, mais elle n'est pas mon équipe active → la cascade ne
+  // la lit pas. Le drawer doit dire « active l'équipe X », pas « pas de clé ».
+  team_key_group?: { id: number; name: string } | null
 }
 
 // Langue de l'UI (i18n EN/FR). Défini ici pour que `lib/i18n.ts` l'importe sans

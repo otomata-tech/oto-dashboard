@@ -105,8 +105,17 @@ const keyStatus = computed(() => KEY_STATUS[statusMode.value])
 const docRefCount = computed(() => c.value.doctrine_ref_count ?? 0)
 
 // Verdict « état pour toi » (ADR 0044) — ET-logique des 3 couches.
-const availOk = computed(() => status.value?.mode !== 'forbidden')
+// ⚠️ `mode='forbidden'` ≠ RBAC : côté backend (status_for) c'est « aucune clé ne
+// résout » — l'état par défaut de tout connecteur BYO pas encore connecté. Un
+// connecteur réellement RBAC-restreint est FILTRÉ du catalogue du membre
+// (connectors_selection), il n'ouvre pas de drawer. La disponibilité est donc
+// acquise dès que la fiche s'affiche ; le manque de clé se dit sur la couche
+// connexion (vécu 2026-07-16 : faux « Réservé à certaines équipes » sur un Zoho
+// simplement pas connecté).
 const connOk = computed(() => isOpenData.value || statusMode.value !== 'none')
+// Clé d'équipe à portée (membre d'une équipe qui a le secret, non active) —
+// backend-driven (ProviderStatus.team_key_group), jamais recalculé côté front.
+const teamKey = computed(() => status.value?.team_key_group ?? null)
 const connSource = computed(() => {
   if (isOpenData.value) return 'open data'
   const m = statusMode.value
@@ -114,13 +123,15 @@ const connSource = computed(() => {
 })
 const optionRequired = computed(() => c.value.paid_option ?? null)
 const optionOk = computed(() => c.value.option_ok !== false)
-const availTone = computed<DotTone>(() => (availOk.value ? 'olive' : 'saffron'))
+const availTone = computed<DotTone>(() => 'olive')
 const connTone = computed<DotTone>(() => (isOpenData.value ? 'faint' : connOk.value ? 'olive' : 'saffron'))
 const optTone = computed<DotTone>(() => (!optionRequired.value ? 'faint' : optionOk.value ? 'olive' : 'saffron'))
 const verdict = computed<{ tone: DotTone; text: string }>(() => {
-  if (!availOk.value) return { tone: 'saffron', text: 'Réservé à certaines équipes/personnes de ton org — demande l’accès à un admin.' }
   if (!optionOk.value) return { tone: 'saffron', text: `Bloqué : l’option « ${optionRequired.value} » n’est pas accordée pour toi.` }
-  if (!connOk.value) return { tone: 'saffron', text: 'Exposé mais pas connecté — branche une clé ci-dessous.' }
+  if (!connOk.value) {
+    if (teamKey.value) return { tone: 'saffron', text: `Une clé existe dans ton équipe « ${teamKey.value.name} » — active cette équipe pour l’utiliser.` }
+    return { tone: 'saffron', text: 'Exposé mais pas connecté — branche une clé ci-dessous.' }
+  }
   if (status.value?.mode === 'over_quota') return { tone: 'saffron', text: 'Quota de la clé plateforme atteint pour aujourd’hui.' }
   return { tone: 'olive', text: 'Prêt à l’emploi.' }
 })
@@ -163,6 +174,7 @@ const verdict = computed<{ tone: DotTone; text: string }>(() => {
           <span :class="nodeCls('platform')">oto platform</span>
         </div>
         <p class="helptext" style="margin: 11px 0 0">{{ keyStatus }}<span v-if="statusMode === 'platform' && status?.platform_key_label" class="dim"> ({{ status.platform_key_label }})</span></p>
+        <p v-if="teamKey && statusMode === 'none'" class="helptext" style="margin: 6px 0 0">a key exists in your team “{{ teamKey.name }}” — it only resolves once that team is active.</p>
         <Quota v-if="status?.quota_daily" style="margin-top: 12px" :used="status.quota_used_today" :total="status.quota_daily" label="daily quota" />
         <div style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap">
           <template v-if="keyConfigured">
