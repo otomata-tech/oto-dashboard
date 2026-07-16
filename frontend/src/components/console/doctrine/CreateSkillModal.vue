@@ -100,12 +100,12 @@ async function submit() {
 .btn-ink {
   display: inline-flex; align-items: center; gap: 7px; background: var(--color-ink); color: var(--color-bg);
   border: 1px solid var(--color-ink); border-radius: 999px; padding: 9px 18px; font-size: 13px; font-weight: 600;
-  text-transform: lowercase; cursor: pointer;
+  cursor: pointer;
 }
 .btn-ink:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-ghost {
   background: var(--color-surface); color: var(--color-mute); border: 1px solid var(--color-hair);
-  border-radius: 999px; padding: 9px 16px; font-size: 13px; font-weight: 600; text-transform: lowercase; cursor: pointer;
+  border-radius: 999px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .meta { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); }
 </style>

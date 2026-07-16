@@ -17,6 +17,7 @@ import {
 import type { GroupListItem, NamespaceShare, Org, OrgMember, SharePrincipal } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { ROLE_OPTIONS, roleLabel, roleTone, type ResourceRole } from '@/lib/resourceRole'
+import OtoSelect from '@/components/console/OtoSelect.vue'
 
 const props = withDefaults(defineProps<{
   open: boolean
@@ -46,6 +47,18 @@ const grants = ref<NamespaceShare[]>([])
 const members = ref<OrgMember[]>([])
 const groups = ref<GroupListItem[]>([])
 const myOrgs = ref<Org[]>([])
+
+// Options des selects (DS OtoSelect).
+const MODE_OPTIONS: { value: Mode; label: string }[] = [
+  { value: 'member', label: "membre de l'org" },
+  { value: 'team', label: 'équipe' },
+  { value: 'org', label: 'une de mes orgs' },
+  { value: 'orgid', label: 'org cliente (id)' },
+  { value: 'email', label: 'email libre' },
+]
+const memberOpts = computed(() => members.value.map((m) => ({ value: m.sub, label: m.name || m.email || m.sub })))
+const teamOpts = computed(() => groups.value.map((g) => ({ value: String(g.group_id), label: g.name })))
+const orgOpts = computed(() => myOrgs.value.map((o) => ({ value: String(o.id), label: o.name })))
 const loading = ref(false)
 const busy = ref(false)
 
@@ -143,34 +156,17 @@ const kindLabel = (g: NamespaceShare) =>
 
         <div class="sp-body">
           <div class="sp-add">
-            <select v-model="mode" class="inp" aria-label="type de destinataire">
-              <option value="member">membre de l'org</option>
-              <option value="team">équipe</option>
-              <option value="org">une de mes orgs</option>
-              <option value="orgid">org cliente (id)</option>
-              <option value="email">email libre</option>
-            </select>
+            <OtoSelect v-model="mode" :options="MODE_OPTIONS" aria-label="type de destinataire" />
 
-            <select v-if="mode === 'member'" v-model="memberSub" class="inp sp-grow">
-              <option value="" disabled>choisir un membre…</option>
-              <option v-for="m in members" :key="m.sub" :value="m.sub">{{ m.name || m.email }}</option>
-            </select>
-            <select v-else-if="mode === 'team'" v-model="groupId" class="inp sp-grow">
-              <option value="" disabled>choisir une équipe…</option>
-              <option v-for="g in groups" :key="g.group_id" :value="String(g.group_id)">{{ g.name }}</option>
-            </select>
-            <select v-else-if="mode === 'org'" v-model="orgId" class="inp sp-grow">
-              <option value="" disabled>choisir une org…</option>
-              <option v-for="o in myOrgs" :key="o.id" :value="String(o.id)">{{ o.name }}</option>
-            </select>
+            <OtoSelect v-if="mode === 'member'" v-model="memberSub" :options="memberOpts" grow placeholder="choisir un membre…" />
+            <OtoSelect v-else-if="mode === 'team'" v-model="groupId" :options="teamOpts" grow placeholder="choisir une équipe…" />
+            <OtoSelect v-else-if="mode === 'org'" v-model="orgId" :options="orgOpts" grow placeholder="choisir une org…" />
             <input v-else-if="mode === 'orgid'" v-model="orgIdFree" class="inp sp-grow"
               inputmode="numeric" placeholder="id de l'org destinataire" @keyup.enter="add" />
             <input v-else v-model="email" class="inp sp-grow" type="email"
               placeholder="collègue@exemple.com" @keyup.enter="add" />
 
-            <select v-if="roleChoices.length > 1" v-model="role" class="inp" aria-label="rôle">
-              <option v-for="r in roleChoices" :key="r.value" :value="r.value">{{ r.label }}</option>
-            </select>
+            <OtoSelect v-if="roleChoices.length > 1" v-model="role" :options="roleChoices" aria-label="rôle" />
             <Btn kind="mini" icon="plus" :disabled="busy || !principal" @click="add">Partager</Btn>
           </div>
           <p v-if="mode === 'team' && !groups.length && !loading" class="dim sp-hint">
