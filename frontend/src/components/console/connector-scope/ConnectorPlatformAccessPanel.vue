@@ -9,6 +9,7 @@ import Btn from '@/components/console/Btn.vue'
 import Icon from '@/components/console/Icon.vue'
 import Tag from '@/components/console/Tag.vue'
 import Avatar from '@/components/console/Avatar.vue'
+import OtoSelect from '@/components/console/OtoSelect.vue'
 import { useToast } from '@/composables/useToast'
 import {
   getPlatformAccess, setPlatformAccess, getAdminOrgs, getAdminUsers,
@@ -28,6 +29,10 @@ const loading = ref(false)
 const busy = ref(false)
 
 const scope = ref<'org' | 'user'>('org')
+const SCOPE_OPTIONS: { value: 'org' | 'user'; label: string }[] = [
+  { value: 'org', label: 'une org' },
+  { value: 'user', label: 'un membre' },
+]
 const q = ref('')
 const orgs = ref<AdminOrgSummary[]>([])
 const users = ref<AdminUser[]>([])
@@ -123,10 +128,7 @@ const effect = computed(() => {
     <!-- Ajout : super_admin seul -->
     <template v-if="isSuperAdmin">
       <div class="pa-add">
-        <select v-model="scope" class="inp" aria-label="type de bénéficiaire">
-          <option value="org">une org</option>
-          <option value="user">un membre</option>
-        </select>
+        <OtoSelect v-model="scope" :options="SCOPE_OPTIONS" aria-label="type de bénéficiaire" />
         <div class="pa-search">
           <Icon name="search" :size="14" class="pa-ic" />
           <input v-model="q" class="pa-input"

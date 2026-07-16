@@ -8,6 +8,7 @@ import { RouterLink } from 'vue-router'
 import Icon from '@/components/console/Icon.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
+import OtoSelect from '@/components/console/OtoSelect.vue'
 import MarkdownView from '@/components/console/MarkdownView.vue'
 // Éditeur TipTap en chunk séparé : chargé au premier passage en mode édition seulement.
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/console/MarkdownEditor.vue'))
@@ -92,6 +93,7 @@ const revisions = ref<DocRevision[]>([])
 const showHistory = ref(false)
 const changeRequests = ref<DocChangeRequest[]>([])
 const KIND_LABEL: Record<DocKind, string> = { doc: 'doc', note: 'note agent', source: 'source' }
+const KIND_OPTIONS = (Object.keys(KIND_LABEL) as DocKind[]).map((value) => ({ value, label: KIND_LABEL[value] }))
 
 // Resynchronise l'édition quand la sélection CHANGE (clé du rail), pas à chaque
 // recalcul de la référence `item` : le parent recrée l'objet `selItem` (ex. après
@@ -309,7 +311,7 @@ async function removeFile() {
           <template v-else>
             <template v-if="isHome"><Btn kind="mini" @click="saveBrief">Enregistrer</Btn><button class="vw__x" @click="cancelBrief">Annuler</button></template>
             <template v-else-if="!readOnly">
-              <select v-if="draft" v-model="draft.kind" class="vw__kind"><option value="doc">doc</option><option value="note">note agent</option><option value="source">source</option></select>
+              <OtoSelect v-if="draft" v-model="draft.kind" :options="KIND_OPTIONS" size="sm" aria-label="type de page" />
               <Btn kind="mini" @click="saveDoc">Enregistrer</Btn><button class="vw__x" @click="cancelDoc">Annuler</button>
             </template>
             <template v-else><Btn kind="mini" @click="proposeChange">Proposer une modif</Btn><button class="vw__x" @click="cancelDoc">Annuler</button></template>
