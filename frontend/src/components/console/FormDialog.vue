@@ -24,7 +24,11 @@ const props = withDefaults(defineProps<{
   fields: FormDialogField[]
   submitLabel?: string
   onConfirm: (values: Record<string, string>) => Promise<void>
-}>(), { description: '', submitLabel: 'valider' })
+  // `elevated` : rend ce dialog AU-DESSUS des modales maison (z-index 100) — pour le
+  // dialog impératif global (FormPromptHost) ouvert par-dessus une autre modale (ex.
+  // « transférer » depuis la modale de partage, sinon rendu derrière). Défaut z-80.
+  elevated?: boolean
+}>(), { description: '', submitLabel: 'valider', elevated: false })
 const emit = defineEmits<{ (e: 'update:open', value: boolean): void }>()
 
 const schema = computed(() =>
@@ -54,7 +58,7 @@ const submit = handleSubmit(async (values) => {
 
 <template>
   <Dialog :open="open" @update:open="emit('update:open', $event)">
-    <DialogContent class="sm:max-w-[440px]">
+    <DialogContent :class="['sm:max-w-[440px]', elevated && 'z-[120]']" :overlay-class="elevated ? 'z-[120]' : undefined">
       <DialogHeader>
         <DialogTitle>{{ title }}</DialogTitle>
         <DialogDescription v-if="description">{{ description }}</DialogDescription>

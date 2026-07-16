@@ -20,6 +20,7 @@ function onOpenChange(v: boolean) { if (!v) settle(null) }
     :fields="config.fields"
     :submit-label="config.submitLabel"
     :on-confirm="onConfirm"
+    elevated
     @update:open="onOpenChange"
   />
 </template>
