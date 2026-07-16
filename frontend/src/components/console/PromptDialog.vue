@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import Btn from './Btn.vue'
+import OtoSelect from './OtoSelect.vue'
 import { usePrompt } from '@/composables/usePrompt'
 
 const { state, resolve } = usePrompt()
@@ -67,11 +68,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
               <textarea v-if="f.type === 'textarea'" v-model="values[f.key]"
                 :ref="i === 0 ? (el) => (firstInput = el as HTMLTextAreaElement) : undefined"
                 class="inp" :placeholder="f.placeholder" rows="4" />
-              <select v-else-if="f.type === 'select'" v-model="values[f.key]"
-                :ref="i === 0 ? (el) => (firstInput = el as HTMLSelectElement) : undefined" class="inp">
-                <option value="" disabled>{{ f.placeholder || 'choose…' }}</option>
-                <option v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</option>
-              </select>
+              <OtoSelect v-else-if="f.type === 'select'" :model-value="values[f.key] ?? ''"
+                @update:model-value="(v: string) => (values[f.key] = v)" :options="f.options ?? []"
+                :placeholder="f.placeholder || 'choose…'" trigger-class="w-full" />
               <input v-else v-model="values[f.key]"
                 :ref="i === 0 ? (el) => (firstInput = el as HTMLInputElement) : undefined"
                 class="inp" :type="f.type === 'password' ? 'password' : 'text'" :placeholder="f.placeholder" />
