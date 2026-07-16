@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { slugify } from '@/lib/slug'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: []; create: [{ title: string; slug: string; summary: string }] }>()
@@ -10,12 +11,11 @@ const summary = ref('')
 const slugTouched = ref(false)
 const busy = ref(false)
 
-function slugify(s: string): string {
-  return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
-}
+// Slug de procédure = séparateur `_`.
+const procSlug = (s: string) => slugify(s, { sep: '_' })
 
 watch(title, (v) => {
-  if (!slugTouched.value) slug.value = slugify(v)
+  if (!slugTouched.value) slug.value = procSlug(v)
 })
 watch(() => props.open, (o) => {
   if (o) { title.value = ''; slug.value = ''; summary.value = ''; slugTouched.value = false; busy.value = false }
@@ -23,7 +23,7 @@ watch(() => props.open, (o) => {
 
 async function submit() {
   const t = title.value.trim()
-  const s = slug.value.trim() || slugify(t)
+  const s = slug.value.trim() || procSlug(t)
   if (!t || !s) return
   busy.value = true
   emit('create', { title: t, slug: s, summary: summary.value.trim() })
@@ -71,7 +71,7 @@ async function submit() {
 
 <style scoped>
 .backdrop {
-  position: fixed; inset: 0; z-index: 80; background: rgba(44, 33, 18, 0.4); backdrop-filter: blur(4px);
+  position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(44, 33, 18, 0.4); backdrop-filter: blur(4px);
   display: flex; align-items: center; justify-content: center; padding: 24px;
 }
 .modal {
@@ -100,12 +100,12 @@ async function submit() {
 .btn-ink {
   display: inline-flex; align-items: center; gap: 7px; background: var(--color-ink); color: var(--color-bg);
   border: 1px solid var(--color-ink); border-radius: 999px; padding: 9px 18px; font-size: 13px; font-weight: 600;
-  text-transform: lowercase; cursor: pointer;
+  cursor: pointer;
 }
 .btn-ink:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-ghost {
   background: var(--color-surface); color: var(--color-mute); border: 1px solid var(--color-hair);
-  border-radius: 999px; padding: 9px 16px; font-size: 13px; font-weight: 600; text-transform: lowercase; cursor: pointer;
+  border-radius: 999px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .meta { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); }
 </style>

@@ -14,6 +14,7 @@ import EditableCollection from './config/EditableCollection.vue'
 import Btn from './Btn.vue'
 import Tag from './Tag.vue'
 import Toggle from './Toggle.vue'
+import OtoSelect from './OtoSelect.vue'
 import { useToast } from '@/composables/useToast'
 import { setOrgEmailSettings } from '@/api/console'
 import type { EmailBlock, EmailSender, QuietHours } from '@/types/api'
@@ -166,10 +167,8 @@ async function saveQuiet() {
         </label>
         <label class="ce-q-field ce-q-tz">
           <span class="ce-q-cap">fuseau</span>
-          <select class="inp" :value="quiet.tz" :disabled="!canEdit"
-            @change="setTz(($event.target as HTMLSelectElement).value)">
-            <option v-for="tz in TIMEZONES" :key="tz" :value="tz">{{ tz }}</option>
-          </select>
+          <OtoSelect :model-value="quiet?.tz ?? ''" @update:model-value="setTz"
+            :options="TIMEZONES.map((tz) => ({ value: tz, label: tz }))" :disabled="!canEdit" trigger-class="w-full" />
         </label>
       </div>
     </ConfigSection>

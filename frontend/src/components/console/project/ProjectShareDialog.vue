@@ -7,12 +7,14 @@ import { computed, ref, watch } from 'vue'
 import Icon from '@/components/console/Icon.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
+import OtoSelect from '@/components/console/OtoSelect.vue'
 import {
   getMyOrgs, getOrg, listGroups, shareResource, unshareResource,
   transferResource, publishProjectMcp, unpublishProjectMcp, getProjectInventory,
 } from '@/api/console'
 import type { GroupListItem, NamespaceShare, Org, OrgMember, SharePrincipal, Project } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { slugify } from '@/lib/slug'
 import { ROLE_OPTIONS, roleLabel, roleTone, type ResourceRole } from '@/lib/resourceRole'
 import { useToast } from '@/composables/useToast'
 import { useMe } from '@/composables/useMe'
@@ -36,6 +38,17 @@ const role = ref<ResourceRole>('editor')
 const memberSub = ref(''); const groupId = ref(''); const orgId = ref(''); const email = ref('')
 const members = ref<OrgMember[]>([]); const groups = ref<GroupListItem[]>([]); const myOrgs = ref<Org[]>([])
 const busy = ref(false)
+
+// Options des selects (DS OtoSelect) — dérivées des listes chargées.
+const MODE_OPTIONS: { value: Mode; label: string }[] = [
+  { value: 'member', label: "membre de l'org" },
+  { value: 'team', label: 'équipe' },
+  { value: 'org', label: 'une de mes orgs' },
+  { value: 'email', label: 'email libre' },
+]
+const memberOpts = computed(() => members.value.map((m) => ({ value: m.sub, label: m.name || m.email || m.sub })))
+const teamOpts = computed(() => groups.value.map((g) => ({ value: String(g.group_id), label: g.name })))
+const orgOpts = computed(() => myOrgs.value.map((o) => ({ value: String(o.id), label: o.name })))
 
 async function loadPickers() {
   const org = me.value?.active_org
@@ -102,6 +115,12 @@ const mcpActive = computed(() => !!props.project.mcp_access && props.project.mcp
 const mcpAccess = computed(() => props.project.mcp_access)
 async function copyMcp() { if (mcpConnectUrl.value) { await navigator.clipboard.writeText(mcpConnectUrl.value).catch(() => {}); toast('URL copiée') } }
 const { promptForm } = usePrompt()
+// Défaut de sous-domaine : `slugify(org)-slugify(projet)` (marque l'org, unique par
+// projet) — évite d'imposer un slug vide « requis » que l'utilisateur doit inventer.
+function defaultSlug(): string {
+  return [slugify(me.value?.active_org_name, { maxLen: 24 }), slugify(props.project.name, { maxLen: 24 })]
+    .filter(Boolean).join('-')
+}
 async function publishMcp() {
   if (mcpBusy.value) return
   let toolsDefault = (props.project.mcp_tools ?? []).join('\n')
@@ -116,7 +135,7 @@ async function publishMcp() {
     title: 'Publier en endpoint MCP',
     description: 'Un sous-domaine dédié exposant un jeu d’outils figé, à brancher dans Claude/Mistral. En « secret », le sous-domaine `<slug>.share.oto.cx` est aussi une UI navigable (lecture seule).',
     fields: [
-      { key: 'slug', label: 'Sous-domaine', value: props.project.mcp_slug ?? '', placeholder: 'french-tech-marseille', required: false,
+      { key: 'slug', label: 'Sous-domaine', value: props.project.mcp_slug || defaultSlug(), placeholder: 'french-tech-marseille', required: false,
         hint: '→ <slug>.mcp.oto.cx (public/org) ou <slug>.share.oto.cx (secret). Min. 3 car., a-z 0-9 -.' },
       { key: 'access', label: 'Accès', type: 'select', value: mcpActive.value ? props.project.mcp_access! : 'anonymous',
         options: [
@@ -222,15 +241,12 @@ async function transfer() {
               </div>
             </div>
             <div v-if="!readOnly" class="sd__add">
-              <select v-model="mode" class="sd__in" aria-label="type de destinataire">
-                <option value="member">membre de l'org</option><option value="team">équipe</option>
-                <option value="org">une de mes orgs</option><option value="email">email libre</option>
-              </select>
-              <select v-if="mode === 'member'" v-model="memberSub" class="sd__in sd__grow"><option value="" disabled>choisir un membre…</option><option v-for="m in members" :key="m.sub" :value="m.sub">{{ m.name || m.email }}</option></select>
-              <select v-else-if="mode === 'team'" v-model="groupId" class="sd__in sd__grow"><option value="" disabled>choisir une équipe…</option><option v-for="g in groups" :key="g.group_id" :value="String(g.group_id)">{{ g.name }}</option></select>
-              <select v-else-if="mode === 'org'" v-model="orgId" class="sd__in sd__grow"><option value="" disabled>choisir une org…</option><option v-for="o in myOrgs" :key="o.id" :value="String(o.id)">{{ o.name }}</option></select>
+              <OtoSelect v-model="mode" :options="MODE_OPTIONS" aria-label="type de destinataire" />
+              <OtoSelect v-if="mode === 'member'" v-model="memberSub" :options="memberOpts" grow placeholder="choisir un membre…" />
+              <OtoSelect v-else-if="mode === 'team'" v-model="groupId" :options="teamOpts" grow placeholder="choisir une équipe…" />
+              <OtoSelect v-else-if="mode === 'org'" v-model="orgId" :options="orgOpts" grow placeholder="choisir une org…" />
               <input v-else v-model="email" class="sd__in sd__grow" type="email" placeholder="collègue@exemple.com" @keyup.enter="addPrincipal" />
-              <select v-model="role" class="sd__in" aria-label="rôle"><option v-for="r in ROLE_OPTIONS" :key="r.value" :value="r.value">{{ r.label }}</option></select>
+              <OtoSelect v-model="role" :options="ROLE_OPTIONS" aria-label="rôle" />
               <Btn kind="mini" icon="plus" :disabled="busy || !principal" @click="addPrincipal">Inviter</Btn>
             </div>
             <p v-else class="dim sd__ro">Tu es en lecture seule — gestion réservée au propriétaire.</p>
@@ -315,7 +331,7 @@ async function transfer() {
 </template>
 
 <style scoped>
-.sd-ov { position: fixed; inset: 0; z-index: 100; background: color-mix(in srgb, var(--color-ink) 42%, transparent); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.sd-ov { position: fixed; inset: 0; z-index: var(--z-modal); background: color-mix(in srgb, var(--color-ink) 42%, transparent); display: flex; align-items: center; justify-content: center; padding: 24px; }
 .sd { width: min(540px, 100%); max-height: 86vh; overflow-y: auto; background: var(--color-surface); border: 1px solid var(--border-card); border-radius: var(--radius-md); box-shadow: var(--shadow-pop); }
 .sd__hd { position: sticky; top: 0; display: flex; align-items: center; gap: 9px; padding: 10px 16px; border-bottom: 1px solid var(--color-hair); background: var(--color-saffron-soft); z-index: 1; }
 .sd__hdic { display: inline-flex; color: var(--color-saffron-ink); }

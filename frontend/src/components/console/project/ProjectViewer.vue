@@ -8,6 +8,7 @@ import { RouterLink } from 'vue-router'
 import Icon from '@/components/console/Icon.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
+import OtoSelect from '@/components/console/OtoSelect.vue'
 import MarkdownView from '@/components/console/MarkdownView.vue'
 // Éditeur TipTap en chunk séparé : chargé au premier passage en mode édition seulement.
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/console/MarkdownEditor.vue'))
@@ -92,9 +93,12 @@ const revisions = ref<DocRevision[]>([])
 const showHistory = ref(false)
 const changeRequests = ref<DocChangeRequest[]>([])
 const KIND_LABEL: Record<DocKind, string> = { doc: 'doc', note: 'note agent', source: 'source' }
+const KIND_OPTIONS = (Object.keys(KIND_LABEL) as DocKind[]).map((value) => ({ value, label: KIND_LABEL[value] }))
 
-// Resynchronise l'édition quand la sélection change (rail) ou que le brief bouge côté parent.
-watch(item, () => resetPage(), { immediate: true })
+// Resynchronise l'édition quand la sélection CHANGE (clé du rail), pas à chaque
+// recalcul de la référence `item` : le parent recrée l'objet `selItem` (ex. après
+// avoir lié un connecteur) → sans la clé, resetPage() jetait le brouillon en cours.
+watch(() => item.value?.key, () => resetPage(), { immediate: true })
 watch(() => props.brief, (v) => { if (!editing.value || !isHome.value) briefDraft.value = v ?? '' })
 
 function resetPage() {
@@ -176,6 +180,10 @@ const hasBody = computed(() => !!body.value && body.value.trim().length > 0)
 const identities = ref<ConnectorIdentity[]>([])
 const identLoading = ref(false)
 const chosenIdentity = ref('')      // identité cible (défaut = celle du binding)
+const identityOpts = computed(() => identities.value.map((idn) => ({
+  value: idn.id,
+  label: `${idn.label || idn.id}${idn.channel ? ` · ${idn.channel}` : ''}${idn.granted ? ' · partagé' : ''}`,
+})))
 const surcharge = ref('')
 const cfgSaving = ref(false)
 const connectorTools = ref<{ name: string; description: string }[]>([])
@@ -304,6 +312,14 @@ async function removeFile() {
             <button v-if="!readOnly" class="vw__x" @click="isHome ? editBrief() : editDoc()"><Icon name="pencil" :size="12" /> éditer</button>
             <button v-else-if="!isHome" class="vw__x" @click="editDoc"><Icon name="pencil" :size="12" /> proposer une modif</button>
           </template>
+          <template v-else>
+            <template v-if="isHome"><Btn kind="mini" @click="saveBrief">Enregistrer</Btn><button class="vw__x" @click="cancelBrief">Annuler</button></template>
+            <template v-else-if="!readOnly">
+              <OtoSelect v-if="draft" v-model="draft.kind" :options="KIND_OPTIONS" size="sm" aria-label="type de page" />
+              <Btn kind="mini" @click="saveDoc">Enregistrer</Btn><button class="vw__x" @click="cancelDoc">Annuler</button>
+            </template>
+            <template v-else><Btn kind="mini" @click="proposeChange">Proposer une modif</Btn><button class="vw__x" @click="cancelDoc">Annuler</button></template>
+          </template>
         </div>
       </header>
 
@@ -315,14 +331,6 @@ async function removeFile() {
           <MarkdownEditor v-if="isHome" v-model="briefDraft"
             placeholder="Le but du projet, le contexte, ce que l'agent doit savoir au démarrage…" />
           <MarkdownEditor v-else-if="draft" v-model="draft.body_md" placeholder="Contenu de la page…" />
-          <div class="vw__editact">
-            <template v-if="isHome"><Btn kind="mini" @click="saveBrief">Enregistrer</Btn><button class="vw__x" @click="cancelBrief">Annuler</button></template>
-            <template v-else-if="!readOnly">
-              <select v-if="draft" v-model="draft.kind" class="vw__kind"><option value="doc">doc</option><option value="note">note agent</option><option value="source">source</option></select>
-              <Btn kind="mini" @click="saveDoc">Enregistrer</Btn><button class="vw__x" @click="cancelDoc">Annuler</button>
-            </template>
-            <template v-else><Btn kind="mini" @click="proposeChange">Proposer une modif</Btn><button class="vw__x" @click="cancelDoc">Annuler</button></template>
-          </div>
         </template>
 
         <!-- lecture -->
@@ -370,10 +378,9 @@ async function removeFile() {
       <!-- ═══ CONNECTEUR ═══ -->
       <div v-else-if="kind === 'connecteur' && link" class="vw__block">
         <div class="vw__sub">résolution — compte utilisé</div>
-        <select v-if="identities.length || identLoading" v-model="chosenIdentity" class="vw__select" :disabled="readOnly || identLoading">
-          <option value="">{{ identLoading ? 'chargement…' : '(défaut du compte)' }}</option>
-          <option v-for="idn in identities" :key="idn.id" :value="idn.id">{{ idn.label || idn.id }}{{ idn.channel ? ` · ${idn.channel}` : '' }}{{ idn.granted ? ' · partagé' : '' }}</option>
-        </select>
+        <OtoSelect v-if="identities.length || identLoading" v-model="chosenIdentity" :options="identityOpts"
+          :none-label="identLoading ? 'chargement…' : '(défaut du compte)'"
+          :disabled="readOnly || identLoading" trigger-class="w-full max-w-[340px]" />
         <p v-else class="dim" style="font-size: 12.5px">Ce connecteur n'a pas de sélecteur de compte — il résout la clé perso / d'org / plateforme.</p>
 
         <template v-if="toolsLoading || connectorTools.length">
@@ -478,13 +485,13 @@ async function removeFile() {
 .vw__x:hover { background: var(--color-paper-2); }
 .vw__x--danger { color: var(--color-terra-ink); border-color: var(--color-terra-soft); }
 
-.vw__page { max-width: 720px; }
+.vw__page { max-width: 720px; margin-inline: auto; }
 .vw__pageact { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 16px; }
-.vw__titlein { width: 100%; max-width: 720px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 8px 11px; font: inherit; font-size: 16px; font-weight: 700; color: var(--color-ink); background: var(--color-surface); margin-bottom: 10px; }
-.vw__area { width: 100%; max-width: 720px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 11px 13px; font-family: var(--font-sans); font-size: 13.5px; line-height: 1.6; color: var(--color-ink-soft); background: var(--color-surface); resize: vertical; box-sizing: border-box; }
+.vw__titlein { width: 100%; max-width: 720px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 8px 11px; font: inherit; font-size: 16px; font-weight: 700; color: var(--color-ink); background: var(--color-surface); margin-bottom: 10px; margin-inline: auto; }
+.vw__area { width: 100%; max-width: 720px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 11px 13px; font-family: var(--font-sans); font-size: 13.5px; line-height: 1.6; color: var(--color-ink-soft); background: var(--color-surface); resize: vertical; box-sizing: border-box; margin-inline: auto; }
 .vw__editact { display: flex; align-items: center; gap: 9px; margin-top: 10px; }
 .vw__kind { border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 4px 8px; font: inherit; font-size: 11.5px; background: var(--color-surface); }
-.vw__panel { margin-top: 16px; border-top: 1px solid var(--color-hair-soft); padding-top: 10px; max-width: 720px; }
+.vw__panel { margin-top: 16px; border-top: 1px solid var(--color-hair-soft); padding-top: 10px; max-width: 720px; margin-inline: auto; }
 .vw__rev { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
 
 .vw__block { max-width: 660px; display: flex; flex-direction: column; align-items: flex-start; gap: 0; }

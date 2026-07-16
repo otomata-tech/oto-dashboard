@@ -69,7 +69,7 @@ const rows = computed(() => props.activity.map((a) => {
 </template>
 
 <style scoped>
-.dr-ov { position: fixed; inset: 0; z-index: 100; background: color-mix(in srgb, var(--color-ink) 35%, transparent); }
+.dr-ov { position: fixed; inset: 0; z-index: var(--z-modal); background: color-mix(in srgb, var(--color-ink) 35%, transparent); }
 .dr { position: absolute; top: 0; right: 0; bottom: 0; width: 50%; min-width: 420px; max-width: 760px; background: var(--color-surface); border-left: 1px solid var(--border-card); box-shadow: var(--shadow-drawer); display: flex; flex-direction: column; }
 .dr__hd { display: flex; align-items: center; gap: 9px; padding: 10px 16px; border-bottom: 1px solid var(--color-hair); flex: none; background: var(--color-saffron-soft); }
 .dr__hdic { display: inline-flex; color: var(--color-saffron-ink); }

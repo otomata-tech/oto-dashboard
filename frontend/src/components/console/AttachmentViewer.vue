@@ -187,7 +187,7 @@ function onKey(e: KeyboardEvent) { if (e.key === 'Escape') emit('close') }
 
 <style scoped>
 .av-scrim {
-  position: fixed; inset: 0; z-index: 80;
+  position: fixed; inset: 0; z-index: var(--z-modal);
   display: flex; align-items: center; justify-content: center;
   padding: 24px; background: rgba(44, 33, 18, 0.44);
   animation: av-in 160ms var(--ease-out);

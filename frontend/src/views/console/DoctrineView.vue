@@ -455,10 +455,10 @@ async function removeSkill(slug: string, label: string) {
 .tag--ro { border: 1px solid var(--color-hair); color: var(--color-mute); }
 .slug { font-family: var(--font-mono); font-size: 11px; color: var(--color-faint); }
 
-.btn-edit { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; background: var(--color-surface); color: var(--color-ink-soft); border: 1px solid var(--color-hair); border-radius: 999px; padding: 5px 13px; font-size: 12px; font-weight: 600; text-transform: lowercase; cursor: pointer; }
-.btn-ink-sm { display: inline-flex; align-items: center; gap: 6px; background: var(--color-ink); color: var(--color-bg); border: 1px solid var(--color-ink); border-radius: 999px; padding: 5px 14px; font-size: 12px; font-weight: 600; text-transform: lowercase; cursor: pointer; }
-.btn-ghost-sm { display: inline-flex; align-items: center; gap: 5px; background: var(--color-surface); color: var(--color-ink-soft); border: 1px solid var(--color-hair); border-radius: 999px; padding: 4px 11px; font-size: 11.5px; font-weight: 600; text-transform: lowercase; cursor: pointer; }
-.btn-ghost-xs { font-size: 11px; font-weight: 600; color: var(--color-ink-soft); background: var(--color-surface); border: 1px solid var(--color-hair); border-radius: 999px; padding: 3px 11px; text-transform: lowercase; cursor: pointer; }
+.btn-edit { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; background: var(--color-surface); color: var(--color-ink-soft); border: 1px solid var(--color-hair); border-radius: 999px; padding: 5px 13px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.btn-ink-sm { display: inline-flex; align-items: center; gap: 6px; background: var(--color-ink); color: var(--color-bg); border: 1px solid var(--color-ink); border-radius: 999px; padding: 5px 14px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.btn-ghost-sm { display: inline-flex; align-items: center; gap: 5px; background: var(--color-surface); color: var(--color-ink-soft); border: 1px solid var(--color-hair); border-radius: 999px; padding: 4px 11px; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.btn-ghost-xs { font-size: 11px; font-weight: 600; color: var(--color-ink-soft); background: var(--color-surface); border: 1px solid var(--color-hair); border-radius: 999px; padding: 3px 11px; cursor: pointer; }
 
 /* draft indicator */
 .draft { display: flex; align-items: center; gap: 9px; background: var(--color-saffron-soft); border: 1px solid #ecd28a; border-radius: 9px; padding: 8px 12px; margin-bottom: 13px; font-size: 12px; color: var(--color-saffron-ink); }

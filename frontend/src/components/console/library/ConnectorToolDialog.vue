@@ -10,6 +10,7 @@ import {
   Dialog, DialogScrollContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog'
 import Btn from '@/components/console/Btn.vue'
+import OtoSelect from '@/components/console/OtoSelect.vue'
 import { callTool, getToolDetail } from '@/api/console'
 import type { ToolCallResult, ToolDetail, ToolParamSchema } from '@/types/api'
 
@@ -22,6 +23,7 @@ const detail = ref<ToolDetail | null>(null)
 const loading = ref(false)
 const loadErr = ref('')
 const form = ref<Record<string, string>>({})
+const TOOL_BOOL_OPTS = [{ value: 'true', label: 'true' }, { value: 'false', label: 'false' }]
 const running = ref(false)
 const result = ref<ToolCallResult | null>(null)
 const runErr = ref('')
@@ -135,15 +137,13 @@ function onOpenChange(v: boolean) { if (!v) emit('close') }
               </span>
               <span v-if="p.schema.description" class="tld-field-help">{{ p.schema.description }}</span>
 
-              <select v-if="p.kind === 'enum'" v-model="form[p.name]" class="inp">
-                <option value="">— (défaut)</option>
-                <option v-for="opt in p.schema.enum" :key="String(opt)" :value="String(opt)">{{ opt }}</option>
-              </select>
-              <select v-else-if="p.kind === 'boolean'" v-model="form[p.name]" class="inp">
-                <option value="">— (défaut)</option>
-                <option value="true">true</option>
-                <option value="false">false</option>
-              </select>
+              <OtoSelect v-if="p.kind === 'enum'" :model-value="form[p.name] ?? ''"
+                @update:model-value="(v: string) => (form[p.name] = v)"
+                :options="(p.schema.enum ?? []).map((opt) => ({ value: String(opt), label: String(opt) }))"
+                none-label="— (défaut)" trigger-class="w-full" />
+              <OtoSelect v-else-if="p.kind === 'boolean'" :model-value="form[p.name] ?? ''"
+                @update:model-value="(v: string) => (form[p.name] = v)" :options="TOOL_BOOL_OPTS"
+                none-label="— (défaut)" trigger-class="w-full" />
               <input v-else-if="p.kind === 'number'" v-model="form[p.name]" type="number" class="inp"
                 :placeholder="p.schema.default != null ? String(p.schema.default) : ''" />
               <input v-else v-model="form[p.name]" type="text" class="inp"

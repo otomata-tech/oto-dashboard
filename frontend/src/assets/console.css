@@ -11,6 +11,18 @@
 @import url("https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,400..700;1,400..700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap");
 
 :root {
+  /* ── échelle z-index unique (lot 1, chantier α) : une couche = une valeur.
+     Les deux systèmes de dialogs (modales maison position:fixed + primitives reka
+     teleportées en fin de <body>) partagent --z-modal → à z ÉGAL, l'empilement
+     retombe sur l'ordre DOM : un dialog reka ouvert DEPUIS une modale maison
+     (transfert, ajout de champ) passe automatiquement au-dessus. --z-popover
+     garantit qu'un <select> surmonte son propre dialog. ── */
+  --z-drawer:  900;
+  --z-modal:   1000;
+  --z-popover: 1100;
+  --z-toast:   1200;
+  --z-banner:  1300;
+
   /* ── neutres : un clair + un encre brun chaud ── */
   --color-bg:         #fefcf5;
   --color-paper:      #fefcf5;
@@ -388,7 +400,7 @@ select.inp.sm { padding-right: 22px; background-position: right 6px center; back
   position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
   background: var(--color-ink); color: var(--color-bg);
   border-radius: var(--radius-pill); padding: 8px 18px; font-size: 12.5px; font-weight: 600;
-  z-index: 60; animation: toast-in 180ms var(--ease-out);
+  z-index: var(--z-toast); animation: toast-in 180ms var(--ease-out);
 }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
 

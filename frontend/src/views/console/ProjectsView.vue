@@ -8,6 +8,7 @@ import { useRouter } from 'vue-router'
 import Icon from '@/components/console/Icon.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
+import TopbarPage from '@/components/console/TopbarPage.vue'
 import NameDialog from '@/components/console/NameDialog.vue'
 import ProjectCreateDialog from '@/components/console/ProjectCreateDialog.vue'
 import type { ProjectOwnerPayload } from '@/components/console/ProjectCreateDialog.vue'
@@ -114,17 +115,19 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
 <template>
   <div class="content-inner fadein">
     <!-- barre d'en-tête -->
-    <header class="pl-head">
-      <div class="pl-head__id">
-        <h1 class="pl-head__t">Projets</h1>
-        <span v-if="hasProjects" class="pl-head__n">{{ projects.length }} projets</span>
+    <TopbarPage>
+      <div class="pl-head">
+        <div class="pl-head__id">
+          <h1 class="pl-head__t">Projets</h1>
+          <span v-if="hasProjects" class="pl-head__n">{{ projects.length }} projets</span>
+        </div>
+        <div v-if="hasProjects" class="pl-seg" role="group" aria-label="disposition">
+          <button class="pl-seg__b" :class="{ on: layout === 'cards' }" @click="setLayout('cards')">cartes</button>
+          <button class="pl-seg__b" :class="{ on: layout === 'rows' }" @click="setLayout('rows')">tableau</button>
+        </div>
+        <button class="pl-new" @click="create"><Icon name="plus" :size="14" /> Nouveau projet</button>
       </div>
-      <div v-if="hasProjects" class="pl-seg" role="group" aria-label="disposition">
-        <button class="pl-seg__b" :class="{ on: layout === 'cards' }" @click="setLayout('cards')">cartes</button>
-        <button class="pl-seg__b" :class="{ on: layout === 'rows' }" @click="setLayout('rows')">tableau</button>
-      </div>
-      <button class="pl-new" @click="create"><Icon name="plus" :size="14" /> Nouveau projet</button>
-    </header>
+    </TopbarPage>
 
     <!-- états -->
     <p v-if="error" class="dim" style="font-size: 13px">{{ error }}</p>
@@ -211,7 +214,7 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
 .pl-seg { display: inline-flex; border: 1px solid var(--color-hair); border-radius: var(--radius-pill); padding: 2px; background: var(--color-surface); }
 .pl-seg__b { border: 0; background: transparent; border-radius: var(--radius-pill); padding: 5px 13px; font-family: var(--font-sans); font-size: 12px; font-weight: 600; color: var(--color-mute); cursor: pointer; }
 .pl-seg__b.on { background: var(--color-saffron-soft); color: var(--color-saffron-ink); }
-.pl-new { height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 0 16px; border: 1px solid var(--color-saffron); background: var(--color-saffron); border-radius: var(--radius-pill); font-family: var(--font-sans); font-size: 12.5px; font-weight: 700; color: var(--color-ink); cursor: pointer; white-space: nowrap; transition: transform var(--t-fast) var(--ease-out); }
+.pl-new { height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 0 16px; border: 1px solid var(--color-ink); background: var(--color-ink); border-radius: var(--radius-pill); font-family: var(--font-sans); font-size: 12.5px; font-weight: 700; color: var(--color-bg); cursor: pointer; white-space: nowrap; transition: transform var(--t-fast) var(--ease-out); }
 
 /* empty */
 .pl-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 22px; border: 1px dashed var(--color-hair); border-radius: var(--radius-md); background: var(--color-paper); }

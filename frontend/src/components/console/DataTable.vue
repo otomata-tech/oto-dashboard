@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import Btn from './Btn.vue'
 import Icon from './Icon.vue'
 import OtoLoading from './OtoLoading.vue'
+import OtoSelect from './OtoSelect.vue'
 import ColumnFilterCell from './ColumnFilterCell.vue'
 import type { ColumnFilter, DatastoreRow } from '@/types/api'
 import { cellKind, cellShort, absDate, relDate } from '@/lib/cellRender'
@@ -221,10 +222,9 @@ watch(() => props.filters, (f) => {
           @click="emit('update:page', pageCount - 1)">»</Btn>
       </div>
       <label class="dim dt-psize">
-        <select :value="pageSize"
-          @change="emit('update:pageSize', Number(($event.target as HTMLSelectElement).value))">
-          <option v-for="s in PAGE_SIZES" :key="s" :value="s">{{ s }}</option>
-        </select>
+        <OtoSelect :model-value="String(pageSize)" size="sm"
+          @update:model-value="(v: string) => emit('update:pageSize', Number(v))"
+          :options="PAGE_SIZES.map((s) => ({ value: String(s), label: String(s) }))" />
         / page
       </label>
     </div>

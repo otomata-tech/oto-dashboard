@@ -13,6 +13,7 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import Icon from '@/components/console/Icon.vue'
+import OtoSelect from '@/components/console/OtoSelect.vue'
 import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
 import GuidesCard from '@/components/console/GuidesCard.vue'
 import ContextProfileCard from '@/components/console/ContextProfileCard.vue'
@@ -86,8 +87,7 @@ async function toggleNamespace(g: NsGroup) {
 // Poser l'org MAISON = le SEUL geste de cette page qui touche le MCP (défaut des
 // nouvelles conversations Claude, ADR 0023). Migré ici depuis le WorkspaceSwitcher,
 // devenu consultation pure. « aucune » → identité perso/globale (clearActiveOrg).
-async function onHomeChange(e: Event) {
-  const val = (e.target as HTMLSelectElement).value
+async function onHomeChange(val: string) {
   const target = val === '' ? null : Number(val)
   if (target === (me.value?.home_org ?? null)) return
   savingHome.value = true
@@ -132,10 +132,9 @@ onMounted(load)
           <Tag :tone="me?.home_org ? 'olive' : undefined">{{ me?.home_org_name || 'aucune · généraliste' }}</Tag>
         </template>
         <div class="home-row">
-          <select class="ctx-select" :value="me?.home_org ?? ''" :disabled="savingHome" @change="onHomeChange">
-            <option value="">aucune (agent généraliste)</option>
-            <option v-for="o in orgs" :key="o.id" :value="o.id">{{ o.name }}</option>
-          </select>
+          <OtoSelect :model-value="String(me?.home_org ?? '')" @update:model-value="onHomeChange"
+            :options="orgs.map((o) => ({ value: String(o.id), label: o.name }))"
+            none-label="aucune (agent généraliste)" :disabled="savingHome" trigger-class="min-w-[14rem]" />
           <span v-if="savingHome" class="dim" style="font-size: 12px">enregistrement…</span>
         </div>
       </ConsoleCard>

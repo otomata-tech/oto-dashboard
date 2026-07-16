@@ -31,18 +31,18 @@ const isPersonalOrg = computed(() => detail.value?.org.personal === true)
 function editOrg() {
   if (activeOrgId.value == null) return
   openForm({
-    title: 'edit organization',
-    submitLabel: 'save',
+    title: 'modifier l\'organisation',
+    submitLabel: 'enregistrer',
     fields: [
-      { key: 'name', label: 'name', initial: detail.value?.org.name ?? '', required: true },
+      { key: 'name', label: 'nom', initial: detail.value?.org.name ?? '', required: true },
       { key: 'description', label: 'description', type: 'textarea',
-        placeholder: 'what this org is for (optional)', initial: detail.value?.org.description ?? '' },
-      { key: 'domain', label: 'domain', placeholder: 'acme.com',
-        hint: 'your company domain — also fetches your logo automatically (logo.dev) when none is uploaded',
+        placeholder: 'à quoi sert cette org (optionnel)', initial: detail.value?.org.description ?? '' },
+      { key: 'domain', label: 'domaine', placeholder: 'acme.com',
+        hint: 'le domaine de ton entreprise — récupère aussi ton logo automatiquement (logo.dev) si aucun n\'est déposé',
         initial: detail.value?.org.domain ?? '' },
-      { key: 'industry', label: 'industry', placeholder: 'e.g. software, accounting, retail (optional)',
+      { key: 'industry', label: 'secteur', placeholder: 'ex. logiciel, comptabilité, retail (optionnel)',
         initial: detail.value?.org.industry ?? '' },
-      { key: 'location', label: 'location', placeholder: 'e.g. Paris, France (optional)',
+      { key: 'location', label: 'lieu', placeholder: 'ex. Paris, France (optionnel)',
         initial: detail.value?.org.location ?? '' },
     ],
     onConfirm: async (v) => {
@@ -54,7 +54,7 @@ function editOrg() {
         })
         await reload()
         await reloadMe()          // rafraîchit nom + logo dans le badge identité (sidebar)
-        toast('organization updated')
+        toast('organisation mise à jour')
       } catch (e) { toast(humanize(e)); throw e }
     },
   })
@@ -68,19 +68,19 @@ async function onLogoDrop(file: File) {
     await uploadOrgLogo(activeOrgId.value, file)
     await reload()
     await reloadMe()          // rafraîchit le logo dans le badge identité (topbar)
-    toast('org logo updated')
+    toast('logo mis à jour')
   } catch (err) { toast(humanize(err)) }
   finally { logoBusy.value = false }
 }
 async function removeLogo() {
   if (activeOrgId.value == null) return
-  if (!await confirmAction({ title: 'remove org logo', danger: true, confirmLabel: 'remove', message: 'remove this organization logo?' })) return
+  if (!await confirmAction({ title: 'retirer le logo', danger: true, confirmLabel: 'retirer', message: 'retirer le logo de cette organisation ?' })) return
   try {
     logoBusy.value = true
     await deleteOrgLogo(activeOrgId.value)
     await reload()
     await reloadMe()
-    toast('org logo removed')
+    toast('logo retiré')
   } catch (err) { toast(humanize(err)) }
   finally { logoBusy.value = false }
 }
@@ -121,14 +121,14 @@ async function deleteOrg() {
   <div class="content-inner fadein">
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
-    <ConsoleCard v-if="loaded && activeOrgId == null" title="no active org">
-      <div class="helptext">you're not in an organization yet.</div>
+    <ConsoleCard v-if="loaded && activeOrgId == null" title="aucune org active">
+      <div class="helptext">tu n'es dans aucune organisation pour l'instant.</div>
     </ConsoleCard>
 
     <template v-else>
-      <ConsoleCard title="general" sub="name, logo, description and company profile of your active org.">
+      <ConsoleCard title="général" sub="nom, logo, description et profil d'entreprise de ton org active.">
         <template v-if="isOrgAdmin" #actions>
-          <Btn kind="mini" icon="pen" @click="editOrg">edit</Btn>
+          <Btn kind="mini" icon="pen" @click="editOrg">modifier</Btn>
         </template>
         <div class="rowlist">
           <div>
@@ -164,23 +164,13 @@ async function deleteOrg() {
                 :label="detail?.org.logo_custom ? 'changer le logo' : 'déposer un logo'"
                 hint="png, jpeg ou webp · max 2 Mo"
                 @select="onLogoDrop" @error="toast" />
-              <Btn v-if="detail?.org.logo_custom" kind="danger" :disabled="logoBusy" @click="removeLogo">remove logo</Btn>
-            </div>
-          </div>
-
-          <!-- Zone danger : archivage réversible de l'org (jamais l'espace perso). -->
-          <div v-if="isOrgAdmin && !isPersonalOrg" style="border-top: 1px solid var(--color-hair); padding-top: 12px">
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap">
-              <div class="helptext" style="margin: 0">
-                supprime cet espace pour tous ses membres — réversible par un admin oto, données conservées.
-              </div>
-              <Btn kind="danger" @click="deleteOrg">supprimer l'organisation</Btn>
+              <Btn v-if="detail?.org.logo_custom" kind="danger" :disabled="logoBusy" @click="removeLogo">retirer</Btn>
             </div>
           </div>
         </div>
       </ConsoleCard>
 
-      <ConsoleCard v-if="detail?.entitlements?.length" title="entitlements" sub="controlled namespaces unlocked for this org.">
+      <ConsoleCard v-if="detail?.entitlements?.length" title="accès débloqués" sub="namespaces réservés ouverts pour cette org.">
         <div class="rowlist">
           <div v-for="e in detail.entitlements" :key="e.namespace" class="rowitem">
             <Tag tone="cobalt">{{ e.namespace }}</Tag>
@@ -189,15 +179,33 @@ async function deleteOrg() {
         </div>
       </ConsoleCard>
 
-      <!-- Quitter l'org : self-service, TOUT membre (≠ « supprimer » réservé admin).
-           Masqué sur l'espace perso (jamais quittable). -->
-      <ConsoleCard v-if="detail && !isPersonalOrg" title="quitter l'organisation"
-        sub="te retirer de cette org. tu perds l'accès à ses clés partagées, connecteurs et outils.">
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap">
-          <div class="helptext" style="margin: 0">
-            tu restes libre d'y être réinvité·e plus tard. si tu es le dernier admin, nomme d'abord un successeur.
+      <!-- Zone danger : gestes irréversibles/destructifs regroupés (jamais sur l'espace perso).
+           quitter = self-service tout membre · supprimer (archivage réversible) = org_admin. -->
+      <ConsoleCard v-if="detail && !isPersonalOrg" class="danger-zone" title="zone danger"
+        sub="actions sensibles sur cette organisation.">
+        <div class="dz-list">
+          <!-- Quitter : tout membre, refusé si dernier admin (409 backend). -->
+          <div class="dz-row">
+            <div class="dz-txt">
+              <div class="dz-t">quitter l'organisation</div>
+              <div class="helptext" style="margin: 0">
+                tu te retires de cette org et perds l'accès à ses clés, connecteurs et outils. tu peux y être
+                réinvité·e plus tard ; si tu es le dernier admin, nomme d'abord un successeur.
+              </div>
+            </div>
+            <Btn kind="danger" @click="leave">quitter</Btn>
           </div>
-          <Btn kind="danger" @click="leave">quitter l'organisation</Btn>
+          <!-- Supprimer (= archivage réversible) : réservé aux admins de l'org. -->
+          <div v-if="isOrgAdmin" class="dz-row">
+            <div class="dz-txt">
+              <div class="dz-t">supprimer l'organisation</div>
+              <div class="helptext" style="margin: 0">
+                l'org disparaît pour tous ses membres, qui retombent sur leurs autres espaces. les données
+                sont conservées et un admin oto peut la restaurer.
+              </div>
+            </div>
+            <Btn kind="danger" @click="deleteOrg">supprimer</Btn>
+          </div>
         </div>
       </ConsoleCard>
     </template>
@@ -207,3 +215,18 @@ async function deleteOrg() {
       :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
   </div>
 </template>
+
+<style scoped>
+/* Zone danger : identité visuelle terra (bordure + titre) qui signale les gestes destructifs. */
+.danger-zone { border-color: var(--color-terra-soft); }
+.danger-zone :deep(.card-head .t) { color: var(--color-terra-ink); }
+.dz-list { display: flex; flex-direction: column; }
+.dz-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding: 12px 0; border-bottom: 1px solid var(--color-hair);
+}
+.dz-row:first-child { padding-top: 0; }
+.dz-row:last-child { padding-bottom: 0; border-bottom: 0; }
+.dz-txt { flex: 1; min-width: 220px; }
+.dz-t { font-weight: 600; font-size: 13.5px; color: var(--color-ink); margin-bottom: 3px; }
+</style>
