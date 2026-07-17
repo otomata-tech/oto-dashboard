@@ -117,6 +117,9 @@ const router = createRouter({
       meta: { section: '/platform/orgs', level: 'platform', orgScoped: false },
     },
     // Détails org-scopés (nus + préfixés `/o/:orgId/…`), portés par meta.detail.
+    // Recherche transverse (lot 3 Ship 2) : page d'exploration deep-linkable (?q=).
+    { path: '/search', component: ConsoleLayout, meta: { section: '/search', level: 'work', orgScoped: true } },
+    ...scopedVariants('/search', { section: '/search', level: 'work', orgScoped: true }),
     ...detailRoutes('/projects/:id', 'project'),
     // Un tableau lié ouvert DANS la page projet (`ProjectDetailView` lit `:nsRef`) —
     // même `detail='project'` → ProjectDetailView reste monté (viewKey keyé sur :id).

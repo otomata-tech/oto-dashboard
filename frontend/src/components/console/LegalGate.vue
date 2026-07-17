@@ -58,7 +58,7 @@ onMounted(load)
   position: fixed; inset: 0; z-index: var(--z-banner);
   display: flex; align-items: center; justify-content: center; padding: 20px;
   background: color-mix(in srgb, var(--color-ink) 45%, transparent);
-  backdrop-filter: blur(3px);
+  backdrop-filter: blur(var(--blur-overlay));
 }
 .legal-gate__card {
   max-width: 420px; width: 100%; text-align: center;

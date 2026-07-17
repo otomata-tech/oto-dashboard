@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // Création d'un projet — form VALIDÉ (vee-validate + zod), miroir de
-// NamespaceCreateDialog. ADR 0049 : le projet est possédé par un SCOPE — org active
-// (défaut), une équipe/pôle (cloisonne aux membres + admins d'org), ou la
-// bibliothèque plateforme (admins plateforme seulement). L'appel réseau est délégué
-// au parent ; les équipes proposées sont celles que le parent juge utilisables.
+// NamespaceCreateDialog. ADR 0030 amendé (2026-07-17) : un projet naît PERSO (owner=moi,
+// dans le contexte de mon org active) — PRIVÉ par défaut ; l'org/équipe/bibliothèque
+// deviennent des choix EXPLICITES (« donner à… »), plus le défaut. Ensuite on partage
+// (`oto_resource`). L'appel réseau est délégué au parent ; les équipes proposées sont
+// celles que le parent juge utilisables.
 import { watch } from 'vue'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
@@ -18,12 +19,13 @@ import { Button } from '@/components/ui/button'
 
 export interface ProjectOwnerPayload {
   name: string
-  owner?: { owner_type: 'group' | 'platform'; owner_id?: string }
+  owner?: { owner_type: 'user' | 'org' | 'group' | 'platform'; owner_id?: string }
 }
 
 const props = defineProps<{
   open: boolean
   orgName?: string | null
+  orgId?: number | null                      // org active — requise pour le scope « org »
   groups?: { id: number; name: string }[]   // équipes proposables dans l'org active
   canPlatform?: boolean                      // opérateur plateforme : projet bibliothèque
   onConfirm: (payload: ProjectOwnerPayload) => Promise<void>
@@ -37,16 +39,22 @@ const schema = toTypedSchema(
   }),
 )
 
+// Défaut = « moi » (perso) : le projet naît privé au créateur (ADR 0030 amendé).
 const { handleSubmit, isSubmitting, resetForm } = useForm({
   validationSchema: schema,
-  initialValues: { name: '', scope: 'org' },
+  initialValues: { name: '', scope: 'me' },
 })
 
-watch(() => props.open, (o) => { if (o) resetForm({ values: { name: '', scope: 'org' } }) })
+watch(() => props.open, (o) => { if (o) resetForm({ values: { name: '', scope: 'me' } }) })
 
 const submit = handleSubmit(async (values) => {
+  // `me` = pas d'owner explicite → le backend crée en PERSO (défaut). Les autres scopes
+  // sont des dons EXPLICITES : `org` DOIT porter l'id de l'org active (le backend n'a plus
+  // « org » pour défaut, il exige owner_id).
   let owner: ProjectOwnerPayload['owner']
   if (values.scope === 'platform') owner = { owner_type: 'platform' }
+  else if (values.scope === 'org' && props.orgId != null)
+    owner = { owner_type: 'org', owner_id: String(props.orgId) }
   else if (values.scope.startsWith('group:'))
     owner = { owner_type: 'group', owner_id: values.scope.slice('group:'.length) }
   try {
@@ -77,7 +85,7 @@ const submit = handleSubmit(async (values) => {
           </FormItem>
         </FormField>
 
-        <FormField v-if="(groups && groups.length) || canPlatform" v-slot="{ componentField }" name="scope">
+        <FormField v-slot="{ componentField }" name="scope">
           <FormItem>
             <FormLabel>propriétaire</FormLabel>
             <Select v-bind="componentField">
@@ -87,6 +95,7 @@ const submit = handleSubmit(async (values) => {
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
+                <SelectItem value="me">moi (privé)</SelectItem>
                 <SelectItem value="org">org{{ orgName ? ` (${orgName})` : '' }}</SelectItem>
                 <SelectItem v-for="g in groups ?? []" :key="g.id" :value="`group:${g.id}`">
                   équipe — {{ g.name }}
@@ -94,7 +103,7 @@ const submit = handleSubmit(async (values) => {
                 <SelectItem v-if="canPlatform" value="platform">bibliothèque oto (plateforme)</SelectItem>
               </SelectContent>
             </Select>
-            <FormDescription>un projet d'équipe n'est visible que de ses membres (+ admins d'org).</FormDescription>
+            <FormDescription>par défaut « moi » : privé au créateur, dans le contexte de ton org. Tu partages ensuite ; « org » / « équipe » = visible de tous ses membres d'emblée.</FormDescription>
             <FormMessage />
           </FormItem>
         </FormField>

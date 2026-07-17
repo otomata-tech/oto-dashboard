@@ -11,6 +11,10 @@
 @import url("https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,400..700;1,400..700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap");
 
 :root {
+  /* ── overlay (lot 3 Ship 2, dette DRY §6.1) : LE flou + LE voile des modales —
+     fini les valeurs magiques par composant (blur(2/3/4px), alphas variables). */
+  --blur-overlay: 3px;
+  --scrim: color-mix(in srgb, var(--color-ink) 30%, transparent);
   /* ── échelle z-index unique (lot 1, chantier α) : une couche = une valeur.
      Les deux systèmes de dialogs (modales maison position:fixed + primitives reka
      teleportées en fin de <body>) partagent --z-modal → à z ÉGAL, l'empilement
@@ -99,6 +103,17 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+
+/* ── recherche sidebar (lot 3 Ship 2) : faux champ sur les tokens encre — la
+   primitive claire .cc-search jurerait sur --sidebar-bg. Focus ring saffron. */
+.sb-search { display: flex; align-items: center; gap: 8px; margin: 10px 14px 4px; padding: 7px 10px;
+  border: 1px solid var(--sidebar-hair); border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.04);
+  color: var(--sidebar-fg-mute); font: inherit; font-size: 12.5px; cursor: pointer; width: calc(100% - 28px); }
+.sb-search:hover { color: var(--sidebar-fg); border-color: rgba(255, 255, 255, 0.2); }
+.sb-search:focus-visible { outline: 2px solid var(--color-saffron); outline-offset: 1px; }
+.sb-search-lbl { flex: 1; text-align: left; }
+.sb-search-kbd { font-family: var(--font-mono); font-size: 9.5px; border: 1px solid var(--sidebar-hair);
+  border-radius: 4px; padding: 1px 5px; color: var(--sidebar-fg-mute); }
 /* ── brand : « O ouvert » (anneau à ouverture haut-droite, mono saffron) ──
    Rendu via SVG en background : les 7 vues gardent <span class="o-medallion">o</span>,
    le « o » textuel legacy est masqué (color/ font-size 0). Marque vivante = <OtoMark>. */

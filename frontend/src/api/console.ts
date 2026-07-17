@@ -2,7 +2,7 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, MyConnector,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, MyConnector, SearchHit,
   BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
@@ -44,6 +44,16 @@ export const getConnectorInstances = () =>
 // Suspendre / réactiver TA clé membre (lot 2 / ADR 0044 §KeyStack) : mise de côté
 // RÉVERSIBLE, la cascade la saute (le niveau du dessous prend le relais). N'écrit
 // que meta.suspended — le secret n'est jamais touché. `suspended=false` = réactiver.
+// Recherche transverse (lot 3 Ship 1) — le verbe « retrouver », chemin unique
+// (même code que MCP oto_search). kinds CSV optionnel, scope projet optionnel.
+export const searchAll = (q: string, opts: { scope?: 'org' | 'project'; project?: number; kinds?: string[]; limit?: number } = {}) => {
+  const p = new URLSearchParams({ q })
+  if (opts.scope) p.set('scope', opts.scope)
+  if (opts.project != null) p.set('project', String(opts.project))
+  if (opts.kinds?.length) p.set('kinds', opts.kinds.join(','))
+  if (opts.limit) p.set('limit', String(opts.limit))
+  return api<{ hits: SearchHit[]; count: number; hint?: string }>(`/api/me/search?${p.toString()}`)
+}
 export const suspendInstance = (connector: string, suspended: boolean, account = '') =>
   api<{ connector: string; account: string | null; suspended: boolean }>(
     '/api/me/connector-instances/suspend',
@@ -206,8 +216,11 @@ export const listProjectTemplates = () => projectsApi<{ projects: Project[] }>({
 export const getProject = (id: number) => projectsApi<Project>({ op: 'get', project_id: id })
 // ADR 0049 : owner = scope du projet — org (une de mes orgs), group (pôle/équipe :
 // cloisonné à ses membres + admins d'org) ou platform (bibliothèque, admin plateforme).
+// ADR 0030 amendé : sans `owner`, le backend crée un projet PERSO (owner=(user, sub))
+// dans le contexte de l'org active. `owner` explicite = org/équipe/plateforme (acte
+// délibéré) ; `user` reste possible pour être explicite (équivalent à omettre).
 export const createProject = (name: string, brief_md = '',
-                              owner?: { owner_type: 'org' | 'group' | 'platform'; owner_id?: string }) =>
+                              owner?: { owner_type: 'user' | 'org' | 'group' | 'platform'; owner_id?: string }) =>
   projectsApi<Project>({ op: 'create', name, brief_md, ...(owner ?? {}) })
 export const updateProject = (id: number, fields: { name?: string; brief_md?: string; is_template?: boolean }) =>
   projectsApi<Project>({ op: 'update', project_id: id, ...fields })
@@ -272,7 +285,7 @@ export const listDocs = (project_id: number) => docsApi<{ project_id: number; do
 export const createDoc = (project_id: number, title: string,
   opts?: { parent_id?: number | null; body_md?: string; kind?: DocKind }) =>
   docsApi<Doc>({ op: 'create', project_id, title, ...(opts ?? {}) })
-export const updateDoc = (doc_id: number, fields: { title?: string; body_md?: string; kind?: DocKind }) =>
+export const updateDoc = (doc_id: number, fields: { title?: string; body_md?: string; kind?: DocKind; description?: string }) =>
   docsApi<Doc>({ op: 'update', doc_id, ...fields })
 export const deleteDoc = (doc_id: number) => docsApi<{ ok: boolean }>({ op: 'delete', doc_id })
 export const getDocRevisions = (doc_id: number) =>
