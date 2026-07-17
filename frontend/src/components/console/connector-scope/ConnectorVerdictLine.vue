@@ -16,7 +16,8 @@ const { me } = useMe()
 const c = computed(() => props.connector)
 const status = computed(() => me.value?.providers?.[c.value.name])
 
-const verdict = computed(() => connectorVerdict(c.value, status.value))
+const verdict = computed(() => connectorVerdict(c.value, status.value,
+  { isPersonal: me.value?.active_org_is_personal }))
 
 // Diagnostic 3 couches (déplié) — la décomposition technique derrière le verdict.
 const isOpenData = computed(() => c.value.auth.method === 'none')

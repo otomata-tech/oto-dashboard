@@ -87,7 +87,8 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
       if (col === 'etat') {
         // Le verdict d'abord, en langage clair (CDC principe 1) : dot + phrase qui
         // encode la cause (installation × résolution × option) sans nommer les couches.
-        const v = connectorVerdict(r, me.value?.providers?.[r.name])
+        const v = connectorVerdict(r, me.value?.providers?.[r.name],
+          { isPersonal: me.value?.active_org_is_personal })
         return { dot: v.dot, label: v.list }
       }
       if (col === 'tools') {

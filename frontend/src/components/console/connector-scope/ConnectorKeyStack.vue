@@ -40,6 +40,9 @@ async function load() {
 }
 onMounted(load)
 
+// Solo (org perso, principe 9) : jamais les mots « org » ni « équipe ».
+const isPersonal = computed(() => !!me.value?.active_org_is_personal)
+
 const LEVEL_RANK: Record<string, number> = { member: 0, group: 1, org: 2, platform: 3 }
 // Nom contextuel d'un niveau (principe 8) — court, sans pédagogie de cascade.
 function levelName(i: ConnectorInstance): string {
@@ -47,8 +50,9 @@ function levelName(i: ConnectorInstance): string {
   if (i.via === 'personal_cross_org') return 'Ta clé — suit ton compte (autre org)'
   switch (i.level) {
     case 'member': return 'Ta clé'
-    case 'group': return `Clé de l’équipe ${i.owner.label || ''}`.trim()
-    case 'org': return `Clé de ton org${i.owner.label ? ` ${i.owner.label}` : ''}`
+    // En solo, une clé de niveau org/équipe (rare dans un espace perso) reste « ta clé ».
+    case 'group': return isPersonal.value ? 'Ta clé' : `Clé de l’équipe ${i.owner.label || ''}`.trim()
+    case 'org': return isPersonal.value ? 'Ta clé' : `Clé de ton org${i.owner.label ? ` ${i.owner.label}` : ''}`
     case 'platform': return 'Clé oto'
     default: return i.name
   }
@@ -78,8 +82,10 @@ const autoOpen = computed(() => rows.value.length >= 2 || hasSuspended.value || 
 const open = ref(false)
 const expanded = computed(() => open.value || autoOpen.value)
 
-// Bandeau de contexte (principe 7) : nomme org (+ équipe si présente).
+// Bandeau de contexte (principe 7) : nomme org (+ équipe si présente). RIEN en solo
+// (principe 9 : l'org, c'est toi — on ne nomme pas un contexte d'org).
 const contextLabel = computed(() => {
+  if (isPersonal.value) return ''
   const org = me.value?.active_org_name
   const grp = me.value?.active_group_name
   if (!org) return ''
