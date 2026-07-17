@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Icon from './Icon.vue'
 import Dot from './Dot.vue'
 import ConsoleIdentity from './ConsoleIdentity.vue'
 import ConsoleUserMenu from './ConsoleUserMenu.vue'
+import SidebarSpaces from './SidebarSpaces.vue'
 import { NAV } from '@/lib/consoleNav'
-import { listProjects } from '@/api/console'
-import type { Project } from '@/types/api'
 import { useMe, isPlatformOperator, isSuperAdmin } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
@@ -18,21 +17,8 @@ const route = useRoute()
 const { scoped } = useScopedLink()
 const { t } = useI18n()
 
-// Projet en exergue (ADR 0032 §1 / réunion 30/06) : les 5 derniers projets affichés
-// directement sous l'entrée « projects », + « N projets restants » vers l'index quand
-// la liste est tronquée (sinon un projet hors top-5 semble ne pas exister). La liste
-// est déjà triée par récence côté backend. Best-effort : la sidebar reste
-// fonctionnelle si le fetch échoue.
-const recentProjects = ref<Project[]>([])
-const remainingProjects = ref(0)
-onMounted(async () => {
-  try {
-    const all = (await listProjects()).projects
-    recentProjects.value = all.slice(0, 5)
-    remainingProjects.value = Math.max(0, all.length - 5)
-  }
-  catch { /* no-op */ }
-})
+// Les projets sous l'entrée « Projets » sont rendus par SidebarSpaces (arbre
+// d'espaces = équipes + « Mes projets », refonte nav pt 5).
 const { me } = useMe()
 const { navOpen, closeNav } = useNav()
 // Niveau dérivé de la route : il filtre les groupes de nav ci-dessous. Le CHOIX
@@ -50,6 +36,11 @@ const visibleGroups = computed(() =>
        ...g,
        items: g.items.filter((it) => !it.super || isSuperAdmin(me.value)),
      })))
+
+// Plomberie de l'agent (Connecteurs/Procédures) : ancrée en bas, hors de la nav
+// principale — subordonnée aux projets (refonte nav JB, pt 4).
+const plomberieItems = computed(() =>
+  visibleGroups.value.flatMap((g) => g.items.filter((it) => it.plomberie)))
 </script>
 
 <template>
@@ -63,7 +54,7 @@ const visibleGroups = computed(() =>
     <nav class="sb-nav">
       <div v-for="(g, gi) in visibleGroups" :key="gi" class="sb-group">
         <div v-if="g.group" class="sb-group-label">{{ t(g.group) }}</div>
-        <template v-for="it in g.items" :key="it.path">
+        <template v-for="it in g.items.filter((i) => !i.plomberie)" :key="it.path">
           <RouterLink
             class="sb-item"
             :class="{ on: route.meta.section === it.path }"
@@ -75,29 +66,27 @@ const visibleGroups = computed(() =>
             <span v-if="it.warn" class="warn-dot"><Dot tone="saffron" :size="7" /></span>
             <span v-else-if="it.count" class="count">{{ it.count }}</span>
           </RouterLink>
-          <!-- Projet en exergue : les 5 derniers projets juste sous l'entrée « projects ». -->
-          <RouterLink
-            v-for="p in (it.path === '/projects' ? recentProjects : [])"
-            :key="`p${p.id}`"
-            class="sb-item sb-subitem"
-            :class="{ on: route.path.endsWith(`/projects/${p.id}`) }"
-            :to="scoped(`/projects/${p.id}`)"
-            @click="closeNav"
-          >
-            <span class="ic"></span>{{ p.name }}
-          </RouterLink>
-          <RouterLink
-            v-if="it.path === '/projects' && remainingProjects > 0"
-            class="sb-item sb-subitem sb-more"
-            :to="scoped('/projects')"
-            @click="closeNav"
-          >
-            <span class="ic"></span>{{ t('nav.moreProjects', { n: remainingProjects }) }}
-          </RouterLink>
+          <!-- Arbre d'espaces (équipes + « Mes projets ») sous l'entrée « Projets ». -->
+          <SidebarSpaces v-if="it.path === '/projects'" />
         </template>
       </div>
     </nav>
     <div class="sb-foot">
+      <!-- Plomberie ancrée : Connecteurs / Procédures, subordonnés aux projets (pt 4). -->
+      <nav v-if="plomberieItems.length" class="sb-plumb">
+        <RouterLink
+          v-for="it in plomberieItems"
+          :key="it.path"
+          class="sb-item"
+          :class="{ on: route.meta.section === it.path }"
+          :to="scoped(it.path)"
+          @click="closeNav"
+        >
+          <span class="ic"><Icon :name="it.icon" :size="15" /></span>
+          {{ t(it.label) }}
+          <span v-if="it.warn" class="warn-dot"><Dot tone="saffron" :size="7" /></span>
+        </RouterLink>
+      </nav>
       <div class="sb-mcp"><Dot tone="olive" :size="7" /> {{ t('nav.mcpConnected') }}</div>
       <ConsoleUserMenu />
     </div>
@@ -105,12 +94,8 @@ const visibleGroups = computed(() =>
 </template>
 
 <style scoped>
-/* Projet en exergue : sous-liens des 5 derniers projets sous l'entrée « projects ».
-   Le reste du chrome sidebar vit dans console.css. */
-.sb-subitem { padding-left: 30px; font-size: 12.5px; color: var(--sidebar-fg); }
-.sb-subitem .ic { width: 15px; }
-/* état actif : couleurs portées par .sb-item.on (aplat saffron) ; on garde juste le poids. */
-.sb-subitem.on { font-weight: 700; }
-/* « N projets restants » : voix discrète, renvoie à l'index complet. */
-.sb-more { font-style: italic; opacity: 0.75; }
+/* Plomberie ancrée : séparée de la nav principale par un filet haut (refonte nav pt 4). */
+.sb-plumb { display: flex; flex-direction: column; gap: 1px; padding-top: 6px; margin-bottom: 4px;
+  border-top: 1px solid var(--sidebar-hair, rgba(255, 255, 255, 0.08)); }
 </style>
+

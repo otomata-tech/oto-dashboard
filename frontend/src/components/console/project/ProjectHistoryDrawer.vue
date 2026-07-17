@@ -34,6 +34,7 @@ const rows = computed(() => props.activity.map((a) => {
 </script>
 
 <template>
+  <Teleport to="body">
   <Transition name="drawer-fade">
     <div v-if="open" class="dr-ov" @mousedown.self="emit('close')">
       <div class="dr" role="dialog" aria-modal="true" aria-label="historique">
@@ -66,6 +67,7 @@ const rows = computed(() => props.activity.map((a) => {
       </div>
     </div>
   </Transition>
+  </Teleport>
 </template>
 
 <style scoped>

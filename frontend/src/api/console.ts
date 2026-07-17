@@ -121,8 +121,12 @@ export const disconnectFederated = (name: string) => api(`/api/${name}/oauth`, {
 
 // ── unipile (LinkedIn hébergé) — hosted-auth per-user sous la clé partagée ──
 export const getUnipileStatus = () => api<UnipileStatus>('/api/me/unipile')
-export const connectUnipile = (channel: string) =>
-  api<{ url: string }>('/api/me/unipile/connect', { method: 'POST', ...j({ channel }) })
+// `premium` (LinkedIn) = 'recruiter' | 'sales_navigator' : produit à ACTIVER à la
+// connexion. Sans lui Unipile ne connecte que `classic` → les APIs premium répondent
+// 403 et il faut TOUT reconnecter pour le rattraper. Les deux sont exclusifs.
+export const connectUnipile = (channel: string, premium?: string) =>
+  api<{ url: string }>('/api/me/unipile/connect',
+    { method: 'POST', ...j(premium ? { channel, premium } : { channel }) })
 export const disconnectUnipile = (channel: string) =>
   api(`/api/me/unipile?channel=${encodeURIComponent(channel)}`, { method: 'DELETE' })
 

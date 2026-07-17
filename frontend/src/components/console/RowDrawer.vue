@@ -171,6 +171,7 @@ function actorOf(a: RowActivityEntry): string {
 </script>
 
 <template>
+  <Teleport to="body">
   <Transition name="modal-fade">
     <div v-if="open" class="modal-overlay" @mousedown.self="emit('close')">
       <div class="modal" role="dialog" aria-modal="true" aria-label="row detail">
@@ -285,6 +286,7 @@ function actorOf(a: RowActivityEntry): string {
       </div>
     </div>
   </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
