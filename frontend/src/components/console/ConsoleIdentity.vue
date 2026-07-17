@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import Avatar from './Avatar.vue'
 import Icon from './Icon.vue'
 import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { useMyOrgs } from '@/composables/useMyOrgs'
+import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
+import { useScopedLink } from '@/composables/useScopedLink'
 
 // En-tête de la sidebar = l'axe IDENTITÉ (org + équipe active) ET le déclencheur du
 // SWITCH d'org : cliquer le bloc org/logo ouvre le WorkspaceSwitcher dans un POPOVER
@@ -17,7 +20,24 @@ import { useScope } from '@/composables/useScope'
 // au niveau : en « org » il se recompose en bannière sur l'organisation gérée.
 const { me } = useMe()
 const { level } = useScope()
-const { prefetch } = useMyOrgs()   // orgs+équipes préchargées au survol → modale instantanée
+const { prefetch } = useMyOrgs()   // orgs+équipes préchargées au survol → popover instantané
+const { closeNav } = useNav()
+const { scoped } = useScopedLink()
+
+// Entrées de GOUVERNANCE remontées du menu-compte du bas dans ce popover (refonte
+// nav zone 1, JB : « haut = ORG »). Navigation view-as (ADR 0023), zéro effet MCP.
+const govEntries = computed(() => {
+  const out: { key: string; label: string; icon: string; to: string; tone?: 'platform' }[] = []
+  if (me.value?.org_role === 'org_admin')
+    out.push({ key: 'org', label: 'Gérer mon org', icon: 'building', to: '/org' })
+  if (me.value?.active_group != null)
+    out.push({ key: 'group', label: 'Gérer mon équipe', icon: 'users', to: '/team/context' })
+  out.push({ key: 'activity', label: 'Activité', icon: 'pulse', to: '/activity' })
+  if (isPlatformOperator(me.value))
+    out.push({ key: 'platform', label: 'Gérer la plateforme', icon: 'shield', to: '/platform/monitoring', tone: 'platform' })
+  return out
+})
+function goGov() { open.value = false; closeNav() }
 
 const open = ref(false)
 const identBtn = ref<HTMLButtonElement>()
@@ -143,6 +163,15 @@ const kicker = computed(() => {
         >
           <div class="id-pop-body">
             <WorkspaceSwitcher @switched="open = false" />
+            <div class="id-gov">
+              <RouterLink
+                v-for="e in govEntries" :key="e.key"
+                class="id-gov-item" :class="{ plat: e.tone === 'platform' }"
+                :to="scoped(e.to)" @click="goGov"
+              >
+                <span class="ic"><Icon :name="e.icon" :size="15" /></span>{{ e.label }}
+              </RouterLink>
+            </div>
           </div>
         </div>
       </div>
@@ -243,4 +272,12 @@ const kicker = computed(() => {
   overflow: hidden;
 }
 .id-pop-body { padding: 8px; overflow-y: auto; }
+/* Entrées de gouvernance (org/équipe/activité/plateforme), sous le switcher. */
+.id-gov { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding-top: 6px;
+  border-top: 1px solid var(--color-hair); }
+.id-gov-item { display: flex; align-items: center; gap: 9px; padding: 8px 9px; border-radius: var(--radius-md);
+  font-size: 13px; font-weight: 600; color: var(--color-ink-soft); text-decoration: none; }
+.id-gov-item:hover { background: var(--color-paper-2); color: var(--color-ink); }
+.id-gov-item .ic { display: inline-flex; color: var(--color-mute); }
+.id-gov-item.plat:hover { color: var(--color-saffron-ink); }
 </style>

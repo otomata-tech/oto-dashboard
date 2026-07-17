@@ -4,72 +4,30 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Icon from './Icon.vue'
 import Avatar from './Avatar.vue'
-import { useMe, isPlatformOperator } from '@/composables/useMe'
+import { useMe } from '@/composables/useMe'
 import { useAuth } from '@/composables/useAuth'
 import { useNav } from '@/composables/useNav'
-import { useScope } from '@/composables/useScope'
 import { useScopedLink } from '@/composables/useScopedLink'
 
-// Menu profil (pied de sidebar) = point d'entrée unique des destinations de
-// GESTION (profil / org / plateforme). On *entre* dans une zone puis on en *sort*.
-// Le SWITCH d'org, lui, a repris sa place en HAUT (ConsoleIdentity, sur l'org/logo) —
-// ici c'est « qu'est-ce que je gère », pas « sous quelle org j'agis ». Gating par
-// droits : org = org_admin de l'org courante, plateforme = opérateur plateforme.
+// Menu PERSO du pied de sidebar (refonte nav zone 5, JB : « bas = PERSO ») : moi /
+// mon compte. Le SWITCH d'org ET la GOUVERNANCE (gérer org / équipe / plateforme)
+// ont migré dans le popover d'org du HAUT (ConsoleIdentity). Ici, perso pur.
 const route = useRoute()
 const { t } = useI18n()
 const { scoped } = useScopedLink()
 const { me } = useMe()
 const { logout } = useAuth()
 const { closeNav } = useNav()
-const { level } = useScope()
 
 const open = ref(false)
 const section = computed(() => String(route.meta.section || '/overview'))
-
-type Entry = {
-  key: string
-  label: string
-  icon: string
-  to: string
-  active: boolean
-  tone?: 'platform'
-}
-
 const onAccount = computed(() => section.value.startsWith('/account'))
-const onActivity = computed(() => section.value.startsWith('/activity'))
 
-// SWITCH d'espace (3 crans) : « où je travaille ». Mon Espace (consommation, niveau
-// user) · Espace Entreprise (gouvernance de l'org, org_admin) · Gérer mon compte.
-// L'entreprise n'apparaît que si j'administre l'org (sinon le switch a 2 crans).
-const spaces = computed<Entry[]>(() => {
-  const out: Entry[] = [
-    { key: 'work', label: 'userMenu.spaceMine', icon: 'home', to: '/overview',
-      active: level.value === 'work' && !onAccount.value && !onActivity.value },
-  ]
-  if (me.value?.org_role === 'org_admin')
-    out.push({ key: 'org', label: 'userMenu.spaceOrg', icon: 'building', to: '/org',
-      active: level.value === 'org' })
-  out.push({ key: 'account', label: 'userMenu.spaceAccount', icon: 'user', to: '/account',
-    active: onAccount.value })
-  return out
-})
-
-// Entrées auxiliaires (hors switch d'espace) : activité, équipe, plateforme.
-const aux = computed<Entry[]>(() => {
-  const out: Entry[] = [
-    { key: 'activity', label: 'userMenu.activity', icon: 'pulse', to: '/activity',
-      active: onActivity.value },
-  ]
-  // « mon équipe » : entre dans le scope team (menu dédié). Visible dès qu'une équipe
-  // active est posée (repli sur me.active_group dans la vue si l'URL n'a pas de /g/).
-  if (me.value?.active_group != null)
-    out.push({ key: 'group', label: 'userMenu.manageTeam', icon: 'users', to: '/team/context',
-      active: level.value === 'group' })
-  if (isPlatformOperator(me.value))
-    out.push({ key: 'platform', label: 'userMenu.managePlatform', icon: 'shield',
-      to: '/platform/monitoring', active: level.value === 'platform', tone: 'platform' })
-  return out
-})
+const entries = computed(() => [
+  { key: 'account', label: 'Gérer mon compte', icon: 'user', to: '/account', active: onAccount.value },
+  { key: 'prefs', label: 'Préférences', icon: 'gear', to: '/account/preferences',
+    active: section.value === '/account/preferences' },
+])
 
 function go() {
   open.value = false
@@ -82,34 +40,16 @@ function go() {
     <!-- backdrop : un clic dehors referme -->
     <div v-if="open" class="um-backdrop" @click="open = false" />
 
-    <!-- menu déroulant (s'ouvre vers le haut depuis le pied de sidebar) -->
+    <!-- menu perso (s'ouvre vers le haut depuis le pied de sidebar) -->
     <div v-if="open" class="um-pop" role="menu">
-      <!-- Switch d'espace : sélecteur exclusif « où je travaille » (3 crans max). -->
-      <div class="um-switch" role="group">
-        <RouterLink
-          v-for="s in spaces" :key="s.key"
-          class="um-switch-item" :class="{ on: s.active }"
-          role="menuitemradio" :aria-checked="s.active"
-          :to="scoped(s.to)" @click="go"
-        >
-          <span class="ic"><Icon :name="s.icon" :size="15" /></span>
-          {{ t(s.label) }}
-        </RouterLink>
-      </div>
-      <div class="um-sep" />
-      <template v-for="e in aux" :key="e.key">
-        <div v-if="e.tone === 'platform'" class="um-sep" />
-        <RouterLink
-          class="um-item"
-          :class="{ on: e.active, plat: e.tone === 'platform' }"
-          role="menuitem"
-          :to="scoped(e.to)"
-          @click="go"
-        >
-          <span class="ic"><Icon :name="e.icon" :size="15" /></span>
-          {{ t(e.label) }}
-        </RouterLink>
-      </template>
+      <RouterLink
+        v-for="e in entries" :key="e.key"
+        class="um-item" :class="{ on: e.active }"
+        role="menuitem" :to="scoped(e.to)" @click="go"
+      >
+        <span class="ic"><Icon :name="e.icon" :size="15" /></span>
+        {{ e.label }}
+      </RouterLink>
       <div class="um-sep" />
       <button class="um-item danger" role="menuitem" @click="() => { open = false; logout() }">
         <span class="ic"><Icon name="logout" :size="15" /></span>
@@ -187,21 +127,4 @@ function go() {
 .um-item.danger:hover { background: var(--color-paper-2); color: var(--color-ink); }
 
 .um-sep { height: 1px; margin: 4px 2px; background: var(--color-hair); }
-
-/* Switch d'espace : segmented vertical (crans exclusifs, actif en aplat encre). */
-.um-switch {
-  display: flex; flex-direction: column; gap: 2px; padding: 3px;
-  border: 1px solid var(--color-hair); border-radius: var(--radius-md);
-  background: var(--color-paper); margin-bottom: 2px;
-}
-.um-switch-item {
-  display: flex; align-items: center; gap: 9px;
-  padding: 7px 9px; border-radius: var(--radius-md);
-  font-size: 13px; font-weight: 600; color: var(--color-ink-soft); text-decoration: none;
-  transition: background var(--t-fast), color var(--t-fast);
-}
-.um-switch-item .ic { display: inline-flex; color: var(--color-mute); }
-.um-switch-item:hover { background: var(--color-paper-2); color: var(--color-ink); }
-.um-switch-item.on { background: var(--color-ink); color: var(--color-bg); }
-.um-switch-item.on .ic { color: var(--color-bg); }
 </style>
