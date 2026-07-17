@@ -67,6 +67,13 @@ describe('connectorVerdict — résolution (actif)', () => {
     expect(v.list).toBe('Actif · clé d’org')
   })
 
+  it('solo (org perso) : une clé résolue « org » se dit « ta clé » (principe 9)', () => {
+    const v = connectorVerdict(
+      conn(), ps({ mode: 'org', user_key_configured: false, org_secret_configured: true }),
+      { isPersonal: true })
+    expect(v.list).toBe('Actif · ta clé')
+  })
+
   it('multi-clés (ta clé + équipe + org) → suffixe (+2)', () => {
     const v = connectorVerdict(conn(), ps({
       mode: 'user', user_key_configured: true,

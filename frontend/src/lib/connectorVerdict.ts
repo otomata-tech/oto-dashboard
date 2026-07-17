@@ -32,22 +32,26 @@ export function keyLevelCount(ps?: ProviderStatus): number {
 }
 
 // Libellé de la source effective (principe 8 — noms contextuels). En liste on reste
-// court ; la pédagogie des niveaux est réservée à la pile dépliée.
-function sourceLabel(r: MyConnector, ps: ProviderStatus): string {
+// court ; la pédagogie des niveaux est réservée à la pile dépliée. En SOLO (org perso,
+// principe 9) on ne prononce jamais « org »/« équipe » : tout est « ta clé ».
+function sourceLabel(r: MyConnector, ps: ProviderStatus, isPersonal: boolean): string {
   switch (ps.mode) {
     case 'user':
       // hosted/oauth : la clé résout via un compte lié — dire « compte lié ».
       return r.auth.method === 'hosted' || r.auth.method === 'oauth'
         ? 'compte lié'
         : 'ta clé'
-    case 'group': return 'clé d’équipe'
-    case 'org': return 'clé d’org'
+    case 'group': return isPersonal ? 'ta clé' : 'clé d’équipe'
+    case 'org': return isPersonal ? 'ta clé' : 'clé d’org'
     case 'platform': return 'clé oto'
     default: return 'ta clé'
   }
 }
 
-export function connectorVerdict(r: MyConnector, ps?: ProviderStatus): ConnectorVerdict {
+export function connectorVerdict(
+  r: MyConnector, ps?: ProviderStatus, opts: { isPersonal?: boolean } = {},
+): ConnectorVerdict {
+  const isPersonal = !!opts.isPersonal
   const keyCount = keyLevelCount(ps)
   const base = { hollow: false, cta: null as string | null, hint: false, keyCount }
 
@@ -124,7 +128,7 @@ export function connectorVerdict(r: MyConnector, ps?: ProviderStatus): Connector
   }
 
   // 3. Résolu (user/group/org/platform) → prêt. Suffixe (+N) seulement si ≥2 clés.
-  const src = sourceLabel(r, ps!)
+  const src = sourceLabel(r, ps!, isPersonal)
   const extra = keyCount >= 2 ? ` (+${keyCount - 1})` : ''
   return {
     ...base, dot: 'olive',

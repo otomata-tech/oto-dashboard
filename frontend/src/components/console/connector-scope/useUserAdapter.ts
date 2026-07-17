@@ -8,18 +8,27 @@ import {
   getMyConnectors, getTools, getToolRegistry,
   selectConnector, pauseConnector, unselectConnector,
   setCredential, deleteApiKey, verifyConnector, enableTool, disableTool,
+  getOrgFieldFilters,
 } from '@/api/console'
 import { useMe } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
 import { connectorVerdict } from '@/lib/connectorVerdict'
-import type { ConnectorState, MyConnector, ToolEntry } from '@/types/api'
+import type { ConnectorState, FieldFiltersBundle, MyConnector, ToolEntry } from '@/types/api'
 
 export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector> {
   const { me, reload: reloadMe } = useMe()
   const rows = ref<MyConnector[]>([])
   const tools = ref<(ToolEntry & { description?: string })[]>([])
+  const filters = ref<FieldFiltersBundle | null>(null)
   const ready = ref(false)
   const error = ref<string | null>(null)
+
+  // Confidentialité / rédaction (CDC M2d) : même policy d'org que /org/connectors —
+  // le drawer user est le RACCOURCI (solo = org_admin de son org perso ; membre = lecture).
+  const orgId = computed(() => me.value?.active_org ?? null)
+  const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin')
+  const isPersonal = computed(() => !!me.value?.active_org_is_personal)
+  const installed = (r: MyConnector) => r.state !== 'not_selected'
 
   const nsOf = (name: string) => name.split('_')[0] ?? name
   const toolsOf = (r: MyConnector): ToolRow[] => {
@@ -30,13 +39,15 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
 
   async function load() {
     try {
-      const [mc, tl, reg] = await Promise.all([
+      const [mc, tl, reg, ff] = await Promise.all([
         getMyConnectors(), getTools(),
         getToolRegistry().catch(() => ({ tools: [], count: 0 })),
+        orgId.value != null ? getOrgFieldFilters(orgId.value).catch(() => null) : Promise.resolve(null),
       ])
       rows.value = mc.connectors
       const desc = new Map(reg.tools.map((t) => [t.name, t.description]))
       tools.value = tl.tools.map((t) => ({ ...t, description: desc.get(t.name) }))
+      filters.value = ff
     } catch (e) { error.value = humanize(e) } finally { ready.value = true }
   }
   async function reload() { await Promise.all([load(), reloadMe()]) }
@@ -87,7 +98,8 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
       if (col === 'etat') {
         // Le verdict d'abord, en langage clair (CDC principe 1) : dot + phrase qui
         // encode la cause (installation × résolution × option) sans nommer les couches.
-        const v = connectorVerdict(r, me.value?.providers?.[r.name])
+        const v = connectorVerdict(r, me.value?.providers?.[r.name],
+          { isPersonal: me.value?.active_org_is_personal })
         return { dot: v.dot, label: v.list }
       }
       if (col === 'tools') {
@@ -102,6 +114,9 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
     tabs: (r) => [
       { key: 'connection', label: 'connection' },
       { key: 'tools', label: 'tools', badge: `${toolsOf(r).filter((t) => t.enabled).length}/${toolsOf(r).length}` },
+      // Confidentialité (CDC M2d) : seulement une fois le connecteur installé (rien à
+      // masquer sur un « à connecter ») et si le connecteur porte une clé (open data exclu).
+      ...(installed(r) && r.auth.method !== 'none' ? [{ key: 'redaction', label: 'confidentialité' }] : []),
       { key: 'about', label: 'about' },
     ],
     availability: {
@@ -159,6 +174,29 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
           targets.forEach((t) => { t.enabled = on })
         } catch (e) { ctx.toast(humanize(e)) }
       },
+    },
+    redaction: {
+      props: (r) => {
+        const b = filters.value
+        const name = r.name
+        return {
+          service: name,
+          fields: b?.schemas?.[name] ?? [],
+          rules: b?.filters?.[name]?.rules ?? b?.defaults?.[name]?.rules ?? [],
+          defaultRules: b?.defaults?.[name]?.rules ?? [],
+          templates: b?.templates,
+          actionSchema: b?.schema ?? [],
+          customized: !!b?.filters?.[name],
+          orgId: orgId.value,
+          isOrgAdmin: isOrgAdmin.value,
+          // Membre non-admin = lecture seule ; note de portée adaptée à la structure
+          // (principe 9) : solo → aucun mot « org » ; admin multi → « toute ton org ».
+          readonly: !isOrgAdmin.value,
+          scopeNote: (isPersonal.value ? 'personal' : isOrgAdmin.value ? 'org-wide' : 'readonly') as
+            'personal' | 'org-wide' | 'readonly',
+        }
+      },
+      onChanged: () => { if (orgId.value != null) getOrgFieldFilters(orgId.value).then((f) => { filters.value = f }).catch(() => {}) },
     },
   }
 }

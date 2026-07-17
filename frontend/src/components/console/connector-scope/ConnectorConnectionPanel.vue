@@ -13,17 +13,16 @@ import ConnectorOAuthAccounts from '@/components/console/ConnectorOAuthAccounts.
 import ConnectorFederatedWidget from '@/components/console/ConnectorFederatedWidget.vue'
 import ConnectorSessionWidget from '@/components/console/ConnectorSessionWidget.vue'
 import ConnectorHostedWidget from '@/components/console/ConnectorHostedWidget.vue'
+import ConnectorKeyStack from './ConnectorKeyStack.vue'
+import ConnectorVerdictLine from './ConnectorVerdictLine.vue'
 import { useMe } from '@/composables/useMe'
-import { useToast } from '@/composables/useToast'
-import { humanize } from '@/lib/errors'
 import { getOrgConnectorActivation } from '@/api/console'
 import type { ConnectionLever } from './adapter'
-import type { ConnectorMode, DotTone } from '@/lib/consoleTypes'
-import type { MyConnector, OrgConnectorActivation, VerifyResult } from '@/types/api'
+import type { ConnectorMode } from '@/lib/consoleTypes'
+import type { MyConnector, OrgConnectorActivation } from '@/types/api'
 
 const props = defineProps<{ connector: MyConnector; lever: ConnectionLever<MyConnector> }>()
 const { me } = useMe()
-const { toast } = useToast()
 const c = computed(() => props.connector)
 
 // Bandeau côté-org (ADR 0044 B4) — résumé lecture seule pour un org_admin.
@@ -84,24 +83,6 @@ const statusMode = computed<ConnectorMode>(() => {
 })
 const keyConfigured = computed(() => !!status.value?.user_key_configured)
 const needsKey = computed(() => connKind.value === 'key')
-const canTest = computed(() => c.value.verifiable && statusMode.value !== 'none')
-const testing = ref(false)
-const testRes = ref<VerifyResult | null>(null)
-async function testConnection() {
-  if (!props.lever.verify) return
-  testing.value = true; testRes.value = null
-  try { testRes.value = await props.lever.verify(c.value) }
-  catch (e) { toast(humanize(e)) } finally { testing.value = false }
-}
-function nodeCls(mode: ConnectorMode): string { return 'node' + (statusMode.value === mode ? ' win' : '') }
-const KEY_STATUS: Record<ConnectorMode, string> = {
-  none: 'no key resolves yet — connect one below.',
-  user: 'resolved by your own key, set in this org.',
-  group: "resolved by your team's shared key.",
-  org: "resolved by your org's shared key — you don't need your own.",
-  platform: 'resolved by the oto platform key.',
-}
-const keyStatus = computed(() => KEY_STATUS[statusMode.value])
 const docRefCount = computed(() => c.value.doctrine_ref_count ?? 0)
 
 // Verdict « état pour toi » (ADR 0044) — ET-logique des 3 couches.
@@ -112,42 +93,17 @@ const docRefCount = computed(() => c.value.doctrine_ref_count ?? 0)
 // acquise dès que la fiche s'affiche ; le manque de clé se dit sur la couche
 // connexion (vécu 2026-07-16 : faux « Réservé à certaines équipes » sur un Zoho
 // simplement pas connecté).
-const connOk = computed(() => isOpenData.value || statusMode.value !== 'none')
 // Clé d'équipe à portée (membre d'une équipe qui a le secret, non active) —
 // backend-driven (ProviderStatus.team_key_group), jamais recalculé côté front.
 const teamKey = computed(() => status.value?.team_key_group ?? null)
-const connSource = computed(() => {
-  if (isOpenData.value) return 'open data'
-  const m = statusMode.value
-  return m === 'user' ? 'ta clé' : m === 'group' ? "clé d'équipe" : m === 'org' ? "clé d'org" : m === 'platform' ? 'clé oto' : ''
-})
-const optionRequired = computed(() => c.value.paid_option ?? null)
-const optionOk = computed(() => c.value.option_ok !== false)
-const availTone = computed<DotTone>(() => 'olive')
-const connTone = computed<DotTone>(() => (isOpenData.value ? 'faint' : connOk.value ? 'olive' : 'saffron'))
-const optTone = computed<DotTone>(() => (!optionRequired.value ? 'faint' : optionOk.value ? 'olive' : 'saffron'))
-const verdict = computed<{ tone: DotTone; text: string }>(() => {
-  if (!optionOk.value) return { tone: 'saffron', text: `Bloqué : l’option « ${optionRequired.value} » n’est pas accordée pour toi.` }
-  if (!connOk.value) {
-    if (teamKey.value) return { tone: 'saffron', text: `Une clé existe dans ton équipe « ${teamKey.value.name} » — active cette équipe pour l’utiliser.` }
-    return { tone: 'saffron', text: 'Exposé mais pas connecté — branche une clé ci-dessous.' }
-  }
-  if (status.value?.mode === 'over_quota') return { tone: 'saffron', text: 'Quota de la clé plateforme atteint pour aujourd’hui.' }
-  return { tone: 'olive', text: 'Prêt à l’emploi.' }
-})
 </script>
 
 <template>
   <div>
-    <!-- état pour toi -->
+    <!-- verdict (lot 2 B4) : la phrase d'abord, le diagnostic 3 couches déplié à « Pourquoi ? » -->
     <div class="dr-block">
       <div class="eyebrow" style="margin-bottom: 9px">état pour toi</div>
-      <div class="statrow">
-        <span class="spill"><Dot :tone="availTone" />disponibilité</span>
-        <span class="spill"><Dot :tone="connTone" />connexion<span v-if="connSource" class="dim"> · {{ connSource }}</span></span>
-        <span class="spill"><Dot :tone="optTone" />option<span v-if="!optionRequired" class="dim"> · n/a</span></span>
-      </div>
-      <p class="verdict" :class="verdict.tone">{{ verdict.text }}</p>
+      <ConnectorVerdictLine :connector="c" />
     </div>
 
     <!-- côté org (org_admin) -->
@@ -166,27 +122,14 @@ const verdict = computed<{ tone: DotTone; text: string }>(() => {
       <p class="helptext" style="margin: 0 0 14px">{{ authExplain }}</p>
 
       <div v-if="needsKey" class="dr-box">
-        <div style="font-size: 12.5px; font-weight: 600; margin-bottom: 10px">key resolution — first match wins</div>
-        <div class="cascade">
-          <span :class="nodeCls('user')">you</span><span class="arr">→</span>
-          <span :class="nodeCls('group')">team</span><span class="arr">→</span>
-          <span :class="nodeCls('org')">org</span><span class="arr">→</span>
-          <span :class="nodeCls('platform')">oto platform</span>
+        <!-- KeyStack (lot 2 B2) : la clé effective en une ligne, dépliable en pile de
+             provenance (« la plus proche gagne »), avec suspension réversible (B7). -->
+        <ConnectorKeyStack :connector="c" :lever="lever" />
+        <p v-if="teamKey && statusMode === 'none'" class="helptext" style="margin: 10px 0 0">Une clé existe dans ton équipe « {{ teamKey.name }} » — active cette équipe pour l’utiliser.</p>
+        <Quota v-if="status?.quota_daily" style="margin-top: 12px" :used="status.quota_used_today" :total="status.quota_daily" label="quota du jour" />
+        <div v-if="!keyConfigured" style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap">
+          <Btn kind="mini" @click="lever.configureKey(c)">Connecter {{ c.label }}</Btn>
         </div>
-        <p class="helptext" style="margin: 11px 0 0">{{ keyStatus }}<span v-if="statusMode === 'platform' && status?.platform_key_label" class="dim"> ({{ status.platform_key_label }})</span></p>
-        <p v-if="teamKey && statusMode === 'none'" class="helptext" style="margin: 6px 0 0">a key exists in your team “{{ teamKey.name }}” — it only resolves once that team is active.</p>
-        <Quota v-if="status?.quota_daily" style="margin-top: 12px" :used="status.quota_used_today" :total="status.quota_daily" label="daily quota" />
-        <div style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap">
-          <template v-if="keyConfigured">
-            <Btn kind="mini" @click="lever.configureKey(c)">Override key</Btn>
-            <Btn kind="danger" @click="lever.removeKey(c)">Remove key</Btn>
-          </template>
-          <Btn v-else kind="mini" @click="lever.configureKey(c)">Connect {{ c.label }}</Btn>
-          <Btn v-if="canTest && lever.verify" kind="mini" :disabled="testing" @click="testConnection">{{ testing ? 'Test…' : 'Test connection' }}</Btn>
-        </div>
-        <p v-if="testRes" class="helptext" style="margin: 10px 0 0" :style="{ color: testRes.ok ? 'var(--color-olive)' : 'var(--color-terra-ink)' }">
-          {{ testRes.ok ? '✓ connexion OK' : `✗ ${testRes.error}` }}
-        </p>
       </div>
 
       <ConnectorOAuthAccounts v-else-if="connKind === 'google'" />
@@ -212,16 +155,9 @@ const verdict = computed<{ tone: DotTone; text: string }>(() => {
 .dr-block { padding: 18px 20px; border-bottom: 1px solid var(--color-hair-soft); }
 .dr-box { border: 1px solid var(--color-hair); border-radius: 10px; padding: 14px; background: var(--color-surface); }
 .dr-box.dashed { border-style: dashed; border-color: var(--color-hair-classic); }
-.cascade { display: flex; align-items: center; gap: 0; flex-wrap: wrap; }
-.cascade .node { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--color-hair); color: var(--color-faint); background: var(--color-surface); }
-.cascade .node.win { border-color: var(--color-olive); color: var(--color-olive-ink); background: var(--color-olive-soft); font-weight: 700; }
-.cascade .arr { color: var(--color-faint); font-size: 11px; padding: 0 5px; }
 .dim { color: var(--color-faint); font-weight: 500; }
 .statrow { display: flex; flex-wrap: wrap; gap: 14px; }
 .spill { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--color-ink); }
-.verdict { margin: 11px 0 0; font-size: 13px; font-weight: 600; }
-.verdict.olive { color: var(--color-olive-ink); }
-.verdict.saffron { color: var(--color-saffron-ink); }
 .org-link { color: var(--color-cobalt-ink); font-weight: 600; text-decoration: none; }
 .org-link:hover { text-decoration: underline; }
 </style>

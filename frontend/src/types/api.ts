@@ -94,6 +94,7 @@ export interface ConnectorInstance {
   set_by?: string | null
   set_at?: string | null
   via?: string                 // 'credential' | 'shared_with_me' | grant plateforme…
+  suspended?: boolean          // clé membre mise de côté (lot 2) — sautée par la cascade
 }
 
 // ── bibliothèque publique de doctrines (marketplace, library.*) ──
@@ -226,6 +227,7 @@ export interface Me {
   active_org_logo_url: string | null
   org_role: OrgRole | null
   active_org_readonly?: boolean       // org active consultée EN LECTURE par un opérateur non-membre (ADR 0023)
+  active_org_is_personal?: boolean    // org active = espace perso mono-membre → vocab « solo » (principe 9)
   home_org: number | null            // org MAISON (défaut MCP des nouvelles conversations)
   home_org_name: string | null
   active_group: number | null        // équipe EFFECTIVE affichée = consultation ?? maison

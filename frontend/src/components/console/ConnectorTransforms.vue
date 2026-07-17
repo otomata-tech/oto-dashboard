@@ -28,6 +28,10 @@ const props = defineProps<{
   orgId: number | null
   isOrgAdmin: boolean
   readonly?: boolean        // carte user = rédaction en lecture seule (édition au niveau org)
+  // Note de portée (drawer USER, principe 9 du CDC connecteurs) — pilotée par
+  // l'appelant : 'personal' (solo, aucun mot « org »), 'org-wide' (admin d'org
+  // multi-membres), 'readonly' (membre non-admin). undefined = écran org inchangé.
+  scopeNote?: 'personal' | 'org-wide' | 'readonly'
 }>()
 const emit = defineEmits<{ (e: 'changed'): void }>()
 
@@ -142,7 +146,7 @@ async function resetToDefault() {
   <div class="ct">
     <div class="ct-head">
       <span class="ct-prov">
-        <Tag v-if="customized" tone="saffron">politique org</Tag>
+        <Tag v-if="customized" tone="saffron">{{ scopeNote === 'personal' ? 'personnalisé' : 'politique org' }}</Tag>
         <Tag v-else-if="rules.length" tone="cobalt">défaut serveur</Tag>
         <span v-else class="dim">aucune rédaction</span>
       </span>
@@ -152,6 +156,15 @@ async function resetToDefault() {
       </span>
     </div>
 
+    <p v-if="scopeNote === 'personal'" class="dim ct-note">
+      ce connecteur ne transmettra pas ces champs à ton agent.
+    </p>
+    <p v-else-if="scopeNote === 'org-wide'" class="dim ct-note">
+      s'applique à toute ton org — ce n'est pas un réglage perso.
+    </p>
+    <p v-else-if="scopeNote === 'readonly'" class="dim ct-note">
+      défini par ton org — lecture seule.
+    </p>
     <p v-if="orgId == null" class="dim ct-note">
       la rédaction se règle au niveau d'une organisation — sélectionne une org active.
     </p>
