@@ -216,8 +216,11 @@ export const listProjectTemplates = () => projectsApi<{ projects: Project[] }>({
 export const getProject = (id: number) => projectsApi<Project>({ op: 'get', project_id: id })
 // ADR 0049 : owner = scope du projet — org (une de mes orgs), group (pôle/équipe :
 // cloisonné à ses membres + admins d'org) ou platform (bibliothèque, admin plateforme).
+// ADR 0030 amendé : sans `owner`, le backend crée un projet PERSO (owner=(user, sub))
+// dans le contexte de l'org active. `owner` explicite = org/équipe/plateforme (acte
+// délibéré) ; `user` reste possible pour être explicite (équivalent à omettre).
 export const createProject = (name: string, brief_md = '',
-                              owner?: { owner_type: 'org' | 'group' | 'platform'; owner_id?: string }) =>
+                              owner?: { owner_type: 'user' | 'org' | 'group' | 'platform'; owner_id?: string }) =>
   projectsApi<Project>({ op: 'create', name, brief_md, ...(owner ?? {}) })
 export const updateProject = (id: number, fields: { name?: string; brief_md?: string; is_template?: boolean }) =>
   projectsApi<Project>({ op: 'update', project_id: id, ...fields })

@@ -201,7 +201,8 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
 
     <!-- Création scopée (ADR 0049) : org / équipe / bibliothèque plateforme. -->
     <ProjectCreateDialog v-model:open="createOpen" :org-name="me?.active_org_name"
-      :groups="createGroups" :can-platform="isPlatformOperator(me)" :on-confirm="doCreate" />
+      :org-id="me?.active_org" :groups="createGroups" :can-platform="isPlatformOperator(me)"
+      :on-confirm="doCreate" />
   </div>
 </template>
 
