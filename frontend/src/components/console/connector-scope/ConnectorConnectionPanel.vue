@@ -13,17 +13,15 @@ import ConnectorOAuthAccounts from '@/components/console/ConnectorOAuthAccounts.
 import ConnectorFederatedWidget from '@/components/console/ConnectorFederatedWidget.vue'
 import ConnectorSessionWidget from '@/components/console/ConnectorSessionWidget.vue'
 import ConnectorHostedWidget from '@/components/console/ConnectorHostedWidget.vue'
+import ConnectorKeyStack from './ConnectorKeyStack.vue'
 import { useMe } from '@/composables/useMe'
-import { useToast } from '@/composables/useToast'
-import { humanize } from '@/lib/errors'
 import { getOrgConnectorActivation } from '@/api/console'
 import type { ConnectionLever } from './adapter'
 import type { ConnectorMode, DotTone } from '@/lib/consoleTypes'
-import type { MyConnector, OrgConnectorActivation, VerifyResult } from '@/types/api'
+import type { MyConnector, OrgConnectorActivation } from '@/types/api'
 
 const props = defineProps<{ connector: MyConnector; lever: ConnectionLever<MyConnector> }>()
 const { me } = useMe()
-const { toast } = useToast()
 const c = computed(() => props.connector)
 
 // Bandeau côté-org (ADR 0044 B4) — résumé lecture seule pour un org_admin.
@@ -84,24 +82,6 @@ const statusMode = computed<ConnectorMode>(() => {
 })
 const keyConfigured = computed(() => !!status.value?.user_key_configured)
 const needsKey = computed(() => connKind.value === 'key')
-const canTest = computed(() => c.value.verifiable && statusMode.value !== 'none')
-const testing = ref(false)
-const testRes = ref<VerifyResult | null>(null)
-async function testConnection() {
-  if (!props.lever.verify) return
-  testing.value = true; testRes.value = null
-  try { testRes.value = await props.lever.verify(c.value) }
-  catch (e) { toast(humanize(e)) } finally { testing.value = false }
-}
-function nodeCls(mode: ConnectorMode): string { return 'node' + (statusMode.value === mode ? ' win' : '') }
-const KEY_STATUS: Record<ConnectorMode, string> = {
-  none: 'no key resolves yet — connect one below.',
-  user: 'resolved by your own key, set in this org.',
-  group: "resolved by your team's shared key.",
-  org: "resolved by your org's shared key — you don't need your own.",
-  platform: 'resolved by the oto platform key.',
-}
-const keyStatus = computed(() => KEY_STATUS[statusMode.value])
 const docRefCount = computed(() => c.value.doctrine_ref_count ?? 0)
 
 // Verdict « état pour toi » (ADR 0044) — ET-logique des 3 couches.
@@ -166,27 +146,14 @@ const verdict = computed<{ tone: DotTone; text: string }>(() => {
       <p class="helptext" style="margin: 0 0 14px">{{ authExplain }}</p>
 
       <div v-if="needsKey" class="dr-box">
-        <div style="font-size: 12.5px; font-weight: 600; margin-bottom: 10px">key resolution — first match wins</div>
-        <div class="cascade">
-          <span :class="nodeCls('user')">you</span><span class="arr">→</span>
-          <span :class="nodeCls('group')">team</span><span class="arr">→</span>
-          <span :class="nodeCls('org')">org</span><span class="arr">→</span>
-          <span :class="nodeCls('platform')">oto platform</span>
+        <!-- KeyStack (lot 2 B2) : la clé effective en une ligne, dépliable en pile de
+             provenance (« la plus proche gagne »), avec suspension réversible (B7). -->
+        <ConnectorKeyStack :connector="c" :lever="lever" />
+        <p v-if="teamKey && statusMode === 'none'" class="helptext" style="margin: 10px 0 0">Une clé existe dans ton équipe « {{ teamKey.name }} » — active cette équipe pour l’utiliser.</p>
+        <Quota v-if="status?.quota_daily" style="margin-top: 12px" :used="status.quota_used_today" :total="status.quota_daily" label="quota du jour" />
+        <div v-if="!keyConfigured" style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap">
+          <Btn kind="mini" @click="lever.configureKey(c)">Connecter {{ c.label }}</Btn>
         </div>
-        <p class="helptext" style="margin: 11px 0 0">{{ keyStatus }}<span v-if="statusMode === 'platform' && status?.platform_key_label" class="dim"> ({{ status.platform_key_label }})</span></p>
-        <p v-if="teamKey && statusMode === 'none'" class="helptext" style="margin: 6px 0 0">a key exists in your team “{{ teamKey.name }}” — it only resolves once that team is active.</p>
-        <Quota v-if="status?.quota_daily" style="margin-top: 12px" :used="status.quota_used_today" :total="status.quota_daily" label="daily quota" />
-        <div style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap">
-          <template v-if="keyConfigured">
-            <Btn kind="mini" @click="lever.configureKey(c)">Override key</Btn>
-            <Btn kind="danger" @click="lever.removeKey(c)">Remove key</Btn>
-          </template>
-          <Btn v-else kind="mini" @click="lever.configureKey(c)">Connect {{ c.label }}</Btn>
-          <Btn v-if="canTest && lever.verify" kind="mini" :disabled="testing" @click="testConnection">{{ testing ? 'Test…' : 'Test connection' }}</Btn>
-        </div>
-        <p v-if="testRes" class="helptext" style="margin: 10px 0 0" :style="{ color: testRes.ok ? 'var(--color-olive)' : 'var(--color-terra-ink)' }">
-          {{ testRes.ok ? '✓ connexion OK' : `✗ ${testRes.error}` }}
-        </p>
       </div>
 
       <ConnectorOAuthAccounts v-else-if="connKind === 'google'" />
@@ -212,10 +179,6 @@ const verdict = computed<{ tone: DotTone; text: string }>(() => {
 .dr-block { padding: 18px 20px; border-bottom: 1px solid var(--color-hair-soft); }
 .dr-box { border: 1px solid var(--color-hair); border-radius: 10px; padding: 14px; background: var(--color-surface); }
 .dr-box.dashed { border-style: dashed; border-color: var(--color-hair-classic); }
-.cascade { display: flex; align-items: center; gap: 0; flex-wrap: wrap; }
-.cascade .node { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--color-hair); color: var(--color-faint); background: var(--color-surface); }
-.cascade .node.win { border-color: var(--color-olive); color: var(--color-olive-ink); background: var(--color-olive-soft); font-weight: 700; }
-.cascade .arr { color: var(--color-faint); font-size: 11px; padding: 0 5px; }
 .dim { color: var(--color-faint); font-weight: 500; }
 .statrow { display: flex; flex-wrap: wrap; gap: 14px; }
 .spill { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--color-ink); }

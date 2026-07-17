@@ -94,6 +94,7 @@ export interface ConnectorInstance {
   set_by?: string | null
   set_at?: string | null
   via?: string                 // 'credential' | 'shared_with_me' | grant plateforme…
+  suspended?: boolean          // clé membre mise de côté (lot 2) — sautée par la cascade
 }
 
 // ── bibliothèque publique de doctrines (marketplace, library.*) ──

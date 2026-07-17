@@ -41,6 +41,13 @@ export const getMyConnectors = () => api<{ connectors: MyConnector[] }>('/api/me
 // équipes/org + prêts « partagés avec moi » + grants plateforme, par proximité.
 export const getConnectorInstances = () =>
   api<{ instances: ConnectorInstance[]; count: number }>('/api/me/connector-instances')
+// Suspendre / réactiver TA clé membre (lot 2 / ADR 0044 §KeyStack) : mise de côté
+// RÉVERSIBLE, la cascade la saute (le niveau du dessous prend le relais). N'écrit
+// que meta.suspended — le secret n'est jamais touché. `suspended=false` = réactiver.
+export const suspendInstance = (connector: string, suspended: boolean, account = '') =>
+  api<{ connector: string; account: string | null; suspended: boolean }>(
+    '/api/me/connector-instances/suspend',
+    { method: 'POST', ...j({ connector, account, suspended }) })
 export const selectConnector = (name: string) =>
   api(`/api/me/connectors/${encodeURIComponent(name)}/select`, { method: 'POST' })
 export const pauseConnector = (name: string) =>
