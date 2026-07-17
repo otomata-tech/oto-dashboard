@@ -45,6 +45,7 @@ const nonEmpty = computed(() => props.groups.filter((g) => g.items.length || g.a
         <button v-for="it in visibleItems(g)" :key="it.key" class="rail__it"
           :class="{ 'rail__it--on': isSel(it) }"
           :style="{ paddingLeft: (10 + (it.pad ?? 0) * 15) + 'px', boxShadow: edge(it) }"
+          :title="it.hint || undefined"
           @click="emit('select', it)">
           <span v-if="hasKids(g, it)" class="rail__chev" :class="{ 'rail__chev--folded': collapsed.has(it.key) }"
             title="Déplier / replier" @click.stop="toggle(it.key)"><Icon name="chevd" :size="12" /></span>

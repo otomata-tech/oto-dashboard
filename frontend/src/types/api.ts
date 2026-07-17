@@ -492,6 +492,8 @@ export interface Doc {
   project_id: number
   parent_id: number | null
   title: string
+  description?: string | null    // chapô (Ship 2 lot 3) — sous-titre curé
+  position?: number | null       // ordre curé dans la fratrie (entiers espacés)
   body_md: string
   kind: DocKind
   public?: boolean               // partagé publiquement (#4a)

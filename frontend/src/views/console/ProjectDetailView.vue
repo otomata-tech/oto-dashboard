@@ -50,7 +50,7 @@ const menuOpen = ref(false)
 const copyOpen = ref(false)
 const renameOpen = ref(false)
 // picker d'ajout : { kind, parentId? } ouvert par un (+) du rail ou « + sous-page »
-const addKind = ref<null | 'connecteur' | 'tableau' | 'procedure' | 'doc' | 'page' | 'file'>(null)
+const addKind = ref<null | 'connecteur' | 'tableau' | 'procedure' | 'page' | 'file'>(null)
 const addParent = ref<number | null>(null)
 
 const readOnly = computed(() => project.value?.can_write === false)
@@ -96,9 +96,9 @@ const railGroups = computed<RailGroup[]>(() => {
   const pageItems: RailItem[] = [{ key: 'home', kind: 'page', label: 'Accueil · Brief', home: true, pad: 0 }]
   const top = docs.value.filter((d) => d.parent_id == null)
   for (const d of top) {
-    pageItems.push({ key: `doc:${d.id}`, kind: 'page', label: d.title, doc: d, pad: 0 })
+    pageItems.push({ key: `doc:${d.id}`, kind: 'page', label: d.title, doc: d, pad: 0, hint: d.description })
     for (const c of docs.value.filter((x) => x.parent_id === d.id))
-      pageItems.push({ key: `doc:${c.id}`, kind: 'page', label: c.title, doc: c, parentKey: `doc:${d.id}`, pad: 1 })
+      pageItems.push({ key: `doc:${c.id}`, kind: 'page', label: c.title, doc: c, parentKey: `doc:${d.id}`, pad: 1, hint: c.description })
   }
   const mkLink = (t: RailItem['kind'], l: ProjectLink): RailItem => ({
     key: bindingKey(l), kind: t, label: linkName(l), link: l,
@@ -125,7 +125,6 @@ const railGroups = computed<RailGroup[]>(() => {
     { key: 'tableaux', label: 'Tableaux', icon: 'db', kind: 'tableau', addKind: 'tableau', items: linksOf('tableau').map((l) => mkLink('tableau', l)) },
     { key: 'connecteurs', label: 'Connecteurs', icon: 'plug', kind: 'connecteur', addKind: 'connecteur', items: [...linksOf('connecteur').map((l) => mkLink('connecteur', l)), ...derivedConnItems] },
     { key: 'procedures', label: 'Procédures', icon: 'doc', kind: 'procedure', addKind: 'procedure', items: linksOf('procedure').map((l) => mkLink('procedure', l)) },
-    { key: 'documents', label: 'Documents', icon: 'book', kind: 'doc', addKind: 'doc', items: linksOf('doc').map((l) => mkLink('doc', l)) },
     { key: 'files', label: 'Fichiers importés', icon: 'file-text', kind: 'file', addKind: 'file', items: fileItems },
   ]
 })
@@ -163,11 +162,17 @@ const { scoped } = useScopedLink()
 // directe / refresh / back : on resynchronise depuis l'URL.
 function selectFromRoute() {
   const ref = route.params.nsRef
-  if (typeof ref !== 'string' || !ref) return
-  const l = linksOf('tableau').find((x) => x.target_ref === ref || String(x.namespace ?? '') === ref)
-  if (l) sel.value = bindingKey(l)
+  if (typeof ref === 'string' && ref) {
+    const l = linksOf('tableau').find((x) => x.target_ref === ref || String(x.namespace ?? '') === ref)
+    if (l) { sel.value = bindingKey(l); return }
+  }
+  // Deep-link PAGE `?doc=<id>` (lot 3 Ship 2) — prérequis de tout clic de résultat
+  // (recherche, fil Récent, backlinks) : arriver par URL sélectionne la page.
+  const d = route.query.doc
+  if (typeof d === 'string' && /^\d+$/.test(d)) sel.value = `doc:${d}`
 }
 watch(() => route.params.nsRef, selectFromRoute)
+watch(() => route.query.doc, selectFromRoute)
 
 onMounted(async () => { await load(); selectFromRoute() })
 
@@ -213,9 +218,15 @@ function onSelect(it: RailItem) {
   // toute autre entité quitte la vue tableau (retour à /projects/:id).
   if (it.kind === 'tableau' && it.link) {
     void router.push(scoped(`/projects/${projectId}/data/${it.link.target_ref}`))
-  } else if (route.params.nsRef != null) {
+    return
+  }
+  if (route.params.nsRef != null) {
     void router.push(scoped(`/projects/${projectId}`))
   }
+  // Miroir URL de la page sélectionnée (`?doc=`) — lien partageable, refresh stable.
+  const did = it.kind === 'page' && it.doc ? String(it.doc.id) : undefined
+  if ((route.query.doc as string | undefined) !== did)
+    void router.replace({ query: { ...route.query, doc: did } })
 }
 function openAdd(kind: NonNullable<typeof addKind.value>) { addParent.value = null; addKind.value = kind }
 function openSubPage(parentId: number) { addParent.value = parentId; addKind.value = 'page' }

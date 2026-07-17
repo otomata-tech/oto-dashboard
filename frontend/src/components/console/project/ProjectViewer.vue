@@ -81,14 +81,15 @@ const KIND_EYEBROW: Record<string, string> = {
 }
 const eyebrow = computed(() => {
   if (isHome.value) return "brief · point d'entrée de l'agent"
-  if (kind.value === 'page') return 'page'
+  // Chapô (Ship 2) : le sous-titre curé de la page remplace le générique « page ».
+  if (kind.value === 'page') return doc.value?.description || 'page'
   return KIND_EYEBROW[kind.value] ?? ''
 })
 
 // ═══════════ PAGE (accueil = brief, ou page Documents) ═══════════
 const editing = ref(false)
 const briefDraft = ref(props.brief ?? '')
-const draft = ref<{ title: string; body_md: string; kind: DocKind } | null>(null)
+const draft = ref<{ title: string; body_md: string; kind: DocKind; description: string } | null>(null)
 const revisions = ref<DocRevision[]>([])
 const showHistory = ref(false)
 const changeRequests = ref<DocChangeRequest[]>([])
@@ -106,7 +107,7 @@ function resetPage() {
   showHistory.value = false; revisions.value = []; changeRequests.value = []
   briefDraft.value = props.brief ?? ''
   const d = doc.value
-  draft.value = d ? { title: d.title, body_md: d.body_md, kind: d.kind } : null
+  draft.value = d ? { title: d.title, body_md: d.body_md, kind: d.kind, description: d.description ?? '' } : null
   if (d && !props.readOnly) void loadRequests(d.id)
 }
 
@@ -116,8 +117,8 @@ function cancelBrief() { briefDraft.value = props.brief ?? ''; editing.value = f
 function saveBrief() { emit('save-brief', briefDraft.value); editing.value = false }
 
 // doc page
-function editDoc() { const d = doc.value; if (d) { draft.value = { title: d.title, body_md: d.body_md, kind: d.kind }; editing.value = true } }
-function cancelDoc() { const d = doc.value; if (d) draft.value = { title: d.title, body_md: d.body_md, kind: d.kind }; editing.value = false }
+function editDoc() { const d = doc.value; if (d) { draft.value = { title: d.title, body_md: d.body_md, kind: d.kind, description: d.description ?? '' }; editing.value = true } }
+function cancelDoc() { const d = doc.value; if (d) draft.value = { title: d.title, body_md: d.body_md, kind: d.kind, description: d.description ?? '' }; editing.value = false }
 async function saveDoc() {
   const d = doc.value
   if (!d || !draft.value) return
@@ -328,6 +329,8 @@ async function removeFile() {
         <!-- édition (brief ou doc) -->
         <template v-if="editing">
           <input v-if="!isHome && draft" v-model="draft.title" class="vw__titlein" placeholder="Titre de la page" />
+          <input v-if="!isHome && draft" v-model="draft.description" class="vw__descin"
+            placeholder="Sous-titre (une ligne — aide à repérer la page dans l'arbre et la recherche)" />
           <MarkdownEditor v-if="isHome" v-model="briefDraft"
             placeholder="Le but du projet, le contexte, ce que l'agent doit savoir au démarrage…" />
           <MarkdownEditor v-else-if="draft" v-model="draft.body_md" placeholder="Contenu de la page…" />
@@ -488,6 +491,7 @@ async function removeFile() {
 .vw__page { max-width: 720px; margin-inline: auto; }
 .vw__pageact { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 16px; }
 .vw__titlein { width: 100%; max-width: 720px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 8px 11px; font: inherit; font-size: 16px; font-weight: 700; color: var(--color-ink); background: var(--color-surface); margin-bottom: 10px; margin-inline: auto; }
+.vw__descin { width: 100%; max-width: 720px; display: block; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 7px 11px; font: inherit; font-size: 12.5px; color: var(--color-ink-soft); background: var(--color-surface); margin-bottom: 10px; margin-inline: auto; }
 .vw__area { width: 100%; max-width: 720px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 11px 13px; font-family: var(--font-sans); font-size: 13.5px; line-height: 1.6; color: var(--color-ink-soft); background: var(--color-surface); resize: vertical; box-sizing: border-box; margin-inline: auto; }
 .vw__editact { display: flex; align-items: center; gap: 9px; margin-top: 10px; }
 .vw__kind { border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 4px 8px; font: inherit; font-size: 11.5px; background: var(--color-surface); }

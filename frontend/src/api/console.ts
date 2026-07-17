@@ -272,7 +272,7 @@ export const listDocs = (project_id: number) => docsApi<{ project_id: number; do
 export const createDoc = (project_id: number, title: string,
   opts?: { parent_id?: number | null; body_md?: string; kind?: DocKind }) =>
   docsApi<Doc>({ op: 'create', project_id, title, ...(opts ?? {}) })
-export const updateDoc = (doc_id: number, fields: { title?: string; body_md?: string; kind?: DocKind }) =>
+export const updateDoc = (doc_id: number, fields: { title?: string; body_md?: string; kind?: DocKind; description?: string }) =>
   docsApi<Doc>({ op: 'update', doc_id, ...fields })
 export const deleteDoc = (doc_id: number) => docsApi<{ ok: boolean }>({ op: 'delete', doc_id })
 export const getDocRevisions = (doc_id: number) =>

@@ -15,6 +15,7 @@ export interface RailItem {
   parentKey?: string | null   // sous-page : clé du parent (indentation + repli)
   pad?: number                // niveau d'indentation (0/1) pour le rail
   railTag?: { tone: 'saffron' | 'terra' | 'cobalt' | 'olive'; label: string } | null
+  hint?: string | null        // chapô (Ship 2) — tooltip du rail, jamais une 2e ligne
   doc?: Doc                   // kind=page (≠ accueil)
   link?: ProjectLink          // kind=tableau|connecteur|procedure|doc
   file?: ProjectFile          // kind=file
@@ -26,6 +27,6 @@ export interface RailGroup {
   label: string
   icon: string
   kind: RailKind | 'page'
-  addKind: 'connecteur' | 'tableau' | 'procedure' | 'doc' | 'page' | 'file'
+  addKind: 'connecteur' | 'tableau' | 'procedure' | 'page' | 'file'
   items: RailItem[]
 }
