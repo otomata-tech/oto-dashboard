@@ -55,9 +55,15 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <Transition name="modal-fade">
-    <div v-if="state" class="modal-overlay" @mousedown.self="cancel">
-      <div class="modal" role="dialog" aria-modal="true">
+  <!-- Téléporté en fin de <body> (comme les dialogs reka) : à --z-modal égal,
+       l'empilement suit l'ordre du DOM. Sans ce Teleport, cette modale maison est
+       rendue dans #app (plus TÔT dans le body) → elle passe SOUS toute modale reka
+       téléportée, même ouverte APRÈS elle (ex. confirmation de disconnect ouverte
+       depuis la modale connecteur). Règle DS : toute modale maison = Teleport body. -->
+  <Teleport to="body">
+    <Transition name="modal-fade">
+      <div v-if="state" class="modal-overlay" @mousedown.self="cancel">
+        <div class="modal" role="dialog" aria-modal="true">
         <!-- formulaire -->
         <template v-if="form">
           <h3 class="modal-title">{{ form.title }}</h3>
@@ -96,7 +102,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         </template>
       </div>
     </div>
-  </Transition>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>

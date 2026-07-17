@@ -91,8 +91,12 @@ watch(() => props.open, (o) => {
 </script>
 
 <template>
-  <Transition name="modal-fade">
-    <div v-if="open" class="modal-overlay" @mousedown.self="emit('close')">
+  <!-- Téléporté en fin de <body> : modale maison ouverte depuis le drawer connecteur
+       (reka, téléporté). Sans Teleport, à --z-modal égal elle passerait dessous (cf.
+       règle DS dans console.css). -->
+  <Teleport to="body">
+    <Transition name="modal-fade">
+      <div v-if="open" class="modal-overlay" @mousedown.self="emit('close')">
       <div class="modal" :class="{ max: maximized }" role="dialog" aria-modal="true" :aria-label="`connect ${connector.label}`">
         <header class="cs-head">
           <div class="cs-head-txt">
@@ -138,7 +142,8 @@ watch(() => props.open, (o) => {
         </footer>
       </div>
     </div>
-  </Transition>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>

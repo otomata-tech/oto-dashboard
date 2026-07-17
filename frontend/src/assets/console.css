@@ -16,7 +16,13 @@
      teleportées en fin de <body>) partagent --z-modal → à z ÉGAL, l'empilement
      retombe sur l'ordre DOM : un dialog reka ouvert DEPUIS une modale maison
      (transfert, ajout de champ) passe automatiquement au-dessus. --z-popover
-     garantit qu'un <select> surmonte son propre dialog. ── */
+     garantit qu'un <select> surmonte son propre dialog.
+     ⚠️ RÈGLE (le pari ordre-DOM ne tient qu'à cette condition) : TOUTE modale
+     maison DOIT être `<Teleport to="body">`. Sinon elle est rendue dans #app,
+     donc PLUS TÔT dans le body que les dialogs reka téléportés → à z égal elle
+     passe SOUS eux même ouverte APRÈS (bug vécu : confirmation de disconnect
+     derrière la modale connecteur reka). Une modale maison non téléportée = bug
+     d'empilement latent. ── */
   --z-drawer:  900;
   --z-modal:   1000;
   --z-popover: 1100;
