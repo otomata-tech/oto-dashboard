@@ -1,28 +1,30 @@
 import { describe, it, expect } from 'vitest'
 import { connectorVerdict, keyLevelCount } from './connectorVerdict'
-import type { MyConnector, ProviderStatus } from '@/types/api'
+import type { AuthDescriptor, MyConnector, ProviderStatus } from '@/types/api'
+
+const auth = (method: AuthDescriptor['method']): AuthDescriptor =>
+  ({ method, cardinality: 'single', fields: [] })
 
 // Fabrique minimale d'un MyConnector (seuls les champs lus par le verdict comptent).
 function conn(over: Partial<MyConnector> = {}): MyConnector {
-  return {
+  const base = {
     name: 'hubspot', label: 'HubSpot', category: 'CRM',
-    auth: { method: 'secret' },
+    auth: auth('secret'),
     state: 'active',
     free_tier: null, paid_option: null, option_ok: true,
-    // le reste du ConnectorMeta n'est pas lu par le verdict
-    ...(over as MyConnector),
   } as MyConnector
+  return { ...base, ...over } as MyConnector
 }
 
 function ps(over: Partial<ProviderStatus> = {}): ProviderStatus {
-  return {
+  const base = {
     mode: 'user',
     user_key_configured: true,
     org_secret_configured: false,
     platform_key_label: null,
     quota_used_today: 0, quota_daily: null,
-    ...over,
   } as ProviderStatus
+  return { ...base, ...over } as ProviderStatus
 }
 
 describe('connectorVerdict — état d\'installation', () => {
@@ -35,7 +37,7 @@ describe('connectorVerdict — état d\'installation', () => {
   })
 
   it('non installé mais résout déjà (open data) → CTA Activer', () => {
-    const v = connectorVerdict(conn({ state: 'not_selected', auth: { method: 'none' } }), undefined)
+    const v = connectorVerdict(conn({ state: 'not_selected', auth: auth('none') }), undefined)
     expect(v.cta).toBe('Activer')
   })
 
@@ -48,7 +50,7 @@ describe('connectorVerdict — état d\'installation', () => {
 
 describe('connectorVerdict — résolution (actif)', () => {
   it('open data → Actif · open data (olive)', () => {
-    const v = connectorVerdict(conn({ auth: { method: 'none' } }), undefined)
+    const v = connectorVerdict(conn({ auth: auth('none') }), undefined)
     expect(v.list).toBe('Actif · open data')
     expect(v.dot).toBe('olive')
     expect(v.phrase).toBe('Prêt à l’emploi.')
@@ -74,7 +76,7 @@ describe('connectorVerdict — résolution (actif)', () => {
   })
 
   it('hosted résolu → Actif · compte lié', () => {
-    const v = connectorVerdict(conn({ auth: { method: 'hosted' } }), ps({ mode: 'user' }))
+    const v = connectorVerdict(conn({ auth: auth('hosted') }), ps({ mode: 'user' }))
     expect(v.list).toBe('Actif · compte lié')
   })
 
