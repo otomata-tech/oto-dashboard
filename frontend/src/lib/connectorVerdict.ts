@@ -127,6 +127,17 @@ export function connectorVerdict(
     }
   }
 
+  // Étape manquante (seam générique backend `pending_action`, lot 2) : la clé
+  // résout mais le connecteur n'est pas opérationnel — le libellé backend EST le
+  // verdict et le CTA (unipile : « Connecte un canal »). Aucun cas par connecteur ici.
+  if (ps?.pending_action) {
+    return {
+      ...base, dot: 'saffron',
+      list: ps.pending_action, phrase: `${ps.pending_action}.`,
+      cta: ps.pending_action,
+    }
+  }
+
   // 3. Résolu (user/group/org/platform) → prêt. Suffixe (+N) seulement si ≥2 clés.
   const src = sourceLabel(r, ps!, isPersonal)
   const extra = keyCount >= 2 ? ` (+${keyCount - 1})` : ''
