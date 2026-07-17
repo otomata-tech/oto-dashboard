@@ -14,10 +14,11 @@ import ConnectorFederatedWidget from '@/components/console/ConnectorFederatedWid
 import ConnectorSessionWidget from '@/components/console/ConnectorSessionWidget.vue'
 import ConnectorHostedWidget from '@/components/console/ConnectorHostedWidget.vue'
 import ConnectorKeyStack from './ConnectorKeyStack.vue'
+import ConnectorVerdictLine from './ConnectorVerdictLine.vue'
 import { useMe } from '@/composables/useMe'
 import { getOrgConnectorActivation } from '@/api/console'
 import type { ConnectionLever } from './adapter'
-import type { ConnectorMode, DotTone } from '@/lib/consoleTypes'
+import type { ConnectorMode } from '@/lib/consoleTypes'
 import type { MyConnector, OrgConnectorActivation } from '@/types/api'
 
 const props = defineProps<{ connector: MyConnector; lever: ConnectionLever<MyConnector> }>()
@@ -92,42 +93,17 @@ const docRefCount = computed(() => c.value.doctrine_ref_count ?? 0)
 // acquise dès que la fiche s'affiche ; le manque de clé se dit sur la couche
 // connexion (vécu 2026-07-16 : faux « Réservé à certaines équipes » sur un Zoho
 // simplement pas connecté).
-const connOk = computed(() => isOpenData.value || statusMode.value !== 'none')
 // Clé d'équipe à portée (membre d'une équipe qui a le secret, non active) —
 // backend-driven (ProviderStatus.team_key_group), jamais recalculé côté front.
 const teamKey = computed(() => status.value?.team_key_group ?? null)
-const connSource = computed(() => {
-  if (isOpenData.value) return 'open data'
-  const m = statusMode.value
-  return m === 'user' ? 'ta clé' : m === 'group' ? "clé d'équipe" : m === 'org' ? "clé d'org" : m === 'platform' ? 'clé oto' : ''
-})
-const optionRequired = computed(() => c.value.paid_option ?? null)
-const optionOk = computed(() => c.value.option_ok !== false)
-const availTone = computed<DotTone>(() => 'olive')
-const connTone = computed<DotTone>(() => (isOpenData.value ? 'faint' : connOk.value ? 'olive' : 'saffron'))
-const optTone = computed<DotTone>(() => (!optionRequired.value ? 'faint' : optionOk.value ? 'olive' : 'saffron'))
-const verdict = computed<{ tone: DotTone; text: string }>(() => {
-  if (!optionOk.value) return { tone: 'saffron', text: `Bloqué : l’option « ${optionRequired.value} » n’est pas accordée pour toi.` }
-  if (!connOk.value) {
-    if (teamKey.value) return { tone: 'saffron', text: `Une clé existe dans ton équipe « ${teamKey.value.name} » — active cette équipe pour l’utiliser.` }
-    return { tone: 'saffron', text: 'Exposé mais pas connecté — branche une clé ci-dessous.' }
-  }
-  if (status.value?.mode === 'over_quota') return { tone: 'saffron', text: 'Quota de la clé plateforme atteint pour aujourd’hui.' }
-  return { tone: 'olive', text: 'Prêt à l’emploi.' }
-})
 </script>
 
 <template>
   <div>
-    <!-- état pour toi -->
+    <!-- verdict (lot 2 B4) : la phrase d'abord, le diagnostic 3 couches déplié à « Pourquoi ? » -->
     <div class="dr-block">
       <div class="eyebrow" style="margin-bottom: 9px">état pour toi</div>
-      <div class="statrow">
-        <span class="spill"><Dot :tone="availTone" />disponibilité</span>
-        <span class="spill"><Dot :tone="connTone" />connexion<span v-if="connSource" class="dim"> · {{ connSource }}</span></span>
-        <span class="spill"><Dot :tone="optTone" />option<span v-if="!optionRequired" class="dim"> · n/a</span></span>
-      </div>
-      <p class="verdict" :class="verdict.tone">{{ verdict.text }}</p>
+      <ConnectorVerdictLine :connector="c" />
     </div>
 
     <!-- côté org (org_admin) -->
@@ -182,9 +158,6 @@ const verdict = computed<{ tone: DotTone; text: string }>(() => {
 .dim { color: var(--color-faint); font-weight: 500; }
 .statrow { display: flex; flex-wrap: wrap; gap: 14px; }
 .spill { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--color-ink); }
-.verdict { margin: 11px 0 0; font-size: 13px; font-weight: 600; }
-.verdict.olive { color: var(--color-olive-ink); }
-.verdict.saffron { color: var(--color-saffron-ink); }
 .org-link { color: var(--color-cobalt-ink); font-weight: 600; text-decoration: none; }
 .org-link:hover { text-decoration: underline; }
 </style>
