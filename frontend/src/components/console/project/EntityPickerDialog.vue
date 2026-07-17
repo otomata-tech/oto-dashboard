@@ -58,12 +58,17 @@ async function loadOptions() {
   finally { loading.value = false }
 }
 
+// `immediate: true` : le parent monte ce composant avec `v-if="addKind"` (ProjectDetailView),
+// donc il naît déjà `open=true` — un watch sans `immediate` ne voit JAMAIS la transition
+// false→true (le composant est détruit/recréé, pas togglé) et `loadOptions()` n'était donc
+// JAMAIS appelé : liste vide silencieuse ("aucune entité de ce type") quel que soit le kind,
+// AUCUN appel réseau (confirmé Network tab) — pas un bug de scope org/équipe.
 watch(() => props.open, (o) => {
   if (!o) return
   query.value = ''; pageTitle.value = ''; pickedRef.value = ''; chosenIdentity.value = ''; identities.value = []
   options.value = []
   if (isSearch.value) void loadOptions()
-})
+}, { immediate: true })
 
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
