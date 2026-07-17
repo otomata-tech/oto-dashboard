@@ -294,7 +294,7 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
         </div>
       </section>
 
-      <!-- navigateur : viewer (gauche) + rail (droite) -->
+      <!-- navigateur : rail (gauche) + viewer (droite) -->
       <div class="pj-body">
         <ProjectViewer class="pj-body__vw" :item="selItem" :project-id="projectId" :project-name="project.name"
           :brief="project.brief_md" :read-only="readOnly"
@@ -357,11 +357,11 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
 .pj-audit__row { display: flex; gap: 9px; align-items: flex-start; font-size: 12.5px; line-height: 1.5; color: var(--color-ink-soft); }
 .pj-audit__dot { width: 5px; height: 5px; border-radius: var(--radius-pill); background: var(--color-saffron); margin-top: 6px; flex: none; }
 
-/* corps : viewer 3fr | rail ~0.85fr */
-.pj-body { flex: 1; display: grid; grid-template-columns: 3fr minmax(198px, 0.85fr); align-items: stretch; min-height: 0; }
-.pj-body__vw { order: 1; min-width: 0; }
-.pj-body__rail { order: 2; }
-@media (max-width: 720px) { .pj-body { grid-template-columns: 1fr; } .pj-body__rail { order: 1; border-left: 0; border-bottom: 1px solid var(--color-hair); } .pj-body__vw { order: 2; } }
+/* corps : rail ~0.85fr | viewer 3fr */
+.pj-body { flex: 1; display: grid; grid-template-columns: minmax(198px, 0.85fr) 3fr; align-items: stretch; min-height: 0; }
+.pj-body__rail { order: 1; }
+.pj-body__vw { order: 2; min-width: 0; }
+@media (max-width: 720px) { .pj-body { grid-template-columns: 1fr; } .pj-body__rail { border-right: 0; border-bottom: 1px solid var(--color-hair); } }
 
 .surface-card { background: var(--color-surface); border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 18px; }
 </style>

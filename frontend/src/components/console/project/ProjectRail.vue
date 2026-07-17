@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Rail d'entités d'un projet (refonte UX, ADR 0032) — colonne DROITE du navigateur.
+// Rail d'entités d'un projet (refonte UX, ADR 0032) — colonne GAUCHE du navigateur.
 // Purement présentationnel : reçoit les groupes déjà construits + la sélection courante,
 // émet `select` (item) et `add` (kind du groupe). Sous-pages repliables (façon Notion) :
 // le repli est un état LOCAL (les clés des pages parentes dépliées).
@@ -60,7 +60,7 @@ const nonEmpty = computed(() => props.groups.filter((g) => g.items.length || g.a
 </template>
 
 <style scoped>
-.rail { background: var(--color-paper); border-left: 1px solid var(--color-hair); padding: 18px 14px; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.rail { background: var(--color-paper); border-right: 1px solid var(--color-hair); padding: 18px 14px; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .rail__hd { display: flex; align-items: center; gap: 7px; margin: 0 4px 8px; padding-bottom: 7px; border-bottom: 1px solid var(--color-hair); }
 .rail__hdic { display: inline-flex; flex: none; color: color-mix(in srgb, var(--color-saffron) 55%, var(--color-saffron-ink)); }
 .rail__hdl { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--color-saffron-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
