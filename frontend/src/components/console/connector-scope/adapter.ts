@@ -108,6 +108,8 @@ export interface RedactionPanel {
   customized: boolean
   orgId: number | null
   isOrgAdmin: boolean
+  readonly?: boolean
+  scopeNote?: 'personal' | 'org-wide' | 'readonly'
 }
 export interface RedactionLever<R> { props(r: R): RedactionPanel; onChanged(): void }
 
