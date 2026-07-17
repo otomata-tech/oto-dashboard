@@ -22,6 +22,7 @@ export interface NavItem {
   warn?: boolean
   count?: string
   super?: boolean // visible au super_admin seul (action plateforme sensible)
+  plomberie?: boolean // rendu ANCRÉ EN BAS (zone plomberie de l'agent, refonte nav pt 4)
 }
 
 export interface NavGroup {
@@ -41,8 +42,9 @@ export const NAV: NavGroup[] = [
   ]},
   { group: 'nav.section.workspace', level: 'work', items: [
     { path: '/projects', label: 'nav.projects', icon: 'home' },
-    { path: '/connectors', label: 'nav.connectors', icon: 'plug' },
-    { path: '/procedures', label: 'nav.procedures', icon: 'doc' },
+    // Plomberie de l'agent : subordonnée aux projets, ancrée en bas (refonte nav pt 4).
+    { path: '/connectors', label: 'nav.connectors', icon: 'plug', plomberie: true },
+    { path: '/procedures', label: 'nav.procedures', icon: 'doc', plomberie: true },
   ]},
   { group: 'nav.section.memory', level: 'work', items: [
     { path: '/data', label: 'nav.data', icon: 'db' },

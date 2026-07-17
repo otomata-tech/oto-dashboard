@@ -36,6 +36,11 @@ const visibleGroups = computed(() =>
        ...g,
        items: g.items.filter((it) => !it.super || isSuperAdmin(me.value)),
      })))
+
+// Plomberie de l'agent (Connecteurs/Procédures) : ancrée en bas, hors de la nav
+// principale — subordonnée aux projets (refonte nav JB, pt 4).
+const plomberieItems = computed(() =>
+  visibleGroups.value.flatMap((g) => g.items.filter((it) => it.plomberie)))
 </script>
 
 <template>
@@ -49,7 +54,7 @@ const visibleGroups = computed(() =>
     <nav class="sb-nav">
       <div v-for="(g, gi) in visibleGroups" :key="gi" class="sb-group">
         <div v-if="g.group" class="sb-group-label">{{ t(g.group) }}</div>
-        <template v-for="it in g.items" :key="it.path">
+        <template v-for="it in g.items.filter((i) => !i.plomberie)" :key="it.path">
           <RouterLink
             class="sb-item"
             :class="{ on: route.meta.section === it.path }"
@@ -67,9 +72,30 @@ const visibleGroups = computed(() =>
       </div>
     </nav>
     <div class="sb-foot">
+      <!-- Plomberie ancrée : Connecteurs / Procédures, subordonnés aux projets (pt 4). -->
+      <nav v-if="plomberieItems.length" class="sb-plumb">
+        <RouterLink
+          v-for="it in plomberieItems"
+          :key="it.path"
+          class="sb-item"
+          :class="{ on: route.meta.section === it.path }"
+          :to="scoped(it.path)"
+          @click="closeNav"
+        >
+          <span class="ic"><Icon :name="it.icon" :size="15" /></span>
+          {{ t(it.label) }}
+          <span v-if="it.warn" class="warn-dot"><Dot tone="saffron" :size="7" /></span>
+        </RouterLink>
+      </nav>
       <div class="sb-mcp"><Dot tone="olive" :size="7" /> {{ t('nav.mcpConnected') }}</div>
       <ConsoleUserMenu />
     </div>
   </aside>
 </template>
+
+<style scoped>
+/* Plomberie ancrée : séparée de la nav principale par un filet haut (refonte nav pt 4). */
+.sb-plumb { display: flex; flex-direction: column; gap: 1px; padding-top: 6px; margin-bottom: 4px;
+  border-top: 1px solid var(--sidebar-hair, rgba(255, 255, 255, 0.08)); }
+</style>
 
