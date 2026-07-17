@@ -131,8 +131,11 @@ export const getUnipileStatus = () => api<UnipileStatus>('/api/me/unipile')
 // `premium` (LinkedIn) = 'recruiter' | 'sales_navigator' : produit à ACTIVER à la
 // connexion. Sans lui Unipile ne connecte que `classic` → les APIs premium répondent
 // 403 et il faut TOUT reconnecter pour le rattraper. Les deux sont exclusifs.
+// Réponse : `{url}` (wizard) OU `{adopted:true, account_name}` — le compte du sub
+// déjà connecté dans une autre org (même clé plateforme) a été lié ICI sans wizard.
 export const connectUnipile = (channel: string, premium?: string) =>
-  api<{ url: string }>('/api/me/unipile/connect',
+  api<{ url?: string; adopted?: boolean; account_name?: string | null }>(
+    '/api/me/unipile/connect',
     { method: 'POST', ...j(premium ? { channel, premium } : { channel }) })
 export const disconnectUnipile = (channel: string) =>
   api(`/api/me/unipile?channel=${encodeURIComponent(channel)}`, { method: 'DELETE' })
