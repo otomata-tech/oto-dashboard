@@ -113,6 +113,7 @@ export function levelOf(path: string): NavLevel {
 export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/overview': { title: 'pageMeta.overview.title', crumb: 'pageMeta.overview.crumb' },
   '/context': { title: 'pageMeta.context.title', crumb: 'pageMeta.context.crumb' },
+  '/search': { title: 'pageMeta.search.title', crumb: 'pageMeta.search.crumb' },
   '/projects': { title: 'pageMeta.projects.title', crumb: 'pageMeta.projects.crumb' },
   '/connectors': { title: 'pageMeta.connectors.title', crumb: 'pageMeta.connectors.crumb' },
   '/procedures': { title: 'pageMeta.procedures.title', crumb: 'pageMeta.procedures.crumb' },
