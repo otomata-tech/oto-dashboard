@@ -8,19 +8,31 @@ import { useMyOrgs } from '@/composables/useMyOrgs'
 import { useScope } from '@/composables/useScope'
 
 // En-tête de la sidebar = l'axe IDENTITÉ (org + équipe active) ET le déclencheur du
-// SWITCH d'org : cliquer le bloc org/logo ouvre le WorkspaceSwitcher dans une MODALE
-// centrée (téléportée au body → non clippée par la sidebar, largeur confortable pour
-// lire les noms d'org). Consultation pure ADR 0023, zéro effet MCP — jamais de bascule
-// d'identité Claude depuis le FE. La GESTION (« gérer mon org / profil / plateforme »)
-// reste dans la popin compte au pied de la sidebar (ConsoleUserMenu). Le bloc s'adapte
-// au niveau : en « org » il se recompose en bannière centrée sur l'organisation gérée.
+// SWITCH d'org : cliquer le bloc org/logo ouvre le WorkspaceSwitcher dans un POPOVER
+// ANCRÉ sous le bouton (refonte nav zone 1, JB) — téléporté au body pour échapper au
+// clip de la sidebar, position capturée à l'ouverture. Consultation pure ADR 0023, zéro
+// effet MCP — jamais de bascule d'identité Claude depuis le FE. La GESTION (« gérer mon
+// org / profil / plateforme ») reste pour l'instant dans la popin compte au pied
+// (ConsoleUserMenu) ; sa remontée dans ce popover = tranche suivante. Le bloc s'adapte
+// au niveau : en « org » il se recompose en bannière sur l'organisation gérée.
 const { me } = useMe()
 const { level } = useScope()
 const { prefetch } = useMyOrgs()   // orgs+équipes préchargées au survol → modale instantanée
 
 const open = ref(false)
+const identBtn = ref<HTMLButtonElement>()
+// Popover ancré (refonte nav zone 1) : position capturée à l'ouverture (sous le bouton,
+// aligné à gauche), téléporté au body pour échapper au clip de la sidebar.
+const anchor = ref({ left: 0, top: 0 })
+function toggle() {
+  if (!open.value) {
+    const r = identBtn.value?.getBoundingClientRect()
+    if (r) anchor.value = { left: r.left, top: r.bottom + 6 }
+  }
+  open.value = !open.value
+}
 
-// Échap referme la modale (listener posé seulement quand elle est ouverte).
+// Échap referme le popover (listener posé seulement quand il est ouvert).
 function onKey(e: KeyboardEvent) { if (e.key === 'Escape') open.value = false }
 watch(open, (o) => {
   if (o) window.addEventListener('keydown', onKey)
@@ -66,6 +78,7 @@ const kicker = computed(() => {
   <div class="identity" :class="{ open }">
     <!-- déclencheur : le bloc org/logo ouvre la modale de switch d'org -->
     <button
+      ref="identBtn"
       class="ident"
       :class="{ org: level === 'org', team: level === 'group', platform: level === 'platform' }"
       :aria-expanded="open"
@@ -73,7 +86,7 @@ const kicker = computed(() => {
       aria-label="changer d'organisation"
       @pointerenter="prefetch"
       @focus="prefetch"
-      @click="open = !open"
+      @click="toggle"
     >
       <Avatar
         v-if="hasLogo"
@@ -118,18 +131,17 @@ const kicker = computed(() => {
       <Icon name="chevd" :size="13" class="ident-chev" />
     </button>
 
-    <!-- modale switch d'org : téléportée au body, centrée, surface CLAIRE -->
+    <!-- popover switch d'org : téléporté au body, ancré sous le bouton, surface CLAIRE -->
     <Teleport to="body">
-      <div v-if="open" class="id-modal-root">
-        <div class="id-backdrop" @click="open = false" />
-        <div class="id-modal" role="dialog" aria-modal="true" aria-label="changer d'organisation">
-          <div class="id-modal-head">
-            <span class="id-modal-title">changer d'organisation</span>
-            <button class="id-modal-close" aria-label="fermer" @click="open = false">
-              <Icon name="close" :size="16" />
-            </button>
-          </div>
-          <div class="id-modal-body">
+      <div v-if="open" class="id-pop-root">
+        <div class="id-pop-backdrop" @click="open = false" />
+        <div
+          class="id-pop"
+          role="dialog"
+          aria-label="changer d'organisation"
+          :style="{ left: `${anchor.left}px`, top: `${anchor.top}px` }"
+        >
+          <div class="id-pop-body">
             <WorkspaceSwitcher @switched="open = false" />
           </div>
         </div>
@@ -218,33 +230,17 @@ const kicker = computed(() => {
 .ident.team .ident-chev { color: var(--color-cobalt-ink); }
 .identity.open .ident-chev { transform: rotate(180deg); }
 
-/* ── Modale de switch d'org (téléportée au body, centrée) ──────────────────── */
-.id-modal-root { position: fixed; inset: 0; z-index: 200; }
-.id-backdrop {
-  position: absolute; inset: 0;
-  background: rgba(44, 33, 18, 0.42);
-}
-.id-modal {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: min(440px, calc(100vw - 32px));
+/* ── Popover de switch d'org (téléporté au body, ancré sous le bouton) ──────── */
+.id-pop-root { position: fixed; inset: 0; z-index: 200; }
+.id-pop-backdrop { position: absolute; inset: 0; }
+.id-pop {
+  position: absolute;
+  width: min(320px, calc(100vw - 24px));
   display: flex; flex-direction: column;
-  max-height: min(80vh, 620px);
+  max-height: min(70vh, 560px);
   background: var(--color-surface); border: 1px solid var(--color-hair);
-  border-radius: var(--radius-md); box-shadow: var(--shadow-drawer);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-pop);
   overflow: hidden;
 }
-.id-modal-head {
-  flex: none; display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 14px; border-bottom: 1px solid var(--color-hair);
-}
-.id-modal-title {
-  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em;
-  text-transform: uppercase; color: var(--color-mute);
-}
-.id-modal-close {
-  display: inline-flex; padding: 4px; border-radius: var(--radius-pill);
-  border: 0; background: transparent; color: var(--color-mute); cursor: pointer;
-}
-.id-modal-close:hover { background: var(--color-paper-2); color: var(--color-ink); }
-.id-modal-body { padding: 8px; overflow-y: auto; }
+.id-pop-body { padding: 8px; overflow-y: auto; }
 </style>
