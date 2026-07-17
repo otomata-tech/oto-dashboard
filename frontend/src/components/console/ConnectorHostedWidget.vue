@@ -67,8 +67,39 @@ async function pick(id: string) {
   catch (e) { toast(humanize(e)) }
 }
 
+async function go(channel: string, premium?: string) {
+  const { url } = await connectUnipile(channel, premium)
+  window.location.href = url
+}
+
 async function link(channel: string) {
-  try { const { url } = await connectUnipile(channel); window.location.href = url } catch (e) { toast(humanize(e)) }
+  // LinkedIn : le produit premium se choisit À LA CONNEXION — Unipile ne connecte que
+  // `classic` par défaut, et en changer après impose de tout reconnecter. Les autres
+  // canaux n'ont pas de premium → on ne montre aucun réglage (pas de choix = pas de bruit).
+  if (channel !== 'linkedin') {
+    try { await go(channel) } catch (e) { toast(humanize(e)) }
+    return
+  }
+  const fields: FormDialogField[] = [
+    { key: 'product', label: 'produit LinkedIn', type: 'select', initial: 'classic',
+      options: [
+        { value: 'classic', label: 'Classique (par défaut)' },
+        { value: 'recruiter', label: 'Recruiter' },
+        { value: 'sales_navigator', label: 'Sales Navigator' },
+      ] },
+  ]
+  openForm({
+    title: 'connecter mon LinkedIn',
+    description: "Ne choisis Recruiter ou Sales Navigator que si tu as le siège LinkedIn " +
+      "correspondant : un seul des deux, et en changer impose de reconnecter le compte. " +
+      "Ces produits proposent aussi la connexion par cookies, recommandée par Unipile.",
+    fields, submitLabel: 'continuer',
+    onConfirm: async (v) => {
+      const p = String(v.product || 'classic')
+      try { await go(channel, p === 'classic' ? undefined : p) }
+      catch (e) { toast(humanize(e)); throw e }
+    },
+  })
 }
 async function drop(channel: string) {
   if (!await confirmAction({ title: `disconnect ${channel} (unipile)`, danger: true, confirmLabel: 'Disconnect', message: `disconnect your ${channel}? the unipile tools will stop acting as you on this channel.` })) return
