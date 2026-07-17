@@ -23,6 +23,25 @@ npm run build           # vue-tsc + vite build → frontend/dist
 
 `.env` : copier `frontend/.env.example` (VITE_LOGTO_APP_ID à créer via le skill `logto-client` — pas de DCR, client SPA pré-créé avec redirect `https://<domaine>/callback` + `http://localhost:5192/callback`).
 
+### Tester un fix EN LOCAL contre les VRAIES données de prod (pas des fixtures)
+
+Pour vérifier un changement frontend contre son propre compte/org réel plutôt que
+contre des données inventées : copier `VITE_LOGTO_ENDPOINT`/`VITE_LOGTO_APP_ID`/
+`VITE_LOGTO_AUDIENCE`/`VITE_OTO_MCP_BASE` depuis `frontend/.env.production` (déjà
+committé) dans son `.env` local, puis `npm run dev` (redémarrage requis — ces vars
+sont lues au boot de Vite, pas rechargées à chaud) et se logguer normalement à
+`localhost:5192` avec son vrai compte. Le client SPA Logto de prod autorise déjà
+`http://localhost:5192/callback` en redirect (cf. ligne au-dessus) — aucune inscription
+supplémentaire nécessaire. Un `client_id` PKCE SPA n'est PAS un secret (pas de client
+secret dans ce flow OAuth) — voir le commentaire en tête de `.env.production` ; seul le
+credential Management API (`logto-client` skill, création de NOUVEAUX clients) est
+sensible, et il n'est pas nécessaire pour ce test.
+
+Laisser `VITE_POSTHOG_KEY`/`VITE_SENTRY_DSN` vides dans le `.env` local (pas de
+télémétrie réelle depuis une session de test). `.env` reste gitignore — ne jamais
+committer ces valeurs dans un `.env` versionné (elles vivent déjà, non secrètes, dans
+`.env.production`).
+
 ## État / feuille de route
 
 **Live en prod** : `dashboard.oto.ninja` est servi par ce repo (`/opt/oto-dashboard/dist`, deploy CI `deploy.yml`), `app.oto.ninja` redirige dessus (302). L'ancien `account/` (oto-websites) **a été supprimé et décommissionné** (account.oto.zone, 2026-06-15) — le cutover est **fait**, plus de double-service. La migration des features (connecteurs, orgs, doctrine, admin, datastore) s'est faite écran par écran. Suivi : `otomata#20` + issues de ce repo.
