@@ -73,7 +73,7 @@ async function submit() {
 
 <style scoped>
 .backdrop {
-  position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(44, 33, 18, 0.4); backdrop-filter: blur(4px);
+  position: fixed; inset: 0; z-index: var(--z-modal); background: var(--scrim); backdrop-filter: blur(var(--blur-overlay));
   display: flex; align-items: center; justify-content: center; padding: 24px;
 }
 .modal {

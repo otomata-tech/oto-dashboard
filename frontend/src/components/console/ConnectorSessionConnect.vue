@@ -149,7 +149,7 @@ watch(() => props.open, (o) => {
 <style scoped>
 .modal-overlay {
   position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center;
-  padding: 24px; background: color-mix(in srgb, var(--color-ink) 30%, transparent); backdrop-filter: blur(2px);
+  padding: 24px; background: var(--scrim); backdrop-filter: blur(var(--blur-overlay));
 }
 .modal {
   width: 100%; max-width: 960px; background: var(--color-bg);
