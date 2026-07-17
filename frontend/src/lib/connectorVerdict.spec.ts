@@ -87,6 +87,14 @@ describe('connectorVerdict — résolution (actif)', () => {
     expect(v.list).toBe('Actif · compte lié')
   })
 
+  it('pending_action (résolu mais pas opérationnel) → le libellé backend est le verdict', () => {
+    const v = connectorVerdict(conn({ auth: auth('hosted') }),
+      ps({ mode: 'platform', platform_key_label: 'env', pending_action: 'Connecte un canal' }))
+    expect(v.list).toBe('Connecte un canal')
+    expect(v.dot).toBe('saffron')
+    expect(v.cta).toBe('Connecte un canal')
+  })
+
   it('quota atteint → saffron + CTA pose ta clé', () => {
     const v = connectorVerdict(conn(), ps({ mode: 'over_quota', platform_key_label: 'default' }))
     expect(v.list).toBe('Quota atteint')

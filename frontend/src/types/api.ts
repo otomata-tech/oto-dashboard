@@ -209,6 +209,10 @@ export interface ProviderStatus {
   // membre détient un secret, mais elle n'est pas mon équipe active → la cascade ne
   // la lit pas. Le drawer doit dire « active l'équipe X », pas « pas de clé ».
   team_key_group?: { id: number; name: string } | null
+  // Seam générique « étape manquante » (lot 2) : la clé résout mais le connecteur
+  // n'est pas opérationnel (unipile : « Connecte un canal »). Libellé backend,
+  // rendu tel quel comme verdict + CTA — le front ne connaît pas le connecteur.
+  pending_action?: string | null
 }
 
 // Langue de l'UI (i18n EN/FR). Défini ici pour que `lib/i18n.ts` l'importe sans
