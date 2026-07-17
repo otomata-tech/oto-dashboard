@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Icon from './Icon.vue'
@@ -7,13 +7,18 @@ import Dot from './Dot.vue'
 import ConsoleIdentity from './ConsoleIdentity.vue'
 import ConsoleUserMenu from './ConsoleUserMenu.vue'
 import SidebarSpaces from './SidebarSpaces.vue'
+import SearchOverlay from './SearchOverlay.vue'
 import { NAV } from '@/lib/consoleNav'
 import { useMe, isPlatformOperator, isSuperAdmin } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
 import { useScopedLink } from '@/composables/useScopedLink'
+import { useHotkey } from '@/composables/useHotkey'
 
 const route = useRoute()
+// Recherche transverse (lot 3 Ship 2) : faux champ sidebar + ⌘K → popup.
+const searchOpen = ref(false)
+useHotkey('k', () => { searchOpen.value = true })
 const { scoped } = useScopedLink()
 const { t } = useI18n()
 
@@ -51,6 +56,13 @@ const plomberieItems = computed(() =>
         <Icon name="close" :size="18" />
       </button>
     </div>
+    <!-- Faux champ (on ne tape pas dans la sidebar) : clic / ⌘K → popup. -->
+    <button class="sb-search" @click="searchOpen = true">
+      <Icon name="search" :size="13" />
+      <span class="sb-search-lbl">Rechercher…</span>
+      <kbd class="sb-search-kbd">⌘K</kbd>
+    </button>
+    <SearchOverlay v-model:open="searchOpen" />
     <nav class="sb-nav">
       <div v-for="(g, gi) in visibleGroups" :key="gi" class="sb-group">
         <div v-if="g.group" class="sb-group-label">{{ t(g.group) }}</div>

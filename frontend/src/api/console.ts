@@ -2,7 +2,7 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, MyConnector,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, MyConnector, SearchHit,
   BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
@@ -44,6 +44,16 @@ export const getConnectorInstances = () =>
 // Suspendre / réactiver TA clé membre (lot 2 / ADR 0044 §KeyStack) : mise de côté
 // RÉVERSIBLE, la cascade la saute (le niveau du dessous prend le relais). N'écrit
 // que meta.suspended — le secret n'est jamais touché. `suspended=false` = réactiver.
+// Recherche transverse (lot 3 Ship 1) — le verbe « retrouver », chemin unique
+// (même code que MCP oto_search). kinds CSV optionnel, scope projet optionnel.
+export const searchAll = (q: string, opts: { scope?: 'org' | 'project'; project?: number; kinds?: string[]; limit?: number } = {}) => {
+  const p = new URLSearchParams({ q })
+  if (opts.scope) p.set('scope', opts.scope)
+  if (opts.project != null) p.set('project', String(opts.project))
+  if (opts.kinds?.length) p.set('kinds', opts.kinds.join(','))
+  if (opts.limit) p.set('limit', String(opts.limit))
+  return api<{ hits: SearchHit[]; count: number; hint?: string }>(`/api/me/search?${p.toString()}`)
+}
 export const suspendInstance = (connector: string, suspended: boolean, account = '') =>
   api<{ connector: string; account: string | null; suspended: boolean }>(
     '/api/me/connector-instances/suspend',

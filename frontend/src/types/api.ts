@@ -487,6 +487,21 @@ export interface ProjectFile {
   download_url?: string | null
 }
 export type DocKind = 'doc' | 'note' | 'source'
+// Hit de la recherche transverse (lot 3 Ship 1) — deux familles : passages
+// (page/brief/procedure/guide, avec fragment surligné) et conteneurs
+// (tableau/fichier/connecteur, nom+description). `ref` dépend du kind.
+export interface SearchHit {
+  kind: 'page' | 'brief' | 'procedure' | 'guide' | 'tableau' | 'fichier' | 'connecteur'
+  ref: number | string | { scope: string; slug: string }
+  title: string
+  description?: string | null
+  passage?: string | null        // ts_headline (tags <b>) — à sanitizer au rendu
+  project_id?: number
+  project_name?: string
+  updated_at?: string | null
+  matched_by: string
+}
+
 export interface Doc {
   id: number
   project_id: number
