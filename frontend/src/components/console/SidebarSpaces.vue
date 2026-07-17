@@ -38,6 +38,10 @@ function accentFor(key: string): string {
   return `var(--color-${ACCENTS[h % ACCENTS.length]})`
 }
 
+// Cap par espace : on n'affiche que les N premiers (récence) sous chaque espace pour
+// éviter le scroll ; le surplus renvoie à l'index complet (comme les « projets récents »).
+const CAP = 5
+
 interface Space { key: string; label: string; color: string; projects: Project[] }
 
 const spaces = computed<Space[]>(() => {
@@ -87,10 +91,13 @@ function toggle(key: string) {
         <span class="space-count">{{ s.projects.length }}</span>
       </button>
       <template v-if="open.has(s.key)">
-        <RouterLink v-for="p in s.projects" :key="p.id" class="space-proj"
+        <RouterLink v-for="p in s.projects.slice(0, CAP)" :key="p.id" class="space-proj"
           :class="{ on: String(p.id) === activeProjectId }" :to="scoped(`/projects/${p.id}`)" @click="closeNav">
           <span class="proj-dot" :style="{ background: s.color }" />
           <span class="proj-name">{{ p.name }}</span>
+        </RouterLink>
+        <RouterLink v-if="s.projects.length > CAP" class="space-more" :to="scoped('/projects')" @click="closeNav">
+          + {{ s.projects.length - CAP }} autres
         </RouterLink>
         <div v-if="!s.projects.length" class="space-empty">aucun projet</div>
       </template>
@@ -115,5 +122,8 @@ function toggle(key: string) {
 .space-proj.on { font-weight: 700; border-left-color: var(--color-saffron); background: var(--sidebar-hover-bg); }
 .proj-dot { flex: none; width: 7px; height: 7px; border-radius: 999px; }
 .proj-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.space-more { display: block; padding: 4px 10px 5px 30px; font-size: 12px; font-style: italic;
+  color: var(--sidebar-fg-mute); text-decoration: none; border-radius: var(--radius-md); }
+.space-more:hover { background: var(--sidebar-hover-bg); color: var(--sidebar-fg); }
 .space-empty { padding: 4px 10px 6px 30px; font-size: 12px; font-style: italic; color: var(--sidebar-fg-mute); }
 </style>
