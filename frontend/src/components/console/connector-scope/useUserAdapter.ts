@@ -11,6 +11,7 @@ import {
 } from '@/api/console'
 import { useMe } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
+import { connectorVerdict } from '@/lib/connectorVerdict'
 import type { ConnectorState, MyConnector, ToolEntry } from '@/types/api'
 
 export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector> {
@@ -79,27 +80,21 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
       { key: 'shared', label: 'shared', match: (r) => { const m = modeOf(r); return m === 'org' || m === 'group' } },
     ],
     columns: [
-      { key: 'connection', label: 'connection' },
-      { key: 'tools', label: 'tools' },
-      { key: 'exposure', label: 'exposure' },
+      { key: 'etat', label: 'état' },
+      { key: 'tools', label: 'outils' },
     ],
     cell: (r, col): CellVM | undefined => {
-      if (col === 'connection') {
-        if (r.auth.method === 'none') return { dot: 'cobalt', label: 'Open data', sub: 'no credential needed' }
-        const m = modeOf(r)
-        if (!m || m === 'forbidden') return { dot: 'faint', label: 'Not connected', sub: 'needs a key', muted: true }
-        const sub = m === 'user' ? 'your key' : m === 'org' ? 'org key' : m === 'group' ? 'team key' : (r.free_tier ? 'oto platform · free' : 'oto platform key')
-        return { dot: 'olive', label: 'Connected', sub }
+      if (col === 'etat') {
+        // Le verdict d'abord, en langage clair (CDC principe 1) : dot + phrase qui
+        // encode la cause (installation × résolution × option) sans nommer les couches.
+        const v = connectorVerdict(r, me.value?.providers?.[r.name])
+        return { dot: v.dot, label: v.list }
       }
       if (col === 'tools') {
         const ts = toolsOf(r)
         const enabled = ts.filter((t) => t.enabled).length
         const pct = ts.length ? Math.round((enabled / ts.length) * 100) : 0
         return { bar: { pct }, sub: `${enabled}/${ts.length}` }
-      }
-      if (col === 'exposure') {
-        const e = EXP_CELL[r.state]
-        return { dot: e.tone, label: e.label }
       }
       return undefined
     },
