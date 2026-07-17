@@ -31,6 +31,7 @@ async function submit() {
 </script>
 
 <template>
+  <Teleport to="body">
   <div v-if="open" class="backdrop" @click="emit('close')">
     <div class="modal" @click.stop>
       <div class="top">
@@ -67,6 +68,7 @@ async function submit() {
       </div>
     </div>
   </div>
+  </Teleport>
 </template>
 
 <style scoped>

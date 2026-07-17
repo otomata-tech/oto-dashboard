@@ -218,6 +218,7 @@ async function transfer() {
 </script>
 
 <template>
+  <Teleport to="body">
   <Transition name="modal-fade">
     <div v-if="open" class="sd-ov" @mousedown.self="emit('close')">
       <div class="sd" role="dialog" aria-modal="true" aria-label="partager">
@@ -328,6 +329,7 @@ async function transfer() {
       </div>
     </div>
   </Transition>
+  </Teleport>
 </template>
 
 <style scoped>

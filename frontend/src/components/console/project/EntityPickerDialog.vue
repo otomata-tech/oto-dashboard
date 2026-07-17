@@ -124,6 +124,7 @@ async function onFile(file: File) {
 </script>
 
 <template>
+  <Teleport to="body">
   <Transition name="modal-fade">
     <div v-if="open" class="ep-ov" @mousedown.self="emit('close')">
       <div class="ep" role="dialog" aria-modal="true">
@@ -176,6 +177,7 @@ async function onFile(file: File) {
       </div>
     </div>
   </Transition>
+  </Teleport>
 </template>
 
 <style scoped>

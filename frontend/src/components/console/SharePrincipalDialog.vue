@@ -141,6 +141,7 @@ const kindLabel = (g: NamespaceShare) =>
 </script>
 
 <template>
+  <Teleport to="body">
   <Transition name="modal-fade">
     <div v-if="open" class="modal-overlay" @mousedown.self="emit('close')">
       <div class="modal" role="dialog" aria-modal="true" aria-label="partager">
@@ -199,6 +200,7 @@ const kindLabel = (g: NamespaceShare) =>
       </div>
     </div>
   </Transition>
+  </Teleport>
 </template>
 
 <style scoped>

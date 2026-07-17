@@ -106,6 +106,7 @@ function onKey(e: KeyboardEvent) { if (e.key === 'Escape') emit('close') }
 </script>
 
 <template>
+  <Teleport to="body">
   <div v-if="file" class="av-scrim" @click.self="emit('close')" @keydown="onKey" tabindex="-1">
     <div class="av-panel" role="dialog" aria-modal="true">
       <header class="av-head">
@@ -183,6 +184,7 @@ function onKey(e: KeyboardEvent) { if (e.key === 'Escape') emit('close') }
       </div>
     </div>
   </div>
+  </Teleport>
 </template>
 
 <style scoped>
