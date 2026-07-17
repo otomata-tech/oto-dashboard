@@ -66,6 +66,13 @@ scope (`InvitePreview.scope`/`group_name` → « rejoindre l'équipe X / oto »)
 > pouvoir **team** (gouvernance d'équipe restrict-only) : dispo + accès, cf. oto-backend B1/B2.
 > La prose historique ci-dessous reste utile pour le VOCABULAIRE (3 projections, cascade, 3 états)
 > mais les noms de composants (`ConnectorCard`, `ConnectorsView`…) ne valent plus.
+> **Lot 2 (17/07, PROD)** : présentation **verdict-first** — liste = colonne « État » en langage
+> clair (`lib/connectorVerdict.ts`, copy verbatim du CDC JB ; `pending_action` backend rendu tel
+> quel) ; panneau = `ConnectorVerdictLine` (diagnostic 3 couches derrière « Pourquoi ? ») +
+> `ConnectorKeyStack` (pile de provenance, dépliage auto si ≥2 clés/suspendue/prêt ;
+> **Suspendre/Réactiver** → `suspendInstance`) ; vocab adaptatif solo via
+> `me.active_org_is_personal` (jamais « org »/« équipe » en solo) ; onglet « confidentialité »
+> du drawer user = MÊME policy/éditeur que /org/connectors (`scopeNote` piloté par l'appelant).
 
 Section unique `/console/connectors` (`ConnectorsView.vue`) : **fusion** des ex-écrans
 `/my-connectors` + `/connectors` + `/toolbox` (qui redirigent désormais ici). Un connecteur
@@ -216,6 +223,20 @@ dans `api/console.ts` (POST op-aware `/api/me/{projects,docs}`). Backend : `oto-
 > `/p/p/:token`, `lib/crypto.ts`, `publishProjectShare`/`getPublicProjectShare`) — supplanté par
 > le navigable live. Le viewer public de **doc** (`/p/d/<token>`) reste rendu **server-side** par
 > le backend via Caddy (pas de route SPA ; `PublicDocView.vue` déjà supprimé).
+
+## Recherche transverse (lot 3 Ship 2 — suivi oto-private#67)
+
+Le geste « retrouver » : **popup ⌘K** (`SearchOverlay`, bâtie sur reka `Dialog` — jamais le
+patron drawer maison) ouverte par le faux champ `.sb-search` de la sidebar (`useHotkey`) +
+**page `/search?q=`** (exploration deep-linkable, chips de type dérivées des hits). **Un seul
+chemin** : rendu partagé `SearchHitList` + `lib/searchNav` (groupHits/flattenHits/hitPath —
+l'ordre ↑↓ EST l'ordre affiché groupé), client `searchAll` (= même API que MCP `oto_search`).
+Passages surlignés sanitizés DOMPurify (b/mark seulement). **Deep-link page `?doc=<id>`** sur
+`/projects/:id` (selectFromRoute ; clic = miroir replace) — la cible de tout hit page.
+**Chapôs** (`Doc.description`) : tooltip du rail (jamais de 2e ligne), sous-titre du viewer,
+champ d'édition. **Tokens overlay** `--blur-overlay`/`--scrim` (console.css) = LE flou/voile
+de toute modale — plus jamais de `blur(Npx)` magique. Reste Ship 2 : rail drag&drop
+(`oto_doc op=move position=<index>` côté backend, prêt).
 
 ## Mémoire — datastore + knowledge (ADR 0016)
 
