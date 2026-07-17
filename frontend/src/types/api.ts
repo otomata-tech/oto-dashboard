@@ -736,6 +736,10 @@ export interface UnipileStatus {
   mode?: string             // user|group|org|platform|over_quota|forbidden (origine de la clé)
   byo?: boolean             // clé propre (user/groupe/org), pas la clé plateforme
   channels: { linkedin: UnipileChannel; whatsapp: UnipileChannel; telegram: UnipileChannel; instagram: UnipileChannel; messenger: UnipileChannel; twitter: UnipileChannel }
+  // Proposition d'ADOPTION (binding-par-org) : canaux non liés dans CETTE org dont le
+  // sub a un compte connecté ailleurs (même clé plateforme) — « Connect » l'active ici.
+  elsewhere?: Partial<Record<keyof UnipileStatus['channels'],
+    { account_id: string; account_name: string | null; org_id: number | null }>>
 }
 
 // Identité connectée d'un connecteur (sélecteur générique, ADR 0024).

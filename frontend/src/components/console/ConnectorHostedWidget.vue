@@ -68,8 +68,14 @@ async function pick(id: string) {
 }
 
 async function go(channel: string, premium?: string) {
-  const { url } = await connectUnipile(channel, premium)
-  window.location.href = url
+  const out = await connectUnipile(channel, premium)
+  if (out.adopted) {
+    // compte déjà connecté dans une autre org (même clé plateforme) → lié ici sans wizard
+    toast(`${out.account_name || 'compte'} activé pour cette org`)
+    await refresh()
+    return
+  }
+  if (out.url) window.location.href = out.url
 }
 
 async function link(channel: string) {
@@ -163,7 +169,9 @@ async function dropMyKey() {
               ? 'option not enabled — ask an admin (or add your own unipile key)'
               : (unipile?.channels?.[c.key]?.connected
                 ? `connected ${fmtDate(unipile?.channels?.[c.key]?.connected_at ?? null) ?? ''} · ${c.desc}`
-                : `link your ${c.label} to start`) }}
+                : (unipile?.elsewhere?.[c.key]
+                  ? `${unipile.elsewhere[c.key]?.account_name || 'ton compte'} est connecté dans une autre de tes orgs — « Connect » l'active ici`
+                  : `link your ${c.label} to start`)) }}
           </div>
         </div>
         <template v-if="unipile?.subscribed">
