@@ -55,11 +55,11 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <!-- Téléporté en fin de <body> (comme les dialogs reka) : à --z-modal égal,
-       l'empilement suit l'ordre du DOM. Sans ce Teleport, cette modale maison est
-       rendue dans #app (plus TÔT dans le body) → elle passe SOUS toute modale reka
-       téléportée, même ouverte APRÈS elle (ex. confirmation de disconnect ouverte
-       depuis la modale connecteur). Règle DS : toute modale maison = Teleport body. -->
+  <!-- Téléporté en fin de <body> (comme les dialogs reka). L'ordre DOM ne suffit pas
+       ici : l'ancre du Teleport est posée au montage de ConsoleLayout (tôt) — une
+       modale maison montée PLUS TARD (ex. ProjectShareDialog) se retrouvait après
+       dans le body et passait DEVANT ce prompt pourtant ouvert par-dessus elle. Le
+       singleton impératif porte donc sa propre couche --z-prompt (> --z-modal). -->
   <Teleport to="body">
     <Transition name="modal-fade">
       <div v-if="state" class="modal-overlay" @mousedown.self="cancel">
@@ -108,7 +108,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 <style scoped>
 .modal-overlay {
-  position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center;
+  position: fixed; inset: 0; z-index: var(--z-prompt); display: flex; align-items: center; justify-content: center;
   padding: 24px; background: var(--scrim);
   backdrop-filter: blur(var(--blur-overlay));
 }

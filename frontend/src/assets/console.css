@@ -26,9 +26,17 @@
      donc PLUS TÔT dans le body que les dialogs reka téléportés → à z égal elle
      passe SOUS eux même ouverte APRÈS (bug vécu : confirmation de disconnect
      derrière la modale connecteur reka). Une modale maison non téléportée = bug
-     d'empilement latent. ── */
+     d'empilement latent.
+     ⚠️ LIMITE du pari ordre-DOM : l'ancre d'un Teleport maison est posée au
+     MONTAGE du composant, pas à l'ouverture (contrairement à reka qui téléporte
+     à l'ouverture). Le singleton PromptDialog (monté tôt dans ConsoleLayout)
+     passait donc SOUS une modale maison montée plus tard (bug vécu : formulaire
+     « publier » derrière la modale de partage projet). D'où --z-prompt : la
+     couche des dialogs IMPÉRATIFS singleton (prompt/confirm/form globaux),
+     toujours ouverts PAR-DESSUS la modale qui les invoque. ── */
   --z-drawer:  900;
   --z-modal:   1000;
+  --z-prompt:  1050;
   --z-popover: 1100;
   --z-toast:   1200;
   --z-banner:  1300;
