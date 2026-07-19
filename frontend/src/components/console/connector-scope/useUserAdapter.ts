@@ -85,10 +85,10 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
     sortRank: (r) => ORDER[r.state],
     categoryValues: () => rows.value.map((r) => r.category),
     lenses: [
-      { key: 'all', label: 'all', match: () => true },
-      { key: 'connected', label: 'connected', match: (r) => r.state !== 'not_selected' },
-      { key: 'available', label: 'available', match: (r) => r.state === 'not_selected' },
-      { key: 'shared', label: 'shared', match: (r) => { const m = modeOf(r); return m === 'org' || m === 'group' } },
+      { key: 'all', label: 'tous les statuts', match: () => true },
+      { key: 'connected', label: 'connectés', match: (r) => r.state !== 'not_selected' },
+      { key: 'available', label: 'disponibles', match: (r) => r.state === 'not_selected' },
+      { key: 'shared', label: 'partagés', match: (r) => { const m = modeOf(r); return m === 'org' || m === 'group' } },
     ],
     columns: [
       { key: 'etat', label: 'état' },

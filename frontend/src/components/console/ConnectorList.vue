@@ -1,14 +1,18 @@
 <script setup lang="ts" generic="T">
 // Liste de connecteurs partagée (projections user/org/équipe) — coquille commune :
-// une ConsoleCard portant recherche (`.cc-search`) + CategoryChips + table `.tbl` + le
-// pipeline filtre/tri (« actifs d'abord ») + la sélection de ligne (`.crow.sel`,
+// une ConsoleCard dont les filtres (`SearchToggle`, dropdown « Type » par catégorie,
+// `#controls` = dropdown « Statut » côté USER) vivent dans le slot `#actions` du
+// header de carte — même ligne que le titre (`.card-head .actions`, `margin-left:auto`
+// + gap uniforme), pas de rangée dédiée en plus. + table `.tbl` + le pipeline
+// filtre/tri (« actifs d'abord ») + la sélection de ligne (`.crow.sel`,
 // `v-model:selectedKey`). Générique sur T = le type métier brut de chaque surface
 // (MyConnector / OrgConnectorActivation / ConnectorMeta) : les slots #head/#row reçoivent
 // l'objet brut typé, chaque surface y rend SES colonnes/leviers propres via des accesseurs
 // (fonctions pures capturant l'état réactif de la vue). Fin des 5 réécritures du pipeline.
 import { computed, ref } from 'vue'
 import ConsoleCard from './ConsoleCard.vue'
-import CategoryChips from './CategoryChips.vue'
+import OtoSelect from './OtoSelect.vue'
+import SearchToggle from './SearchToggle.vue'
 
 const props = withDefaults(defineProps<{
   items: T[]                          // DÉJÀ pré-filtré par la lentille propre à la surface
@@ -32,9 +36,16 @@ const emit = defineEmits<{
 }>()
 
 const q = ref('')
-const category = ref<string | null>(null)
+const category = ref('')
 
 const chipValues = computed(() => props.categoryValues ?? props.items.map(props.category))
+// Options du dropdown « Type » (remplace les chips catégorie) — même comptage/tri
+// que l'ex-CategoryChips, masqué s'il n'y a rien à filtrer (≤1 catégorie distincte).
+const categoryOptions = computed(() => {
+  const counts = new Map<string, number>()
+  for (const v of chipValues.value) if (v) counts.set(v, (counts.get(v) ?? 0) + 1)
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([name, n]) => ({ value: name, label: `${name} (${n})` }))
+})
 const shown = computed(() => {
   const needle = q.value.trim().toLowerCase()
   return props.items
@@ -52,13 +63,12 @@ function onSelect(i: T) {
 
 <template>
   <ConsoleCard :title="title" :sub="sub" :flush="flush">
-    <template #actions><slot name="actions" /></template>
-
-    <div class="cl-controls">
+    <template #actions>
+      <SearchToggle v-model="q" :placeholder="searchPlaceholder" />
+      <OtoSelect v-if="categoryOptions.length > 1" v-model="category" :options="categoryOptions"
+        none-label="tous les types" placeholder="Type" aria-label="Type" size="sm" />
       <slot name="controls" />
-      <input v-model="q" class="cc-search" :placeholder="searchPlaceholder ?? 'search…'" />
-    </div>
-    <CategoryChips :values="chipValues" v-model="category" />
+    </template>
 
     <slot name="beforeTable" />
 
@@ -79,7 +89,3 @@ function onSelect(i: T) {
     <slot name="footer" />
   </ConsoleCard>
 </template>
-
-<style scoped>
-.cl-controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: space-between; }
-</style>

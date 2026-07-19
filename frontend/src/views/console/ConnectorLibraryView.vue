@@ -8,7 +8,8 @@
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
-import CategoryChips from '@/components/console/CategoryChips.vue'
+import OtoSelect from '@/components/console/OtoSelect.vue'
+import SearchToggle from '@/components/console/SearchToggle.vue'
 import ConnectorCardShell from '@/components/console/ConnectorCardShell.vue'
 import ConnectorTileBody from '@/components/console/ConnectorTileBody.vue'
 import ConnectorDetail from '@/components/console/library/ConnectorDetail.vue'
@@ -24,7 +25,13 @@ const error = ref<string | null>(null)
 const busy = ref<string | null>(null)
 
 const q = ref('')
-const category = ref<string | null>(null)
+const category = ref('')
+// Options du dropdown « Type » — même comptage/tri que l'ex-CategoryChips.
+const categoryOptions = computed(() => {
+  const counts = new Map<string, number>()
+  for (const c of catalog.value) if (c.category) counts.set(c.category, (counts.get(c.category) ?? 0) + 1)
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([name, n]) => ({ value: name, label: `${name} (${n})` }))
+})
 
 // Fiche détail portée par ?connector=<name> (lien direct + back/forward).
 const selected = ref<MyConnector | null>(null)
@@ -100,12 +107,13 @@ const filtered = computed(() => {
       :busy="busy === selected.name" @back="closeDetail" @install="install(selected)" />
 
     <template v-else>
-      <ConsoleCard title="connector library"
+      <ConsoleCard title="connector library" flush
         sub="browse every connector oto can drive — search, open a card for its tools & setup, then install.">
-        <div class="lib-controls">
-          <input v-model="q" class="inp" placeholder="search connectors, tools, publishers…" />
-          <CategoryChips :values="catalog.map((c) => c.category)" v-model="category" />
-        </div>
+        <template #actions>
+          <SearchToggle v-model="q" placeholder="search connectors, tools, publishers…" />
+          <OtoSelect v-if="categoryOptions.length > 1" v-model="category" :options="categoryOptions"
+            none-label="tous les types" placeholder="Type" aria-label="Type" size="sm" />
+        </template>
       </ConsoleCard>
 
       <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
@@ -136,16 +144,13 @@ const filtered = computed(() => {
 
       <div v-else-if="loaded && !error" class="state-empty" style="margin-top: 40px">
         <h3>no connector matches</h3>
-        <p>try a different search or clear the category filter.</p>
+        <p>try a different search or clear the type filter.</p>
       </div>
     </template>
   </div>
 </template>
 
 <style scoped>
-.lib-controls { display: flex; flex-direction: column; gap: 12px; }
-.lib-controls .inp { width: 100%; max-width: 420px; }
-
 /* Chrome de tuile → ConnectorCardShell ; desc+badges+pied → ConnectorTileBody.
    Ici : seulement le contenu propre du pied (compteur + actions install). */
 .lib-count { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

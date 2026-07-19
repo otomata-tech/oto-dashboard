@@ -10,6 +10,7 @@ import ConnectorList from '@/components/console/ConnectorList.vue'
 import ConnectorIdentityCell from '@/components/console/ConnectorIdentityCell.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
 import CredentialFieldsDialog from '@/components/console/CredentialFieldsDialog.vue'
+import OtoSelect from '@/components/console/OtoSelect.vue'
 import ConnectorScopeCell from './ConnectorScopeCell.vue'
 import ConnectorScopeDrawer from './ConnectorScopeDrawer.vue'
 import { useToast } from '@/composables/useToast'
@@ -37,7 +38,7 @@ const selectedRow = computed(() => adapter.rows.value.find((r) => adapter.key(r)
 
 // Lentilles (pré-filtre segmenté, scope USER) : la vue tient l'état + filtre en amont
 // (ConnectorList fait ensuite recherche/chips/tri sur les lignes filtrées).
-const lensKey = ref<string | null>(adapter.lenses?.[0]?.key ?? null)
+const lensKey = ref<string>(adapter.lenses?.[0]?.key ?? '')
 const shownRows = computed(() => {
   const l = adapter.lenses?.find((x) => x.key === lensKey.value)
   return l ? adapter.rows.value.filter((r) => l.match(r)) : adapter.rows.value
@@ -46,6 +47,8 @@ const lensCount = (key: string) => {
   const l = adapter.lenses?.find((x) => x.key === key)
   return l ? adapter.rows.value.filter((r) => l.match(r)).length : 0
 }
+// Options du dropdown « Statut » (remplace le sélecteur segmenté all/connected/…).
+const lensOptions = computed(() => (adapter.lenses ?? []).map((l) => ({ value: l.key, label: `${l.label} (${lensCount(l.key)})` })))
 
 onMounted(async () => {
   await adapter.load()
@@ -73,11 +76,7 @@ onMounted(async () => {
     :category-values="adapter.categoryValues?.()" :selectable="adapter.hasDrawer"
     v-model:selected-key="selectedKey">
     <template v-if="adapter.lenses" #controls>
-      <div class="seg" role="tablist">
-        <button v-for="l in adapter.lenses" :key="l.key" :class="{ on: lensKey === l.key }" @click="lensKey = l.key">
-          {{ l.label }} <span class="dim">{{ lensCount(l.key) }}</span>
-        </button>
-      </div>
+      <OtoSelect v-model="lensKey" :options="lensOptions" placeholder="Statut" aria-label="Statut" size="sm" />
     </template>
     <template #head>
       <th style="width: 42%">connector</th>
@@ -108,5 +107,4 @@ onMounted(async () => {
 
 <style scoped>
 .csv-chev { text-align: right; color: var(--color-faint); font-size: 15px; }
-.dim { opacity: .6; }
 </style>
