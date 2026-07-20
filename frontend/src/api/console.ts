@@ -2,7 +2,7 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, MyConnector, SearchHit,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, MyConnector, SearchHit, Inbox,
   BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
@@ -282,6 +282,7 @@ export const setProjectFilePublic = (id: number, fileId: number, isPublic: boole
 const docsApi = <T>(body: Record<string, unknown>) =>
   api<T>('/api/me/docs', { method: 'POST', ...j(body) })
 export const listDocs = (project_id: number) => docsApi<{ project_id: number; docs: Doc[] }>({ op: 'list', project_id })
+export const getDoc = (doc_id: number) => docsApi<Doc>({ op: 'get', doc_id })
 export const createDoc = (project_id: number, title: string,
   opts?: { parent_id?: number | null; body_md?: string; kind?: DocKind }) =>
   docsApi<Doc>({ op: 'create', project_id, title, ...(opts ?? {}) })
@@ -303,8 +304,13 @@ export const requestDocChange = (doc_id: number, fields: { body_md?: string; tit
   docsApi<{ ok: boolean; request: DocChangeRequest }>({ op: 'request_change', doc_id, ...fields })
 export const listDocChanges = (doc_id: number) =>
   docsApi<{ doc_id: number; requests: DocChangeRequest[] }>({ op: 'list_changes', doc_id })
-export const resolveDocChange = (doc_id: number, request_id: number, accept: boolean) =>
-  docsApi<{ ok: boolean; accepted: boolean }>({ op: 'resolve_change', doc_id, request_id, accept })
+export const resolveDocChange = (request_id: number, accept: boolean) =>
+  docsApi<{ ok: boolean; accepted: boolean; reason?: string }>({ op: 'resolve_change', request_id, accept })
+// Propositions en attente d'un PROJET (drawer « Propositions », Ship 3).
+export const listProjectProposals = (project_id: number) =>
+  docsApi<{ project_id: number; requests: DocChangeRequest[] }>({ op: 'list_changes', project_id })
+// Inbox d'accueil (Ship 3) : À traiter (propositions + invitations) / Récent.
+export const getInbox = () => api<Inbox>('/api/me/inbox')
 // Partage public d'un doc (#4a) — renvoie public + public_url (lien de lecture).
 export const setDocPublic = (doc_id: number, isPublic: boolean) =>
   docsApi<{ ok: boolean; public: boolean; public_url: string | null }>({ op: 'set_public', doc_id, public: isPublic })

@@ -170,7 +170,7 @@ async function resolveRequest(req: DocChangeRequest, accept: boolean) {
   const d = doc.value
   if (!d) return
   if (accept && !await confirmAction({ title: 'Accepter cette modification', message: "Le contenu proposé remplacera la version actuelle (conservée dans l'historique)." })) return
-  try { await resolveDocChange(d.id, req.id, accept); emit('reload-docs'); emit('changed'); await loadRequests(d.id); toast(accept ? 'modification appliquée' : 'demande refusée') }
+  try { await resolveDocChange(req.id, accept); emit('reload-docs'); emit('changed'); await loadRequests(d.id); toast(accept ? 'modification appliquée' : 'demande refusée') }
   catch (e) { toast(humanize(e)) }
 }
 async function toggleHistory() {

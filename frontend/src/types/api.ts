@@ -502,6 +502,35 @@ export interface SearchHit {
   matched_by: string
 }
 
+// Inbox d'accueil (lot 3 Ship 3) — deux voies : À traiter (décision de moi) / Récent.
+export interface InboxReviewItem {
+  request_id: number
+  kind: 'create' | 'modif'
+  project_id: number | null
+  project_name?: string | null
+  doc_id?: number | null
+  doc_title?: string | null
+  proposed_title?: string | null
+  requested_by?: string | null
+  message?: string | null
+  created_at?: string | null
+}
+export interface InboxInvite { code?: string; org_id?: number; org_name?: string | null; invited_by?: string | null; created_at?: string | null }
+export interface InboxRecent {
+  type: 'proposal_resolved' | 'project_shared'
+  request_id?: number; status?: string
+  project_id?: number | null; project_name?: string | null
+  doc_id?: number | null; doc_title?: string | null; proposed_title?: string | null
+  resolved_by?: string | null; resolved_at?: string | null
+  permission?: string; granted_at?: string | null
+}
+export interface Inbox {
+  to_review: InboxReviewItem[]
+  invitations: InboxInvite[]
+  recent: InboxRecent[]
+  count: number
+}
+
 export interface Doc {
   id: number
   project_id: number

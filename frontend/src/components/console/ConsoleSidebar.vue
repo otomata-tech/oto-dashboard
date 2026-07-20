@@ -14,11 +14,15 @@ import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
 import { useScopedLink } from '@/composables/useScopedLink'
 import { useHotkey } from '@/composables/useHotkey'
+import { useInbox } from '@/composables/useInbox'
 
 const route = useRoute()
 // Recherche transverse (lot 3 Ship 2) : faux champ sidebar + ⌘K → popup.
 const searchOpen = ref(false)
 useHotkey('k', () => { searchOpen.value = true })
+// Badge « À traiter » sur l'entrée Accueil (special-case /overview, sans toucher NAV).
+const { inbox, load: loadInbox } = useInbox()
+loadInbox()
 const { scoped } = useScopedLink()
 const { t } = useI18n()
 
@@ -76,6 +80,7 @@ const plomberieItems = computed(() =>
             <span class="ic"><Icon :name="it.icon" :size="15" /></span>
             {{ t(it.label) }}
             <span v-if="it.warn" class="warn-dot"><Dot tone="saffron" :size="7" /></span>
+            <span v-else-if="it.path === '/overview' && inbox?.count" class="count">{{ inbox.count }}</span>
             <span v-else-if="it.count" class="count">{{ it.count }}</span>
           </RouterLink>
           <!-- Arbre d'espaces (équipes + « Mes projets ») sous l'entrée « Projets ». -->
