@@ -1,11 +1,16 @@
-name: Deploy canari
+name: Deploy preprod
 
-# Build (runner HOSTED, env VITE canari) → deploy (runner SELF-HOSTED otomata-0)
-# vers /opt/oto-dashboard-canari. Staging/canari de l'ADR 0040. Ne tourne QUE sur
-# la branche `canari` (ce fichier ne trigge pas sur main → prod non impactée).
+# Modèle de release (ADR 0020, refonte 2026-07-20) : push sur `main` → PREPROD.
+# `main` = tronc ; build env VITE staging (runner HOSTED) → deploy artefact (runner
+# SELF-HOSTED otomata-0) vers /opt/oto-dashboard-canari (dashboard-canari.oto.ninja,
+# l'ancien « canari » de l'ADR 0040, désormais alimenté par main). La PROD ne se
+# déploie QUE sur un tag `v*` (deploy.yml). Le job `test` tourne aussi sur PR vers main
+# (= le check de validation avant merge).
 on:
   push:
-    branches: [canari]
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch: {}
 
 jobs:
@@ -20,7 +25,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install
         run: cd frontend && npm ci
-      - name: Build canari (env VITE staging)
+      - name: Build preprod (env VITE staging)
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           VITE_LOGTO_APP_ID: u3dkbkd1ecxi0je880ebz
@@ -33,14 +38,16 @@ jobs:
       - name: Unit tests (vitest)
         run: cd frontend && npm run test
       - uses: actions/upload-artifact@v4
+        if: github.event_name != 'pull_request'
         with:
           name: dist-canari
           path: frontend/dist
           retention-days: 3
           if-no-files-found: error
 
-  deploy:
+  deploy-preprod:
     needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: [self-hosted, otomata-0]
     concurrency:
       group: deploy-dashboard-canari
@@ -50,5 +57,5 @@ jobs:
         with:
           name: dist-canari
           path: ${{ runner.temp }}/dist
-      - name: Deploy canari (artefact only, script root-restreint)
+      - name: Deploy preprod (artefact only, script root-restreint)
         run: sudo /opt/deploy/oto-dashboard-canari-deploy.sh "${{ runner.temp }}/dist"
