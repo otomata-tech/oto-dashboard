@@ -1,16 +1,18 @@
 <script setup lang="ts">
 // Page DÉDIÉE d'un projet — `/projects/:id` (objet de premier rang, ADR 0030). Refonte UX
-// (ADR « refonte projets ») : chef d'orchestre du NAVIGATEUR de contenu. En-tête fusionné
-// (nom + tags + avatars + Partager · Historique · Reprendre dans Claude · •••) ; corps =
-// viewer polymorphe (gauche) + rail d'entités (droite) ; audit en bandeau pleine largeur ;
-// partage en modale, activité en drawer. La logique data (get/update/link/doc/file…) est
-// CONSERVÉE — c'est le rendu qui est ré-agencé (viewer/rail + dialogs).
+// (ADR « refonte projets ») : chef d'orchestre du NAVIGATEUR de contenu. En-tête injecté
+// dans le topbar global (TopbarPage — fin du double en-tête) : tags + avatars + Partager ·
+// Historique · Reprendre dans Claude · ••• — plus de titre local (nom du projet retiré,
+// pas de doublon avec le topbar). Corps = viewer polymorphe (gauche) + rail d'entités
+// (droite) ; audit en bandeau pleine largeur ; partage en modale, activité en drawer. La
+// logique data (get/update/link/doc/file…) est CONSERVÉE — c'est le rendu qui est ré-agencé.
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useScopedLink } from '@/composables/useScopedLink'
 import Tag from '@/components/console/Tag.vue'
 import Icon from '@/components/console/Icon.vue'
 import NameDialog from '@/components/console/NameDialog.vue'
+import TopbarPage from '@/components/console/TopbarPage.vue'
 import ProjectRail from '@/components/console/project/ProjectRail.vue'
 import ProjectViewer from '@/components/console/project/ProjectViewer.vue'
 import ProjectShareDialog from '@/components/console/project/ProjectShareDialog.vue'
@@ -273,13 +275,12 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
     <div v-else-if="!loaded" class="pj__msg surface-card"><p class="dim" style="font-size: 13px">chargement du projet…</p></div>
 
     <template v-else-if="project">
-      <!-- en-tête fusionné -->
-      <header class="pj-top">
-        <div class="pj-top__id">
-          <h1 class="pj-top__name">{{ project.name }}</h1>
-          <Tag v-for="t in statusTags" :key="t.label" :tone="t.tone">{{ t.label }}</Tag>
-        </div>
+      <!-- en-tête : injecté dans le topbar global (fin du double en-tête). claim=false :
+           pas de titre local à dédupliquer → le fil d'ariane générique ("projects · workspace")
+           reste visible à côté des actions, dans la même barre. -->
+      <TopbarPage :claim="false">
         <div class="pj-top__act">
+          <Tag v-for="t in statusTags" :key="t.label" :tone="t.tone">{{ t.label }}</Tag>
           <button v-if="grants.length" class="pj-avs" title="Partagé — voir avec qui" @click="shareOpen = true">
             <span v-for="(a, i) in avatars" :key="i" class="pj-av" :style="{ background: a.bg, color: a.fg }">{{ a.initials }}</span>
             <span v-if="moreCount" class="pj-av pj-av--more">+{{ moreCount }}</span>
@@ -303,7 +304,7 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
             </template>
           </span>
         </div>
-      </header>
+      </TopbarPage>
 
       <!-- bandeau audit pleine largeur -->
       <section v-if="auditIssues" class="pj-audit">
@@ -348,11 +349,8 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
 @media (max-width: 480px) { .pj { margin: -14px -12px -48px; } }
 .pj__msg { margin: 24px 26px; }
 
-/* en-tête */
-.pj-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 26px; border-bottom: 1px solid var(--color-hair); background: var(--color-bg); }
-.pj-top__id { flex: 1 1 auto; min-width: 160px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.pj-top__name { font-size: 20px; font-weight: 700; letter-spacing: -.02em; margin: 0; color: var(--color-ink); }
-.pj-top__act { flex: none; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
+/* en-tête : actions injectées dans le topbar global (TopbarPage), plus de titre local */
+.pj-top__act { flex: 1; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
 .pj-avs { display: inline-flex; align-items: center; padding-left: 8px; border: 0; background: transparent; cursor: pointer; flex: none; }
 .pj-av { width: 30px; height: 30px; border-radius: var(--radius-pill); display: grid; place-items: center; font-size: 10.5px; font-weight: 700; border: 2px solid var(--color-bg); margin-left: -8px; }
 .pj-av--more { background: var(--color-paper-2); color: var(--color-mute); }
