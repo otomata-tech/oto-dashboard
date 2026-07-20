@@ -295,6 +295,9 @@ export const moveDoc = (doc_id: number, opts: { parent_id?: number | null; posit
   docsApi<Doc>({ op: 'move', doc_id, ...opts })
 export const getDocRevisions = (doc_id: number) =>
   docsApi<{ doc_id: number; revisions: DocRevision[] }>({ op: 'revisions', doc_id })
+// Backlinks « Cité par » (lot 3 Ship 4) : pages qui mentionnent celle-ci via [[…]].
+export const getBacklinks = (doc_id: number) =>
+  docsApi<{ doc_id: number; backlinks: { id: number; project_id: number; title: string }[]; count: number }>({ op: 'backlinks', doc_id })
 // Demandes de modif (gap #4b) — propose (lecture seule) / liste / tranche (owner).
 export const requestDocChange = (doc_id: number, fields: { body_md?: string; title?: string; message?: string }) =>
   docsApi<{ ok: boolean; request: DocChangeRequest }>({ op: 'request_change', doc_id, ...fields })
