@@ -237,8 +237,10 @@ Passages surlignés sanitizés DOMPurify (b/mark seulement). **Deep-link page `?
 `/projects/:id` (selectFromRoute ; clic = miroir replace) — la cible de tout hit page.
 **Chapôs** (`Doc.description`) : tooltip du rail (jamais de 2e ligne), sous-titre du viewer,
 champ d'édition. **Tokens overlay** `--blur-overlay`/`--scrim` (console.css) = LE flou/voile
-de toute modale — plus jamais de `blur(Npx)` magique. Reste Ship 2 : rail drag&drop
-(`oto_doc op=move position=<index>` côté backend, prêt).
+de toute modale — plus jamais de `blur(Npx)` magique. Rail **drag&drop** natif (réordonner les pages → `oto_doc op=move position=`).
+
+
+**Backlinks & collaboration (Ship 3-4, LIVE preprod)** : `MarkdownView` gagne un resolver OPTIONNEL (`resolveLink`) qui pré-transforme les `[[Titre]]` en liens `data-doc` (navigate) / `data-stub` (create) avant marked — sans le prop, context-free (usages publics intacts) ; `ProjectViewer` résout contre `docTitleMap` du parent + panneau **« Cité par »** (`getBacklinks`). **Accueil « À traiter »** : `InboxCard` (voies À traiter/Récent, `useInbox` singleton) + **`ProposalReview`** (reka Dialog, diff LCS avant/après, `resolveDocChange(request_id)`) + badge sur l'entrée Accueil (special-case `/overview`, NAV intouché). Recherche sémantique = backend (embeddings) ; le front `oto_search`/`searchAll` est inchangé (fusion RRF transparente).
 
 ## Mémoire — datastore + knowledge (ADR 0016)
 
