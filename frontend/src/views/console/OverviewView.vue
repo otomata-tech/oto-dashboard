@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Dot from '@/components/console/Dot.vue'
+import InboxCard from '@/components/console/InboxCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Quota from '@/components/console/Quota.vue'
 import { defineAsyncComponent } from 'vue'
@@ -114,6 +115,8 @@ onMounted(async () => {
 
 <template>
   <div class="content-inner fadein">
+    <!-- Accueil « À traiter » (lot 3 Ship 3) — au-dessus de tout, seulement si non vide. -->
+    <InboxCard />
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
     <div class="eyebrow-row" style="justify-content: space-between">
       <div style="display: flex; align-items: center; gap: 9px">

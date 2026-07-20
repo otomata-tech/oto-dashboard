@@ -15,7 +15,7 @@ const MarkdownEditor = defineAsyncComponent(() => import('@/components/console/M
 import AttachmentViewer from '@/components/console/AttachmentViewer.vue'
 import DatastoreTable from '@/components/console/DatastoreTable.vue'
 import {
-  updateDoc, deleteDoc, setDocPublic, getDocRevisions,
+  updateDoc, deleteDoc, setDocPublic, getDocRevisions, getBacklinks,
   requestDocChange, listDocChanges, resolveDocChange,
   getConnectorIdentities, linkProject, unlinkProject,
   setProjectFilePublic, deleteProjectFile,
@@ -45,6 +45,7 @@ const props = defineProps<{
   projectName: string
   brief?: string | null
   readOnly?: boolean
+  docTitleMap?: Record<string, number>   // casefold(titre)→id (résolution [[…]], Ship 4)
 }>()
 const emit = defineEmits<{
   'save-brief': [string]
@@ -54,7 +55,13 @@ const emit = defineEmits<{
   'open-doc': [number]
   'add-subpage': [number]
   'reload-links': []
+  'create-page': [string]                // lien-souche [[Titre]] cliqué → créer la page
 }>()
+
+// Résolution des backlinks [[Titre]] contre les pages du projet (casefold).
+function resolveLink(title: string): number | null {
+  return props.docTitleMap?.[title.split(/\s+/).join(' ').toLowerCase()] ?? null
+}
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
@@ -93,6 +100,7 @@ const draft = ref<{ title: string; body_md: string; kind: DocKind; description: 
 const revisions = ref<DocRevision[]>([])
 const showHistory = ref(false)
 const changeRequests = ref<DocChangeRequest[]>([])
+const backlinks = ref<{ id: number; project_id: number; title: string }[]>([])
 const KIND_LABEL: Record<DocKind, string> = { doc: 'doc', note: 'note agent', source: 'source' }
 const KIND_OPTIONS = (Object.keys(KIND_LABEL) as DocKind[]).map((value) => ({ value, label: KIND_LABEL[value] }))
 
@@ -108,7 +116,12 @@ function resetPage() {
   briefDraft.value = props.brief ?? ''
   const d = doc.value
   draft.value = d ? { title: d.title, body_md: d.body_md, kind: d.kind, description: d.description ?? '' } : null
+  backlinks.value = []
   if (d && !props.readOnly) void loadRequests(d.id)
+  if (d) void loadBacklinks(d.id)
+}
+async function loadBacklinks(id: number) {
+  try { backlinks.value = (await getBacklinks(id)).backlinks } catch { backlinks.value = [] }
 }
 
 // brief
@@ -157,7 +170,7 @@ async function resolveRequest(req: DocChangeRequest, accept: boolean) {
   const d = doc.value
   if (!d) return
   if (accept && !await confirmAction({ title: 'Accepter cette modification', message: "Le contenu proposé remplacera la version actuelle (conservée dans l'historique)." })) return
-  try { await resolveDocChange(d.id, req.id, accept); emit('reload-docs'); emit('changed'); await loadRequests(d.id); toast(accept ? 'modification appliquée' : 'demande refusée') }
+  try { await resolveDocChange(req.id, accept); emit('reload-docs'); emit('changed'); await loadRequests(d.id); toast(accept ? 'modification appliquée' : 'demande refusée') }
   catch (e) { toast(humanize(e)) }
 }
 async function toggleHistory() {
@@ -339,7 +352,10 @@ async function removeFile() {
         <!-- lecture -->
         <template v-else>
           <div class="vw__page">
-            <MarkdownView v-if="hasBody" :source="body" />
+            <MarkdownView v-if="hasBody" :source="body"
+              :resolve-link="kind === 'page' ? resolveLink : undefined"
+              @navigate-doc="(id) => emit('open-doc', id)"
+              @create-stub="(t) => emit('create-page', t)" />
             <p v-else class="dim vw__novalue">{{ readOnly ? 'aucun contenu.' : (isHome ? 'aucun brief — clique « éditer » pour le rédiger.' : 'page vide — clique « éditer ».') }}</p>
           </div>
 
@@ -348,6 +364,15 @@ async function removeFile() {
             <button class="vw__x" @click="toggleHistory">{{ showHistory ? "Masquer l'historique" : 'Historique' }}</button>
             <button v-if="!readOnly" class="vw__x" @click="toggleDocPublic">{{ doc.public ? 'Rendre privé' : 'Partager par lien' }}</button>
             <button v-if="!readOnly" class="vw__x vw__x--danger" @click="removeDoc">Supprimer</button>
+          </div>
+
+          <!-- Cité par (backlinks [[…]], Ship 4) -->
+          <div v-if="!isHome && doc && backlinks.length" class="vw__panel">
+            <div class="card-eb" style="margin-bottom: 6px">Cité par · {{ backlinks.length }}</div>
+            <button v-for="b in backlinks" :key="b.id" class="vw__citedby"
+              @click="emit('open-doc', b.id)">
+              <Icon name="book" :size="12" /> {{ b.title }}
+            </button>
           </div>
 
           <!-- demandes de modif (propriétaire) -->
@@ -496,6 +521,8 @@ async function removeFile() {
 .vw__editact { display: flex; align-items: center; gap: 9px; margin-top: 10px; }
 .vw__kind { border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 4px 8px; font: inherit; font-size: 11.5px; background: var(--color-surface); }
 .vw__panel { margin-top: 16px; border-top: 1px solid var(--color-hair-soft); padding-top: 10px; max-width: 720px; margin-inline: auto; }
+.vw__citedby { display: inline-flex; align-items: center; gap: 6px; margin: 0 6px 6px 0; padding: 4px 10px; border: 1px solid var(--color-hair); border-radius: var(--radius-pill); background: var(--color-surface); color: var(--color-ink-soft); font: inherit; font-size: 12px; cursor: pointer; }
+.vw__citedby:hover { background: var(--color-paper-2); color: var(--color-ink); }
 .vw__rev { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
 
 .vw__block { max-width: 660px; display: flex; flex-direction: column; align-items: flex-start; gap: 0; }

@@ -19,8 +19,7 @@ import EntityPickerDialog from '@/components/console/project/EntityPickerDialog.
 import type { RailGroup, RailItem } from '@/components/console/project/rail'
 import {
   getProject, updateProject, archiveProject, copyProject, setProjectTemplate, projectHandoff,
-  getProjectActivity, getResource, listProjectFiles, listDocs, getProjectInventory,
-} from '@/api/console'
+  getProjectActivity, getResource, listProjectFiles, listDocs, getProjectInventory, moveDoc, createDoc } from '@/api/console'
 import type { ProjectAudit } from '@/api/console'
 import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile, Doc } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -128,6 +127,12 @@ const railGroups = computed<RailGroup[]>(() => {
     { key: 'files', label: 'Fichiers importés', icon: 'file-text', kind: 'file', addKind: 'file', items: fileItems },
   ]
 })
+// Carte titre→id des pages du projet (résolution des backlinks [[…]], Ship 4).
+const docTitleMap = computed<Record<string, number>>(() => {
+  const m: Record<string, number> = {}
+  for (const d of docs.value) m[d.title.split(/\s+/).join(' ').toLowerCase()] = d.id
+  return m
+})
 // Item sélectionné (recomputé → survit aux reloads ; fallback accueil si disparu).
 const selItem = computed<RailItem | null>(() => {
   for (const g of railGroups.value) { const it = g.items.find((x) => x.key === sel.value); if (it) return it }
@@ -232,6 +237,24 @@ function openAdd(kind: NonNullable<typeof addKind.value>) { addParent.value = nu
 function openSubPage(parentId: number) { addParent.value = parentId; addKind.value = 'page' }
 async function onLinked() { await Promise.all([reloadProject(), loadActivity(), loadAudit()]) }
 async function onCreatedDoc(id: number) { await loadDocs(); sel.value = `doc:${id}` }
+// Lien-souche [[Titre]] cliqué (Ship 4) : crée la page au niveau projet + l'ouvre.
+async function onCreatePage(title: string) {
+  if (readOnly.value) return
+  try { const d = await createDoc(projectId, title); await loadDocs(); sel.value = `doc:${d.id}` }
+  catch (e) { toast(humanize(e)) }
+}
+// Réordonnancement d'une page dans sa fratrie (Ship 2, drag natif) : on calcule l'INDEX
+// cible parmi les frères de MÊME parent, dans l'ordre curé actuel (position), puis moveDoc.
+async function onReorder({ id, beforeId }: { id: number; beforeId: number | null }) {
+  const moved = docs.value.find((d) => d.id === id)
+  if (!moved) return
+  const sibs = docs.value
+    .filter((d) => d.parent_id === moved.parent_id && d.id !== id)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+  const idx = beforeId == null ? sibs.length : Math.max(0, sibs.findIndex((d) => d.id === beforeId))
+  try { await moveDoc(id, { position: idx }); await loadDocs() }
+  catch (e) { toast(humanize(e)) }
+}
 async function onReloadDocs() {
   await loadDocs()
   if (sel.value.startsWith('doc:') && !docs.value.some((d) => `doc:${d.id}` === sel.value)) sel.value = 'home'
@@ -297,11 +320,12 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
       <!-- navigateur : viewer (gauche) + rail (droite) -->
       <div class="pj-body">
         <ProjectViewer class="pj-body__vw" :item="selItem" :project-id="projectId" :project-name="project.name"
-          :brief="project.brief_md" :read-only="readOnly"
+          :brief="project.brief_md" :read-only="readOnly" :doc-title-map="docTitleMap"
           @save-brief="saveBrief" @reload-docs="onReloadDocs" @reload-files="onReloadFiles"
-          @reload-links="onReloadLinks" @changed="onChanged" @open-doc="(id) => sel = `doc:${id}`" @add-subpage="openSubPage" />
+          @reload-links="onReloadLinks" @changed="onChanged" @open-doc="(id) => sel = `doc:${id}`"
+          @add-subpage="openSubPage" @create-page="onCreatePage" />
         <ProjectRail class="pj-body__rail" :groups="railGroups" :sel="sel" :read-only="readOnly"
-          @select="onSelect" @add="openAdd" />
+          @select="onSelect" @add="openAdd" @reorder="onReorder" />
       </div>
     </template>
 

@@ -25,7 +25,9 @@ npm run build           # vue-tsc + vite build → frontend/dist
 
 ## État / feuille de route
 
-**Live en prod** : `dashboard.oto.ninja` est servi par ce repo (`/opt/oto-dashboard/dist`, deploy CI `deploy.yml`), `app.oto.ninja` redirige dessus (302). L'ancien `account/` (oto-websites) **a été supprimé et décommissionné** (account.oto.zone, 2026-06-15) — le cutover est **fait**, plus de double-service. La migration des features (connecteurs, orgs, doctrine, admin, datastore) s'est faite écran par écran. Suivi : `otomata#20` + issues de ce repo.
+**Live en prod** : `dashboard.oto.ninja` est servi par ce repo (`/opt/oto-dashboard/dist`), `app.oto.ninja` redirige dessus (302). L'ancien `account/` (oto-websites) **a été supprimé et décommissionné** (account.oto.zone, 2026-06-15) — le cutover est **fait**, plus de double-service. La migration des features (connecteurs, orgs, doctrine, admin, datastore) s'est faite écran par écran. Suivi : `otomata#20` + issues de ce repo.
+
+> **Déploiement — modèle tronc unique (refonte 2026-07-20, ADR 0020).** `main` = tronc = **PREPROD** : push/merge sur `main` → « Deploy preprod » (`deploy-canari.yml`, build env VITE staging → `/opt/oto-dashboard-canari`, `dashboard-canari.oto.ninja`). **PROD** = tag `vX.Y.Z` : `git tag vX.Y.Z && git push origin vX.Y.Z` → « Deploy prod » (`deploy.yml`, build au tag env VITE prod → `/opt/oto-dashboard/dist`, copie atomique + smoke + rollback). Artefact-only : les scripts serveur (`oto-dashboard-{canari-,}deploy.sh`) prennent un dist-dir, agnostiques au ref (seul le workflow change de ref). Tags `v*` immuables (ruleset). `guard-main`/`sync-main-to-canari` retirés ; branche `canari` dépréciée. Claude Code (web) ouvre ses PR sur `main` → preprod au merge.
 
 ## Groupes / départements (ADR 0012)
 
@@ -235,8 +237,10 @@ Passages surlignés sanitizés DOMPurify (b/mark seulement). **Deep-link page `?
 `/projects/:id` (selectFromRoute ; clic = miroir replace) — la cible de tout hit page.
 **Chapôs** (`Doc.description`) : tooltip du rail (jamais de 2e ligne), sous-titre du viewer,
 champ d'édition. **Tokens overlay** `--blur-overlay`/`--scrim` (console.css) = LE flou/voile
-de toute modale — plus jamais de `blur(Npx)` magique. Reste Ship 2 : rail drag&drop
-(`oto_doc op=move position=<index>` côté backend, prêt).
+de toute modale — plus jamais de `blur(Npx)` magique. Rail **drag&drop** natif (réordonner les pages → `oto_doc op=move position=`).
+
+
+**Backlinks & collaboration (Ship 3-4, LIVE preprod)** : `MarkdownView` gagne un resolver OPTIONNEL (`resolveLink`) qui pré-transforme les `[[Titre]]` en liens `data-doc` (navigate) / `data-stub` (create) avant marked — sans le prop, context-free (usages publics intacts) ; `ProjectViewer` résout contre `docTitleMap` du parent + panneau **« Cité par »** (`getBacklinks`). **Accueil « À traiter »** : `InboxCard` (voies À traiter/Récent, `useInbox` singleton) + **`ProposalReview`** (reka Dialog, diff LCS avant/après, `resolveDocChange(request_id)`) + badge sur l'entrée Accueil (special-case `/overview`, NAV intouché). Recherche sémantique = backend (embeddings) ; le front `oto_search`/`searchAll` est inchangé (fusion RRF transparente).
 
 ## Mémoire — datastore + knowledge (ADR 0016)
 
