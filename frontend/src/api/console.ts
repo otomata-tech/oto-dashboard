@@ -288,6 +288,11 @@ export const createDoc = (project_id: number, title: string,
 export const updateDoc = (doc_id: number, fields: { title?: string; body_md?: string; kind?: DocKind; description?: string }) =>
   docsApi<Doc>({ op: 'update', doc_id, ...fields })
 export const deleteDoc = (doc_id: number) => docsApi<{ ok: boolean }>({ op: 'delete', doc_id })
+// Déplacer/réordonner une page (Ship 2) : `position` = INDEX cible (0-based) dans la
+// fratrie de destination (le backend réindexe atomiquement) ; `parent_id` absent +
+// `position` posé = réordonner dans la fratrie courante ; null = racine du projet.
+export const moveDoc = (doc_id: number, opts: { parent_id?: number | null; position?: number }) =>
+  docsApi<Doc>({ op: 'move', doc_id, ...opts })
 export const getDocRevisions = (doc_id: number) =>
   docsApi<{ doc_id: number; revisions: DocRevision[] }>({ op: 'revisions', doc_id })
 // Demandes de modif (gap #4b) — propose (lecture seule) / liste / tranche (owner).

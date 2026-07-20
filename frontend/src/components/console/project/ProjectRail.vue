@@ -9,7 +9,40 @@ import Tag from '@/components/console/Tag.vue'
 import type { RailGroup, RailItem } from './rail'
 
 const props = defineProps<{ groups: RailGroup[]; sel: string; readOnly?: boolean }>()
-const emit = defineEmits<{ select: [RailItem]; add: [RailGroup['addKind']] }>()
+const emit = defineEmits<{
+  select: [RailItem]; add: [RailGroup['addKind']]
+  // Réordonnancement d'une PAGE dans sa fratrie (Ship 2) : id déplacé + id avant lequel
+  // déposer (null = fin de fratrie). Le parent résout parent_id + index et appelle moveDoc.
+  reorder: [{ id: number; beforeId: number | null }]
+}>()
+
+// Drag natif (pas de dépendance) — pages seulement, dans une même fratrie (même parentKey).
+const dragKey = ref<string | null>(null)
+const overKey = ref<string | null>(null)      // item survolé (indicateur de drop au-dessus)
+const draggable = (it: RailItem) => !props.readOnly && it.kind === 'page' && !it.home && !!it.doc
+function sameSibling(a: RailItem, b: RailItem) { return (a.parentKey ?? null) === (b.parentKey ?? null) }
+function onDragStart(it: RailItem, e: DragEvent) {
+  dragKey.value = it.key
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+}
+function onDragOver(it: RailItem, e: DragEvent) {
+  const src = dragged.value
+  if (!src || !draggable(it) || !sameSibling(src, it)) return
+  e.preventDefault()                            // autorise le drop
+  overKey.value = it.key
+}
+const dragged = computed<RailItem | null>(() => {
+  if (!dragKey.value) return null
+  for (const g of props.groups) { const it = g.items.find((x) => x.key === dragKey.value); if (it) return it }
+  return null
+})
+function onDrop(target: RailItem | null) {
+  const src = dragged.value
+  if (src?.doc && (target === null || (draggable(target!) && sameSibling(src, target!) && target!.key !== src.key)))
+    emit('reorder', { id: src.doc.id, beforeId: target?.doc?.id ?? null })
+  dragKey.value = null; overKey.value = null
+}
+function onDragEnd() { dragKey.value = null; overKey.value = null }
 
 // Pages dépliées (par clé). Défaut : tout déplié — on replie à la demande.
 const collapsed = ref<Set<string>>(new Set())
@@ -43,16 +76,23 @@ const nonEmpty = computed(() => props.groups.filter((g) => g.items.length || g.a
       </div>
       <div class="rail__items">
         <button v-for="it in visibleItems(g)" :key="it.key" class="rail__it"
-          :class="{ 'rail__it--on': isSel(it) }"
+          :class="{ 'rail__it--on': isSel(it), 'rail__it--over': overKey === it.key, 'rail__it--drag': dragKey === it.key }"
           :style="{ paddingLeft: (10 + (it.pad ?? 0) * 15) + 'px', boxShadow: edge(it) }"
           :title="it.hint || undefined"
-          @click="emit('select', it)">
+          :draggable="draggable(it)"
+          @click="emit('select', it)"
+          @dragstart="onDragStart(it, $event)" @dragover="onDragOver(it, $event)"
+          @drop="onDrop(it)" @dragend="onDragEnd">
+          <span v-if="draggable(it)" class="rail__grip" aria-hidden="true"><Icon name="grip" :size="11" /></span>
           <span v-if="hasKids(g, it)" class="rail__chev" :class="{ 'rail__chev--folded': collapsed.has(it.key) }"
             title="Déplier / replier" @click.stop="toggle(it.key)"><Icon name="chevd" :size="12" /></span>
           <span v-if="it.home" class="rail__homeic"><Icon name="house" :size="13" /></span>
           <span class="rail__lbl">{{ it.label }}</span>
           <Tag v-if="it.railTag" :tone="it.railTag.tone">{{ it.railTag.label }}</Tag>
         </button>
+        <div v-if="dragKey && g.kind === 'page'" class="rail__droptail"
+          @dragover.prevent="overKey = '__tail__'" @drop="onDrop(null)"
+          :class="{ 'rail__droptail--over': overKey === '__tail__' }" />
         <p v-if="!g.items.length" class="rail__empty">—</p>
       </div>
     </div>
@@ -75,4 +115,10 @@ const nonEmpty = computed(() => props.groups.filter((g) => g.items.length || g.a
 .rail__homeic { display: inline-flex; flex: none; opacity: .9; }
 .rail__lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rail__empty { margin: 0 0 0 10px; font-size: 12px; color: var(--color-faint); }
+.rail__grip { display: inline-flex; flex: none; opacity: 0; cursor: grab; color: var(--color-faint); margin-left: -3px; transition: opacity var(--t-fast); }
+.rail__it:hover .rail__grip { opacity: .6; }
+.rail__it--drag { opacity: .45; }
+.rail__it--over { box-shadow: inset 0 2px 0 var(--color-saffron) !important; }
+.rail__droptail { height: 6px; border-radius: 3px; margin: 1px 6px; }
+.rail__droptail--over { background: var(--color-saffron-soft); box-shadow: inset 0 2px 0 var(--color-saffron); }
 </style>

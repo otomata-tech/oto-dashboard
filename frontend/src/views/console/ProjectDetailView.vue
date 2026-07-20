@@ -19,8 +19,7 @@ import EntityPickerDialog from '@/components/console/project/EntityPickerDialog.
 import type { RailGroup, RailItem } from '@/components/console/project/rail'
 import {
   getProject, updateProject, archiveProject, copyProject, setProjectTemplate, projectHandoff,
-  getProjectActivity, getResource, listProjectFiles, listDocs, getProjectInventory,
-} from '@/api/console'
+  getProjectActivity, getResource, listProjectFiles, listDocs, getProjectInventory, moveDoc } from '@/api/console'
 import type { ProjectAudit } from '@/api/console'
 import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile, Doc } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -232,6 +231,18 @@ function openAdd(kind: NonNullable<typeof addKind.value>) { addParent.value = nu
 function openSubPage(parentId: number) { addParent.value = parentId; addKind.value = 'page' }
 async function onLinked() { await Promise.all([reloadProject(), loadActivity(), loadAudit()]) }
 async function onCreatedDoc(id: number) { await loadDocs(); sel.value = `doc:${id}` }
+// Réordonnancement d'une page dans sa fratrie (Ship 2, drag natif) : on calcule l'INDEX
+// cible parmi les frères de MÊME parent, dans l'ordre curé actuel (position), puis moveDoc.
+async function onReorder({ id, beforeId }: { id: number; beforeId: number | null }) {
+  const moved = docs.value.find((d) => d.id === id)
+  if (!moved) return
+  const sibs = docs.value
+    .filter((d) => d.parent_id === moved.parent_id && d.id !== id)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+  const idx = beforeId == null ? sibs.length : Math.max(0, sibs.findIndex((d) => d.id === beforeId))
+  try { await moveDoc(id, { position: idx }); await loadDocs() }
+  catch (e) { toast(humanize(e)) }
+}
 async function onReloadDocs() {
   await loadDocs()
   if (sel.value.startsWith('doc:') && !docs.value.some((d) => `doc:${d.id}` === sel.value)) sel.value = 'home'
@@ -301,7 +312,7 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
           @save-brief="saveBrief" @reload-docs="onReloadDocs" @reload-files="onReloadFiles"
           @reload-links="onReloadLinks" @changed="onChanged" @open-doc="(id) => sel = `doc:${id}`" @add-subpage="openSubPage" />
         <ProjectRail class="pj-body__rail" :groups="railGroups" :sel="sel" :read-only="readOnly"
-          @select="onSelect" @add="openAdd" />
+          @select="onSelect" @add="openAdd" @reorder="onReorder" />
       </div>
     </template>
 
