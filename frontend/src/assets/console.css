@@ -310,6 +310,16 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-small); 
 }
 .cc-search:focus { outline: none; border-color: var(--color-ink); }
 
+/* Bouton icône (déclenche la recherche compacte) + dropdown labellisé (Type/Statut),
+   rangée de filtres des listes connecteurs. */
+.cc-search-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border: 1px solid var(--color-hair); border-radius: var(--radius-md);
+  background: var(--color-surface); color: var(--color-mute); cursor: pointer;
+  transition: all var(--t-fast) var(--ease-out);
+}
+.cc-search-btn:hover, .cc-search-btn.on { color: var(--color-ink); border-color: var(--color-ink-soft); }
+
 .rowlist { display: flex; flex-direction: column; }
 .rowitem {
   display: flex; align-items: center; gap: 10px;

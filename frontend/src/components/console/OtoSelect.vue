@@ -29,14 +29,26 @@ const inner = computed(() => (props.modelValue === '' && props.noneLabel != null
 function onUpdate(v: unknown) {
   emit('update:modelValue', (v === NONE ? '' : v) as T)
 }
+
+// reka lit le libellé affiché (fermé) depuis le DOM des `SelectItem`, qui ne sont
+// montés qu'à l'ouverture du menu → si `options` change pendant que le select est
+// fermé (ex. compteurs qui arrivent après un fetch async), le libellé affiché reste
+// figé jusqu'au prochain clic. On calcule nous-mêmes le libellé courant (réactif,
+// indépendant du montage DOM) et on le passe en enfant explicite de `SelectValue`.
+const currentLabel = computed(() => {
+  if (props.modelValue === '' && props.noneLabel != null) return props.noneLabel
+  return props.options.find((o) => o.value === props.modelValue)?.label
+})
 </script>
 
 <template>
   <Select :model-value="inner" :disabled="disabled" @update:model-value="onUpdate">
     <SelectTrigger :size="size" :aria-label="ariaLabel" :class="[grow ? 'flex-1 w-full min-w-0' : '', triggerClass]">
-      <SelectValue :placeholder="placeholder" />
+      <SelectValue :placeholder="placeholder">
+        <template v-if="currentLabel != null">{{ currentLabel }}</template>
+      </SelectValue>
     </SelectTrigger>
-    <SelectContent>
+    <SelectContent position="popper" :side-offset="4">
       <SelectItem v-if="noneLabel != null" :value="NONE">{{ noneLabel }}</SelectItem>
       <SelectItem v-for="o in options" :key="o.value" :value="o.value" :disabled="o.disabled">{{ o.label }}</SelectItem>
     </SelectContent>
