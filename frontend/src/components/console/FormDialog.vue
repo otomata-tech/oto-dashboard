@@ -24,11 +24,11 @@ const props = withDefaults(defineProps<{
   fields: FormDialogField[]
   submitLabel?: string
   onConfirm: (values: Record<string, string>) => Promise<void>
-  // `elevated` : HÉRITÉ — sans effet depuis l'échelle z unique (chantier α). Tous les
-  // dialogs (maison + reka) partagent --z-modal ; un dialog reka est teleporté en fin
-  // de <body> → à z égal il passe au-dessus d'une modale maison par l'ordre DOM (c'est
-  // ce qui corrige « transférer » rendu derrière la modale de partage). Conservé pour
-  // la compat d'API des appelants.
+  // `elevated` : porte le dialog sur la couche --z-prompt (dialogs impératifs
+  // singleton, > --z-modal) — même couche que PromptDialog. L'ordre DOM (reka
+  // téléporte à l'ouverture) suffisait en pratique, mais la couche dédiée rend
+  // l'empilement déterministe quand le dialog est invoqué DEPUIS une modale maison
+  // (ex. « transférer » ouvert depuis la modale de partage projet).
   elevated?: boolean
 }>(), { description: '', submitLabel: 'valider', elevated: false })
 const emit = defineEmits<{ (e: 'update:open', value: boolean): void }>()
@@ -60,7 +60,7 @@ const submit = handleSubmit(async (values) => {
 
 <template>
   <Dialog :open="open" @update:open="emit('update:open', $event)">
-    <DialogContent class="sm:max-w-[440px]">
+    <DialogContent :class="['sm:max-w-[440px]', elevated ? 'z-[var(--z-prompt)]' : '']" :overlay-class="elevated ? 'z-[var(--z-prompt)]' : ''">
       <DialogHeader>
         <DialogTitle>{{ title }}</DialogTitle>
         <DialogDescription v-if="description">{{ description }}</DialogDescription>

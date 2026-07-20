@@ -121,10 +121,14 @@ function defaultSlug(): string {
   return [slugify(me.value?.active_org_name, { maxLen: 24 }), slugify(props.project.name, { maxLen: 24 })]
     .filter(Boolean).join('-')
 }
-async function publishMcp() {
+// `preset` : accès présélectionné pour une NOUVELLE publication (le bouton « Partager
+// par lien public » ouvre le formulaire directement en `secret`).
+async function publishMcp(preset?: 'anonymous' | 'secret' | 'org') {
   if (mcpBusy.value) return
   let toolsDefault = (props.project.mcp_tools ?? []).join('\n')
-  let toolsHint = 'un par ligne — les SEULS outils visibles sur ce sous-domaine'
+  // En « secret », la liste peut rester vide : défaut = TOUT le projet navigable en
+  // lecture seule (le backend accepte mcp_tools=[] pour ce mode).
+  let toolsHint = 'un par ligne — les SEULS outils visibles sur ce sous-domaine. Vide (en « secret ») = tout le projet visible, lecture seule.'
   if (!toolsDefault) {
     try {
       toolsDefault = ((await getProjectInventory(projectId.value)).tools ?? []).join('\n')
@@ -137,18 +141,24 @@ async function publishMcp() {
     fields: [
       { key: 'slug', label: 'Sous-domaine', value: props.project.mcp_slug || defaultSlug(), placeholder: 'french-tech-marseille', required: false,
         hint: '→ <slug>.mcp.oto.cx (public/org) ou <slug>.share.oto.cx (secret). Min. 3 car., a-z 0-9 -.' },
-      { key: 'access', label: 'Accès', type: 'select', value: mcpActive.value ? props.project.mcp_access! : 'anonymous',
+      { key: 'access', label: 'Accès', type: 'select', value: mcpActive.value ? props.project.mcp_access! : (preset ?? 'anonymous'),
         options: [
           { value: 'anonymous', label: 'Public · sans login, listé dans l’annuaire' },
           { value: 'secret', label: 'Secret · URL non devinable, navigable (non listé)' },
           { value: 'org', label: 'Org · authentifié (membres de l’org)' },
         ] },
-      { key: 'tools', label: 'Outils exposés', type: 'textarea', value: toolsDefault, placeholder: 'frenchtech_search\nfrenchtech_get', required: true, hint: toolsHint },
+      { key: 'tools', label: 'Outils exposés', type: 'textarea', value: toolsDefault, placeholder: 'frenchtech_search\nfrenchtech_get', required: false, hint: toolsHint },
     ],
     submitLabel: 'Publier',
   })
   if (!r) return
   const tools = (r.tools ?? '').split(/[\n,]/).map((t) => t.trim()).filter(Boolean)
+  // Seul « secret » (lien navigable) accepte une liste vide — un endpoint public/org
+  // est un preset d'outils : sans liste, rien à publier.
+  if (!tools.length && r.access !== 'secret') {
+    toast('liste d’outils requise pour un endpoint public ou org — seuls les liens « secret » peuvent tout exposer en lecture seule')
+    return
+  }
   mcpBusy.value = true
   try {
     const updated = await publishProjectMcp(projectId.value, { mcp_slug: (r.slug ?? '').trim(), mcp_access: (r.access ?? 'anonymous') as 'anonymous' | 'secret' | 'org', mcp_tools: tools })
@@ -191,11 +201,11 @@ async function setDatastore(expose: boolean, write: boolean) {
   } catch (e) { toast(humanize(e)) }
   finally { mcpBusy.value = false }
 }
-// Normalise un endpoint legacy : retire les data_* de la liste d'outils, expose via le flag.
+// Normalise un endpoint legacy : retire les data_* de la liste d'outils, expose via le
+// flag. Une liste résultante VIDE est OK en `secret` (= tout navigable, lecture seule).
 async function normalizeLegacy() {
   if (mcpBusy.value || !dsSecret.value) return
   const tools = (props.project.mcp_tools ?? []).filter((t) => !t.startsWith('data_'))
-  if (!tools.length) { toast('la liste d’outils ne peut pas être vide — ajoute un outil métier d’abord'); return }
   mcpBusy.value = true
   try {
     await publishProjectMcp(projectId.value, {
@@ -263,7 +273,7 @@ async function transfer() {
               <input class="sd__url" :value="shareUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
               <Btn kind="mini" icon="copy" @click="copyShareUrl">Copier</Btn>
             </div>
-            <Btn v-else-if="!readOnly" kind="mini" icon="external-link" @click="publishMcp">Partager par lien public</Btn>
+            <Btn v-else-if="!readOnly" kind="mini" icon="external-link" @click="publishMcp('secret')">Partager par lien public</Btn>
           </section>
 
           <div class="sd__hr"></div>
@@ -281,7 +291,8 @@ async function transfer() {
                 <input class="sd__url" :value="mcpConnectUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
                 <Btn kind="mini" icon="copy" @click="copyMcp">Copier</Btn>
               </div>
-              <p class="sd__tools">{{ project.mcp_tools?.length ?? 0 }} outil(s) : {{ (project.mcp_tools ?? []).join(', ') }}</p>
+              <p v-if="project.mcp_tools?.length" class="sd__tools">{{ project.mcp_tools.length }} outil(s) : {{ project.mcp_tools.join(', ') }}</p>
+              <p v-else class="sd__tools">aucun outil dédié — tout le projet visible, lecture seule</p>
 
               <!-- Datastore (secret uniquement) : état effectif + réglage lecture/écriture -->
               <div v-if="dsSecret" class="sd__ds">
@@ -309,11 +320,11 @@ async function transfer() {
               </div>
 
               <div v-if="!readOnly" class="sd__mcpact">
-                <Btn kind="mini" :disabled="mcpBusy" @click="publishMcp">Reconfigurer</Btn>
+                <Btn kind="mini" :disabled="mcpBusy" @click="publishMcp()">Reconfigurer</Btn>
                 <Btn kind="danger" :disabled="mcpBusy" @click="unpublishMcp">Retirer</Btn>
               </div>
             </template>
-            <Btn v-else-if="!readOnly" kind="mini" icon="plug" :disabled="mcpBusy" @click="publishMcp">Publier en endpoint MCP</Btn>
+            <Btn v-else-if="!readOnly" kind="mini" icon="plug" :disabled="mcpBusy" @click="publishMcp()">Publier en endpoint MCP</Btn>
           </section>
 
           <div class="sd__hr"></div>
