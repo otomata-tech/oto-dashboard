@@ -511,6 +511,7 @@ export interface InboxReviewItem {
   doc_id?: number | null
   doc_title?: string | null
   proposed_title?: string | null
+  proposed_body_md?: string | null   // corps proposé (base du diff avant/après)
   requested_by?: string | null
   message?: string | null
   created_at?: string | null

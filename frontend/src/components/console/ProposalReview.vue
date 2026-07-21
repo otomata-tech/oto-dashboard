@@ -25,9 +25,9 @@ const proposed = ref<{ title: string; body_md: string } | null>(null)
 watch(() => props.item, async (it) => {
   current.value = null; proposed.value = null
   if (!it) return
-  // Le détail de la proposition n'est pas dans l'item d'inbox : on affiche ce qu'on a
-  // (titre proposé + message) ; pour une MODIF on charge la page actuelle comme base.
-  proposed.value = { title: it.proposed_title || it.doc_title || '', body_md: '' }
+  // Le corps proposé vient de l'item d'inbox ; pour une MODIF on charge la page
+  // ACTUELLE comme base du diff (avant/après).
+  proposed.value = { title: it.proposed_title || it.doc_title || '', body_md: it.proposed_body_md || '' }
   if (it.kind === 'modif' && it.doc_id != null) {
     try { const d = await getDoc(it.doc_id); current.value = { title: d.title, body_md: d.body_md } }
     catch { current.value = null }
@@ -57,10 +57,14 @@ function lcsDiff(a: string[], b: string[]): Row[] {
 const diff = computed<Row[]>(() => {
   const it = props.item
   if (!it) return []
-  // création : tout-ajout (le corps proposé n'est pas dans l'inbox → titre seulement) ;
-  // modif : base = page actuelle. V1 diffe ce qu'on a sous la main (titres).
+  // Base (avant) = page actuelle pour une modif, vide pour une création. Cible (après)
+  // = corps proposé. À défaut de corps proposé (proposition de titre seul), on retombe
+  // sur le titre (création) ou sur l'inchangé (modif → « aucun changement de contenu »).
+  const proposedBody = proposed.value?.body_md ?? ''
   const before = current.value ? current.value.body_md.split('\n') : []
-  const after = it.kind === 'create' ? (proposed.value?.title ? [proposed.value.title] : []) : before
+  const after = proposedBody
+    ? proposedBody.split('\n')
+    : (it.kind === 'create' ? (proposed.value?.title ? [proposed.value.title] : []) : before)
   return lcsDiff(before, after)
 })
 
