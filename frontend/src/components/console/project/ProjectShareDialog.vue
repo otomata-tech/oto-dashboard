@@ -8,6 +8,7 @@ import Icon from '@/components/console/Icon.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
 import OtoSelect from '@/components/console/OtoSelect.vue'
+import ProjectMcpPublishDialog from './ProjectMcpPublishDialog.vue'
 import {
   getMyOrgs, getOrg, listGroups, shareResource, unshareResource,
   transferResource, publishProjectMcp, unpublishProjectMcp, getProjectInventory,
@@ -121,62 +122,49 @@ function defaultSlug(): string {
   return [slugify(me.value?.active_org_name, { maxLen: 24 }), slugify(props.project.name, { maxLen: 24 })]
     .filter(Boolean).join('-')
 }
-// `preset` : le bouton « Partager par lien public » appelle publishMcp('secret') → deux
-// INTENTIONS distinctes (R1). Lien public = formulaire SIMPLIFIÉ : accès figé `secret`
-// (champ masqué), sous-domaine auto non devinable (masqué), outils optionnels. Sans preset
-// (« Publier en endpoint MCP » / « Reconfigurer ») = formulaire complet.
-async function publishMcp(preset?: 'anonymous' | 'secret' | 'org') {
+// DEUX intentions distinctes (R1) :
+// - « Partager par lien public » = formulaire SIMPLIFIÉ (accès figé `secret`, sous-domaine
+//   auto non devinable, outils optionnels) → promptForm ci-dessous.
+// - « Publier en endpoint MCP » / « Reconfigurer » = dialog dédié `ProjectMcpPublishDialog`
+//   (slug + accès + PICKER d'outils à cases groupées par connecteur, R3).
+async function publishPublicLink() {
   if (mcpBusy.value) return
-  const publicLink = preset === 'secret'
   let toolsDefault = (props.project.mcp_tools ?? []).join('\n')
-  // En « secret », la liste peut rester vide : défaut = TOUT le projet navigable en
-  // lecture seule (le backend accepte mcp_tools=[] pour ce mode).
-  let toolsHint = 'un par ligne — les SEULS outils visibles sur ce sous-domaine. Vide (en « secret ») = tout le projet visible, lecture seule.'
+  let toolsHint = 'un par ligne — les SEULS outils visibles. Vide = tout le projet visible, lecture seule.'
   if (!toolsDefault) {
     try {
       toolsDefault = ((await getProjectInventory(projectId.value)).tools ?? []).join('\n')
-      if (toolsDefault) toolsHint = 'prérempli depuis l’inventaire du projet (procédures liées + runs) — cure la liste'
+      if (toolsDefault) toolsHint = 'prérempli depuis l’inventaire du projet — cure la liste'
     } catch { /* best-effort */ }
   }
-  const toolsField = { key: 'tools', label: 'Outils exposés', type: 'textarea' as const, value: toolsDefault,
-    placeholder: 'frenchtech_search\nfrenchtech_get', required: false, hint: toolsHint }
-  const r = publicLink
-    ? await promptForm({
-        title: 'Partager par lien public',
-        description: 'Un instantané lecture seule (brief + pages) navigable via une URL secrète non devinable. Laisse la liste d’outils vide pour tout exposer.',
-        fields: [toolsField],
-        submitLabel: 'Publier le lien',
-      })
-    : await promptForm({
-        title: 'Publier en endpoint MCP',
-        description: 'Un sous-domaine dédié exposant un jeu d’outils figé, à brancher dans Claude/Mistral. En « secret », le sous-domaine `<slug>.share.oto.cx` est aussi une UI navigable (lecture seule).',
-        fields: [
-          { key: 'slug', label: 'Sous-domaine', value: props.project.mcp_slug || defaultSlug(), placeholder: 'french-tech-marseille', required: false,
-            hint: '→ <slug>.mcp.oto.cx (public/org) ou <slug>.share.oto.cx (secret). Min. 3 car., a-z 0-9 -.' },
-          { key: 'access', label: 'Accès', type: 'select', value: mcpActive.value ? props.project.mcp_access! : (preset ?? 'anonymous'),
-            options: [
-              { value: 'anonymous', label: 'Public · sans login, listé dans l’annuaire' },
-              { value: 'secret', label: 'Secret · URL non devinable, navigable (non listé)' },
-              { value: 'org', label: 'Org · authentifié (membres de l’org)' },
-            ] },
-          toolsField,
-        ],
-        submitLabel: 'Publier',
-      })
+  const r = await promptForm({
+    title: 'Partager par lien public',
+    description: 'Un instantané lecture seule (brief + pages) navigable via une URL secrète non devinable. Laisse la liste d’outils vide pour tout exposer.',
+    fields: [{ key: 'tools', label: 'Outils exposés', type: 'textarea', value: toolsDefault,
+      placeholder: 'frenchtech_search\nfrenchtech_get', required: false, hint: toolsHint }],
+    submitLabel: 'Publier le lien',
+  })
   if (!r) return
-  // Lien public → accès figé `secret`, sous-domaine auto (backend génère un slug non
-  // devinable si vide) ; endpoint complet → valeurs saisies.
-  const access = publicLink ? 'secret' : ((r.access ?? 'anonymous') as 'anonymous' | 'secret' | 'org')
   const tools = (r.tools ?? '').split(/[\n,]/).map((t) => t.trim()).filter(Boolean)
-  // Seul « secret » (lien navigable) accepte une liste vide — un endpoint public/org
-  // est un preset d'outils : sans liste, rien à publier.
-  if (!tools.length && access !== 'secret') {
+  await doPublish('secret', '', tools)   // slug vide → le backend génère un slug secret non devinable
+}
+
+// Endpoint MCP complet (dialog dédié, R3).
+const endpointOpen = ref(false)
+async function onEndpointPublish(v: { slug: string; access: 'anonymous' | 'secret' | 'org'; tools: string[] }) {
+  if (!v.tools.length && v.access !== 'secret') {
     toast('liste d’outils requise pour un endpoint public ou org — seuls les liens « secret » peuvent tout exposer en lecture seule')
     return
   }
+  endpointOpen.value = false
+  await doPublish(v.access, v.slug, v.tools)
+}
+
+// Pose la publication (partagée entre lien public et endpoint) + retours.
+async function doPublish(access: 'anonymous' | 'secret' | 'org', slug: string, tools: string[]) {
   mcpBusy.value = true
   try {
-    const updated = await publishProjectMcp(projectId.value, { mcp_slug: publicLink ? '' : (r.slug ?? '').trim(), mcp_access: access, mcp_tools: tools })
+    const updated = await publishProjectMcp(projectId.value, { mcp_slug: slug, mcp_access: access, mcp_tools: tools })
     const unresolvable = updated.mcp_unresolvable_tools ?? []
     toast(unresolvable.length ? `endpoint publié — ${unresolvable.length} outil(s) non résoluble(s) sans login : ${unresolvable.join(', ')}` : 'endpoint MCP publié')
     emit('reload-project')
@@ -288,7 +276,7 @@ async function transfer() {
               <input class="sd__url" :value="shareUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
               <Btn kind="mini" icon="copy" @click="copyShareUrl">Copier</Btn>
             </div>
-            <Btn v-else-if="!readOnly" kind="mini" icon="external-link" @click="publishMcp('secret')">Partager par lien public</Btn>
+            <Btn v-else-if="!readOnly" kind="mini" icon="external-link" @click="publishPublicLink()">Partager par lien public</Btn>
           </section>
 
           <div class="sd__hr"></div>
@@ -335,11 +323,11 @@ async function transfer() {
               </div>
 
               <div v-if="!readOnly" class="sd__mcpact">
-                <Btn kind="mini" :disabled="mcpBusy" @click="publishMcp()">Reconfigurer</Btn>
+                <Btn kind="mini" :disabled="mcpBusy" @click="endpointOpen = true">Reconfigurer</Btn>
                 <Btn kind="danger" :disabled="mcpBusy" @click="unpublishMcp">Retirer</Btn>
               </div>
             </template>
-            <Btn v-else-if="!readOnly" kind="mini" icon="plug" :disabled="mcpBusy" @click="publishMcp()">Publier en endpoint MCP</Btn>
+            <Btn v-else-if="!readOnly" kind="mini" icon="plug" :disabled="mcpBusy" @click="endpointOpen = true">Publier en endpoint MCP</Btn>
           </section>
 
           <div class="sd__hr"></div>
@@ -356,6 +344,10 @@ async function transfer() {
     </div>
   </Transition>
   </Teleport>
+
+  <!-- Endpoint MCP : formulaire dédié avec picker d'outils à cases (R3) -->
+  <ProjectMcpPublishDialog :open="endpointOpen" :project="project" :default-slug="defaultSlug()"
+    @close="endpointOpen = false" @publish="onEndpointPublish" />
 </template>
 
 <style scoped>
