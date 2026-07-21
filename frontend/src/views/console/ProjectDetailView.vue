@@ -245,17 +245,21 @@ async function onCreatePage(title: string) {
   try { const d = await createDoc(projectId, title); await loadDocs(); sel.value = `doc:${d.id}` }
   catch (e) { toast(humanize(e)) }
 }
-// Réordonnancement d'une page dans sa fratrie (Ship 2, drag natif) : on calcule l'INDEX
-// cible parmi les frères de MÊME parent, dans l'ordre curé actuel (position), puis moveDoc.
-async function onReorder({ id, beforeId }: { id: number; beforeId: number | null }) {
+// Déplacement d'une page (Ship 2 + reparentage par drag) : calcule l'INDEX cible parmi
+// les enfants de `parentId` (ordre curé actuel = position) puis moveDoc. `parent_id` n'est
+// passé QUE si le parent CHANGE (reparentage) ; sinon simple réordonnancement de fratrie.
+async function onMove({ id, parentId, beforeId }: { id: number; parentId: number | null; beforeId: number | null }) {
   const moved = docs.value.find((d) => d.id === id)
   if (!moved) return
   const sibs = docs.value
-    .filter((d) => d.parent_id === moved.parent_id && d.id !== id)
+    .filter((d) => (d.parent_id ?? null) === parentId && d.id !== id)
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
   const idx = beforeId == null ? sibs.length : Math.max(0, sibs.findIndex((d) => d.id === beforeId))
-  try { await moveDoc(id, { position: idx }); await loadDocs() }
-  catch (e) { toast(humanize(e)) }
+  const reparent = parentId !== (moved.parent_id ?? null)
+  try {
+    await moveDoc(id, reparent ? { parent_id: parentId, position: idx } : { position: idx })
+    await loadDocs()
+  } catch (e) { toast(humanize(e)) }
 }
 async function onReloadDocs() {
   await loadDocs()
@@ -326,7 +330,7 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
           @reload-links="onReloadLinks" @changed="onChanged" @open-doc="(id) => sel = `doc:${id}`"
           @add-subpage="openSubPage" @create-page="onCreatePage" />
         <ProjectRail class="pj-body__rail" :groups="railGroups" :sel="sel" :read-only="readOnly"
-          @select="onSelect" @add="openAdd" @reorder="onReorder" />
+          @select="onSelect" @add="openAdd" @move="onMove" />
       </div>
     </template>
 

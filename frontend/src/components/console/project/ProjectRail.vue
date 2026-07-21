@@ -11,38 +11,69 @@ import type { RailGroup, RailItem } from './rail'
 const props = defineProps<{ groups: RailGroup[]; sel: string; readOnly?: boolean }>()
 const emit = defineEmits<{
   select: [RailItem]; add: [RailGroup['addKind']]
-  // Réordonnancement d'une PAGE dans sa fratrie (Ship 2) : id déplacé + id avant lequel
-  // déposer (null = fin de fratrie). Le parent résout parent_id + index et appelle moveDoc.
-  reorder: [{ id: number; beforeId: number | null }]
+  // Déplacement d'une PAGE (Ship 2 + reparentage) : `parentId` = parent de destination
+  // (null = racine), `beforeId` = page avant laquelle s'insérer (null = fin). Le parent
+  // résout l'INDEX dans les enfants de `parentId` puis appelle moveDoc (parent_id + position).
+  move: [{ id: number; parentId: number | null; beforeId: number | null }]
 }>()
 
-// Drag natif (pas de dépendance) — pages seulement, dans une même fratrie (même parentKey).
+// Drag natif (pas de dépendance) — pages seulement. 3 zones sur la ligne cible : haut =
+// insérer AVANT · bas = insérer APRÈS · milieu = IMBRIQUER SOUS (reparentage). Garde
+// anti-cycle : jamais déposer une page sur elle-même ni sur un de ses descendants.
 const dragKey = ref<string | null>(null)
-const overKey = ref<string | null>(null)      // item survolé (indicateur de drop au-dessus)
+const overKey = ref<string | null>(null)
+const dropMode = ref<'before' | 'after' | 'inside' | null>(null)
 const draggable = (it: RailItem) => !props.readOnly && it.kind === 'page' && !it.home && !!it.doc
-function sameSibling(a: RailItem, b: RailItem) { return (a.parentKey ?? null) === (b.parentKey ?? null) }
+const allItems = () => props.groups.flatMap((g) => g.items)
+const dragged = computed<RailItem | null>(() =>
+  dragKey.value ? allItems().find((x) => x.key === dragKey.value) ?? null : null)
+
+// `cand` est-il un descendant de `anc` (ou lui-même) ? — remonte la chaîne parentKey.
+function isSelfOrDescendant(cand: RailItem, anc: RailItem): boolean {
+  let cur: RailItem | undefined = cand
+  const items = allItems()
+  while (cur) {
+    if (cur.key === anc.key) return true
+    cur = cur.parentKey ? items.find((x) => x.key === cur!.parentKey) : undefined
+  }
+  return false
+}
+function parentDocId(it: RailItem): number | null {
+  return it.parentKey ? (allItems().find((x) => x.key === it.parentKey)?.doc?.id ?? null) : null
+}
+function nextSiblingDocId(it: RailItem): number | null {
+  const sibs = allItems().filter((x) => x.kind === 'page' && (x.parentKey ?? null) === (it.parentKey ?? null))
+  return sibs[sibs.findIndex((x) => x.key === it.key) + 1]?.doc?.id ?? null
+}
+
 function onDragStart(it: RailItem, e: DragEvent) {
   dragKey.value = it.key
   if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
 }
 function onDragOver(it: RailItem, e: DragEvent) {
   const src = dragged.value
-  if (!src || !draggable(it) || !sameSibling(src, it)) return
-  e.preventDefault()                            // autorise le drop
+  if (!src || !draggable(it) || isSelfOrDescendant(it, src)) return
+  e.preventDefault()
+  const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  const y = (e.clientY - r.top) / r.height
+  dropMode.value = y < 0.28 ? 'before' : y > 0.72 ? 'after' : 'inside'
   overKey.value = it.key
 }
-const dragged = computed<RailItem | null>(() => {
-  if (!dragKey.value) return null
-  for (const g of props.groups) { const it = g.items.find((x) => x.key === dragKey.value); if (it) return it }
-  return null
-})
 function onDrop(target: RailItem | null) {
   const src = dragged.value
-  if (src?.doc && (target === null || (draggable(target!) && sameSibling(src, target!) && target!.key !== src.key)))
-    emit('reorder', { id: src.doc.id, beforeId: target?.doc?.id ?? null })
-  dragKey.value = null; overKey.value = null
+  if (src?.doc) {
+    if (target === null) {
+      emit('move', { id: src.doc.id, parentId: null, beforeId: null })   // droptail = racine, fin
+    } else if (draggable(target) && !isSelfOrDescendant(target, src) && dropMode.value) {
+      const id = src.doc.id
+      if (dropMode.value === 'inside') emit('move', { id, parentId: target.doc!.id, beforeId: null })
+      else if (dropMode.value === 'before') emit('move', { id, parentId: parentDocId(target), beforeId: target.doc!.id })
+      else emit('move', { id, parentId: parentDocId(target), beforeId: nextSiblingDocId(target) })
+    }
+  }
+  onDragEnd()
 }
-function onDragEnd() { dragKey.value = null; overKey.value = null }
+function onDragEnd() { dragKey.value = null; overKey.value = null; dropMode.value = null }
 
 // Pages dépliées (par clé). Défaut : tout déplié — on replie à la demande.
 const collapsed = ref<Set<string>>(new Set())
@@ -76,7 +107,10 @@ const nonEmpty = computed(() => props.groups.filter((g) => g.items.length || g.a
       </div>
       <div class="rail__items">
         <button v-for="it in visibleItems(g)" :key="it.key" class="rail__it"
-          :class="{ 'rail__it--on': isSel(it), 'rail__it--over': overKey === it.key, 'rail__it--drag': dragKey === it.key }"
+          :class="{ 'rail__it--on': isSel(it), 'rail__it--drag': dragKey === it.key,
+            'rail__it--before': overKey === it.key && dropMode === 'before',
+            'rail__it--after': overKey === it.key && dropMode === 'after',
+            'rail__it--inside': overKey === it.key && dropMode === 'inside' }"
           :style="{ paddingLeft: (10 + (it.pad ?? 0) * 15) + 'px', boxShadow: edge(it) }"
           :title="it.hint || undefined"
           :draggable="draggable(it)"
@@ -118,7 +152,10 @@ const nonEmpty = computed(() => props.groups.filter((g) => g.items.length || g.a
 .rail__grip { display: inline-flex; flex: none; opacity: 0; cursor: grab; color: var(--color-faint); margin-left: -3px; transition: opacity var(--t-fast); }
 .rail__it:hover .rail__grip { opacity: .6; }
 .rail__it--drag { opacity: .45; }
-.rail__it--over { box-shadow: inset 0 2px 0 var(--color-saffron) !important; }
+/* 3 zones de drop : avant (filet haut) · après (filet bas) · imbriquer (contour plein). */
+.rail__it--before { box-shadow: inset 0 2px 0 var(--color-saffron) !important; }
+.rail__it--after { box-shadow: inset 0 -2px 0 var(--color-saffron) !important; }
+.rail__it--inside { box-shadow: inset 0 0 0 2px var(--color-saffron) !important; border-radius: 6px; }
 .rail__droptail { height: 6px; border-radius: 3px; margin: 1px 6px; }
 .rail__droptail--over { background: var(--color-saffron-soft); box-shadow: inset 0 2px 0 var(--color-saffron); }
 </style>
