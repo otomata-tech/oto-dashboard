@@ -213,6 +213,11 @@ export interface ProviderStatus {
   // n'est pas opérationnel (unipile : « Connecte un canal »). Libellé backend,
   // rendu tel quel comme verdict + CTA — le front ne connaît pas le connecteur.
   pending_action?: string | null
+  // Santé du connecteur : la clé est là mais la dernière sonde a ÉCHOUÉ (session
+  // expirée, token révoqué…) → erreur RÉELLE (terra). Posé par le test de connexion,
+  // effacé quand il repasse. `health_reason` = message provider nettoyé.
+  health_ko?: boolean | null
+  health_reason?: string | null
 }
 
 // Langue de l'UI (i18n EN/FR). Défini ici pour que `lib/i18n.ts` l'importe sans

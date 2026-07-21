@@ -127,6 +127,18 @@ export function connectorVerdict(
     }
   }
 
+  // Connexion KO (seam générique backend `health_ko`, posé par la sonde verify) : la
+  // clé résout mais la dernière vérification a ÉCHOUÉ (session expirée, token révoqué…)
+  // → erreur RÉELLE = terra (§2). Reste jusqu'à ce qu'un test/reconnexion la rétablisse.
+  if (ps?.health_ko) {
+    return {
+      ...base, dot: 'terra',
+      list: 'Connexion KO',
+      phrase: ps.health_reason ? `Connexion KO — ${ps.health_reason}` : 'Connexion KO — reconnecte ou vérifie la clé.',
+      cta: 'Reconnecter',
+    }
+  }
+
   // Étape manquante (seam générique backend `pending_action`, lot 2) : la clé
   // résout mais le connecteur n'est pas opérationnel — le libellé backend EST le
   // verdict et le CTA (unipile : « Connecte un canal »). Aucun cas par connecteur ici.

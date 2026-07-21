@@ -95,6 +95,21 @@ describe('connectorVerdict — résolution (actif)', () => {
     expect(v.cta).toBe('Connecte un canal')
   })
 
+  it('connexion KO (health_ko) → terra + CTA Reconnecter, raison reprise', () => {
+    const v = connectorVerdict(conn(), ps({ mode: 'user', health_ko: true, health_reason: 'session expirée' }))
+    expect(v.dot).toBe('terra')
+    expect(v.list).toBe('Connexion KO')
+    expect(v.phrase).toContain('session expirée')
+    expect(v.cta).toBe('Reconnecter')
+  })
+
+  it('health_ko prime sur pending_action (KO = erreur réelle)', () => {
+    const v = connectorVerdict(conn({ auth: auth('hosted') }),
+      ps({ mode: 'user', health_ko: true, pending_action: 'Connecte un canal' }))
+    expect(v.dot).toBe('terra')
+    expect(v.list).toBe('Connexion KO')
+  })
+
   it('quota atteint → saffron + CTA pose ta clé', () => {
     const v = connectorVerdict(conn(), ps({ mode: 'over_quota', platform_key_label: 'default' }))
     expect(v.list).toBe('Quota atteint')
