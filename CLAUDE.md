@@ -74,7 +74,8 @@ scope (`InvitePreview.scope`/`group_name` → « rejoindre l'équipe X / oto »)
 > Les **4 surfaces** de gestion de connecteurs (user/team/org/plateforme) tournent désormais
 > sur **UN moteur unique** : `components/console/connector-scope/` — `ConnectorScopeView`
 > (fragment) + `pickAdapter(useScope().level)` → `use{User,Team,Org,Platform}Adapter`,
-> réutilisant `ConnectorList` (table générique) + `ConnectorModal` (drawer à onglets). Chaque
+> réutilisant `ConnectorList` (table générique) + `ConnectorModal` (**panneau latéral docké,
+> plus une modale**). Chaque
 > adaptateur porte des **leviers OPTIONNELS** (availability variants master/binary/exposure3/
 > readonly · credential single/multi · access · redaction+email [org] · connection+tools+lenses
 > [user]) — un levier absent ⇒ colonne/onglet omis (jamais inerte). Panneaux de drawer :
@@ -94,6 +95,15 @@ scope (`InvitePreview.scope`/`group_name` → « rejoindre l'équipe X / oto »)
 > **Suspendre/Réactiver** → `suspendInstance`) ; vocab adaptatif solo via
 > `me.active_org_is_personal` (jamais « org »/« équipe » en solo) ; onglet « confidentialité »
 > du drawer user = MÊME policy/éditeur que /org/connectors (`scopeNote` piloté par l'appelant).
+> **Lot fidélité (21/07, PROD — dashboard v1.4.0)** : le détail est un **PANNEAU LATÉRAL** (`ConnectorModal`,
+> docké à droite, liste visible, Échap, nav clavier **↑/↓** dans `ConnectorScopeView`), sections en
+> **ACCORDÉONS** (`ConnectorScopeDrawer` = `<details>`, plus d'onglets ni d'état `tab`) ; verdict
+> **« Connexion KO »** (terra) sur `ProviderStatus.health_ko` (flag santé backend, cf. oto-backend) ;
+> **lentille par défaut** = « connectés » si l'user en a, sinon « tous » ; retrait de clé qui **nomme
+> le relais** (`KeyStack`) ; **mobile** M7 (cartes empilées + sheet plein écran, CSS `@media ≤640px`) ;
+> **« Effet pour un membre »** (M4, `ConnectorEffectForMember`, scope org → `getConnectorEffectForMember`).
+> i18n FR complète (0 terme banni). Partage projet : `ProjectShareDialog` = lien public simplifié +
+> **`ProjectMcpPublishDialog`** (picker d'outils à cases groupées par connecteur, R3).
 
 Section unique `/console/connectors` (`ConnectorsView.vue`) : **fusion** des ex-écrans
 `/my-connectors` + `/connectors` + `/toolbox` (qui redirigent désormais ici). Un connecteur
@@ -256,7 +266,7 @@ Passages surlignés sanitizés DOMPurify (b/mark seulement). **Deep-link page `?
 `/projects/:id` (selectFromRoute ; clic = miroir replace) — la cible de tout hit page.
 **Chapôs** (`Doc.description`) : tooltip du rail (jamais de 2e ligne), sous-titre du viewer,
 champ d'édition. **Tokens overlay** `--blur-overlay`/`--scrim` (console.css) = LE flou/voile
-de toute modale — plus jamais de `blur(Npx)` magique. Rail **drag&drop** natif (réordonner les pages → `oto_doc op=move position=`).
+de toute modale — plus jamais de `blur(Npx)` magique. Rail **drag&drop** natif : réordonner ET **reparenter** une page (3 zones avant/après/imbriquer + garde anti-cycle, émet `move {id, parentId, beforeId}` → `oto_doc op=move parent_id/position`).
 
 
 **Backlinks & collaboration (Ship 3-4, LIVE preprod)** : `MarkdownView` gagne un resolver OPTIONNEL (`resolveLink`) qui pré-transforme les `[[Titre]]` en liens `data-doc` (navigate) / `data-stub` (create) avant marked — sans le prop, context-free (usages publics intacts) ; `ProjectViewer` résout contre `docTitleMap` du parent + panneau **« Cité par »** (`getBacklinks`). **Accueil « À traiter »** : `InboxCard` (voies À traiter/Récent, `useInbox` singleton) + **`ProposalReview`** (reka Dialog, diff LCS avant/après, `resolveDocChange(request_id)`) + badge sur l'entrée Accueil (special-case `/overview`, NAV intouché). Recherche sémantique = backend (embeddings) ; le front `oto_search`/`searchAll` est inchangé (fusion RRF transparente).
