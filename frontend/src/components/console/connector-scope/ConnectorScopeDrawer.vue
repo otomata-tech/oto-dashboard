@@ -17,6 +17,7 @@ import ConnectorPlatformAccessPanel from './ConnectorPlatformAccessPanel.vue'
 import ConnectorConnectionPanel from './ConnectorConnectionPanel.vue'
 import ConnectorToolsPanel from './ConnectorToolsPanel.vue'
 import ConnectorAboutPanel from './ConnectorAboutPanel.vue'
+import ConnectorEffectForMember from './ConnectorEffectForMember.vue'
 import type { ConnectorScopeAdapter, ConnectionLever, ToolsLever } from './adapter'
 import type { MyConnector } from '@/types/api'
 
@@ -59,6 +60,17 @@ const meta = computed(() => props.adapter.meta(props.row))
           <ConnectorEmail v-bind="adapter.email.props(row)" @changed="adapter.email.onChanged()" />
         </div>
         <ConnectorAboutPanel v-else-if="t.key === 'about'" :meta="meta" />
+      </div>
+    </details>
+
+    <!-- M4 : « Effet pour un membre » — rejoue la résolution du connecteur (scope org). -->
+    <details v-if="adapter.scope === 'org'" class="csd-acc">
+      <summary class="csd-acc-hd">
+        <Icon name="chevd" :size="13" class="csd-acc-chev" />
+        <span class="csd-acc-label">Effet pour un membre</span>
+      </summary>
+      <div class="csd-acc-body">
+        <ConnectorEffectForMember :connector="adapter.key(row)" />
       </div>
     </details>
   </ConnectorModal>

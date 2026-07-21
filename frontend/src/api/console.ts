@@ -2,7 +2,7 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, MyConnector, SearchHit, Inbox,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, MyConnector, ProviderStatus, SearchHit, Inbox,
   BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
@@ -83,6 +83,10 @@ export const deleteApiKey = (provider: string, scope: 'member' | 'org' | 'group'
 export const verifyConnector = (provider: string, level: 'auto' | 'org' = 'auto') =>
   api<VerifyResult>(`/api/me/connectors/${encodeURIComponent(provider)}/verify`,
     { method: 'POST', ...j({ level }) })
+// M4 : rejoue le verdict d'un connecteur POUR un membre de l'org active (org admin).
+export const getConnectorEffectForMember = (provider: string, member: string) =>
+  api<{ provider: string; member: string; status: ProviderStatus | null }>(
+    `/api/me/connectors/${encodeURIComponent(provider)}/effect?member=${encodeURIComponent(member)}`)
 
 // ── sessions navigateur (brevo, crunchbase) — Live View Browserbase ──
 // Connexion DEPUIS le dashboard : `start` ouvre un navigateur distant et renvoie
