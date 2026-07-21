@@ -52,6 +52,11 @@ const lensOptions = computed(() => (adapter.lenses ?? []).map((l) => ({ value: l
 
 onMounted(async () => {
   await adapter.load()
+  // Lentille par défaut (P5) : atterrir sur MES connecteurs (« connectés » = installés)
+  // si j'en ai, sinon le catalogue complet (« tous ») — un compte neuf (socle vide, 0
+  // installé) voit tout pour choisir. Scope USER seulement (seul à porter ces lentilles).
+  if (adapter.scope === 'user' && adapter.lenses?.some((l) => l.key === 'connected'))
+    lensKey.value = lensCount('connected') > 0 ? 'connected' : 'all'
   // Retour d'un flux de connexion (oauth google/fédéré, hosted unipile) : ?<x>=connected|error
   // (scope USER seulement — les autres surfaces ne déclenchent pas de redirect d'auth).
   if (adapter.scope !== 'user') return
