@@ -5,7 +5,7 @@
 // tri) + `ConnectorScopeDrawer` (détail). FRAGMENT sans `.content-inner` : chaque vue
 // d'entrée (TeamConnectorsView, AdminConnectorsView…) fournit le wrapper + ses cartes
 // header/footer propres au scope.
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import ConnectorList from '@/components/console/ConnectorList.vue'
 import ConnectorIdentityCell from '@/components/console/ConnectorIdentityCell.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
@@ -35,6 +35,22 @@ const adapter = pickAdapter(level.value, ctx)
 
 const selectedKey = ref<string | null>(null)
 const selectedRow = computed(() => adapter.rows.value.find((r) => adapter.key(r) === selectedKey.value) ?? null)
+
+// Navigation clavier ↑/↓ entre connecteurs quand le panneau est ouvert (master-détail,
+// CDC §5) : la sélection suit dans la liste FILTRÉE, le panneau se met à jour ; Échap =
+// fermer (géré par le panneau). Ignoré si le focus est dans un champ de saisie.
+function onNavKey(e: KeyboardEvent) {
+  if (!selectedKey.value || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return
+  const el = document.activeElement
+  if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return
+  const rows = shownRows.value
+  const i = rows.findIndex((r) => adapter.key(r) === selectedKey.value)
+  if (i < 0) return
+  const next = e.key === 'ArrowDown' ? Math.min(i + 1, rows.length - 1) : Math.max(i - 1, 0)
+  if (next !== i) { e.preventDefault(); selectedKey.value = adapter.key(rows[next]!) }
+}
+onMounted(() => window.addEventListener('keydown', onNavKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onNavKey))
 
 // Lentilles (pré-filtre segmenté, scope USER) : la vue tient l'état + filtre en amont
 // (ConnectorList fait ensuite recherche/chips/tri sur les lignes filtrées).
