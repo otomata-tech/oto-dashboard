@@ -3,9 +3,8 @@
 // VISIBLE et interactive à gauche (cliquer une autre ligne met à jour le panneau). Remplace
 // l'ex-modale centrée (reka Dialog) qui masquait la liste sous un scrim (§6 : « pas de modale
 // pour le détail »). Non-modal : pas de scrim bloquant ni de piège de focus ; fermeture =
-// bouton × ou Échap. Header (logo + titre + tags) et barre d'onglets FIXES ; le corps scrolle
-// (contenu propre à chaque surface via le slot par défaut, onglet actif piloté en v-model:tab).
-// API (props/emits/slots) INCHANGÉE — consommée telle quelle par les 4 projections.
+// bouton × ou Échap. Header (logo + titre + tags) FIXE ; le corps scrolle et empile des
+// ACCORDÉONS (§5 : accordéons + drill-in, plus d'onglets) — les sections vivent dans le slot.
 import { onMounted, onBeforeUnmount } from 'vue'
 import Avatar from './Avatar.vue'
 import Icon from './Icon.vue'
@@ -14,10 +13,8 @@ defineProps<{
   label: string
   logoUrl?: string | null
   publisher?: string
-  tabs: { key: string; label: string; badge?: string }[]
-  tab: string
 }>()
-const emit = defineEmits<{ 'update:tab': [key: string]; close: [] }>()
+const emit = defineEmits<{ close: [] }>()
 
 function onKey(e: KeyboardEvent) { if (e.key === 'Escape') emit('close') }
 onMounted(() => window.addEventListener('keydown', onKey))
@@ -38,13 +35,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
       </div>
     </div>
 
-    <!-- tabs -->
-    <div class="cm-tabs">
-      <button v-for="t in tabs" :key="t.key" class="cm-tab" :class="{ on: tab === t.key }"
-        @click="emit('update:tab', t.key)">{{ t.label }}<span v-if="t.badge" class="dim"> {{ t.badge }}</span></button>
-    </div>
-
-    <!-- corps scrollable -->
+    <!-- corps scrollable : accordéons empilés (slot) -->
     <div class="cm-body"><slot /></div>
   </aside>
 </template>
@@ -61,9 +52,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 .cm-title { font-size: 17px; font-weight: 700; letter-spacing: -.01em; line-height: 1.15; }
 .cm-pub { font-size: 11.5px; color: var(--color-faint); margin-top: 2px; }
 .cm-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
-.cm-tabs { display: flex; gap: 18px; padding: 0 20px; border-bottom: 1px solid var(--color-hair); flex: 0 0 auto; }
-.cm-tab { font-size: 12.5px; padding: 9px 2px 8px; border: 0; background: transparent; cursor: pointer; color: var(--color-mute); border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 500; }
-.cm-tab.on { color: var(--color-ink); border-bottom-color: var(--color-ink); font-weight: 700; }
 .cm-body { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
 .dim { color: var(--color-faint); font-weight: 500; }
 
