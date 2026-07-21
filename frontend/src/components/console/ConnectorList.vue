@@ -89,3 +89,19 @@ function onSelect(i: T) {
     <slot name="footer" />
   </ConsoleCard>
 </template>
+
+<style scoped>
+/* M7 mobile (CDC lot 2) : sous 640px le tableau devient des CARTES empilées — l'en-tête
+   de colonnes disparaît, chaque ligne devient un bloc dont les cellules s'empilent. Les
+   `<td>` viennent des slots #row (contenu du parent) → ciblés via :deep(). Aucun changement
+   de logique, purement présentationnel. */
+@media (max-width: 640px) {
+  .tbl { display: block; }
+  .tbl :deep(thead) { display: none; }
+  .tbl :deep(tbody) { display: block; }
+  .crow { display: block; border: 1px solid var(--color-hair); border-radius: var(--radius-md);
+    background: var(--color-surface); margin: 0 0 8px; padding: 9px 12px; }
+  .crow.sel { border-color: var(--color-saffron); background: var(--color-saffron-soft); }
+  .crow :deep(td) { display: block; width: auto; padding: 3px 0; border-bottom: 0; }
+}
+</style>

@@ -66,4 +66,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 .cm-tab.on { color: var(--color-ink); border-bottom-color: var(--color-ink); font-weight: 700; }
 .cm-body { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
 .dim { color: var(--color-faint); font-weight: 500; }
+
+/* M7 mobile (CDC lot 2) : le panneau latéral devient un SHEET plein écran (100vw, sans
+   filet gauche), qui monte depuis le bas. */
+@media (max-width: 640px) {
+  .cmp { width: 100vw; border-left: 0; animation: cmp-in-sheet .2s var(--ease-out); }
+  @keyframes cmp-in-sheet { from { transform: translateY(18px); opacity: .5 } to { transform: none; opacity: 1 } }
+}
 </style>
