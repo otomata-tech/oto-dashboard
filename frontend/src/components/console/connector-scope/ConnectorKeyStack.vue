@@ -75,6 +75,14 @@ const rows = computed(() =>
   [...instances.value].sort((a, b) => (LEVEL_RANK[a.level] ?? 9) - (LEVEL_RANK[b.level] ?? 9)))
 
 const memberRow = computed(() => rows.value.find((i) => i.level === 'member' && i.via !== 'shared_with_me'))
+// Relais (CDC P8, « les dialogs disent la vérité ») : ce qui RÉSOUDRAIT à la place de
+// la clé perso si on la retire = la clé la plus proche en dessous, non suspendue, hors
+// prêt nominatif (le prêt s'utilise par pin, pas en repli automatique).
+const relayInstance = computed(() =>
+  rows.value.find((i) => i !== memberRow.value && !i.suspended && i.via !== 'shared_with_me') ?? null)
+const relayNote = computed(() => relayInstance.value
+  ? `${levelName(relayInstance.value)} prendra le relais.`
+  : 'Aucune clé ne prendra le relais — ton agent perdra ce connecteur.')
 const hasSuspended = computed(() => instances.value.some((i) => i.suspended))
 const hasSpecial = computed(() => instances.value.some((i) => i.via === 'shared_with_me' || i.via === 'personal_cross_org'))
 // Déplier auto (principe 7) : ≥2 clés, une suspendue, ou un contexte spécial (prêt/cross-org).
@@ -167,7 +175,7 @@ async function toggleSuspend(i: ConnectorInstance) {
             <template v-else>
               <Btn v-if="connector.verifiable && lever.verify" kind="mini" :disabled="testing" @click="test">Tester</Btn>
               <Btn kind="mini" @click="lever.configureKey(connector)">Remplacer</Btn>
-              <Btn kind="danger" @click="lever.removeKey(connector)">Retirer</Btn>
+              <Btn kind="danger" @click="lever.removeKey(connector, relayNote)">Retirer</Btn>
               <Btn kind="mini" :disabled="busy" @click="toggleSuspend(i)">Suspendre</Btn>
             </template>
           </div>

@@ -130,7 +130,9 @@ export interface EmailLever<R> { visible(r: R): boolean; props(r: R): EmailPanel
 // (`me.providers`) ; l'adaptateur ne porte que les ACTIONS de la clé keyée.
 export interface ConnectionLever<R> {
   configureKey(r: R): void   // ouvre CredentialFieldsDialog (clé keyée)
-  removeKey(r: R): void
+  // `note` = phrase honnête sur le relais (calculée par la pile : ce qui prendrait
+  // la suite, ou l'avertissement « rien ne prendra le relais ») — CDC P8.
+  removeKey(r: R, note?: string): void
   verify?(r: R): Promise<VerifyResult>
 }
 

@@ -151,8 +151,9 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
           },
         })
       },
-      removeKey: async (r) => {
-        if (!await ctx.confirmAction({ title: 'retirer la clé', danger: true, confirmLabel: 'Retirer', message: `retirer ta clé ${r.label} ?` })) return
+      removeKey: async (r, note) => {
+        const message = `retirer ta clé ${r.label} ?${note ? ` ${note}` : ''}`
+        if (!await ctx.confirmAction({ title: 'retirer la clé', danger: true, confirmLabel: 'Retirer', message })) return
         try { await deleteApiKey(r.name); ctx.toast('clé retirée'); await reload() }
         catch (e) { ctx.toast(humanize(e)) }
       },
