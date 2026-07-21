@@ -11,6 +11,7 @@ const props = defineProps<{ lever: AvailabilityLever<R>; row: R }>()
 const s = computed(() => props.lever.state(props.row))
 const canEdit = computed(() => props.lever.canEdit(props.row))
 const EXPOSURE: ExposureState[] = ['off', 'muted', 'live']
+const EXPOSURE_LABEL: Record<ExposureState, string> = { off: 'Non installé', muted: 'En veille', live: 'Actif' }
 </script>
 
 <template>
@@ -20,7 +21,7 @@ const EXPOSURE: ExposureState[] = ['off', 'muted', 'live']
     <div v-if="lever.variant === 'exposure3'" class="cav-seg">
       <button v-for="opt in EXPOSURE" :key="opt" type="button"
         class="cav-segbtn" :class="{ on: s.exposure === opt }" :disabled="!canEdit"
-        @click="lever.set(row, opt)">{{ opt }}</button>
+        @click="lever.set(row, opt)">{{ EXPOSURE_LABEL[opt] }}</button>
     </div>
 
     <div v-else class="cav-row">

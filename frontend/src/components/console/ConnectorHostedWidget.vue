@@ -27,12 +27,12 @@ const myGrants = ref<AccountGrant[]>([])   // grants accordés PAR moi (#55, fac
 const loading = ref(true)
 
 const channels = [
-  { key: 'linkedin', label: 'linkedin', desc: 'search, scrape & message as you' },
-  { key: 'whatsapp', label: 'whatsapp', desc: 'read & send messages as you' },
-  { key: 'telegram', label: 'telegram', desc: 'read & send messages as you' },
-  { key: 'instagram', label: 'instagram', desc: 'read & send DMs as you' },
-  { key: 'messenger', label: 'messenger', desc: 'read & send messages as you' },
-  { key: 'twitter', label: 'x / twitter', desc: 'read & send DMs as you' },
+  { key: 'linkedin', label: 'linkedin', desc: 'recherche, scrape et messages en ton nom' },
+  { key: 'whatsapp', label: 'whatsapp', desc: 'lire et envoyer des messages en ton nom' },
+  { key: 'telegram', label: 'telegram', desc: 'lire et envoyer des messages en ton nom' },
+  { key: 'instagram', label: 'instagram', desc: 'lire et envoyer des DM en ton nom' },
+  { key: 'messenger', label: 'messenger', desc: 'lire et envoyer des messages en ton nom' },
+  { key: 'twitter', label: 'x / twitter', desc: 'lire et envoyer des DM en ton nom' },
 ] as const
 
 async function refresh() {
@@ -63,7 +63,7 @@ const ownerLabel = (i: ConnectorIdentity) => {
   return i.owner.org_name ? `${who} · ${i.owner.org_name}` : who
 }
 async function pick(id: string) {
-  try { await setConnectorIdentity('unipile', id); toast('account selected'); await refresh() }
+  try { await setConnectorIdentity('unipile', id); toast('compte sélectionné'); await refresh() }
   catch (e) { toast(humanize(e)) }
 }
 
@@ -108,8 +108,8 @@ async function link(channel: string) {
   })
 }
 async function drop(channel: string) {
-  if (!await confirmAction({ title: `disconnect ${channel} (unipile)`, danger: true, confirmLabel: 'Disconnect', message: `disconnect your ${channel}? the unipile tools will stop acting as you on this channel.` })) return
-  try { await disconnectUnipile(channel); toast(`${channel} disconnected`); await refresh() } catch (e) { toast(humanize(e)) }
+  if (!await confirmAction({ title: `déconnecter ${channel} (unipile)`, danger: true, confirmLabel: 'Déconnecter', message: `déconnecter ton ${channel} ? les outils unipile cesseront d'agir en ton nom sur ce canal.` })) return
+  try { await disconnectUnipile(channel); toast(`${channel} déconnecté`); await refresh() } catch (e) { toast(humanize(e)) }
 }
 
 // ── ma clé Unipile perso (BYO member) + version d'API ──────────────────────
@@ -147,8 +147,8 @@ async function dropMyKey() {
 <template>
   <div class="hw">
     <div class="hw-head">
-      <span class="dim hw-sub">hosted login (no cookie/extension); the tools then act as you.</span>
-      <Tag v-if="!loading && !unipile?.subscribed" tone="saffron">ask an admin to enable</Tag>
+      <span class="dim hw-sub">login hébergé (sans cookie/extension) ; les outils agissent ensuite en ton nom.</span>
+      <Tag v-if="!loading && !unipile?.subscribed" tone="saffron">demande l'activation à un admin</Tag>
     </div>
     <!-- Ma clé Unipile (perso) — prime sur la clé d'org. -->
     <div v-if="!loading" class="hw-mykey">
@@ -161,22 +161,22 @@ async function dropMyKey() {
         <Dot :tone="unipile?.channels?.[c.key]?.connected ? 'olive' : (unipile?.subscribed ? 'saffron' : 'faint')" :size="8" />
         <div class="hw-id">
           <div class="hw-name">{{ c.label }}
-            <Tag tone="cobalt">hosted</Tag>
-            <Tag v-if="unipile?.channels?.[c.key]?.connected" tone="olive">connected</Tag>
+            <Tag tone="cobalt">hébergé</Tag>
+            <Tag v-if="unipile?.channels?.[c.key]?.connected" tone="olive">connecté</Tag>
           </div>
           <div class="hw-desc">
             {{ !unipile?.subscribed
-              ? 'option not enabled — ask an admin (or add your own unipile key)'
+              ? 'option non activée — demande à un admin (ou ajoute ta propre clé unipile)'
               : (unipile?.channels?.[c.key]?.connected
-                ? `connected ${fmtDate(unipile?.channels?.[c.key]?.connected_at ?? null) ?? ''} · ${c.desc}`
+                ? `connecté le ${fmtDate(unipile?.channels?.[c.key]?.connected_at ?? null) ?? ''} · ${c.desc}`
                 : (unipile?.elsewhere?.[c.key]
-                  ? `${unipile.elsewhere[c.key]?.account_name || 'ton compte'} est connecté dans une autre de tes orgs — « Connect » l'active ici`
-                  : `link your ${c.label} to start`)) }}
+                  ? `${unipile.elsewhere[c.key]?.account_name || 'ton compte'} est connecté dans une autre de tes orgs — « Connecter » l'active ici`
+                  : `relie ton ${c.label} pour commencer`)) }}
           </div>
         </div>
         <template v-if="unipile?.subscribed">
-          <Btn v-if="unipile?.channels?.[c.key]?.connected" kind="danger" @click="drop(c.key)">Disconnect</Btn>
-          <Btn v-else kind="mini" @click="link(c.key)">Connect</Btn>
+          <Btn v-if="unipile?.channels?.[c.key]?.connected" kind="danger" @click="drop(c.key)">Déconnecter</Btn>
+          <Btn v-else kind="mini" @click="link(c.key)">Connecter</Btn>
         </template>
       </div>
       <!-- BYO : la clé porte plusieurs comptes → choisir lequel piloter (ADR 0024).
@@ -185,11 +185,11 @@ async function dropMyKey() {
         <div v-for="idn in idsFor(c.key)" :key="idn.id" class="hw-acct">
           <Dot :tone="idn.is_default ? 'olive' : 'faint'" :size="7" />
           <span class="hw-acct-name">{{ idn.label || idn.id }}
-            <Tag v-if="idn.is_default" tone="saffron">active</Tag>
+            <Tag v-if="idn.is_default" tone="saffron">actif</Tag>
             <Tag v-if="idn.granted" tone="cobalt">partagé par {{ ownerLabel(idn) }}</Tag>
             <span v-if="idn.status && idn.status.toUpperCase() !== 'OK'" class="dim hw-acct-st">· {{ idn.status }}</span>
           </span>
-          <Btn v-if="!idn.is_default" kind="mini" @click="pick(idn.id)">Use this account</Btn>
+          <Btn v-if="!idn.is_default" kind="mini" @click="pick(idn.id)">Utiliser ce compte</Btn>
         </div>
       </div>
       <!-- #55 face propriétaire : autoriser/révoquer des membres à opérer CE compte -->

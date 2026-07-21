@@ -79,7 +79,7 @@ onMounted(async () => {
       <OtoSelect v-model="lensKey" :options="lensOptions" placeholder="Statut" aria-label="Statut" size="sm" />
     </template>
     <template #head>
-      <th style="width: 42%">connector</th>
+      <th style="width: 42%">connecteur</th>
       <th v-for="col in adapter.columns" :key="col.key" :style="col.width ? { width: col.width } : undefined">{{ col.label }}</th>
       <th v-if="adapter.hasDrawer" style="width: 22px"></th>
     </template>

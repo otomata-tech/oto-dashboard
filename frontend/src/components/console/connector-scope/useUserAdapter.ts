@@ -65,18 +65,18 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
 
   const ORDER: Record<ConnectorState, number> = { active: 0, paused: 1, not_selected: 2 }
   const EXP_CELL: Record<ConnectorState, { label: string; tone: CellVM['dot'] }> = {
-    active: { label: 'live', tone: 'olive' },
-    paused: { label: 'muted', tone: 'saffron' },
-    not_selected: { label: 'off', tone: 'faint' },
+    active: { label: 'Actif', tone: 'olive' },
+    paused: { label: 'En veille', tone: 'saffron' },
+    not_selected: { label: 'Non installé', tone: 'faint' },
   }
 
   return {
     scope: 'user',
     rows, ready, error, load, reload,
-    listTitle: 'all connectors',
-    listSub: 'everything oto can drive — connect what you need, expose only the tools you trust.',
-    emptyText: 'no connector matches your filters.',
-    searchPlaceholder: 'search connectors, tools, publishers…',
+    listTitle: 'Connecteurs',
+    listSub: 'branche ce dont ton agent a besoin',
+    emptyText: 'aucun connecteur ne correspond à tes filtres.',
+    searchPlaceholder: 'chercher un connecteur ou un outil…',
     key: (r) => r.name,
     meta: (r) => r,
     label: (r) => r.label,
@@ -112,16 +112,16 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
     },
     hasDrawer: true,
     tabs: (r) => [
-      { key: 'connection', label: 'connection' },
-      { key: 'tools', label: 'tools', badge: `${toolsOf(r).filter((t) => t.enabled).length}/${toolsOf(r).length}` },
+      { key: 'connection', label: 'connexion' },
+      { key: 'tools', label: 'outils', badge: `${toolsOf(r).filter((t) => t.enabled).length}/${toolsOf(r).length}` },
       // Confidentialité (CDC M2d) : seulement une fois le connecteur installé (rien à
       // masquer sur un « à connecter ») et si le connecteur porte une clé (open data exclu).
       ...(installed(r) && r.auth.method !== 'none' ? [{ key: 'redaction', label: 'confidentialité' }] : []),
-      { key: 'about', label: 'about' },
+      { key: 'about', label: 'à propos' },
     ],
     availability: {
       variant: 'exposure3',
-      title: 'exposure — what your agents see',
+      title: 'exposition — ce que voit ton agent',
       state: (r) => ({
         on: r.state === 'active',
         muted: r.state === 'paused',
@@ -131,8 +131,8 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
         note: r.state === 'active'
           ? undefined
           : r.state === 'paused'
-            ? 'connected, but every tool is hidden from your agents right now. your selection is kept.'
-            : "not added to your workspace — set it live to expose its tools.",
+            ? 'connecté, mais tous ses outils sont masqués à ton agent pour l\'instant. ta sélection est conservée.'
+            : "pas installé — passe-le en actif pour exposer ses outils.",
       }),
       canEdit: () => true,
       set: (r, next) => setExposure(r, next as ExposureState),
@@ -146,14 +146,14 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
           verify: r.verifiable ? () => verifyConnector(r.name) : undefined,
           onConfirm: async (values) => {
             await setCredential(r.name, values)
-            ctx.toast(`${r.label} ${fields.length === 1 ? 'key saved' : 'connected'}`)
+            ctx.toast(`${r.label} ${fields.length === 1 ? 'clé enregistrée' : 'connecté'}`)
             await reload()
           },
         })
       },
       removeKey: async (r) => {
-        if (!await ctx.confirmAction({ title: 'remove key', danger: true, confirmLabel: 'Remove', message: `remove your ${r.label} key?` })) return
-        try { await deleteApiKey(r.name); ctx.toast('key removed'); await reload() }
+        if (!await ctx.confirmAction({ title: 'retirer la clé', danger: true, confirmLabel: 'Retirer', message: `retirer ta clé ${r.label} ?` })) return
+        try { await deleteApiKey(r.name); ctx.toast('clé retirée'); await reload() }
         catch (e) { ctx.toast(humanize(e)) }
       },
       verify: (r) => verifyConnector(r.name),

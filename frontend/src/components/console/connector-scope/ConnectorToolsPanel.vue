@@ -17,22 +17,22 @@ const isMuted = computed(() => props.row.state === 'paused')
 <template>
   <div class="dr-block">
     <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px">
-      <div class="eyebrow">{{ enabledCount }} of {{ tools.length }} tools enabled</div>
+      <div class="eyebrow">{{ enabledCount }} outils sur {{ tools.length }} activés</div>
       <div style="display: flex; gap: 12px">
-        <button class="linklike" @click="lever.setAll(row, true)">Enable all</button>
-        <button class="linklike" @click="lever.setAll(row, false)">Disable all</button>
+        <button class="linklike" @click="lever.setAll(row, true)">Tout activer</button>
+        <button class="linklike" @click="lever.setAll(row, false)">Tout désactiver</button>
       </div>
     </div>
-    <p v-if="isMuted" class="helptext" style="color: var(--color-saffron-ink); margin: 0 0 8px">this connector is muted — your selection is saved but hidden from agents until you set it live.</p>
+    <p v-if="isMuted" class="helptext" style="color: var(--color-saffron-ink); margin: 0 0 8px">ce connecteur est en veille — ta sélection est conservée mais masquée à ton agent jusqu'à ce que tu le repasses en actif.</p>
     <div v-for="t in tools" :key="t.name" class="trow">
       <div style="min-width: 0; flex: 1">
         <code class="mono" style="font-size: 12px; color: var(--color-ink-soft)">{{ t.name }}</code>
         <div v-if="t.description" style="font-size: 11px; line-height: 1.45; color: var(--color-mute); margin-top: 2px">{{ t.description }}</div>
-        <span v-if="t.protected" class="tag" style="font-size: 8.5px; padding: 1.5px 6px; margin-top: 5px">always on</span>
+        <span v-if="t.protected" class="tag" style="font-size: 8.5px; padding: 1.5px 6px; margin-top: 5px">toujours actif</span>
       </div>
       <Toggle :on="t.enabled && isLive" :disabled="t.protected" @change="lever.toggle(t)" />
     </div>
-    <p v-if="!tools.length" class="helptext">no tools loaded for this connector.</p>
+    <p v-if="!tools.length" class="helptext">aucun outil chargé pour ce connecteur.</p>
   </div>
 </template>
 

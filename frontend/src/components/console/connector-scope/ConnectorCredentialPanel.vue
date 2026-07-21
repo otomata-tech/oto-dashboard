@@ -36,11 +36,11 @@ async function test() {
     <template v-if="items">
       <div v-for="it in items" :key="it.key" class="ccp-item">
         <span class="ccp-item-lbl"><Dot tone="cobalt" /> {{ it.label }}<span v-if="it.sub" class="ccp-sub"> · {{ it.sub }}</span></span>
-        <Btn v-if="canEdit && lever.removeItem" kind="danger" @click="lever.removeItem(row, it.key)">Remove</Btn>
+        <Btn v-if="canEdit && lever.removeItem" kind="danger" @click="lever.removeItem(row, it.key)">Retirer</Btn>
       </div>
       <div v-if="!items.length" class="ccp-state dim">aucune clé</div>
-      <div v-if="canEdit" class="ccp-actions"><Btn kind="mini" icon="plus" @click="lever.edit(row)">Add key</Btn></div>
-      <div v-else class="helptext" style="margin-top: 8px">read-only.</div>
+      <div v-if="canEdit" class="ccp-actions"><Btn kind="mini" icon="plus" @click="lever.edit(row)">Ajouter une clé</Btn></div>
+      <div v-else class="helptext" style="margin-top: 8px">lecture seule.</div>
     </template>
 
     <!-- single-instance : team/org/user -->
@@ -48,14 +48,14 @@ async function test() {
       <div v-if="s.present" class="ccp-state"><Dot tone="olive" /> {{ s.label }}<span v-if="s.sub" class="ccp-sub"> · {{ s.sub }}</span></div>
       <div v-else class="ccp-state dim">{{ s.label }}</div>
       <div v-if="canEdit || (s.present && lever.verify)" class="ccp-actions">
-        <Btn v-if="canEdit" kind="mini" :icon="s.present ? undefined : 'plus'" @click="lever.edit(row)">{{ s.present ? 'Rotate' : 'Add key' }}</Btn>
-        <Btn v-if="canEdit && s.present && lever.remove" kind="danger" @click="lever.remove(row)">Remove</Btn>
+        <Btn v-if="canEdit" kind="mini" :icon="s.present ? undefined : 'plus'" @click="lever.edit(row)">{{ s.present ? 'Renouveler' : 'Ajouter une clé' }}</Btn>
+        <Btn v-if="canEdit && s.present && lever.remove" kind="danger" @click="lever.remove(row)">Retirer</Btn>
         <Btn v-if="s.present && lever.verify" kind="mini" :disabled="testing" @click="test">{{ testing ? 'test…' : 'tester' }}</Btn>
       </div>
       <p v-if="testRes" class="ccp-test" :style="{ color: testRes.ok ? 'var(--color-olive)' : 'var(--color-terra-ink)' }">
         {{ testRes.ok ? '✓ connexion OK' : `✗ ${testRes.error}` }}
       </p>
-      <div v-if="!canEdit && !(s.present && lever.verify)" class="helptext" style="margin-top: 8px">read-only.</div>
+      <div v-if="!canEdit && !(s.present && lever.verify)" class="helptext" style="margin-top: 8px">lecture seule.</div>
     </template>
   </section>
 </template>

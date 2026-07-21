@@ -123,7 +123,7 @@ const effect = computed(() => {
       qui, au niveau plateforme, a droit à ce connecteur (clé + option).
       <span v-if="effect"> {{ effect }}</span>
     </p>
-    <div v-if="access?.open_tier" class="pa-note">free-tier : déjà ouvert à tous sans grant.</div>
+    <div v-if="access?.open_tier" class="pa-note">offre gratuite : déjà ouvert à tous, sans autorisation.</div>
 
     <!-- Ajout : super_admin seul -->
     <template v-if="isSuperAdmin">

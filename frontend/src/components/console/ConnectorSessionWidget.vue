@@ -65,15 +65,15 @@ async function openPicker() {
 async function pick(id: string) {
   try {
     await setConnectorIdentity(props.connector.name, id)
-    toast('target set')
+    toast('cible définie')
     picking.value = false
     await reload()
   } catch (e) { toast(humanize(e)) }
 }
 
 async function drop(scope: Scope, who: string) {
-  if (!await confirmAction({ title: `disconnect ${props.connector.label}`, danger: true, confirmLabel: 'Disconnect', message: `disconnect the ${props.connector.label} session for ${who}?` })) return
-  try { await deleteApiKey(props.connector.name, scope); toast('session removed'); await reload() } catch (e) { toast(humanize(e)) }
+  if (!await confirmAction({ title: `déconnecter ${props.connector.label}`, danger: true, confirmLabel: 'Déconnecter', message: `déconnecter la session ${props.connector.label} pour ${who} ?` })) return
+  try { await deleteApiKey(props.connector.name, scope); toast('session retirée'); await reload() } catch (e) { toast(humanize(e)) }
 }
 </script>
 
@@ -81,17 +81,17 @@ async function drop(scope: Scope, who: string) {
   <div class="sw">
     <div v-if="!sessions.length" class="sw-row">
       <Dot tone="faint" :size="8" />
-      <span class="sw-status dim">no session — connect to log in through a remote browser</span>
+      <span class="sw-status dim">aucune session — connecte-toi pour te loguer via un navigateur distant</span>
       <Btn kind="mini" @click="connecting = true">Connecter</Btn>
     </div>
     <template v-else>
       <div v-for="s in sessions" :key="s.scope" class="sw-row">
         <Dot tone="olive" :size="8" />
-        <span class="sw-status dim">session · {{ s.label }} — set {{ fmtDate(s.setAt) ?? '' }}</span>
-        <Btn kind="danger" @click="drop(s.scope, s.label)">Disconnect</Btn>
+        <span class="sw-status dim">session · {{ s.label }} — posée le {{ fmtDate(s.setAt) ?? '' }}</span>
+        <Btn kind="danger" @click="drop(s.scope, s.label)">Déconnecter</Btn>
       </div>
       <div v-if="shareable" class="sw-row sw-add">
-        <span class="sw-status dim">connect another level (you, team, org)</span>
+        <span class="sw-status dim">connecter un autre niveau (toi, équipe, org)</span>
         <Btn kind="mini" @click="connecting = true">Connecter</Btn>
       </div>
     </template>
@@ -100,21 +100,21 @@ async function drop(scope: Scope, who: string) {
     <div v-if="configured && connector.identities" class="sw-row sw-target">
       <Dot :tone="target ? 'olive' : 'saffron'" :size="7" />
       <span class="sw-status dim">
-        {{ target ? `target: ${target}` : 'no default target — pick the client to work in' }}
+        {{ target ? `cible : ${target}` : 'aucune cible par défaut — choisis le client sur lequel travailler' }}
       </span>
-      <Btn kind="mini" :disabled="loadingIds" @click="openPicker">{{ target ? 'Change' : 'Choose' }}</Btn>
+      <Btn kind="mini" :disabled="loadingIds" @click="openPicker">{{ target ? 'Changer' : 'Choisir' }}</Btn>
     </div>
     <div v-if="picking" class="sw-picker">
-      <span v-if="loadingIds" class="dim sw-load">listing… (opens the remote session, ~10s)</span>
+      <span v-if="loadingIds" class="dim sw-load">chargement… (ouvre la session distante, ~10s)</span>
       <template v-else>
         <div v-for="idn in identities" :key="idn.id" class="sw-acct">
           <Dot :tone="idn.is_default ? 'olive' : 'faint'" :size="7" />
           <span class="sw-acct-name">{{ idn.label || idn.id }}
-            <Tag v-if="idn.is_default" tone="saffron">active</Tag>
+            <Tag v-if="idn.is_default" tone="saffron">actif</Tag>
           </span>
-          <Btn v-if="!idn.is_default" kind="mini" @click="pick(idn.id)">Use</Btn>
+          <Btn v-if="!idn.is_default" kind="mini" @click="pick(idn.id)">Utiliser</Btn>
         </div>
-        <span v-if="!identities.length" class="dim sw-load">nothing to pick — reconnect your session</span>
+        <span v-if="!identities.length" class="dim sw-load">rien à choisir — reconnecte ta session</span>
       </template>
     </div>
 

@@ -51,26 +51,26 @@ const isRemote = computed(() => c.value.auth.method === 'remote')
 const nFields = computed(() => (c.value.credential_fields ?? []).length)
 const authLabel = computed(() => {
   switch (c.value.auth.method) {
-    case 'secret': return nFields.value > 1 ? `${nFields.value} fields` : 'api key'
+    case 'secret': return nFields.value > 1 ? `${nFields.value} champs` : 'clé api'
     case 'oauth': return c.value.auth.cardinality === 'multi_account' ? 'oauth · multi' : 'oauth'
     case 'cookie': return 'session'
-    case 'hosted': return 'hosted account'
-    case 'remote': return 'org bridge'
+    case 'hosted': return 'compte hébergé'
+    case 'remote': return 'pont d\'org'
     default: return 'open data'
   }
 })
 const authExplain = computed(() => {
   switch (c.value.auth.method) {
     case 'secret': return nFields.value > 1
-      ? `a ${nFields.value}-field credential you paste once — stored encrypted and scoped to this org.`
-      : 'a single API key you paste once — stored encrypted and scoped to this org.'
+      ? `un identifiant à ${nFields.value} champs, collé une fois — stocké chiffré et scopé à cette org.`
+      : 'une clé API unique, collée une fois — stockée chiffrée et scopée à cette org.'
     case 'oauth': return c.value.auth.cardinality === 'multi_account'
-      ? 'authorize one or more accounts with OAuth — no key to copy.'
-      : 'a one-time OAuth grant in your name — no key to copy.'
-    case 'cookie': return 'your logged-in session, captured once through a hosted login window.'
-    case 'hosted': return 'a hosted account bridge — link your account here, the access key resolves in cascade.'
-    case 'remote': return 'a remote bridge whose credential is placed by your org — nothing to configure as a member.'
-    default: return 'open data — no credential, tools work directly.'
+      ? 'autorise un ou plusieurs comptes en OAuth — aucune clé à copier.'
+      : 'une autorisation OAuth ponctuelle en ton nom — aucune clé à copier.'
+    case 'cookie': return 'ta session connectée, capturée une fois via une fenêtre de login hébergée.'
+    case 'hosted': return 'un pont de compte hébergé — relie ton compte ici, la clé d\'accès se résout en cascade.'
+    case 'remote': return 'un pont distant dont l\'identifiant est posé par ton org — rien à configurer en tant que membre.'
+    default: return 'open data — aucun identifiant, les outils fonctionnent directement.'
   }
 })
 
@@ -118,7 +118,7 @@ const teamKey = computed(() => status.value?.team_key_group ?? null)
 
     <!-- connexion -->
     <div class="dr-block">
-      <div class="eyebrow" style="margin-bottom: 8px">connection · {{ authLabel }}</div>
+      <div class="eyebrow" style="margin-bottom: 8px">connexion · {{ authLabel }}</div>
       <p class="helptext" style="margin: 0 0 14px">{{ authExplain }}</p>
 
       <div v-if="needsKey" class="dr-box">
@@ -138,15 +138,15 @@ const teamKey = computed(() => status.value?.team_key_group ?? null)
       <ConnectorHostedWidget v-else-if="connKind === 'unipile'" />
 
       <div v-else-if="isRemote" class="dr-box dashed">
-        <div style="display: flex; align-items: center; gap: 9px"><Dot tone="cobalt" /><span style="font-size: 12.5px; font-weight: 600">org bridge — provisioned by your org</span></div>
-        <p class="helptext" style="margin: 8px 0 0">your org admin places the machine credential; members just use it, read-only.</p>
+        <div style="display: flex; align-items: center; gap: 9px"><Dot tone="cobalt" /><span style="font-size: 12.5px; font-weight: 600">pont d'org — provisionné par ton org</span></div>
+        <p class="helptext" style="margin: 8px 0 0">l'admin de ton org pose l'identifiant machine ; les membres l'utilisent, en lecture seule.</p>
       </div>
       <div v-else-if="isOpenData" class="dr-box dashed">
-        <div style="display: flex; align-items: center; gap: 9px"><Dot tone="cobalt" /><span style="font-size: 12.5px; font-weight: 600">open data — no credential needed</span></div>
-        <p class="helptext" style="margin: 8px 0 0">tools work out of the box. flip exposure to <strong>live</strong> and your agents can call them immediately.</p>
+        <div style="display: flex; align-items: center; gap: 9px"><Dot tone="cobalt" /><span style="font-size: 12.5px; font-weight: 600">open data — aucun identifiant requis</span></div>
+        <p class="helptext" style="margin: 8px 0 0">les outils fonctionnent directement. passe l'exposition en <strong>actif</strong> et ton agent peut les appeler immédiatement.</p>
       </div>
 
-      <p v-if="docRefCount > 0" class="helptext" style="margin-top: 14px; color: var(--color-mute)">↳ referenced by <strong style="color: var(--color-ink-soft)">{{ docRefCount }}</strong> procedure{{ docRefCount > 1 ? 's' : '' }} — connect it to run them.</p>
+      <p v-if="docRefCount > 0" class="helptext" style="margin-top: 14px; color: var(--color-mute)">↳ référencé par <strong style="color: var(--color-ink-soft)">{{ docRefCount }}</strong> procédure{{ docRefCount > 1 ? 's' : '' }} — connecte-le pour les exécuter.</p>
     </div>
   </div>
 </template>

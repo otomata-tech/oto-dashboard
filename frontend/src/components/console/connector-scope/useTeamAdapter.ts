@@ -78,7 +78,7 @@ export function useTeamAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<GroupConnec
         const gid = team.groupId.value
         if (gid == null) return
         await setGroupSecret(gid, r.connector, multi ? '' : (values.api_key ?? ''), undefined, multi ? values : undefined)
-        ctx.toast(`${r.label}: team key saved`)
+        ctx.toast(`${r.label} : clé d'équipe enregistrée`)
         await reload()
       },
     })
@@ -87,10 +87,10 @@ export function useTeamAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<GroupConnec
     const gid = team.groupId.value
     if (gid == null) return
     if (!await ctx.confirmAction({
-      title: 'remove shared key', danger: true, confirmLabel: 'Remove',
-      message: `remove the shared ${r.label} key? members without their own key lose access.`,
+      title: 'retirer la clé partagée', danger: true, confirmLabel: 'Retirer',
+      message: `retirer la clé partagée ${r.label} ? les membres sans clé perso perdent l'accès.`,
     })) return
-    try { await deleteGroupSecret(gid, r.connector); ctx.toast('shared key removed'); await reload() }
+    try { await deleteGroupSecret(gid, r.connector); ctx.toast('clé partagée retirée'); await reload() }
     catch (e) { ctx.toast(humanize(e)) }
   }
 
@@ -130,7 +130,7 @@ export function useTeamAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<GroupConnec
       + 'restreindre) et pose une clé partagée d\'équipe (résolue avant la clé d\'org). '
       + 'clique une ligne pour ses leviers.',
     emptyText: "aucun connecteur disponible pour l'org.",
-    searchPlaceholder: 'search…',
+    searchPlaceholder: 'rechercher…',
     key: (r) => r.connector,
     meta,
     label: (r) => r.label,

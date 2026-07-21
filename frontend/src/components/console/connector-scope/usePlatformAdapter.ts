@@ -45,48 +45,48 @@ export function usePlatformAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<Connect
 
   async function toggle(c: ConnectorActivation, next: boolean) {
     if (!next && !(await ctx.confirmAction({
-      title: 'disable connector', danger: true, confirmLabel: 'Disable',
-      message: `disable "${c.label}" platform-wide? its tools stop loading on the next server restart.`,
+      title: 'désactiver le connecteur', danger: true, confirmLabel: 'Désactiver',
+      message: `désactiver « ${c.label} » sur toute la plateforme ? ses outils cessent d'être chargés au prochain redémarrage du serveur.`,
     }))) return
     try {
       await setConnectorActivation(c.connector, next)
-      ctx.toast(`${c.label} ${next ? 'enabled' : 'disabled'} — effective on next server restart`)
+      ctx.toast(`${c.label} ${next ? 'activé' : 'désactivé'} — effet au prochain redémarrage du serveur`)
       await load()
     } catch (e) { ctx.toast(humanize(e)) }
   }
 
   function addKey(c: ConnectorActivation) {
     ctx.openForm({
-      title: `${c.label} — platform key`,
-      description: 'studio-owned key, lent to users via grants with a daily quota. shown only once.',
-      submitLabel: 'save',
+      title: `${c.label} — clé plateforme`,
+      description: 'clé possédée par le studio, prêtée aux membres via des grants avec un quota quotidien. affichée une seule fois.',
+      submitLabel: 'enregistrer',
       fields: [
-        { key: 'label', label: 'label', initial: 'prod', required: true, hint: 're-posting the same label rotates the key' },
-        { key: 'api_key', label: 'api key', type: 'password', required: true, placeholder: 'paste the key' },
+        { key: 'label', label: 'libellé', initial: 'prod', required: true, hint: 're-poser le même libellé renouvelle la clé' },
+        { key: 'api_key', label: 'clé api', type: 'password', required: true, placeholder: 'colle la clé' },
       ],
       onConfirm: async (v) => {
-        try { await createPlatformKey(c.connector, v.label ?? '', v.api_key ?? ''); ctx.toast(`${c.connector}/${v.label} saved`); await load() }
+        try { await createPlatformKey(c.connector, v.label ?? '', v.api_key ?? ''); ctx.toast(`${c.connector}/${v.label} enregistrée`); await load() }
         catch (e) { ctx.toast(humanize(e)); throw e }
       },
     })
   }
   async function removeKey(provider: string, label: string) {
     if (!await ctx.confirmAction({
-      title: 'delete platform key', danger: true, confirmLabel: 'Delete',
-      message: `delete "${provider}/${label}"? grants using it will stop resolving.`,
+      title: 'supprimer la clé plateforme', danger: true, confirmLabel: 'Supprimer',
+      message: `supprimer « ${provider}/${label} » ? les grants qui l'utilisent cesseront de résoudre.`,
     })) return
-    try { await deletePlatformKey(provider, label); ctx.toast('key deleted'); await load() }
+    try { await deletePlatformKey(provider, label); ctx.toast('clé supprimée'); await load() }
     catch (e) { ctx.toast(humanize(e)) }
   }
 
   return {
     scope: 'platform',
     rows, ready, error, load, reload: load,
-    listTitle: 'platform connectors',
+    listTitle: 'connecteurs plateforme',
     listSub: 'ce que la plateforme autorise : master switch (deny-by-default, effet au prochain '
       + 'restart) + clé plateforme (studio-owned, prêtée via grants avec quota/jour).',
-    emptyText: 'no connectors',
-    searchPlaceholder: 'search…',
+    emptyText: 'aucun connecteur',
+    searchPlaceholder: 'rechercher…',
     key: (c) => c.connector,
     meta,
     label: (c) => c.label,
@@ -95,12 +95,12 @@ export function usePlatformAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<Connect
     sortRank: (c) => (c.enabled === true ? 0 : 1),
     categoryValues: () => rows.value.map((c) => meta(c)?.category ?? ''),
     columns: [
-      { key: 'availability', label: 'master' },
-      { key: 'key', label: 'platform key' },
+      { key: 'availability', label: 'activation' },
+      { key: 'key', label: 'clé plateforme' },
     ],
     cell: (c, col): CellVM | undefined => {
       if (col === 'availability') {
-        return c.enabled === true ? { dot: 'olive', label: 'active' } : { label: 'off', muted: true }
+        return c.enabled === true ? { dot: 'olive', label: 'actif' } : { label: 'inactif', muted: true }
       }
       if (col === 'key') {
         const ks = keysOf(c.connector)
@@ -119,10 +119,10 @@ export function usePlatformAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<Connect
     ],
     availability: {
       variant: 'master',
-      title: 'master switch',
+      title: 'activation plateforme',
       state: (c) => c.enabled === true
-        ? { on: true, label: 'active platform-wide', tone: 'olive' }
-        : { on: false, label: 'off (deny-by-default)', tone: 'faint' },
+        ? { on: true, label: 'actif sur toute la plateforme', tone: 'olive' }
+        : { on: false, label: 'désactivé (par défaut : bloqué)', tone: 'faint' },
       canEdit: () => true,
       set: (c, next) => toggle(c, next as boolean),
     },
