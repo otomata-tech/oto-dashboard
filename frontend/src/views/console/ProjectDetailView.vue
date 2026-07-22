@@ -385,7 +385,10 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
 
 /* corps : rail ~0.85fr | viewer 3fr */
 .pj-body { flex: 1; display: grid; grid-template-columns: minmax(198px, 0.85fr) 3fr; align-items: stretch; min-height: 0; }
-.pj-body__rail { order: 1; }
+/* Rail d'entités : scroll INDÉPENDANT du viewer (oto/#5.7) — sticky + overflow
+   propre, il reste visible et défile seul quand la page (viewer) défile. */
+.pj-body__rail { order: 1; align-self: start; position: sticky; top: 0;
+  max-height: calc(100vh - 60px); overflow-y: auto; }
 .pj-body__vw { order: 2; min-width: 0; }
 @media (max-width: 720px) { .pj-body { grid-template-columns: 1fr; } .pj-body__rail { border-right: 0; border-bottom: 1px solid var(--color-hair); } }
 
