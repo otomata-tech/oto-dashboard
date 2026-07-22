@@ -111,8 +111,8 @@ const plomberieItems = computed(() =>
 </template>
 
 <style scoped>
-/* Plomberie ancrée : séparée de la nav principale par un filet haut (refonte nav pt 4). */
-.sb-plumb { display: flex; flex-direction: column; gap: 1px; padding-top: 6px; margin-bottom: 4px;
-  border-top: 1px solid var(--sidebar-hair, rgba(255, 255, 255, 0.08)); }
+/* Plomberie ancrée (Connecteurs/Procédures). Filet haut retiré (oto/#5.6) : plus
+   de trait au-dessus de « Connecteurs ». */
+.sb-plumb { display: flex; flex-direction: column; gap: 1px; padding-top: 6px; margin-bottom: 4px; }
 </style>
 

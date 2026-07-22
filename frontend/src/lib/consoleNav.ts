@@ -48,13 +48,10 @@ export const NAV: NavGroup[] = [
   ]},
   { group: 'nav.section.memory', level: 'work', items: [
     { path: '/data', label: 'nav.data', icon: 'db' },
-    // « documents » = RACCOURCI vers le projet KB de l'org (oto-dashboard#37 : la base
-    // de connaissance est un projet, ses pages SONT des documents — plus d'entité à part).
-    // /documents résout oto_kb et redirige vers /projects/:id (DocumentsView).
-    { path: '/documents', label: 'nav.documents', icon: 'book' },
-    // memento masqué (2026-07-02) : on privilégie « documents » comme surface de
-    // connaissance. Vue MementoView + endpoints /api/memento/* conservés en sommeil
-    // (browse réactivable en réajoutant cette entrée + le master connector_activation).
+    // Entrée « Documents » RETIRÉE (oto/#5.5) : c'était un raccourci vers le projet KB
+    // de l'org — redondant (la KB est un projet, atteignable via « Projets ») et source
+    // de confusion (reste de Memento). /documents (route + DocumentsView) survit pour un
+    // lien direct éventuel, mais n'est plus dans la sidebar.
   ]},
   // ── Gérer mon compte : niveau user-perso (non org-scopé), sa propre sidebar ────
   // Atteint par le menu profil du pied (ConsoleUserMenu) ; une PAGE par sujet au lieu
