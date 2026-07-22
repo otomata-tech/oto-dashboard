@@ -27,7 +27,12 @@ const { scoped } = useScopedLink()
 // Entrées de GOUVERNANCE remontées du menu-compte du bas dans ce popover (refonte
 // nav zone 1, JB : « haut = ORG »). Navigation view-as (ADR 0023), zéro effet MCP.
 const govEntries = computed(() => {
-  const out: { key: string; label: string; icon: string; to: string; tone?: 'platform' }[] = []
+  const out: { key: string; label: string; icon: string; to: string; tone?: 'platform'; back?: boolean }[] = []
+  // Retour à l'espace de travail : en gestion (org/équipe/plateforme/compte) le popover
+  // n'offrait que des entrées qui vont PLUS PROFOND → on restait bloqué (oto/#5.4). Cette
+  // entrée, en tête, ramène au niveau « work » (la sidebar se recompose sur la route).
+  if (level.value !== 'work')
+    out.push({ key: 'work', label: 'Espace de travail', icon: 'home', to: '/overview', back: true })
   if (me.value?.org_role === 'org_admin')
     out.push({ key: 'org', label: 'Gérer mon org', icon: 'building', to: '/org' })
   if (me.value?.active_group != null)
@@ -166,7 +171,7 @@ const kicker = computed(() => {
             <div class="id-gov">
               <RouterLink
                 v-for="e in govEntries" :key="e.key"
-                class="id-gov-item" :class="{ plat: e.tone === 'platform' }"
+                class="id-gov-item" :class="{ plat: e.tone === 'platform', back: e.back }"
                 :to="scoped(e.to)" @click="goGov"
               >
                 <span class="ic"><Icon :name="e.icon" :size="15" /></span>{{ e.label }}
@@ -280,4 +285,8 @@ const kicker = computed(() => {
 .id-gov-item:hover { background: var(--color-paper-2); color: var(--color-ink); }
 .id-gov-item .ic { display: inline-flex; color: var(--color-mute); }
 .id-gov-item.plat:hover { color: var(--color-saffron-ink); }
+/* « Espace de travail » (retour) : détaché des entrées de gouvernance par un filet bas. */
+.id-gov-item.back { color: var(--color-ink); margin-bottom: 2px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-hair); border-radius: var(--radius-md) var(--radius-md) 0 0; }
+.id-gov-item.back .ic { color: var(--color-cobalt-ink); }
 </style>
