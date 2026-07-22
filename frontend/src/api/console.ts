@@ -774,6 +774,10 @@ export const clearConnectorOverride = (connector: string, org_id: number) =>
 // ── monitoring (admin) ──
 export const getMonitoringSummary = (days: number) =>
   api<MonitoringSummary>(`/api/admin/monitoring/summary?days=${days}`)
+// Activité de MON workspace (org active + moi) — l'overview ne montre plus le
+// trafic plateforme-wide ni celui des autres membres/orgs (oto/#5.2).
+export const getActivitySummary = (days: number) =>
+  api<MonitoringSummary>(`/api/me/activity-summary?days=${days}`)
 export const getMonitoringRest = (days: number) =>
   api<MonitoringRestStats>(`/api/admin/monitoring/rest?days=${days}`)
 export const getMonitoringConnectors = (days: number) =>

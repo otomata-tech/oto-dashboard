@@ -17,7 +17,7 @@ import StateEmpty from '@/components/console/StateEmpty.vue'
 import Squiggle from '@/components/console/Squiggle.vue'
 import ContextPreviewCard from '@/components/console/ContextPreviewCard.vue'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
-import { getConnectors, getDoctrine, getGoogleStatus, getMonitoringSummary, getKbProject, listDocs } from '@/api/console'
+import { getConnectors, getDoctrine, getGoogleStatus, getActivitySummary, getKbProject, listDocs } from '@/api/console'
 import type { ConnectorMeta, GoogleOauthStatus, MonitoringSummary } from '@/types/api'
 import { toDayBars } from '@/lib/monitoring'
 import { humanize } from '@/lib/errors'
@@ -108,7 +108,7 @@ onMounted(async () => {
   // KB d'org (zone Documents) : « fait » dès qu'une page de référence existe.
   const kb = await soft(getKbProject(), null)
   if (kb) hasDocs.value = (await soft(listDocs(kb.project_id), { project_id: kb.project_id, docs: [] })).docs.length > 0
-  if (isAdmin.value) summary.value = await soft(getMonitoringSummary(7), null)
+  if (isAdmin.value) summary.value = await soft(getActivitySummary(7), null)
   loaded.value = true
 })
 </script>
