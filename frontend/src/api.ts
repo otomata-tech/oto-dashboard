@@ -69,7 +69,7 @@ export async function apiDownload(path: string, fallbackName = 'export.zip'): Pr
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = m ? m[1] : fallbackName
+  a.download = m?.[1] ?? fallbackName
   document.body.appendChild(a)
   a.click()
   a.remove()
