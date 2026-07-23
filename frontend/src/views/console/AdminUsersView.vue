@@ -47,17 +47,17 @@ onMounted(async () => {
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
     <div class="grid3">
-      <Stat label="users" :value="users.length" sub="platform-wide" />
-      <Stat label="key grants" :value="grantsTotal" sub="platform keys lent" />
+      <Stat label="utilisateurs" :value="users.length" sub="toute la plateforme" />
+      <Stat label="prêts de clé" :value="grantsTotal" sub="clés plateforme prêtées" />
     </div>
 
-    <ConsoleCard flush title="users"
-      sub="click a user to open their fiche — role, connector access, grants and activity.">
+    <ConsoleCard flush title="utilisateurs"
+      sub="clique un utilisateur pour ouvrir sa fiche — rôle, accès connecteurs, prêts de clé et activité.">
       <template #actions>
-        <input v-model="q" class="inp" placeholder="filter by name or email…" style="width: 220px" />
+        <input v-model="q" class="inp" placeholder="filtrer par nom ou email…" style="width: 220px" />
       </template>
       <table class="tbl">
-        <thead><tr><th>user</th><th>role</th><th>access</th><th style="width: 90px"></th></tr></thead>
+        <thead><tr><th>utilisateur</th><th>rôle</th><th>accès</th><th style="width: 90px"></th></tr></thead>
         <tbody>
           <tr v-for="u in paged" :key="u.sub" style="cursor: pointer" @click="openUser(u)">
             <td>
@@ -69,10 +69,10 @@ onMounted(async () => {
               <Tag v-else-if="u.effective_role === 'admin'" tone="ink">admin</Tag>
               <Tag v-else tone="olive">user</Tag>
             </td>
-            <td class="dim">{{ u.grants.length }} key{{ u.grants.length === 1 ? '' : 's' }}</td>
-            <td style="text-align: right"><span class="linklike">manage →</span></td>
+            <td class="dim">{{ u.grants.length }} clé{{ u.grants.length === 1 ? '' : 's' }}</td>
+            <td style="text-align: right"><span class="linklike">gérer →</span></td>
           </tr>
-          <tr v-if="!filtered.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no users</td></tr>
+          <tr v-if="!filtered.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">aucun utilisateur</td></tr>
         </tbody>
       </table>
       <Pager :total="filtered.length" :page="page" :page-size="PAGE_SIZE" @update:page="page = $event" />

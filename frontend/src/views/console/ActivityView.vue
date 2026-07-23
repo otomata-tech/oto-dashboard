@@ -41,7 +41,7 @@ onMounted(async () => {
   <div class="content-inner fadein">
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
-    <ConsoleCard title="calls · last 14 days" sub="your tool calls across all clients. terra segments are failures.">
+    <ConsoleCard title="appels · 14 derniers jours" sub="tes appels d'outils, tous clients confondus. les segments terra sont des échecs.">
       <CallsBarChart :days="bars" :height="96" />
     </ConsoleCard>
 

@@ -55,8 +55,8 @@ const currentRole = computed<Role>(() => detail.value?.role ?? 'member')
 // Libellés des 3 paliers plateforme, pour le Tag de la fiche.
 const roleLabel = computed(() =>
   currentRole.value === 'super_admin' ? 'super admin'
-  : currentRole.value === 'admin' ? 'operator admin'
-  : 'member')
+  : currentRole.value === 'admin' ? 'admin opérateur'
+  : 'membre')
 // Accès effectif par provider keyé (la question « a-t-il déjà accès ? »).
 const providerRows = computed(() =>
   Object.entries(detail.value?.providers ?? {})
@@ -65,12 +65,12 @@ const providerRows = computed(() =>
 )
 function access(p: ProviderStatus): { text: string; tone?: 'olive' | 'cobalt' | 'saffron' | 'terra' } {
   switch (p.mode) {
-    case 'user': return { text: 'own key', tone: 'olive' }
-    case 'group': return { text: 'via team', tone: 'cobalt' }
+    case 'user': return { text: 'sa clé', tone: 'olive' }
+    case 'group': return { text: 'via équipe', tone: 'cobalt' }
     case 'org': return { text: 'via org', tone: 'cobalt' }
-    case 'platform': return { text: `platform · ${p.quota_used_today}/${p.quota_daily ?? '∞'}`, tone: 'saffron' }
-    case 'over_quota': return { text: 'platform · quota exhausted', tone: 'terra' }
-    default: return { text: 'no access' }
+    case 'platform': return { text: `plateforme · ${p.quota_used_today}/${p.quota_daily ?? '∞'}`, tone: 'saffron' }
+    case 'over_quota': return { text: 'plateforme · quota épuisé', tone: 'terra' }
+    default: return { text: 'aucun accès' }
   }
 }
 
@@ -97,21 +97,21 @@ watch(sub, loadAll)
 async function setRole(next: Role) {
   if (next === currentRole.value) return
   const labels: Record<Role, string> = {
-    super_admin: 'make super admin',
-    admin: 'make operator admin',
-    member: 'demote to member',
+    super_admin: 'passer super admin',
+    admin: 'passer admin opérateur',
+    member: 'rétrograder en membre',
   }
   const descr: Record<Role, string> = {
-    super_admin: 'full power: manages platform roles and platform keys.',
-    admin: 'operational tier: sees the platform · admin section, but cannot change platform roles or manage platform keys.',
-    member: 'no platform admin access.',
+    super_admin: 'pleins pouvoirs : gère les rôles plateforme et les clés plateforme.',
+    admin: 'palier opérationnel : voit la section plateforme · admin, mais ne peut ni changer les rôles ni gérer les clés plateforme.',
+    member: 'aucun accès admin plateforme.',
   }
   const danger = currentRole.value === 'super_admin' // rétrogradation depuis super_admin
   if (!await confirmAction({
-    title: 'platform role', danger, confirmLabel: labels[next],
-    message: `${labels[next]} for this user? ${descr[next]}`,
+    title: 'rôle plateforme', danger, confirmLabel: labels[next],
+    message: `${labels[next]} pour cet utilisateur ? ${descr[next]}`,
   })) return
-  try { await setUserRole(sub.value, next); toast(`role → ${next}`); await loadDetail() }
+  try { await setUserRole(sub.value, next); toast(`rôle → ${next}`); await loadDetail() }
   catch (e) { toast(humanize(e)) }
 }
 
@@ -122,8 +122,8 @@ const roleMenu = ref<HTMLElement | null>(null)
 const roleMenuOpen = ref(false)
 onClickOutside(roleMenu, () => { roleMenuOpen.value = false })
 const adminTiers: { role: Role; label: string; hint: string }[] = [
-  { role: 'admin', label: 'operator admin', hint: 'supervises the platform' },
-  { role: 'super_admin', label: 'super admin', hint: 'full power' },
+  { role: 'admin', label: 'admin opérateur', hint: 'supervise la plateforme' },
+  { role: 'super_admin', label: 'super admin', hint: 'pleins pouvoirs' },
 ]
 async function pickRole(next: Role) {
   roleMenuOpen.value = false
@@ -135,23 +135,23 @@ const platformKeysFor = (provider: string) => keys.value.filter((k) => k.provide
 
 function grantKey(provider: string) {
   // ADR 0044 §F : grant keyé par PROVIDER (l'instance plateforme du connecteur), plus par id.
-  if (!platformKeysFor(provider).length) { toast(`no platform key for ${provider} — create one in platform keys first`); return }
+  if (!platformKeysFor(provider).length) { toast(`aucune clé plateforme pour ${provider} — crée-la d'abord dans connecteurs (plateforme)`); return }
   const fields: FormDialogField[] = [
-    { key: 'quota', label: 'daily quota', placeholder: 'blank = provider default', hint: 'max calls per day' },
+    { key: 'quota', label: 'quota journalier', placeholder: 'vide = défaut du provider', hint: 'appels max par jour' },
   ]
   openForm({
-    title: `grant ${provider}`, description: `lend the shared ${provider} platform key to this user (quota-metered, key never revealed).`,
-    fields, submitLabel: 'grant',
+    title: `prêter ${provider}`, description: `prête la clé plateforme partagée ${provider} à cet utilisateur (sous quota, clé jamais révélée).`,
+    fields, submitLabel: 'prêter',
     onConfirm: async (v) => {
       const quota = v.quota ? Math.max(1, Number(v.quota)) : undefined
-      try { await grantPlatformKey(sub.value, provider, quota); toast(`${provider} granted`); await loadDetail() }
+      try { await grantPlatformKey(sub.value, provider, quota); toast(`${provider} prêté`); await loadDetail() }
       catch (e) { toast(humanize(e)); throw e }
     },
   })
 }
 async function revokeKey(g: AdminGrant) {
-  if (!await confirmAction({ title: 'revoke grant', danger: true, confirmLabel: 'Revoke', message: `revoke ${g.provider}?` })) return
-  try { await revokePlatformKey(sub.value, g.provider); toast('grant revoked'); await loadDetail() }
+  if (!await confirmAction({ title: 'révoquer le prêt', danger: true, confirmLabel: 'Révoquer', message: `révoquer ${g.provider} ?` })) return
+  try { await revokePlatformKey(sub.value, g.provider); toast('prêt révoqué'); await loadDetail() }
   catch (e) { toast(humanize(e)) }
 }
 // Options de connecteur (couche 3, oto-backend/docs/connector-model.md) : accorder
@@ -204,31 +204,31 @@ function unipileSourceLabel(u: AdminUserUnipileOrg): string {
 // Bascule le rôle d'org du user (member ↔ org_admin) depuis la fiche admin.
 async function toggleOrgRole(o: AdminUserOrg) {
   const next = o.org_role === 'org_admin' ? 'org_member' : 'org_admin'
-  const label = next === 'org_admin' ? 'make org admin' : 'remove org admin'
-  if (!await confirmAction({ title: 'org role', confirmLabel: label, message: `${label} of "${o.name}"?` })) return
-  try { await setAdminOrgMemberRole(o.org_id, sub.value, next); toast(`${o.name} → ${next === 'org_admin' ? 'org admin' : 'member'}`); await loadDetail() }
+  const label = next === 'org_admin' ? 'passer org admin' : 'retirer org admin'
+  if (!await confirmAction({ title: 'rôle d\'org', confirmLabel: label, message: `${label} de « ${o.name} » ?` })) return
+  try { await setAdminOrgMemberRole(o.org_id, sub.value, next); toast(`${o.name} → ${next === 'org_admin' ? 'org admin' : 'membre'}`); await loadDetail() }
   catch (e) { toast(humanize(e)) }
 }
 </script>
 
 <template>
   <div class="content-inner fadein">
-    <RouterLink class="linklike" to="/platform/users">← users</RouterLink>
+    <RouterLink class="linklike" to="/platform/users">← utilisateurs</RouterLink>
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
     <template v-if="detail">
       <!-- identité + rôle -->
-      <ConsoleCard :title="detail.name || detail.email || detail.sub" sub="platform-admin user fiche.">
+      <ConsoleCard :title="detail.name || detail.email || detail.sub" sub="fiche utilisateur — admin plateforme.">
         <template #actions>
           <Tag v-if="currentRole === 'super_admin'" tone="terra">{{ roleLabel }}</Tag>
           <Tag v-else-if="currentRole === 'admin'" tone="ink">{{ roleLabel }}</Tag>
-          <Tag v-else tone="olive">member</Tag>
+          <Tag v-else tone="olive">membre</Tag>
           <Btn v-if="canViewAs" kind="mini" icon="user" @click="viewAsUser">Voir en tant que</Btn>
           <!-- gestion des rôles plateforme : super_admin seul. Les deux paliers admin
                (operator → super) sont fusionnés dans un dropdown ; member reste un bouton. -->
           <template v-if="canManageRoles">
             <span ref="roleMenu" class="rolemenu">
-              <Btn kind="mini" icon="chevd" @click="roleMenuOpen = !roleMenuOpen">Make admin</Btn>
+              <Btn kind="mini" icon="chevd" @click="roleMenuOpen = !roleMenuOpen">Passer admin</Btn>
               <div v-if="roleMenuOpen" class="rolemenu__pop">
                 <button
                   v-for="t in adminTiers" :key="t.role" type="button" class="rolemenu__item"
@@ -236,60 +236,60 @@ async function toggleOrgRole(o: AdminUserOrg) {
                 >
                   <span class="rolemenu__line">
                     <span class="rolemenu__name">{{ t.label }}</span>
-                    <span v-if="currentRole === t.role" class="rolemenu__cur">current</span>
+                    <span v-if="currentRole === t.role" class="rolemenu__cur">actuel</span>
                   </span>
                   <span class="rolemenu__hint">{{ t.hint }}</span>
                 </button>
               </div>
             </span>
-            <Btn v-if="currentRole !== 'member'" kind="mini" @click="setRole('member')">Demote to member</Btn>
+            <Btn v-if="currentRole !== 'member'" kind="mini" @click="setRole('member')">Rétrograder en membre</Btn>
           </template>
         </template>
         <div class="helptext">
           {{ detail.email }} · <code class="mono">{{ detail.sub }}</code>
         </div>
         <div class="helptext" style="margin-top: 6px">
-          platform role has three tiers — <strong>super admin</strong> (full power: manages platform roles &amp; platform keys),
-          <strong>operator admin</strong> (sees the platform · admin section, but can't change roles or platform keys),
-          and <strong>member</strong>. it gates only the admin section — tool access comes from keys, grants and org membership below.
+          le rôle plateforme a trois paliers — <strong>super admin</strong> (pleins pouvoirs : rôles &amp; clés plateforme),
+          <strong>admin opérateur</strong> (voit la section plateforme · admin, sans toucher rôles ni clés plateforme),
+          et <strong>membre</strong>. il ne gate que la section admin — l'accès aux outils vient des clés, prêts et orgs ci-dessous.
         </div>
       </ConsoleCard>
 
       <!-- organisations dont il est membre -->
-      <ConsoleCard title="organizations" sub="orgs this user belongs to, with their role. shared keys, readme & procedures come from the active org.">
+      <ConsoleCard title="organisations" sub="orgs dont cet utilisateur est membre, avec son rôle. clés partagées, readme & procédures viennent de l'org active.">
         <div v-if="detail.orgs.length" class="rowlist">
           <div v-for="o in detail.orgs" :key="o.org_id" class="rowitem" style="gap: 10px">
             <Dot :tone="o.is_active ? 'saffron' : 'faint'" :size="8" />
             <div style="flex: 1; min-width: 0">
               <span style="font-weight: 600; font-size: 13px">{{ o.name }}</span>
-              <Tag :tone="o.org_role === 'org_admin' ? 'ink' : undefined" style="margin-left: 8px">{{ o.org_role === 'org_admin' ? 'org admin' : 'member' }}</Tag>
+              <Tag :tone="o.org_role === 'org_admin' ? 'ink' : undefined" style="margin-left: 8px">{{ o.org_role === 'org_admin' ? 'org admin' : 'membre' }}</Tag>
             </div>
             <Tag v-if="o.is_active" tone="saffron">active</Tag>
             <Btn kind="mini" @click="toggleOrgRole(o)">
-              {{ o.org_role === 'org_admin' ? 'Make member' : 'Make admin' }}
+              {{ o.org_role === 'org_admin' ? 'Passer membre' : 'Passer admin' }}
             </Btn>
           </div>
         </div>
-        <div v-else class="helptext">not a member of any organization.</div>
+        <div v-else class="helptext">membre d'aucune organisation.</div>
       </ConsoleCard>
 
       <!-- accès effectif par provider + grant/revoke inline de la clé plateforme -->
-      <ConsoleCard flush title="connector access"
-        sub="effective access per keyed provider — grant or revoke the shared platform key inline. own key wins over org, org over platform.">
+      <ConsoleCard flush title="accès connecteurs"
+        sub="accès effectif par provider keyé — prêter ou révoquer la clé plateforme partagée inline. la clé perso gagne sur l'org, l'org sur la plateforme.">
         <table class="tbl">
-          <thead><tr><th style="width: 18px"></th><th>provider</th><th>access</th><th style="width: 90px"></th></tr></thead>
+          <thead><tr><th style="width: 18px"></th><th>provider</th><th>accès</th><th style="width: 90px"></th></tr></thead>
           <tbody>
             <tr v-for="[name, p] in providerRows" :key="name">
               <td><Dot :tone="p.mode === 'forbidden' ? 'faint' : p.mode === 'over_quota' ? 'terra' : p.mode === 'platform' ? 'saffron' : 'olive'" :size="7" /></td>
               <td style="font-weight: 600; color: var(--color-ink)">{{ name }}</td>
               <td><Tag :tone="access(p).tone">{{ access(p).text }}</Tag></td>
               <td style="text-align: right">
-                <Btn v-if="grantFor(name)" kind="danger" @click="revokeKey(grantFor(name)!)">Revoke</Btn>
-                <Btn v-else-if="platformKeysFor(name).length" kind="mini" @click="grantKey(name)">Grant key</Btn>
-                <span v-else class="dim" style="font-size: 11px">no platform key</span>
+                <Btn v-if="grantFor(name)" kind="danger" @click="revokeKey(grantFor(name)!)">Révoquer</Btn>
+                <Btn v-else-if="platformKeysFor(name).length" kind="mini" @click="grantKey(name)">Prêter la clé</Btn>
+                <span v-else class="dim" style="font-size: 11px">pas de clé plateforme</span>
               </td>
             </tr>
-            <tr v-if="!providerRows.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no keyed providers</td></tr>
+            <tr v-if="!providerRows.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">aucun provider keyé</td></tr>
           </tbody>
         </table>
       </ConsoleCard>
@@ -348,8 +348,8 @@ async function toggleOrgRole(o: AdminUserOrg) {
       <!-- activité : journal brut réutilisé (même carte que /platform/monitoring), scopé
            à ce user via `sub` (getMonitoringCalls) -->
       <CallLogCard :calls="calls" :loaded="!callsBusy" :busy="callsBusy"
-        title="activity" sub="recent tool calls (last 30 days, up to 100)."
-        empty-label="no calls in the window" />
+        title="activité" sub="appels d'outils récents (30 derniers jours, 100 max)."
+        empty-label="aucun appel dans la fenêtre" />
     </template>
 
     <FormDialog v-if="formDialog" v-model:open="formDialogOpen"

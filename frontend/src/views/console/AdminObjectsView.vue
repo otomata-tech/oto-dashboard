@@ -48,21 +48,21 @@ function ownerTone(t?: string): 'cobalt' | 'olive' {
 
 function transfer(r: ResourceEntry) {
   openForm({
-    title: 'transfer ownership',
+    title: "transférer l'ownership",
     fields: [
-      { key: 'email', label: 'new owner email', required: true, placeholder: 'user@email.com',
+      { key: 'email', label: 'email du nouveau propriétaire', required: true, placeholder: 'user@email.com',
         hint: `${r.namespace ?? r.resource_id} → nouveau propriétaire (l'ancien garde un accès write).` },
     ],
     onConfirm: async (v) => {
       const email = (v.email ?? '').trim()
       const ok = await confirmAction({
-        title: 'transfer ownership?', danger: true, confirmLabel: 'Transfer',
-        message: `give "${r.namespace ?? r.resource_id}" to ${email}? the previous owner keeps write access.`,
+        title: "transférer l'ownership ?", danger: true, confirmLabel: 'Transférer',
+        message: `donner « ${r.namespace ?? r.resource_id} » à ${email} ? l'ancien propriétaire garde un accès write.`,
       })
       if (!ok) throw new Error('cancelled')
       try {
         await transferResource(type.value, r.resource_id, { email })
-        toast(`transferred to ${email}`)
+        toast(`transféré à ${email}`)
         await load()
       } catch (e) { toast(humanize(e)); throw e }
     },
@@ -75,29 +75,29 @@ function transfer(r: ResourceEntry) {
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
     <div class="statrow">
-      <Stat :value="String(count)" label="objects" />
+      <Stat :value="String(count)" label="objets" />
     </div>
 
-    <ConsoleCard title="owned objects" flush
-      sub="govern resources across the platform — transfer ownership without reading content.">
+    <ConsoleCard title="objets possédés" flush
+      sub="gouverner les ressources de la plateforme — transférer l'ownership sans lire le contenu.">
       <template #actions>
         <OtoSelect v-model="type" size="sm" :options="TYPES" aria-label="object type" @update:model-value="load" />
         <Btn kind="mini" icon="refresh" :disabled="loading" @click="load">
-          {{ loading ? 'Loading…' : 'Refresh' }}
+          {{ loading ? 'Chargement…' : 'Rafraîchir' }}
         </Btn>
       </template>
 
       <div v-if="!loading && !count" class="dim" style="text-align: center; padding: 24px">
-        no objects of this type.
+        aucun objet de ce type.
       </div>
 
       <table v-else class="tbl">
         <thead>
           <tr>
             <th>namespace</th>
-            <th>owner</th>
-            <th class="num">rows</th>
-            <th>created</th>
+            <th>propriétaire</th>
+            <th class="num">lignes</th>
+            <th>créé</th>
             <th></th>
           </tr>
         </thead>
@@ -111,7 +111,7 @@ function transfer(r: ResourceEntry) {
             <td class="num">{{ r.row_count ?? '—' }}</td>
             <td class="dim">{{ r.created_at ? fmtDate(r.created_at) : '—' }}</td>
             <td class="num">
-              <Btn kind="mini" icon="ext" @click="transfer(r)">Transfer</Btn>
+              <Btn kind="mini" icon="ext" @click="transfer(r)">Transférer</Btn>
             </td>
           </tr>
         </tbody>

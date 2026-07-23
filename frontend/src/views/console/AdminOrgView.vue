@@ -77,12 +77,12 @@ async function archiveOrg() {
   if (!detail.value) return
   const name = detail.value.org.name
   if (!await confirmAction({
-    title: 'archive organization', danger: true, confirmLabel: 'Archive',
-    message: `archive "${name}"? it disappears from all listings and its members fall back to their other orgs. reversible in the database.`,
+    title: "archiver l'organisation", danger: true, confirmLabel: 'Archiver',
+    message: `archiver « ${name} » ? elle disparaît de tous les listings et ses membres retombent sur leurs autres orgs. réversible en base.`,
   })) return
   try {
     await archiveAdminOrg(orgId.value)
-    toast(`org "${name}" archived`)
+    toast(`org « ${name} » archivée`)
     router.push('/platform/orgs')
   } catch (e) { toast(humanize(e)) }
 }
@@ -145,27 +145,27 @@ async function removeLogo() {
 // ── membres ──────────────────────────────────────────────────────────────────
 function addMember() {
   openForm({
-    title: 'add member', description: `to ${detail.value?.org.name}`,
-    submitLabel: 'add',
+    title: 'ajouter un membre', description: `à ${detail.value?.org.name}`,
+    submitLabel: 'ajouter',
     fields: [
-      { key: 'target', label: 'email or sub', required: true, placeholder: 'user@example.com' },
-      { key: 'role', label: 'role', type: 'select', initial: 'org_member',
-        options: [{ value: 'org_member', label: 'member' }, { value: 'org_admin', label: 'admin' }] },
+      { key: 'target', label: 'email ou sub', required: true, placeholder: 'user@example.com' },
+      { key: 'role', label: 'rôle', type: 'select', initial: 'org_member',
+        options: [{ value: 'org_member', label: 'membre' }, { value: 'org_admin', label: 'admin' }] },
     ],
     onConfirm: async (v) => {
-      try { await addAdminOrgMember(orgId.value, v.target ?? '', (v.role || 'org_member') as OrgRole); toast('member added'); await refresh() }
+      try { await addAdminOrgMember(orgId.value, v.target ?? '', (v.role || 'org_member') as OrgRole); toast('membre ajouté'); await refresh() }
       catch (e) { toast(humanize(e)); throw e }
     },
   })
 }
 async function toggleMemberRole(m: OrgMember) {
   const next = m.role === 'org_admin' ? 'org_member' : 'org_admin'
-  try { await setAdminOrgMemberRole(orgId.value, m.sub, next); toast('role updated'); await refresh() }
+  try { await setAdminOrgMemberRole(orgId.value, m.sub, next); toast('rôle mis à jour'); await refresh() }
   catch (e) { toast(humanize(e)) }
 }
 async function removeMember(m: OrgMember) {
-  if (!await confirmAction({ title: 'remove member', danger: true, confirmLabel: 'Remove', message: `remove ${m.email || m.sub}?` })) return
-  try { await removeAdminOrgMember(orgId.value, m.sub); toast('member removed'); await refresh() }
+  if (!await confirmAction({ title: 'retirer le membre', danger: true, confirmLabel: 'Retirer', message: `retirer ${m.email || m.sub} ?` })) return
+  try { await removeAdminOrgMember(orgId.value, m.sub); toast('membre retiré'); await refresh() }
   catch (e) { toast(humanize(e)) }
 }
 async function joinAsAdmin() {
@@ -264,7 +264,7 @@ const orgOptions = computed(() => detail.value?.option_comps ?? [])
                 </div>
               </div>
               <div v-if="detail.org.description" style="font-size: 12.5px; color: var(--color-mute); margin-top: 8px; white-space: pre-wrap">{{ detail.org.description }}</div>
-              <div v-else class="helptext" style="margin-top: 8px">no description.</div>
+              <div v-else class="helptext" style="margin-top: 8px">aucune description.</div>
             </div>
 
             <div v-if="canWrite" style="border-top: 1px solid var(--color-hair); padding-top: 12px">
@@ -286,7 +286,7 @@ const orgOptions = computed(() => detail.value?.option_comps ?? [])
             <div v-if="canWrite && !isPersonalOrg" style="border-top: 1px solid var(--color-hair); padding-top: 12px">
               <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap">
                 <div class="helptext" style="margin: 0">archive (soft-delete) cet espace — réversible en base, données conservées.</div>
-                <Btn kind="danger" @click="archiveOrg">Archive org</Btn>
+                <Btn kind="danger" @click="archiveOrg">Archiver l'org</Btn>
               </div>
             </div>
           </div>
@@ -323,29 +323,29 @@ const orgOptions = computed(() => detail.value?.option_comps ?? [])
         </ConsoleCard>
       </div>
 
-      <ConsoleCard flush :title="`${detail.org.name} · members`">
+      <ConsoleCard flush :title="`${detail.org.name} · membres`">
         <template #actions>
           <Btn kind="mini" icon="eye" @click="enterOrg">{{ myMembership ? 'Entrer' : 'Entrer (lecture seule)' }}</Btn>
           <Btn v-if="isOperator && !myMembership" kind="mini" icon="shield" @click="joinAsAdmin">Rejoindre en admin</Btn>
           <Btn v-else-if="isOperator && myMembership" kind="mini" icon="log-out" @click="leaveOrg">Quitter</Btn>
-          <Btn kind="mini" icon="plus" @click="addMember">Add member</Btn>
+          <Btn kind="mini" icon="plus" @click="addMember">Ajouter un membre</Btn>
         </template>
         <table class="tbl">
-          <thead><tr><th>member</th><th>role</th><th>active</th><th style="width: 140px"></th></tr></thead>
+          <thead><tr><th>membre</th><th>rôle</th><th>actif</th><th style="width: 140px"></th></tr></thead>
           <tbody>
             <tr v-for="m in detail.members" :key="m.sub">
               <td>
                 <div style="font-weight: 600; color: var(--color-ink)">{{ m.name || m.email }}</div>
                 <div style="font-size: 11px; color: var(--color-faint)">{{ m.email }}</div>
               </td>
-              <td><Tag v-if="m.role === 'org_admin'" tone="ink">admin</Tag><Tag v-else>member</Tag></td>
+              <td><Tag v-if="m.role === 'org_admin'" tone="ink">admin</Tag><Tag v-else>membre</Tag></td>
               <td><Dot :tone="m.active ? 'olive' : 'faint'" :size="7" /></td>
               <td style="text-align: right; white-space: nowrap">
-                <Btn kind="mini" @click="toggleMemberRole(m)">{{ m.role === 'org_admin' ? 'Demote' : 'Promote' }}</Btn>
-                <Btn kind="danger" @click="removeMember(m)">Remove</Btn>
+                <Btn kind="mini" @click="toggleMemberRole(m)">{{ m.role === 'org_admin' ? 'Rétrograder' : 'Promouvoir' }}</Btn>
+                <Btn kind="danger" @click="removeMember(m)">Retirer</Btn>
               </td>
             </tr>
-            <tr v-if="!detail.members.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no members</td></tr>
+            <tr v-if="!detail.members.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">aucun membre</td></tr>
           </tbody>
         </table>
       </ConsoleCard>

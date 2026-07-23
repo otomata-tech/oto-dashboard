@@ -18,8 +18,8 @@ const shortTs = (s: string | null) => (s ? s.slice(0, 16) : '—')
 const kpis = computed(() => {
   const c = props.conn
   return [
-    { label: 'resolution failures', value: c?.total_failures ?? 0, sub: `${props.windowDays}-day window`, tone: c?.total_failures ? 'var(--color-terra-ink)' : undefined },
-    { label: 'connectors failing', value: c?.by_provider.length ?? 0, sub: 'distinct providers' },
+    { label: 'échecs de résolution', value: c?.total_failures ?? 0, sub: `fenêtre ${props.windowDays} j`, tone: c?.total_failures ? 'var(--color-terra-ink)' : undefined },
+    { label: 'connecteurs en échec', value: c?.by_provider.length ?? 0, sub: 'providers distincts' },
   ]
 })
 </script>
@@ -30,10 +30,10 @@ const kpis = computed(() => {
   </div>
   <template v-else>
     <MonitoringStats :items="kpis" />
-    <ConsoleCard flush title="credential resolution failures">
-      <p class="helptext" style="padding: 0 14px 8px">a failure = a user tried to use a connector with no valid credential (blocked, often a never-finished oauth handshake).</p>
+    <ConsoleCard flush title="échecs de résolution de credential">
+      <p class="helptext" style="padding: 0 14px 8px">un échec = un utilisateur a tenté un connecteur sans credential valide (bloqué — souvent un handshake oauth jamais terminé).</p>
       <table class="tbl">
-        <thead><tr><th>connector</th><th class="num">failures</th><th class="num">users</th><th class="num">last</th></tr></thead>
+        <thead><tr><th>connecteur</th><th class="num">échecs</th><th class="num">users</th><th class="num">dernier</th></tr></thead>
         <tbody>
           <tr v-for="p in conn?.by_provider ?? []" :key="p.provider">
             <td><code class="mono">{{ p.provider }}</code></td>
@@ -41,7 +41,7 @@ const kpis = computed(() => {
             <td class="num">{{ p.users_affected }}</td>
             <td class="num dim">{{ shortTs(p.last_at) }}</td>
           </tr>
-          <tr v-if="conn && !conn.by_provider.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no connector failures in window — all good.</td></tr>
+          <tr v-if="conn && !conn.by_provider.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">aucun échec connecteur dans la fenêtre — tout va bien.</td></tr>
         </tbody>
       </table>
     </ConsoleCard>

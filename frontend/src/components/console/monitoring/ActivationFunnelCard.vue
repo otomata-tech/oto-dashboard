@@ -19,19 +19,19 @@ const f = computed(() => props.funnel)
 </script>
 
 <template>
-  <ConsoleCard :title="title || 'activation funnel'"
+  <ConsoleCard :title="title || 'funnel d’activation'"
     :sub="sub || 'un compte ≠ un usage : ces chiffres séparent « inscrit » de « a réellement invoqué un outil ».'">
     <div v-if="loading && !f" class="grid3">
       <div v-for="i in 5" :key="i" class="sk" style="height: 74px" />
     </div>
     <div v-else class="grid3">
-      <Stat label="accounts" :value="f?.total_accounts ?? 0" sub="total signed up" />
-      <Stat label="active" :value="f?.active ?? 0" :sub="`invoked a tool · ${windowDays}d`"
+      <Stat label="comptes" :value="f?.total_accounts ?? 0" sub="inscrits au total" />
+      <Stat label="actifs" :value="f?.active ?? 0" :sub="`ont invoqué un outil · ${windowDays} j`"
         :tone="f && f.active ? 'var(--color-olive-ink)' : undefined" />
-      <Stat label="never active" :value="f?.never_active ?? 0" sub="0 tool calls ever"
+      <Stat label="jamais actifs" :value="f?.never_active ?? 0" sub="0 appel d’outil depuis toujours"
         :tone="f && f.never_active ? 'var(--color-terra-ink)' : undefined" />
-      <Stat label="idle (rest only)" :value="f?.rest_only ?? 0" sub="opened, never invoked" />
-      <Stat label="blocked" :value="f?.blocked_by_connector ?? 0" :sub="`connector failures · ${windowDays}d`"
+      <Stat label="passifs (rest seul)" :value="f?.rest_only ?? 0" sub="ont ouvert, jamais invoqué" />
+      <Stat label="bloqués" :value="f?.blocked_by_connector ?? 0" :sub="`échecs connecteur · ${windowDays} j`"
         :tone="f && f.blocked_by_connector ? 'var(--color-terra-ink)' : undefined" />
     </div>
   </ConsoleCard>

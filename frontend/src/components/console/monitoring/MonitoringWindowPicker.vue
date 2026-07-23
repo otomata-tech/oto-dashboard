@@ -12,6 +12,6 @@ defineEmits<{ (e: 'update:modelValue', win: number): void }>()
   <div class="seg" role="tablist" aria-label="fenêtre">
     <button v-for="w in windows" :key="w" type="button" role="tab"
       :class="{ on: w === modelValue }" :aria-selected="w === modelValue"
-      @click="$emit('update:modelValue', w)">{{ w }}d</button>
+      @click="$emit('update:modelValue', w)">{{ w }} j</button>
   </div>
 </template>

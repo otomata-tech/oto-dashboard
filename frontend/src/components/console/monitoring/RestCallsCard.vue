@@ -17,9 +17,9 @@ const props = defineProps<{
 const kpis = computed(() => {
   const r = props.rest
   return [
-    { label: 'total requests', value: (r?.total_calls ?? 0).toLocaleString('en-US'), sub: `${props.windowDays}-day window` },
-    { label: 'errors (≥400)', value: r?.error_count ?? 0, sub: '4xx + 5xx', tone: r?.error_count ? 'var(--color-terra-ink)' : undefined },
-    { label: 'active users', value: r?.active_users ?? 0, sub: 'authenticated callers' },
+    { label: 'requêtes totales', value: (r?.total_calls ?? 0).toLocaleString('fr-FR'), sub: `fenêtre ${props.windowDays} j` },
+    { label: 'erreurs (≥400)', value: r?.error_count ?? 0, sub: '4xx + 5xx', tone: r?.error_count ? 'var(--color-terra-ink)' : undefined },
+    { label: 'utilisateurs actifs', value: r?.active_users ?? 0, sub: 'appelants authentifiés' },
   ]
 })
 </script>
@@ -30,9 +30,9 @@ const kpis = computed(() => {
   </div>
   <template v-else>
     <MonitoringStats :items="kpis" />
-    <ConsoleCard flush title="by route">
+    <ConsoleCard flush title="par route">
       <table class="tbl">
-        <thead><tr><th>route</th><th class="num">calls</th><th class="num">errors</th><th class="num">avg</th><th class="num">p95</th></tr></thead>
+        <thead><tr><th>route</th><th class="num">appels</th><th class="num">erreurs</th><th class="num">moy</th><th class="num">p95</th></tr></thead>
         <tbody>
           <tr v-for="r in rest?.by_route ?? []" :key="r.route">
             <td><code class="mono">{{ r.route }}</code></td>
@@ -41,7 +41,7 @@ const kpis = computed(() => {
             <td class="num dim">{{ fmtMs(r.avg_ms) }}</td>
             <td class="num dim">{{ fmtMs(r.p95_ms) }}</td>
           </tr>
-          <tr v-if="rest && !rest.by_route.length"><td colspan="5" class="dim" style="text-align: center; padding: 16px">no rest traffic in window.</td></tr>
+          <tr v-if="rest && !rest.by_route.length"><td colspan="5" class="dim" style="text-align: center; padding: 16px">aucun trafic rest dans la fenêtre.</td></tr>
         </tbody>
       </table>
     </ConsoleCard>

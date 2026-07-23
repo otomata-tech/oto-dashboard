@@ -44,13 +44,13 @@ onMounted(async () => {
 
 function newOrg() {
   openForm({
-    title: 'new organization',
+    title: 'nouvelle organisation',
     fields: [
-      { key: 'name', label: 'name', required: true, placeholder: 'e.g. Acme Corp' },
+      { key: 'name', label: 'nom', required: true, placeholder: 'ex. Acme Corp' },
     ],
     onConfirm: async (v) => {
       const name = (v.name ?? '').trim()
-      try { const { id } = await createOrg(name); toast(`org "${name}" created`); open(id) }
+      try { const { id } = await createOrg(name); toast(`org « ${name} » créée`); open(id) }
       catch (e) { toast(humanize(e)); throw e }
     },
   })
@@ -64,19 +64,19 @@ function newOrg() {
     <PlatformFinder :orgs="orgs" @select-org="open" />
 
     <div class="grid3">
-      <Stat label="organizations" :value="orgs.length" sub="shared perimeters" />
-      <Stat label="total members" :value="orgs.reduce((a, o) => a + o.member_count, 0)" sub="across all orgs" />
-      <Stat label="largest" :value="orgs.length ? Math.max(...orgs.map((o) => o.member_count)) : 0" sub="members in one org" />
+      <Stat label="organisations" :value="orgs.length" sub="périmètres partagés" />
+      <Stat label="membres totaux" :value="orgs.reduce((a, o) => a + o.member_count, 0)" sub="toutes orgs confondues" />
+      <Stat label="la plus grande" :value="orgs.length ? Math.max(...orgs.map((o) => o.member_count)) : 0" sub="membres dans une org" />
     </div>
 
-    <ConsoleCard flush title="organizations"
-      sub="shared perimeters: members inherit org keys, agent readme, procedures and entitlements. click an org to manage it.">
+    <ConsoleCard flush title="organisations"
+      sub="périmètres partagés : les membres héritent des clés d'org, du readme agent, des procédures et des entitlements. clique une org pour la gérer.">
       <template #actions>
-        <input v-model="q" class="inp sm" placeholder="filter by name…" style="width: 200px" />
-        <Btn kind="mini" icon="plus" @click="newOrg">New org</Btn>
+        <input v-model="q" class="inp sm" placeholder="filtrer par nom…" style="width: 200px" />
+        <Btn kind="mini" icon="plus" @click="newOrg">Nouvelle org</Btn>
       </template>
       <table class="tbl">
-        <thead><tr><th>org</th><th class="num">members</th><th style="width: 70px"></th></tr></thead>
+        <thead><tr><th>org</th><th class="num">membres</th><th style="width: 70px"></th></tr></thead>
         <tbody>
           <tr v-for="o in paged" :key="o.id" style="cursor: pointer" @click="open(o.id)">
             <td>
@@ -86,9 +86,9 @@ function newOrg() {
               </div>
             </td>
             <td class="num">{{ o.member_count }}</td>
-            <td style="text-align: right"><Btn kind="mini" @click.stop="open(o.id)">Manage</Btn></td>
+            <td style="text-align: right"><Btn kind="mini" @click.stop="open(o.id)">Gérer</Btn></td>
           </tr>
-          <tr v-if="!filtered.length"><td colspan="3" class="dim" style="text-align: center; padding: 16px">no organizations</td></tr>
+          <tr v-if="!filtered.length"><td colspan="3" class="dim" style="text-align: center; padding: 16px">aucune organisation</td></tr>
         </tbody>
       </table>
       <Pager :total="filtered.length" :page="page" :page-size="PAGE_SIZE" @update:page="page = $event" />

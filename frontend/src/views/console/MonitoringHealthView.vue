@@ -73,24 +73,24 @@ watch(win, (w) => { dlWin.set(w === 7 ? null : w); loadAll() }, { immediate: tru
 
     <div class="mon-head">
       <MonitoringWindowPicker v-model="win" :windows="WINDOWS" />
-      <span class="helptext" style="margin: 0">unauthenticated stdio sessions show as anonymous.</span>
+      <span class="helptext" style="margin: 0">les sessions stdio non authentifiées apparaissent en anonyme.</span>
     </div>
 
     <!-- COMPTE ≠ USAGE : santé du compte, toujours en tête. -->
     <ActivationFunnelCard :funnel="funnel" :window-days="win" :loading="loading" />
 
-    <div class="eyebrow" style="margin-top: 4px">mcp tools · the agent acting</div>
+    <div class="eyebrow" style="margin-top: 4px">outils mcp · l’agent en action</div>
     <ToolCallsCard :summary="summary" :window-days="win" :loading="loading" link-users />
 
-    <div class="eyebrow" style="margin-top: 4px">rest api · dashboard &amp; api requests</div>
+    <div class="eyebrow" style="margin-top: 4px">api rest · requêtes dashboard &amp; api</div>
     <RestCallsCard :rest="rest" :window-days="win" :loading="loading" />
 
-    <div class="eyebrow" style="margin-top: 4px">connectors · credential resolution</div>
+    <div class="eyebrow" style="margin-top: 4px">connecteurs · résolution de credential</div>
     <ConnectorHealthCard :conn="conn" :window-days="win" :loading="loading" />
 
-    <div class="eyebrow" style="margin-top: 4px">recent calls · raw journal</div>
+    <div class="eyebrow" style="margin-top: 4px">appels récents · journal brut</div>
     <CallLogCard :calls="calls" :loaded="callsLoaded" :busy="loading" filterable
-      sub="last 100 mcp tool calls across all callers in the window." />
+      sub="les 100 derniers appels d’outils mcp, tous appelants confondus, dans la fenêtre." />
   </div>
 </template>
 

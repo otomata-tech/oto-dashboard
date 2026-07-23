@@ -32,18 +32,18 @@ onMounted(async () => {
   <div class="content-inner fadein">
     <ConnectorScopeView />
 
-    <ConsoleCard title="resolution order">
+    <ConsoleCard title="ordre de résolution">
       <div class="helptext" style="font-size: 12.5px">
-        when a tool needs a key: <strong>user key</strong> → <strong>org shared key</strong> →
-        <strong>platform grant</strong> (quota-metered) → forbidden. no key and no grant = no access until one is set.
-        grant a platform key to a user from their fiche in « users ».
+        quand un outil a besoin d'une clé : <strong>clé perso</strong> → <strong>clé partagée d'org</strong> →
+        <strong>prêt plateforme</strong> (sous quota) → interdit. sans clé ni prêt = pas d'accès tant qu'une clé n'est pas posée.
+        le prêt d'une clé plateforme se fait depuis la fiche de l'utilisateur, dans « utilisateurs ».
       </div>
     </ConsoleCard>
 
-    <ConsoleCard v-if="isSuperAdmin && seatsConfigured" title="unipile platform key · seats"
-      :sub="`accounts living on the shared unipile instance, reconciled with their oto owner. an orphan account belongs to no oto user (a churned user) and still bills ~€5/mo.${orphanCount ? ` ${orphanCount} orphan(s).` : ''}`">
+    <ConsoleCard v-if="isSuperAdmin && seatsConfigured" title="clé plateforme unipile · sièges"
+      :sub="`comptes vivant sur l'instance unipile partagée, réconciliés avec leur propriétaire oto. un compte orphelin n'appartient à aucun user oto (parti) et facture toujours ~5 €/mois.${orphanCount ? ` ${orphanCount} orphelin(s).` : ''}`">
       <table class="tbl">
-        <thead><tr><th>account</th><th>channel</th><th>owner</th><th>status</th></tr></thead>
+        <thead><tr><th>compte</th><th>canal</th><th>propriétaire</th><th>statut</th></tr></thead>
         <tbody>
           <tr v-for="s in seats" :key="s.account_id">
             <td>
@@ -53,8 +53,8 @@ onMounted(async () => {
             <td style="font-size: 12px">{{ (s.type || '').toLowerCase() }}</td>
             <td>
               <template v-if="s.orphan">
-                <span style="font-weight: 600; color: var(--color-terra-ink)">orphan</span>
-                <span class="dim" style="font-size: 11px"> · no oto user</span>
+                <span style="font-weight: 600; color: var(--color-terra-ink)">orphelin</span>
+                <span class="dim" style="font-size: 11px"> · aucun user oto</span>
               </template>
               <template v-else>
                 <div style="font-size: 12.5px; color: var(--color-ink)">{{ s.owner_email }}</div>
@@ -67,7 +67,7 @@ onMounted(async () => {
             </td>
           </tr>
           <tr v-if="!seats.length">
-            <td colspan="4" class="dim" style="text-align: center; padding: 16px">no accounts on the platform instance</td>
+            <td colspan="4" class="dim" style="text-align: center; padding: 16px">aucun compte sur l'instance plateforme</td>
           </tr>
         </tbody>
       </table>
