@@ -79,6 +79,8 @@ Sparkline optionnelle : `.stat .v.with-spark` + `.spark`.
 ## Tables & listes
 
 - **Table** : `table.tbl` (th mono uppercase `--color-faint`, td `--color-ink-soft`, hover ligne, `.mono`/`.num`/`.dim` pour les cellules). Pour pleine largeur : l'envelopper dans `.card.flush`.
+- **Table client-side** : composant **`ConsoleTable`** — LE composant des tables admin/monitoring (liste chargée en un fetch). Porte le chrome `.tbl`, les états chargement/vide et la **pagination intégrée** (`usePager`, 25/page, `Pager` en pied). `#head` = les `<th>`, `#row="{ row }"` = la/les `<tr>` (drill-down multi-`<tr>` OK). Monter dans une carte `flush`. Ne PAS recopier `table.tbl` + états + `Pager` à la main dans une vue. Pendant **server-driven** : `DataTable` (tri/filtres côté API).
+- **Pagination** : composant **`Pager`** (`v-model:page` 0-based + `:total` + `:page-size`) — rendu nul sous une page ; l'état côté vue = composable **`usePager`** (reset auto quand la liste change). Déjà intégré à `ConsoleTable` — ne le monter à la main que hors table.
 - **Ligne sélectionnable** (table de sélection → détail) : `.crow` (curseur pointer) + `.crow.sel` (surbrillance saffron + filet gauche). Global car les `<td>` sont souvent rendus dans des slots (scope de la vue parente). Base partagée du composant **`ConnectorList`**.
 - **Recherche compacte** de barre de liste : `input.cc-search` (200px, focus encre). Réutilisée par les listes connecteurs/admin.
 - **Liste de lignes** légère : `.rowlist` + `.rowitem` (flex, hairline-soft entre items, dernier sans filet).
