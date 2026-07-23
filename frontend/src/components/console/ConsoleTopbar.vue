@@ -32,7 +32,9 @@ const markState = computed<MarkState>(() => (!me.value && !error.value ? 'think'
 const meta = computed(() =>
   route.meta.detail === 'admin-user'
     ? { title: 'pageMeta.adminUser.title', crumb: 'pageMeta.adminUser.crumb' }
-    : PAGE_META[String(route.meta.section)] ?? PAGE_META['/overview']!)
+    : route.meta.detail === 'admin-org'
+      ? { title: 'pageMeta.adminOrg.title', crumb: 'pageMeta.adminOrg.crumb' }
+      : PAGE_META[String(route.meta.section)] ?? PAGE_META['/overview']!)
 </script>
 
 <template>

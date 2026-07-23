@@ -32,12 +32,10 @@
     "teams": "équipes",
     "billing": "abonnement",
     "monitoring": "supervision",
-    "usage": "usage & déroulés",
     "usersGrants": "utilisateurs & droits",
     "orgs": "orgs",
     "objects": "objets",
     "connectorsKeys": "connecteurs & clés",
-    "serverInstructions": "instructions serveur",
     "mcpConnected": "mcp connecté",
     "moreProjects": "{n} projets restants",
     "section": {
@@ -75,14 +73,13 @@
     "orgConnectors": { "title": "connecteurs de l'org", "crumb": "gérer mon org" },
     "orgTeams": { "title": "équipes", "crumb": "gérer mon org" },
     "platformContext": { "title": "ce que voit l'agent · plateforme", "crumb": "plateforme" },
-    "platformMonitoring": { "title": "supervision mcp", "crumb": "plateforme" },
-    "platformUsage": { "title": "usage & déroulés", "crumb": "plateforme" },
+    "platformMonitoring": { "title": "supervision & usage", "crumb": "plateforme" },
     "platformUsers": { "title": "utilisateurs & droits", "crumb": "plateforme" },
     "platformOrgs": { "title": "organisations", "crumb": "plateforme" },
     "platformObjects": { "title": "objets possédés", "crumb": "plateforme" },
     "platformConnectors": { "title": "connecteurs plateforme", "crumb": "plateforme" },
-    "platformInstructions": { "title": "instructions serveur", "crumb": "plateforme" },
-    "adminUser": { "title": "fiche utilisateur", "crumb": "plateforme" }
+    "adminUser": { "title": "fiche utilisateur", "crumb": "plateforme" },
+    "adminOrg": { "title": "fiche organisation", "crumb": "plateforme" }
   },
   "topbar": {
     "openMenu": "ouvrir le menu",

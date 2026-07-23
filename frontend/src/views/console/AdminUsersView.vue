@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Tag from '@/components/console/Tag.vue'
+import Pager from '@/components/console/Pager.vue'
 import InvitationsCard from '@/components/console/InvitationsCard.vue'
 import { getAdminUsers } from '@/api/console'
 import { useMe } from '@/composables/useMe'
@@ -23,6 +24,12 @@ const filtered = computed(() =>
   users.value.filter((u) => !q.value || ((u.email ?? '') + (u.name ?? '')).toLowerCase().includes(q.value.toLowerCase())),
 )
 const grantsTotal = computed(() => users.value.reduce((a, u) => a + u.grants.length, 0))
+
+const PAGE_SIZE = 25
+const page = ref(0)
+const paged = computed(() =>
+  filtered.value.slice(page.value * PAGE_SIZE, (page.value + 1) * PAGE_SIZE))
+watch(q, () => { page.value = 0 })
 
 function openUser(u: AdminUser) {
   router.push(`/platform/users/${encodeURIComponent(u.sub)}`)
@@ -52,7 +59,7 @@ onMounted(async () => {
       <table class="tbl">
         <thead><tr><th>user</th><th>role</th><th>access</th><th style="width: 90px"></th></tr></thead>
         <tbody>
-          <tr v-for="u in filtered" :key="u.sub" style="cursor: pointer" @click="openUser(u)">
+          <tr v-for="u in paged" :key="u.sub" style="cursor: pointer" @click="openUser(u)">
             <td>
               <div style="font-weight: 600; color: var(--color-ink)">{{ u.name || u.email }}</div>
               <div style="font-size: 11px; color: var(--color-faint)">{{ u.email }}</div>
@@ -68,6 +75,7 @@ onMounted(async () => {
           <tr v-if="!filtered.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">no users</td></tr>
         </tbody>
       </table>
+      <Pager :total="filtered.length" :page="page" :page-size="PAGE_SIZE" @update:page="page = $event" />
     </ConsoleCard>
 
     <InvitationsCard v-if="canInvite" :scope="{ level: 'platform' }" :can-manage="canInvite" />

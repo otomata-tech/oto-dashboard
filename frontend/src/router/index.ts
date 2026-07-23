@@ -80,6 +80,10 @@ const router = createRouter({
     { path: '/org/redaction', redirect: '/connectors' },
     // Clés plateforme fusionnées dans le cockpit connecteurs plateforme (ADR 0022).
     { path: '/platform/keys', redirect: '/platform/connectors' },
+    // Instructions serveur absorbées par le context plateforme (bascule B5, 2026-07-23).
+    { path: '/platform/instructions', redirect: '/platform/context' },
+    // Usage & déroulés fusionnés dans la supervision (onglet « signaux d'usage »).
+    { path: '/platform/usage', redirect: '/platform/monitoring?tab=usage' },
     // « gérer mon groupe » (/group, ex mono-item niveau group) → scope team dédié, atterrit
     // sur /team/context. Nue + préfixées (la garde beforeEach re-préfixe la nue au besoin).
     { path: '/group', redirect: '/team/context' },
@@ -109,12 +113,11 @@ const router = createRouter({
       meta: { section: '/platform/users', level: 'platform', orgScoped: false, detail: 'admin-user' },
     },
     {
-      // Org sélectionnée dans l'URL en PATH (`/platform/orgs/172`) — AdminOrgsView est
-      // une vue master-détail (même `section`), l'id du path pilote la sélection (pas
-      // d'écran détail dédié : plus de `meta.detail`, AdminOrgView retiré).
+      // Fiche org (admin) — vraie sous-page (AdminOrgView via meta.detail, même patron
+      // que la fiche user ; fin du master-détail empilé, refonte /platform 2026-07-23).
       path: '/platform/orgs/:id(\\d+)',
       component: ConsoleLayout,
-      meta: { section: '/platform/orgs', level: 'platform', orgScoped: false },
+      meta: { section: '/platform/orgs', level: 'platform', orgScoped: false, detail: 'admin-org' },
     },
     // Détails org-scopés (nus + préfixés `/o/:orgId/…`), portés par meta.detail.
     // Recherche transverse (lot 3 Ship 2) : page d'exploration deep-linkable (?q=).

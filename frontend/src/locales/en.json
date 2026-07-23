@@ -32,12 +32,10 @@
     "teams": "teams",
     "billing": "subscription",
     "monitoring": "monitoring",
-    "usage": "usage & runs",
     "usersGrants": "users & grants",
     "orgs": "orgs",
     "objects": "objects",
     "connectorsKeys": "connectors & keys",
-    "serverInstructions": "server instructions",
     "mcpConnected": "mcp connected",
     "moreProjects": "{n} more projects",
     "section": {
@@ -75,14 +73,13 @@
     "orgConnectors": { "title": "org connectors", "crumb": "manage my org" },
     "orgTeams": { "title": "teams", "crumb": "manage my org" },
     "platformContext": { "title": "what the agent sees · platform", "crumb": "platform" },
-    "platformMonitoring": { "title": "mcp monitoring", "crumb": "platform" },
-    "platformUsage": { "title": "usage & runs", "crumb": "platform" },
+    "platformMonitoring": { "title": "monitoring & usage", "crumb": "platform" },
     "platformUsers": { "title": "users & grants", "crumb": "platform" },
     "platformOrgs": { "title": "organizations", "crumb": "platform" },
     "platformObjects": { "title": "owned objects", "crumb": "platform" },
     "platformConnectors": { "title": "platform connectors", "crumb": "platform" },
-    "platformInstructions": { "title": "server instructions", "crumb": "platform" },
-    "adminUser": { "title": "user record", "crumb": "platform" }
+    "adminUser": { "title": "user record", "crumb": "platform" },
+    "adminOrg": { "title": "organization record", "crumb": "platform" }
   },
   "topbar": {
     "openMenu": "open menu",

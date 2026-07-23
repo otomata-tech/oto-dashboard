@@ -4,6 +4,7 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
+import OtoSelect from '@/components/console/OtoSelect.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
@@ -80,9 +81,7 @@ function transfer(r: ResourceEntry) {
     <ConsoleCard title="owned objects" flush
       sub="govern resources across the platform — transfer ownership without reading content.">
       <template #actions>
-        <select v-model="type" class="o-select" @change="load">
-          <option v-for="t in TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
-        </select>
+        <OtoSelect v-model="type" size="sm" :options="TYPES" aria-label="object type" @update:model-value="load" />
         <Btn kind="mini" icon="refresh" :disabled="loading" @click="load">
           {{ loading ? 'Loading…' : 'Refresh' }}
         </Btn>
@@ -92,7 +91,7 @@ function transfer(r: ResourceEntry) {
         no objects of this type.
       </div>
 
-      <table v-else class="o-table">
+      <table v-else class="tbl">
         <thead>
           <tr>
             <th>namespace</th>
@@ -126,16 +125,5 @@ function transfer(r: ResourceEntry) {
 </template>
 
 <style scoped>
-.o-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.o-table th, .o-table td {
-  text-align: left; padding: 8px var(--pad-card);
-  border-bottom: 1px solid var(--color-hair-soft);
-}
-.o-table th { font-weight: 600; color: var(--color-ink-soft); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
-.o-table .num { text-align: right; }
-.o-select {
-  font: inherit; font-size: 12px; padding: 3px 8px; border-radius: 6px;
-  border: 1px solid var(--color-hair-soft); background: var(--color-surface); color: inherit;
-}
 .statrow { margin-bottom: var(--gap, 16px); }
 </style>

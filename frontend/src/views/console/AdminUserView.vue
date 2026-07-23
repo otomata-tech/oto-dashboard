@@ -362,8 +362,8 @@ async function toggleOrgRole(o: AdminUserOrg) {
 .rolemenu { position: relative; display: inline-flex; }
 .rolemenu__pop {
   position: absolute; right: 0; top: calc(100% + 6px); width: 200px; background: var(--color-surface);
-  border: 1px solid var(--color-hair); border-radius: 11px;
-  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.22); overflow: hidden; z-index: 30;
+  border: 1px solid var(--color-hair); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card); overflow: hidden; z-index: 30;
 }
 .rolemenu__item {
   display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; padding: 8px 12px;

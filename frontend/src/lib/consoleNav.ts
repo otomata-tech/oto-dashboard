@@ -86,15 +86,15 @@ export const NAV: NavGroup[] = [
     { path: '/org/billing', label: 'nav.billing', icon: 'card' },
   ]},
   // ── Gérer la plateforme : réservé opérateur plateforme ─────────────────────
+  // Refonte 2026-07-23 : /platform/instructions absorbé par le context (B5),
+  // /platform/usage fusionné dans la supervision (onglet « signaux d'usage »).
   { group: 'nav.section.platformAdmin', level: 'platform', items: [
     { path: '/platform/context', label: 'nav.context', icon: 'bolt' },
     { path: '/platform/monitoring', label: 'nav.monitoring', icon: 'chart' },
-    { path: '/platform/usage', label: 'nav.usage', icon: 'pulse' },
     { path: '/platform/users', label: 'nav.usersGrants', icon: 'shield' },
     { path: '/platform/orgs', label: 'nav.orgs', icon: 'building' },
     { path: '/platform/objects', label: 'nav.objects', icon: 'db' },
     { path: '/platform/connectors', label: 'nav.connectorsKeys', icon: 'plug' },
-    { path: '/platform/instructions', label: 'nav.serverInstructions', icon: 'doc' },
   ]},
 ]
 
@@ -134,10 +134,8 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/org/teams': { title: 'pageMeta.orgTeams.title', crumb: 'pageMeta.orgTeams.crumb' },
   '/platform/context': { title: 'pageMeta.platformContext.title', crumb: 'pageMeta.platformContext.crumb' },
   '/platform/monitoring': { title: 'pageMeta.platformMonitoring.title', crumb: 'pageMeta.platformMonitoring.crumb' },
-  '/platform/usage': { title: 'pageMeta.platformUsage.title', crumb: 'pageMeta.platformUsage.crumb' },
   '/platform/users': { title: 'pageMeta.platformUsers.title', crumb: 'pageMeta.platformUsers.crumb' },
   '/platform/orgs': { title: 'pageMeta.platformOrgs.title', crumb: 'pageMeta.platformOrgs.crumb' },
   '/platform/objects': { title: 'pageMeta.platformObjects.title', crumb: 'pageMeta.platformObjects.crumb' },
   '/platform/connectors': { title: 'pageMeta.platformConnectors.title', crumb: 'pageMeta.platformConnectors.crumb' },
-  '/platform/instructions': { title: 'pageMeta.platformInstructions.title', crumb: 'pageMeta.platformInstructions.crumb' },
 }
