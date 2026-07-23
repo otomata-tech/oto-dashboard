@@ -30,17 +30,22 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ (e: 'update:open', value: boolean): void }>()
 
-// Un champ `required:false` (connecteur « ET/OU » type slack) peut rester vide,
-// mais il faut au moins un champ renseigné au total — même règle que le backend.
+// Un champ `required:false` (connecteur « ET/OU » type slack, ou config
+// optionnelle type base_url lighton) peut rester vide, mais il faut au moins
+// un champ renseigné au total — même règle que le backend. ⚠️ Un champ jamais
+// touché arrive `undefined` (pas '') à vee-validate → sans `.optional()`, zod
+// répondait son « Required » par défaut sur un champ pourtant optionnel.
 const schema = computed(() =>
   toTypedSchema(
     z.object(Object.fromEntries(
       props.fields.map((f) => [
         f.name,
-        f.required === false ? z.string().trim() : z.string().trim().min(1, 'requis'),
+        f.required === false
+          ? z.string().trim().optional().default('')
+          : z.string().trim().min(1, 'requis'),
       ]),
     )).refine(
-      (v) => Object.values(v).some((s) => s.length > 0),
+      (v) => Object.values(v).some((s) => (s ?? '').length > 0),
       { message: 'renseigne au moins un champ', path: [props.fields[0]?.name ?? ''] },
     ),
   ),
@@ -51,7 +56,10 @@ const { handleSubmit, isSubmitting, resetForm } = useForm({ validationSchema: sc
 const blank = () => Object.fromEntries(props.fields.map((f) => [f.name, '']))
 const testing = ref(false)
 const testRes = ref<VerifyResult | null>(null)
-watch(() => props.open, (o) => { if (o) { resetForm({ values: blank() }); testRes.value = null } })
+// immediate : si le dialog est monté déjà ouvert, le watch transitionnel ne
+// firait jamais → valeurs initiales absentes (champs undefined).
+watch(() => props.open, (o) => { if (o) { resetForm({ values: blank() }); testRes.value = null } },
+      { immediate: true })
 
 const title = computed(() => (props.single ? `clé api ${props.label}` : `connecter ${props.label}`))
 const description = computed(() => (props.single
