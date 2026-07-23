@@ -14,6 +14,7 @@ import MarkdownView from '@/components/console/MarkdownView.vue'
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/console/MarkdownEditor.vue'))
 import AttachmentViewer from '@/components/console/AttachmentViewer.vue'
 import DatastoreTable from '@/components/console/DatastoreTable.vue'
+import { parseDocSegments } from '@/lib/docEmbeds'
 import {
   updateDoc, deleteDoc, setDocPublic, getDocRevisions, getBacklinks,
   requestDocChange, listDocChanges, resolveDocChange,
@@ -189,6 +190,9 @@ async function restoreRevision(r: DocRevision) {
 
 const body = computed(() => (isHome.value ? props.brief : doc.value?.body_md) ?? '')
 const hasBody = computed(() => !!body.value && body.value.trim().length > 0)
+// Embed datastore (#6 top5 #5) : le corps est découpé en segments prose + tableaux live
+// (bloc ```oto-data). Une page « Panorama » affiche ainsi le datastore TOUJOURS à jour.
+const segments = computed(() => parseDocSegments(body.value))
 
 // ═══════════ CONNECTEUR (résolution + outils + surcharge, ADR 0032 §4) ═══════════
 const identities = ref<ConnectorIdentity[]>([])
@@ -352,10 +356,18 @@ async function removeFile() {
         <!-- lecture -->
         <template v-else>
           <div class="vw__page">
-            <MarkdownView v-if="hasBody" :source="body"
-              :resolve-link="kind === 'page' ? resolveLink : undefined"
-              @navigate-doc="(id) => emit('open-doc', id)"
-              @create-stub="(t) => emit('create-page', t)" />
+            <template v-if="hasBody">
+              <template v-for="(seg, i) in segments" :key="i">
+                <MarkdownView v-if="seg.type === 'md' && seg.text.trim()" :source="seg.text"
+                  :resolve-link="kind === 'page' ? resolveLink : undefined"
+                  @navigate-doc="(id) => emit('open-doc', id)"
+                  @create-stub="(t) => emit('create-page', t)" />
+                <!-- tableau datastore embarqué : donnée live, jamais recopiée (#6 top5 #5) -->
+                <div v-else-if="seg.type === 'data'" class="vw__embed">
+                  <DatastoreTable :ns-ref="seg.ns" :govern="false" />
+                </div>
+              </template>
+            </template>
             <p v-else class="dim vw__novalue">{{ readOnly ? 'aucun contenu.' : (isHome ? 'aucun brief — clique « éditer » pour le rédiger.' : 'page vide — clique « éditer ».') }}</p>
           </div>
 
@@ -514,6 +526,7 @@ async function removeFile() {
 .vw__x--danger { color: var(--color-terra-ink); border-color: var(--color-terra-soft); }
 
 .vw__page { max-width: 720px; margin-inline: auto; }
+.vw__embed { margin: 18px 0; }
 .vw__pageact { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 16px; }
 .vw__titlein { width: 100%; max-width: 720px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 8px 11px; font: inherit; font-size: 16px; font-weight: 700; color: var(--color-ink); background: var(--color-surface); margin-bottom: 10px; margin-inline: auto; }
 .vw__descin { width: 100%; max-width: 720px; display: block; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 7px 11px; font: inherit; font-size: 12.5px; color: var(--color-ink-soft); background: var(--color-surface); margin-bottom: 10px; margin-inline: auto; }
