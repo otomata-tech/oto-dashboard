@@ -2,7 +2,7 @@
 // Liste des orgs (admin plateforme) — LISTE SEULE : cliquer une org ouvre sa fiche
 // en sous-page /platform/orgs/:id (AdminOrgView, meta.detail='admin-org'). Fin du
 // master-détail empilé (refonte /platform 2026-07-23).
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
@@ -16,6 +16,7 @@ import { useFormDialog } from '@/composables/useFormDialog'
 import { getAdminOrgs, createOrg } from '@/api/console'
 import type { AdminOrgSummary } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { usePager } from '@/composables/usePager'
 
 const { toast } = useToast()
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
@@ -24,14 +25,10 @@ const orgs = ref<AdminOrgSummary[]>([])
 const error = ref<string | null>(null)
 const q = ref('')
 
-const PAGE_SIZE = 25
-const page = ref(0)
 const filtered = computed(() =>
   orgs.value.filter((o) => !q.value || o.name.toLowerCase().includes(q.value.toLowerCase())),
 )
-const paged = computed(() =>
-  filtered.value.slice(page.value * PAGE_SIZE, (page.value + 1) * PAGE_SIZE))
-watch(q, () => { page.value = 0 })
+const { page, paged, total, pageSize } = usePager(() => filtered.value)
 
 function open(id: number) {
   router.push(`/platform/orgs/${id}`)
@@ -91,7 +88,7 @@ function newOrg() {
           <tr v-if="!filtered.length"><td colspan="3" class="dim" style="text-align: center; padding: 16px">aucune organisation</td></tr>
         </tbody>
       </table>
-      <Pager :total="filtered.length" :page="page" :page-size="PAGE_SIZE" @update:page="page = $event" />
+      <Pager :total="total" :page="page" :page-size="pageSize" @update:page="page = $event" />
     </ConsoleCard>
 
     <FormDialog v-if="formDialog" v-model:open="formDialogOpen"

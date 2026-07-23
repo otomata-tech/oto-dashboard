@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
@@ -10,6 +10,7 @@ import { getAdminUsers } from '@/api/console'
 import { useMe } from '@/composables/useMe'
 import type { AdminUser } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { usePager } from '@/composables/usePager'
 
 const router = useRouter()
 const { me } = useMe()
@@ -24,12 +25,7 @@ const filtered = computed(() =>
   users.value.filter((u) => !q.value || ((u.email ?? '') + (u.name ?? '')).toLowerCase().includes(q.value.toLowerCase())),
 )
 const grantsTotal = computed(() => users.value.reduce((a, u) => a + u.grants.length, 0))
-
-const PAGE_SIZE = 25
-const page = ref(0)
-const paged = computed(() =>
-  filtered.value.slice(page.value * PAGE_SIZE, (page.value + 1) * PAGE_SIZE))
-watch(q, () => { page.value = 0 })
+const { page, paged, total, pageSize } = usePager(() => filtered.value)
 
 function openUser(u: AdminUser) {
   router.push(`/platform/users/${encodeURIComponent(u.sub)}`)
@@ -75,7 +71,7 @@ onMounted(async () => {
           <tr v-if="!filtered.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">aucun utilisateur</td></tr>
         </tbody>
       </table>
-      <Pager :total="filtered.length" :page="page" :page-size="PAGE_SIZE" @update:page="page = $event" />
+      <Pager :total="total" :page="page" :page-size="pageSize" @update:page="page = $event" />
     </ConsoleCard>
 
     <InvitationsCard v-if="canInvite" :scope="{ level: 'platform' }" :can-manage="canInvite" />

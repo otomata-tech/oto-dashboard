@@ -7,9 +7,11 @@ import { computed, defineAsyncComponent } from 'vue'
 import { RouterLink } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import MonitoringStats from './MonitoringStats.vue'
+import Pager from '@/components/console/Pager.vue'
 import ErrLabel from '@/components/console/ErrLabel.vue'
 import type { MonitoringSummary } from '@/types/api'
 import { toDayBars, fmtMs } from '@/lib/monitoring'
+import { usePager } from '@/composables/usePager'
 
 const CallsBarChart = defineAsyncComponent(() => import('@/components/console/CallsBarChart.vue'))
 
@@ -26,6 +28,8 @@ const errRate = computed(() => {
   return s && s.total_calls ? Math.round((s.error_count / s.total_calls) * 100) : 0
 })
 const bars = computed(() => (props.summary ? toDayBars(props.summary.by_day, props.windowDays) : []))
+const tools = usePager(() => props.summary?.by_tool ?? [])
+const callers = usePager(() => props.summary?.by_user ?? [])
 const kpis = computed(() => {
   const s = props.summary
   return [
@@ -52,7 +56,7 @@ const kpis = computed(() => {
         <table class="tbl">
           <thead><tr><th>outil</th><th class="num">appels</th><th class="num">erreurs</th><th class="num">moy</th><th class="num">p95</th></tr></thead>
           <tbody>
-            <tr v-for="t in summary?.by_tool ?? []" :key="t.tool_name">
+            <tr v-for="t in tools.paged.value" :key="t.tool_name">
               <td><code class="mono">{{ t.tool_name }}</code></td>
               <td class="num">{{ t.calls }}</td>
               <td class="num"><ErrLabel v-if="t.errors">{{ t.errors }}</ErrLabel><span v-else class="dim">0</span></td>
@@ -62,13 +66,14 @@ const kpis = computed(() => {
             <tr v-if="summary && !summary.by_tool.length"><td colspan="5" class="dim" style="text-align: center; padding: 16px">aucun appel d’outil dans la fenêtre.</td></tr>
           </tbody>
         </table>
+        <Pager :total="tools.total.value" :page="tools.page.value" :page-size="tools.pageSize" @update:page="tools.page.value = $event" />
       </ConsoleCard>
 
       <ConsoleCard v-if="showUsers" flush title="par appelant">
         <table class="tbl">
           <thead><tr><th>appelant</th><th class="num">appels</th><th class="num">erreurs</th></tr></thead>
           <tbody>
-            <tr v-for="(u, i) in summary?.by_user ?? []" :key="i">
+            <tr v-for="(u, i) in callers.paged.value" :key="i">
               <td class="dim" style="color: var(--color-ink-soft)">
                 <RouterLink v-if="linkUsers && u.sub" class="linklike" :to="`/platform/users/${u.sub}`">{{ u.email || u.name || u.sub }}</RouterLink>
                 <span v-else>{{ u.email || u.name || 'anonyme (stdio)' }}</span>
@@ -79,6 +84,7 @@ const kpis = computed(() => {
             <tr v-if="summary && !summary.by_user.length"><td colspan="3" class="dim" style="text-align: center; padding: 16px">aucun appelant dans la fenêtre.</td></tr>
           </tbody>
         </table>
+        <Pager :total="callers.total.value" :page="callers.page.value" :page-size="callers.pageSize" @update:page="callers.page.value = $event" />
       </ConsoleCard>
     </div>
   </template>

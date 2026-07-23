@@ -4,11 +4,13 @@
 // admin (via sub), activité perso (mes appels). Filtre ok/erreurs optionnel intégré.
 import { computed, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
+import Pager from '@/components/console/Pager.vue'
 import Dot from '@/components/console/Dot.vue'
 import ErrLabel from '@/components/console/ErrLabel.vue'
 import type { ToolCall } from '@/types/api'
 import { fmtDateTime } from '@/types/api'
 import { fmtMs } from '@/lib/monitoring'
+import { usePager } from '@/composables/usePager'
 
 const props = withDefaults(defineProps<{
   calls: ToolCall[]
@@ -31,6 +33,7 @@ const filtered = computed(() =>
     : props.calls,
 )
 const errCount = computed(() => props.calls.filter((c) => !c.ok).length)
+const { page, paged, total, pageSize } = usePager(() => filtered.value)
 </script>
 
 <template>
@@ -49,7 +52,7 @@ const errCount = computed(() => props.calls.filter((c) => !c.ok).length)
     <table class="tbl">
       <thead><tr><th style="width: 18px"></th><th>outil</th><th>détail</th><th class="num">durée</th><th class="num">quand</th></tr></thead>
       <tbody>
-        <tr v-for="c in filtered" :key="c.id">
+        <tr v-for="c in paged" :key="c.id">
           <td><Dot :tone="c.ok ? 'olive' : 'terra'" :size="7" /></td>
           <td><code class="mono">{{ c.tool_name }}</code></td>
           <td><ErrLabel v-if="c.error">{{ c.error }}</ErrLabel><span v-else class="dim">ok</span></td>
@@ -60,5 +63,6 @@ const errCount = computed(() => props.calls.filter((c) => !c.ok).length)
         <tr v-else-if="loaded && !filtered.length"><td colspan="5" class="dim" style="text-align: center; padding: 16px">{{ emptyLabel || 'aucun appel dans la fenêtre' }}</td></tr>
       </tbody>
     </table>
+    <Pager :total="total" :page="page" :page-size="pageSize" @update:page="page = $event" />
   </ConsoleCard>
 </template>

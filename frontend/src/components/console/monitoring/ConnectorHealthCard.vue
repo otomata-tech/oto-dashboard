@@ -5,8 +5,10 @@
 import { computed } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import MonitoringStats from './MonitoringStats.vue'
+import Pager from '@/components/console/Pager.vue'
 import ErrLabel from '@/components/console/ErrLabel.vue'
 import type { MonitoringConnectorStats } from '@/types/api'
+import { usePager } from '@/composables/usePager'
 
 const props = defineProps<{
   conn: MonitoringConnectorStats | null
@@ -15,6 +17,7 @@ const props = defineProps<{
 }>()
 
 const shortTs = (s: string | null) => (s ? s.slice(0, 16) : '—')
+const providers = usePager(() => props.conn?.by_provider ?? [])
 const kpis = computed(() => {
   const c = props.conn
   return [
@@ -35,7 +38,7 @@ const kpis = computed(() => {
       <table class="tbl">
         <thead><tr><th>connecteur</th><th class="num">échecs</th><th class="num">users</th><th class="num">dernier</th></tr></thead>
         <tbody>
-          <tr v-for="p in conn?.by_provider ?? []" :key="p.provider">
+          <tr v-for="p in providers.paged.value" :key="p.provider">
             <td><code class="mono">{{ p.provider }}</code></td>
             <td class="num"><ErrLabel>{{ p.failures }}</ErrLabel></td>
             <td class="num">{{ p.users_affected }}</td>
@@ -44,6 +47,7 @@ const kpis = computed(() => {
           <tr v-if="conn && !conn.by_provider.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">aucun échec connecteur dans la fenêtre — tout va bien.</td></tr>
         </tbody>
       </table>
+      <Pager :total="providers.total.value" :page="providers.page.value" :page-size="providers.pageSize" @update:page="providers.page.value = $event" />
     </ConsoleCard>
   </template>
 </template>

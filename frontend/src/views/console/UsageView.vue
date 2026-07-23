@@ -3,13 +3,18 @@ import { onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
+import Pager from '@/components/console/Pager.vue'
 import { getUsageRuns, getUsageRun, getUsageGaps, getUsageToolQuality, getUsageSignals } from '@/api/console'
 import type { DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { usePager } from '@/composables/usePager'
 
 const runs = ref<DoctrineRun[]>([])
 const gaps = ref<UsageGap[]>([])
 const tools = ref<ToolFeedbackAgg[]>([])
+const runsPager = usePager(() => runs.value)
+const gapsPager = usePager(() => gaps.value)
+const toolsPager = usePager(() => tools.value)
 const error = ref<string | null>(null)
 const loaded = ref(false)
 
@@ -73,7 +78,7 @@ function fmt(ts: string | null): string {
       <table class="tbl">
         <thead><tr><th>procédure</th><th>issue</th><th>appels</th><th>début</th><th style="width: 80px"></th></tr></thead>
         <tbody>
-          <template v-for="r in runs" :key="r.run_id">
+          <template v-for="r in runsPager.paged.value" :key="r.run_id">
             <tr>
               <td><code class="mono" style="font-weight: 600">{{ r.slug || '—' }}</code></td>
               <td>
@@ -108,6 +113,7 @@ function fmt(ts: string | null): string {
           </tr>
         </tbody>
       </table>
+      <Pager :total="runsPager.total.value" :page="runsPager.page.value" :page-size="runsPager.pageSize" @update:page="runsPager.page.value = $event" />
     </ConsoleCard>
 
     <div class="grid2">
@@ -116,7 +122,7 @@ function fmt(ts: string | null): string {
         <table class="tbl">
           <thead><tr><th>besoin</th><th>type</th><th>n</th></tr></thead>
           <tbody>
-            <template v-for="(g, i) in gaps" :key="i">
+            <template v-for="(g, i) in gapsPager.paged.value" :key="i">
               <tr style="cursor: pointer" @click="toggleSignals('gap', g.intent, g.kind)">
                 <td>{{ g.intent || '—' }}</td>
                 <td><Tag tone="saffron">{{ g.kind }}</Tag></td>
@@ -138,6 +144,7 @@ function fmt(ts: string | null): string {
             </tr>
           </tbody>
         </table>
+        <Pager :total="gapsPager.total.value" :page="gapsPager.page.value" :page-size="gapsPager.pageSize" @update:page="gapsPager.page.value = $event" />
       </ConsoleCard>
 
       <ConsoleCard title="qualité des outils" flush
@@ -145,7 +152,7 @@ function fmt(ts: string | null): string {
         <table class="tbl">
           <thead><tr><th>outil</th><th>verdict</th><th>n</th></tr></thead>
           <tbody>
-            <template v-for="(t, i) in tools" :key="i">
+            <template v-for="(t, i) in toolsPager.paged.value" :key="i">
               <tr style="cursor: pointer" @click="toggleSignals('tool_feedback', t.tool, t.kind)">
                 <td><code class="mono" style="font-weight: 600">{{ t.tool || '—' }}</code></td>
                 <td><Tag :tone="FEEDBACK_TONE[t.kind] || 'ink'">{{ t.kind }}</Tag></td>
@@ -167,6 +174,7 @@ function fmt(ts: string | null): string {
             </tr>
           </tbody>
         </table>
+        <Pager :total="toolsPager.total.value" :page="toolsPager.page.value" :page-size="toolsPager.pageSize" @update:page="toolsPager.page.value = $event" />
       </ConsoleCard>
     </div>
   </div>
