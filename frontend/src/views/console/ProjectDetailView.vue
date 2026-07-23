@@ -23,6 +23,7 @@ import {
   getProject, updateProject, archiveProject, copyProject, setProjectTemplate, projectHandoff,
   getProjectActivity, getResource, listProjectFiles, listDocs, getProjectInventory, moveDoc, createDoc } from '@/api/console'
 import type { ProjectAudit } from '@/api/console'
+import { apiDownload } from '@/api'
 import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile, Doc } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
@@ -194,6 +195,11 @@ async function handoff() {
   catch (e) { toast(humanize(e)) }
 }
 function copy() { menuOpen.value = false; if (project.value) copyOpen.value = true }
+async function exportKb() {
+  menuOpen.value = false
+  try { await apiDownload(`/api/me/projects/${projectId}/export`, 'export.zip'); toast('export téléchargé (markdown)') }
+  catch (e) { toast(humanize(e)) }
+}
 async function doCopy(name: string) {
   try { const c = await copyProject(projectId, name); toast('projet copié'); router.push(`/projects/${c.id}`) }
   catch (e) { toast(humanize(e)); throw e }
@@ -299,6 +305,7 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
               <div class="pj-menu__pop">
                 <button v-if="!readOnly" class="pj-mi" @click="rename"><Icon name="pencil" :size="14" /> Renommer le projet</button>
                 <button class="pj-mi" @click="copy"><Icon name="copy" :size="14" /> Copier le projet</button>
+                <button class="pj-mi" @click="exportKb"><Icon name="download" :size="14" /> Exporter (markdown)</button>
                 <template v-if="!readOnly">
                   <button class="pj-mi" @click="toggleTemplate"><Icon name="sparkles" :size="14" /> {{ project.is_template ? 'Retirer des modèles' : 'Publier comme modèle' }}</button>
                   <div class="pj-mi__sep"></div>
