@@ -4,13 +4,12 @@ import { useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Tag from '@/components/console/Tag.vue'
-import Pager from '@/components/console/Pager.vue'
+import ConsoleTable from '@/components/console/ConsoleTable.vue'
 import InvitationsCard from '@/components/console/InvitationsCard.vue'
 import { getAdminUsers } from '@/api/console'
 import { useMe } from '@/composables/useMe'
 import type { AdminUser } from '@/types/api'
 import { humanize } from '@/lib/errors'
-import { usePager } from '@/composables/usePager'
 
 const router = useRouter()
 const { me } = useMe()
@@ -25,7 +24,6 @@ const filtered = computed(() =>
   users.value.filter((u) => !q.value || ((u.email ?? '') + (u.name ?? '')).toLowerCase().includes(q.value.toLowerCase())),
 )
 const grantsTotal = computed(() => users.value.reduce((a, u) => a + u.grants.length, 0))
-const { page, paged, total, pageSize } = usePager(() => filtered.value)
 
 function openUser(u: AdminUser) {
   router.push(`/platform/users/${encodeURIComponent(u.sub)}`)
@@ -52,10 +50,12 @@ onMounted(async () => {
       <template #actions>
         <input v-model="q" class="inp" placeholder="filtrer par nom ou email…" style="width: 220px" />
       </template>
-      <table class="tbl">
-        <thead><tr><th>utilisateur</th><th>rôle</th><th>accès</th><th style="width: 90px"></th></tr></thead>
-        <tbody>
-          <tr v-for="u in paged" :key="u.sub" style="cursor: pointer" @click="openUser(u)">
+      <ConsoleTable :rows="filtered" empty="aucun utilisateur">
+        <template #head>
+          <th>utilisateur</th><th>rôle</th><th>accès</th><th style="width: 90px"></th>
+        </template>
+        <template #row="{ row: u }">
+          <tr style="cursor: pointer" @click="openUser(u)">
             <td>
               <div style="font-weight: 600; color: var(--color-ink)">{{ u.name || u.email }}</div>
               <div style="font-size: 11px; color: var(--color-faint)">{{ u.email }}</div>
@@ -68,10 +68,8 @@ onMounted(async () => {
             <td class="dim">{{ u.grants.length }} clé{{ u.grants.length === 1 ? '' : 's' }}</td>
             <td style="text-align: right"><span class="linklike">gérer →</span></td>
           </tr>
-          <tr v-if="!filtered.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">aucun utilisateur</td></tr>
-        </tbody>
-      </table>
-      <Pager :total="total" :page="page" :page-size="pageSize" @update:page="page = $event" />
+        </template>
+      </ConsoleTable>
     </ConsoleCard>
 
     <InvitationsCard v-if="canInvite" :scope="{ level: 'platform' }" :can-manage="canInvite" />

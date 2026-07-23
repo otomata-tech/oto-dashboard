@@ -1170,6 +1170,8 @@ export interface DoctrineRun {
   run_id: string
   slug: string | null
   sub: string | null
+  email: string | null        // acteur (LEFT JOIN users, repli sub)
+  name: string | null
   started_at: string
   finished_at: string | null
   outcome: string | null      // done | abandoned | failed | blocked (null = en cours)
@@ -1180,12 +1182,14 @@ export interface UsageGap {
   intent: string | null       // ce que l'agent voulait faire
   n: number
   last_at: string
+  users: string[]             // emails distincts des rapporteurs (repli sub)
 }
 export interface ToolFeedbackAgg {
   tool: string | null
   kind: string                // bug | misleading_doc | wrong_result | praise | other
   n: number
   last_at: string
+  users: string[]             // emails distincts des rapporteurs (repli sub)
 }
 // Un signal d'usage brut (usage_signals) — le détail derrière un agrégat
 // tool-quality/gap (le `body` = le texte du feedback/gap).
@@ -1197,6 +1201,9 @@ export interface UsageSignal {
   target: string | null       // nom d'outil (tool_feedback) ou intent (gap)
   body: string | null
   source: string              // agent | human
+  sub: string | null          // rapporteur (null = session anonyme)
+  email: string | null        // email du rapporteur (LEFT JOIN users)
+  name: string | null
 }
 // Un appel dans la timeline d'un déroulé (get_doctrine_run) — colonnes brutes
 // tool_calls (tool/created_at), distinct du ToolCall aliasé du monitoring.

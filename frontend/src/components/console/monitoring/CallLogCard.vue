@@ -2,15 +2,16 @@
 // Journal brut d'appels d'outils (récent d'abord) — carte réutilisable. Consomme une
 // liste `ToolCall[]` par prop, donc branchable partout : plateforme (tous), fiche user
 // admin (via sub), activité perso (mes appels). Filtre ok/erreurs optionnel intégré.
+// `showUser` ajoute la colonne « par » (email du caller) — pour les surfaces
+// multi-appelants (journal plateforme) ; inutile quand la liste est déjà scopée user.
 import { computed, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
-import Pager from '@/components/console/Pager.vue'
+import ConsoleTable from '@/components/console/ConsoleTable.vue'
 import Dot from '@/components/console/Dot.vue'
 import ErrLabel from '@/components/console/ErrLabel.vue'
 import type { ToolCall } from '@/types/api'
 import { fmtDateTime } from '@/types/api'
 import { fmtMs } from '@/lib/monitoring'
-import { usePager } from '@/composables/usePager'
 
 const props = withDefaults(defineProps<{
   calls: ToolCall[]
@@ -19,8 +20,9 @@ const props = withDefaults(defineProps<{
   title?: string
   sub?: string
   filterable?: boolean
+  showUser?: boolean
   emptyLabel?: string
-}>(), { filterable: false })
+}>(), { filterable: false, showUser: false })
 
 type Filter = 'all' | 'ok' | 'errors'
 const FILTERS: { key: Filter; label: string }[] = [
@@ -33,7 +35,6 @@ const filtered = computed(() =>
     : props.calls,
 )
 const errCount = computed(() => props.calls.filter((c) => !c.ok).length)
-const { page, paged, total, pageSize } = usePager(() => filtered.value)
 </script>
 
 <template>
@@ -49,20 +50,23 @@ const { page, paged, total, pageSize } = usePager(() => filtered.value)
         </span>
       </slot>
     </template>
-    <table class="tbl">
-      <thead><tr><th style="width: 18px"></th><th>outil</th><th>détail</th><th class="num">durée</th><th class="num">quand</th></tr></thead>
-      <tbody>
-        <tr v-for="c in paged" :key="c.id">
+    <ConsoleTable :rows="filtered" :busy="busy" :loaded="loaded"
+      :empty="emptyLabel || 'aucun appel dans la fenêtre'">
+      <template #head>
+        <th style="width: 18px"></th><th>outil</th>
+        <th v-if="showUser">par</th>
+        <th>détail</th><th class="num">durée</th><th class="num">quand</th>
+      </template>
+      <template #row="{ row: c }">
+        <tr>
           <td><Dot :tone="c.ok ? 'olive' : 'terra'" :size="7" /></td>
           <td><code class="mono">{{ c.tool_name }}</code></td>
+          <td v-if="showUser" class="dim" style="font-size: 12px">{{ c.email || c.name || c.sub || 'anonyme' }}</td>
           <td><ErrLabel v-if="c.error">{{ c.error }}</ErrLabel><span v-else class="dim">ok</span></td>
           <td class="num dim">{{ fmtMs(c.duration_ms) }}</td>
           <td class="num dim">{{ fmtDateTime(c.called_at) }}</td>
         </tr>
-        <tr v-if="busy"><td colspan="5" class="dim" style="text-align: center; padding: 16px">chargement…</td></tr>
-        <tr v-else-if="loaded && !filtered.length"><td colspan="5" class="dim" style="text-align: center; padding: 16px">{{ emptyLabel || 'aucun appel dans la fenêtre' }}</td></tr>
-      </tbody>
-    </table>
-    <Pager :total="total" :page="page" :page-size="pageSize" @update:page="page = $event" />
+      </template>
+    </ConsoleTable>
   </ConsoleCard>
 </template>

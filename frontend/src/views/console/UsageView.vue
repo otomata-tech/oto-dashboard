@@ -1,20 +1,20 @@
 <script setup lang="ts">
+// Signaux d'usage (onglet de MonitoringView) : déroulés (runs) + manques signalés
+// (gaps) + qualité des outils (tool_feedback). Tables sur ConsoleTable (pagination
+// + états intégrés) ; chaque ligne agrégée porte date + rapporteur(s), le drill-down
+// les signaux bruts datés et attribués.
 import { onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
+import ConsoleTable from '@/components/console/ConsoleTable.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
-import Pager from '@/components/console/Pager.vue'
 import { getUsageRuns, getUsageRun, getUsageGaps, getUsageToolQuality, getUsageSignals } from '@/api/console'
 import type { DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal } from '@/types/api'
 import { humanize } from '@/lib/errors'
-import { usePager } from '@/composables/usePager'
 
 const runs = ref<DoctrineRun[]>([])
 const gaps = ref<UsageGap[]>([])
 const tools = ref<ToolFeedbackAgg[]>([])
-const runsPager = usePager(() => runs.value)
-const gapsPager = usePager(() => gaps.value)
-const toolsPager = usePager(() => tools.value)
 const error = ref<string | null>(null)
 const loaded = ref(false)
 
@@ -67,6 +67,16 @@ async function toggleSignals(signal: string, target: string | null, kind: string
 function fmt(ts: string | null): string {
   return ts ? ts.replace('T', ' ').slice(0, 16) : '—'
 }
+// Rapporteurs d'une ligne agrégée : compact (2 premiers + compteur).
+function fmtUsers(users: string[] | undefined): string {
+  if (!users?.length) return '—'
+  const shown = users.slice(0, 2).join(', ')
+  return users.length > 2 ? `${shown} +${users.length - 2}` : shown
+}
+// Rapporteur d'un signal brut : email > sub > source (agent anonyme).
+function signalUser(s: UsageSignal): string {
+  return s.email || s.sub || s.source
+}
 </script>
 
 <template>
@@ -75,106 +85,102 @@ function fmt(ts: string | null): string {
 
     <ConsoleCard title="déroulés" flush
       sub="chaque run = un run_start…run_finish (procédure nommée ou déroulé ad-hoc) ; clique pour voir la timeline des appels.">
-      <table class="tbl">
-        <thead><tr><th>procédure</th><th>issue</th><th>appels</th><th>début</th><th style="width: 80px"></th></tr></thead>
-        <tbody>
-          <template v-for="r in runsPager.paged.value" :key="r.run_id">
-            <tr>
-              <td><code class="mono" style="font-weight: 600">{{ r.slug || '—' }}</code></td>
-              <td>
-                <Tag v-if="r.outcome" :tone="OUTCOME_TONE[r.outcome] || 'ink'">{{ r.outcome }}</Tag>
-                <span v-else class="dim">en cours</span>
-              </td>
-              <td class="mono">{{ r.n_calls }}</td>
-              <td class="dim" style="font-size: 12px">{{ fmt(r.started_at) }}</td>
-              <td style="text-align: right">
-                <Btn kind="mini" @click="toggleRun(r)">{{ openRun === r.run_id ? 'Fermer' : 'Timeline' }}</Btn>
-              </td>
-            </tr>
-            <tr v-if="openRun === r.run_id">
-              <td colspan="5" style="background: var(--color-paper-3); padding: 0">
-                <table class="tbl" style="margin: 0">
-                  <tbody>
-                    <tr v-for="(c, i) in runCalls" :key="i">
-                      <td class="mono" style="width: 40%">{{ c.tool }}</td>
-                      <td><Tag :tone="c.ok ? 'olive' : 'terra'">{{ c.ok ? 'ok' : 'err' }}</Tag></td>
-                      <td class="dim" style="font-size: 12px">{{ fmt(c.created_at) }}</td>
-                    </tr>
-                    <tr v-if="!runCalls.length"><td class="dim" style="padding: 12px">chargement…</td></tr>
-                  </tbody>
-                </table>
-              </td>
-            </tr>
-          </template>
-          <tr v-if="loaded && !runs.length">
-            <td colspan="5" class="dim" style="text-align: center; padding: 16px">
-              aucun déroulé encore — les agents en ouvrent via run_start.
+      <ConsoleTable :rows="runs" :loaded="loaded"
+        empty="aucun déroulé encore — les agents en ouvrent via run_start.">
+        <template #head>
+          <th>procédure</th><th>issue</th><th>par</th><th>appels</th><th>début</th><th style="width: 80px"></th>
+        </template>
+        <template #row="{ row: r }">
+          <tr>
+            <td><code class="mono" style="font-weight: 600">{{ r.slug || '—' }}</code></td>
+            <td>
+              <Tag v-if="r.outcome" :tone="OUTCOME_TONE[r.outcome] || 'ink'">{{ r.outcome }}</Tag>
+              <span v-else class="dim">en cours</span>
+            </td>
+            <td class="dim" style="font-size: 12px">{{ r.email || r.sub || '—' }}</td>
+            <td class="mono">{{ r.n_calls }}</td>
+            <td class="dim" style="font-size: 12px">{{ fmt(r.started_at) }}</td>
+            <td style="text-align: right">
+              <Btn kind="mini" @click="toggleRun(r)">{{ openRun === r.run_id ? 'Fermer' : 'Timeline' }}</Btn>
             </td>
           </tr>
-        </tbody>
-      </table>
-      <Pager :total="runsPager.total.value" :page="runsPager.page.value" :page-size="runsPager.pageSize" @update:page="runsPager.page.value = $event" />
+          <tr v-if="openRun === r.run_id">
+            <td colspan="6" style="background: var(--color-paper-3); padding: 0">
+              <table class="tbl" style="margin: 0">
+                <tbody>
+                  <tr v-for="(c, i) in runCalls" :key="i">
+                    <td class="mono" style="width: 40%">{{ c.tool }}</td>
+                    <td><Tag :tone="c.ok ? 'olive' : 'terra'">{{ c.ok ? 'ok' : 'err' }}</Tag></td>
+                    <td class="dim" style="font-size: 12px">{{ fmt(c.created_at) }}</td>
+                  </tr>
+                  <tr v-if="!runCalls.length"><td class="dim" style="padding: 12px">chargement…</td></tr>
+                </tbody>
+              </table>
+            </td>
+          </tr>
+        </template>
+      </ConsoleTable>
     </ConsoleCard>
 
     <div class="grid2">
       <ConsoleCard title="manques signalés" flush
         sub="cas d'usage qu'oto n'a pas couverts (report_gap) — backlog produit.">
-        <table class="tbl">
-          <thead><tr><th>besoin</th><th>type</th><th>n</th></tr></thead>
-          <tbody>
-            <template v-for="(g, i) in gapsPager.paged.value" :key="i">
-              <tr style="cursor: pointer" @click="toggleSignals('gap', g.intent, g.kind)">
-                <td>{{ g.intent || '—' }}</td>
-                <td><Tag tone="saffron">{{ g.kind }}</Tag></td>
-                <td class="mono">{{ g.n }}</td>
-              </tr>
-              <tr v-if="openSignal === `gap:${g.intent}:${g.kind}`">
-                <td colspan="3" style="background: var(--color-paper-3); padding: 0">
-                  <div v-for="(s, j) in signalRows" :key="j"
-                    style="padding: 8px 12px; border-top: 1px solid var(--color-hair-soft)">
-                    <div class="dim" style="font-size: 11px">{{ fmt(s.created_at) }} · {{ s.source }}</div>
-                    <div style="font-size: 12.5px; white-space: pre-wrap">{{ s.body || '—' }}</div>
-                  </div>
-                  <div v-if="!signalRows.length" class="dim" style="padding: 12px">chargement…</div>
-                </td>
-              </tr>
-            </template>
-            <tr v-if="loaded && !gaps.length">
-              <td colspan="3" class="dim" style="text-align: center; padding: 16px">aucun manque signalé.</td>
+        <ConsoleTable :rows="gaps" :loaded="loaded" empty="aucun manque signalé.">
+          <template #head>
+            <th>besoin</th><th>type</th><th>n</th><th>dernier · par</th>
+          </template>
+          <template #row="{ row: g }">
+            <tr style="cursor: pointer" @click="toggleSignals('gap', g.intent, g.kind)">
+              <td>{{ g.intent || '—' }}</td>
+              <td><Tag tone="saffron">{{ g.kind }}</Tag></td>
+              <td class="mono">{{ g.n }}</td>
+              <td>
+                <div class="dim" style="font-size: 12px">{{ fmt(g.last_at) }}</div>
+                <div style="font-size: 11px; color: var(--color-faint)">{{ fmtUsers(g.users) }}</div>
+              </td>
             </tr>
-          </tbody>
-        </table>
-        <Pager :total="gapsPager.total.value" :page="gapsPager.page.value" :page-size="gapsPager.pageSize" @update:page="gapsPager.page.value = $event" />
+            <tr v-if="openSignal === `gap:${g.intent}:${g.kind}`">
+              <td colspan="4" style="background: var(--color-paper-3); padding: 0">
+                <div v-for="(s, j) in signalRows" :key="j"
+                  style="padding: 8px 12px; border-top: 1px solid var(--color-hair-soft)">
+                  <div class="dim" style="font-size: 11px">{{ fmt(s.created_at) }} · {{ signalUser(s) }}</div>
+                  <div style="font-size: 12.5px; white-space: pre-wrap">{{ s.body || '—' }}</div>
+                </div>
+                <div v-if="!signalRows.length" class="dim" style="padding: 12px">chargement…</div>
+              </td>
+            </tr>
+          </template>
+        </ConsoleTable>
       </ConsoleCard>
 
       <ConsoleCard title="qualité des outils" flush
         sub="feedback des agents/humains sur les outils (tool_feedback).">
-        <table class="tbl">
-          <thead><tr><th>outil</th><th>verdict</th><th>n</th></tr></thead>
-          <tbody>
-            <template v-for="(t, i) in toolsPager.paged.value" :key="i">
-              <tr style="cursor: pointer" @click="toggleSignals('tool_feedback', t.tool, t.kind)">
-                <td><code class="mono" style="font-weight: 600">{{ t.tool || '—' }}</code></td>
-                <td><Tag :tone="FEEDBACK_TONE[t.kind] || 'ink'">{{ t.kind }}</Tag></td>
-                <td class="mono">{{ t.n }}</td>
-              </tr>
-              <tr v-if="openSignal === `tool_feedback:${t.tool}:${t.kind}`">
-                <td colspan="3" style="background: var(--color-paper-3); padding: 0">
-                  <div v-for="(s, j) in signalRows" :key="j"
-                    style="padding: 8px 12px; border-top: 1px solid var(--color-hair-soft)">
-                    <div class="dim" style="font-size: 11px">{{ fmt(s.created_at) }} · {{ s.source }}</div>
-                    <div style="font-size: 12.5px; white-space: pre-wrap">{{ s.body || '—' }}</div>
-                  </div>
-                  <div v-if="!signalRows.length" class="dim" style="padding: 12px">chargement…</div>
-                </td>
-              </tr>
-            </template>
-            <tr v-if="loaded && !tools.length">
-              <td colspan="3" class="dim" style="text-align: center; padding: 16px">aucun feedback d'outil.</td>
+        <ConsoleTable :rows="tools" :loaded="loaded" empty="aucun feedback d'outil.">
+          <template #head>
+            <th>outil</th><th>verdict</th><th>n</th><th>dernier · par</th>
+          </template>
+          <template #row="{ row: t }">
+            <tr style="cursor: pointer" @click="toggleSignals('tool_feedback', t.tool, t.kind)">
+              <td><code class="mono" style="font-weight: 600">{{ t.tool || '—' }}</code></td>
+              <td><Tag :tone="FEEDBACK_TONE[t.kind] || 'ink'">{{ t.kind }}</Tag></td>
+              <td class="mono">{{ t.n }}</td>
+              <td>
+                <div class="dim" style="font-size: 12px">{{ fmt(t.last_at) }}</div>
+                <div style="font-size: 11px; color: var(--color-faint)">{{ fmtUsers(t.users) }}</div>
+              </td>
             </tr>
-          </tbody>
-        </table>
-        <Pager :total="toolsPager.total.value" :page="toolsPager.page.value" :page-size="toolsPager.pageSize" @update:page="toolsPager.page.value = $event" />
+            <tr v-if="openSignal === `tool_feedback:${t.tool}:${t.kind}`">
+              <td colspan="4" style="background: var(--color-paper-3); padding: 0">
+                <div v-for="(s, j) in signalRows" :key="j"
+                  style="padding: 8px 12px; border-top: 1px solid var(--color-hair-soft)">
+                  <div class="dim" style="font-size: 11px">{{ fmt(s.created_at) }} · {{ signalUser(s) }}</div>
+                  <div style="font-size: 12.5px; white-space: pre-wrap">{{ s.body || '—' }}</div>
+                </div>
+                <div v-if="!signalRows.length" class="dim" style="padding: 12px">chargement…</div>
+              </td>
+            </tr>
+          </template>
+        </ConsoleTable>
       </ConsoleCard>
     </div>
   </div>

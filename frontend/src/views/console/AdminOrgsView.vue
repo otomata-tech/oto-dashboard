@@ -8,7 +8,7 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Btn from '@/components/console/Btn.vue'
 import Avatar from '@/components/console/Avatar.vue'
-import Pager from '@/components/console/Pager.vue'
+import ConsoleTable from '@/components/console/ConsoleTable.vue'
 import PlatformFinder from '@/components/console/PlatformFinder.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
@@ -16,7 +16,6 @@ import { useFormDialog } from '@/composables/useFormDialog'
 import { getAdminOrgs, createOrg } from '@/api/console'
 import type { AdminOrgSummary } from '@/types/api'
 import { humanize } from '@/lib/errors'
-import { usePager } from '@/composables/usePager'
 
 const { toast } = useToast()
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
@@ -28,8 +27,6 @@ const q = ref('')
 const filtered = computed(() =>
   orgs.value.filter((o) => !q.value || o.name.toLowerCase().includes(q.value.toLowerCase())),
 )
-const { page, paged, total, pageSize } = usePager(() => filtered.value)
-
 function open(id: number) {
   router.push(`/platform/orgs/${id}`)
 }
@@ -72,10 +69,12 @@ function newOrg() {
         <input v-model="q" class="inp sm" placeholder="filtrer par nom…" style="width: 200px" />
         <Btn kind="mini" icon="plus" @click="newOrg">Nouvelle org</Btn>
       </template>
-      <table class="tbl">
-        <thead><tr><th>org</th><th class="num">membres</th><th style="width: 70px"></th></tr></thead>
-        <tbody>
-          <tr v-for="o in paged" :key="o.id" style="cursor: pointer" @click="open(o.id)">
+      <ConsoleTable :rows="filtered" empty="aucune organisation">
+        <template #head>
+          <th>org</th><th class="num">membres</th><th style="width: 70px"></th>
+        </template>
+        <template #row="{ row: o }">
+          <tr style="cursor: pointer" @click="open(o.id)">
             <td>
               <div style="display: flex; align-items: center; gap: 9px">
                 <Avatar :src="o.logo_url" :name="o.name" :size="24" shape="square" />
@@ -85,10 +84,8 @@ function newOrg() {
             <td class="num">{{ o.member_count }}</td>
             <td style="text-align: right"><Btn kind="mini" @click.stop="open(o.id)">Gérer</Btn></td>
           </tr>
-          <tr v-if="!filtered.length"><td colspan="3" class="dim" style="text-align: center; padding: 16px">aucune organisation</td></tr>
-        </tbody>
-      </table>
-      <Pager :total="total" :page="page" :page-size="pageSize" @update:page="page = $event" />
+        </template>
+      </ConsoleTable>
     </ConsoleCard>
 
     <FormDialog v-if="formDialog" v-model:open="formDialogOpen"

@@ -117,7 +117,7 @@ watch(win, (w) => { dlWin.set(w === 7 ? null : w); loadAll() }, { immediate: tru
 
       <ConnectorHealthCard v-else-if="tab === 'connecteurs'" :conn="conn" :window-days="win" :loading="loading" />
 
-      <CallLogCard v-else-if="tab === 'journal'" :calls="calls" :loaded="callsLoaded" :busy="loading" filterable
+      <CallLogCard v-else-if="tab === 'journal'" :calls="calls" :loaded="callsLoaded" :busy="loading" filterable show-user
         sub="les 100 derniers appels d’outils mcp, tous appelants confondus, dans la fenêtre." />
     </div>
   </div>

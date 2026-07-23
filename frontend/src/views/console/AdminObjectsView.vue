@@ -5,6 +5,7 @@ import Stat from '@/components/console/Stat.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import OtoSelect from '@/components/console/OtoSelect.vue'
+import ConsoleTable from '@/components/console/ConsoleTable.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
@@ -87,22 +88,16 @@ function transfer(r: ResourceEntry) {
         </Btn>
       </template>
 
-      <div v-if="!loading && !count" class="dim" style="text-align: center; padding: 24px">
-        aucun objet de ce type.
-      </div>
-
-      <table v-else class="tbl">
-        <thead>
+      <ConsoleTable :rows="resources" :busy="loading" empty="aucun objet de ce type.">
+        <template #head>
+          <th>namespace</th>
+          <th>propriétaire</th>
+          <th class="num">lignes</th>
+          <th>créé</th>
+          <th></th>
+        </template>
+        <template #row="{ row: r }">
           <tr>
-            <th>namespace</th>
-            <th>propriétaire</th>
-            <th class="num">lignes</th>
-            <th>créé</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="r in resources" :key="r.resource_id">
             <td><code class="mono" style="font-weight: 600">{{ r.namespace ?? r.resource_id }}</code></td>
             <td>
               <Tag :tone="ownerTone(r.owner_type)">{{ r.owner_type }}</Tag>
@@ -114,8 +109,8 @@ function transfer(r: ResourceEntry) {
               <Btn kind="mini" icon="ext" @click="transfer(r)">Transférer</Btn>
             </td>
           </tr>
-        </tbody>
-      </table>
+        </template>
+      </ConsoleTable>
     </ConsoleCard>
 
     <FormDialog v-if="formDialog" v-model:open="formDialogOpen"

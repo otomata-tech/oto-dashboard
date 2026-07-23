@@ -4,11 +4,10 @@
 import { computed } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import MonitoringStats from './MonitoringStats.vue'
-import Pager from '@/components/console/Pager.vue'
+import ConsoleTable from '@/components/console/ConsoleTable.vue'
 import ErrLabel from '@/components/console/ErrLabel.vue'
 import type { MonitoringRestStats } from '@/types/api'
 import { fmtMs } from '@/lib/monitoring'
-import { usePager } from '@/composables/usePager'
 
 const props = defineProps<{
   rest: MonitoringRestStats | null
@@ -16,7 +15,7 @@ const props = defineProps<{
   loading?: boolean
 }>()
 
-const routes = usePager(() => props.rest?.by_route ?? [])
+const byRoute = computed(() => props.rest?.by_route ?? [])
 const kpis = computed(() => {
   const r = props.rest
   return [
@@ -34,20 +33,20 @@ const kpis = computed(() => {
   <template v-else>
     <MonitoringStats :items="kpis" />
     <ConsoleCard flush title="par route">
-      <table class="tbl">
-        <thead><tr><th>route</th><th class="num">appels</th><th class="num">erreurs</th><th class="num">moy</th><th class="num">p95</th></tr></thead>
-        <tbody>
-          <tr v-for="r in routes.paged.value" :key="r.route">
+      <ConsoleTable :rows="byRoute" :loaded="!!rest" empty="aucun trafic rest dans la fenêtre.">
+        <template #head>
+          <th>route</th><th class="num">appels</th><th class="num">erreurs</th><th class="num">moy</th><th class="num">p95</th>
+        </template>
+        <template #row="{ row: r }">
+          <tr>
             <td><code class="mono">{{ r.route }}</code></td>
             <td class="num">{{ r.calls }}</td>
             <td class="num"><ErrLabel v-if="r.errors">{{ r.errors }}</ErrLabel><span v-else class="dim">0</span></td>
             <td class="num dim">{{ fmtMs(r.avg_ms) }}</td>
             <td class="num dim">{{ fmtMs(r.p95_ms) }}</td>
           </tr>
-          <tr v-if="rest && !rest.by_route.length"><td colspan="5" class="dim" style="text-align: center; padding: 16px">aucun trafic rest dans la fenêtre.</td></tr>
-        </tbody>
-      </table>
-      <Pager :total="routes.total.value" :page="routes.page.value" :page-size="routes.pageSize" @update:page="routes.page.value = $event" />
+        </template>
+      </ConsoleTable>
     </ConsoleCard>
   </template>
 </template>
