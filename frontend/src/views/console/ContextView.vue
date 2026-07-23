@@ -1,12 +1,11 @@
 <script setup lang="ts">
 // Section « Context » — projection USER (ADR 0022 : 3 projections par audience).
-// « Ce que MON Claude reçoit d'oto au handshake », en 3 couches par provenance, avec
-// édition IN-SITU : le readme perso (AgentReadmeCard) + la visibilité des outils
-// (toggles par namespace/outil). Le profil « situation avec oto » (oto_profile) reste
-// à câbler (pas de route REST — capacité backend à ajouter). Projections org/plateforme
-// (socle + view-as) = B3. Lit l'artefact RÉEL (getAgentContext = compose_session) —
-// derive don't duplicate. Domicile canonique : absorbe à terme la carte agent-context
-// read-only + les cartes readme dispersées (bascule B5).
+// « Ce que MON Claude reçoit d'oto au handshake ». Refonte « anatomie en couches »
+// (2026-07-23) : le hero = la pile des couches RÉELLES de l'artefact injecté
+// (backend `session_layers`, chaque couche avec son poids en caractères, expansion
+// = contenu + édition in-situ pour la note user). Lit l'artefact RÉEL
+// (getAgentContext = compose_session) — derive don't duplicate. Sections
+// secondaires : guides on-demand (oto_guide) + visibilité des outils + org maison.
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
@@ -16,7 +15,7 @@ import Icon from '@/components/console/Icon.vue'
 import OtoSelect from '@/components/console/OtoSelect.vue'
 import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
 import GuidesCard from '@/components/console/GuidesCard.vue'
-import ContextProfileCard from '@/components/console/ContextProfileCard.vue'
+import ContextLayerStack from '@/components/console/ContextLayerStack.vue'
 import { getAgentContext, getAgentReadme, setAgentReadme, getTools, enableTool, disableTool, getMyOrgs, setActiveOrg, clearActiveOrg } from '@/api/console'
 import type { AgentContext, ToolEntry, Org } from '@/types/api'
 import { useToast } from '@/composables/useToast'
@@ -32,16 +31,12 @@ const orgs = ref<Org[]>([])
 const savingHome = ref(false)
 const loaded = ref(false)
 const error = ref<string | null>(null)
-const showInstructions = ref(false)
 const expanded = ref<Set<string>>(new Set())
 const busy = ref<Set<string>>(new Set())
 
-const doctrine = computed(() => ctx.value?.doctrine ?? null)
-const hasOrgReadme = computed(() => !!doctrine.value?.doctrine?.trim())
+const hasGroup = computed(() => !!ctx.value?.doctrine?.group)
 
-// Visibilité des outils = préférences USER (getTools), groupées par namespace. Truth
-// « effective » (incl. activation d'org) : le total visible peut différer si un
-// connecteur n'est pas activé pour l'org → note + lien /connectors.
+// Visibilité des outils = préférences USER (getTools), groupées par namespace.
 interface NsGroup { namespace: string; tools: ToolEntry[]; enabled: number; total: number }
 const nsGroups = computed<NsGroup[]>(() => {
   const by: Record<string, ToolEntry[]> = {}
@@ -77,16 +72,15 @@ async function setTool(t: ToolEntry, on: boolean) {
   finally { const b2 = new Set(busy.value); b2.delete(t.name); busy.value = b2 }
 }
 
-// Bascule tout un namespace (hors protégés) : au moins un actif → tout masquer, sinon
-// tout activer. Séquentiel (endpoint per-outil ; pas de route namespace côté user).
+// Bascule tout un namespace (hors protégés) : au moins un actif → tout masquer,
+// sinon tout activer. Séquentiel (endpoint per-outil).
 async function toggleNamespace(g: NsGroup) {
   const on = g.enabled === 0
   for (const t of g.tools) await setTool(t, on)
 }
 
 // Poser l'org MAISON = le SEUL geste de cette page qui touche le MCP (défaut des
-// nouvelles conversations Claude, ADR 0023). Migré ici depuis le WorkspaceSwitcher,
-// devenu consultation pure. « aucune » → identité perso/globale (clearActiveOrg).
+// nouvelles conversations Claude, ADR 0023). « aucune » → identité perso/globale.
 async function onHomeChange(val: string) {
   const target = val === '' ? null : Number(val)
   if (target === (me.value?.home_org ?? null)) return
@@ -95,6 +89,7 @@ async function onHomeChange(val: string) {
     if (target === null) await clearActiveOrg()
     else await setActiveOrg(target)
     await reloadMe()
+    ctx.value = await getAgentContext()   // la pile dépend de l'org maison
   } catch (err) { toast(humanize(err)) }
   finally { savingHome.value = false }
 }
@@ -116,8 +111,8 @@ onMounted(load)
     <header class="ctx-intro">
       <h2 class="ctx-h1">ce que voit ton agent</h2>
       <p class="ctx-lead">
-        tout ce que ton Claude sait et peut faire quand il démarre pour toi. deux natures :
-        ce qu'il a <strong>toujours en tête</strong>, et ce qu'il va <strong>chercher au besoin</strong>.
+        l'anatomie exacte de ce que ton Claude reçoit d'oto au démarrage de chaque conversation —
+        couche par couche, avec le poids de chacune. clique une couche pour lire son contenu et l'éditer.
       </p>
     </header>
 
@@ -125,56 +120,23 @@ onMounted(load)
     <p v-else-if="!loaded" class="helptext">chargement…</p>
 
     <template v-else-if="ctx">
-      <!-- Réglage org maison — n'a de sens qu'avec un CHOIX d'org (≥2). Sinon masqué. -->
-      <ConsoleCard v-if="orgs.length > 1" title="org par défaut"
-        sub="l'org sous laquelle ton agent agit par défaut dans une nouvelle conversation. seul réglage ici qui change ce que FAIT ton Claude, pas juste l'affichage.">
-        <template #actions>
-          <Tag :tone="me?.home_org ? 'olive' : undefined">{{ me?.home_org_name || 'aucune · généraliste' }}</Tag>
+      <!-- ══ HERO : la pile des couches injectées ══ -->
+      <ContextLayerStack :layers="ctx.layers ?? []" :has-group="hasGroup">
+        <template #user-editor>
+          <AgentReadmeCard title="ta note"
+            sub="ta prose libre — préférences, contexte, ton. injectée à chaque session, après les couches d'org et d'équipe."
+            :can-edit="true" allow-empty
+            placeholder="ex. je préfère des réponses courtes ; mes clients sont des PME ; signe mes emails « Alexis »."
+            :load="getAgentReadme" :save="setAgentReadme" />
         </template>
-        <div class="home-row">
-          <OtoSelect :model-value="String(me?.home_org ?? '')" @update:model-value="onHomeChange"
-            :options="orgs.map((o) => ({ value: String(o.id), label: o.name }))"
-            none-label="aucune (agent généraliste)" :disabled="savingHome" trigger-class="min-w-[14rem]" />
-          <span v-if="savingHome" class="dim" style="font-size: 12px">enregistrement…</span>
-        </div>
-      </ConsoleCard>
-
-      <!-- ══ CE QU'IL SAIT DE TOI (toujours injecté) ══ -->
-      <div class="sec">
-        <h3 class="sec-t">ce qu'il sait de toi</h3>
-        <p class="sec-s">
-          injecté au début de <em>chaque</em> conversation — l'agent l'a toujours en tête.
-          <strong>ta note</strong> = ce que tu écris ; <strong>ta fiche</strong> = ce que l'agent apprend
-          sur toi et tient à jour tout seul.
-        </p>
-      </div>
-
-      <!-- Hérité org / équipe : n'apparaît QUE s'il y a une prose d'org ou une équipe -->
-      <ConsoleCard v-if="hasOrgReadme || doctrine?.group" title="hérité de ton org / ton équipe"
-        sub="la prose de ton org et de ton équipe, injectée avant la tienne — éditée par un admin, pas ici.">
-        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
-          <Tag v-if="hasOrgReadme" tone="olive">note d'org : {{ doctrine?.org }}</Tag>
-          <Tag v-if="doctrine?.group" tone="saffron">équipe : {{ doctrine.group }}</Tag>
-          <RouterLink to="/org/context"><Btn kind="mini">Voir / éditer côté org →</Btn></RouterLink>
-        </div>
-      </ConsoleCard>
-
-      <!-- Ta note (prose libre éditable) -->
-      <AgentReadmeCard title="ta note"
-        sub="ta prose libre — préférences, contexte, ton. injectée à chaque session."
-        :can-edit="true" allow-empty
-        placeholder="ex. je préfère des réponses courtes ; mes clients sont des PME ; signe mes emails « Alexis »."
-        :load="getAgentReadme" :save="setAgentReadme" />
-
-      <!-- Ta fiche « situation avec oto » (structurée, entretenue par l'agent) -->
-      <ContextProfileCard />
+      </ContextLayerStack>
 
       <!-- ══ CE QU'IL VA CHERCHER AU BESOIN ══ -->
       <div class="sec">
         <h3 class="sec-t">ce qu'il va chercher au besoin</h3>
         <p class="sec-s">
           des how-to qu'il <strong>ne garde pas en tête</strong> mais qu'il ouvre quand la tâche le demande
-          (via <code>oto_guide</code>) — pour ne pas alourdir chaque conversation.
+          (via <code>oto_guide</code>) — zéro poids sur les conversations qui n'en ont pas besoin.
         </p>
       </div>
       <GuidesCard scope="user" :can-edit="true" title="tes guides" sub="" />
@@ -217,18 +179,19 @@ onMounted(load)
         </p>
       </ConsoleCard>
 
-      <!-- Transparence : l'INTÉGRALITÉ du texte injecté (socle oto + tout ce qui précède) -->
-      <div class="raw-block">
-        <button class="raw-toggle" @click="showInstructions = !showInstructions">
-          <Icon name="chevd" :size="12" class="raw-chev" :class="{ open: showInstructions }" />
-          voir l'intégralité du texte injecté à ton agent
-          <span class="dim" style="font-size: 11.5px">· {{ ctx.instructions.length }} caractères</span>
-        </button>
-        <p v-if="showInstructions" class="helptext" style="margin: 4px 0 8px">
-          le socle d'oto (posture, boucle d'usage) suivi de tout ce qui précède, tel que Claude le reçoit.
-        </p>
-        <pre v-if="showInstructions" class="ctx-pre">{{ ctx.instructions }}</pre>
-      </div>
+      <!-- ══ RÉGLAGE : org par défaut — n'a de sens qu'avec un CHOIX (≥2 orgs) ══ -->
+      <ConsoleCard v-if="orgs.length > 1" title="org par défaut"
+        sub="l'org sous laquelle ton agent agit par défaut dans une nouvelle conversation — recompose toutes les couches ci-dessus.">
+        <template #actions>
+          <Tag :tone="me?.home_org ? 'olive' : undefined">{{ me?.home_org_name || 'aucune · généraliste' }}</Tag>
+        </template>
+        <div class="home-row">
+          <OtoSelect :model-value="String(me?.home_org ?? '')" @update:model-value="onHomeChange"
+            :options="orgs.map((o) => ({ value: String(o.id), label: o.name }))"
+            none-label="aucune (agent généraliste)" :disabled="savingHome" trigger-class="min-w-[14rem]" />
+          <span v-if="savingHome" class="dim" style="font-size: 12px">enregistrement…</span>
+        </div>
+      </ConsoleCard>
     </template>
   </div>
 </template>
@@ -237,39 +200,14 @@ onMounted(load)
 .ctx-intro { margin-bottom: 18px; }
 .ctx-h1 { font-weight: 700; font-size: 20px; color: var(--color-ink); letter-spacing: -0.01em; }
 .ctx-lead { font-size: 13.5px; color: var(--color-mute); line-height: 1.6; margin-top: 6px; max-width: 720px; }
-.ctx-pre {
-  white-space: pre-wrap; word-break: break-word;
-  font-size: 12px; line-height: 1.5; max-height: 420px; overflow: auto;
-  background: var(--color-paper-3, #f5f1e8);
-  border: 1px solid var(--color-hair-soft, #e3dccd);
-  border-radius: 8px; padding: 12px 14px; color: var(--color-ink-soft, #4a463d);
-}
 
-/* En-têtes de section : donnent la colonne vertébrale (injecté / à la demande / outils).
-   content-inner porte déjà gap:16px → marge-haut seule (sépare d'au-dessus, gap normal dessous). */
+/* En-têtes de section (au besoin / outils / réglage). content-inner porte gap:16px. */
 .sec { margin: 12px 0 0; }
 .sec-t { font-weight: 700; font-size: 14.5px; color: var(--color-ink); letter-spacing: -0.01em; }
 .sec-s { font-size: 12.5px; color: var(--color-mute); line-height: 1.55; margin-top: 3px; max-width: 640px; }
 .sec-s code { font-family: var(--font-mono); font-size: 11.5px; color: var(--color-saffron-ink); }
 
-/* Bloc transparence (dump complet) — discret, replié par défaut. */
-.raw-block { margin-top: 26px; border-top: 1px solid var(--color-hair-soft); padding-top: 12px; }
-.raw-toggle {
-  display: flex; align-items: center; gap: 7px; background: none; border: 0; cursor: pointer;
-  font: inherit; font-size: 12.5px; color: var(--color-mute); padding: 2px 0;
-}
-.raw-toggle:hover { color: var(--color-ink); }
-.raw-chev { color: var(--color-faint); transition: transform 0.15s; }
-.raw-chev.open { transform: rotate(180deg); }
-
 .home-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.ctx-select {
-  font: inherit; font-size: 13px; color: var(--color-ink);
-  background: var(--color-paper-2, #faf7f0);
-  border: 1px solid var(--color-hair-soft, #e3dccd);
-  border-radius: 7px; padding: 6px 10px; cursor: pointer; min-width: 14rem;
-}
-.ctx-select:disabled { opacity: 0.55; cursor: default; }
 
 .ns-list { display: flex; flex-direction: column; }
 .ns-block { border-top: 1px solid var(--color-hair-soft); }

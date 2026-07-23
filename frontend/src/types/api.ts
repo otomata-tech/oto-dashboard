@@ -401,9 +401,19 @@ export interface AgentToolsView {
   total_hidden?: number
   namespaces?: AgentToolNamespace[]
 }
+// Une couche de l'artefact injecté (backend `instructions.session_layers`) —
+// l'invariant : la concaténation "\n\n" des bodies == `instructions`.
+export interface ContextLayer {
+  key: 'platform' | 'catalog' | 'context' | 'profile' | 'org' | 'group' | 'user'
+  label: string
+  body: string
+  chars: number
+}
+
 export interface AgentContext {
   org_id: number | null
   instructions: string
+  layers: ContextLayer[]
   doctrine: AgentDoctrine
   tools: AgentToolsView
 }
