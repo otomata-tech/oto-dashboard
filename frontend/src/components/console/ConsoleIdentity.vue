@@ -265,7 +265,7 @@ const kicker = computed(() => {
 .identity.open .ident-chev { transform: rotate(180deg); }
 
 /* ── Popover de switch d'org (téléporté au body, ancré sous le bouton) ──────── */
-.id-pop-root { position: fixed; inset: 0; z-index: 200; }
+.id-pop-root { position: fixed; inset: 0; z-index: var(--z-menu); }
 .id-pop-backdrop { position: absolute; inset: 0; }
 .id-pop {
   position: absolute;

@@ -405,8 +405,8 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
 @media (hover: hover) { .pj-btn--primary:hover { transform: translateY(-1px); } }
 .pj-btn--icon { width: 36px; padding: 0; justify-content: center; }
 .pj-menu { position: relative; display: inline-flex; flex: none; }
-.pj-menu__scrim { position: fixed; inset: 0; z-index: 60; }
-.pj-menu__pop { position: absolute; top: calc(100% + 6px); right: 0; width: 214px; z-index: 70; background: var(--color-surface); border: 1px solid var(--border-card); border-radius: var(--radius-md); box-shadow: var(--shadow-pop); padding: 5px; }
+.pj-menu__scrim { position: fixed; inset: 0; z-index: var(--z-menu); }
+.pj-menu__pop { position: absolute; top: calc(100% + 6px); right: 0; width: 214px; z-index: var(--z-menu); background: var(--color-surface); border: 1px solid var(--border-card); border-radius: var(--radius-md); box-shadow: var(--shadow-pop); padding: 5px; }
 .pj-mi { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 10px; border: 0; background: transparent; border-radius: 6px; font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; color: var(--color-ink-soft); cursor: pointer; }
 .pj-mi:hover { background: var(--color-paper-2); color: var(--color-ink); }
 .pj-mi--danger { color: var(--color-terra-ink); }

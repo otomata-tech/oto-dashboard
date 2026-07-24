@@ -33,7 +33,12 @@
      passait donc SOUS une modale maison montée plus tard (bug vécu : formulaire
      « publier » derrière la modale de partage projet). D'où --z-prompt : la
      couche des dialogs IMPÉRATIFS singleton (prompt/confirm/form globaux),
-     toujours ouverts PAR-DESSUS la modale qui les invoque. ── */
+     toujours ouverts PAR-DESSUS la modale qui les invoque.
+     --z-menu = dropdowns/popins de NAVIGATION ancrés (menu compte, identité, ••• du
+     projet) : au-dessus du contenu (headers sticky ~z-2) mais SOUS drawer/modal —
+     un menu ancré ne recouvre jamais une modale ouverte. Remplace les valeurs
+     magiques hétérogènes (40/50/60/70/200) d'avant. ── */
+  --z-menu:    800;
   --z-drawer:  900;
   --z-modal:   1000;
   --z-prompt:  1050;

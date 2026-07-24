@@ -26,7 +26,7 @@ const show = computed(() => analyticsEnabled() && consent.value === null)
 
 <style scoped>
 .consent {
-  position: fixed; left: 16px; bottom: 16px; z-index: 200; max-width: 420px;
+  position: fixed; left: 16px; bottom: 16px; z-index: var(--z-banner); max-width: 420px;
   display: flex; flex-direction: column; gap: 12px; padding: 14px 16px;
   background: var(--color-surface); border: 1px solid var(--color-hair); border-radius: 12px;
   box-shadow: 0 14px 34px -12px rgba(0, 0, 0, 0.26);

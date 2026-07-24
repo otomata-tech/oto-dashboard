@@ -78,7 +78,7 @@ function go() {
 <style scoped>
 .usermenu { position: relative; }
 
-.um-backdrop { position: fixed; inset: 0; z-index: 40; }
+.um-backdrop { position: fixed; inset: 0; z-index: var(--z-menu); }
 
 .um-trigger {
   position: relative; z-index: 10;
@@ -104,7 +104,7 @@ function go() {
 
 /* Le menu déroulant est une surface CLAIRE (menu flottant), pas sur l'encre. */
 .um-pop {
-  position: absolute; bottom: calc(100% + 6px); left: 0; right: 0; z-index: 50;
+  position: absolute; bottom: calc(100% + 6px); left: 0; right: 0; z-index: var(--z-menu);
   display: flex; flex-direction: column; gap: 2px; padding: 6px;
   background: var(--color-surface); border: 1px solid var(--color-hair);
   border-radius: var(--radius-md); box-shadow: var(--shadow-pop);

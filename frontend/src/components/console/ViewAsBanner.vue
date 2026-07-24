@@ -21,7 +21,7 @@ function quit() {
 
 <style scoped>
 .viewas-banner {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+  position: fixed; top: 0; left: 0; right: 0; z-index: var(--z-banner);
   display: flex; align-items: center; justify-content: center; gap: 16px;
   padding: 8px 16px; font-size: 13px; font-weight: 500;
   background: var(--color-saffron, #e8a13a); color: #1a1205;
