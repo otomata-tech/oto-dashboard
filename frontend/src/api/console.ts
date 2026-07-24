@@ -461,18 +461,17 @@ export const getRowActivity = (ns: string, rowId: string) =>
 export const renameNamespace = (ns: string, name: string) =>
   api<{ ok: boolean; namespace: string }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}`, { method: 'PATCH', ...j({ name }) })
-export const transferNamespace = (ns: string, target: { email?: string; org_id?: number }) =>
-  api(`/api/datastore/namespaces/${encodeURIComponent(ns)}/transfer`, {
-    method: 'POST', ...j({ email: target.email, new_owner_org: target.org_id }) })
 // ── object-browser admin : gouvernance générique des ressources (ADR 0030) ──
 // Une seule capacité `oto_resource` (POST /api/resources) op-aware.
 export const listResources = (resource_type: string) =>
   api<{ resource_type: string; resources: ResourceEntry[] }>(
     '/api/resources', { method: 'POST', ...j({ op: 'list', resource_type }) })
-export const transferResource = (resource_type: string, resource_id: string, target: { email?: string; org_id?: number }) =>
+export const transferResource = (resource_type: string, resource_id: string,
+  target: { email?: string; org_id?: number; group_id?: number; confirm?: boolean }) =>
   api('/api/resources', { method: 'POST', ...j({
     op: 'transfer', resource_type, resource_id,
-    new_owner_email: target.email, new_owner_org: target.org_id }) })
+    new_owner_email: target.email, new_owner_org: target.org_id,
+    new_owner_group: target.group_id, confirm_transfer: target.confirm }) })
 export const getResource = (resource_type: string, resource_id: string) =>
   api<ResourceEntry & { grants: NamespaceShare[] }>(
     '/api/resources', { method: 'POST', ...j({ op: 'get', resource_type, resource_id }) })

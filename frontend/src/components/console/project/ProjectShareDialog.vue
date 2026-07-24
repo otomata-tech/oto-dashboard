@@ -12,7 +12,7 @@ import ModalOverlay from '@/components/console/ModalOverlay.vue'
 import ProjectMcpPublishDialog from './ProjectMcpPublishDialog.vue'
 import {
   getMyOrgs, getOrg, listGroups, shareResource, unshareResource,
-  transferResource, publishProjectMcp, unpublishProjectMcp, getProjectInventory,
+  publishProjectMcp, unpublishProjectMcp, getProjectInventory,
 } from '@/api/console'
 import type { GroupListItem, NamespaceShare, Org, OrgMember, SharePrincipal, Project } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -29,9 +29,25 @@ const emit = defineEmits<{ close: []; changed: []; 'reload-project': [] }>()
 const { toast } = useToast()
 const { me } = useMe()
 const { confirmAction } = usePrompt()
-const { pickTarget } = useTransferOwnership()
+const { transfer: runTransfer } = useTransferOwnership()
 
 const projectId = computed(() => props.project.id)
+
+// ── Détenteur actuel (ADR 0030/0049) : la propriété est une ENTITÉ (toi / une org /
+// une équipe / la bibliothèque), et c'est d'elle que découle QUI VOIT. On le résout
+// depuis les listes déjà chargées (loadPickers) + l'identité courante. Répond au flou
+// « ce projet appartient à qui ? » — l'axe DÉTENIR, distinct des partages (axe PRÊTER).
+const ownerLabel = computed(() => {
+  const t = props.project.owner_type; const id = String(props.project.owner_id ?? '')
+  if (t === 'user') return id === me.value?.sub ? 'toi' : 'un utilisateur'
+  if (t === 'platform') return 'la bibliothèque Otomata'
+  if (t === 'org') {
+    if (id === String(me.value?.active_org)) return me.value?.active_org_name || 'ton org'
+    return myOrgs.value.find((o) => String(o.id) === id)?.name || 'une org'
+  }
+  if (t === 'group') return groups.value.find((g) => String(g.group_id) === id)?.name || 'une équipe'
+  return t
+})
 
 // ── Équipe (principals) ──
 type Mode = 'member' | 'team' | 'org' | 'email'
@@ -222,12 +238,12 @@ async function normalizeLegacy() {
   finally { mcpBusy.value = false }
 }
 
-// ── Transférer ──
+// ── Changer de détenteur ── (flux + garde-fou anti-lockout centralisés dans le composable)
 async function transfer() {
-  const target = await pickTarget(props.project.name || `projet #${projectId.value}`)
-  if (!target) return
-  try { await transferResource('project', String(projectId.value), target); toast('transféré'); emit('reload-project'); emit('changed'); emit('close') }
-  catch (e) { toast(humanize(e)) }
+  try {
+    const ok = await runTransfer('project', projectId.value, props.project.name || `projet #${projectId.value}`, { allowTeams: true })
+    if (ok) { toast('transféré'); emit('reload-project'); emit('changed'); emit('close') }
+  } catch (e) { toast(humanize(e)) }
 }
 </script>
 
@@ -240,9 +256,18 @@ async function transfer() {
           <button class="sd__close" aria-label="fermer" @click="emit('close')"><Icon name="x" :size="16" /></button>
         </header>
         <div class="sd__body">
+          <!-- Détenteur actuel (axe DÉTENIR) : qui possède ⇒ qui voit -->
+          <div class="sd__owner">
+            <Icon name="circle-user" :size="15" />
+            <span>Détenu par <strong>{{ ownerLabel }}</strong></span>
+            <Tag v-if="grants.length" tone="cobalt">{{ grants.length }} partage{{ grants.length > 1 ? 's' : '' }}</Tag>
+            <span v-else class="dim sd__ownerhint">visible de son détenteur ; les prêts ci-dessous s'ajoutent</span>
+          </div>
+
           <!-- Équipe -->
           <section>
-            <div class="sd__sec"><Icon name="users" :size="16" /><span>Équipe — membres &amp; org</span></div>
+            <div class="sd__sec"><Icon name="users" :size="16" /><span>Prêter — membre, équipe ou org</span></div>
+            <p class="sd__desc">Un prêt <em>ajoute</em> un accès sans changer le détenteur : <strong>lecteur</strong> (lit) · <strong>éditeur</strong> (modifie) · <strong>gérant</strong> (peut re-partager).</p>
             <div v-if="grants.length" class="sd__grants">
               <div v-for="g in grants" :key="(g.principal_type || 'user') + (g.principal_id || g.email || '')" class="sd__grant">
                 <span class="sd__av">{{ initials(g) }}</span>
@@ -333,8 +358,8 @@ async function transfer() {
 
           <!-- Transférer -->
           <section>
-            <div class="sd__sec"><Icon name="circle-user" :size="16" /><span>Transférer la propriété</span></div>
-            <p class="sd__desc">Confier le projet à un autre compte Oto — l'ancien propriétaire repasse en accès édition.</p>
+            <div class="sd__sec"><Icon name="circle-user" :size="16" /><span>Changer de détenteur</span></div>
+            <p class="sd__desc">Confie le projet à une autre entité — <strong>toi</strong>, une org ou une équipe (ou un autre utilisateur). Le détenteur précédent garde un accès édition. Si tu cèdes hors de ta portée, une confirmation te préviendra que tu ne pourras plus le récupérer seul.</p>
             <Btn v-if="!readOnly" kind="mini" icon="external-link" @click="transfer">Transférer le projet</Btn>
             <p v-else class="dim sd__ro">Réservé au propriétaire.</p>
           </section>
@@ -359,6 +384,9 @@ async function transfer() {
 .sd__sec { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; color: var(--color-saffron-ink); }
 .sd__sec :deep(svg) { color: color-mix(in srgb, var(--color-saffron) 55%, var(--color-saffron-ink)); flex: none; }
 .sd__desc { margin: 0 0 10px; font-size: 11.5px; line-height: 1.5; color: var(--color-faint); }
+.sd__owner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 12px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); background: var(--color-paper-2); font-size: 12.5px; color: var(--color-ink-soft); }
+.sd__owner :deep(svg) { color: var(--color-mute); flex: none; }
+.sd__ownerhint { font-size: 11px; }
 .sd__grants { display: flex; flex-direction: column; margin-bottom: 10px; }
 .sd__grant { display: flex; align-items: center; gap: 9px; padding: 8px 0; border-bottom: 1px solid var(--color-hair-soft); }
 .sd__av { width: 28px; height: 28px; border-radius: var(--radius-pill); flex: none; display: grid; place-items: center; background: var(--color-paper-2); border: 1px solid var(--color-hair); font-size: 10.5px; font-weight: 700; color: var(--color-ink-soft); }

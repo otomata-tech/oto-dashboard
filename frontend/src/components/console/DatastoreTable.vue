@@ -24,7 +24,7 @@ import {
   getNamespaces, getNamespaceRows, getNamespaceRow, getNamespaceAggregate,
   getNamespaceQueue, releaseRowClaim,
   appendNamespaceRow, updateNamespaceRow, deleteNamespaceRow,
-  deleteNamespace, renameNamespace, transferNamespace,
+  deleteNamespace, renameNamespace,
 } from '@/api/console'
 import type { NamespaceEntry, DatastoreRow, ColumnFilter } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -43,7 +43,7 @@ const emit = defineEmits<{ changed: []; deleted: [] }>()
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
-const { pickTarget } = useTransferOwnership()
+const { transfer: runTransfer } = useTransferOwnership()
 const route = useRoute()
 const router = useRouter()
 
@@ -356,12 +356,13 @@ async function doRename(next: string) {
   catch (e) { toast(humanize(e)); throw e }
 }
 async function transfer() {
-  const n = name.value
-  if (!n) return
-  const target = await pickTarget(n)
-  if (!target) return
-  try { await transferNamespace(n, target); toast('transféré (tu gardes l\'accès en écriture)'); await resolveMeta(); await fetchRows(); emit('changed') }
-  catch (e) { toast(humanize(e)) }
+  const id = meta.value?.id
+  if (id == null) return
+  // Chemin unique `oto_resource` (par id du namespace) — garde-fou anti-lockout inclus.
+  try {
+    const ok = await runTransfer('datastore_namespace', id, name.value ?? `#${id}`, { allowTeams: true })
+    if (ok) { toast('transféré (tu gardes l\'accès en écriture)'); await resolveMeta(); await fetchRows(); emit('changed') }
+  } catch (e) { toast(humanize(e)) }
 }
 </script>
 
