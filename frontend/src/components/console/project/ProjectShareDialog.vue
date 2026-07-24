@@ -8,6 +8,7 @@ import Icon from '@/components/console/Icon.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
 import OtoSelect from '@/components/console/OtoSelect.vue'
+import ModalOverlay from '@/components/console/ModalOverlay.vue'
 import ProjectMcpPublishDialog from './ProjectMcpPublishDialog.vue'
 import {
   getMyOrgs, getOrg, listGroups, shareResource, unshareResource,
@@ -231,9 +232,7 @@ async function transfer() {
 </script>
 
 <template>
-  <Teleport to="body">
-  <Transition name="modal-fade">
-    <div v-if="open" class="sd-ov" @mousedown.self="emit('close')">
+  <ModalOverlay :open="open" @close="emit('close')">
       <div class="sd" role="dialog" aria-modal="true" aria-label="partager">
         <header class="sd__hd">
           <span class="sd__hdic"><Icon name="users" :size="17" /></span>
@@ -341,9 +340,7 @@ async function transfer() {
           </section>
         </div>
       </div>
-    </div>
-  </Transition>
-  </Teleport>
+  </ModalOverlay>
 
   <!-- Endpoint MCP : formulaire dédié avec picker d'outils à cases (R3) -->
   <ProjectMcpPublishDialog :open="endpointOpen" :project="project" :default-slug="defaultSlug()"
@@ -351,7 +348,6 @@ async function transfer() {
 </template>
 
 <style scoped>
-.sd-ov { position: fixed; inset: 0; z-index: var(--z-modal); background: color-mix(in srgb, var(--color-ink) 42%, transparent); display: flex; align-items: center; justify-content: center; padding: 24px; }
 .sd { width: min(540px, 100%); max-height: 86vh; overflow-y: auto; background: var(--color-surface); border: 1px solid var(--border-card); border-radius: var(--radius-md); box-shadow: var(--shadow-pop); }
 .sd__hd { position: sticky; top: 0; display: flex; align-items: center; gap: 9px; padding: 10px 16px; border-bottom: 1px solid var(--color-hair); background: var(--color-saffron-soft); z-index: 1; }
 .sd__hdic { display: inline-flex; color: var(--color-saffron-ink); }
@@ -385,6 +381,4 @@ async function transfer() {
 .sd__dswarn { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-top: 9px; padding: 8px 10px; border-radius: var(--radius-md); background: var(--color-saffron-soft); font-size: 11px; line-height: 1.45; color: var(--color-saffron-ink); }
 .sd__dswarn :deep(svg) { color: var(--color-saffron-ink); flex: none; }
 .sd__dswarn code { font-family: var(--font-mono); font-size: 10px; }
-.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity .16s ease; }
-.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
 </style>

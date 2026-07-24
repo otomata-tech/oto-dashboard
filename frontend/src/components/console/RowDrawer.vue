@@ -14,6 +14,7 @@ import Tag from './Tag.vue'
 import OtoSelect from './OtoSelect.vue'
 import FormDialog from './FormDialog.vue'
 import SubRecordEditor from './SubRecordEditor.vue'
+import ModalOverlay from './ModalOverlay.vue'
 import { useFormDialog } from '@/composables/useFormDialog'
 import type { DatastoreRow, DatastoreSchema } from '@/types/api'
 import { cellKind, absDate, relDate } from '@/lib/cellRender'
@@ -171,9 +172,7 @@ function actorOf(a: RowActivityEntry): string {
 </script>
 
 <template>
-  <Teleport to="body">
-  <Transition name="modal-fade">
-    <div v-if="open" class="modal-overlay" @mousedown.self="emit('close')">
+  <ModalOverlay :open="open" @close="emit('close')">
       <div class="modal" role="dialog" aria-modal="true" aria-label="row detail">
         <header class="rd-head">
           <div class="rd-head-txt">
@@ -284,16 +283,10 @@ function actorOf(a: RowActivityEntry): string {
           :title="formDialog.title" :description="formDialog.description"
           :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
       </div>
-    </div>
-  </Transition>
-  </Teleport>
+  </ModalOverlay>
 </template>
 
 <style scoped>
-.modal-overlay {
-  position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center;
-  padding: 24px; background: var(--scrim); backdrop-filter: blur(var(--blur-overlay));
-}
 .modal {
   width: 100%; max-width: 680px; max-height: 85vh; display: flex; flex-direction: column;
   background: var(--color-bg); border: 1px solid var(--color-hair); border-radius: 14px;
@@ -350,6 +343,4 @@ function actorOf(a: RowActivityEntry): string {
   border-top: 1px solid var(--color-hair-soft);
 }
 .rd-spacer { flex: 1; }
-.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity .15s ease; }
-.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
 </style>

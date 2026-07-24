@@ -9,6 +9,7 @@ import { computed, ref, watch } from 'vue'
 import Btn from './Btn.vue'
 import Icon from './Icon.vue'
 import Tag from './Tag.vue'
+import ModalOverlay from './ModalOverlay.vue'
 import { useToast } from '@/composables/useToast'
 import { useMe } from '@/composables/useMe'
 import {
@@ -141,9 +142,7 @@ const kindLabel = (g: NamespaceShare) =>
 </script>
 
 <template>
-  <Teleport to="body">
-  <Transition name="modal-fade">
-    <div v-if="open" class="modal-overlay" @mousedown.self="emit('close')">
+  <ModalOverlay :open="open" @close="emit('close')">
       <div class="modal" role="dialog" aria-modal="true" aria-label="partager">
         <header class="sp-head">
           <div class="sp-head-txt">
@@ -198,16 +197,10 @@ const kindLabel = (g: NamespaceShare) =>
           <Btn kind="ghost" @click="emit('close')">Fermer</Btn>
         </footer>
       </div>
-    </div>
-  </Transition>
-  </Teleport>
+  </ModalOverlay>
 </template>
 
 <style scoped>
-.modal-overlay {
-  position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center;
-  padding: 24px; background: var(--scrim); backdrop-filter: blur(var(--blur-overlay));
-}
 .modal {
   width: 100%; max-width: 560px; background: var(--color-bg);
   border: 1px solid var(--color-hair); border-radius: 14px;

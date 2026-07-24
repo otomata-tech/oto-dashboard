@@ -7,6 +7,7 @@ import { computed, ref, watch } from 'vue'
 import Icon from '@/components/console/Icon.vue'
 import Btn from '@/components/console/Btn.vue'
 import Dropzone from '@/components/console/Dropzone.vue'
+import ModalOverlay from '@/components/console/ModalOverlay.vue'
 import {
   linkProject, createDoc, uploadProjectFile,
   getNamespaces, getConnectors, getDoctrine, getKbProject, listDocs, getConnectorIdentities,
@@ -129,9 +130,7 @@ async function onFile(file: File) {
 </script>
 
 <template>
-  <Teleport to="body">
-  <Transition name="modal-fade">
-    <div v-if="open" class="ep-ov" @mousedown.self="emit('close')">
+  <ModalOverlay :open="open" align="top" @close="emit('close')">
       <div class="ep" role="dialog" aria-modal="true">
         <header class="ep__hd">
           <span class="ep__hdic"><Icon name="plus" :size="16" /></span>
@@ -180,13 +179,10 @@ async function onFile(file: File) {
           </template>
         </div>
       </div>
-    </div>
-  </Transition>
-  </Teleport>
+  </ModalOverlay>
 </template>
 
 <style scoped>
-.ep-ov { position: fixed; inset: 0; z-index: var(--z-modal); background: color-mix(in srgb, var(--color-ink) 42%, transparent); display: flex; align-items: flex-start; justify-content: center; padding: 90px 24px 24px; }
 .ep { width: min(460px, 100%); background: var(--color-surface); border: 1px solid var(--border-card); border-radius: var(--radius-md); box-shadow: var(--shadow-pop); }
 .ep__hd { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--color-hair); background: var(--color-saffron-soft); border-radius: var(--radius-md) var(--radius-md) 0 0; }
 .ep__hdic { display: inline-flex; flex: none; color: var(--color-saffron-ink); }
@@ -203,6 +199,4 @@ async function onFile(file: File) {
 .ep__rowcta { flex: none; margin-left: auto; font-size: 11px; font-weight: 600; padding: 3px 10px; border: 1px solid var(--color-hair); border-radius: var(--radius-pill); color: var(--color-ink-soft); background: var(--color-surface); }
 .ep__x { border: 1px solid var(--color-hair); background: var(--color-surface); border-radius: var(--radius-pill); padding: 5px 12px; font-size: 12px; font-weight: 600; color: var(--color-ink-soft); cursor: pointer; }
 .ep__x:hover { background: var(--color-paper-2); }
-.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity .15s ease; }
-.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
 </style>

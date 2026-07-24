@@ -6,6 +6,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import Btn from './Btn.vue'
 import Icon from './Icon.vue'
 import OtoSelect from './OtoSelect.vue'
+import ModalOverlay from './ModalOverlay.vue'
 import { useFieldFilters } from '@/composables/useFieldFilters'
 import type { FieldActionSchema, FieldRule } from '@/types/api'
 
@@ -48,9 +49,7 @@ function submit() {
 </script>
 
 <template>
-  <Teleport to="body">
-  <Transition name="modal-fade">
-    <div v-if="open" class="modal-overlay" @mousedown.self="emit('close')">
+  <ModalOverlay :open="open" @close="emit('close')">
       <div class="modal" role="dialog" aria-modal="true" aria-label="transformation d'un champ">
         <header class="fr-head">
           <div class="fr-head-txt">
@@ -89,16 +88,10 @@ function submit() {
           <Btn icon="check" :disabled="!canSave" @click="submit">Enregistrer</Btn>
         </footer>
       </div>
-    </div>
-  </Transition>
-  </Teleport>
+  </ModalOverlay>
 </template>
 
 <style scoped>
-.modal-overlay {
-  position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center;
-  padding: 24px; background: var(--scrim); backdrop-filter: blur(var(--blur-overlay));
-}
 .modal {
   width: 100%; max-width: 440px; background: var(--color-bg);
   border: 1px solid var(--color-hair); border-radius: 14px;
@@ -121,6 +114,4 @@ function submit() {
   display: flex; align-items: center; justify-content: flex-end; gap: 8px;
   padding: 12px 18px 16px; border-top: 1px solid var(--color-hair-soft);
 }
-.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity .15s ease; }
-.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
 </style>

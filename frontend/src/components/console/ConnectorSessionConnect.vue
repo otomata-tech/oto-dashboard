@@ -7,6 +7,7 @@
 import { computed, ref, watch } from 'vue'
 import Btn from './Btn.vue'
 import Icon from './Icon.vue'
+import ModalOverlay from './ModalOverlay.vue'
 import { startConnectorSession, finalizeConnectorSession } from '@/api/console'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
@@ -94,9 +95,7 @@ watch(() => props.open, (o) => {
   <!-- Téléporté en fin de <body> : modale maison ouverte depuis le drawer connecteur
        (reka, téléporté). Sans Teleport, à --z-modal égal elle passerait dessous (cf.
        règle DS dans console.css). -->
-  <Teleport to="body">
-    <Transition name="modal-fade">
-      <div v-if="open" class="modal-overlay" @mousedown.self="emit('close')">
+  <ModalOverlay :open="open" @close="emit('close')">
       <div class="modal" :class="{ max: maximized }" role="dialog" aria-modal="true" :aria-label="`connect ${connector.label}`">
         <header class="cs-head">
           <div class="cs-head-txt">
@@ -141,16 +140,10 @@ watch(() => props.open, (o) => {
           </Btn>
         </footer>
       </div>
-    </div>
-    </Transition>
-  </Teleport>
+  </ModalOverlay>
 </template>
 
 <style scoped>
-.modal-overlay {
-  position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center;
-  padding: 24px; background: var(--scrim); backdrop-filter: blur(var(--blur-overlay));
-}
 .modal {
   width: 100%; max-width: 960px; background: var(--color-bg);
   border: 1px solid var(--color-hair); border-radius: 14px;
@@ -189,6 +182,4 @@ watch(() => props.open, (o) => {
   display: flex; align-items: center; gap: 8px; padding: 12px 18px 16px;
   border-top: 1px solid var(--color-hair-soft); margin-top: 10px;
 }
-.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity .15s ease; }
-.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
 </style>
