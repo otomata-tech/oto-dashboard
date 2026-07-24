@@ -20,7 +20,7 @@ vi.mock('@/api/console', () => ({
   createDoc: vi.fn(),
   uploadProjectFile: vi.fn(),
   getNamespaces: vi.fn(async () => ({ namespaces: [] })),
-  getConnectors: vi.fn(async () => ({ connectors: [] })),
+  getMyConnectors: vi.fn(async () => ({ connectors: [] })),
   getDoctrine: () => getDoctrine(),
   getKbProject: vi.fn(),
   listDocs: vi.fn(),

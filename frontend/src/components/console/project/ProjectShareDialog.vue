@@ -12,7 +12,7 @@ import ModalOverlay from '@/components/console/ModalOverlay.vue'
 import ProjectMcpPublishDialog from './ProjectMcpPublishDialog.vue'
 import {
   getMyOrgs, getOrg, listGroups, shareResource, unshareResource,
-  publishProjectMcp, unpublishProjectMcp, getProjectInventory,
+  publishProjectMcp, unpublishProjectMcp,
 } from '@/api/console'
 import type { GroupListItem, NamespaceShare, Org, OrgMember, SharePrincipal, Project } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -132,7 +132,6 @@ const mcpConnectUrl = computed(() =>
 const mcpActive = computed(() => !!props.project.mcp_access && props.project.mcp_access !== 'off')
 const mcpAccess = computed(() => props.project.mcp_access)
 async function copyMcp() { if (mcpConnectUrl.value) { await navigator.clipboard.writeText(mcpConnectUrl.value).catch(() => {}); toast('URL copiée') } }
-const { promptForm } = usePrompt()
 // Défaut de sous-domaine : `slugify(org)-slugify(projet)` (marque l'org, unique par
 // projet) — évite d'imposer un slug vide « requis » que l'utilisateur doit inventer.
 function defaultSlug(): string {
@@ -140,30 +139,15 @@ function defaultSlug(): string {
     .filter(Boolean).join('-')
 }
 // DEUX intentions distinctes (R1) :
-// - « Partager par lien public » = formulaire SIMPLIFIÉ (accès figé `secret`, sous-domaine
-//   auto non devinable, outils optionnels) → promptForm ci-dessous.
+// - « Partager par lien public » = UN CLIC (accès figé `secret`, sous-domaine auto non
+//   devinable, TOUT navigable en lecture seule). Pas de sélection d'outils : c'est un
+//   instantané navigable, pas un endpoint MCP — le prompt d'outils n'avait aucun sens ici
+//   (retour JB). La curation d'outils vit dans « Publier en endpoint MCP » ci-dessous.
 // - « Publier en endpoint MCP » / « Reconfigurer » = dialog dédié `ProjectMcpPublishDialog`
 //   (slug + accès + PICKER d'outils à cases groupées par connecteur, R3).
 async function publishPublicLink() {
   if (mcpBusy.value) return
-  let toolsDefault = (props.project.mcp_tools ?? []).join('\n')
-  let toolsHint = 'un par ligne — les SEULS outils visibles. Vide = tout le projet visible, lecture seule.'
-  if (!toolsDefault) {
-    try {
-      toolsDefault = ((await getProjectInventory(projectId.value)).tools ?? []).join('\n')
-      if (toolsDefault) toolsHint = 'prérempli depuis l’inventaire du projet — cure la liste'
-    } catch { /* best-effort */ }
-  }
-  const r = await promptForm({
-    title: 'Partager par lien public',
-    description: 'Un instantané lecture seule (brief + pages) navigable via une URL secrète non devinable. Laisse la liste d’outils vide pour tout exposer.',
-    fields: [{ key: 'tools', label: 'Outils exposés', type: 'textarea', value: toolsDefault,
-      placeholder: 'frenchtech_search\nfrenchtech_get', required: false, hint: toolsHint }],
-    submitLabel: 'Publier le lien',
-  })
-  if (!r) return
-  const tools = (r.tools ?? '').split(/[\n,]/).map((t) => t.trim()).filter(Boolean)
-  await doPublish('secret', '', tools)   // slug vide → le backend génère un slug secret non devinable
+  await doPublish('secret', '', [])   // slug vide → slug secret généré ; outils vides → tout navigable
 }
 
 // Endpoint MCP complet (dialog dédié, R3).
@@ -205,6 +189,10 @@ const dsWritable = computed(() => dsExposed.value && !!props.project.mcp_expose_
 // Legacy : des `data_*` dans l'allowlist figée = exposition posée par une ancienne UI
 // (avant le flag) → à normaliser (retirer les data_* de la liste, s'appuyer sur le flag).
 const dsLegacy = computed(() => (props.project.mcp_tools ?? []).some((t) => t.startsWith('data_')))
+// Tableaux RÉELLEMENT liés au projet — pour ne pas promettre « les tableaux liés à ce
+// projet » quand il n'y en a aucun (retour JB : la copy datastore s'affichait sans tableau).
+const linkedTables = computed(() => (props.project.links ?? []).filter((l) => l.target_type === 'tableau'))
+const hasLinkedTables = computed(() => linkedTables.value.length > 0)
 
 // Republication ciblée (secret) : conserve slug/tools, change seulement les flags datastore.
 async function setDatastore(expose: boolean, write: boolean) {
@@ -330,20 +318,23 @@ async function transfer() {
                   <Tag v-else-if="dsExposed" tone="cobalt">lecture</Tag>
                   <Tag v-else tone="terra">fermé</Tag>
                 </div>
-                <p class="sd__desc">Les invités branchés voient les tableaux <strong>liés à ce projet</strong> (data_list_namespaces, data_rows) — jamais le reste du datastore de l’org.</p>
-                <div v-if="dsLegacy" class="sd__dswarn">
-                  <Icon name="triangle-alert" :size="13" />
-                  <span>Exposition configurée par une version antérieure (des <code>data_*</code> figurent dans la liste d’outils). Normalise pour t’appuyer sur le réglage ci-dessous.</span>
-                  <Btn v-if="!readOnly" kind="mini" :disabled="mcpBusy" @click="normalizeLegacy">Normaliser</Btn>
-                </div>
-                <div v-if="!readOnly" class="sd__mcpact">
-                  <Btn v-if="!dsExposed" kind="mini" icon="database" :disabled="mcpBusy" @click="setDatastore(true, false)">Exposer en lecture</Btn>
-                  <template v-else>
-                    <Btn v-if="!dsWritable" kind="mini" :disabled="mcpBusy" @click="setDatastore(true, true)">Autoriser l’écriture</Btn>
-                    <Btn v-else kind="mini" :disabled="mcpBusy" @click="setDatastore(true, false)">Repasser en lecture seule</Btn>
-                    <Btn kind="mini" :disabled="mcpBusy" @click="setDatastore(false, false)">Fermer le datastore</Btn>
-                  </template>
-                </div>
+                <template v-if="hasLinkedTables">
+                  <p class="sd__desc">Les invités branchés voient les {{ linkedTables.length }} tableau{{ linkedTables.length > 1 ? 'x' : '' }} <strong>liés à ce projet</strong> (data_list_namespaces, data_rows) — jamais le reste du datastore de l’org.</p>
+                  <div v-if="dsLegacy" class="sd__dswarn">
+                    <Icon name="triangle-alert" :size="13" />
+                    <span>Exposition configurée par une version antérieure (des <code>data_*</code> figurent dans la liste d’outils). Normalise pour t’appuyer sur le réglage ci-dessous.</span>
+                    <Btn v-if="!readOnly" kind="mini" :disabled="mcpBusy" @click="normalizeLegacy">Normaliser</Btn>
+                  </div>
+                  <div v-if="!readOnly" class="sd__mcpact">
+                    <Btn v-if="!dsExposed" kind="mini" icon="database" :disabled="mcpBusy" @click="setDatastore(true, false)">Exposer en lecture</Btn>
+                    <template v-else>
+                      <Btn v-if="!dsWritable" kind="mini" :disabled="mcpBusy" @click="setDatastore(true, true)">Autoriser l’écriture</Btn>
+                      <Btn v-else kind="mini" :disabled="mcpBusy" @click="setDatastore(true, false)">Repasser en lecture seule</Btn>
+                      <Btn kind="mini" :disabled="mcpBusy" @click="setDatastore(false, false)">Fermer le datastore</Btn>
+                    </template>
+                  </div>
+                </template>
+                <p v-else class="sd__desc">Aucun tableau n’est lié à ce projet — <strong>lie un tableau</strong> au projet pour pouvoir l’exposer aux invités branchés.</p>
               </div>
 
               <div v-if="!readOnly" class="sd__mcpact">

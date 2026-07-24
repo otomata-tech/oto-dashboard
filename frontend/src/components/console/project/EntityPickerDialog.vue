@@ -10,7 +10,7 @@ import Dropzone from '@/components/console/Dropzone.vue'
 import ModalOverlay from '@/components/console/ModalOverlay.vue'
 import {
   linkProject, createDoc, uploadProjectFile,
-  getNamespaces, getConnectors, getDoctrine, getKbProject, listDocs, getConnectorIdentities,
+  getNamespaces, getMyConnectors, getDoctrine, getKbProject, listDocs, getConnectorIdentities,
 } from '@/api/console'
 import type { ProjectLinkType, ConnectorIdentity } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -34,7 +34,7 @@ const isSearch = computed(() => ['connecteur', 'tableau', 'procedure', 'doc'].in
 const isPage = computed(() => props.kind === 'page')
 const isFile = computed(() => props.kind === 'file')
 
-type Opt = { value: string; label: string; meta?: string }
+type Opt = { value: string; label: string; meta?: string; note?: string }
 const options = ref<Opt[]>([])
 const loading = ref(false)
 const query = ref('')
@@ -52,7 +52,13 @@ async function loadOptions() {
   loading.value = true
   try {
     if (t === 'tableau') options.value = (await getNamespaces()).namespaces.map((n) => ({ value: String(n.id), label: n.namespace }))
-    else if (t === 'connecteur') options.value = (await getConnectors()).connectors.map((c) => ({ value: c.name, label: c.label || c.name, meta: c.help }))
+    // Un projet définit SON propre toolset : on peut lier un connecteur non installé chez
+    // soi (retour JB : le picker le proposait sans le dire). On l'ÉTIQUETTE au lieu de le
+    // cacher — d'où getMyConnectors (porte `state`) plutôt que getConnectors.
+    else if (t === 'connecteur') options.value = (await getMyConnectors()).connectors.map((c) => ({
+      value: c.name, label: c.label || c.name, meta: c.help,
+      note: c.state === 'not_selected' ? 'non installé chez toi' : undefined,
+    }))
     else if (t === 'procedure') options.value = ((await getDoctrine()).instructions ?? []).map((i) => ({ value: String(i.id), label: i.title }))
     else { const kb = await getKbProject(); options.value = (await listDocs(kb.project_id)).docs.map((d) => ({ value: String(d.id), label: d.title })) }
   } catch (e) { toast(humanize(e)); options.value = [] }
@@ -147,6 +153,7 @@ async function onFile(file: File) {
               <button v-for="o in filtered" :key="o.value" class="ep__row" @click="pick(o)">
                 <span class="ep__rowname">{{ o.label }}</span>
                 <span v-if="o.meta" class="ep__rowmeta">{{ o.meta }}</span>
+                <span v-if="o.note" class="ep__rownote">{{ o.note }}</span>
                 <span class="ep__rowcta">Lier</span>
               </button>
             </div>
@@ -196,6 +203,7 @@ async function onFile(file: File) {
 .ep__row:hover { background: var(--color-paper-2); }
 .ep__rowname { font-size: 13px; font-weight: 600; color: var(--color-ink); }
 .ep__rowmeta { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ep__rownote { flex: none; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-pill); color: var(--color-terra-ink); background: var(--color-terra-soft); white-space: nowrap; }
 .ep__rowcta { flex: none; margin-left: auto; font-size: 11px; font-weight: 600; padding: 3px 10px; border: 1px solid var(--color-hair); border-radius: var(--radius-pill); color: var(--color-ink-soft); background: var(--color-surface); }
 .ep__x { border: 1px solid var(--color-hair); background: var(--color-surface); border-radius: var(--radius-pill); padding: 5px 12px; font-size: 12px; font-weight: 600; color: var(--color-ink-soft); cursor: pointer; }
 .ep__x:hover { background: var(--color-paper-2); }
