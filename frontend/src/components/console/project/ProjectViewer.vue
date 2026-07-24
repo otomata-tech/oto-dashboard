@@ -20,11 +20,11 @@ import {
   requestDocChange, listDocChanges, resolveDocChange,
   getConnectorIdentities, linkProject, unlinkProject,
   setProjectFilePublic, deleteProjectFile,
-  getToolRegistry, getConnectors, getProjectRuns,
+  getToolRegistry, getConnectors, getProjectRuns, getInstruction,
 } from '@/api/console'
 import type {
   Doc, DocKind, DocRevision, DocChangeRequest, ProjectLink, ConnectorIdentity,
-  ToolRegistryEntry, ConnectorMeta, ProjectRun, ProjectFile,
+  ToolRegistryEntry, ConnectorMeta, ProjectRun, ProjectFile, InstructionDetail,
 } from '@/types/api'
 
 // Caches module-level : le registre d'outils et le catalogue de connecteurs ne changent
@@ -211,10 +211,13 @@ const toolsLoading = ref(false)
 // (Le TABLEAU affiche sa vue complète via <DatastoreTable>, plus d'aperçu à charger ici.)
 const runs = ref<ProjectRun[]>([])
 const runsLoading = ref(false)
+// Déroulé de la procédure liée (rendu inline, comme un tableau) — #procédure-inline.
+const procDoc = ref<InstructionDetail | null>(null)
+const procLoading = ref(false)
 
 // Charge les extras de l'entité sélectionnée (identités+outils / runs) selon son type.
 watch(item, async () => {
-  identities.value = []; connectorTools.value = []; runs.value = []
+  identities.value = []; connectorTools.value = []; runs.value = []; procDoc.value = null
   const l = link.value
   if (kind.value === 'connecteur' && l) {
     chosenIdentity.value = l.identity_ref ?? ''
@@ -239,6 +242,13 @@ watch(item, async () => {
       .then((r) => { runs.value = r.runs })
       .catch(() => { runs.value = [] })
       .finally(() => { runsLoading.value = false })
+    // Déroulé rendu inline (comme un tableau ouvre sa grille) : on charge le markdown
+    // de la procédure par son slug (target_ref) plutôt que de forcer un saut vers /procedures.
+    procLoading.value = true
+    getInstruction(l.target_ref)
+      .then((d) => { procDoc.value = d })
+      .catch(() => { procDoc.value = null })
+      .finally(() => { procLoading.value = false })
   }
 }, { immediate: true })
 
@@ -464,7 +474,10 @@ async function removeFile() {
 
       <!-- ═══ PROCÉDURE (déroulé + derniers runs) ═══ -->
       <div v-else-if="kind === 'procedure'" class="vw__block">
-        <p class="dim" style="font-size: 13px; line-height: 1.6">Procédure (déroulé opératoire) liée à ce projet — chargée à la demande par l'agent.</p>
+        <!-- Déroulé rendu inline (comme un tableau montre sa grille) -->
+        <MarkdownView v-if="procDoc && procDoc.body_md.trim()" :source="procDoc.body_md" />
+        <p v-else-if="procLoading" class="dim" style="font-size: 12.5px">chargement du déroulé…</p>
+        <p v-else class="dim" style="font-size: 13px; line-height: 1.6">Procédure (déroulé opératoire) liée à ce projet — chargée à la demande par l'agent.</p>
         <template v-if="runs.length">
           <div class="vw__sub" style="margin-top: 16px">derniers runs</div>
           <div class="vw__runs">

@@ -21,10 +21,10 @@ import EntityPickerDialog from '@/components/console/project/EntityPickerDialog.
 import type { RailGroup, RailItem } from '@/components/console/project/rail'
 import {
   getProject, updateProject, archiveProject, copyProject, setProjectTemplate, projectHandoff,
-  getProjectActivity, getResource, listProjectFiles, listDocs, getProjectInventory, moveDoc, createDoc } from '@/api/console'
+  getProjectActivity, getResource, listProjectFiles, listDocs, getProjectInventory, getProjectRuns, moveDoc, createDoc } from '@/api/console'
 import type { ProjectAudit } from '@/api/console'
 import { apiDownload } from '@/api'
-import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile, Doc } from '@/types/api'
+import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile, Doc, ProjectRun } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
 
@@ -39,6 +39,9 @@ const activity = ref<ProjectActivity[]>([])
 const files = ref<ProjectFile[]>([])
 const docs = ref<Doc[]>([])
 const audit = ref<ProjectAudit | null>(null)
+// Runs du projet (ADR 0017) : sert à poser un badge d'exécution sur les procédures
+// du rail (« déroulée »/« échec »/« en cours ») — sinon une exécution est invisible.
+const projectRuns = ref<ProjectRun[]>([])
 // Source de chaque connecteur du projet (ADR 0035/0044) : 'declared' (lié au projet)
 // vs 'procedure:<slug>' / 'run' (requis par une procédure). Sert à distinguer dans le rail.
 const connectorSources = ref<Record<string, string[]>>({})
@@ -104,7 +107,9 @@ const railGroups = computed<RailGroup[]>(() => {
   }
   const mkLink = (t: RailItem['kind'], l: ProjectLink): RailItem => ({
     key: bindingKey(l), kind: t, label: linkName(l), link: l,
-    railTag: t === 'connecteur' && l.config?.instructions_md ? { tone: 'olive', label: 'surchargé' } : null,
+    railTag: t === 'procedure'
+      ? procRunTag(l.target_ref)
+      : (t === 'connecteur' && l.config?.instructions_md ? { tone: 'olive', label: 'surchargé' } : null),
   })
   const fileItems: RailItem[] = files.value.map((f) => ({
     key: `file:${f.id}`, kind: 'file', label: f.title || f.filename, file: f,
@@ -147,7 +152,7 @@ async function load() {
   if (!Number.isFinite(projectId)) { error.value = 'Projet introuvable.'; loaded.value = true; return }
   try {
     project.value = await getProject(projectId)
-    await Promise.all([loadGrants(), loadActivity(), loadFiles(), loadDocs(), loadAudit()])
+    await Promise.all([loadGrants(), loadActivity(), loadFiles(), loadDocs(), loadAudit(), loadRuns()])
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
@@ -162,6 +167,21 @@ async function loadAudit() {
     audit.value = inv.audit ?? null
     connectorSources.value = inv.connector_sources ?? {}
   } catch { audit.value = null; connectorSources.value = {} }
+}
+async function loadRuns() { try { projectRuns.value = (await getProjectRuns(projectId)).runs } catch { projectRuns.value = [] } }
+// Dernier run par procédure (slug = ProjectRun.doctrine) — les runs arrivent triés
+// du plus récent au plus ancien, on garde le premier vu par slug.
+const lastRunByProc = computed<Record<string, ProjectRun>>(() => {
+  const out: Record<string, ProjectRun> = {}
+  for (const r of projectRuns.value) if (r.doctrine && !(r.doctrine in out)) out[r.doctrine] = r
+  return out
+})
+function procRunTag(slug: string): { tone: 'olive' | 'terra' | 'saffron'; label: string } | null {
+  const r = lastRunByProc.value[slug]
+  if (!r) return null
+  if (!r.outcome) return { tone: 'saffron', label: 'en cours' }
+  if (r.outcome === 'done') return { tone: 'olive', label: 'déroulée' }
+  return { tone: 'terra', label: r.outcome === 'abandoned' ? 'abandonnée' : 'échec' }
 }
 const { scoped } = useScopedLink()
 
@@ -285,10 +305,17 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
     <div v-else-if="!loaded" class="pj__msg surface-card"><p class="dim" style="font-size: 13px">chargement du projet…</p></div>
 
     <template v-else-if="project">
-      <!-- en-tête : injecté dans le topbar global (fin du double en-tête). claim=false :
-           pas de titre local à dédupliquer → le fil d'ariane générique ("projects · workspace")
-           reste visible à côté des actions, dans la même barre. -->
-      <TopbarPage :claim="false">
+      <!-- en-tête : injecté dans le topbar global (fin du double en-tête). claim=true :
+           on REMPLACE le fil d'ariane générique par le NOM du projet (sinon il n'apparaît
+           nulle part — régression du refactor). Le nom est cliquable pour renommer (+ crayon
+           visible), la découvrabilité du renommage passant sinon par le seul menu •••. -->
+      <TopbarPage :claim="true">
+        <h1 class="pj-top__name" :class="{ 'pj-top__name--edit': !readOnly }"
+          :title="readOnly ? undefined : 'Renommer le projet'"
+          @click="!readOnly && rename()">{{ project.name }}</h1>
+        <button v-if="!readOnly" class="pj-top__edit" title="Renommer le projet" @click="rename">
+          <Icon name="pencil" :size="13" />
+        </button>
         <div class="pj-top__act">
           <Tag v-for="t in statusTags" :key="t.label" :tone="t.tone">{{ t.label }}</Tag>
           <button v-if="grants.length" class="pj-avs" title="Partagé — voir avec qui" @click="shareOpen = true">
@@ -361,6 +388,11 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
 .pj__msg { margin: 24px 26px; }
 
 /* en-tête : actions injectées dans le topbar global (TopbarPage), plus de titre local */
+.pj-top__name { font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--color-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 42ch; margin: 0; }
+.pj-top__name--edit { cursor: pointer; }
+.pj-top__name--edit:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
+.pj-top__edit { flex: none; display: inline-flex; align-items: center; justify-content: center; height: 24px; width: 24px; border: 0; background: transparent; border-radius: var(--radius-pill); color: var(--color-mute); cursor: pointer; }
+.pj-top__edit:hover { background: var(--color-paper-2); color: var(--color-ink); }
 .pj-top__act { flex: 1; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
 .pj-avs { display: inline-flex; align-items: center; padding-left: 8px; border: 0; background: transparent; cursor: pointer; flex: none; }
 .pj-av { width: 30px; height: 30px; border-radius: var(--radius-pill); display: grid; place-items: center; font-size: 10.5px; font-weight: 700; border: 2px solid var(--color-bg); margin-left: -8px; }
