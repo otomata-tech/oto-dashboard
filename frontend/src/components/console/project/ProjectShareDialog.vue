@@ -10,7 +10,7 @@ import Tag from '@/components/console/Tag.vue'
 import OtoSelect from '@/components/console/OtoSelect.vue'
 import ModalOverlay from '@/components/console/ModalOverlay.vue'
 import ProjectMcpPublishDialog from './ProjectMcpPublishDialog.vue'
-import { projectVisibility } from '@/lib/projectVisibility'
+import { projectVisibility, projectOwnerLabel } from '@/lib/projectVisibility'
 import {
   getMyOrgs, getOrg, listGroups, shareResource, unshareResource,
   publishProjectMcp, unpublishProjectMcp,
@@ -46,17 +46,13 @@ const visibility = computed(() => projectVisibility(props.project, {
   sharedCount: props.grants.length,
 }))
 
-const ownerLabel = computed(() => {
-  const t = props.project.owner_type; const id = String(props.project.owner_id ?? '')
-  if (t === 'user') return id === me.value?.sub ? 'toi' : 'un utilisateur'
-  if (t === 'platform') return 'la bibliothèque Otomata'
-  if (t === 'org') {
-    if (id === String(me.value?.active_org)) return me.value?.active_org_name || 'ton org'
-    return myOrgs.value.find((o) => String(o.id) === id)?.name || 'une org'
-  }
-  if (t === 'group') return groups.value.find((g) => String(g.group_id) === id)?.name || 'une équipe'
-  return t
-})
+const ownerLabel = computed(() => projectOwnerLabel(props.project, {
+  mySub: me.value?.sub,
+  myOrgId: me.value?.active_org,
+  myOrgName: me.value?.active_org_name,
+  orgs: myOrgs.value,
+  groups: groups.value,
+}))
 
 // ── Équipe (principals) ──
 type Mode = 'member' | 'team' | 'org' | 'email'

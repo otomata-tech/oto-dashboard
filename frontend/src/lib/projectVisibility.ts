@@ -74,6 +74,39 @@ export function projectVisibility(
   }
 }
 
+/** Contexte de résolution des NOMS (le module ne fetche rien : l'appelant fournit). */
+export interface OwnerNameCtx {
+  mySub?: string | null
+  myOrgId?: number | string | null
+  myOrgName?: string | null
+  orgs?: { id: number | string; name: string }[]
+  groups?: { group_id?: number; id?: number; name: string }[]
+}
+
+/**
+ * « Détenu par … » — l'axe DÉTENIR, nommé du point de vue du lecteur (« toi »,
+ * le nom de l'org/équipe). Complémentaire de `projectVisibility` (l'axe AUDIENCE) :
+ * les deux vivent ici pour que le vocabulaire de propriété ne diverge plus d'une
+ * surface à l'autre.
+ */
+export function projectOwnerLabel(
+  p: Pick<Project, 'owner_type' | 'owner_id'>,
+  ctx: OwnerNameCtx = {},
+): string {
+  const t = p.owner_type
+  const id = String(p.owner_id ?? '')
+  if (t === 'user') return id === ctx.mySub ? 'toi' : 'un utilisateur'
+  if (t === 'platform') return 'la bibliothèque Otomata'
+  if (t === 'org') {
+    if (ctx.myOrgId != null && id === String(ctx.myOrgId)) return ctx.myOrgName || 'ton org'
+    return (ctx.orgs ?? []).find((o) => String(o.id) === id)?.name || 'une org'
+  }
+  if (t === 'group') {
+    return (ctx.groups ?? []).find((g) => String(g.group_id ?? g.id) === id)?.name || 'une équipe'
+  }
+  return t
+}
+
 /** Regroupement de la LISTE : « à moi » vs « partagé avec moi » vs le collectif. */
 export type ProjectBucket = 'mine' | 'org' | 'group' | 'platform'
 
