@@ -465,6 +465,7 @@ export interface Project {
   brief_md: string
   owner_type: string
   owner_id: string
+  icon?: string | null           // emoji facultatif — repère visuel (listes, en-tête)
   is_template?: boolean          // publié comme modèle copiable (ADR 0032 §7 B5a)
   can_write?: boolean            // droit d'écriture effectif (#4b) ; false → lecture seule
   public_shared?: boolean        // partage public CHIFFRÉ actif (ADR 0032 §3, zero-knowledge)

@@ -12,6 +12,7 @@ import { useScopedLink } from '@/composables/useScopedLink'
 import Tag from '@/components/console/Tag.vue'
 import Icon from '@/components/console/Icon.vue'
 import NameDialog from '@/components/console/NameDialog.vue'
+import EmojiPicker from '@/components/console/EmojiPicker.vue'
 import TopbarPage from '@/components/console/TopbarPage.vue'
 import ProjectRail from '@/components/console/project/ProjectRail.vue'
 import ProjectViewer from '@/components/console/project/ProjectViewer.vue'
@@ -238,6 +239,12 @@ async function doCopy(name: string) {
   catch (e) { toast(humanize(e)); throw e }
 }
 function rename() { menuOpen.value = false; if (project.value) renameOpen.value = true }
+// Icône : repère visuel du projet, enregistré à la volée (pas de mode édition).
+async function setIcon(icon: string) {
+  if (!project.value) return
+  try { project.value = { ...project.value, ...(await updateProject(projectId, { icon })) } }
+  catch (e) { toast(humanize(e)) }
+}
 async function doRename(name: string) {
   if (!project.value) return
   try { project.value = { ...project.value, ...(await updateProject(projectId, { name })) }; await loadActivity(); toast('projet renommé') }
@@ -323,6 +330,9 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
            nulle part — régression du refactor). Le nom est cliquable pour renommer (+ crayon
            visible), la découvrabilité du renommage passant sinon par le seul menu •••. -->
       <TopbarPage :claim="true">
+        <!-- icône : posée/changée à la volée, juste avant le nom -->
+        <EmojiPicker v-if="!readOnly" :model-value="project.icon" @update:model-value="setIcon" />
+        <span v-else-if="project.icon" class="pj-top__icon">{{ project.icon }}</span>
         <h1 class="pj-top__name" :class="{ 'pj-top__name--edit': !readOnly }"
           :title="readOnly ? undefined : 'Renommer le projet'"
           @click="!readOnly && rename()">{{ project.name }}</h1>
@@ -407,6 +417,7 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
 .pj__msg { margin: 24px 26px; }
 
 /* en-tête : actions injectées dans le topbar global (TopbarPage), plus de titre local */
+.pj-top__icon { font-size: 17px; line-height: 1; flex: none; }
 .pj-top__name { font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--color-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 42ch; margin: 0; }
 .pj-top__name--edit { cursor: pointer; }
 .pj-top__name--edit:hover { text-decoration: underline dotted; text-underline-offset: 3px; }

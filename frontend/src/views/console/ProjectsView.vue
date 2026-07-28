@@ -172,7 +172,7 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
         <div class="pl-cards">
       <button v-for="p in s.items" :key="p.id" class="pl-card" @click="openProject(p.id)">
         <div class="pl-card__head">
-          <span class="pl-card__name">{{ p.name }}</span>
+          <span class="pl-card__name"><span v-if="p.icon" class="pl-ico">{{ p.icon }}</span>{{ p.name }}</span>
           <span class="pl-card__owner" :class="{ 'pl-card__owner--private': isPrivate(p) }"
             :title="ownerTitle(p)">{{ ownerLabel(p) }}</span>
         </div>
@@ -199,7 +199,7 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
         <span>projet</span><span>état</span><span>maj</span><span class="pl-row__num">entités</span><span></span>
       </div>
       <button v-for="p in projects" :key="p.id" class="pl-row" @click="openProject(p.id)">
-        <span class="pl-row__name"><span class="pl-row__nt">{{ p.name }}</span><span class="pl-row__owner"
+        <span class="pl-row__name"><span class="pl-row__nt"><span v-if="p.icon" class="pl-ico">{{ p.icon }}</span>{{ p.name }}</span><span class="pl-row__owner"
           :class="{ 'pl-row__owner--private': isPrivate(p) }" :title="ownerTitle(p)">{{ ownerLabel(p) }}</span></span>
         <span class="pl-row__chips"><Tag v-for="c in chipsFor(p)" :key="c.label" :tone="c.tone">{{ c.label }}</Tag></span>
         <span class="pl-row__maj">{{ fmtDate(p.updated_at) }}</span>
@@ -266,6 +266,7 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
   background: var(--color-paper-2); border-radius: var(--radius-pill); padding: 1px 7px;
 }
 .pl-sec__hint { font-size: 11px; }
+.pl-ico { margin-right: 6px; font-size: 15px; line-height: 1; }
 .pl-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(288px, 1fr)); gap: 14px; }
 .pl-card { display: flex; flex-direction: column; gap: 10px; text-align: left; cursor: pointer; padding: 16px 17px; border: 1px solid var(--border-card); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-card); font: inherit; transition: transform .15s var(--ease-out), box-shadow .15s; }
 .pl-card__head { display: flex; align-items: flex-start; gap: 8px; }
