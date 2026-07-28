@@ -65,33 +65,38 @@ async function connect() {
 <template>
   <div class="zo">
     <div class="zo-head">
-      <Dot tone="cobalt" :size="8" />
-      <span class="zo-title">ou connecte-toi directement à Zoho</span>
+      <Dot :tone="needsApp ? 'faint' : 'cobalt'" :size="8" />
+      <span class="zo-title">Laisser oto demander les autorisations</span>
     </div>
-    <p class="helptext" style="margin: 8px 0 12px">
-      Tu n'as rien à copier : tu autorises oto chez Zoho et tu reviens connecté.
-      oto demande lui-même les autorisations nécessaires.
+
+    <!-- Séquence, pas alternative : l'app se renseigne dans le MÊME formulaire que
+         le self client ; seul le refresh token change de provenance (collé vs obtenu). -->
+    <p v-if="needsApp" class="helptext" style="margin: 8px 0 12px">
+      <strong>D'abord</strong>, renseigne ton app Zoho avec le bouton ci-dessus :
+      <strong>client id</strong>, <strong>client secret</strong> et la
+      <strong>région</strong> — en laissant <strong>refresh token</strong> et
+      <strong>org id</strong> vides. Reviens ensuite ici pour l'autorisation.
+    </p>
+    <p v-else class="helptext" style="margin: 8px 0 12px">
+      Ton app Zoho est enregistrée. <strong>Dernière étape</strong> : autorise oto
+      chez Zoho — tu n'as rien à copier, il demande lui-même les autorisations dont
+      il a besoin.
     </p>
 
-    <label class="zo-field">
+    <label v-if="!needsApp" class="zo-field">
       <span class="eyebrow">région de ton compte Zoho</span>
       <select v-model="region" class="inp sm">
         <option v-for="r in REGIONS" :key="r.value" :value="r.value">{{ r.label }}</option>
       </select>
     </label>
 
-    <p v-if="scopes.length" class="helptext zo-scopes">
+    <p v-if="scopes.length && !needsApp" class="helptext zo-scopes">
       autorisations demandées : {{ scopes.join(', ') }}
     </p>
 
-    <p v-if="needsApp" class="helptext zo-warn">
-      Renseigne d'abord <strong>client id</strong> et <strong>client secret</strong>
-      de ton app Zoho ci-dessus (ou fais-les partager par ton org), puis reviens
-      ici — oto se chargera de demander les autorisations.
-    </p>
-
-    <Btn kind="mini" :disabled="busy" style="margin-top: 12px" @click="connect">
-      {{ busy ? 'redirection…' : 'Se connecter avec Zoho' }}
+    <Btn v-if="!needsApp" kind="mini" :disabled="busy" style="margin-top: 12px"
+         @click="connect">
+      {{ busy ? 'redirection…' : 'Autoriser oto chez Zoho' }}
     </Btn>
   </div>
 </template>
@@ -102,5 +107,4 @@ async function connect() {
 .zo-title { font-size: 12.5px; font-weight: 600; }
 .zo-field { display: flex; flex-direction: column; gap: 6px; max-width: 280px; }
 .zo-scopes { margin: 10px 0 0; color: var(--color-mute); }
-.zo-warn { margin: 10px 0 0; color: var(--color-terra); }
 </style>
