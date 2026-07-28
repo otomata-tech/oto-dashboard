@@ -336,13 +336,19 @@ export interface InstructionUsage {
   series: number[]
 }
 // ── agent readme (niveau USER) — prose injectée à chaque session (cumulable) ──
-export interface AgentReadme {
+// Readme INJECTÉ d'un scope (guide delivery='init', ADR 0042) — la prose que l'agent
+// reçoit au handshake. Les quatre niveaux partagent cette forme.
+export type InitScope = 'platform' | 'org' | 'group' | 'user'
+export interface InitGuide {
+  scope: InitScope
+  slug: string
+  delivery: 'init'
   body_md: string
   updated_at: string | null
 }
 
 // ── guides on-demand (ADR 0042) : how-to chargés par l'agent via oto_guide ──
-export type GuideScope = 'platform' | 'org' | 'user'
+export type GuideScope = 'platform' | 'org' | 'group' | 'user'
 export interface Guide {
   slug: string
   scope: GuideScope

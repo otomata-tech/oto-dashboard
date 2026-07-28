@@ -13,6 +13,7 @@ import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
 import {
   getGroupInstructions, getGroupInstruction, putGroupInstruction, deleteGroupInstruction,
+  getInitGuide, setInitGuide,
 } from '@/api/console'
 import type { GroupInstructionsBundle } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -28,8 +29,13 @@ const { confirmAction } = usePrompt()
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
 
 const bundle = ref<GroupInstructionsBundle | null>(null)
+const readme = ref('')   // readme d'équipe (guide delivery='init', ADR 0042)
 
 async function load() {
+  // Le readme d'équipe ne vient PLUS du bundle de procédures : c'est un guide
+  // `delivery=init` (ADR 0042), lu sur sa propre surface.
+  getInitGuide('group', props.groupId).then((g) => { readme.value = g.body_md })
+                                      .catch(() => { readme.value = '' })
   try { bundle.value = await getGroupInstructions(props.groupId) }
   catch (e) { toast(humanize(e)); bundle.value = null }
 }
@@ -39,12 +45,13 @@ function editDoctrine() {
   openForm({
     title: 'agent readme · équipe',
     description: 'injected into every session of this team\'s members, right after the org readme.',
-    fields: [{ key: 'body', label: 'markdown', type: 'textarea', initial: bundle.value?.doctrine || '' }],
+    fields: [{ key: 'body', label: 'markdown', type: 'textarea', initial: readme.value }],
     submitLabel: 'save',
     onConfirm: async (v) => {
       const body = (v.body || '').trim()
       if (!body) { toast('readme is empty — nothing saved'); throw new Error('empty readme') }
-      try { await putGroupInstruction(props.groupId, 'claude_md', body); toast('agent readme saved'); await load() }
+      // Readme d'équipe = guide `delivery=init` scope group, ciblé par l'id de la carte.
+      try { await setInitGuide('group', body, props.groupId); toast('agent readme saved'); await load() }
       catch (e) { toast(humanize(e)); throw e }
     },
   })
@@ -97,7 +104,7 @@ async function removeSkill(slug: string) {
     <div v-if="bundle">
       <div v-if="section !== 'procedures'" class="rowitem" style="gap: 10px; padding-bottom: 8px">
         <Tag tone="saffron">readme</Tag>
-        <span class="dim" style="font-size: 12px">{{ bundle.doctrine ? 'injecté à chaque session' : 'no team readme yet' }}</span>
+        <span class="dim" style="font-size: 12px">{{ readme ? 'injecté à chaque session' : 'no team readme yet' }}</span>
       </div>
       <div class="rowlist">
         <div v-for="i in bundle.instructions" :key="i.slug" class="rowitem" style="gap: 10px">

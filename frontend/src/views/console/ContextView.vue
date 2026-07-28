@@ -17,7 +17,7 @@ import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
 import GuidesCard from '@/components/console/GuidesCard.vue'
 import ContextLayerStack from '@/components/console/ContextLayerStack.vue'
 import ContextProfileCard from '@/components/console/ContextProfileCard.vue'
-import { getAgentContext, getAgentReadme, setAgentReadme, getTools, enableTool, disableTool, getMyOrgs, setActiveOrg, clearActiveOrg } from '@/api/console'
+import { getAgentContext, getInitGuide, setInitGuide, getTools, enableTool, disableTool, getMyOrgs, setActiveOrg, clearActiveOrg } from '@/api/console'
 import type { AgentContext, ToolEntry, Org } from '@/types/api'
 import { useToast } from '@/composables/useToast'
 import { useMe } from '@/composables/useMe'
@@ -36,6 +36,10 @@ const expanded = ref<Set<string>>(new Set())
 const busy = ref<Set<string>>(new Set())
 
 const hasGroup = computed(() => !!ctx.value?.doctrine?.group)
+
+// Ma note = un guide `delivery=init` au scope user (ADR 0042).
+const loadMyNote = () => getInitGuide('user')
+const saveMyNote = (body: string) => setInitGuide('user', body)
 
 // Visibilité des outils = préférences USER (getTools), groupées par namespace.
 interface NsGroup { namespace: string; tools: ToolEntry[]; enabled: number; total: number }
@@ -132,7 +136,7 @@ onMounted(load)
             sub="ta prose libre — préférences, contexte, ton. injectée à chaque session, après les couches d'org et d'équipe."
             :can-edit="true" allow-empty
             placeholder="ex. je préfère des réponses courtes ; mes clients sont des PME ; signe mes emails « Alexis »."
-            :load="getAgentReadme" :save="setAgentReadme" />
+            :load="loadMyNote" :save="saveMyNote" />
         </template>
       </ContextLayerStack>
 

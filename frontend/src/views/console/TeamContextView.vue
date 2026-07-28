@@ -1,20 +1,20 @@
 <script setup lang="ts">
 // « ce que voit l'agent · équipe » (scope team, /team/context) — pendant équipe de
 // ContextOrgView. Le readme de l'équipe est injecté à chaque session de ses membres,
-// APRÈS celui de l'org, avant celui de chaque membre. Pas de carte guides : le backend
-// n'a pas de GuideScope 'group' (les procédures d'équipe vivent sur /team/procedures).
+// APRÈS celui de l'org, avant celui de chaque membre. Pas de carte guides d'équipe ici :
+// les procédures d'équipe vivent sur /team/procedures.
 import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
 import TeamScopeHeader from '@/components/console/TeamScopeHeader.vue'
 import { useTeamScope } from '@/composables/useTeamScope'
-import { getGroupInstructions, putGroupInstruction } from '@/api/console'
+import { getInitGuide, setInitGuide } from '@/api/console'
 
 const { groupId, detail, error, loaded, canManage } = useTeamScope()
 
-// Adaptateur AgentReadmeCard (générique) → readme d'équipe (slug claude_md). `load` est
+// Le readme d'équipe = un guide `delivery=init` au scope group (ADR 0042), ciblé par
+// l'id de la route — PAS l'équipe active en session, qui peut être une autre. `load` est
 // onMounted-only ⇒ la carte est keyée sur groupId (remount à chaque changement d'équipe).
-const loadReadme = () =>
-  getGroupInstructions(groupId.value as number).then((b) => ({ body_md: b.doctrine, updated_at: null }))
-const saveReadme = (body: string) => putGroupInstruction(groupId.value as number, 'claude_md', body)
+const loadReadme = () => getInitGuide('group', groupId.value as number)
+const saveReadme = (body: string) => setInitGuide('group', body, groupId.value as number)
 </script>
 
 <template>

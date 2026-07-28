@@ -13,7 +13,7 @@ import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
 import GuidesCard from '@/components/console/GuidesCard.vue'
 import { useMe } from '@/composables/useMe'
 import {
-  getInstruction, putInstruction, listGroups, getOrgConnectorActivation,
+  getInitGuide, setInitGuide, listGroups, getOrgConnectorActivation,
 } from '@/api/console'
 import type { GroupListItem, OrgConnectorActivation } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -23,9 +23,10 @@ const activeOrgId = computed(() => me.value?.active_org ?? null)
 const orgName = computed(() => me.value?.active_org_name ?? null)
 const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin')
 
-const README_SLUG = 'claude_md'
-const loadOrgReadme = () => getInstruction(README_SLUG)
-const saveOrgReadme = (body: string) => putInstruction(README_SLUG, body, 'agent readme')
+// Le readme d'org = un guide `delivery=init` au scope org (ADR 0042) — ciblé par l'id
+// de l'org affichée, jamais implicitement « celle de la session ».
+const loadOrgReadme = () => getInitGuide('org', activeOrgId.value ?? undefined)
+const saveOrgReadme = (body: string) => setInitGuide('org', body, activeOrgId.value ?? undefined)
 
 const groups = ref<GroupListItem[]>([])
 const connectors = ref<OrgConnectorActivation[]>([])

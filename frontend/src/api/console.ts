@@ -2,7 +2,7 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, AgentReadme, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, MyConnector, ProviderStatus, SearchHit, Inbox,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, InitGuide, InitScope, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, MyConnector, ProviderStatus, SearchHit, Inbox,
   BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
@@ -196,11 +196,21 @@ export const getDoctrine = () => api<DoctrineBundle>('/api/me/instructions')
 // Contexte agent (otomata-private#49) : instructions serveur + readme/procédures + outils visibles.
 export const getAgentContext = () => api<AgentContext>('/api/me/agent-context')
 
-// ── agent readme (niveau USER) — prose injectée à chaque session, cumulée après
-// les readme plateforme (bloc A), org (claude_md) et équipe. Édité sur /account.
-export const getAgentReadme = () => api<AgentReadme>('/api/me/agent-readme')
-export const setAgentReadme = (body_md: string) =>
-  api<AgentReadme>('/api/me/agent-readme', { method: 'PUT', ...j({ body_md }) })
+// ── readmes INJECTÉS (delivery='init') — la prose que l'agent reçoit au démarrage de
+// chaque session, cumulée plateforme → org → équipe → user. UNE surface pour les quatre
+// niveaux (ADR 0042 §Convergence des surfaces) : c'est un guide dont la livraison est
+// `init`. `ownerId` = l'org/l'équipe VISÉE (obligatoire sur un écran qui en gère une
+// précise — sans lui le backend prendrait celle active en session).
+const initPath = (scope: InitScope, ownerId?: number) => {
+  const tail = `guides/${scope}/readme?delivery=init`
+  if (scope === 'org' && ownerId != null) return `/api/orgs/${ownerId}/${tail}`
+  if (scope === 'group' && ownerId != null) return `/api/groups/${ownerId}/${tail}`
+  return `/api/me/${tail}`
+}
+export const getInitGuide = (scope: InitScope, ownerId?: number) =>
+  api<InitGuide>(initPath(scope, ownerId))
+export const setInitGuide = (scope: InitScope, body_md: string, ownerId?: number) =>
+  api<InitGuide>(initPath(scope, ownerId), { method: 'PUT', ...j({ body_md, delivery: 'init' }) })
 
 // ── profil « situation avec oto » (data model libre, relu à chaque session ; surface
 // REST de oto_profile). Édité in-situ dans la section Context. ──

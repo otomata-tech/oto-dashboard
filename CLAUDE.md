@@ -214,8 +214,12 @@ provisionné automatiquement à la création du compte oto (côté backend).
 > **Onboarding = un projet (ADR 0032 §7, 2026-07-01).** Plus d'écran « get started » ni de
 > mode d'accueil spécial : le composant `GetStartedGuide.vue` et la variante `onboarding`
 > d'`OverviewView` ont été retirés. L'accueil est le projet « Découverte » (sous `/projects`),
-> semé à la création de l'org perso. `Me.onboarding` retiré ; la fiche « situation avec oto »
-> (profil) vit côté agent via `oto_profile`, plus dans le dashboard.
+> semé à la création de l'org perso. `Me.onboarding` retiré. La fiche « situation avec oto »
+> (profil) est entretenue par l'agent (`oto_profile`) **et** éditable dans la console : couche
+> « ta fiche » de `/context` (`ContextProfileCard`, `GET/PUT /api/me/profile`) — même capacité
+> `me.profile` des deux côtés (ADR 0042 §Convergence des surfaces, 28/07). Sa carte avait été
+> débranchée par la refonte « anatomie en couches » (23/07) : couche en lecture seule, donc
+> aucun moyen de corriger ce que l'agent y avait écrit. Remontée dans un slot `#profile-editor`.
 
 ## Projets (couche d'organisation, ADR 0030 + modèle produit 2026-06-27)
 
@@ -281,11 +285,17 @@ Groupe nav **« memory »** (`consoleNav.ts`) = deux surfaces de mémoire :
 
 **Deux objets, deux mots, deux surfaces** (fin du bundle historique de l'écran doctrine) :
 - **agent readme** = prose libre **injectée à chaque session** (bloc C backend), **cumulable
-  par niveau** : plateforme (`/platform/instructions`) → org (**carte sur `/org`**,
-  `AgentReadmeCard` branchée sur `putInstruction('claude_md')`)
-  → équipe (`GroupDoctrineCard`, `/org/departments`) → user (**carte sur `/account`**,
-  `GET/PUT /api/me/agent-readme`). Composant générique `AgentReadmeCard.vue` (props
-  load/save). **Prose PLATE, sans versioning** (ADR 0042 : le readme vit dans `guides`, l'UI
+  par niveau** : plateforme (`/platform/instructions`) → org (`/org/context`) → équipe
+  (`/team/context`, `GroupDoctrineCard`) → user (`/account/agent` + couche « ta note » de
+  `/context`). Composant générique `AgentReadmeCard.vue` (props load/save). ⚠️ **UNE surface
+  pour les 4 niveaux depuis le 28/07** (ADR 0042 §Convergence des surfaces) : un readme EST un
+  guide dont la livraison est `init` → `getInitGuide(scope, ownerId?)` / `setInitGuide(...)`
+  (`/api/me/guides/{scope}/readme?delivery=init`, ou `/api/{orgs,groups}/{id}/guides/…` pour
+  une cible explicite). Fini les 4 chemins distincts (`agent-readme`, `instructions/claude_md`,
+  `groups/{id}/instructions/claude_md`). **Toujours passer l'id** sur un écran qui gère une
+  org/équipe précise : sans lui le backend vise celle ACTIVE en session, qui peut être une
+  autre. (`/platform/instructions` garde sa surface admin propre — elle porte en plus le seed
+  et le « rétablir le défaut ».) **Prose PLATE, sans versioning** (ADR 0042 : le readme vit dans `guides`, l'UI
   versions/restore retirée le 2026-07-06) — ≠ les PROCÉDURES nommées, qui gardent leur
   versioning (DoctrineView). Pas de compteur d'usage (l'injection n'est pas un tool
   call) — le tag dit « injecté à chaque session ».
@@ -393,8 +403,8 @@ persistée, pas `current_org`** (qui renverrait le contexte du requérant) — c
 `AccountView.vue` = hub « gérer mon compte » (≠ ancien écran profil seul) : carte **profile**
 (avatar/nom/email, `uploadAvatar`/`deleteAvatar`), carte **compte & accès** (email + rôle
 plateforme en lecture seule + `logout`), carte **agent readme · toi** (`AgentReadmeCard`,
-niveau USER — `GET/PUT /api/me/agent-readme`, injecté à chaque session après plateforme/org/
-équipe), carte **cli & api tokens** (`AccountTokensCard.vue`, `getTokens`/`createToken`/
+niveau USER — `getInitGuide('user')`/`setInitGuide('user', …)`, injecté à chaque session
+après plateforme/org/équipe), carte **cli & api tokens** (`AccountTokensCard.vue`, `getTokens`/`createToken`/
 `deleteToken` — migrés depuis `ConnectorsView`, user-scopés). Pas de préférences/langue
 (aucune infra i18n dans le repo).
 
