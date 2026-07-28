@@ -10,6 +10,7 @@ import Tag from '@/components/console/Tag.vue'
 import OtoSelect from '@/components/console/OtoSelect.vue'
 import ModalOverlay from '@/components/console/ModalOverlay.vue'
 import ProjectMcpPublishDialog from './ProjectMcpPublishDialog.vue'
+import { projectVisibility } from '@/lib/projectVisibility'
 import {
   getMyOrgs, getOrg, listGroups, shareResource, unshareResource,
   publishProjectMcp, unpublishProjectMcp,
@@ -37,6 +38,14 @@ const projectId = computed(() => props.project.id)
 // une équipe / la bibliothèque), et c'est d'elle que découle QUI VOIT. On le résout
 // depuis les listes déjà chargées (loadPickers) + l'identité courante. Répond au flou
 // « ce projet appartient à qui ? » — l'axe DÉTENIR, distinct des partages (axe PRÊTER).
+// Même formulation que la pastille de la page projet et de la liste (source unique
+// `projectVisibility`) : celui qui vient vérifier « qui voit ça ? » doit retrouver
+// MOT POUR MOT la réponse qu'il a déjà lue, avant le détail de détention/prêts.
+const visibility = computed(() => projectVisibility(props.project, {
+  orgName: me.value?.active_org_name,
+  sharedCount: props.grants.length,
+}))
+
 const ownerLabel = computed(() => {
   const t = props.project.owner_type; const id = String(props.project.owner_id ?? '')
   if (t === 'user') return id === me.value?.sub ? 'toi' : 'un utilisateur'
@@ -244,6 +253,14 @@ async function transfer() {
           <button class="sd__close" aria-label="fermer" @click="emit('close')"><Icon name="x" :size="16" /></button>
         </header>
         <div class="sd__body">
+          <!-- Qui voit ? (audience) — la réponse d'abord, en clair et dans les mêmes
+               mots que la page projet ; le détail de détention/prêts suit. -->
+          <div class="sd__vis" :class="{ 'sd__vis--private': visibility.isPrivate }">
+            <Icon :name="visibility.isPrivate ? 'shield' : 'users'" :size="15" />
+            <strong>{{ visibility.label }}</strong>
+            <span>{{ visibility.detail }}</span>
+          </div>
+
           <!-- Détenteur actuel (axe DÉTENIR) : qui possède ⇒ qui voit -->
           <div class="sd__owner">
             <Icon name="circle-user" :size="15" />
@@ -375,6 +392,18 @@ async function transfer() {
 .sd__sec { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; color: var(--color-saffron-ink); }
 .sd__sec :deep(svg) { color: color-mix(in srgb, var(--color-saffron) 55%, var(--color-saffron-ink)); flex: none; }
 .sd__desc { margin: 0 0 10px; font-size: 11.5px; line-height: 1.5; color: var(--color-faint); }
+/* bandeau d'audience : la réponse à « qui voit ? », en tête de la modale */
+.sd__vis {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;
+  padding: 10px 12px; border: 1px solid var(--color-hair); border-radius: var(--radius-md);
+  background: var(--color-surface); font-size: 12.5px; color: var(--color-ink-soft);
+}
+.sd__vis strong { color: var(--color-ink); }
+.sd__vis :deep(svg) { color: var(--color-mute); flex: none; }
+.sd__vis--private {
+  background: var(--color-olive-soft); border-color: transparent; color: var(--color-olive-ink);
+}
+.sd__vis--private strong, .sd__vis--private :deep(svg) { color: var(--color-olive-ink); }
 .sd__owner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 12px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); background: var(--color-paper-2); font-size: 12.5px; color: var(--color-ink-soft); }
 .sd__owner :deep(svg) { color: var(--color-mute); flex: none; }
 .sd__ownerhint { font-size: 11px; }
