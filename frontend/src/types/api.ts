@@ -497,6 +497,8 @@ export interface Project {
   mcp_unresolvable_tools?: string[]           // (réponse publish) outils exposés MAIS non résolubles sans login → échouent à l'appel
   mcp_expose_datastore?: boolean              // `secret` : datastore exposé en LECTURE sur l'endpoint partagé (tableaux liés au projet)
   mcp_expose_datastore_write?: boolean        // opt-in ADDITIONNEL : écriture (data_write/data_set_schema) ; sans objet si lecture non exposée
+  mcp_expose_docs?: boolean                   // `secret` : PAGES du projet lisibles (oto_doc) par l'invité branché ; défaut false (elles portent des notes internes)
+  mcp_instructions_md?: string                // ce que l'agent de l'invité lit en se branchant — ≠ brief_md, qui reste interne
   created_at?: string | null
   updated_at?: string | null
   archived_at?: string | null

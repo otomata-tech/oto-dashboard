@@ -199,20 +199,49 @@ const dsLegacy = computed(() => (props.project.mcp_tools ?? []).some((t) => t.st
 const linkedTables = computed(() => (props.project.links ?? []).filter((l) => l.target_type === 'tableau'))
 const hasLinkedTables = computed(() => linkedTables.value.length > 0)
 
-// Republication ciblée (secret) : conserve slug/tools, change seulement les flags datastore.
-async function setDatastore(expose: boolean, write: boolean) {
+// ── Pages du projet lisibles par l'invité (#310) ──
+// Opt-in SÉPARÉ du datastore : les pages portent typiquement des notes internes
+// (arbitrages, contacts, gotchas), donc jamais exposées par défaut.
+const docsExposed = computed(() => dsSecret.value && !!props.project.mcp_expose_docs)
+
+// ── Ce que l'invité lit en se branchant (#309) ──
+// ≠ le brief du projet, qui reste interne. Sans ça, l'agent de l'invité se branche
+// sans savoir ce que le projet contient ni comment le lire.
+const guideDraft = ref(props.project.mcp_instructions_md ?? '')
+const guideDirty = computed(() => guideDraft.value !== (props.project.mcp_instructions_md ?? ''))
+watch(() => props.project.mcp_instructions_md, (v) => { guideDraft.value = v ?? '' })
+
+// Republication ciblée : conserve slug/tools/flags, ne change QUE ce qu'on lui passe.
+async function republish(changes: Partial<{ mcp_expose_datastore: boolean; mcp_expose_datastore_write: boolean; mcp_expose_docs: boolean; mcp_instructions_md: string }>, done: string) {
   if (mcpBusy.value || !dsSecret.value) return
   mcpBusy.value = true
   try {
     await publishProjectMcp(projectId.value, {
       mcp_slug: props.project.mcp_slug ?? '', mcp_access: 'secret',
       mcp_tools: props.project.mcp_tools ?? [],
-      mcp_expose_datastore: expose, mcp_expose_datastore_write: write,
+      mcp_expose_datastore: dsExposed.value, mcp_expose_datastore_write: dsWritable.value,
+      mcp_expose_docs: docsExposed.value,
+      ...changes,
     })
-    toast(expose ? (write ? 'datastore : lecture + écriture' : 'datastore exposé en lecture') : 'datastore fermé')
+    toast(done)
     emit('reload-project')
   } catch (e) { toast(humanize(e)) }
   finally { mcpBusy.value = false }
+}
+
+async function setDatastore(expose: boolean, write: boolean) {
+  await republish({ mcp_expose_datastore: expose, mcp_expose_datastore_write: write },
+    expose ? (write ? 'datastore : lecture + écriture' : 'datastore exposé en lecture') : 'datastore fermé')
+}
+
+async function setDocs(expose: boolean) {
+  await republish({ mcp_expose_docs: expose },
+    expose ? 'pages du projet lisibles par les invités' : 'pages refermées')
+}
+
+async function saveGuide() {
+  await republish({ mcp_instructions_md: guideDraft.value },
+    guideDraft.value.trim() ? 'mode d’emploi enregistré' : 'mode d’emploi retiré')
 }
 // Normalise un endpoint legacy : retire les data_* de la liste d'outils, expose via le
 // flag. Une liste résultante VIDE est OK en `secret` (= tout navigable, lecture seule).
@@ -224,6 +253,7 @@ async function normalizeLegacy() {
     await publishProjectMcp(projectId.value, {
       mcp_slug: props.project.mcp_slug ?? '', mcp_access: 'secret', mcp_tools: tools,
       mcp_expose_datastore: true, mcp_expose_datastore_write: dsWritable.value,
+      mcp_expose_docs: docsExposed.value,
     })
     toast('exposition normalisée — datastore piloté par le réglage dédié')
     emit('reload-project')
@@ -357,6 +387,45 @@ async function transfer() {
                 <p v-else class="sd__desc">Aucun tableau n’est lié à ce projet — <strong>lie un tableau</strong> au projet pour pouvoir l’exposer aux invités branchés.</p>
               </div>
 
+              <!-- Pages du projet (secret uniquement) : opt-in séparé du datastore -->
+              <div v-if="dsSecret" class="sd__ds">
+                <div class="sd__dsrow">
+                  <Icon name="file-text" :size="14" />
+                  <span class="sd__dslbl">Pages du projet</span>
+                  <Tag v-if="docsExposed" tone="cobalt">lisibles</Tag>
+                  <Tag v-else tone="terra">fermées</Tag>
+                </div>
+                <p class="sd__desc">
+                  Les invités branchés peuvent lire les pages <strong>de ce projet</strong> — jamais celles du
+                  reste de l’org, et jamais en écriture. Relis-les avant d’ouvrir : elles portent souvent des
+                  notes internes (arbitrages, contacts, méthode).
+                </p>
+                <div v-if="!readOnly" class="sd__mcpact">
+                  <Btn v-if="!docsExposed" kind="mini" icon="file-text" :disabled="mcpBusy" @click="setDocs(true)">Rendre les pages lisibles</Btn>
+                  <Btn v-else kind="mini" :disabled="mcpBusy" @click="setDocs(false)">Refermer les pages</Btn>
+                </div>
+              </div>
+
+              <!-- Mode d'emploi servi à l'invité au branchement (#309) -->
+              <div v-if="dsSecret" class="sd__ds">
+                <div class="sd__dsrow">
+                  <Icon name="book" :size="14" />
+                  <span class="sd__dslbl">Ce que l’invité lit en se branchant</span>
+                  <Tag v-if="project.mcp_instructions_md" tone="olive">écrit</Tag>
+                  <Tag v-else tone="terra">vide</Tag>
+                </div>
+                <p class="sd__desc">
+                  Le premier message que reçoit son agent : ce que contient ce projet et comment le lire.
+                  <strong>Ce n’est pas le brief du projet</strong>, qui reste chez toi — écris ici ce que tu
+                  assumes de montrer. Sans rien, il se branche sans savoir quoi faire.
+                </p>
+                <textarea v-model="guideDraft" class="sd__area" rows="4" :disabled="readOnly || mcpBusy"
+                  placeholder="ex. Ce vivier liste les entreprises dont l’accord santé/prévoyance n’a pas bougé depuis 24 mois. Une ligne = une entreprise ; `statut` dit où elle en est."></textarea>
+                <div v-if="!readOnly" class="sd__mcpact">
+                  <Btn kind="mini" icon="check" :disabled="mcpBusy || !guideDirty" @click="saveGuide">Enregistrer</Btn>
+                </div>
+              </div>
+
               <div v-if="!readOnly" class="sd__mcpact">
                 <Btn kind="mini" :disabled="mcpBusy" @click="endpointOpen = true">Reconfigurer</Btn>
                 <Btn kind="danger" :disabled="mcpBusy" @click="unpublishMcp">Retirer</Btn>
@@ -421,6 +490,8 @@ async function transfer() {
 .sd__dsrow :deep(svg) { color: var(--color-mute); flex: none; }
 .sd__dslbl { font-size: 12.5px; font-weight: 700; color: var(--color-ink-soft); margin-right: 2px; }
 .sd__ds .sd__desc { margin: 7px 0 0; }
+.sd__area { width: 100%; margin-top: 9px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 9px 11px; font-family: var(--font-sans); font-size: 12.5px; line-height: 1.55; color: var(--color-ink-soft); background: var(--color-surface); resize: vertical; box-sizing: border-box; }
+.sd__area:disabled { opacity: .6; }
 .sd__dswarn { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-top: 9px; padding: 8px 10px; border-radius: var(--radius-md); background: var(--color-saffron-soft); font-size: 11px; line-height: 1.45; color: var(--color-saffron-ink); }
 .sd__dswarn :deep(svg) { color: var(--color-saffron-ink); flex: none; }
 .sd__dswarn code { font-family: var(--font-mono); font-size: 10px; }
