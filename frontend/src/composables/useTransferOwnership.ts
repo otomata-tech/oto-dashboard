@@ -1,14 +1,18 @@
 // Choix de la NOUVELLE ENTITÉ DÉTENTRICE d'une ressource possédée (ADR 0030/0049).
 // « Transférer » = changer de détenteur, et le détenteur est une ENTITÉ nommée, pas un
-// e-mail à taper : on liste **moi** / **mes orgs** / **les équipes de l'org active**
-// (et « autre utilisateur » par e-mail en repli, pour une passation hors de ses scopes).
-// Miroir du sélecteur de la CRÉATION (ProjectCreateDialog). Le caller fait l'appel API
-// adéquat selon le type de ressource ; renvoie la cible choisie, ou null si annulé.
+// e-mail à taper : on liste **moi** / **les personnes de l'org active** / **les équipes**
+// / **mes orgs** (« autre utilisateur » par e-mail reste en repli, pour une passation
+// hors de ses scopes). Miroir du sélecteur de la CRÉATION (ProjectCreateDialog). Le caller
+// fait l'appel API adéquat selon le type de ressource ; renvoie la cible choisie, ou null.
+//
+// Les options sont ordonnées par AUDIENCE CROISSANTE (moi seul → une personne → une
+// équipe → toute une org) : la question posée est « qui le voit ? », pas « quel type
+// d'entité ? » — l'utilisateur choisit une audience, pas une taxonomie backend.
 //
 // `opts.allowTeams` : n'offrir les équipes que si le backend cible sait les recevoir
 // (`new_owner_group`) — vrai pour les PROJETS (oto_resource) ; l'endpoint datastore
 // bespoke ne les accepte pas encore → on ne les propose pas là (pas de trou silencieux).
-import { getMyOrgs, listGroups, transferResource } from '@/api/console'
+import { getMyOrgs, getOrg, listGroups, transferResource } from '@/api/console'
 import { useFormPrompt } from '@/composables/useFormPrompt'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
@@ -29,29 +33,37 @@ export function useTransferOwnership() {
     opts: { allowTeams?: boolean } = {},
   ): Promise<TransferTarget | null> {
     const activeOrg = me.value?.active_org ?? null
-    const [orgs, groups] = await Promise.all([
+    const [orgs, groups, members] = await Promise.all([
       getMyOrgs().then((d) => d.orgs).catch(() => []),
       opts.allowTeams && activeOrg != null
         // Uniquement les équipes où j'ai un rôle (le backend exige can_read_group).
         ? listGroups(activeOrg).then((d) => d.groups.filter((g) => g.my_role != null)).catch(() => [])
         : Promise.resolve([]),
+      // Les PERSONNES de l'org active, nommées : céder un projet à une collègue ne doit
+      // pas exiger de retaper son e-mail de mémoire (le repli e-mail reste, pour hors-org).
+      activeOrg != null
+        ? getOrg(activeOrg).then((d) => (d.members ?? []).filter((m) => !!m.email && m.sub !== me.value?.sub)).catch(() => [])
+        : Promise.resolve([]),
     ])
 
+    // Ordre = audience croissante : moi seul → une personne → une équipe → toute une org.
     const options = [
-      { value: 'me', label: 'moi (privé)' },
-      ...orgs.map((o) => ({ value: `org:${o.id}`, label: `org · ${o.name}` })),
-      ...groups.map((g) => ({ value: `group:${g.group_id}`, label: `équipe · ${g.name}` })),
-      { value: 'user', label: 'un autre utilisateur (e-mail ci-dessous)' },
+      { value: 'me', label: 'moi seul (privé)' },
+      ...members.map((m) => ({ value: `email:${m.email}`, label: `${m.name || m.email} (privé, à cette personne)` })),
+      ...groups.map((g) => ({ value: `group:${g.group_id}`, label: `l’équipe ${g.name}` })),
+      ...orgs.map((o) => ({ value: `org:${o.id}`, label: `toute l’org ${o.name}` })),
+      { value: 'user', label: 'quelqu’un d’autre (e-mail ci-dessous)' },
     ]
 
     const r = await promptFormDialog({
-      title: 'transférer la propriété',
-      description: `qui détient « ${resourceLabel} » ? choisis la nouvelle entité détentrice `
-        + `(toi, une org, une équipe) — ou cède-le à un autre utilisateur par e-mail.`,
-      submitLabel: 'transférer',
+      title: 'qui détient ce projet ?',
+      description: `« ${resourceLabel} » — le détenteur est celui qui le voit. Choisis la `
+        + `nouvelle audience : toi seul, une personne, une équipe ou toute une org. Les prêts `
+        + `déjà accordés restent en place.`,
+      submitLabel: 'appliquer',
       fields: [
-        { key: 'target', label: 'nouveau détenteur', type: 'select', initial: 'me', options },
-        { key: 'email', label: 'e-mail (uniquement si « un autre utilisateur »)',
+        { key: 'target', label: 'détenteur', type: 'select', initial: 'me', options },
+        { key: 'email', label: 'e-mail (uniquement si « quelqu’un d’autre »)',
           placeholder: 'user@email.com' },
       ],
     })
@@ -61,6 +73,7 @@ export function useTransferOwnership() {
       const email = (me.value?.email || '').trim()
       return email ? { email } : null   // « moi » = cession à mon propre compte (owner_type=user)
     }
+    if (target.startsWith('email:')) return { email: target.slice(6) }
     if (target.startsWith('org:')) return { org_id: Number(target.slice(4)) }
     if (target.startsWith('group:')) return { group_id: Number(target.slice(6)) }
     const email = (r.email || '').trim()

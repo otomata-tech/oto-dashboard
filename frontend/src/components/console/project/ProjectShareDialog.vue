@@ -257,17 +257,24 @@ async function transfer() {
             <span>{{ visibility.detail }}</span>
           </div>
 
-          <!-- Détenteur actuel (axe DÉTENIR) : qui possède ⇒ qui voit -->
+          <!-- Détenteur (axe DÉTENIR) : qui possède ⇒ qui voit. Le changement de détenteur
+               vit ICI, à côté de la réponse qu'il modifie — pas dans une section « transférer »
+               reléguée en bas, séparée de la question qu'elle règle. -->
           <div class="sd__owner">
             <Icon name="circle-user" :size="15" />
             <span>Détenu par <strong>{{ ownerLabel }}</strong></span>
-            <Tag v-if="grants.length" tone="cobalt">{{ grants.length }} partage{{ grants.length > 1 ? 's' : '' }}</Tag>
-            <span v-else class="dim sd__ownerhint">visible de son détenteur ; les prêts ci-dessous s'ajoutent</span>
+            <Tag v-if="grants.length" tone="cobalt">{{ grants.length }} prêt{{ grants.length > 1 ? 's' : '' }}</Tag>
+            <Btn v-if="!readOnly" kind="mini" class="sd__ownerbtn" @click="transfer">Changer</Btn>
           </div>
+          <p v-if="!readOnly" class="sd__desc sd__ownernote">
+            Changer de détenteur change l’audience : toi seul, une personne, une équipe ou toute
+            une org. Le détenteur précédent garde un accès édition. Si tu cèdes hors de ta portée,
+            une confirmation te préviendra que tu ne pourras plus le récupérer seul.
+          </p>
 
-          <!-- Équipe -->
+          <!-- Prêts (axe ADDITIF) -->
           <section>
-            <div class="sd__sec"><Icon name="users" :size="16" /><span>Prêter — membre, équipe ou org</span></div>
+            <div class="sd__sec"><Icon name="users" :size="16" /><span>Et en plus, ces personnes y ont accès</span></div>
             <p class="sd__desc">Un prêt <em>ajoute</em> un accès sans changer le détenteur : <strong>lecteur</strong> (lit) · <strong>éditeur</strong> (modifie) · <strong>gérant</strong> (peut re-partager).</p>
             <div v-if="grants.length" class="sd__grants">
               <div v-for="g in grants" :key="(g.principal_type || 'user') + (g.principal_id || g.email || '')" class="sd__grant">
@@ -358,15 +365,6 @@ async function transfer() {
             <Btn v-else-if="!readOnly" kind="mini" icon="plug" :disabled="mcpBusy" @click="endpointOpen = true">Publier en endpoint MCP</Btn>
           </section>
 
-          <div class="sd__hr"></div>
-
-          <!-- Transférer -->
-          <section>
-            <div class="sd__sec"><Icon name="circle-user" :size="16" /><span>Changer de détenteur</span></div>
-            <p class="sd__desc">Confie le projet à une autre entité — <strong>toi</strong>, une org ou une équipe (ou un autre utilisateur). Le détenteur précédent garde un accès édition. Si tu cèdes hors de ta portée, une confirmation te préviendra que tu ne pourras plus le récupérer seul.</p>
-            <Btn v-if="!readOnly" kind="mini" icon="external-link" @click="transfer">Transférer le projet</Btn>
-            <p v-else class="dim sd__ro">Réservé au propriétaire.</p>
-          </section>
         </div>
       </div>
   </ModalOverlay>
@@ -402,7 +400,8 @@ async function transfer() {
 .sd__vis--private strong, .sd__vis--private :deep(svg) { color: var(--color-olive-ink); }
 .sd__owner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 12px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); background: var(--color-paper-2); font-size: 12.5px; color: var(--color-ink-soft); }
 .sd__owner :deep(svg) { color: var(--color-mute); flex: none; }
-.sd__ownerhint { font-size: 11px; }
+.sd__ownerbtn { margin-left: auto; }
+.sd__ownernote { margin: -4px 0 0; }
 .sd__grants { display: flex; flex-direction: column; margin-bottom: 10px; }
 .sd__grant { display: flex; align-items: center; gap: 9px; padding: 8px 0; border-bottom: 1px solid var(--color-hair-soft); }
 .sd__av { width: 28px; height: 28px; border-radius: var(--radius-pill); flex: none; display: grid; place-items: center; background: var(--color-paper-2); border: 1px solid var(--color-hair); font-size: 10.5px; font-weight: 700; color: var(--color-ink-soft); }
