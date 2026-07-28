@@ -5,7 +5,7 @@ import Icon from './Icon.vue'
 import OtoLoading from './OtoLoading.vue'
 import OtoSelect from './OtoSelect.vue'
 import ColumnFilterCell from './ColumnFilterCell.vue'
-import type { ColumnFilter, DatastoreRow } from '@/types/api'
+import type { ColumnFilter, DatastoreRow, DatastoreSchema } from '@/types/api'
 import { cellKind, cellShort, absDate, relDate } from '@/lib/cellRender'
 import {
   buildFilters, columnFilterKind, defaultOp, filterChipLabel,
@@ -24,6 +24,7 @@ const props = defineProps<{
   search: string
   filters: ColumnFilter[]
   loading?: boolean
+  schema?: DatastoreSchema | null   // libellés + priorité des colonnes (ADR 0046)
 }>()
 const emit = defineEmits<{
   (e: 'open', row: DatastoreRow): void
@@ -47,7 +48,49 @@ const fields = computed<string[]>(() => {
       if (!k.startsWith('_') && !seen.includes(k)) seen.push(k)
   return seen
 })
-const columns = computed(() => [...fields.value, '_updated_at'])
+// ── colonnes AFFICHÉES ──────────────────────────────────────────────────────
+// Tout afficher fait déborder la table dès qu'un schéma a ~10 champs (scroll
+// horizontal permanent). On garde donc par défaut les colonnes SIGNIFIANTES —
+// celles que le schéma qualifie par un rôle — puis on complète jusqu'à un plafond ;
+// le reste est masqué mais réactivable via le sélecteur (rien n'est perdu).
+// Sans schéma (table libre) : comportement historique, toutes les colonnes.
+const MAX_DEFAULT_COLS = 7
+const ROLE_PRIORITY = ['title', 'status', 'badge', 'metric', 'qualif']
+
+const schemaFields = computed(() => props.schema?.fields ?? [])
+const fieldByKey = computed(() =>
+  Object.fromEntries(schemaFields.value.filter((f) => f.key).map((f) => [f.key, f])))
+
+/** Colonnes proposées par défaut : rôles d'abord, puis l'ordre du schéma, plafonné. */
+const defaultCols = computed<string[]>(() => {
+  const all = fields.value
+  if (!schemaFields.value.length) return all
+  const declared = new Set(schemaFields.value.map((f) => f.key))
+  const visible = all.filter((k) => fieldByKey.value[k]?.hidden !== true)
+  const scored = [...visible].sort((a, b) => {
+    const ra = ROLE_PRIORITY.indexOf(fieldByKey.value[a]?.role ?? '')
+    const rb = ROLE_PRIORITY.indexOf(fieldByKey.value[b]?.role ?? '')
+    return (ra < 0 ? 99 : ra) - (rb < 0 ? 99 : rb)
+  })
+  const kept = scored.slice(0, MAX_DEFAULT_COLS)
+  // on restitue l'ordre NATUREL (schéma) — le score ne sert qu'à choisir QUI garder
+  return visible.filter((k) => kept.includes(k) || !declared.has(k)).slice(0, MAX_DEFAULT_COLS)
+})
+
+const chosenCols = ref<string[] | null>(null)   // null = défaut (suit le schéma)
+const shownFields = computed<string[]>(() =>
+  (chosenCols.value ?? defaultCols.value).filter((k) => fields.value.includes(k)))
+const hiddenCount = computed(() => fields.value.length - shownFields.value.length)
+const colsOpen = ref(false)
+
+function toggleCol(k: string) {
+  const cur = new Set(chosenCols.value ?? defaultCols.value)
+  cur.has(k) ? cur.delete(k) : cur.add(k)
+  chosenCols.value = fields.value.filter((f) => cur.has(f))   // ordre stable
+}
+const isShown = (k: string) => shownFields.value.includes(k)
+
+const columns = computed(() => [...shownFields.value, '_updated_at'])
 
 const pageCount = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)))
 const rangeText = computed(() => {
@@ -57,7 +100,12 @@ const rangeText = computed(() => {
   return `${from}–${to} / ${props.total}`
 })
 
-function header(col: string): string { return col === '_updated_at' ? 'updated' : col }
+// En-tête = libellé du schéma quand il existe (« Paiement GoCardless »), pas la clé
+// technique (« payment_id »).
+function header(col: string): string {
+  if (col === '_updated_at') return 'updated'
+  return fieldByKey.value[col]?.label || col
+}
 function sortGlyph(col: string): string {
   if (props.sortField !== col) return '↕'
   return props.sortDir === 'desc' ? '↓' : '↑'
@@ -150,6 +198,25 @@ watch(() => props.filters, (f) => {
         filters<span v-if="activeFilterCount" class="dt-filter-badge">{{ activeFilterCount }}</span>
       </button>
       <button v-if="activeFilterCount" class="dt-filter-clear" @click="clearFilters">Clear</button>
+      <!-- sélecteur de colonnes : ce qui est masqué par défaut reste accessible ici -->
+      <span v-if="fields.length" class="dt-cols">
+        <button class="dt-filter-toggle" :class="{ on: colsOpen || hiddenCount > 0 }"
+          title="Choisir les colonnes affichées" @click="colsOpen = !colsOpen">
+          colonnes<span v-if="hiddenCount > 0" class="dt-filter-badge">{{ shownFields.length }}/{{ fields.length }}</span>
+        </button>
+        <template v-if="colsOpen">
+          <span class="dt-cols__scrim" @click="colsOpen = false"></span>
+          <div class="dt-cols__pop">
+            <label v-for="k in fields" :key="k" class="dt-cols__item">
+              <input type="checkbox" :checked="isShown(k)" @change="toggleCol(k)" />
+              <span>{{ header(k) }}</span>
+            </label>
+            <button v-if="chosenCols" class="dt-cols__reset" @click="chosenCols = null">
+              Rétablir les colonnes par défaut
+            </button>
+          </div>
+        </template>
+      </span>
       <span class="dim dt-count">{{ total }} row{{ total === 1 ? '' : 's' }}</span>
     </div>
 
@@ -233,6 +300,25 @@ watch(() => props.filters, (f) => {
 
 <style scoped>
 .dt-bar { display: flex; align-items: center; gap: 12px; padding: 8px var(--pad-card); }
+/* sélecteur de colonnes (popin ancrée, même patron que les menus de la console) */
+.dt-cols { position: relative; display: inline-flex; }
+.dt-cols__scrim { position: fixed; inset: 0; z-index: var(--z-menu); }
+.dt-cols__pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: var(--z-menu);
+  min-width: 220px; max-height: 320px; overflow-y: auto; padding: 6px;
+  background: var(--color-surface); border: 1px solid var(--border-card);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-pop);
+}
+.dt-cols__item {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  font-size: 12.5px; color: var(--color-ink); cursor: pointer; border-radius: var(--radius-md);
+}
+.dt-cols__item:hover { background: var(--color-paper-2); }
+.dt-cols__reset {
+  width: 100%; margin-top: 4px; padding: 6px 8px; border: 0; border-top: 1px solid var(--color-hair-soft);
+  background: transparent; font-size: 11.5px; color: var(--color-mute); cursor: pointer; text-align: left;
+}
+.dt-cols__reset:hover { color: var(--color-ink); }
 .dt-search { display: flex; align-items: center; gap: 6px; flex: 1; color: var(--color-mute); }
 .dt-search-input {
   flex: 1; font: inherit; font-size: 12.5px; border: 0; background: none;

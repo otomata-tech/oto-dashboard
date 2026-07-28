@@ -413,6 +413,7 @@ async function transfer() {
     </template>
     <DataTable v-else :rows="rows" :total="total" :page="page" :page-size="pageSize"
       :sort-field="sortField" :sort-dir="sortDir" :search="search" :filters="filters" :loading="rowsLoading"
+      :schema="meta.schema ?? null"
       @open="openRow" @update:page="onPage" @update:page-size="onPageSize" @update:sort="onSort"
       @update:search="onSearch" @update:filters="onFilters" />
 

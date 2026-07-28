@@ -729,6 +729,7 @@ export interface DatastoreField {
   // Absente ⇒ dérivée du type (note/json/url longs en pleine ligne). Rend le layout
   // STABLE d'une ligne à l'autre (avant : deviné de la longueur de la valeur).
   width?: 'half' | 'full'
+  hidden?: boolean              // hors table par défaut (reste éditable en fiche)
   role?: DatastoreFieldRole
   fields?: DatastoreField[]  // type=object
   of?: Partial<DatastoreField>  // type=list — field-def d'item, key optionnelle (scalaire n'en a pas)
