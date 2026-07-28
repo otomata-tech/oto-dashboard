@@ -27,7 +27,15 @@ onMounted(async () => {
     org != null ? listGroups(org).then((d) => d.groups).catch(() => []) : Promise.resolve([]),
   ])
   projects.value = pj
-  groupNames.value = Object.fromEntries(gr.map((g) => [String(g.id), g.name]))
+  // Indexé sur les DEUX identifiants : un projet d'équipe porte `owner_id = group_id`,
+  // alors qu'on n'indexait que `id` — le nom n'était jamais trouvé et la sidebar
+  // retombait sur « Équipe <n> », en exposant un identifiant technique.
+  groupNames.value = Object.fromEntries(
+    gr.flatMap((g) => {
+      const keys = [g.group_id, g.id].filter((k) => k != null).map(String)
+      return [...new Set(keys)].map((k) => [k, g.name] as const)
+    }),
+  )
 })
 
 // Les groupes n'ont pas de couleur en base → teinte déterministe par clé d'espace.
@@ -55,7 +63,9 @@ const spaces = computed<Space[]>(() => {
   const out: Space[] = [{ key: 'org', label: 'Mes projets', color: accentFor('org'), projects: mine }]
   for (const gid of Object.keys(byGroup).sort((a, b) =>
     (groupNames.value[a] || a).localeCompare(groupNames.value[b] || b)))
-    out.push({ key: `g:${gid}`, label: groupNames.value[gid] || `Équipe ${gid}`, color: accentFor(gid), projects: byGroup[gid] ?? [] })
+    // Repli sans identifiant technique : « Équipe » nu vaut mieux qu'« Équipe 12 »
+    // (cas dégradé — la liste des équipes n'a pas pu être chargée).
+    out.push({ key: `g:${gid}`, label: groupNames.value[gid] || 'Équipe', color: accentFor(gid), projects: byGroup[gid] ?? [] })
   if (shared.length) out.push({ key: 'shared', label: 'Partagés', color: accentFor('shared'), projects: shared })
   return out
 })
