@@ -81,6 +81,17 @@ export interface MyConnector extends ConnectorMeta {
   option_ok?: boolean          // l'option est-elle accordée pour moi (true si aucune requise)
 }
 
+// Modes de connexion d'un connecteur Zoho (ADR : self client + server-based).
+// `platform_app` = une app oto est publiée pour CETTE région (sinon on s'appuie sur
+// l'app de l'org, dont client_id/secret doivent être posés au préalable).
+export interface ZohoOauthModes {
+  connector: string
+  self_client: boolean
+  server_based: boolean
+  platform_app: boolean
+  scopes: string[]
+}
+
 // Instance de connecteur (ADR 0038 §B / 0044) — projection lecture du coffre :
 // une config possédée à un niveau (member/group/org/platform). Métadonnées seulement.
 export interface ConnectorInstance {

@@ -13,6 +13,7 @@ import ConnectorOAuthAccounts from '@/components/console/ConnectorOAuthAccounts.
 import ConnectorFederatedWidget from '@/components/console/ConnectorFederatedWidget.vue'
 import ConnectorSessionWidget from '@/components/console/ConnectorSessionWidget.vue'
 import ConnectorHostedWidget from '@/components/console/ConnectorHostedWidget.vue'
+import ConnectorZohoOAuth from '@/components/console/ConnectorZohoOAuth.vue'
 import ConnectorKeyStack from './ConnectorKeyStack.vue'
 import ConnectorVerdictLine from './ConnectorVerdictLine.vue'
 import { useMe } from '@/composables/useMe'
@@ -46,6 +47,9 @@ const connKind = computed<Conn>(() => {
     default: return 'none'
   }
 })
+// Les 3 connecteurs Zoho acceptent AUSSI la connexion server-based (cf. zoho_oauth
+// côté backend) : on propose le second mode sous le formulaire de champs.
+const isZoho = computed(() => ['zoho', 'zohodesk', 'zohoanalytics'].includes(c.value.name))
 const isOpenData = computed(() => c.value.auth.method === 'none')
 const isRemote = computed(() => c.value.auth.method === 'remote')
 const nFields = computed(() => (c.value.credential_fields ?? []).length)
@@ -130,6 +134,9 @@ const teamKey = computed(() => status.value?.team_key_group ?? null)
         <div v-if="!keyConfigured" style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap">
           <Btn kind="mini" @click="lever.configureKey(c)">Connecter {{ c.label }}</Btn>
         </div>
+        <!-- Zoho : second mode d'acquisition (server-based) — le self client ci-dessus
+             reste, les deux produisent le même credential. -->
+        <ConnectorZohoOAuth v-if="!keyConfigured && isZoho" :connector="c" />
       </div>
 
       <ConnectorOAuthAccounts v-else-if="connKind === 'google'" />

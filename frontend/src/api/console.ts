@@ -11,7 +11,7 @@ import type {
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
   ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
-  MementoStatus, MementoWorkspaces, MementoPages, MementoDocument, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
+  ZohoOauthModes, MementoStatus, MementoWorkspaces, MementoPages, MementoDocument, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
   EmailSettingsBundle, EmailSender, QuietHours, ScheduledEmail,
@@ -139,6 +139,16 @@ export const getMementoDocument = (ref: { id?: string; path?: string }) => {
 export const getFederatedStatus = (name: string) => api<MementoStatus>(`/api/${name}/oauth/status`)
 export const startFederatedOauth = (name: string) => api<{ auth_url: string }>(`/api/${name}/oauth/start`)
 export const disconnectFederated = (name: string) => api(`/api/${name}/oauth`, { method: 'DELETE' })
+
+// ── zoho : connexion « server-based » (SECOND mode, le self client reste) ──
+// UNE paire de routes pour les 3 connecteurs zoho (le connecteur voyage dans le state
+// signé) ; la région est obligatoire — app et token sont liés à leur data center.
+export const getZohoOauthModes = (connector: string, dataCenter: string) =>
+  api<ZohoOauthModes>(
+    `/api/zoho/oauth/modes?connector=${encodeURIComponent(connector)}&data_center=${encodeURIComponent(dataCenter)}`)
+export const startZohoOauth = (connector: string, dataCenter: string) =>
+  api<{ auth_url: string }>(
+    `/api/zoho/oauth/start?connector=${encodeURIComponent(connector)}&data_center=${encodeURIComponent(dataCenter)}`)
 
 // ── unipile (LinkedIn hébergé) — hosted-auth per-user sous la clé partagée ──
 export const getUnipileStatus = () => api<UnipileStatus>('/api/me/unipile')
