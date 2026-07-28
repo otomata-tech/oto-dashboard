@@ -10,7 +10,7 @@
 // La RÉGION est demandée avant tout : l'app OAuth et le token sont liés à leur data
 // center — un client `.eu` sur `accounts.zoho.com` est rejeté par un `invalid_client`
 // opaque. On ne peut donc pas la deviner.
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import Btn from './Btn.vue'
 import Dot from './Dot.vue'
 import { getZohoOauthModes, startZohoOauth } from '@/api/console'
@@ -32,23 +32,23 @@ const REGIONS = [
 
 const region = ref<string>('eu')
 const busy = ref(false)
-const platformApp = ref<boolean | null>(null)
+const hasApp = ref<boolean | null>(null)
 const scopes = ref<string[]>([])
 
 async function loadModes() {
   try {
-    const m = await getZohoOauthModes(props.connector.name, region.value)
-    platformApp.value = m.platform_app
+    const m = await getZohoOauthModes(props.connector.name)
+    hasApp.value = m.has_app
     scopes.value = m.scopes
   } catch {
-    platformApp.value = null   // l'encart reste utilisable, sans la précision
+    hasApp.value = null   // l'encart reste utilisable, sans la précision
   }
 }
-watch(region, loadModes, { immediate: true })
+onMounted(loadModes)
 
-// Sans app de plateforme pour cette région, on s'appuie sur l'app de l'org : il faut
-// donc que client_id + client_secret soient déjà posés. Le dire AVANT le clic.
-const needsOrgApp = computed(() => platformApp.value === false)
+// Aucune app à disposition (ni la mienne, ni celle de mon équipe/org/plateforme) :
+// le consentement échouerait. On le dit AVANT le clic plutôt qu'après la redirection.
+const needsApp = computed(() => hasApp.value === false)
 
 async function connect() {
   busy.value = true
@@ -84,10 +84,10 @@ async function connect() {
       autorisations demandées : {{ scopes.join(', ') }}
     </p>
 
-    <p v-if="needsOrgApp" class="helptext zo-warn">
-      Aucune app oto n'est publiée pour cette région : renseigne d'abord
-      <strong>client id</strong> et <strong>client secret</strong> de ton app Zoho
-      ci-dessus, puis reviens ici — oto se chargera des autorisations.
+    <p v-if="needsApp" class="helptext zo-warn">
+      Renseigne d'abord <strong>client id</strong> et <strong>client secret</strong>
+      de ton app Zoho ci-dessus (ou fais-les partager par ton org), puis reviens
+      ici — oto se chargera de demander les autorisations.
     </p>
 
     <Btn kind="mini" :disabled="busy" style="margin-top: 12px" @click="connect">

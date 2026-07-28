@@ -143,9 +143,8 @@ export const disconnectFederated = (name: string) => api(`/api/${name}/oauth`, {
 // ── zoho : connexion « server-based » (SECOND mode, le self client reste) ──
 // UNE paire de routes pour les 3 connecteurs zoho (le connecteur voyage dans le state
 // signé) ; la région est obligatoire — app et token sont liés à leur data center.
-export const getZohoOauthModes = (connector: string, dataCenter: string) =>
-  api<ZohoOauthModes>(
-    `/api/zoho/oauth/modes?connector=${encodeURIComponent(connector)}&data_center=${encodeURIComponent(dataCenter)}`)
+export const getZohoOauthModes = (connector: string) =>
+  api<ZohoOauthModes>(`/api/zoho/oauth/modes?connector=${encodeURIComponent(connector)}`)
 export const startZohoOauth = (connector: string, dataCenter: string) =>
   api<{ auth_url: string }>(
     `/api/zoho/oauth/start?connector=${encodeURIComponent(connector)}&data_center=${encodeURIComponent(dataCenter)}`)

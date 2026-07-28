@@ -81,14 +81,15 @@ export interface MyConnector extends ConnectorMeta {
   option_ok?: boolean          // l'option est-elle accordée pour moi (true si aucune requise)
 }
 
-// Modes de connexion d'un connecteur Zoho (ADR : self client + server-based).
-// `platform_app` = une app oto est publiée pour CETTE région (sinon on s'appuie sur
-// l'app de l'org, dont client_id/secret doivent être posés au préalable).
+// Modes de connexion d'un connecteur Zoho (self client + server-based).
+// `has_app` = un client_id/client_secret est DÉJÀ à disposition, à n'importe quel
+// palier de la cascade (le mien, celui de mon équipe, de mon org, de la plateforme).
+// Faux ⇒ il faut d'abord poser l'app sur la carte avant de pouvoir consentir.
 export interface ZohoOauthModes {
   connector: string
   self_client: boolean
   server_based: boolean
-  platform_app: boolean
+  has_app: boolean
   scopes: string[]
 }
 
