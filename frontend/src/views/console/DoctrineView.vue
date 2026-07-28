@@ -87,6 +87,24 @@ const activeDoc = computed(() => docs.value.find((d) => d.slug === activeSlug.va
 const curVersion = computed(() => activeDoc.value?.version ?? 0)
 const nextVersion = computed(() => `v${curVersion.value + 1}`)
 
+// Aperçu d'une ANCIENNE version : la liste montrait l'historique mais le seul geste
+// possible était « Restaurer » — destructif. On peut désormais LIRE une version avant
+// de décider. `viewing` = version consultée (null = la version courante).
+const viewing = ref<number | null>(null)
+const viewingBody = ref('')
+const viewLoading = ref(false)
+async function viewVersion(v: number) {
+  if (v === curVersion.value) { viewing.value = null; return }
+  viewLoading.value = true
+  try {
+    const doc = await getInstruction(activeSlug.value, v)
+    viewingBody.value = doc.body_md
+    viewing.value = v
+  } catch (e) { toast(humanize(e)) }
+  finally { viewLoading.value = false }
+}
+function backToCurrent() { viewing.value = null; viewingBody.value = '' }
+
 const editorContent = computed(() => (isEdit.value ? draft.value : saved.value))
 const dirty = computed(() => isEdit.value && draft.value !== saved.value)
 const deadRefs = computed(() => refNames(editorContent.value).filter((n) => !reg.value.has(n)))
@@ -129,6 +147,8 @@ async function selectDoc(slug: string) {
   saved.value = ''
   draft.value = ''
   versions.value = []
+  viewing.value = null
+  viewingBody.value = ''
   usage.value = null
   if (!d?.exists) return
   usageLoading.value = true
@@ -343,8 +363,13 @@ async function removeSkill(slug: string, label: string) {
             modifications non publiées — publier crée la version <strong>{{ nextVersion }}</strong>.
           </div>
 
+          <div v-if="viewing !== null" class="vbanner">
+            <span>Tu consultes la version <strong>v{{ viewing }}</strong> — lecture seule.</span>
+            <button type="button" class="btn-ghost-xs" @click="backToCurrent">Revenir à l'actuelle</button>
+            <button v-if="canEdit" type="button" class="btn-ghost-xs" @click="restore(viewing!)">Restaurer cette version</button>
+          </div>
           <DoctrineEditor v-if="isEdit" v-model="draft" :reg="reg" />
-          <DoctrineContent v-else :text="saved" :reg="reg" />
+          <DoctrineContent v-else :text="viewing !== null ? viewingBody : saved" :reg="reg" />
         </div>
 
         <!-- ZONE 3 · outils référencés -->
@@ -400,7 +425,11 @@ async function removeSkill(slug: string, label: string) {
               <span class="vrow__v">v{{ v.version }}</span>
               <div class="vrow__meta">{{ v.set_by ?? '—' }} · {{ fmtDate(v.created_at) }}</div>
               <span v-if="v.version === curVersion" class="tag tag--ver">actuelle</span>
-              <button v-else-if="canEdit" type="button" class="btn-ghost-xs" @click="restore(v.version)">Restaurer</button>
+              <template v-else>
+                <button type="button" class="btn-ghost-xs" :disabled="viewLoading"
+                  @click="viewVersion(v.version)">Voir</button>
+                <button v-if="canEdit" type="button" class="btn-ghost-xs" @click="restore(v.version)">Restaurer</button>
+              </template>
             </div>
             <div v-if="!versions.length" class="dim">aucun historique.</div>
           </div>
@@ -461,6 +490,11 @@ async function removeSkill(slug: string, label: string) {
 .btn-ghost-xs { font-size: 11px; font-weight: 600; color: var(--color-ink-soft); background: var(--color-surface); border: 1px solid var(--color-hair); border-radius: 999px; padding: 3px 11px; cursor: pointer; }
 
 /* draft indicator */
+.vbanner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;
+  padding: 8px 12px; border-radius: var(--radius-md);
+  background: var(--color-saffron-soft); color: var(--color-saffron-ink); font-size: 12px;
+}
 .draft { display: flex; align-items: center; gap: 9px; background: var(--color-saffron-soft); border: 1px solid #ecd28a; border-radius: 9px; padding: 8px 12px; margin-bottom: 13px; font-size: 12px; color: var(--color-saffron-ink); }
 .draft__dot { width: 7px; height: 7px; border-radius: 999px; background: var(--color-saffron); display: inline-block; animation: oto-pulse 1.4s ease-in-out infinite; flex: none; }
 .draft strong { font-family: var(--font-mono); color: var(--color-saffron-ink); }
