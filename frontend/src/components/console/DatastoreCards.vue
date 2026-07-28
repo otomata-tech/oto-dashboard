@@ -120,7 +120,14 @@ function itemsOf(row: DatastoreRow, f: DatastoreField): unknown[] {
 </template>
 
 <style scoped>
-.ds-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; padding: 12px 16px; }
+/* Fiches : min 380px (avant 260 → 4-5 colonnes étriquées sur grand écran, titres et
+   résumés illisibles). `auto-fit` + un max borné évitent l'excès inverse (fiches
+   démesurées quand il n'y a qu'une colonne). */
+.ds-cards {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 12px; padding: 12px 16px;
+}
+@media (max-width: 640px) { .ds-cards { grid-template-columns: 1fr; } }
 .ds-card { border: 1px solid var(--color-hair-soft, #e6e6e3); border-radius: 10px; padding: 12px 14px; background: #fff; cursor: pointer; transition: box-shadow .15s var(--ease-out, ease); }
 .ds-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.06); }
 .ds-card__head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }

@@ -719,7 +719,16 @@ export interface DatastoreLifecycle {
 export interface DatastoreField {
   key: string
   label?: string
-  type?: 'text' | 'number' | 'date' | 'bool' | 'json' | 'object' | 'list'
+  // Types de DONNÉE + types de PRÉSENTATION (url/email/datetime/enum) : le widget
+  // d'édition et le rendu en découlent. Sans type déclaré, on retombe sur la
+  // détection par la valeur (`cellKind`) — jamais sur la LONGUEUR (cf. RowDrawer).
+  type?: 'text' | 'number' | 'date' | 'datetime' | 'bool' | 'json' | 'object' | 'list'
+    | 'url' | 'email' | 'enum'
+  options?: string[]            // type=enum : valeurs proposées (select)
+  // Largeur DÉCLARÉE dans la fiche : 'full' = pleine ligne, 'half' = demi-colonne.
+  // Absente ⇒ dérivée du type (note/json/url longs en pleine ligne). Rend le layout
+  // STABLE d'une ligne à l'autre (avant : deviné de la longueur de la valeur).
+  width?: 'half' | 'full'
   role?: DatastoreFieldRole
   fields?: DatastoreField[]  // type=object
   of?: Partial<DatastoreField>  // type=list — field-def d'item, key optionnelle (scalaire n'en a pas)

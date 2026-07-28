@@ -113,6 +113,55 @@ function isLong(key: string): boolean {
   const v = scalars.value[key] ?? ''
   return v.includes('\n') || v.length > 60
 }
+
+// ── widget d'édition : dérivé du TYPE, plus de la longueur de la valeur ──
+// Avant, un champ >60 caractères devenait une zone de texte pleine ligne : le
+// layout changeait d'une ligne à l'autre et une URL s'affichait en gros pavé.
+// Le type DÉCLARÉ prime ; sans lui on ne dérive de la valeur que le cas URL
+// (non destructif : un champ compact + un lien « ouvrir »), le reste gardant le
+// repli historique texte/zone.
+type Widget = 'lifecycle' | 'bool' | 'number' | 'enum' | 'date' | 'datetime'
+  | 'url' | 'email' | 'textarea' | 'text'
+
+function widgetOf(d: FieldDesc): Widget {
+  if (isLifecycleStatus(d)) return 'lifecycle'
+  switch (d.type) {
+    case 'bool': return 'bool'
+    case 'number': return 'number'
+    case 'enum': return 'enum'
+    case 'date': return 'date'
+    case 'datetime': return 'datetime'
+    case 'url': return 'url'
+    case 'email': return 'email'
+  }
+  if (cellKind(scalars.value[d.key]) === 'url') return 'url'
+  return isLong(d.key) ? 'textarea' : 'text'
+}
+
+// Largeur : déclarée au schéma (`width`) sinon dérivée du widget — STABLE d'une
+// ligne à l'autre, contrairement à l'ancien calcul sur la longueur de la valeur.
+function isWide(d: FieldDesc): boolean {
+  if (d.width) return d.width === 'full'
+  const w = widgetOf(d)
+  return w === 'textarea' || w === 'url'
+}
+
+const enumOpts = (d: FieldDesc) =>
+  (d.options ?? []).map((o) => ({ value: o, label: o }))
+
+/** Partie éditable d'une date/datetime pour les inputs natifs (YYYY-MM-DD[THH:mm]). */
+function dateInputValue(key: string, withTime: boolean): string {
+  const v = String(scalars.value[key] ?? '').replace(' ', 'T')
+  return withTime ? v.slice(0, 16) : v.slice(0, 10)
+}
+
+/** Date lisible affichée SOUS un champ texte dont la valeur est un ISO non déclaré
+ * `date` — on n'altère pas la donnée, on la rend juste déchiffrable. */
+function dateHint(d: FieldDesc): string {
+  if (d.type) return ''
+  const v = scalars.value[d.key]
+  return cellKind(v) === 'date' ? absDate(String(v)) : ''
+}
 function urlOf(key: string): string | null {
   const v = props.row?.[key]
   return cellKind(v) === 'url' ? String(v) : null
@@ -207,7 +256,7 @@ function actorOf(a: RowActivityEntry): string {
           <!-- scalaires courts : grille compacte 2 colonnes -->
           <div v-if="gridFields.length" class="rd-grid">
             <div v-for="d in gridFields" :key="d.key" class="rd-field"
-              :class="{ wide: !readOnly && isLong(d.key) }">
+              :class="{ wide: !readOnly && isWide(d) }">
               <label class="rd-label">{{ d.label }}<span v-if="d.required" class="rd-req"
                   title="champ requis">*</span><span v-else-if="d.requiredWhen" class="rd-req rd-req--soft"
                   :title="`requis quand ${reqWhenLabel(d)}`">*</span></label>
@@ -221,11 +270,29 @@ function actorOf(a: RowActivityEntry): string {
               <template v-else-if="isLifecycleStatus(d)">
                 <OtoSelect :model-value="scalars[d.key] ?? ''" @update:model-value="(v: string) => (scalars[d.key] = v)" :options="lifecycleOpts" none-label="—" trigger-class="w-full" />
               </template>
-              <OtoSelect v-else-if="d.type === 'bool'" :model-value="scalars[d.key] ?? ''" @update:model-value="(v: string) => (scalars[d.key] = v)" :options="BOOL_OPTIONS" none-label="—" trigger-class="w-full" />
-              <input v-else-if="d.type === 'number'" v-model="scalars[d.key]" class="rd-input"
+              <OtoSelect v-else-if="widgetOf(d) === 'bool'" :model-value="scalars[d.key] ?? ''" @update:model-value="(v: string) => (scalars[d.key] = v)" :options="BOOL_OPTIONS" none-label="—" trigger-class="w-full" />
+              <OtoSelect v-else-if="widgetOf(d) === 'enum'" :model-value="scalars[d.key] ?? ''" @update:model-value="(v: string) => (scalars[d.key] = v)" :options="enumOpts(d)" none-label="—" trigger-class="w-full" />
+              <input v-else-if="widgetOf(d) === 'number'" v-model="scalars[d.key]" class="rd-input"
                 inputmode="decimal" :placeholder="d.label" />
-              <textarea v-else-if="isLong(d.key)" v-model="scalars[d.key]" class="rd-input rd-area" rows="4" />
-              <input v-else v-model="scalars[d.key]" class="rd-input" :placeholder="d.label" />
+              <input v-else-if="widgetOf(d) === 'date'" type="date" class="rd-input"
+                :value="dateInputValue(d.key, false)"
+                @input="scalars[d.key] = ($event.target as HTMLInputElement).value" />
+              <input v-else-if="widgetOf(d) === 'datetime'" type="datetime-local" class="rd-input"
+                :value="dateInputValue(d.key, true)"
+                @input="scalars[d.key] = ($event.target as HTMLInputElement).value" />
+              <div v-else-if="widgetOf(d) === 'url'" class="rd-url">
+                <input v-model="scalars[d.key]" class="rd-input" type="url" :placeholder="d.label" />
+                <a v-if="scalars[d.key]" :href="scalars[d.key]" target="_blank" rel="noopener"
+                  class="rd-open" title="Ouvrir le lien"><Icon name="ext" :size="13" /></a>
+              </div>
+              <input v-else-if="widgetOf(d) === 'email'" v-model="scalars[d.key]" class="rd-input"
+                type="email" :placeholder="d.label" />
+              <textarea v-else-if="widgetOf(d) === 'textarea'" v-model="scalars[d.key]" class="rd-input rd-area" rows="4" />
+              <template v-else>
+                <input v-model="scalars[d.key]" class="rd-input" :placeholder="d.label" />
+                <!-- valeur ISO non déclarée `date` : on la rend lisible sans la modifier -->
+                <span v-if="dateHint(d)" class="rd-hint">{{ dateHint(d) }}</span>
+              </template>
             </div>
           </div>
 
@@ -330,6 +397,17 @@ function actorOf(a: RowActivityEntry): string {
 }
 .rd-input:focus { outline: none; border-color: var(--color-cobalt); }
 .rd-area { resize: vertical; line-height: 1.5; font-family: var(--font-mono); font-size: 12px; }
+/* champ URL : saisie compacte + accès direct au lien (au lieu d'un pavé de texte) */
+.rd-url { display: flex; align-items: center; gap: 6px; }
+.rd-url .rd-input { flex: 1; min-width: 0; }
+.rd-open {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  height: 30px; width: 30px; border-radius: var(--radius-pill);
+  color: var(--color-mute); background: transparent;
+}
+.rd-open:hover { background: var(--color-paper-2); color: var(--color-cobalt); }
+/* date lisible sous une valeur ISO non typée (aide, la donnée reste intacte) */
+.rd-hint { display: block; margin-top: 3px; font-size: 10.5px; color: var(--color-faint); }
 .rd-meta { padding: 10px 0 2px; font-size: 11px; }
 .rd-activity { margin: 14px 0 4px; padding-top: 8px; border-top: 1px dashed var(--color-hair-soft); }
 .rd-activity-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }

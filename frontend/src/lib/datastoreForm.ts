@@ -10,6 +10,8 @@ export interface FieldDesc {
   label: string
   type: DatastoreField['type'] | null // null = champ non déclaré au schéma
   role?: string
+  width?: DatastoreField['width']     // largeur déclarée dans la fiche (half|full)
+  options?: string[]                  // type=enum : valeurs proposées
   required: boolean
   requiredWhen?: Record<string, string>
   declared: boolean
@@ -40,6 +42,7 @@ export function formFields(
     if (!f.key) continue
     out.push({
       key: f.key, label: f.label || f.key, type: f.type ?? null, role: f.role,
+      width: f.width, options: f.options,
       required: !!f.required, requiredWhen: f.required_when, declared: true, field: f,
     })
     seen.add(f.key)
