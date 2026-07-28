@@ -109,8 +109,8 @@
       "activeOrgYou": "toi · {role}",
       "activeOrgNone": "aucune org active",
       "errors": "erreurs",
-      "errorsSub": "tous appelants confondus",
-      "activeUsersSub": "{n} utilisateurs actifs",
+      "errorsSub": "sur tes appels dans ce workspace",
+      "activeUsersSub": "tes appels dans ce workspace",
       "topTool": "top outil",
       "topToolSub": "{n} appels"
     },
@@ -127,8 +127,8 @@
     },
     "activity": {
       "title": "activité",
-      "adminNotePre": "l'activité agrégée est une vue admin plateforme. vois tes propres appels d'outils dans",
-      "adminNoteLink": "activité",
+      "unavailablePre": "l'activité n'a pas pu être chargée. vois le détail de tes appels d'outils dans",
+      "unavailableLink": "activité",
       "recentTopTools": "récent · top outils",
       "callsCell": "{n} appels",
       "errCell": "{n} err"

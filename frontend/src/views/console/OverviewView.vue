@@ -9,7 +9,7 @@ import InboxCard from '@/components/console/InboxCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Quota from '@/components/console/Quota.vue'
 import { defineAsyncComponent } from 'vue'
-// Unovis lourd → chunk async (les blocs monitoring ne s'affichent qu'aux admins).
+// Unovis lourd → chunk async (le graphe n'est rendu qu'avec un résumé d'activité).
 const CallsBarChart = defineAsyncComponent(() => import('@/components/console/CallsBarChart.vue'))
 import ConnectorHealthGrid from '@/components/console/ConnectorHealthGrid.vue'
 import McpEndpointCard from '@/components/console/McpEndpointCard.vue'
@@ -70,9 +70,14 @@ const bars = computed(() => (summary.value ? toDayBars(summary.value.by_day, 7) 
 const callsSpark = computed(() => bars.value.map(([ok, err]) => ok + err))
 
 // Console « quiet » : rien posé, aucune session, aucun appel — état vide éditorial.
+// ⚠️ JAMAIS sur une erreur de chargement : `soft()` renvoie des fallbacks vides, et
+// un `/api/me/connectors` en échec ferait passer un compte actif pour un compte neuf
+// (l'état vide masque le reste de la page — dont l'endpoint MCP). En erreur on rend
+// la page normale dégradée + le bandeau, pas un « ta console est calme » mensonger.
 const loaded = ref(false)
 const isEmpty = computed(() =>
-  loaded.value && userKeysCount.value === 0 && sessionsActive.value === 0
+  loaded.value && !error.value
+  && userKeysCount.value === 0 && sessionsActive.value === 0
   && (!summary.value || summary.value.total_calls === 0))
 
 // ── platform quotas (clés plateforme prêtées, depuis me.providers) ──
@@ -108,7 +113,12 @@ onMounted(async () => {
   // KB d'org (zone Documents) : « fait » dès qu'une page de référence existe.
   const kb = await soft(getKbProject(), null)
   if (kb) hasDocs.value = (await soft(listDocs(kb.project_id), { project_id: kb.project_id, docs: [] })).docs.length > 0
-  if (isAdmin.value) summary.value = await soft(getActivitySummary(7), null)
+  // Activité = MES appels dans l'org active (backend `/api/me/activity-summary`,
+  // scopé self+org, explicitement SANS gate admin). L'ancien `if (isAdmin)` privait
+  // les membres du seul signal d'activité réel : sans lui, `isEmpty` ne regardait que
+  // les clés PERSO — un membre qui tourne sur une clé plateforme/org (cas nominal
+  // depuis ADR 0050) restait « calme » à vie malgré des milliers d'appels.
+  summary.value = await soft(getActivitySummary(7), null)
   loaded.value = true
 })
 </script>
@@ -131,14 +141,20 @@ onMounted(async () => {
 
     <!-- ── status ── -->
     <template v-if="variant === 'status'">
-      <StateEmpty v-if="isEmpty">
-        <template #title>{{ t('overview.empty.titlePre') }} <Squiggle>{{ t('overview.empty.titleWord') }}</Squiggle>.</template>
-        {{ t('overview.empty.body') }}
-        <template #cta>
-          <Btn @click="router.push('/connectors')">{{ t('overview.empty.addKey') }}</Btn>
-          <Btn kind="ghost" @click="router.push('/projects')">{{ t('overview.empty.openProjects') }}</Btn>
-        </template>
-      </StateEmpty>
+      <!-- Console vide : l'endpoint MCP reste rendu SOUS l'état vide — c'est
+           précisément ce dont a besoin quelqu'un qui n'a encore rien branché
+           (« connecte un client »), et c'est sa seule surface du dashboard. -->
+      <template v-if="isEmpty">
+        <StateEmpty>
+          <template #title>{{ t('overview.empty.titlePre') }} <Squiggle>{{ t('overview.empty.titleWord') }}</Squiggle>.</template>
+          {{ t('overview.empty.body') }}
+          <template #cta>
+            <Btn @click="router.push('/connectors')">{{ t('overview.empty.addKey') }}</Btn>
+            <Btn kind="ghost" @click="router.push('/projects')">{{ t('overview.empty.openProjects') }}</Btn>
+          </template>
+        </StateEmpty>
+        <McpEndpointCard />
+      </template>
       <template v-else>
         <div :class="summary ? 'grid4' : 'grid3'">
           <Stat :label="t('overview.stat.connectorsLive')" :value="configuredCount" :unit="'/ ' + keyProviders.length" :sub="t('overview.stat.connectorsLiveSub')" />
@@ -152,7 +168,7 @@ onMounted(async () => {
           <McpEndpointCard />
         </div>
         <ConsoleCard v-if="summary" :title="t('overview.callsCard.title')" :sub="t('overview.callsCard.sub')">
-          <template #actions>
+          <template v-if="isAdmin" #actions>
             <RouterLink class="linklike" to="/platform/monitoring">{{ t('overview.monitoring') }} →</RouterLink>
           </template>
           <CallsBarChart :days="bars" />
@@ -184,12 +200,15 @@ onMounted(async () => {
       </template>
     </template>
 
-    <!-- ── activity (admin: monitoring) ── -->
+    <!-- ── activity (mes appels dans ce workspace) ── -->
     <template v-else-if="variant === 'activity'">
+      <!-- `summary` est désormais chargé pour TOUS (endpoint self-scopé) : un `null`
+           ici ne signifie plus « pas admin » mais un échec de chargement — déjà
+           signalé par le bandeau en tête de page. -->
       <ConsoleCard v-if="!summary" :title="t('overview.activity.title')">
         <div class="helptext">
-          {{ t('overview.activity.adminNotePre') }}
-          <RouterLink class="linklike" to="/activity">{{ t('overview.activity.adminNoteLink') }}</RouterLink>.
+          {{ t('overview.activity.unavailablePre') }}
+          <RouterLink class="linklike" to="/activity">{{ t('overview.activity.unavailableLink') }}</RouterLink>.
         </div>
       </ConsoleCard>
       <template v-else>
@@ -203,7 +222,7 @@ onMounted(async () => {
         </ConsoleCard>
         <div class="grid23">
           <ConsoleCard :title="t('overview.activity.recentTopTools')" flush>
-            <template #actions>
+            <template v-if="isAdmin" #actions>
               <RouterLink class="linklike" to="/platform/monitoring">{{ t('overview.monitoring') }} →</RouterLink>
             </template>
             <table class="tbl">

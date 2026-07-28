@@ -109,8 +109,8 @@
       "activeOrgYou": "you · {role}",
       "activeOrgNone": "no active org",
       "errors": "errors",
-      "errorsSub": "across all callers",
-      "activeUsersSub": "{n} active users",
+      "errorsSub": "across your calls in this workspace",
+      "activeUsersSub": "your calls in this workspace",
       "topTool": "top tool",
       "topToolSub": "{n} calls"
     },
@@ -127,8 +127,8 @@
     },
     "activity": {
       "title": "activity",
-      "adminNotePre": "aggregate activity is a platform-admin view. see your own tool calls under",
-      "adminNoteLink": "activity",
+      "unavailablePre": "activity could not be loaded. see the detail of your tool calls under",
+      "unavailableLink": "activity",
       "recentTopTools": "recent · top tools",
       "callsCell": "{n} calls",
       "errCell": "{n} err"
