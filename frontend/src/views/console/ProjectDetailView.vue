@@ -26,6 +26,8 @@ import type { ProjectAudit } from '@/api/console'
 import { apiDownload } from '@/api'
 import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile, Doc, ProjectRun } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { projectVisibility } from '@/lib/projectVisibility'
+import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
@@ -79,6 +81,17 @@ const statusTags = computed(() => {
   if (readOnly.value) out.push({ tone: 'cobalt', label: 'lecture' })
   return out
 })
+
+// « Qui voit ce projet ? » — la question que se pose l'auteur d'un projet sensible.
+// Affichée EN CLAIR dans l'en-tête (l'appartenance seule — « perso », « org » — n'y
+// répondait pas), et cliquable : elle mène au partage, où l'on change l'audience.
+const { me } = useMe()
+const visibility = computed(() => project.value
+  ? projectVisibility(project.value, {
+      orgName: me.value?.active_org_name,
+      sharedCount: grants.value.length,
+    })
+  : null)
 const AV_PALETTE = [
   { bg: 'var(--color-cobalt-soft)', fg: 'var(--color-cobalt-ink)' },
   { bg: 'var(--color-saffron-soft)', fg: 'var(--color-saffron-ink)' },
@@ -317,6 +330,12 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
           <Icon name="pencil" :size="13" />
         </button>
         <div class="pj-top__act">
+          <!-- visibilité en clair : la réponse à « est-ce que quelqu'un d'autre le voit ? » -->
+          <button v-if="visibility" class="pj-vis" :class="{ 'pj-vis--private': visibility.isPrivate }"
+            :title="`${visibility.detail} — cliquer pour gérer le partage`" @click="shareOpen = true">
+            <Icon :name="visibility.isPrivate ? 'shield' : 'users'" :size="13" />
+            <span>{{ visibility.label }}</span>
+          </button>
           <Tag v-for="t in statusTags" :key="t.label" :tone="t.tone">{{ t.label }}</Tag>
           <button v-if="grants.length" class="pj-avs" title="Partagé — voir avec qui" @click="shareOpen = true">
             <span v-for="(a, i) in avatars" :key="i" class="pj-av" :style="{ background: a.bg, color: a.fg }">{{ a.initials }}</span>
@@ -393,6 +412,18 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
 .pj-top__name--edit:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
 .pj-top__edit { flex: none; display: inline-flex; align-items: center; justify-content: center; height: 24px; width: 24px; border: 0; background: transparent; border-radius: var(--radius-pill); color: var(--color-mute); cursor: pointer; }
 .pj-top__edit:hover { background: var(--color-paper-2); color: var(--color-ink); }
+/* pastille de visibilité : discrète mais toujours présente ; le vert « privé » est
+   un signal de confiance (personne d'autre ne voit), pas une décoration. */
+.pj-vis {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px;
+  border: 1px solid var(--color-hair); border-radius: var(--radius-pill);
+  background: var(--color-surface); font-size: 11.5px; color: var(--color-ink-soft);
+  cursor: pointer;
+}
+.pj-vis:hover { border-color: var(--color-mute); color: var(--color-ink); }
+.pj-vis--private {
+  background: var(--color-olive-soft); border-color: transparent; color: var(--color-olive-ink);
+}
 .pj-top__act { flex: 1; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
 .pj-avs { display: inline-flex; align-items: center; padding-left: 8px; border: 0; background: transparent; cursor: pointer; flex: none; }
 .pj-av { width: 30px; height: 30px; border-radius: var(--radius-pill); display: grid; place-items: center; font-size: 10.5px; font-weight: 700; border: 2px solid var(--color-bg); margin-left: -8px; }

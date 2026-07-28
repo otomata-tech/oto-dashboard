@@ -15,6 +15,9 @@ import type { ProjectOwnerPayload } from '@/components/console/ProjectCreateDial
 import { listProjects, listProjectTemplates, createProject, copyProject, listGroups } from '@/api/console'
 import type { Project } from '@/types/api'
 import { fmtDate } from '@/types/api'
+import {
+  projectVisibility, projectBucket, BUCKET_LABEL, BUCKET_HINT, type ProjectBucket,
+} from '@/lib/projectVisibility'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
@@ -51,13 +54,31 @@ async function load() {
 onMounted(load)
 
 function openProject(id: number) { router.push(`/projects/${id}`) }
-// ADR 0049 : le badge dit le SCOPE owner — org / équipe (pôle) / oto (bibliothèque) / perso.
+// ADR 0049 : la visibilité DÉCOULE de l'ownership. On affiche donc l'AUDIENCE
+// (« Privé », « Toute l'org »…) plutôt que le scope technique (« perso », « org ») :
+// la question de l'utilisateur est « qui voit ce projet ? ».
 function ownerLabel(p: Project): string {
-  if (p.owner_type === 'org') return 'org'
-  if (p.owner_type === 'group') return 'équipe'
-  if (p.owner_type === 'platform') return 'oto'
-  return 'perso'
+  return projectVisibility(p, { orgName: me.value?.active_org_name }).label
 }
+function ownerTitle(p: Project): string {
+  return projectVisibility(p, { orgName: me.value?.active_org_name }).detail
+}
+function isPrivate(p: Project): boolean {
+  return projectVisibility(p, { orgName: me.value?.active_org_name }).isPrivate
+}
+
+// Sections de la liste : ce qui est À MOI d'abord (privé sauf partage), puis le
+// collectif. Un projet sensible ne se retrouve plus noyé au milieu de ceux de l'org.
+const BUCKET_ORDER: ProjectBucket[] = ['mine', 'group', 'org', 'platform']
+const sections = computed(() =>
+  BUCKET_ORDER
+    .map((b) => ({
+      bucket: b,
+      label: BUCKET_LABEL[b],
+      hint: BUCKET_HINT[b],
+      items: projects.value.filter((p) => projectBucket(p) === b),
+    }))
+    .filter((s) => s.items.length))
 // Pastilles ORIENTÉES ÉTAT — dérivées des seuls champs portés par la liste (pas d'appel
 // backend par carte) : modèle / mcp live / partagé / lecture / à vérifier (règle `chipsFor`
 // de la maquette). Tons sémantiques ; `lecture` = neutre (pas de ton).
@@ -139,11 +160,21 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
     </div>
 
     <!-- cartes -->
-    <div v-else-if="layout === 'cards'" class="pl-cards">
-      <button v-for="p in projects" :key="p.id" class="pl-card" @click="openProject(p.id)">
+    <template v-else-if="layout === 'cards'">
+      <!-- sections : « à moi » d'abord, puis le collectif — l'appartenance devient
+           lisible sans lire chaque badge -->
+      <section v-for="s in sections" :key="s.bucket" class="pl-sec">
+        <div class="pl-sec__head">
+          <h2 class="pl-sec__title">{{ s.label }}</h2>
+          <span class="pl-sec__count">{{ s.items.length }}</span>
+          <span class="pl-sec__hint dim">{{ s.hint }}</span>
+        </div>
+        <div class="pl-cards">
+      <button v-for="p in s.items" :key="p.id" class="pl-card" @click="openProject(p.id)">
         <div class="pl-card__head">
           <span class="pl-card__name">{{ p.name }}</span>
-          <span class="pl-card__owner">{{ ownerLabel(p) }}</span>
+          <span class="pl-card__owner" :class="{ 'pl-card__owner--private': isPrivate(p) }"
+            :title="ownerTitle(p)">{{ ownerLabel(p) }}</span>
         </div>
         <div class="pl-card__chips">
           <Tag v-for="c in chipsFor(p)" :key="c.label" :tone="c.tone">{{ c.label }}</Tag>
@@ -158,7 +189,9 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
           <span class="pl-card__go"><Icon name="chevron-right" :size="15" /></span>
         </div>
       </button>
-    </div>
+        </div>
+      </section>
+    </template>
 
     <!-- tableau dense -->
     <div v-else class="pl-table">
@@ -166,7 +199,8 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
         <span>projet</span><span>état</span><span>maj</span><span class="pl-row__num">entités</span><span></span>
       </div>
       <button v-for="p in projects" :key="p.id" class="pl-row" @click="openProject(p.id)">
-        <span class="pl-row__name"><span class="pl-row__nt">{{ p.name }}</span><span class="pl-row__owner">{{ ownerLabel(p) }}</span></span>
+        <span class="pl-row__name"><span class="pl-row__nt">{{ p.name }}</span><span class="pl-row__owner"
+          :class="{ 'pl-row__owner--private': isPrivate(p) }" :title="ownerTitle(p)">{{ ownerLabel(p) }}</span></span>
         <span class="pl-row__chips"><Tag v-for="c in chipsFor(p)" :key="c.label" :tone="c.tone">{{ c.label }}</Tag></span>
         <span class="pl-row__maj">{{ fmtDate(p.updated_at) }}</span>
         <span class="pl-row__num">{{ p.entity_count ?? '—' }}</span>
@@ -223,6 +257,15 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
 .pl-empty__s { font-size: 13px; line-height: 1.55; color: var(--color-ink-soft); margin: 0; max-width: 520px; }
 
 /* cartes */
+/* sections d'appartenance : « Mes projets » avant le collectif */
+.pl-sec { margin-bottom: 22px; }
+.pl-sec__head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.pl-sec__title { margin: 0; font-size: 13.5px; font-weight: 700; color: var(--color-ink); }
+.pl-sec__count {
+  font-size: 10.5px; font-weight: 600; color: var(--color-mute);
+  background: var(--color-paper-2); border-radius: var(--radius-pill); padding: 1px 7px;
+}
+.pl-sec__hint { font-size: 11px; }
 .pl-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(288px, 1fr)); gap: 14px; }
 .pl-card { display: flex; flex-direction: column; gap: 10px; text-align: left; cursor: pointer; padding: 16px 17px; border: 1px solid var(--border-card); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-card); font: inherit; transition: transform .15s var(--ease-out), box-shadow .15s; }
 .pl-card__head { display: flex; align-items: flex-start; gap: 8px; }
@@ -244,6 +287,9 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
 .pl-row__name { min-width: 0; display: flex; align-items: center; gap: 9px; }
 .pl-row__nt { font-weight: 600; font-size: 13.5px; color: var(--color-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl-row__owner { font-family: var(--font-mono); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-faint); }
+/* « privé » = signal de confiance (personne d'autre ne voit), pas une décoration */
+.pl-card__owner--private { background: var(--color-olive-soft); border-color: transparent; color: var(--color-olive-ink); }
+.pl-row__owner--private { color: var(--color-olive-ink); font-weight: 700; }
 .pl-row__chips { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
 .pl-row__maj { font-family: var(--font-mono); font-size: 11px; color: var(--color-mute); }
 .pl-row__num { font-family: var(--font-mono); font-size: 11px; color: var(--color-mute); text-align: right; }
