@@ -77,11 +77,16 @@ const submit = handleSubmit(async (values) => {
   // Pas de sonde câblée → comportement historique (fermer au succès).
   if (!props.verify) { emit('update:open', false); return }
   // Sonde après enregistrement : OK → fermer ; échec → rester ouvert pour corriger.
+  // ⚠️ SAUF `pending` : le credential est enregistré et volontairement incomplet
+  // (connexion en deux temps — l'app est posée, le consentement se donne sur la
+  // fiche). Rester ouvert enfermerait l'utilisateur dans un formulaire qui ne peut
+  // pas aboutir (« connecter ne fait rien », vécu 28/07). On ferme et on laisse la
+  // fiche afficher l'étape suivante.
   testing.value = true
   try {
     const res = await props.verify()
     testRes.value = res
-    if (res.ok) emit('update:open', false)
+    if (res.ok || res.pending) emit('update:open', false)
   } catch (e) {
     testRes.value = { ok: false, provider: '', error: humanize(e) }
   } finally {

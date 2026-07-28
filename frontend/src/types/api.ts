@@ -61,10 +61,14 @@ export interface ConnectorMeta {
 
 // Retour d'une sonde de credential (POST /api/me/connectors/{provider}/verify).
 // `ok:false` porte le message provider actionnable (l'erreur d'auth EST le résultat).
+// `pending:true` = credential ENREGISTRÉ mais volontairement incomplet (connexion en
+// deux temps : l'app est posée, le consentement se donne sur la fiche). Ce n'est PAS
+// une erreur de saisie — le formulaire doit se fermer, pas retenir l'utilisateur.
 export interface VerifyResult {
   ok: boolean
   provider: string
   error?: string
+  pending?: boolean
   elapsed_ms?: number
 }
 
