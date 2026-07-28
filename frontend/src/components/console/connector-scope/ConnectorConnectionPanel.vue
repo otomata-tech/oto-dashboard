@@ -86,6 +86,9 @@ const statusMode = computed<ConnectorMode>(() => {
   return p.mode as ConnectorMode
 })
 const keyConfigured = computed(() => !!status.value?.user_key_configured)
+// Consentement en attente = l'app est posée mais le refresh token manque. C'est le
+// backend qui le dit (`pending_action`, seam status_hints) — jamais recalculé ici.
+const zohoConsentPending = computed(() => !!status.value?.pending_action)
 const needsKey = computed(() => connKind.value === 'key')
 const docRefCount = computed(() => c.value.doctrine_ref_count ?? 0)
 
@@ -135,8 +138,13 @@ const teamKey = computed(() => status.value?.team_key_group ?? null)
           <Btn kind="mini" @click="lever.configureKey(c)">Connecter {{ c.label }}</Btn>
         </div>
         <!-- Zoho : second mode d'acquisition (server-based) — le self client ci-dessus
-             reste, les deux produisent le même credential. -->
-        <ConnectorZohoOAuth v-if="!keyConfigured && isZoho" :connector="c" />
+             reste, les deux produisent le même credential.
+             ⚠️ NE PAS gater sur `!keyConfigured` seul : poser l'app (client_id +
+             client_secret) CRÉE le credential, donc l'encart disparaîtrait juste au
+             moment où il faut consentir — l'étape suivante deviendrait introuvable.
+             On le garde tant que le backend signale une étape manquante. -->
+        <ConnectorZohoOAuth v-if="isZoho && (!keyConfigured || zohoConsentPending)"
+                            :connector="c" />
       </div>
 
       <ConnectorOAuthAccounts v-else-if="connKind === 'google'" />
