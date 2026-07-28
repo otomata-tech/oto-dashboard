@@ -16,6 +16,7 @@ import OtoSelect from '@/components/console/OtoSelect.vue'
 import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
 import GuidesCard from '@/components/console/GuidesCard.vue'
 import ContextLayerStack from '@/components/console/ContextLayerStack.vue'
+import ContextProfileCard from '@/components/console/ContextProfileCard.vue'
 import { getAgentContext, getAgentReadme, setAgentReadme, getTools, enableTool, disableTool, getMyOrgs, setActiveOrg, clearActiveOrg } from '@/api/console'
 import type { AgentContext, ToolEntry, Org } from '@/types/api'
 import { useToast } from '@/composables/useToast'
@@ -122,6 +123,10 @@ onMounted(load)
     <template v-else-if="ctx">
       <!-- ══ HERO : la pile des couches injectées ══ -->
       <ContextLayerStack :layers="ctx.layers ?? []" :has-group="hasGroup">
+        <template #profile-editor>
+          <ContextProfileCard title="ta fiche"
+            sub="ce que ton agent sait de toi (métier, objectifs, CRM, ton). il la remplit au fil des conversations ; tu peux la corriger ici." />
+        </template>
         <template #user-editor>
           <AgentReadmeCard title="ta note"
             sub="ta prose libre — préférences, contexte, ton. injectée à chaque session, après les couches d'org et d'équipe."

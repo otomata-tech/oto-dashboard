@@ -26,6 +26,9 @@ function toggle(key: string) {
 }
 
 // Nature de chaque couche : qui l'écrit / comment elle vit. Pilote badge + action.
+// Couches dont l'expansion rend un ÉDITEUR (slot) au lieu du dump du body.
+const EDITABLE = new Set(['user', 'profile'])
+
 const META: Record<string, { tone?: 'olive' | 'saffron' | 'cobalt'; nature: string; edit?: string }> = {
   platform: { nature: 'socle plateforme', tone: 'cobalt' },
   catalog: { nature: 'dérivé · catalogue des connecteurs', tone: 'cobalt' },
@@ -49,6 +52,7 @@ const rows = computed<Row[]>(() => {
     out.push({ key, label, body: '', chars: 0, ghost: true })
   if (!has('org')) ghost('org', 'readme de ton org')
   if (props.hasGroup && !has('group')) ghost('group', 'readme de ton équipe')
+  if (!has('profile')) ghost('profile', 'ta fiche')
   if (!has('user')) ghost('user', 'ta note')
   return out
 })
@@ -71,7 +75,7 @@ const pct = (l: Row) => Math.max(1.5, (l.chars / maxChars.value) * 100)
             :style="{ width: l.ghost ? '0' : pct(l) + '%' }" />
         </span>
         <span class="layer-chars">{{ l.ghost ? 'vide' : fmt(l.chars) + ' c.' }}</span>
-        <Icon v-if="META[l.key]?.edit || l.key === 'user'" name="pencil" :size="12" class="layer-pen" />
+        <Icon v-if="META[l.key]?.edit || EDITABLE.has(l.key)" name="pencil" :size="12" class="layer-pen" />
       </button>
       <div v-if="open.has(l.key)" class="layer-body">
         <div class="layer-meta">
@@ -80,13 +84,12 @@ const pct = (l: Row) => Math.max(1.5, (l.chars / maxChars.value) * 100)
             <Btn kind="mini">{{ l.ghost ? 'Écrire côté org →' : 'Voir / éditer →' }}</Btn>
           </RouterLink>
         </div>
-        <!-- ta note : l'éditeur in-situ remplace le dump (c'est la prose stockée) -->
+        <!-- couches ÉDITABLES in-situ : l'éditeur remplace le dump (c'est la source
+             stockée, pas un rendu) — ta note (prose) et ta fiche (champs). -->
         <slot v-if="l.key === 'user'" name="user-editor" />
-        <p v-else-if="l.key === 'profile'" class="helptext" style="margin-bottom: 8px">
-          ton agent remplit cette fiche au fil des conversations (<code>oto_profile</code>) — corrige-le en lui parlant.
-        </p>
-        <pre v-if="l.key !== 'user' && !l.ghost" class="layer-pre">{{ l.body }}</pre>
-        <p v-else-if="l.key !== 'user'" class="helptext">rien pour l'instant — cette couche n'est pas injectée.</p>
+        <slot v-else-if="l.key === 'profile'" name="profile-editor" />
+        <pre v-if="!EDITABLE.has(l.key) && !l.ghost" class="layer-pre">{{ l.body }}</pre>
+        <p v-else-if="!EDITABLE.has(l.key)" class="helptext">rien pour l'instant — cette couche n'est pas injectée.</p>
       </div>
     </div>
   </div>

@@ -425,6 +425,7 @@ export interface AccountProfile {
   profile: Record<string, string>
   updated_at: string | null
   fields: ProfileField[]
+  missing?: string[]            // clés du schéma encore vides (servi aux deux faces)
 }
 
 // ── Blocs d'instructions plateforme A/B (#50) — édités par l'admin plateforme ──

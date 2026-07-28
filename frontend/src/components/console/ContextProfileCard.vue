@@ -12,6 +12,11 @@ import type { AccountProfile } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
 
+const props = withDefaults(defineProps<{ title?: string; sub?: string }>(), {
+  title: 'situation avec oto',
+  sub: 'ce que ton agent sait de toi (métier, objectifs, CRM, ton) — relu à chaque session. l\'agent l\'entretient au fil de l\'eau ; tu peux l\'éditer ici.',
+})
+
 const { toast } = useToast()
 
 const data = ref<AccountProfile | null>(null)
@@ -76,8 +81,7 @@ const draftRows = computed(() =>
 </script>
 
 <template>
-  <ConsoleCard title="situation avec oto"
-    sub="ce que ton agent sait de toi (métier, objectifs, CRM, ton) — relu à chaque session. l'agent l'entretient au fil de l'eau ; tu peux l'éditer ici.">
+  <ConsoleCard :title="props.title" :sub="props.sub">
     <template v-if="loaded && !editing" #actions>
       <Btn kind="mini" icon="pen" @click="edit">{{ filledCount ? 'éditer' : 'remplir' }}</Btn>
     </template>
