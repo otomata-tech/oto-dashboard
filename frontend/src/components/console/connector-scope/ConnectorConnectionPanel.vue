@@ -134,7 +134,9 @@ const teamKey = computed(() => status.value?.team_key_group ?? null)
         <ConnectorKeyStack :connector="c" :lever="lever" />
         <p v-if="teamKey && statusMode === 'none'" class="helptext" style="margin: 10px 0 0">Une clé existe dans ton équipe « {{ teamKey.name }} » — active cette équipe pour l’utiliser.</p>
         <Quota v-if="status?.quota_daily" style="margin-top: 12px" :used="status.quota_used_today" :total="status.quota_daily" label="quota du jour" />
-        <div v-if="!keyConfigured" style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap">
+        <!-- Zoho porte SES propres CTA (un par mode) dans l'encart ci-dessous : deux
+             boutons concurrents rendaient le geste illisible. -->
+        <div v-if="!keyConfigured && !isZoho" style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap">
           <Btn kind="mini" @click="lever.configureKey(c)">Connecter {{ c.label }}</Btn>
         </div>
         <!-- Zoho : second mode d'acquisition (server-based) — le self client ci-dessus
@@ -144,7 +146,7 @@ const teamKey = computed(() => status.value?.team_key_group ?? null)
              moment où il faut consentir — l'étape suivante deviendrait introuvable.
              On le garde tant que le backend signale une étape manquante. -->
         <ConnectorZohoOAuth v-if="isZoho && (!keyConfigured || zohoConsentPending)"
-                            :connector="c" />
+                            :connector="c" :configure="() => lever.configureKey(c)" />
       </div>
 
       <ConnectorOAuthAccounts v-else-if="connKind === 'google'" />
