@@ -56,6 +56,7 @@ export interface ConnectorMeta {
   credential_fields: CredentialField[]
   free_tier: { daily_quota: number } | null   // ADR 0031 — clé plateforme offerte (quota gratuit/jour/user)
   identities: boolean        // ADR 0024 — sélecteur d'identité/cible par défaut (pennylaneged : la GED cible)
+  connect?: ConnectFlow | null   // le geste de connexion déclaré, ou null (cf. connector_flow)
   verifiable: boolean        // le connecteur a une sonde « tester la connexion » (zoho…) — bouton de test
 }
 
@@ -89,6 +90,23 @@ export interface MyConnector extends ConnectorMeta {
 // `has_app` = un client_id/client_secret est DÉJÀ à disposition, à n'importe quel
 // palier de la cascade (le mien, celui de mon équipe, de mon org, de la plateforme).
 // Faux ⇒ il faut d'abord poser l'app sur la carte avant de pouvoir consentir.
+/** FORME du geste « connecter » d'un connecteur (backend `connector_flow.describe`).
+ *  `null` pour les ~56 connecteurs sans flux : leur credential se pose au formulaire.
+ *  Ne porte VOLONTAIREMENT aucune URL — le chemin est fixe côté client
+ *  (`POST /api/me/connectors/{name}/connect`), le nom voyage en paramètre. */
+export interface ConnectFlowParam {
+  name: string
+  label: string
+  required: boolean
+  default: string
+  help: string
+  options: { value: string; label: string }[]
+}
+export interface ConnectFlow {
+  label: string
+  params: ConnectFlowParam[]
+}
+
 export interface ZohoOauthModes {
   connector: string
   self_client: boolean

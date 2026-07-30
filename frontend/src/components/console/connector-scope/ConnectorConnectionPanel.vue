@@ -13,7 +13,7 @@ import ConnectorOAuthAccounts from '@/components/console/ConnectorOAuthAccounts.
 import ConnectorFederatedWidget from '@/components/console/ConnectorFederatedWidget.vue'
 import ConnectorSessionWidget from '@/components/console/ConnectorSessionWidget.vue'
 import ConnectorHostedWidget from '@/components/console/ConnectorHostedWidget.vue'
-import ConnectorZohoOAuth from '@/components/console/ConnectorZohoOAuth.vue'
+import ConnectorFlowConnect from '@/components/console/ConnectorFlowConnect.vue'
 import ConnectorKeyStack from './ConnectorKeyStack.vue'
 import ConnectorVerdictLine from './ConnectorVerdictLine.vue'
 import { useMe } from '@/composables/useMe'
@@ -42,9 +42,9 @@ onMounted(async () => {
 // méthode d'auth inconnue y rend `'unknown'` au lieu d'un vide silencieux (cf. l'incident
 // `secret_then_oauth` documenté dans ce fichier-là).
 const connKind = computed(() => connectWidgetKind(c.value.auth))
-// Les 3 connecteurs Zoho acceptent AUSSI la connexion server-based (cf. zoho_oauth
-// côté backend) : on propose le second mode sous le formulaire de champs.
-const isZoho = computed(() => ['zoho', 'zohodesk', 'zohoanalytics'].includes(c.value.name))
+// Le geste de connexion est DÉCLARÉ par le connecteur (backend `connector_flow`) :
+// on le rend quand il existe, sans jamais savoir de quel connecteur il s'agit.
+const flow = computed(() => c.value.connect ?? null)
 const isOpenData = computed(() => connKind.value === 'opendata')
 const isRemote = computed(() => connKind.value === 'remote')
 const nFields = computed(() => (c.value.credential_fields ?? []).length)
@@ -81,9 +81,6 @@ const statusMode = computed<ConnectorMode>(() => {
   return p.mode as ConnectorMode
 })
 const keyConfigured = computed(() => !!status.value?.user_key_configured)
-// Consentement en attente = l'app est posée mais le refresh token manque. C'est le
-// backend qui le dit (`pending_action`, seam status_hints) — jamais recalculé ici.
-const zohoConsentPending = computed(() => !!status.value?.pending_action)
 const needsKey = computed(() => connKind.value === 'key')
 const docRefCount = computed(() => c.value.doctrine_ref_count ?? 0)
 
@@ -129,19 +126,20 @@ const teamKey = computed(() => status.value?.team_key_group ?? null)
         <ConnectorKeyStack :connector="c" :lever="lever" />
         <p v-if="teamKey && statusMode === 'none'" class="helptext" style="margin: 10px 0 0">Une clé existe dans ton équipe « {{ teamKey.name }} » — active cette équipe pour l’utiliser.</p>
         <Quota v-if="status?.quota_daily" style="margin-top: 12px" :used="status.quota_used_today" :total="status.quota_daily" label="quota du jour" />
-        <!-- Zoho porte SES propres CTA (un par mode) dans l'encart ci-dessous : deux
-             boutons concurrents rendaient le geste illisible. -->
-        <div v-if="!keyConfigured && !isZoho" style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap">
+        <!-- Un connecteur à FLUX porte ses propres actions dans l'encart ci-dessous
+             (dont « identifiants de l'application ») : deux boutons concurrents
+             rendaient le geste illisible. Dérivé du descripteur, plus d'un nom. -->
+        <div v-if="!keyConfigured && !flow" style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap">
           <Btn kind="mini" @click="lever.configureKey(c)">Connecter {{ c.label }}</Btn>
         </div>
-        <!-- Zoho : second mode d'acquisition (server-based) — le self client ci-dessus
-             reste, les deux produisent le même credential.
-             ⚠️ NE PAS gater sur `!keyConfigured` seul : poser l'app (client_id +
-             client_secret) CRÉE le credential, donc l'encart disparaîtrait juste au
-             moment où il faut consentir — l'étape suivante deviendrait introuvable.
-             On le garde tant que le backend signale une étape manquante. -->
-        <ConnectorZohoOAuth v-if="isZoho && (!keyConfigured || zohoConsentPending)"
-                            :connector="c" :configure="() => lever.configureKey(c)" />
+        <!-- Geste de connexion déclaré (consentement OAuth…) : il COEXISTE avec le
+             formulaire de champs, il ne le remplace pas — pour ces connecteurs on pose
+             l'application PUIS on autorise. Rendu dès que le descripteur existe ;
+             c'est le backend qui dit s'il reste une étape (`pending_action`), jamais
+             un calcul local sur la présence d'une clé (poser l'app CRÉE le credential,
+             gater là-dessus masquerait le bouton au moment où il sert). -->
+        <ConnectorFlowConnect v-if="flow" :connector="c" :status="status"
+                              :configure="() => lever.configureKey(c)" />
       </div>
 
       <ConnectorOAuthAccounts v-else-if="connKind === 'google'" />

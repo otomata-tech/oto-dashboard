@@ -11,7 +11,7 @@ import type {
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
   ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
-  ZohoOauthModes, FederatedStatus, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
+  FederatedStatus, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
   EmailSettingsBundle, EmailSender, QuietHours, ScheduledEmail,
@@ -124,11 +124,13 @@ export const disconnectFederated = (name: string) => api(`/api/${name}/oauth`, {
 // ── zoho : connexion « server-based » (SECOND mode, le self client reste) ──
 // UNE paire de routes pour les 3 connecteurs zoho (le connecteur voyage dans le state
 // signé) ; la région est obligatoire — app et token sont liés à leur data center.
-export const getZohoOauthModes = (connector: string) =>
-  api<ZohoOauthModes>(`/api/zoho/oauth/modes?connector=${encodeURIComponent(connector)}`)
-export const startZohoOauth = (connector: string, dataCenter: string) =>
-  api<{ auth_url: string }>(
-    `/api/zoho/oauth/start?connector=${encodeURIComponent(connector)}&data_center=${encodeURIComponent(dataCenter)}`)
+/** Démarre le flux de connexion DÉCLARÉ par le connecteur. Chemin FIXE, nom en
+ *  paramètre : plus une fonction cliente par connecteur, plus de liste de noms.
+ *  Les valeurs attendues viennent de `connector.connect.params`. */
+export const startConnectorFlow = (connector: string, params: Record<string, string>) =>
+  api<{ auth_url: string }>(`/api/me/connectors/${encodeURIComponent(connector)}/connect`,
+    { method: 'POST', body: JSON.stringify({ params }) })
+
 
 // ── unipile (LinkedIn hébergé) — hosted-auth per-user sous la clé partagée ──
 export const getUnipileStatus = () => api<UnipileStatus>('/api/me/unipile')
