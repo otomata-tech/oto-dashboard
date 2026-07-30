@@ -19,6 +19,7 @@ import ConnectorVerdictLine from './ConnectorVerdictLine.vue'
 import { useMe } from '@/composables/useMe'
 import { getOrgConnectorActivation } from '@/api/console'
 import type { ConnectionLever } from './adapter'
+import { connectWidgetKind } from '@/lib/connectorConnect'
 import type { ConnectorMode } from '@/lib/consoleTypes'
 import type { MyConnector, OrgConnectorActivation } from '@/types/api'
 
@@ -37,21 +38,15 @@ onMounted(async () => {
   } catch { /* le bloc org ne s'affiche simplement pas */ }
 })
 
-type Conn = 'key' | 'session' | 'google' | 'memento' | 'unipile' | 'none'
-const connKind = computed<Conn>(() => {
-  switch (c.value.auth.method) {
-    case 'hosted': return 'unipile'
-    case 'cookie': return 'session'
-    case 'oauth': return c.value.auth.cardinality === 'multi_account' ? 'google' : 'memento'
-    case 'secret': return 'key'
-    default: return 'none'
-  }
-})
+// Dérivé du descripteur backend par `lib/connectorConnect` — source unique, et une
+// méthode d'auth inconnue y rend `'unknown'` au lieu d'un vide silencieux (cf. l'incident
+// `secret_then_oauth` documenté dans ce fichier-là).
+const connKind = computed(() => connectWidgetKind(c.value.auth))
 // Les 3 connecteurs Zoho acceptent AUSSI la connexion server-based (cf. zoho_oauth
 // côté backend) : on propose le second mode sous le formulaire de champs.
 const isZoho = computed(() => ['zoho', 'zohodesk', 'zohoanalytics'].includes(c.value.name))
-const isOpenData = computed(() => c.value.auth.method === 'none')
-const isRemote = computed(() => c.value.auth.method === 'remote')
+const isOpenData = computed(() => connKind.value === 'opendata')
+const isRemote = computed(() => connKind.value === 'remote')
 const nFields = computed(() => (c.value.credential_fields ?? []).length)
 const authLabel = computed(() => {
   switch (c.value.auth.method) {
@@ -161,6 +156,11 @@ const teamKey = computed(() => status.value?.team_key_group ?? null)
       <div v-else-if="isOpenData" class="dr-box dashed">
         <div style="display: flex; align-items: center; gap: 9px"><Dot tone="cobalt" /><span style="font-size: 12.5px; font-weight: 600">open data — aucun identifiant requis</span></div>
         <p class="helptext" style="margin: 8px 0 0">les outils fonctionnent directement. passe l'exposition en <strong>actif</strong> et ton agent peut les appeler immédiatement.</p>
+      </div>
+
+      <div v-else-if="connKind === 'unknown'" class="dr-box dashed">
+        <div style="display: flex; align-items: center; gap: 9px"><Dot tone="terra" /><span style="font-size: 12.5px; font-weight: 600">mode de connexion non reconnu</span></div>
+        <p class="helptext" style="margin: 8px 0 0">ce connecteur annonce une méthode d'authentification (<code>{{ c.auth.method }}</code>) que cette version du dashboard ne sait pas afficher — il est probablement plus récent que l'interface. Ton agent peut le connecter en conversation ; recharge la page plus tard, ou signale-le.</p>
       </div>
 
       <p v-if="docRefCount > 0" class="helptext" style="margin-top: 14px; color: var(--color-mute)">↳ référencé par <strong style="color: var(--color-ink-soft)">{{ docRefCount }}</strong> procédure{{ docRefCount > 1 ? 's' : '' }} — connecte-le pour les exécuter.</p>
