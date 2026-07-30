@@ -25,7 +25,7 @@ served at `dashboard.oto.ninja`.
 - **Overview / Connectors / Connector library** — connect credentials, browse the catalogue.
 - **Organizations & groups** — orgs, departments with a team lead, shared secrets,
   toolset presets and doctrine.
-- **Memory** — datastore (native PG tabular storage) and knowledge (Memento connection).
+- **Memory** — datastore (native PG tabular storage) and knowledge (org Documents).
 - **Doctrine library** — marketplace of public doctrines (fork / publish).
 
 The topbar carries an **MCP identity** badge (account × active org) showing which identity

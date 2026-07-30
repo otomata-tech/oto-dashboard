@@ -11,7 +11,7 @@ import type {
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
   ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
-  ZohoOauthModes, MementoStatus, MementoWorkspaces, MementoPages, MementoDocument, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
+  ZohoOauthModes, FederatedStatus, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
   EmailSettingsBundle, EmailSender, QuietHours, ScheduledEmail,
@@ -114,29 +114,10 @@ export const setGoogleDefault = (account: string) =>
 export const revokeGoogle = (account?: string) =>
   api(`/api/google/oauth${account ? `?account=${encodeURIComponent(account)}` : ''}`, { method: 'DELETE' })
 
-// ── memento (MCP fédéré, otomata#16) ──
-export const getMementoStatus = () => api<MementoStatus>('/api/memento/oauth/status')
-export const startMementoOauth = () => api<{ auth_url: string }>('/api/memento/oauth/start')
-export const disconnectMemento = () => api('/api/memento/oauth', { method: 'DELETE' })
-export const getMementoWorkspaces = () => api<MementoWorkspaces>('/api/memento/workspaces')
-export const getMementoPages = (workspace?: string, cursor?: string) => {
-  const q = new URLSearchParams()
-  if (workspace) q.set('workspace', workspace)
-  if (cursor) q.set('cursor', cursor)
-  const qs = q.toString()
-  return api<MementoPages>(`/api/memento/pages${qs ? `?${qs}` : ''}`)
-}
-export const getMementoDocument = (ref: { id?: string; path?: string }) => {
-  const q = new URLSearchParams()
-  if (ref.id) q.set('id', ref.id)
-  if (ref.path) q.set('path', ref.path)
-  return api<MementoDocument>(`/api/memento/document?${q.toString()}`)
-}
-
 // ── MCP fédéré générique, par connecteur (#40 — atlassian & co.) ──
-// Mêmes routes que memento, paramétrées par le nom du connecteur :
+// Routes paramétrées par le nom du connecteur :
 // /api/<name>/oauth/{status,start} + DELETE /api/<name>/oauth.
-export const getFederatedStatus = (name: string) => api<MementoStatus>(`/api/${name}/oauth/status`)
+export const getFederatedStatus = (name: string) => api<FederatedStatus>(`/api/${name}/oauth/status`)
 export const startFederatedOauth = (name: string) => api<{ auth_url: string }>(`/api/${name}/oauth/start`)
 export const disconnectFederated = (name: string) => api(`/api/${name}/oauth`, { method: 'DELETE' })
 
@@ -231,7 +212,7 @@ export const setProfile = (fields: Record<string, string>) =>
 const projectsApi = <T>(body: Record<string, unknown>) =>
   api<T>('/api/me/projects', { method: 'POST', ...j(body) })
 export const listProjects = () => projectsApi<{ projects: Project[] }>({ op: 'list' })
-// Base de connaissance d'org = zone Documents (remplace Memento) — résout/crée le projet KB.
+// Base de connaissance d'org = zone Documents — résout/crée le projet KB.
 export const getKbProject = () =>
   api<{ project_id: number; name: string; brief_md: string }>('/api/me/kb', { method: 'POST', ...j({ op: 'get' }) })
 // Modèles (templates) copiables visibles par l'acteur — bibliothèque (ADR 0032 §7 B5a).

@@ -13,12 +13,12 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
 import { fmtDate } from '@/types/api'
-import type { MementoStatus, MyConnector } from '@/types/api'
+import type { FederatedStatus, MyConnector } from '@/types/api'
 
 const props = defineProps<{ connector: MyConnector }>()
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
-const status = ref<MementoStatus | null>(null)
+const status = ref<FederatedStatus | null>(null)
 const loading = ref(true)
 
 async function refresh() { status.value = await getFederatedStatus(props.connector.name).catch(() => null) }

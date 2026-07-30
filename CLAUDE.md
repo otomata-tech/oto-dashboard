@@ -201,15 +201,17 @@ op-aware, `POST /api/resources`). **Plan gouvernance only** — jamais le conten
 sans réécriture. Réutilise `DataTable`/conventions admin existantes (pas de framework admin tiers,
 TanStack présent mais inutilisé).
 
-## Fédération MCP (memento, otomata#16)
+## Fédération MCP (otomata#16)
 
-`ConnectorsView.vue` porte la carte « federated mcp » (connect/disconnect du compte memento
-per-user, OAuth via `/api/memento/oauth/*`). Depuis 2026-06-17 la fédération memento est
-**systématique** côté oto-mcp (connecteur `self_serve`, monté d'office) → la carte s'affiche
-pour **tous** les users (plus seulement les entitled). La carte « next step » d'`OverviewView`
-inclut une étape « connect your knowledge base » tant que `me.memento.connected` est faux.
-`Me.memento` (`{connected, set_at}`) vient de `GET /api/me`. Le compte memento est
-provisionné automatiquement à la création du compte oto (côté backend).
+`ConnectorsView.vue` porte la carte « federated mcp » (connect/disconnect d'un compte
+fédéré per-user, OAuth via `/api/<connecteur>/oauth/*` — `getFederatedStatus`/
+`startFederatedOauth`/`disconnectFederated`, variante de widget `oauth_federated`).
+Connecteurs concernés : atlassian, folkmcp.
+
+> **Connecteur memento retiré (2026-07-30).** Produit décommissionné : `MementoView.vue`,
+> les appels `/api/memento/*`, les types `Memento*` et la clé `me.memento` ont été
+> supprimés ; `MementoStatus` est devenu `FederatedStatus` (le type était déjà partagé
+> par le flux fédéré générique). La mémoire est native : zone Documents / `oto_kb`.
 
 > **Onboarding = un projet (ADR 0032 §7, 2026-07-01).** Plus d'écran « get started » ni de
 > mode d'accueil spécial : le composant `GetStartedGuide.vue` et la variante `onboarding`
@@ -228,7 +230,7 @@ Groupe nav **workspace** → `/projects` (`ProjectsView.vue`, **index grille**) 
 `route.name==='project-detail'`, `viewKey=fullPath` → remount sur `:id`, même patron que
 `admin-user`). Un projet = brief (point d'entrée) + **pages markdown arborescentes**
 (`ProjectDocs.vue`, capacité `oto_doc`) + **entités liées** (tableau/procédure/connecteur/base,
-picker des vraies entités via `getNamespaces`/`getConnectors`/`getDoctrine`/`getMementoWorkspaces`)
+picker des vraies entités via `getNamespaces`/`getConnectors`/`getDoctrine`)
 + **partage/transfert** (`oto_resource` resource_type=`project`, réutilise `getResource`/
 `shareResource`/`transferResource`) + **journal d'activité**. API client : `*Project*`/`*Doc*`
 dans `api/console.ts` (POST op-aware `/api/me/{projects,docs}`). Backend : `oto-backend/CLAUDE.md`
@@ -279,7 +281,7 @@ de toute modale — plus jamais de `blur(Npx)` magique. Rail **drag&drop** natif
 
 Groupe nav **« memory »** (`consoleNav.ts`) = deux surfaces de mémoire :
 - **Datastore** (`/console/data`, `DataView.vue`) — stockage tabulaire, **substrat PG natif** (plus Google Sheets). Grille **server-driven** (`DataTable.vue` : tri 3 états/recherche/pagination/**filtres par colonne** côté API via `getNamespaceRows({offset,limit,order_by,order_dir,q,filters})` — ops par type dérivé `datastoreFilters.ts` (text/number/date/bool), cellule `ColumnFilterCell.vue`, chips des filtres actifs retirables, taille de page 25/50/100, header sticky ; rendu cellules typé `cellRender.ts`) ; clic row → détail/édition (`RowDrawer.vue`). **Deeplink par id** (`?ns=<id>`, `NamespaceEntry.id` BIGSERIAL stable → le **renommage** ne casse pas l'URL) **+ état du tableau MIROIR dans l'URL** (`?q/sort/dir/page/ps/f`, `readTableQuery`/`syncTableQuery` — refresh et partage de lien conservent la vue filtrée ; `?f=` sérialisé par `filtersToParam`/`filtersFromParam`, param malformé ignoré). **Ownership ADR 0030** : les droits viennent du payload (`can_write`/`can_govern`/`owner_type`), plus de `isOwner` dérivé du flag `shared` ; read-only = `can_write===false`, boutons share/rename/transfer/delete gatés par `can_govern`. **org-owned activé** : la création propose un scope (perso / classeur d'org active) via `promptForm` select → `createNamespace(ns, {type:'org', id})` ; badge « org »/« team » sur la liste. **share** (`SharePrincipalDialog.vue`, dialog de partage unifié membre/équipe/org via `oto_resource` — aussi utilisé par projets et doctrines ; sélecteur de **rôle** lecteur/éditeur/**gérant** via `lib/resourceRole.ts`, ADR 0048 — le gérant a la gouvernance grantable), **rename**, **transfer** (l'ancien proprio repasse en grant write). Plus de gate Google.
-- **Knowledge** (`/console/knowledge`, `KnowledgeView.vue`) — connexion **Memento opt-in** (réutilise `getMementoStatus`/`startMementoOauth`/`disconnectMemento`, mêmes endpoints que la carte federated mcp de `ConnectorsView`) ; pas de browse des KB (déféré). Retour OAuth `?memento=connected|error`.
+- **Knowledge** — la base de connaissance d'org est un **projet** (zone Documents, `oto_kb`), atteignable via « Projets » ; `/console/knowledge` redirige vers `/documents`.
 
 ## Agent readme (ex-« doctrine de base ») — unbundlé des procédures (2026-07)
 

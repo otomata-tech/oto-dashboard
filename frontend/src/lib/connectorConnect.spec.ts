@@ -33,7 +33,7 @@ describe('connectWidgetKind', () => {
 
   it('oauth multi-compte et mono-compte ne rendent pas le même widget', () => {
     expect(connectWidgetKind(auth('oauth', 'multi_account'))).toBe('google')
-    expect(connectWidgetKind(auth('oauth', 'single'))).toBe('memento')
+    expect(connectWidgetKind(auth('oauth', 'single'))).toBe('oauth_federated')
   })
 
   it('une méthode INCONNUE rend `unknown`, jamais un vide silencieux', () => {
@@ -44,7 +44,7 @@ describe('connectWidgetKind', () => {
   })
 
   it('tous les widgets rendus sont des valeurs déclarées', () => {
-    const known: WidgetKind[] = ['key', 'session', 'google', 'memento', 'unipile',
+    const known: WidgetKind[] = ['key', 'session', 'google', 'oauth_federated', 'unipile',
                                  'remote', 'opendata', 'unknown']
     for (const m of [...HANDLED_AUTH_METHODS, 'nimportequoi']) {
       expect(known).toContain(connectWidgetKind(auth(m)))

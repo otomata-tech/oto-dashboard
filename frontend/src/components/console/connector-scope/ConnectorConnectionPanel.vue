@@ -145,7 +145,7 @@ const teamKey = computed(() => status.value?.team_key_group ?? null)
       </div>
 
       <ConnectorOAuthAccounts v-else-if="connKind === 'google'" />
-      <ConnectorFederatedWidget v-else-if="connKind === 'memento'" :connector="c" />
+      <ConnectorFederatedWidget v-else-if="connKind === 'oauth_federated'" :connector="c" />
       <ConnectorSessionWidget v-else-if="connKind === 'session'" :connector="c" />
       <ConnectorHostedWidget v-else-if="connKind === 'unipile'" />
 

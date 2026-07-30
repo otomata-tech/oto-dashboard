@@ -260,7 +260,6 @@ export interface Me {
   group_role: GroupRole | null
   home_group: number | null          // équipe MAISON (défaut MCP)
   home_group_name: string | null         // effectif (escalade org_admin/platform incluse)
-  memento?: MementoStatus              // fédération MCP (otomata#16) — auto-prompt connexion
   providers: Record<string, ProviderStatus | undefined>
 }
 
@@ -651,68 +650,10 @@ export interface ApiToken {
   last_used_at: string | null
 }
 
-// MCP fédéré (otomata#16) — statut de connexion OAuth per-user (ex. memento).
-export interface MementoStatus {
+// MCP fédéré (otomata#16) — statut de connexion OAuth per-user (ex. atlassian).
+export interface FederatedStatus {
   connected: boolean
   set_at: string | null
-}
-
-// Carte read-only des KB memento (orientation dashboard ; curation sur me.mento.cc).
-export interface MementoWorkspace {
-  slug: string
-  name: string
-  summary: string
-  visibility: 'org' | 'private' | 'public'
-  myRole: string | null
-}
-export interface MementoOrg {
-  org: string
-  name: string
-  myRole: string | null
-  personal: boolean
-  workspaces: MementoWorkspace[]
-}
-export interface MementoWorkspaces {
-  connected: boolean
-  default?: string
-  orgs: MementoOrg[]
-  shared: MementoWorkspace[]
-  pinned: MementoWorkspace[]
-}
-
-// Browse d'une KB : pages (documents) énumérées, keyset paginé (curseur opaque).
-export interface MementoPage {
-  id: string
-  title: string
-  docPath: string
-  status: string
-  updatedAt: string | null
-}
-export interface MementoPages {
-  connected: boolean
-  workspace?: string
-  org?: string
-  items: MementoPage[]
-  totalCount?: number
-  hasMore?: boolean
-  cursor?: string | null
-}
-
-// Contenu d'une page : blocs ordonnés + lien viewer canonique (jamais forgé côté client).
-export interface MementoBlock {
-  id: string
-  type: string
-  content: string
-}
-export interface MementoDocumentBody {
-  id: string
-  title: string
-  url?: string
-  blocks: MementoBlock[]
-}
-export interface MementoDocument {
-  connected: boolean
-  document?: MementoDocumentBody
 }
 
 // Datastore (ADR 0016 + primitive d'ownership ADR 0030) — un namespace possédé ou partagé.
@@ -807,6 +748,31 @@ export interface DatastoreRow {
   _created_at?: string | null
   _updated_at?: string | null
   [field: string]: unknown
+}
+
+// Une entrée du JOURNAL du datastore (ADR 0046 b4, élargi) — une fiche ou un
+// tableau entier. Source UNIQUE : la table `tool_calls`. `kind` dit d'où vient
+// le geste : `mcp` = appel d'un agent, `rest` = geste posé dans la console.
+// Les champs enrichis (`row_id`/`row_title`/`fields`/`from_status`/`to_status`)
+// valent null/[] sur les lignes journalisées AVANT l'élargissement (aucune
+// migration de données) — l'affichage doit rester lisible sans eux.
+export interface RowActivityEntry {
+  created_at: string
+  kind: 'rest' | 'mcp'
+  tool: string
+  ok: boolean
+  error: string | null
+  sub: string | null
+  email: string | null
+  run_id: string | null
+  run_label: string | null
+  doctrine: string | null
+  outcome: string | null
+  row_id: string | null
+  row_title: string | null
+  fields: string[]
+  from_status: string | null
+  to_status: string | null
 }
 
 // Filtre par colonne de la vue tableau datastore (oto-dashboard#18). Combinés AND,

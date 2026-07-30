@@ -30,7 +30,6 @@ const VIEWS: Record<string, Component> = {
   '/procedures': defineAsyncComponent(() => import('./DoctrineHubView.vue')),
   '/data': defineAsyncComponent(() => import('./DataView.vue')),
   '/documents': defineAsyncComponent(() => import('./DocumentsView.vue')),
-  '/memento': defineAsyncComponent(() => import('./MementoView.vue')),
   '/activity': defineAsyncComponent(() => import('./ActivityView.vue')),
   '/context': defineAsyncComponent(() => import('./ContextView.vue')),
   '/search': defineAsyncComponent(() => import('./SearchView.vue')),

@@ -25,7 +25,7 @@ export type WidgetKind =
   | 'key'        // formulaire de champs (le cas majoritaire : 50 connecteurs sur 70)
   | 'session'    // session navigateur hébergée (live view)
   | 'google'     // oauth multi-compte
-  | 'memento'    // oauth mono-compte (fédéré)
+  | 'oauth_federated' // oauth mono-compte (fédéré : atlassian, folkmcp…)
   | 'unipile'    // flux hébergé tiers
   | 'remote'     // pont d'org, provisionné par l'org
   | 'opendata'   // aucun credential
@@ -41,7 +41,7 @@ export function connectWidgetKind(auth: Pick<AuthDescriptor, 'method' | 'cardina
   switch (auth.method) {
     case 'hosted': return 'unipile'
     case 'cookie': return 'session'
-    case 'oauth': return auth.cardinality === 'multi_account' ? 'google' : 'memento'
+    case 'oauth': return auth.cardinality === 'multi_account' ? 'google' : 'oauth_federated'
     case 'secret': return 'key'
     case 'remote': return 'remote'
     case 'none': return 'opendata'

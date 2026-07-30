@@ -65,7 +65,7 @@ const router = createRouter({
     // Anciennes sections fusionnées dans /connectors (ex-my-connectors + ex-toolbox) :
     // redirections pour ne pas casser bookmarks / liens existants.
     { path: '/my-connectors', redirect: '/connectors' },
-    // base de connaissance (Memento) → zone Documents (réunion 30/06) ; bookmark legacy.
+    // base de connaissance → zone Documents (réunion 30/06) ; bookmark legacy.
     { path: '/knowledge', redirect: '/documents' },
     { path: '/toolbox', redirect: '/connectors' },
     // Bibliothèques fusionnées en onglet « marketplace » des pages connecteurs /
