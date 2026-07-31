@@ -26,6 +26,7 @@ const props = defineProps<{
 
 const { toast } = useToast()
 const busy = ref(false)
+const copie = ref(false)
 const flow = computed(() => props.connector.connect!)
 
 // Valeurs du formulaire, initialisées aux défauts DÉCLARÉS.
@@ -38,6 +39,12 @@ const values = ref<Record<string, string>>(
 // AVANT le consentement — gater là-dessus masquerait le bouton exactement au moment où
 // il est nécessaire. Le code précédent portait déjà cet avertissement en commentaire.
 const pending = computed(() => !!props.status?.pending_action)
+
+async function copierCallback() {
+  await navigator.clipboard.writeText(flow.value.callback_url!)
+  copie.value = true
+  setTimeout(() => { copie.value = false }, 1800)
+}
 
 async function start() {
   busy.value = true
@@ -72,6 +79,21 @@ async function start() {
       <span v-if="p.help" class="helptext">{{ p.help }}</span>
     </div>
 
+    <!-- L'URL de retour à enregistrer chez le fournisseur. Elle vivait dans la prose de
+         la doc, domaine écrit à la main — donc fausse pour qui lisait depuis l'autre
+         environnement. Le backend la DÉRIVE ; on l'affiche là où elle sert, au moment
+         où on configure l'application. -->
+    <div v-if="flow.callback_url" class="cfc-cb">
+      <label>URL de retour à enregistrer dans l'application</label>
+      <div class="cfc-cb-row">
+        <code>{{ flow.callback_url }}</code>
+        <Btn kind="mini" variant="ghost" @click="copierCallback">
+          {{ copie ? 'copiée' : 'copier' }}
+        </Btn>
+      </div>
+      <span class="helptext">au caractère près — un espace ou un slash final en trop suffit à faire échouer l'autorisation</span>
+    </div>
+
     <div class="cfc-actions">
       <Btn kind="mini" :disabled="busy" @click="start">
         {{ busy ? 'ouverture…' : flow.label }}
@@ -90,4 +112,12 @@ async function start() {
 .cfc-field { display: flex; flex-direction: column; gap: 4px }
 .cfc-field label { font-size: 12px; font-weight: 600; color: var(--color-ink-soft) }
 .cfc-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px }
+.cfc-cb { display: flex; flex-direction: column; gap: 4px }
+.cfc-cb label { font-size: 12px; font-weight: 600; color: var(--color-ink-soft) }
+.cfc-cb-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+.cfc-cb-row code {
+  font-family: var(--font-mono); font-size: 11.5px; padding: 4px 8px;
+  border-radius: var(--radius-md); background: var(--color-paper-3);
+  border: 1px solid var(--color-hair-soft); word-break: break-all;
+}
 </style>

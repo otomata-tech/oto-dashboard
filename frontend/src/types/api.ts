@@ -105,6 +105,10 @@ export interface ConnectFlowParam {
 export interface ConnectFlow {
   label: string
   params: ConnectFlowParam[]
+  /** URL de retour à enregistrer chez le fournisseur (Connected App Salesforce, app
+   *  OAuth Zoho…). DÉRIVÉE de l'environnement côté backend — donc juste en preprod
+   *  comme en prod — et servie UNIQUEMENT sur la projection authentifiée. */
+  callback_url?: string | null
 }
 
 export interface ZohoOauthModes {
