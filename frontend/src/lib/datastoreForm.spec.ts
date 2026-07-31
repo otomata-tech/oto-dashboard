@@ -1,6 +1,7 @@
 // Formulaire typé du drawer (schéma v2) — helpers PURS : ordre/descriptors des
 // champs, coercion draft ⇄ payload par type déclaré, nettoyage des composites.
 import { describe, expect, it } from 'vitest'
+import { reactive } from 'vue'
 import type { DatastoreField, DatastoreSchema } from '@/types/api'
 import {
   compositeDraft, formFields, isEmptyPayloadValue, isSubRecordList,
@@ -71,6 +72,16 @@ describe('composites', () => {
     expect(compositeDraft(contacts, null)).toEqual([])
     expect(compositeDraft(idcc, 'a')).toEqual(['a'])
     expect(compositeDraft({ key: 'o', type: 'object', fields: [] } as DatastoreField, null)).toEqual({})
+  })
+  it('compositeDraft clone une valeur RÉACTIVE (proxy Vue) sans DataCloneError', () => {
+    // La row arrive au drawer en prop réactive : structuredClone refusait le proxy.
+    const row = reactive({ contacts: [{ nom: 'x' }], meta: { a: 1 } })
+    const list = compositeDraft(contacts, row.contacts) as { nom: string }[]
+    expect(list).toEqual([{ nom: 'x' }])
+    list[0]!.nom = 'muté' // le draft est bien une COPIE : la row reste intacte
+    expect(row.contacts[0]!.nom).toBe('x')
+    expect(compositeDraft({ key: 'o', type: 'object', fields: [] } as DatastoreField, row.meta))
+      .toEqual({ a: 1 })
   })
   it('pruneComposite objet : champs vides retirés', () => {
     expect(pruneComposite({ key: 'o', type: 'object', fields: [] } as DatastoreField,

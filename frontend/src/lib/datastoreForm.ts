@@ -62,13 +62,20 @@ export function scalarDraft(v: unknown): string {
   return String(v)
 }
 
+/** Copie profonde d'une valeur de row — JSON par construction (elle sort de l'API).
+ * PAS `structuredClone` : la row arrive au drawer en prop RÉACTIVE, donc ses valeurs
+ * imbriquées sont des Proxy Vue, que l'algo de clonage structuré refuse
+ * (`DataCloneError: [object Array] could not be cloned` — Sentry, 2 users). Le
+ * round-trip JSON déproxifie ET copie en profondeur d'un seul geste. */
+const cloneValue = <T>(v: T): T => JSON.parse(JSON.stringify(v))
+
 /** Valeur de draft COMPOSITE (structurée) depuis la valeur row. */
 export function compositeDraft(f: DatastoreField, v: unknown): unknown {
   if (f.type === 'list') {
-    if (Array.isArray(v)) return structuredClone(v)
+    if (Array.isArray(v)) return cloneValue(v)
     return v == null || v === '' ? [] : [v]
   }
-  return v && typeof v === 'object' && !Array.isArray(v) ? structuredClone(v) : {}
+  return v && typeof v === 'object' && !Array.isArray(v) ? cloneValue(v) : {}
 }
 
 function pruneRecord(rec: Record<string, unknown>): Record<string, unknown> {
