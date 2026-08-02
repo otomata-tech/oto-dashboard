@@ -10,7 +10,7 @@ import type {
   InstructionVersion, LibraryEntry, LibraryDoctrine, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
   ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
-  ToolRegistryEntry, ToolDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
+  ToolRegistryEntry, ToolDetail, ToolCallDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   FederatedStatus, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
@@ -785,23 +785,41 @@ export const getMonitoringConnectors = (days: number) =>
   api<MonitoringConnectorStats>(`/api/admin/monitoring/connectors?days=${days}`)
 export const getMonitoringFunnel = (days: number) =>
   api<ActivationFunnel>(`/api/admin/monitoring/funnel?days=${days}`)
-export const getMonitoringCalls = (params: { limit?: number; sub?: string; tool?: string; errors?: boolean; days?: number } = {}) => {
+// Axes d'investigation (backend `monitoring.calls`) : `sub` accepte un email OU un
+// sub ; `run_id`/`session_id` isolent un déroulé / une conversation ;
+// `min_duration_ms` sort les appels lents ; `error_contains` cherche dans le message.
+export const getMonitoringCalls = (params: {
+  limit?: number; sub?: string; tool?: string; errors?: boolean; days?: number
+  run_id?: string; session_id?: string; min_duration_ms?: number; error_contains?: string
+} = {}) => {
   const q = new URLSearchParams()
   if (params.limit) q.set('limit', String(params.limit))
   if (params.sub) q.set('sub', params.sub)
   if (params.tool) q.set('tool', params.tool)
   if (params.errors) q.set('errors', '1')
   if (params.days) q.set('days', String(params.days))
+  if (params.run_id) q.set('run_id', params.run_id)
+  if (params.session_id) q.set('session_id', params.session_id)
+  if (params.min_duration_ms) q.set('min_duration_ms', String(params.min_duration_ms))
+  if (params.error_contains) q.set('error_contains', params.error_contains)
   const qs = q.toString()
   return api<{ calls: ToolCall[] }>(`/api/admin/monitoring/calls${qs ? `?${qs}` : ''}`)
 }
+
+// Fiche d'un appel (drill-down du journal) : ligne complète + corrélation.
+export const getMonitoringCall = (id: number) =>
+  api<{ call: ToolCallDetail }>(`/api/admin/monitoring/calls/${id}`)
 
 // ── usage / déroulés (ADR 0017, admin) ──
 export const getUsageRuns = () => api<{ runs: DoctrineRun[] }>('/api/admin/usage/runs')
 export const getUsageRun = (runId: string) =>
   api<{ run_id: string; calls: RunCall[] }>(`/api/admin/usage/runs/${runId}`)
-export const getUsageGaps = () => api<{ gaps: UsageGap[] }>('/api/admin/usage/gaps')
-export const getUsageToolQuality = () => api<{ tools: ToolFeedbackAgg[] }>('/api/admin/usage/tool-quality')
+// `days` = fenêtre d'agrégation (défaut backend 30) — le picker de MonitoringView
+// pilote désormais aussi la lentille signaux.
+export const getUsageGaps = (days?: number) =>
+  api<{ gaps: UsageGap[] }>(`/api/admin/usage/gaps${days ? `?days=${days}` : ''}`)
+export const getUsageToolQuality = (days?: number) =>
+  api<{ tools: ToolFeedbackAgg[] }>(`/api/admin/usage/tool-quality${days ? `?days=${days}` : ''}`)
 // Détail (drill-down) : signaux bruts filtrés par signal (tool_feedback|gap) + target (outil/intent).
 export const getUsageSignals = (signal?: string, target?: string) => {
   const q = new URLSearchParams()

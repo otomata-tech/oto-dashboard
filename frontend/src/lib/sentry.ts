@@ -34,3 +34,15 @@ export function setSentryUser(sub: string | null): void {
   if (!DSN) return
   Sentry.setUser(sub ? { id: sub } : null)
 }
+
+// Lien vers le traceback d'une erreur BACKEND depuis le journal d'appels : le
+// backend stampe l'event id sur la ligne `tool_calls` (colonne sentry_event_id),
+// on en fait une recherche Sentry qui atterrit sur l'issue. L'org Sentry n'est PAS
+// dérivable du DSN (il porte l'id numérique, pas le slug) → variable dédiée ;
+// absente, l'UI rend l'id copiable au lieu d'un lien cassé.
+const SENTRY_ORG_URL = (import.meta.env.VITE_SENTRY_ORG_URL as string | undefined)?.replace(/\/$/, '')
+
+export function sentryEventUrl(eventId: string): string | null {
+  if (!SENTRY_ORG_URL) return null
+  return `${SENTRY_ORG_URL}/issues/?query=${encodeURIComponent(eventId)}`
+}

@@ -1124,6 +1124,35 @@ export interface ToolCall {
   duration_ms: number | null
   ok: boolean
   error: string | null
+  // Axes de corrélation (investigation) : la conversation, le déroulé, l'org sous
+  // laquelle l'appel a été émis. NULL hors contexte — un appel peut n'être dans
+  // aucun run. `sentry_event_id` n'est posé que sur une erreur de CODE capturée.
+  session_id?: string | null
+  run_id?: string | null
+  org_id?: number | null
+  sentry_event_id?: string | null
+}
+// Fiche d'UN appel (`GET /api/admin/monitoring/calls/{id}`) : la ligne complète,
+// args TRONQUÉS à l'écriture (jamais le payload intégral, garantie calllog).
+export interface ToolCallDetail {
+  id: number
+  kind: string
+  server: string
+  sub: string | null
+  email: string | null
+  name: string | null
+  tool: string
+  args: Record<string, unknown> | null
+  ok: boolean
+  error: string | null
+  duration_ms: number | null
+  created_at: string
+  session_id: string | null
+  run_id: string | null
+  org_id: number | null
+  org_name: string | null
+  client_id: string | null
+  sentry_event_id: string | null
 }
 export interface MonitoringToolStat {
   tool_name: string

@@ -13,7 +13,7 @@ import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog, type FormDialogField } from '@/composables/useFormDialog'
 import { useMe, isSuperAdmin } from '@/composables/useMe'
 import {
-  getAdminUser, setUserRole, getPlatformKeys, getConnectors, getMonitoringCalls,
+  getAdminUser, setUserRole, getPlatformKeys, getConnectors, getMonitoringCalls, getMonitoringCall,
   grantPlatformKey, revokePlatformKey,
   setAdminOrgMemberRole, setOptionComp,
 } from '@/api/console'
@@ -348,7 +348,8 @@ async function toggleOrgRole(o: AdminUserOrg) {
       <!-- activité : journal brut réutilisé (même carte que /platform/monitoring), scopé
            à ce user via `sub` (getMonitoringCalls) -->
       <CallLogCard :calls="calls" :loaded="!callsBusy" :busy="callsBusy"
-        title="activité" sub="appels d'outils récents (30 derniers jours, 100 max)."
+        title="activité" sub="appels d'outils récents (30 derniers jours, 100 max) — clique une ligne pour sa fiche."
+        :load-detail="(id: number) => getMonitoringCall(id).then((r) => r.call)"
         empty-label="aucun appel dans la fenêtre" />
     </template>
 

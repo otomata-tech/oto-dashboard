@@ -3,7 +3,7 @@
 // (gaps) + qualité des outils (tool_feedback). Tables sur ConsoleTable (pagination
 // + états intégrés) ; chaque ligne agrégée porte date + rapporteur(s), le drill-down
 // les signaux bruts datés et attribués.
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import ConsoleTable from '@/components/console/ConsoleTable.vue'
 import Tag from '@/components/console/Tag.vue'
@@ -11,6 +11,10 @@ import Btn from '@/components/console/Btn.vue'
 import { getUsageRuns, getUsageRun, getUsageGaps, getUsageToolQuality, getUsageSignals } from '@/api/console'
 import type { DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal } from '@/types/api'
 import { humanize } from '@/lib/errors'
+
+// Fenêtre d'agrégation des signaux — pilotée par le picker partagé de
+// MonitoringView. Absente (montage autonome) : le défaut backend (30 j) s'applique.
+const props = defineProps<{ windowDays?: number }>()
 
 const runs = ref<DoctrineRun[]>([])
 const gaps = ref<UsageGap[]>([])
@@ -34,8 +38,11 @@ const FEEDBACK_TONE: Record<string, 'olive' | 'terra' | 'saffron'> = {
 }
 
 async function load() {
+  const days = props.windowDays
   try {
-    const [r, g, t] = await Promise.all([getUsageRuns(), getUsageGaps(), getUsageToolQuality()])
+    const [r, g, t] = await Promise.all([
+      getUsageRuns(), getUsageGaps(days), getUsageToolQuality(days)])
+    if (days !== props.windowDays) return    // fenêtre changée pendant le vol
     runs.value = r.runs
     gaps.value = g.gaps
     tools.value = t.tools
@@ -43,6 +50,8 @@ async function load() {
   finally { loaded.value = true }
 }
 onMounted(load)
+// Rejouer les agrégats quand le picker bouge (les déroulés ne sont pas fenêtrés).
+watch(() => props.windowDays, () => { openSignal.value = null; load() })
 
 async function toggleRun(run: DoctrineRun) {
   if (openRun.value === run.run_id) { openRun.value = null; return }
@@ -63,6 +72,11 @@ async function toggleSignals(signal: string, target: string | null, kind: string
     signalRows.value = rows.filter((s) => s.kind === kind)
   } catch (e) { error.value = humanize(e) }
 }
+
+// Dire la fenêtre sur les cartes agrégées : sans ça, « 3 manques » ne veut rien
+// dire (3 depuis quand ?) et le picker semble sans effet sur cet onglet.
+const winSuffix = computed(() =>
+  props.windowDays ? ` sur ${props.windowDays} jours.` : '.')
 
 function fmt(ts: string | null): string {
   return ts ? ts.replace('T', ' ').slice(0, 16) : '—'
@@ -124,7 +138,7 @@ function signalUser(s: UsageSignal): string {
 
     <div class="grid2">
       <ConsoleCard title="manques signalés" flush
-        sub="cas d'usage qu'oto n'a pas couverts (report_gap) — backlog produit.">
+        :sub="`cas d'usage qu'oto n'a pas couverts (signal gap) — backlog produit${winSuffix}`">
         <ConsoleTable :rows="gaps" :loaded="loaded" empty="aucun manque signalé.">
           <template #head>
             <th>besoin</th><th>type</th><th>n</th><th>dernier · par</th>
@@ -154,7 +168,7 @@ function signalUser(s: UsageSignal): string {
       </ConsoleCard>
 
       <ConsoleCard title="qualité des outils" flush
-        sub="feedback des agents/humains sur les outils (tool_feedback).">
+        :sub="`feedback des agents/humains sur les outils (tool_feedback)${winSuffix}`">
         <ConsoleTable :rows="tools" :loaded="loaded" empty="aucun feedback d'outil.">
           <template #head>
             <th>outil</th><th>verdict</th><th>n</th><th>dernier · par</th>
