@@ -5,7 +5,7 @@
 // tri) + `ConnectorScopeDrawer` (détail). FRAGMENT sans `.content-inner` : chaque vue
 // d'entrée (TeamConnectorsView, AdminConnectorsView…) fournit le wrapper + ses cartes
 // header/footer propres au scope.
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import ConnectorList from '@/components/console/ConnectorList.vue'
 import ConnectorIdentityCell from '@/components/console/ConnectorIdentityCell.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
@@ -17,6 +17,7 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
 import { useScope } from '@/composables/useScope'
+import { useDeepLink } from '@/composables/useDeepLink'
 import { pickAdapter } from './registry'
 import type { CredentialDialogSpec, ScopeCtx } from './adapter'
 
@@ -35,6 +36,23 @@ const adapter = pickAdapter(level.value, ctx)
 
 const selectedKey = ref<string | null>(null)
 const selectedRow = computed(() => adapter.rows.value.find((r) => adapter.key(r) === selectedKey.value) ?? null)
+
+// `?connector=<nom>` — deep-link vers UNE fiche, dépliée.
+// Motivation : au retour d'un consentement OAuth, le backend renvoie le navigateur
+// ici. Sans ce lien, il atterrissait sur la liste (ou pire, sur la vue d'ensemble) et
+// l'utilisateur devait retrouver à la main le connecteur qu'il venait d'autoriser —
+// juste après le geste, au moment précis où il attend une confirmation.
+// Même motif que `?tab=` du hub : l'URL porte la sélection, donc retour arrière,
+// rafraîchissement et lien direct marchent sans état dupliqué.
+const dlConnector = useDeepLink('connector', (v) => { selectedKey.value = v })
+
+// La valeur initiale s'applique APRÈS le chargement : au montage, `rows` est vide,
+// donc `selectedRow` ne résoudrait rien et le panneau resterait fermé.
+watch(() => adapter.rows.value.length, (n, avant) => {
+  if (n && !avant && !selectedKey.value) selectedKey.value = dlConnector.read()
+}, { immediate: true })
+
+watch(selectedKey, (v) => { dlConnector.set(v) })
 
 // Navigation clavier ↑/↓ entre connecteurs quand le panneau est ouvert (master-détail,
 // CDC §5) : la sélection suit dans la liste FILTRÉE, le panneau se met à jour ; Échap =
