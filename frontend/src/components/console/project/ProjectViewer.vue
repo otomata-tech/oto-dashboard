@@ -3,8 +3,8 @@
 // Rend l'entité/page sélectionnée dans le rail selon son `kind` (6 formes). Réutilise la
 // logique de câblage existante (ProjectWiki pour les pages, ProjectEntities pour la
 // surcharge connecteur) — même appels API, remontés au parent par events.
-import { computed, defineAsyncComponent, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { RouterLink, onBeforeRouteLeave } from 'vue-router'
 import Icon from '@/components/console/Icon.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
@@ -38,6 +38,7 @@ import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
+import { useHotkey } from '@/composables/useHotkey'
 import type { RailItem } from './rail'
 
 const props = defineProps<{
@@ -128,16 +129,27 @@ async function loadBacklinks(id: number) {
 // brief
 function editBrief() { briefDraft.value = props.brief ?? ''; editing.value = true }
 function cancelBrief() { briefDraft.value = props.brief ?? ''; editing.value = false }
-function saveBrief() { emit('save-brief', briefDraft.value); editing.value = false }
+// Anti double-submit : `editing` retombe SYNCHRONIQUEMENT ici (l'écriture est déléguée
+// au parent), donc un second clic dans la même rafale trouve la garde fermée — pas
+// besoin du flag `saving`, qui n'aurait rien à attendre.
+function saveBrief() {
+  if (!editing.value) return
+  emit('save-brief', briefDraft.value); editing.value = false
+}
 
 // doc page
 function editDoc() { const d = doc.value; if (d) { draft.value = { title: d.title, body_md: d.body_md, kind: d.kind, description: d.description ?? '' }; editing.value = true } }
 function cancelDoc() { const d = doc.value; if (d) draft.value = { title: d.title, body_md: d.body_md, kind: d.kind, description: d.description ?? '' }; editing.value = false }
+// `saving` garde les écritures ASYNCHRONES (saveDoc / proposeChange) : entre le clic et
+// la fin de l'appel, `editing` est encore vrai et le bouton encore cliquable.
+const saving = ref(false)
 async function saveDoc() {
   const d = doc.value
-  if (!d || !draft.value) return
+  if (!d || !draft.value || saving.value) return
+  saving.value = true
   try { await updateDoc(d.id, { ...draft.value }); editing.value = false; emit('reload-docs'); emit('changed'); toast('page enregistrée') }
   catch (e) { toast(humanize(e)) }
+  finally { saving.value = false }
 }
 async function removeDoc() {
   const d = doc.value
@@ -158,11 +170,13 @@ async function toggleDocPublic() {
 }
 function proposeChange() {
   const d = doc.value
-  if (!d || !draft.value) return
+  if (!d || !draft.value || saving.value) return
   const dr = draft.value
+  saving.value = true
   void requestDocChange(d.id, { title: dr.title, body_md: dr.body_md, message: '' })
     .then(() => { editing.value = false; toast('demande de modification envoyée') })
     .catch((e) => toast(humanize(e)))
+    .finally(() => { saving.value = false })
 }
 async function loadRequests(id: number) {
   try { changeRequests.value = (await listDocChanges(id)).requests } catch { /* pas le droit */ }
@@ -187,6 +201,46 @@ async function restoreRevision(r: DocRevision) {
   try { await updateDoc(d.id, { title: r.title, body_md: r.body_md }); emit('reload-docs'); emit('changed'); revisions.value = (await getDocRevisions(d.id)).revisions; toast('version restaurée') }
   catch (e) { toast(humanize(e)) }
 }
+
+// ═══════════ GARDE-FOUS D'ÉDITION (anti-perte de brouillon) ═══════════
+// Un brouillon ne vit que dans ce composant : rien ne le persiste tant qu'on n'a pas
+// enregistré. Trois sorties possibles — changer de route, fermer l'onglet, oublier
+// d'enregistrer — et aucune n'était gardée.
+const isDirty = computed(() => {
+  if (!editing.value) return false
+  if (isHome.value) return briefDraft.value !== (props.brief ?? '')
+  const d = doc.value, dr = draft.value
+  if (!d || !dr) return false
+  return dr.title !== d.title || dr.body_md !== d.body_md || dr.kind !== d.kind
+    || dr.description !== (d.description ?? '')
+})
+
+// Ctrl/Cmd+S — le réflexe d'enregistrement. Ne vaut que pour une ÉCRITURE : en mode
+// « proposer une modif » (lecture seule), le geste enverrait une demande à un tiers,
+// ce qui n'est pas un enregistrement — il reste explicite.
+useHotkey('s', () => {
+  if (!editing.value) return
+  if (isHome.value) saveBrief()
+  else if (!props.readOnly) void saveDoc()
+})
+
+// Fermeture d'onglet / rechargement : seul le dialogue natif du navigateur peut retenir
+// (aucune UI applicative n'est rendue à ce moment-là) — d'où l'exception à la règle
+// « pas de dialogue natif ».
+function onBeforeUnload(e: BeforeUnloadEvent) { if (isDirty.value) e.preventDefault() }
+onMounted(() => window.addEventListener('beforeunload', onBeforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))
+
+// Navigation interne : là on est encore dans l'app → confirmation applicative.
+onBeforeRouteLeave(async () => {
+  if (!isDirty.value) return true
+  return await confirmAction({
+    title: 'Quitter sans enregistrer ?',
+    message: 'Les modifications en cours sur cette page seront perdues.',
+    confirmLabel: 'Quitter sans enregistrer',
+    danger: true,
+  })
+})
 
 const body = computed(() => (isHome.value ? props.brief : doc.value?.body_md) ?? '')
 const hasBody = computed(() => !!body.value && body.value.trim().length > 0)
@@ -344,9 +398,9 @@ async function removeFile() {
             <template v-if="isHome"><Btn kind="mini" @click="saveBrief">Enregistrer</Btn><button class="vw__x" @click="cancelBrief">Annuler</button></template>
             <template v-else-if="!readOnly">
               <OtoSelect v-if="draft" v-model="draft.kind" :options="KIND_OPTIONS" size="sm" aria-label="type de page" />
-              <Btn kind="mini" @click="saveDoc">Enregistrer</Btn><button class="vw__x" @click="cancelDoc">Annuler</button>
+              <Btn kind="mini" :disabled="saving" @click="saveDoc">Enregistrer</Btn><button class="vw__x" @click="cancelDoc">Annuler</button>
             </template>
-            <template v-else><Btn kind="mini" @click="proposeChange">Proposer une modif</Btn><button class="vw__x" @click="cancelDoc">Annuler</button></template>
+            <template v-else><Btn kind="mini" :disabled="saving" @click="proposeChange">Proposer une modif</Btn><button class="vw__x" @click="cancelDoc">Annuler</button></template>
           </template>
         </div>
       </header>

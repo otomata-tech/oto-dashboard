@@ -92,7 +92,9 @@ async function toggleLink() {
 .mde { width: 100%; max-width: 720px; margin-inline: auto; border: 1px solid var(--color-hair); border-radius: var(--radius-md); background: var(--color-surface); }
 .mde:focus-within { border-color: var(--color-saffron); }
 
-.mde__bar { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; padding: 5px 7px; border-bottom: 1px solid var(--color-hair-soft); }
+/* Barre collée en haut : sur une page longue, la mise en forme doit rester atteignable
+   sans remonter au début du document. */
+.mde__bar { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 2px; flex-wrap: wrap; padding: 5px 7px; background: var(--color-surface); border-bottom: 1px solid var(--color-hair-soft); border-radius: var(--radius-md) var(--radius-md) 0 0; }
 .mde__b { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; padding: 0 5px; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--color-mute); cursor: pointer; }
 .mde__b:hover { background: var(--color-paper-2); color: var(--color-ink); }
 .mde__b.on { background: var(--color-saffron-soft); color: var(--color-ink); }
@@ -100,8 +102,10 @@ async function toggleLink() {
 .mde__b--danger { color: var(--color-terra-ink); }
 .mde__sep { width: 1px; height: 16px; background: var(--color-hair-soft); margin: 0 4px; flex: none; }
 
-/* corps éditable — même typo que MarkdownView (.md) pour un WYSIWYG fidèle */
-.mde__body :deep(.tiptap) { min-height: 220px; padding: 12px 14px; outline: none; font-size: 14px; line-height: 1.6; color: var(--color-ink); }
+/* corps éditable — même typo que MarkdownView (.md) pour un WYSIWYG fidèle.
+   Hauteur BORNÉE : sans plafond, une page longue pousse les boutons Enregistrer/Annuler
+   (qui vivent dans l'en-tête du viewer) hors de l'écran. Le corps scrolle en interne. */
+.mde__body :deep(.tiptap) { min-height: 220px; max-height: 60vh; overflow-y: auto; padding: 12px 14px; outline: none; font-size: 14px; line-height: 1.6; color: var(--color-ink); }
 .mde__body :deep(.tiptap p.is-editor-empty:first-child::before) { content: attr(data-placeholder); float: left; height: 0; pointer-events: none; color: var(--color-faint); }
 .mde__body :deep(.tiptap h1) { font-size: 1.6em; margin: .6em 0 .3em; }
 .mde__body :deep(.tiptap h2) { font-size: 1.3em; margin: .8em 0 .3em; }
