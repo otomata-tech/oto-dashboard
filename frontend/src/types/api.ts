@@ -71,6 +71,11 @@ export interface VerifyResult {
   error?: string
   pending?: boolean
   elapsed_ms?: number
+  // QUELLE instance a répondu. En niveau `auto` la cascade peut retomber d'un cran
+  // (perso → équipe → org → plateforme) : un `ok` nu ne dit pas si c'est bien la clé
+  // qu'on croyait tester. Optionnels — un backend antérieur ne les renvoie pas.
+  level?: string        // user | group | org | platform
+  ref?: string          // ex. « org:2:salesforce »
 }
 
 // État de sélection marketplace d'un connecteur pour le membre (ADR 0019).
