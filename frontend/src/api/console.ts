@@ -9,7 +9,7 @@ import type {
   GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
-  ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
+  ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   FederatedStatus, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult,
@@ -443,23 +443,17 @@ export const releaseRowClaim = (ns: string, rowId: string) =>
   api<{ ok: boolean; released: boolean; id: string }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}/release`,
     { method: 'POST' })
-// Parcours de l'agent d'une row (ADR 0046 b4) : appels data_* du calllog
-// corrélés à la fiche + leur run. Fenêtre = rétention calllog (~30 j).
-export interface RowActivityEntry {
-  created_at: string
-  tool: string
-  ok: boolean
-  error: string | null
-  sub: string | null
-  email: string | null
-  run_id: string | null
-  run_label: string | null
-  doctrine: string | null
-  outcome: string | null
-}
+// Journal d'une row (ADR 0046 b4) : les appels corrélés à la fiche + leur run —
+// gestes d'agent (kind=mcp) ET gestes de console (kind=rest). Fenêtre = rétention
+// du calllog (~30 j).
 export const getRowActivity = (ns: string, rowId: string) =>
   api<{ activity: RowActivityEntry[]; key: string | null; retention_days: number }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}/activity`)
+// Journal du TABLEAU entier : les derniers gestes, toutes fiches confondues —
+// « qu'est-ce qui vient de changer, et sur quoi ». `limit` est borné serveur.
+export const getNamespaceActivity = (ns: string, limit = 50) =>
+  api<{ activity: RowActivityEntry[]; retention_days: number }>(
+    `/api/datastore/namespaces/${encodeURIComponent(ns)}/activity?limit=${limit}`)
 export const renameNamespace = (ns: string, name: string) =>
   api<{ ok: boolean; namespace: string }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}`, { method: 'PATCH', ...j({ name }) })
@@ -843,13 +837,14 @@ export const getPlans = () => api<{ plans: BillingPlan[] }>('/api/billing/plans'
 export const getBilling = () => api<BillingStatus>('/api/me/billing')
 export const getBillingPayments = (limit = 20) =>
   api<{ payments: BillingPayment[] }>(`/api/me/billing/payments?limit=${limit}`)
-// method='card' → checkout_url = page de paiement ; method='sepa' → page de
-// signature du mandat (iban+holder_name+mobile requis, le mobile reçoit l'OTP).
+// checkout_url = page de paiement hébergée Mollie (carte, ou prélèvement SEPA
+// dont le mandat est collecté sur LEUR page — plus aucun champ IBAN côté nous).
+// v1 = carte (ADR 0043 « v1 CB seule ») ; method='sepa' resterait un simple hint.
 export const subscribeBilling = (body: {
   plan: string; return_url: string; method?: 'card' | 'sepa'
-  iban?: string; holder_name?: string; mobile?: string
 }) => api<BillingSubscribeResult | BillingStatus>('/api/me/billing/subscribe', { method: 'POST', ...j(body) })
-// Polle l'état après retour de la page hébergée (Stancer sans webhooks).
+// Confirme au retour de la page hébergée (polling ; le webhook Mollie confirme
+// aussi côté serveur — ce confirm est le filet au retour navigateur).
 export const confirmBilling = () => api<BillingStatus>('/api/me/billing/confirm', { method: 'POST' })
 export const cancelBilling = () => api<BillingStatus>('/api/me/billing/cancel', { method: 'POST' })
 

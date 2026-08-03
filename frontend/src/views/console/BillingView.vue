@@ -1,7 +1,9 @@
 <script setup lang="ts">
-// Abonnement de l'ORG active (ADR 0043) — PSP Stancer. Scopé à l'org consultée
+// Abonnement de l'ORG active (ADR 0043) — PSP Mollie. Scopé à l'org consultée
 // (X-Oto-Org injecté par api()). Souscrire/résilier = org_admin ; consulter = tout
-// membre. Pas de webhooks Stancer → au retour de la page hébergée on POLLE (confirm).
+// membre. v1 = carte (« v1 CB seule ») : le paiement + le mandat récurrent se font
+// sur la page de checkout hébergée Mollie. Au retour navigateur on confirme (le
+// webhook Mollie confirme aussi côté serveur — ce confirm est le filet).
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
@@ -21,7 +23,7 @@ import { humanize } from '@/lib/errors'
 import { fmtDate, fmtDateTime } from '@/types/api'
 
 const { toast } = useToast()
-const { confirmAction, promptForm } = usePrompt()
+const { confirmAction } = usePrompt()
 const { me } = useMe()
 
 const status = ref<BillingStatus | null>(null)
@@ -71,8 +73,10 @@ function payKind(kind: string): string {
   return kind
 }
 function payTone(s: string): 'olive' | 'terra' | 'ink' {
-  if (['captured', 'to_capture', 'authorized', 'capture_sent'].includes(s)) return 'olive'
-  if (['refused', 'failed', 'expired', 'unpaid'].includes(s)) return 'terra'
+  // statuts Mollie : paid = encaissé ; pending/open/authorized = en cours ;
+  // failed/canceled/expired = échec.
+  if (['paid', 'authorized'].includes(s)) return 'olive'
+  if (['failed', 'canceled', 'expired'].includes(s)) return 'terra'
   return 'ink'
 }
 
@@ -87,9 +91,6 @@ const alert = computed<{ tone: 'warn' | 'info'; icon: string; text: string } | n
   if (s.status === 'past_due') {
     return { tone: 'warn', icon: 'warn', text: `Paiement en échec — un nouvel essai est en cours, `
       + `l'accès est maintenu jusqu'au ${fmtDate(s.grace_until)}.` }
-  }
-  if (s.status === 'incomplete') {
-    return { tone: 'info', icon: 'info', text: `Le mandat de prélèvement n'est pas encore signé.` }
   }
   return null
 })
@@ -115,7 +116,7 @@ async function load() {
   }
 }
 
-// Retour de la page hébergée Stancer (?billing=return) → on confirme (polling).
+// Retour de la page de checkout Mollie (?billing=return) → on confirme (filet).
 onMounted(async () => {
   const url = new URL(window.location.href)
   if (url.searchParams.get('billing') === 'return') {
@@ -136,29 +137,11 @@ onMounted(async () => {
 
 const returnUrl = `${window.location.origin}/org/billing?billing=return`
 
-async function subscribeCard(plan: string) {
+async function subscribe(plan: string) {
   await go(() => subscribeBilling({ plan, return_url: returnUrl, method: 'card' }))
 }
 
-async function subscribeSepa(plan: string) {
-  const f = await promptForm({
-    title: 'Payer par prélèvement SEPA',
-    description: 'On génère un mandat ; le titulaire signe sur une page sécurisée '
-      + '(un code de confirmation lui est envoyé par SMS).',
-    submitLabel: 'Créer le mandat',
-    fields: [
-      { key: 'iban', label: 'IBAN', placeholder: 'FR76 …', required: true },
-      { key: 'holder_name', label: 'Titulaire du compte', required: true },
-      { key: 'mobile', label: 'Mobile du signataire', placeholder: '+33 6 …',
-        required: true, hint: 'reçoit le code de signature du mandat' },
-    ],
-  })
-  if (!f) return
-  await go(() => subscribeBilling({ plan, return_url: returnUrl, method: 'sepa',
-    iban: f.iban, holder_name: f.holder_name, mobile: f.mobile }))
-}
-
-// Ouvre la page hébergée Stancer (paiement OU signature) dans le même onglet.
+// Ouvre la page de checkout hébergée Mollie dans le même onglet.
 async function go(call: () => Promise<BillingSubscribeResult | BillingStatus>) {
   busy.value = true
   try {
@@ -236,7 +219,7 @@ async function resiliate() {
 
       <!-- ── Pas abonné : catalogue des plans ── -->
       <ConsoleCard v-else title="Choisir un abonnement"
-        :sub="canManage ? 'un abonnement par organisation, sans engagement — carte bancaire ou prélèvement SEPA.'
+        :sub="canManage ? 'un abonnement par organisation, sans engagement — paiement par carte bancaire.'
           : 'seul un administrateur de l\'organisation peut souscrire.'">
         <div class="grid3">
           <div v-for="p in status.plans" :key="p.plan" class="plan" :class="{ custom: p.custom }">
@@ -254,9 +237,7 @@ async function resiliate() {
                 Nous contacter</Btn>
               <template v-else-if="canManage">
                 <Btn icon="card" :disabled="busy"
-                  @click="subscribeCard(p.plan)">Carte bancaire</Btn>
-                <Btn kind="ghost" :disabled="busy"
-                  @click="subscribeSepa(p.plan)">Prélèvement SEPA</Btn>
+                  @click="subscribe(p.plan)">S'abonner</Btn>
               </template>
             </div>
           </div>
