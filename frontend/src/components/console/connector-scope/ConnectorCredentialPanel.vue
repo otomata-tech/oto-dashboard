@@ -15,6 +15,19 @@ const s = computed(() => props.lever.state(props.row))
 const canEdit = computed(() => props.lever.canEdit(props.row))
 const items = computed(() => props.lever.items?.(props.row) ?? null)
 
+// Geste hors formulaire qui COMPLÈTE le credential (consentement OAuth). Il n'apparaît
+// que s'il reste à faire — c'est le BACKEND qui le dit (`pending`), jamais la présence
+// d'une clé : poser l'application CRÉE le credential, donc gater sur « une clé existe »
+// masquerait le bouton exactement au moment où il devient nécessaire.
+const connectCta = computed(() => props.lever.connect ?? null)
+const connecting = ref(false)
+async function connect() {
+  if (!props.lever.connect) return
+  connecting.value = true
+  try { await props.lever.connect.start(props.row) }
+  finally { connecting.value = false }
+}
+
 // Sonde « tester la connexion » (read-only, résultat éphémère) quand le levier l'expose
 // et qu'une clé est posée.
 const testing = ref(false)
@@ -51,9 +64,18 @@ async function test() {
         <Btn v-if="canEdit" kind="mini" :icon="s.present ? undefined : 'plus'" @click="lever.edit(row)">{{ s.present ? 'Renouveler' : 'Ajouter une clé' }}</Btn>
         <Btn v-if="canEdit && s.present && lever.remove" kind="danger" @click="lever.remove(row)">Retirer</Btn>
         <Btn v-if="s.present && lever.verify" kind="mini" :disabled="testing" @click="test">{{ testing ? 'test…' : 'tester' }}</Btn>
+        <Btn v-if="canEdit && connectCta?.available(row)" kind="mini" :disabled="connecting"
+             @click="connect">{{ connecting ? 'ouverture…' : connectCta.label(row) }}</Btn>
       </div>
       <p v-if="testRes" class="ccp-test" :style="{ color: testRes.ok ? 'var(--color-olive)' : 'var(--color-terra-ink)' }">
         {{ testRes.ok ? '✓ connexion OK' : `✗ ${testRes.error}` }}
+      </p>
+      <p v-if="canEdit && connectCta?.available(row)" class="helptext" style="margin-top: 8px">
+        c'est l'autorisation qui produit le jeton, il ne se colle pas à la main. Elle sera
+        rangée à ce niveau, donc partagée avec tous les membres — et elle agira au nom du
+        compte avec lequel tu te connectes chez le fournisseur. Préfère un compte de
+        service à un compte personnel : les actions lui seront attribuées, et la connexion
+        survivra au départ de son titulaire. La redonner permet d'en changer.
       </p>
       <div v-if="!canEdit && !(s.present && lever.verify)" class="helptext" style="margin-top: 8px">lecture seule.</div>
     </template>

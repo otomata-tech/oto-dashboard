@@ -9,7 +9,7 @@ import type {
 import {
   getOrgConnectorActivation, setOrgConnectorActivation, clearOrgConnectorActivation,
   getOrgFieldFilters, getOrgEmailSettings, getConnectors, getOrg,
-  setOrgSecret, deleteOrgSecret, verifyConnector,
+  setOrgSecret, deleteOrgSecret, verifyConnector, startConnectorFlow,
   getConnectorAcl, setConnectorAccess, clearConnectorAccess, forceConnectorForMember, listGroups,
 } from '@/api/console'
 import { useMe } from '@/composables/useMe'
@@ -232,6 +232,27 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
       edit: (r) => editKey(r),
       remove: (r) => removeKey(r),
       verify: (r) => verifyConnector(r.connector, 'org'),
+      // Consentement AU SCOPE ORG. Sans lui, cette surface laissait POSER l'application
+      // OAuth de l'org sans aucun moyen de l'activer : l'org_admin enregistrait
+      // client_id/secret/login_url, et devait deviner qu'il fallait aller sur sa fiche
+      // PERSONNELLE choisir « toute l'org » pour finir. Vécu le 02/08.
+      connect: {
+        // Libellé DÉCLARÉ par le connecteur (backend `connector_flow`) — on n'écrit
+        // jamais « Autoriser Salesforce » ici : aucune surface ne doit connaître un nom
+        // de connecteur.
+        label: (r) => meta(r)?.connect?.label ?? 'Autoriser',
+        // Disponible dès que le connecteur déclare un flux ET que l'application d'org
+        // est posée. On ne gate PAS sur « déjà connecté » : redonner l'autorisation est
+        // un geste légitime — c'est ainsi qu'on change le compte qui porte les actions.
+        available: (r) => Boolean(meta(r)?.connect) && hasOrgKey(r.connector)
+          && isOrgAdmin.value,
+        start: async (r) => {
+          try {
+            const { auth_url } = await startConnectorFlow(r.connector, { scope: 'org' })
+            window.location.href = auth_url
+          } catch (e) { ctx.toast(humanize(e)) }
+        },
+      },
     },
     access: {
       restricted: (r) => aclFor(r.connector).length > 0,

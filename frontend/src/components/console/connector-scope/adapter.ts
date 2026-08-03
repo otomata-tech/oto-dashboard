@@ -75,6 +75,17 @@ export interface CredentialLever<R> {
   // (chacun retirable via `removeItem`) + un bouton « ajouter » (edit). Sinon single.
   items?(r: R): CredentialItem[]
   removeItem?(r: R, key: string): void
+  // Geste hors formulaire qui COMPLÈTE le credential — un consentement OAuth ne se
+  // colle pas dans un champ. Sans lui, une surface peut faire POSER les prérequis
+  // sans laisser les activer : c'est l'état dans lequel /org/connectors a laissé un
+  // org_admin le 02/08, application enregistrée et aucun bouton pour consentir.
+  connect?: ConnectCta<R>
+}
+
+export interface ConnectCta<R> {
+  label(r: R): string           // libellé DÉCLARÉ par le connecteur, jamais écrit ici
+  available(r: R): boolean      // ce geste a un sens pour cette ligne
+  start(r: R): Promise<void>
 }
 
 // Accès (RBAC connecteur, ADR 0025 — org : réserver à des principals ; team B2 à venir).
