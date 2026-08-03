@@ -5,7 +5,7 @@
 // Extrait de DataView pour être réutilisable : la page /data l'affiche pour le
 // namespace sélectionné, et la page projet l'affiche INLINE (/projects/:id/data/:ns).
 import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
@@ -57,6 +57,10 @@ const rows = ref<DatastoreRow[]>([])
 const total = ref(0)
 const rowsLoading = ref(false)
 const rowsError = ref<string | null>(null)
+// « introuvable ici » ≠ toute erreur de chargement : seul ce cas mérite d'être renvoyé
+// vers la section Données (R10.1). Un 500 sur les lignes, non.
+const notFound = ref(false)
+const inDataSection = computed(() => route.path.startsWith('/data'))
 
 const page = ref(0)
 const pageSize = ref(DEFAULT_PAGE_SIZE)
@@ -201,6 +205,7 @@ function syncTableQuery() {
 }
 
 async function resolveMeta() {
+  notFound.value = false
   if (props.nsMeta && (String(props.nsMeta.id) === props.nsRef || props.nsMeta.namespace === props.nsRef)) {
     meta.value = props.nsMeta
     return
@@ -212,6 +217,7 @@ async function resolveMeta() {
     // Introuvable SANS exception (tableau d'une autre org, ou renommé) : ne pas
     // laisser meta=null muet → page blanche. Poser une erreur actionnable.
     meta.value = null
+    notFound.value = true
     rowsError.value = 'Tableau introuvable dans ce contexte — il appartient peut-être à une autre organisation.'
   } catch (e) { rowsError.value = humanize(e); meta.value = null }
 }
@@ -368,17 +374,17 @@ async function transfer() {
 
 <template>
   <ConsoleCard v-if="meta" :title="name || ''" flush
-    :sub="rowsLoading ? 'loading…' : `${total} row${total === 1 ? '' : 's'}`">
+    :sub="rowsLoading ? 'chargement…' : `${total} ligne${total === 1 ? '' : 's'}`">
     <template #actions>
-      <Tag v-if="readOnly" tone="saffron">read-only</Tag>
+      <Tag v-if="readOnly" tone="saffron">lecture seule</Tag>
       <Btn v-if="isTyped" kind="mini" @click="cardView = !cardView">{{ cardView ? 'vue table' : 'vue fiches' }}</Btn>
-      <Btn kind="mini" icon="doc" :disabled="exporting || !total" @click="exportCsv">{{ exporting ? 'exporting…' : 'export csv' }}</Btn>
-      <Btn v-if="!readOnly" kind="mini" icon="plus" @click="openNew">add row</Btn>
+      <Btn kind="mini" icon="doc" :disabled="exporting || !total" @click="exportCsv">{{ exporting ? 'export en cours…' : 'export csv' }}</Btn>
+      <Btn v-if="!readOnly" kind="mini" icon="plus" @click="openNew">ajouter une ligne</Btn>
       <template v-if="canGovern">
-        <Btn kind="mini" icon="users" @click="shareOpen = true">share</Btn>
-        <Btn kind="mini" icon="pen" @click="renameOpen = true">rename</Btn>
-        <Btn kind="mini" icon="ext" @click="transfer">transfer</Btn>
-        <Btn kind="danger" icon="trash" @click="removeNamespace">delete</Btn>
+        <Btn kind="mini" icon="users" @click="shareOpen = true">partager</Btn>
+        <Btn kind="mini" icon="pen" @click="renameOpen = true">renommer</Btn>
+        <Btn kind="mini" icon="ext" @click="transfer">transférer</Btn>
+        <Btn kind="danger" icon="trash" @click="removeNamespace">supprimer</Btn>
       </template>
     </template>
 
@@ -400,7 +406,7 @@ async function transfer() {
 
     <p v-if="rowsError" class="helptext" style="color: var(--color-terra-ink); padding: 12px 16px">{{ rowsError }}</p>
     <div v-else-if="!rowsLoading && !total && !search && !filters.length" class="dim" style="text-align: center; padding: 24px">
-      no rows yet — add one above, or your agents append with
+      aucune ligne pour l'instant — ajoutes-en une ci-dessus, ou tes agents en ajoutent avec
       <code style="font-size: 11px">data_write("{{ name }}", row)</code>.
     </div>
     <template v-else-if="isTyped && cardView">
@@ -428,7 +434,13 @@ async function transfer() {
       :initial="name ?? ''" submit-label="renommer" :on-confirm="doRename" />
   </ConsoleCard>
 
-  <p v-else-if="rowsError" class="helptext" style="color: var(--color-terra-ink)">{{ rowsError }}</p>
+  <p v-else-if="rowsError" class="helptext" style="color: var(--color-terra-ink)">
+    {{ rowsError }}
+    <!-- Sortie du cul-de-sac (R10.1) : le tableau n'est pas résolvable ICI (autre org,
+         renommé), mais la section Données liste ceux auxquels on a bien accès. Inutile
+         de le proposer quand on y est déjà. -->
+    <RouterLink v-if="notFound && !inDataSection" to="/data" class="ds-erroract">ouvrir dans Données</RouterLink>
+  </p>
 </template>
 
 <style scoped>
@@ -438,4 +450,5 @@ async function transfer() {
 .ds-pager { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 16px; }
 .ds-pager .pj-x { border: 1px solid var(--color-hair-soft, #cfcfcf); background: #fff; border-radius: 6px; padding: 4px 10px; font-size: 12px; color: var(--color-ink-soft, #6b6b6b); cursor: pointer; }
 .ds-pager .pj-x:disabled { opacity: .4; cursor: default; }
+.ds-erroract { margin-left: 6px; color: var(--color-cobalt-ink); text-decoration: underline; text-underline-offset: 2px; }
 </style>
