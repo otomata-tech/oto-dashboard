@@ -12,6 +12,8 @@ import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
 import { getConnectorInstances, suspendInstance } from '@/api/console'
+import { rowState, relayOf, isHealthKo } from '@/lib/keyStack'
+import type { RowState } from '@/lib/keyStack'
 import type { ConnectionLever } from './adapter'
 import type { ConnectorInstance, MyConnector } from '@/types/api'
 import type { DotTone } from '@/lib/consoleTypes'
@@ -57,18 +59,26 @@ function levelName(i: ConnectorInstance): string {
     default: return i.name
   }
 }
-type RowState = 'used' | 'reserve' | 'suspended'
-function rowState(i: ConnectorInstance): RowState {
-  if (i.suspended) return 'suspended'
-  if (i.level === effective.value && i.via !== 'shared_with_me') return 'used'
-  return 'reserve'
-}
+// Équipe ACTIVE : une clé d'une autre équipe est listée (org_admin, multi-appartenance)
+// mais n'est jamais lue par la cascade — cf. `lib/keyStack`.
+const activeGroup = computed<number | null>(() => me.value?.active_group ?? null)
+const stateOf = (i: ConnectorInstance): RowState => rowState(i, effective.value, activeGroup.value)
 const STATE_LABEL: Record<RowState, string> = {
   used: 'utilisée',
   reserve: 'en réserve — prendrait le relais',
   suspended: 'mise de côté',
+  inactive_team: 'inactive — autre équipe',
 }
-const STATE_TONE: Record<RowState, DotTone> = { used: 'olive', reserve: 'faint', suspended: 'faint' }
+const STATE_TONE: Record<RowState, DotTone> = {
+  used: 'olive', reserve: 'faint', suspended: 'faint', inactive_team: 'faint',
+}
+
+// Santé de la clé (flag backend posé par la sonde verify) : une erreur RÉELLE prime
+// visuellement sur l'état de cascade — une clé « utilisée » mais KO n'est pas un bon état.
+const healthKo = computed(() => !!status.value?.health_ko)
+const healthReason = computed(() => status.value?.health_reason || '')
+const koOn = (i: ConnectorInstance) => isHealthKo(i, healthKo.value)
+const toneOf = (i: ConnectorInstance): DotTone => (koOn(i) ? 'terra' : STATE_TONE[stateOf(i)])
 
 // Pile triée par proximité (la plus proche d'abord).
 const rows = computed(() =>
@@ -78,11 +88,18 @@ const memberRow = computed(() => rows.value.find((i) => i.level === 'member' && 
 // Relais (CDC P8, « les dialogs disent la vérité ») : ce qui RÉSOUDRAIT à la place de
 // la clé perso si on la retire = la clé la plus proche en dessous, non suspendue, hors
 // prêt nominatif (le prêt s'utilise par pin, pas en repli automatique).
-const relayInstance = computed(() =>
-  rows.value.find((i) => i !== memberRow.value && !i.suspended && i.via !== 'shared_with_me') ?? null)
-const relayNote = computed(() => relayInstance.value
-  ? `${levelName(relayInstance.value)} prendra le relais.`
-  : 'Aucune clé ne prendra le relais — ton agent perdra ce connecteur.')
+const relayInstance = computed(() => relayOf(rows.value, memberRow.value, activeGroup.value))
+// Note du dialog de retrait (CDC P8, « les dialogs disent la vérité ») : l'état de santé
+// vient EN PREMIER, c'est lui qui justifie souvent le retrait — retirer une clé morte
+// n'est pas une perte, et l'utilisateur doit le savoir avant de renoncer.
+const relayNote = computed(() => {
+  const ko = healthKo.value
+    ? `Son dernier test a échoué${healthReason.value ? ` (${healthReason.value})` : ''}. `
+    : ''
+  return ko + (relayInstance.value
+    ? `${levelName(relayInstance.value)} prendra le relais.`
+    : 'Aucune clé ne prendra le relais — ton agent perdra ce connecteur.')
+})
 const hasSuspended = computed(() => instances.value.some((i) => i.suspended))
 const hasSpecial = computed(() => instances.value.some((i) => i.via === 'shared_with_me' || i.via === 'personal_cross_org'))
 // Déplier auto (principe 7) : ≥2 clés, une suspendue, ou un contexte spécial (prêt/cross-org).
@@ -126,7 +143,10 @@ async function test() {
 const busy = ref(false)
 async function toggleSuspend(i: ConnectorInstance) {
   const next = !i.suspended
-  if (next && rows.value.filter((r) => !r.suspended && r !== i).length === 0) {
+  // MÊME calcul de relais que le dialog de retrait (`relayOf`) : le filtre naïf comptait
+  // comme filet une clé d'équipe inactive ou un prêt nominatif — ni l'un ni l'autre ne
+  // résout, et la garde laissait alors l'agent perdre le connecteur en le niant.
+  if (next && !relayOf(rows.value, i, activeGroup.value)) {
     toast('Rien ne prendrait le relais — ton agent perdrait ce connecteur.')
     return
   }
@@ -146,9 +166,10 @@ async function toggleSuspend(i: ConnectorInstance) {
     <template v-else-if="!expanded">
       <!-- Forme repliée : la clé effective en une ligne. -->
       <div v-if="rows[0]" class="ks-line">
-        <Dot :tone="STATE_TONE[rowState(rows[0])]" />
+        <Dot :tone="toneOf(rows[0])" />
         <span class="ks-name">{{ levelName(rows[0]) }}</span>
-        <span class="ks-meta">{{ meta(rows[0]) }}</span>
+        <span v-if="koOn(rows[0])" class="ks-ko">{{ healthReason || 'connexion KO' }}</span>
+        <span v-else class="ks-meta">{{ meta(rows[0]) }}</span>
       </div>
       <div v-else class="ks-line">
         <Dot tone="saffron" /><span class="ks-name">Aucune clé</span>
@@ -161,12 +182,16 @@ async function toggleSuspend(i: ConnectorInstance) {
       <div v-if="contextLabel" class="ks-context mono">{{ contextLabel }}</div>
       <div v-if="!rows.length" class="helptext">aucune clé posée à un niveau qui te concerne.</div>
       <ul class="ks-stack">
-        <li v-for="i in rows" :key="i.ref" class="ks-row" :class="rowState(i)">
+        <li v-for="i in rows" :key="i.ref" class="ks-row" :class="[stateOf(i), { ko: koOn(i) }]">
           <div class="ks-row-head">
-            <Dot :tone="STATE_TONE[rowState(i)]" />
+            <Dot :tone="toneOf(i)" />
             <span class="ks-name">{{ levelName(i) }}</span>
-            <span class="ks-tag" :class="rowState(i)">{{ STATE_LABEL[rowState(i)] }}</span>
+            <!-- Santé (erreur réelle) prime sur l'état de cascade : une clé « utilisée »
+                 mais KO doit se lire comme cassée, pas comme opérationnelle. -->
+            <span v-if="koOn(i)" class="ks-tag ko">connexion KO — reconnecte</span>
+            <span v-else class="ks-tag" :class="stateOf(i)">{{ STATE_LABEL[stateOf(i)] }}</span>
           </div>
+          <div v-if="koOn(i) && healthReason" class="ks-row-meta ks-ko">{{ healthReason }}</div>
           <div class="ks-row-meta">{{ meta(i) }}</div>
           <div v-if="i.level === 'member' && i.via !== 'shared_with_me'" class="ks-actions">
             <template v-if="i.suspended">
@@ -198,11 +223,15 @@ async function toggleSuspend(i: ConnectorInstance) {
 .ks-stack { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .ks-row { border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 11px 12px; background: var(--color-surface); }
 .ks-row.used { border-color: var(--color-olive); background: var(--color-olive-soft); }
-.ks-row.suspended { opacity: .72; }
+.ks-row.suspended, .ks-row.inactive_team { opacity: .72; }
+/* Santé KO : l'erreur réelle reprend la ligne, quel que soit son rang de cascade. */
+.ks-row.ko { border-color: var(--color-terra-ink); background: var(--color-surface); }
+.ks-ko { color: var(--color-terra-ink); font-size: 11.5px; }
 .ks-row-head { display: flex; align-items: center; gap: 8px; }
 .ks-tag { margin-left: auto; font-family: var(--font-mono); font-size: 10px; letter-spacing: .03em;
   text-transform: uppercase; color: var(--color-faint); }
 .ks-tag.used { color: var(--color-olive-ink); font-weight: 700; }
+.ks-tag.ko { color: var(--color-terra-ink); font-weight: 700; }
 .ks-row-meta { margin: 5px 0 0 20px; }
 .ks-actions { display: flex; gap: 7px; flex-wrap: wrap; margin: 10px 0 0 20px; }
 </style>
