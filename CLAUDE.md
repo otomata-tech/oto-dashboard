@@ -92,7 +92,10 @@ scope (`InvitePreview.scope`/`group_name` → « rejoindre l'équipe X / oto »)
 > clair (`lib/connectorVerdict.ts`, copy verbatim du CDC JB ; `pending_action` backend rendu tel
 > quel) ; panneau = `ConnectorVerdictLine` (diagnostic 3 couches derrière « Pourquoi ? ») +
 > `ConnectorKeyStack` (pile de provenance, dépliage auto si ≥2 clés/suspendue/prêt ;
-> **Suspendre/Réactiver** → `suspendInstance`) ; vocab adaptatif solo via
+> **Suspendre/Réactiver** → `suspendInstance`) — sa logique vit dans **`lib/keyStack.ts`**
+> (testée), **miroir de `access.walk_cascade`** côté backend : c'est elle qui décide ce que
+> le dialog de retrait ANNONCE, donc une erreur n'y casse rien à l'écran, elle fait mentir
+> l'UI. Ne lit que le palier de l'équipe **active** — comme la cascade ; vocab adaptatif solo via
 > `me.active_org_is_personal` (jamais « org »/« équipe » en solo) ; onglet « confidentialité »
 > du drawer user = MÊME policy/éditeur que /org/connectors (`scopeNote` piloté par l'appelant).
 > **Lot fidélité (21/07, PROD — dashboard v1.4.0)** : le détail est un **PANNEAU LATÉRAL** (`ConnectorModal`,
