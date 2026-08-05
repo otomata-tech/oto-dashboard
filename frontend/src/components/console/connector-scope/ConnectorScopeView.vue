@@ -54,6 +54,32 @@ watch(() => adapter.rows.value.length, (n, avant) => {
 
 watch(selectedKey, (v) => { dlConnector.set(v) })
 
+// `?connect=` — le RÉSULTAT du consentement OAuth, dit à l'utilisateur.
+//
+// Le backend posait déjà un paramètre au retour, et personne ne le lisait : on
+// revenait de chez le fournisseur devant un écran identique à celui qu'on avait
+// quitté. Vécu le 04/08 chez un client — le consentement avait RÉUSSI (jeton posé à
+// la milliseconde du callback, zéro erreur côté serveur), et faute du moindre signe
+// ils ont désinstallé puis réinstallé le connecteur en boucle pendant cinq heures.
+//
+// Le paramètre est CONSOMMÉ (retiré de l'URL) : un rechargement ne doit pas rejouer
+// une confirmation vieille d'une heure, ni un message d'erreur déjà corrigé.
+const RETOURS: Record<string, { texte: string; ok: boolean }> = {
+  connected: { texte: 'Autorisation accordée — la connexion est établie.', ok: true },
+  forbidden: { texte: "Tu n'as plus le droit d'écrire à ce niveau : l'autorisation a été refusée.", ok: false },
+  error: { texte: "L'autorisation a échoué. La fiche du connecteur en donne le motif.", ok: false },
+}
+const dlConnect = useDeepLink('connect', () => {})
+onMounted(() => {
+  const r = RETOURS[dlConnect.read() ?? '']
+  if (!r) return
+  toast(r.texte)
+  dlConnect.set(null)
+  // Le verdict de la fiche vient du backend : on le relit pour qu'il reflète le
+  // consentement qu'on vient de donner, au lieu d'un état d'avant le départ.
+  void adapter.reload?.()
+})
+
 // Navigation clavier ↑/↓ entre connecteurs quand le panneau est ouvert (master-détail,
 // CDC §5) : la sélection suit dans la liste FILTRÉE, le panneau se met à jour ; Échap =
 // fermer (géré par le panneau). Ignoré si le focus est dans un champ de saisie.
