@@ -8,7 +8,7 @@ import type {
   DoctrineBundle, Guide, GuideScope,
   GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Locale, Me, MonitoringSummary,
-  MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel,
+  MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption,
   ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   FederatedStatus, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
@@ -809,6 +809,43 @@ export const getMonitoringCalls = (params: {
 // Fiche d'un appel (drill-down du journal) : ligne complète + corrélation.
 export const getMonitoringCall = (id: number) =>
   api<{ call: ToolCallDetail }>(`/api/admin/monitoring/calls/${id}`)
+
+// ── monitoring (org_admin) ──
+// Les MÊMES lentilles, bornées à une org (backend `capabilities/org_monitoring.py`,
+// autz ORG_ADMIN_OF). Le scope se lit dans le CHEMIN, jamais dans le corps — l'org
+// n'est donc pas déductible du header de consultation : on la passe explicitement.
+// `rest`/`funnel` n'existent pas à cet étage ; `adoption` n'existe qu'ici.
+export const getOrgMonitoringSummary = (orgId: number, days: number) =>
+  api<MonitoringSummary>(`/api/orgs/${orgId}/monitoring/summary?days=${days}`)
+export const getOrgMonitoringConnectors = (orgId: number, days: number) =>
+  api<MonitoringConnectorStats>(`/api/orgs/${orgId}/monitoring/connectors?days=${days}`)
+export const getOrgAdoption = (orgId: number, days: number) =>
+  api<OrgAdoption>(`/api/orgs/${orgId}/monitoring/adoption?days=${days}`)
+export const getOrgMonitoringCalls = (orgId: number, params: {
+  limit?: number; sub?: string; tool?: string; errors?: boolean; days?: number
+  run_id?: string; session_id?: string; min_duration_ms?: number; error_contains?: string
+} = {}) => {
+  const q = new URLSearchParams()
+  if (params.limit) q.set('limit', String(params.limit))
+  if (params.sub) q.set('sub', params.sub)
+  if (params.tool) q.set('tool', params.tool)
+  if (params.errors) q.set('errors', '1')
+  if (params.days) q.set('days', String(params.days))
+  if (params.run_id) q.set('run_id', params.run_id)
+  if (params.session_id) q.set('session_id', params.session_id)
+  if (params.min_duration_ms) q.set('min_duration_ms', String(params.min_duration_ms))
+  if (params.error_contains) q.set('error_contains', params.error_contains)
+  const qs = q.toString()
+  return api<{ calls: ToolCall[] }>(`/api/orgs/${orgId}/monitoring/calls${qs ? `?${qs}` : ''}`)
+}
+// 404 (jamais 403) si l'appel appartient à une autre org : `call_id` est séquentiel
+// donc devinable, le backend ne confirme pas son existence.
+export const getOrgMonitoringCall = (orgId: number, id: number) =>
+  api<{ call: ToolCallDetail }>(`/api/orgs/${orgId}/monitoring/calls/${id}`)
+export const getOrgUsageGaps = (orgId: number, days: number) =>
+  api<{ gaps: UsageGap[] }>(`/api/orgs/${orgId}/monitoring/gaps?days=${days}`)
+export const getOrgUsageToolQuality = (orgId: number, days: number) =>
+  api<{ tools: ToolFeedbackAgg[] }>(`/api/orgs/${orgId}/monitoring/tool-quality?days=${days}`)
 
 // ── usage / déroulés (ADR 0017, admin) ──
 export const getUsageRuns = () => api<{ runs: DoctrineRun[] }>('/api/admin/usage/runs')

@@ -8,6 +8,8 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import ConsoleTable from '@/components/console/ConsoleTable.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
+import SignalAggCard, { type SignalAggRow } from '@/components/console/monitoring/SignalAggCard.vue'
+import SignalDetail from '@/components/console/monitoring/SignalDetail.vue'
 import { getUsageRuns, getUsageRun, getUsageGaps, getUsageToolQuality, getUsageSignals } from '@/api/console'
 import type { DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -27,8 +29,19 @@ const openRun = ref<string | null>(null)
 const runCalls = ref<RunCall[]>([])
 
 // Détail d'un agrégat (tool-quality / gap) : signaux bruts chargés à la demande.
-const openSignal = ref<string | null>(null)   // clé `${signal}:${target}:${kind}`
+// Le signal et la clé de ligne sont tenus SÉPARÉS (et non concaténés) : les deux
+// tables partagent le même composant, dont la clé de ligne est `label:kind`.
+const openSignal = ref<{ signal: string; key: string } | null>(null)
 const signalRows = ref<UsageSignal[]>([])
+
+// Les deux agrégats ont la même forme côté carte (cf. SignalAggCard) : seul le champ
+// qui porte le libellé diffère (`intent` pour un manque, `tool` pour un retour).
+const gapRows = computed<SignalAggRow[]>(() => gaps.value.map(
+  (g) => ({ label: g.intent, kind: g.kind, n: g.n, last_at: g.last_at, users: g.users })))
+const toolRows = computed<SignalAggRow[]>(() => tools.value.map(
+  (t) => ({ label: t.tool, kind: t.kind, n: t.n, last_at: t.last_at, users: t.users })))
+const expandedFor = (signal: string) =>
+  (openSignal.value?.signal === signal ? openSignal.value.key : null)
 
 const OUTCOME_TONE: Record<string, 'olive' | 'saffron' | 'terra' | 'ink'> = {
   done: 'olive', blocked: 'saffron', failed: 'terra', abandoned: 'ink',
@@ -63,9 +76,12 @@ async function toggleRun(run: DoctrineRun) {
 
 // Drill-down d'une rangée agrégée → les signaux bruts (le `body` = le détail).
 async function toggleSignals(signal: string, target: string | null, kind: string) {
-  const key = `${signal}:${target}:${kind}`
-  if (openSignal.value === key) { openSignal.value = null; return }
-  openSignal.value = key
+  const key = `${target}:${kind}`
+  if (openSignal.value?.signal === signal && openSignal.value.key === key) {
+    openSignal.value = null
+    return
+  }
+  openSignal.value = { signal, key }
   signalRows.value = []
   try {
     const rows = (await getUsageSignals(signal, target ?? undefined)).signals
@@ -137,65 +153,23 @@ function signalUser(s: UsageSignal): string {
     </ConsoleCard>
 
     <div class="grid2">
-      <ConsoleCard title="manques signalés" flush
-        :sub="`cas d'usage qu'oto n'a pas couverts (signal gap) — backlog produit${winSuffix}`">
-        <ConsoleTable :rows="gaps" :loaded="loaded" empty="aucun manque signalé.">
-          <template #head>
-            <th>besoin</th><th>type</th><th>n</th><th>dernier · par</th>
-          </template>
-          <template #row="{ row: g }">
-            <tr style="cursor: pointer" @click="toggleSignals('gap', g.intent, g.kind)">
-              <td>{{ g.intent || '—' }}</td>
-              <td><Tag tone="saffron">{{ g.kind }}</Tag></td>
-              <td class="mono">{{ g.n }}</td>
-              <td>
-                <div class="dim" style="font-size: 12px">{{ fmt(g.last_at) }}</div>
-                <div style="font-size: 11px; color: var(--color-faint)">{{ fmtUsers(g.users) }}</div>
-              </td>
-            </tr>
-            <tr v-if="openSignal === `gap:${g.intent}:${g.kind}`">
-              <td colspan="4" style="background: var(--color-paper-3); padding: 0">
-                <div v-for="(s, j) in signalRows" :key="j"
-                  style="padding: 8px 12px; border-top: 1px solid var(--color-hair-soft)">
-                  <div class="dim" style="font-size: 11px">{{ fmt(s.created_at) }} · {{ signalUser(s) }}</div>
-                  <div style="font-size: 12.5px; white-space: pre-wrap">{{ s.body || '—' }}</div>
-                </div>
-                <div v-if="!signalRows.length" class="dim" style="padding: 12px">chargement…</div>
-              </td>
-            </tr>
-          </template>
-        </ConsoleTable>
-      </ConsoleCard>
+      <SignalAggCard title="manques signalés"
+        :sub="`cas d'usage qu'oto n'a pas couverts (signal gap) — backlog produit${winSuffix}`"
+        :rows="gapRows" :loaded="loaded" label-head="besoin" kind-head="type"
+        default-tone="saffron" empty="aucun manque signalé."
+        :expanded-key="expandedFor('gap')"
+        @open="(r: SignalAggRow) => toggleSignals('gap', r.label, r.kind)">
+        <template #expand><SignalDetail :rows="signalRows" /></template>
+      </SignalAggCard>
 
-      <ConsoleCard title="qualité des outils" flush
-        :sub="`feedback des agents/humains sur les outils (tool_feedback)${winSuffix}`">
-        <ConsoleTable :rows="tools" :loaded="loaded" empty="aucun feedback d'outil.">
-          <template #head>
-            <th>outil</th><th>verdict</th><th>n</th><th>dernier · par</th>
-          </template>
-          <template #row="{ row: t }">
-            <tr style="cursor: pointer" @click="toggleSignals('tool_feedback', t.tool, t.kind)">
-              <td><code class="mono" style="font-weight: 600">{{ t.tool || '—' }}</code></td>
-              <td><Tag :tone="FEEDBACK_TONE[t.kind] || 'ink'">{{ t.kind }}</Tag></td>
-              <td class="mono">{{ t.n }}</td>
-              <td>
-                <div class="dim" style="font-size: 12px">{{ fmt(t.last_at) }}</div>
-                <div style="font-size: 11px; color: var(--color-faint)">{{ fmtUsers(t.users) }}</div>
-              </td>
-            </tr>
-            <tr v-if="openSignal === `tool_feedback:${t.tool}:${t.kind}`">
-              <td colspan="4" style="background: var(--color-paper-3); padding: 0">
-                <div v-for="(s, j) in signalRows" :key="j"
-                  style="padding: 8px 12px; border-top: 1px solid var(--color-hair-soft)">
-                  <div class="dim" style="font-size: 11px">{{ fmt(s.created_at) }} · {{ signalUser(s) }}</div>
-                  <div style="font-size: 12.5px; white-space: pre-wrap">{{ s.body || '—' }}</div>
-                </div>
-                <div v-if="!signalRows.length" class="dim" style="padding: 12px">chargement…</div>
-              </td>
-            </tr>
-          </template>
-        </ConsoleTable>
-      </ConsoleCard>
+      <SignalAggCard title="qualité des outils"
+        :sub="`feedback des agents/humains sur les outils (tool_feedback)${winSuffix}`"
+        :rows="toolRows" :loaded="loaded" label-head="outil" kind-head="verdict" mono
+        :tones="FEEDBACK_TONE" empty="aucun feedback d'outil."
+        :expanded-key="expandedFor('tool_feedback')"
+        @open="(r: SignalAggRow) => toggleSignals('tool_feedback', r.label, r.kind)">
+        <template #expand><SignalDetail :rows="signalRows" /></template>
+      </SignalAggCard>
     </div>
   </div>
 </template>

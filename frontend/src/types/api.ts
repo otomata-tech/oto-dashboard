@@ -1201,6 +1201,30 @@ export interface ActivationFunnel {
   never_active: number
   blocked_by_connector: number
 }
+
+// Adoption d'une org, membre par membre (`GET /api/orgs/{id}/monitoring/adoption`) —
+// le pendant du funnel à l'échelle d'une équipe. Part des MEMBRES (pas des appels) :
+// un membre à 0 appel doit apparaître, c'est justement lui qu'on cherche.
+export interface OrgMemberAdoption {
+  sub: string
+  email: string | null
+  name: string | null
+  org_role: string | null
+  calls: number
+  errors: number
+  last_call_at: string | null   // hors fenêtre : date un décrochage
+  connector_failures: number    // a essayé, rien ne résolvait ≠ n'a jamais essayé
+}
+export interface OrgAdoption {
+  org_id: number
+  window_days: number
+  total_members: number
+  active: number
+  never_active: number
+  blocked_by_connector: number
+  truncated: boolean            // la LISTE est plafonnée ; les compteurs, non
+  members: OrgMemberAdoption[]
+}
 export interface MonitoringUserStat {
   sub: string | null
   email: string | null

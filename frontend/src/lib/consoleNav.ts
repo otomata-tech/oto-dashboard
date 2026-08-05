@@ -83,6 +83,9 @@ export const NAV: NavGroup[] = [
     { path: '/org/security', label: 'nav.security', icon: 'shield' },
     { path: '/org/connectors', label: 'nav.connectors', icon: 'plug' },
     { path: '/org/teams', label: 'nav.teams', icon: 'users' },
+    // Supervision de l'org (org_admin) : mêmes lentilles que /platform/monitoring,
+    // bornées à ce qui a été émis sous cette org.
+    { path: '/org/monitoring', label: 'nav.monitoring', icon: 'chart' },
     { path: '/org/billing', label: 'nav.billing', icon: 'card' },
   ]},
   // ── Gérer la plateforme : réservé opérateur plateforme ─────────────────────
@@ -132,6 +135,7 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/org/security': { title: 'pageMeta.orgSecurity.title', crumb: 'pageMeta.orgSecurity.crumb' },
   '/org/connectors': { title: 'pageMeta.orgConnectors.title', crumb: 'pageMeta.orgConnectors.crumb' },
   '/org/teams': { title: 'pageMeta.orgTeams.title', crumb: 'pageMeta.orgTeams.crumb' },
+  '/org/monitoring': { title: 'pageMeta.orgMonitoring.title', crumb: 'pageMeta.orgMonitoring.crumb' },
   '/platform/context': { title: 'pageMeta.platformContext.title', crumb: 'pageMeta.platformContext.crumb' },
   '/platform/monitoring': { title: 'pageMeta.platformMonitoring.title', crumb: 'pageMeta.platformMonitoring.crumb' },
   '/platform/users': { title: 'pageMeta.platformUsers.title', crumb: 'pageMeta.platformUsers.crumb' },

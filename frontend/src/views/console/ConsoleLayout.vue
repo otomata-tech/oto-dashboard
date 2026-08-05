@@ -49,6 +49,7 @@ const VIEWS: Record<string, Component> = {
   '/org/security': defineAsyncComponent(() => import('./OrgSecurityView.vue')),
   '/org/connectors': defineAsyncComponent(() => import('./OrgConnectorsView.vue')),
   '/org/teams': defineAsyncComponent(() => import('./GroupsView.vue')),
+  '/org/monitoring': defineAsyncComponent(() => import('./OrgMonitoringView.vue')),
   '/org/billing': defineAsyncComponent(() => import('./BillingView.vue')),
   '/platform/monitoring': defineAsyncComponent(() => import('./MonitoringView.vue')),
   '/platform/users': defineAsyncComponent(() => import('./AdminUsersView.vue')),

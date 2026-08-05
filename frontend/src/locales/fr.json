@@ -72,6 +72,7 @@
     "orgSecurity": { "title": "sécurité de l'org", "crumb": "gérer mon org" },
     "orgConnectors": { "title": "connecteurs de l'org", "crumb": "gérer mon org" },
     "orgTeams": { "title": "équipes", "crumb": "gérer mon org" },
+    "orgMonitoring": { "title": "supervision de l'org", "crumb": "gérer mon org" },
     "platformContext": { "title": "ce que voit l'agent · plateforme", "crumb": "plateforme" },
     "platformMonitoring": { "title": "supervision & usage", "crumb": "plateforme" },
     "platformUsers": { "title": "utilisateurs & droits", "crumb": "plateforme" },

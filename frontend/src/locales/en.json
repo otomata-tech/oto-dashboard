@@ -72,6 +72,7 @@
     "orgSecurity": { "title": "org security", "crumb": "manage my org" },
     "orgConnectors": { "title": "org connectors", "crumb": "manage my org" },
     "orgTeams": { "title": "teams", "crumb": "manage my org" },
+    "orgMonitoring": { "title": "org monitoring", "crumb": "manage my org" },
     "platformContext": { "title": "what the agent sees · platform", "crumb": "platform" },
     "platformMonitoring": { "title": "monitoring & usage", "crumb": "platform" },
     "platformUsers": { "title": "users & grants", "crumb": "platform" },
