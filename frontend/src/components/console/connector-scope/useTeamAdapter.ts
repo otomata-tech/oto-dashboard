@@ -10,6 +10,7 @@ import {
   getConnectors, getGroupConnectorActivation, setGroupConnectorActivation, clearGroupConnectorActivation,
   getGroupConnectorAcl, setGroupConnectorAccess, clearGroupConnectorAccess,
   setGroupSecret, deleteGroupSecret,
+  startConnectorFlow,
 } from '@/api/console'
 import { useTeamScope } from '@/composables/useTeamScope'
 import { humanize } from '@/lib/errors'
@@ -183,6 +184,30 @@ export function useTeamAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<GroupConnec
       canEdit: (r) => canManage.value && shareable(r),
       edit: (r) => editKey(r),
       remove: (r) => removeKey(r),
+      // Consentement AU SCOPE ÉQUIPE. Sans lui, cette surface laissait POSER
+      // l'application OAuth d'une équipe sans aucun moyen de l'activer — le trou que
+      // /org/connectors avait avant le 02/08, et le même contournement indevinable
+      // (aller sur sa fiche PERSONNELLE choisir « mon équipe »).
+      //
+      // ⚠️ Le backend écrit dans l'équipe ACTIVE, pas dans un id passé en paramètre.
+      // C'est correct ici parce que l'équipe consultée vient du préfixe d'URL
+      // (`/o/:org/g/:groupId/`) que le routeur pousse en en-tête `X-Oto-Group` : la
+      // cible du consentement EST l'équipe affichée. Ça cesserait d'être vrai si
+      // cette surface se mettait à gérer une équipe sans la consulter.
+      connect: {
+        // Libellé DÉCLARÉ par le connecteur — aucune surface ne connaît de nom.
+        label: (r) => meta(r)?.connect?.label ?? 'Autoriser',
+        // Offert même une fois connecté : redonner l'autorisation est le seul moyen
+        // de changer le compte qui portera les actions de l'équipe.
+        available: (r) => Boolean(meta(r)?.connect) && hasKey(r.connector)
+          && canManage.value,
+        start: async (r) => {
+          try {
+            const { auth_url } = await startConnectorFlow(r.connector, { scope: 'group' })
+            window.location.href = auth_url
+          } catch (e) { ctx.toast(humanize(e)) }
+        },
+      },
     },
     access: {
       restricted: (r) => aclFor(r.connector).length > 0,
