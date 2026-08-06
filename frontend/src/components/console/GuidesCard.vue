@@ -9,6 +9,7 @@ import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from './ConsoleCard.vue'
 import Btn from './Btn.vue'
 import Icon from './Icon.vue'
+import MarkdownView from './MarkdownView.vue'
 import { getGuides, getGuide, setGuide, deleteGuide } from '@/api/console'
 import type { Guide, GuideScope } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -179,7 +180,13 @@ async function toggleInherited(g: Guide) {
             <span class="gd-plat-scope">{{ SCOPE_LABEL[g.scope] || g.scope }}</span>
             <span v-if="g.description" class="dim-note gd-plat-desc">{{ g.description }}</span>
           </div>
-          <pre v-if="openInherited.has(inheritedKey(g))" class="gd-plat-body">{{ inheritedBody[inheritedKey(g)] ?? '…' }}</pre>
+          <!-- Rendu, pas brut : un guide est de la doc (titres, tableaux symptôme →
+               correctif), illisible en markdown source. L'ÉDITION reste en texte brut
+               ci-dessus — c'est la lecture d'un guide qu'on ne peut pas éditer qui
+               gagne à être mise en forme. -->
+          <div v-if="openInherited.has(inheritedKey(g))" class="gd-plat-body">
+            <MarkdownView :source="inheritedBody[inheritedKey(g)] ?? '…'" />
+          </div>
         </div>
       </div>
     </template>
@@ -225,9 +232,27 @@ async function toggleInherited(g: Guide) {
 .gd-chev { color: var(--color-faint); transition: transform 0.15s; }
 .gd-chev.open { transform: rotate(180deg); }
 .gd-plat-body {
-  white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.5;
-  max-height: 300px; overflow: auto; margin: 4px 0 8px 20px;
+  word-break: break-word; font-size: 12.5px; line-height: 1.55;
+  max-height: 420px; overflow: auto; margin: 4px 0 8px 20px;
   background: var(--color-paper-3, #f5f1e8); border: 1px solid var(--color-hair-soft, #e3dccd);
-  border-radius: 8px; padding: 10px 12px; color: var(--color-ink-soft, #4a463d);
+  border-radius: 8px; padding: 10px 14px; color: var(--color-ink-soft, #4a463d);
 }
+/* Un guide est très tabulaire (symptôme → cause → correctif) : sans ça, le tableau
+   déborde de la carte au lieu de défiler. */
+.gd-plat-body :deep(table) { width: 100%; border-collapse: collapse; display: block; overflow-x: auto; margin: 8px 0; }
+.gd-plat-body :deep(th), .gd-plat-body :deep(td) {
+  border-bottom: 1px solid var(--color-hair-soft, #e3dccd); padding: 5px 8px;
+  text-align: left; vertical-align: top;
+}
+.gd-plat-body :deep(th) {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--color-mute);
+}
+.gd-plat-body :deep(h1), .gd-plat-body :deep(h2), .gd-plat-body :deep(h3) {
+  font-size: 13.5px; font-weight: 700; color: var(--color-ink); margin: 12px 0 4px;
+}
+.gd-plat-body :deep(p), .gd-plat-body :deep(li) { margin: 4px 0; }
+.gd-plat-body :deep(ul), .gd-plat-body :deep(ol) { padding-left: 18px; }
+.gd-plat-body :deep(code) { font-family: var(--font-mono); font-size: 11.5px; }
+.gd-plat-body :deep(pre) { overflow-x: auto; }
 </style>
