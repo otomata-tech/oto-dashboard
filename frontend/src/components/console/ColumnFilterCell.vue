@@ -11,7 +11,11 @@ const emit = defineEmits<{ (e: 'update:modelValue', v: ColFilterState): void }>(
 
 const ops = computed(() => OPS_BY_KIND[props.kind])
 const needsValue = computed(() => opNeedsValue(props.modelValue.op))
-const inputType = computed(() => (props.kind === 'date' ? 'date' : props.kind === 'number' ? 'number' : 'text'))
+// `timestamp` (dates système) se saisit comme une `date` : sans ce cas, la colonne
+// « modifié le » retombait sur un champ TEXTE — saisie libre, pas de calendrier.
+const inputType = computed(() =>
+  (props.kind === 'date' || props.kind === 'timestamp') ? 'date'
+    : props.kind === 'number' ? 'number' : 'text')
 const active = computed(() => (needsValue.value ? !!props.modelValue.value.trim() : true))
 
 function setOp(op: FilterOp) { emit('update:modelValue', { op, value: opNeedsValue(op) ? props.modelValue.value : '' }) }
@@ -30,8 +34,9 @@ function setValue(value: string) { emit('update:modelValue', { op: props.modelVa
       <option value="true">vrai</option>
       <option value="false">faux</option>
     </select>
-    <input v-else-if="needsValue" class="inp sm cfc-val" :type="inputType" :value="modelValue.value"
-      placeholder="…" @input="setValue(($event.target as HTMLInputElement).value)" />
+    <input v-else-if="needsValue" class="inp sm cfc-val" :class="{ wide: inputType === 'date' }"
+      :type="inputType" :value="modelValue.value" placeholder="…"
+      @input="setValue(($event.target as HTMLInputElement).value)" />
   </div>
 </template>
 
@@ -40,5 +45,10 @@ function setValue(value: string) { emit('update:modelValue', { op: props.modelVa
 /* layout local : largeurs adaptées à l'en-tête de colonne ; l'op est la voix discrète */
 .cfc-op { width: auto; max-width: 96px; color: var(--color-mute); }
 .cfc-val { width: 76px; min-width: 0; }
+/* Un `input[type=date]` rend AAAA-MM-JJ + son icône : à 76px la valeur est
+   tronquée (« 6-06-30 »), donc le filtre posé devient illisible. `flex: none` en
+   plus de la largeur — sinon, sous une colonne étroite (les dates système sont à
+   droite, valeurs courtes), le flex la recomprime et retronque la date. */
+.cfc-val.wide { width: 130px; flex: none; }
 .cfc.on .inp { border-color: var(--color-cobalt); }
 </style>

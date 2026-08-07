@@ -115,7 +115,8 @@ function itemsOf(row: DatastoreRow, f: DatastoreField): unknown[] {
         </template>
       </dl>
     </article>
-    <p v-if="!rows.length" class="dim" style="text-align: center; padding: 24px">aucune fiche.</p>
+    <!-- Pas d'état vide ici : l'appelant seul sait si le vide vient d'un filtre
+         (message actionnable) ou d'un tableau encore sans ligne. -->
   </div>
 </template>
 

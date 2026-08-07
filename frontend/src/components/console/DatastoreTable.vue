@@ -11,6 +11,8 @@ import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
 import DataTable from '@/components/console/DataTable.vue'
 import DatastoreCards from '@/components/console/DatastoreCards.vue'
+import DatastoreToolbar from '@/components/console/DatastoreToolbar.vue'
+import OtoLoading from '@/components/console/OtoLoading.vue'
 import DatastoreMetrics from '@/components/console/DatastoreMetrics.vue'
 import DatastoreQueueBar from '@/components/console/DatastoreQueueBar.vue'
 import DatastoreStatusBar from '@/components/console/DatastoreStatusBar.vue'
@@ -256,6 +258,7 @@ function onSort(field: string, dir: 'asc' | 'desc') { sortField.value = field; s
 function onSearch(q: string) { search.value = q; page.value = 0; syncTableQuery(); fetchRows(); void fetchMetricTiles() }
 function onFilters(f: ColumnFilter[]) { filters.value = f; page.value = 0; syncTableQuery(); fetchRows(); void fetchMetricTiles() }
 function onPageSize(ps: number) { pageSize.value = ps; page.value = 0; syncTableQuery(); fetchRows() }
+function clearSearchAndFilters() { search.value = ''; onFilters([]) }
 
 // ── drawer (détail / édition / ajout) — la fiche ouverte est DANS l'URL
 // (`…/item/<rowId>`, deep-link partageable). Ouvrir/fermer = replace du path ;
@@ -410,7 +413,20 @@ async function transfer() {
       <code style="font-size: 11px">data_write("{{ name }}", row)</code>.
     </div>
     <template v-else-if="isTyped && cardView">
+      <!-- La vue fiches porte les MÊMES verbes serveur que la table (recherche, tri,
+           filtre de date) : basculer de présentation ne doit pas retirer de pouvoir. -->
+      <DatastoreToolbar :search="search" :sort-field="sortField" :sort-dir="sortDir"
+        :filters="filters" :schema="meta.schema ?? null"
+        @update:search="onSearch" @update:sort="onSort" @update:filters="onFilters" />
       <DatastoreCards :rows="rows" :schema="meta.schema!" @open="openRow" />
+      <p v-if="!rows.length" class="dim ds-empty">
+        <OtoLoading v-if="rowsLoading" label="chargement…" style="justify-content: center" />
+        <template v-else-if="search || filters.length">
+          aucune fiche ne correspond —
+          <button class="linklike" @click="clearSearchAndFilters">effacer la recherche et les filtres</button>
+        </template>
+        <template v-else>aucune fiche.</template>
+      </p>
       <div v-if="pageCount > 1" class="ds-pager">
         <button class="pj-x" :disabled="page <= 0" @click="onPage(page - 1)">‹ préc.</button>
         <span class="dim" style="font-size: 12px">page {{ page + 1 }} / {{ pageCount }}</span>
@@ -447,6 +463,7 @@ async function transfer() {
 .ds-schema { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--color-hair-soft, #e6e6e3); }
 .ds-field { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
 .ds-role { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--color-olive-ink, #5a6a3a); background: var(--color-olive-soft, #eef0e6); border-radius: 4px; padding: 1px 5px; }
+.ds-empty { text-align: center; padding: 8px 24px 20px; }
 .ds-pager { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 16px; }
 .ds-pager .pj-x { border: 1px solid var(--color-hair-soft, #cfcfcf); background: #fff; border-radius: 6px; padding: 4px 10px; font-size: 12px; color: var(--color-ink-soft, #6b6b6b); cursor: pointer; }
 .ds-pager .pj-x:disabled { opacity: .4; cursor: default; }
