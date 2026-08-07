@@ -114,6 +114,11 @@ export interface ConnectFlow {
    *  OAuth Zoho…). DÉRIVÉE de l'environnement côté backend — donc juste en preprod
    *  comme en prod — et servie UNIQUEMENT sur la projection authentifiée. */
   callback_url?: string | null
+  /** Une app OAuth est-elle DÉJÀ à disposition de cet utilisateur — la sienne, celle
+   *  de son org, ou celle d'oto (app d'éditeur) ? `null`/absent = le connecteur ne
+   *  déclare pas la question : ne rien promettre plutôt qu'affirmer. Sert à ne plus
+   *  demander « pose d'abord les identifiants de l'application » à qui n'a rien à poser. */
+  app_ready?: boolean | null
 }
 
 export interface ZohoOauthModes {

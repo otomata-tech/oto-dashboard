@@ -40,6 +40,12 @@ const values = ref<Record<string, string>>(
 // il est nécessaire. Le code précédent portait déjà cet avertissement en commentaire.
 const pending = computed(() => !!props.status?.pending_action)
 
+// Une app est-elle déjà disponible (la sienne, celle de l'org, ou celle d'oto) ?
+// Vient du BACKEND (`connect.app_ready`) : le front ne peut pas le deviner — il ne voit
+// ni le coffre ni la cascade. `undefined`/`null` ⟹ question non déclarée : on retombe
+// sur la consigne longue plutôt que de promettre à tort.
+const appReady = computed(() => flow.value.app_ready === true)
+
 async function copierCallback() {
   await navigator.clipboard.writeText(flow.value.callback_url!)
   copie.value = true
@@ -65,6 +71,10 @@ async function start() {
     <p v-if="pending" class="cfc-pending">
       <Dot tone="saffron" />{{ status?.pending_action }}
     </p>
+    <p v-else-if="appReady" class="helptext" style="margin: 0 0 12px">
+      rien à créer : l'application est déjà en place. choisis ta région, autorise oto,
+      et c'est fait — c'est l'autorisation qui produit le jeton.
+    </p>
     <p v-else class="helptext" style="margin: 0 0 12px">
       pose d'abord les identifiants de l'application sur la fiche, puis autorise oto —
       c'est l'autorisation qui produit le jeton, il ne se colle pas à la main.
@@ -79,27 +89,37 @@ async function start() {
       <span v-if="p.help" class="helptext">{{ p.help }}</span>
     </div>
 
-    <!-- L'URL de retour à enregistrer chez le fournisseur. Elle vivait dans la prose de
-         la doc, domaine écrit à la main — donc fausse pour qui lisait depuis l'autre
-         environnement. Le backend la DÉRIVE ; on l'affiche là où elle sert, au moment
-         où on configure l'application. -->
-    <div v-if="flow.callback_url" class="cfc-cb">
-      <label>URL de retour à enregistrer dans l'application</label>
-      <div class="cfc-cb-row">
-        <code>{{ flow.callback_url }}</code>
-        <Btn kind="mini" variant="ghost" @click="copierCallback">
-          {{ copie ? 'copiée' : 'copier' }}
-        </Btn>
-      </div>
-      <span class="helptext">au caractère près — un espace ou un slash final en trop suffit à faire échouer l'autorisation</span>
-    </div>
-
     <div class="cfc-actions">
       <Btn kind="mini" :disabled="busy" @click="start">
         {{ busy ? 'ouverture…' : flow.label }}
       </Btn>
-      <Btn kind="mini" variant="ghost" @click="configure">identifiants de l'application</Btn>
     </div>
+
+    <!-- Apporter SA propre application reste possible — une org qui veut voir la sienne
+         dans ses journaux la pose, et elle prime sur celle d'oto. Mais quand une app est
+         déjà disponible, mettre ces éléments en avant décrit un travail que l'utilisateur
+         n'a pas à faire : on les REPLIE sans jamais les retirer. Ouvert par défaut dans le
+         cas inverse, où ils sont l'étape obligatoire.
+         L'URL de retour est DÉRIVÉE par le backend (elle vivait en prose dans la doc, avec
+         le domaine de prod écrit à la main — donc fausse depuis la preprod). -->
+    <details class="cfc-own" :open="!appReady">
+      <summary>{{ appReady ? 'utiliser ma propre application' : 'identifiants de l’application' }}</summary>
+
+      <div v-if="flow.callback_url" class="cfc-cb">
+        <label>URL de retour à enregistrer dans l'application</label>
+        <div class="cfc-cb-row">
+          <code>{{ flow.callback_url }}</code>
+          <Btn kind="mini" variant="ghost" @click="copierCallback">
+            {{ copie ? 'copiée' : 'copier' }}
+          </Btn>
+        </div>
+        <span class="helptext">au caractère près — un espace ou un slash final en trop suffit à faire échouer l'autorisation</span>
+      </div>
+
+      <div class="cfc-actions">
+        <Btn kind="mini" variant="ghost" @click="configure">identifiants de l'application</Btn>
+      </div>
+    </details>
   </div>
 </template>
 
@@ -112,6 +132,11 @@ async function start() {
 .cfc-field { display: flex; flex-direction: column; gap: 4px }
 .cfc-field label { font-size: 12px; font-weight: 600; color: var(--color-ink-soft) }
 .cfc-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px }
+.cfc-own { display: flex; flex-direction: column; gap: 10px }
+.cfc-own > summary {
+  cursor: pointer; font-size: 12px; font-weight: 600;
+  color: var(--color-ink-soft); list-style-position: inside;
+}
 .cfc-cb { display: flex; flex-direction: column; gap: 4px }
 .cfc-cb label { font-size: 12px; font-weight: 600; color: var(--color-ink-soft) }
 .cfc-cb-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
