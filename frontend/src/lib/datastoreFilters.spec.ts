@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   columnFilterKind, OPS_BY_KIND, opLabel, defaultOp, opNeedsValue, buildFilters,
-  filterChipLabel, filtersToParam, filtersFromParam,
+  filterChipLabel, filtersToParam, filtersFromParam, isMetaDateField, metaFieldLabel,
 } from './datastoreFilters'
 
 describe('columnFilterKind', () => {
@@ -24,8 +24,48 @@ describe('columnFilterKind', () => {
     expect(columnFilterKind([{ x: '' }, { x: null }], 'x')).toBe('text')
   })
 
+  it('trusts the declared schema type over the values on the page', () => {
+    // Colonne vide sur la page courante : sans le type déclaré elle retombait en
+    // `text` et perdait ses ops d'ordre (≥ / ≤) alors que le schéma la dit chiffrée.
+    expect(columnFilterKind([{ n: null }], 'n', 'number')).toBe('number')
+    expect(columnFilterKind([], 'd', 'datetime')).toBe('date')
+    expect(columnFilterKind([], 'e', 'enum')).toBe('text')
+    // Type inconnu / composite → on retombe sur la détection par la valeur.
+    expect(columnFilterKind([{ j: 12 }], 'j', 'json')).toBe('number')
+  })
+
   it('detects bool from a boolean value', () => {
     expect(columnFilterKind([{ b: false }], 'b')).toBe('bool')
+  })
+})
+
+describe('dates système (colonnes méta)', () => {
+  it('types them without looking at the values', () => {
+    // Page vide (ou filtrée à zéro) : c'est justement là qu'on veut saisir un
+    // filtre de date — le deviner des valeurs rendrait `text`.
+    expect(columnFilterKind([], '_updated_at')).toBe('timestamp')
+    expect(columnFilterKind([{ _created_at: null }], '_created_at')).toBe('timestamp')
+  })
+
+  it('only matches the exact meta names', () => {
+    expect(isMetaDateField('_updated_at')).toBe(true)
+    expect(isMetaDateField('updated_at')).toBe(false)   // champ user homonyme
+  })
+
+  it('offers no empty/not_empty op (the column is NOT NULL, backend refuses)', () => {
+    expect(OPS_BY_KIND.timestamp).not.toContain('empty')
+    expect(OPS_BY_KIND.timestamp).not.toContain('not_empty')
+  })
+
+  it('speaks of dates, not of orders', () => {
+    expect(opLabel('gte', 'timestamp')).toBe('à partir du')
+    expect(opLabel('lte', 'timestamp')).toBe("jusqu'au")
+  })
+
+  it('names the column in a chip like the header does', () => {
+    expect(metaFieldLabel('_updated_at')).toBe('modifié le')
+    expect(filterChipLabel({ field: '_updated_at', op: 'gte', value: '2026-08-01' }, 'timestamp'))
+      .toBe('modifié le à partir du 2026-08-01')
   })
 })
 

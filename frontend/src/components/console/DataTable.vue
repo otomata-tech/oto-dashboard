@@ -5,10 +5,12 @@ import Icon from './Icon.vue'
 import OtoLoading from './OtoLoading.vue'
 import OtoSelect from './OtoSelect.vue'
 import ColumnFilterCell from './ColumnFilterCell.vue'
+import FilterChips from './FilterChips.vue'
 import type { ColumnFilter, DatastoreRow, DatastoreSchema } from '@/types/api'
 import { cellKind, cellShort, absDate, relDate } from '@/lib/cellRender'
 import {
-  buildFilters, columnFilterKind, defaultOp, filterChipLabel,
+  buildFilters, columnFilterKind, defaultOp, filterChipLabel, isMetaDateField,
+  metaFieldLabel, META_DATE_FIELDS,
   type ColFilterState, type FilterKind,
 } from '@/lib/datastoreFilters'
 
@@ -90,7 +92,20 @@ function toggleCol(k: string) {
 }
 const isShown = (k: string) => shownFields.value.includes(k)
 
-const columns = computed(() => [...shownFields.value, '_updated_at'])
+// ── dates système ───────────────────────────────────────────────────────────
+// « modifié le » est toujours en bout de table (c'est le tri par défaut) ;
+// « créé le » s'ajoute à la demande, via le même sélecteur de colonnes. Les deux
+// se trient ET se filtrent (le WHERE serveur les route hors du JSON, cf.
+// db._DS_META_TS_COLS) — le filtre y était jusqu'ici explicitement omis.
+const shownMeta = ref<string[]>(['_updated_at'])
+const isMetaShown = (k: string) => shownMeta.value.includes(k)
+function toggleMeta(k: string) {
+  shownMeta.value = isMetaShown(k)
+    ? shownMeta.value.filter((m) => m !== k)
+    : META_DATE_FIELDS.filter((m) => m === k || isMetaShown(m))
+}
+
+const columns = computed(() => [...shownFields.value, ...shownMeta.value])
 
 const pageCount = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)))
 const rangeText = computed(() => {
@@ -103,7 +118,7 @@ const rangeText = computed(() => {
 // En-tête = libellé du schéma quand il existe (« Paiement GoCardless »), pas la clé
 // technique (« payment_id »).
 function header(col: string): string {
-  if (col === '_updated_at') return 'updated'
+  if (isMetaDateField(col)) return metaFieldLabel(col)
   return fieldByKey.value[col]?.label || col
 }
 function sortGlyph(col: string): string {
@@ -121,9 +136,7 @@ function sortTitle(col: string): string {
   if (props.sortField !== col) return `trier par ${header(col)}`
   return props.sortDir === 'desc' ? 'tri croissant' : (col === DEFAULT_SORT ? 'inverser' : 'annuler le tri')
 }
-function cellVal(row: DatastoreRow, col: string): unknown {
-  return col === '_updated_at' ? row._updated_at : row[col]
-}
+function cellVal(row: DatastoreRow, col: string): unknown { return row[col] }
 
 // Recherche : local + debounce → émission (le parent refetch & reset la page).
 const searchLocal = ref(props.search)
@@ -144,7 +157,10 @@ const local = reactive<Record<string, ColFilterState>>({})
 const kindCache = new Map<string, FilterKind>()
 function colKind(field: string): FilterKind {
   let k = kindCache.get(field)
-  if (!k) { k = columnFilterKind(props.rows, field); kindCache.set(field, k) }
+  if (!k) {
+    k = columnFilterKind(props.rows, field, fieldByKey.value[field]?.type)
+    kindCache.set(field, k)
+  }
   return k
 }
 function modelFor(field: string): ColFilterState {
@@ -166,7 +182,10 @@ function clearAll() {
 }
 // Chips = les filtres APPLIQUÉS (props), retirables un à un sans ouvrir la ligne.
 const chips = computed(() =>
-  props.filters.map((f) => ({ field: f.field, label: filterChipLabel(f, colKind(f.field)) })))
+  props.filters.map((f) => ({
+    field: f.field,
+    label: filterChipLabel(f, colKind(f.field), header(f.field)),
+  })))
 function removeChip(field: string) {
   delete local[field]
   emit('update:filters', buildFilters(local))
@@ -178,9 +197,13 @@ watch(() => props.filters, (f) => {
     if (Object.keys(local).length) for (const k of Object.keys(local)) delete local[k]
     return
   }
-  for (const cf of f)
+  for (const cf of f) {
     if (!local[cf.field])
       local[cf.field] = { op: cf.op, value: Array.isArray(cf.value) ? cf.value.join(',') : cf.value }
+    // Un filtre restauré d'un `?f=` partagé doit être VISIBLE : sinon la chip
+    // annonce un filtre sur une colonne absente de la table, inéditable.
+    if (isMetaDateField(cf.field) && !isMetaShown(cf.field)) toggleMeta(cf.field)
+  }
 }, { immediate: true })
 </script>
 
@@ -211,6 +234,11 @@ watch(() => props.filters, (f) => {
               <input type="checkbox" :checked="isShown(k)" @change="toggleCol(k)" />
               <span>{{ header(k) }}</span>
             </label>
+            <div class="dt-cols__sep">dates système</div>
+            <label v-for="k in META_DATE_FIELDS" :key="k" class="dt-cols__item">
+              <input type="checkbox" :checked="isMetaShown(k)" @change="toggleMeta(k)" />
+              <span>{{ metaFieldLabel(k) }}</span>
+            </label>
             <button v-if="chosenCols" class="dt-cols__reset" @click="chosenCols = null">
               Rétablir les colonnes par défaut
             </button>
@@ -220,34 +248,29 @@ watch(() => props.filters, (f) => {
       <span class="dim dt-count">{{ total }} row{{ total === 1 ? '' : 's' }}</span>
     </div>
 
-    <div v-if="chips.length" class="dt-chips">
-      <button v-for="c in chips" :key="c.field" class="dt-chip"
-        :title="`retirer le filtre sur ${c.field}`" @click="removeChip(c.field)">
-        {{ c.label }}<span class="dt-chip-x">×</span>
-      </button>
-    </div>
+    <FilterChips :chips="chips" class="dt-chips" @remove="removeChip" />
 
     <div class="tbl-scroll">
       <table class="tbl">
         <thead>
           <tr>
             <th v-for="col in columns" :key="col" class="dt-th"
-              :class="{ num: col === '_updated_at', sorted: sortField === col }"
+              :class="{ num: isMetaDateField(col), sorted: sortField === col }"
               :title="sortTitle(col)" @click="toggleSort(col)">
               <span class="dt-th-inner">{{ header(col) }}<span class="dt-sort">{{ sortGlyph(col) }}</span></span>
             </th>
           </tr>
           <tr v-if="showFilters" class="dt-filter-row">
             <th v-for="col in columns" :key="col">
-              <ColumnFilterCell v-if="col !== '_updated_at'" :field="col" :kind="colKind(col)"
+              <ColumnFilterCell :field="col" :kind="colKind(col)"
                 :model-value="modelFor(col)" @update:model-value="onCell(col, $event)" />
             </th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="row in rows" :key="row._id" class="dt-row" @click="emit('open', row)">
-            <td v-for="col in columns" :key="col" :class="{ num: col === '_updated_at' }">
-              <span v-if="col === '_updated_at'" class="dim mono" :title="absDate(String(cellVal(row, col) ?? ''))">
+            <td v-for="col in columns" :key="col" :class="{ num: isMetaDateField(col) }">
+              <span v-if="isMetaDateField(col)" class="dim mono" :title="absDate(String(cellVal(row, col) ?? ''))">
                 {{ relDate(cellVal(row, col)) }}
               </span>
               <a v-else-if="cellKind(cellVal(row, col)) === 'url'" :href="String(cellVal(row, col))"
@@ -314,6 +337,10 @@ watch(() => props.filters, (f) => {
   font-size: 12.5px; color: var(--color-ink); cursor: pointer; border-radius: var(--radius-md);
 }
 .dt-cols__item:hover { background: var(--color-paper-2); }
+.dt-cols__sep {
+  margin-top: 4px; padding: 6px 8px 2px; border-top: 1px solid var(--color-hair-soft);
+  font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--color-faint);
+}
 .dt-cols__reset {
   width: 100%; margin-top: 4px; padding: 6px 8px; border: 0; border-top: 1px solid var(--color-hair-soft);
   background: transparent; font-size: 11.5px; color: var(--color-mute); cursor: pointer; text-align: left;
@@ -337,20 +364,7 @@ watch(() => props.filters, (f) => {
   font-size: 10px; background: var(--color-cobalt); color: var(--color-paper);
   border-radius: var(--radius-md); padding: 0 5px; line-height: 1.5;
 }
-.dt-chips {
-  display: flex; flex-wrap: wrap; gap: 6px;
-  padding: 0 var(--pad-card) 8px;
-}
-.dt-chip {
-  font: inherit; font-size: 11px; cursor: pointer;
-  display: inline-flex; align-items: center; gap: 5px;
-  border: 1px solid var(--color-cobalt); border-radius: var(--radius-pill); padding: 1px 8px;
-  background: var(--color-surface); color: var(--color-cobalt); max-width: 260px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.dt-chip:hover { background: var(--color-paper-3); }
-.dt-chip-x { color: var(--color-faint); font-size: 12px; }
-.dt-chip:hover .dt-chip-x { color: var(--color-terra-ink); }
+.dt-chips { padding: 0 var(--pad-card) 8px; }
 .dt-clear-inline {
   font: inherit; font-size: inherit; border: 0; background: none; cursor: pointer;
   color: var(--color-cobalt); text-decoration: underline; padding: 0;
