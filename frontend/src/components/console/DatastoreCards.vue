@@ -27,6 +27,15 @@ const compositeF = computed(() =>
   fields.value.filter((f) => isComposite(f) &&
     f !== titleF.value && f !== statusF.value && !metricF.value.includes(f)))
 const declaredKeys = computed(() => new Set(fields.value.map((f) => f.key)))
+// Champs DÉCLARÉS que les rôles ci-dessus ne rendent pas (rôle absent) : ils
+// tombaient dans un angle mort — les rôles ne les prenaient pas, et le pied de fiche
+// ne reprenait QUE les champs non déclarés. Déclarer un champ au schéma sans lui
+// donner de rôle le faisait donc DISPARAÎTRE de la vue fiches, alors que ne pas le
+// déclarer du tout l'affichait. On respecte `hidden` (choix explicite « hors vue par
+// défaut » — le champ reste lisible et éditable dans la fiche détaillée).
+const ROLES_RENDUS = new Set(['title', 'badge', 'metric', 'status', 'qualif', 'note'])
+const plainF = computed(() => fields.value.filter(
+  (f) => f.key && !isComposite(f) && f.hidden !== true && !ROLES_RENDUS.has(f.role ?? '')))
 
 const label = (f: DatastoreField) => f.label || f.key
 function fmt(v: unknown): string {
@@ -35,10 +44,16 @@ function fmt(v: unknown): string {
   return String(v)
 }
 const present = (row: DatastoreRow, f?: DatastoreField) => !!f && row[f.key] != null && row[f.key] !== ''
-function otherEntries(row: DatastoreRow) {
-  return Object.entries(row).filter(
-    ([k, v]) => !k.startsWith('_') && !declaredKeys.value.has(k) && v != null && v !== '',
-  )
+/** Pied de fiche = ce qui n'a pas de place ailleurs : les champs déclarés sans rôle
+ * (dans l'ordre du schéma, sous leur libellé) PUIS les champs non déclarés (sous
+ * leur clé brute). Rien de ce que porte la ligne n'est muet. */
+function otherEntries(row: DatastoreRow): Array<[string, unknown]> {
+  const out: Array<[string, unknown]> = []
+  for (const f of plainF.value)
+    if (row[f.key] != null && row[f.key] !== '') out.push([label(f), row[f.key]])
+  for (const [k, v] of Object.entries(row))
+    if (!k.startsWith('_') && !declaredKeys.value.has(k) && v != null && v !== '') out.push([k, v])
+  return out
 }
 function titleOf(row: DatastoreRow): string {
   return titleF.value ? fmt(row[titleF.value.key]) : row._id
