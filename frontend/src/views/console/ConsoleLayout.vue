@@ -60,7 +60,7 @@ const VIEWS: Record<string, Component> = {
 
 const route = useRoute()
 const { isAuthenticated } = useAuth()
-const { message } = useToast()
+const { message, action, runToastAction } = useToast()
 const { me, error, load } = useMe()
 
 // Session Logto morte : on ne rend PAS le shell (menu inerte, vues vides) — on bascule
@@ -111,7 +111,10 @@ const viewKey = computed(() => {
         </div>
       </div>
     </div>
-    <div v-if="message" class="toast">{{ message }}</div>
+    <div v-if="message" class="toast">
+      <span>{{ message }}</span>
+      <button v-if="action" class="toast-action" @click="runToastAction">{{ action.label }}</button>
+    </div>
     <PromptDialog />
     <FormPromptHost />
   </div>

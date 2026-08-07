@@ -10,6 +10,7 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
 import DataTable from '@/components/console/DataTable.vue'
+import DatastoreActivity from '@/components/console/DatastoreActivity.vue'
 import DatastoreCards from '@/components/console/DatastoreCards.vue'
 import DatastoreToolbar from '@/components/console/DatastoreToolbar.vue'
 import OtoLoading from '@/components/console/OtoLoading.vue'
@@ -22,6 +23,7 @@ import NameDialog from '@/components/console/NameDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useTransferOwnership } from '@/composables/useTransferOwnership'
+import { useTransitionUndo } from '@/composables/useTransitionUndo'
 import {
   getNamespaces, getNamespaceRows, getNamespaceRow, getNamespaceAggregate,
   getNamespaceQueue, releaseRowClaim,
@@ -32,6 +34,7 @@ import type { NamespaceEntry, DatastoreRow, ColumnFilter } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { rowsToCsv, downloadCsv } from '@/lib/csv'
 import { filtersFromParam, filtersToParam } from '@/lib/datastoreFilters'
+import type { LifecycleIntent } from '@/lib/datastoreLifecycle'
 
 const props = defineProps<{
   // Réf du namespace (id BIGSERIAL en texte, ou nom) — le lien projet porte le nom.
@@ -285,7 +288,10 @@ function closeDrawer() {
     void router.replace({ path: itemBasePath.value, query: route.query })
 }
 // Ouvre la fiche portée par l'URL : dans la page courante si présente, sinon
-// fetch dédié (la row peut être hors page/filtre). Row inconnue = table nue.
+// fetch dédié (la row peut être hors page/filtre). Fiche introuvable (supprimée
+// depuis, autre namespace) : on le DIT et on nettoie l'URL — le journal liste par
+// construction des gestes sur des fiches disparues, et un clic muet qui laisse en
+// prime un `…/item/<id>` mort passe pour un panneau cassé.
 async function openFromRoute() {
   const id = routeRowId.value
   const n = name.value
@@ -293,7 +299,10 @@ async function openFromRoute() {
   try {
     const row = rows.value.find((r) => r._id === id) ?? await getNamespaceRow(n, id)
     drawerRow.value = row; drawerNew.value = false; drawerOpen.value = true
-  } catch { /* row supprimée / autre namespace : on laisse la table */ }
+  } catch {
+    toast('fiche introuvable — elle a probablement été supprimée')
+    if (routeRowId.value) void router.replace({ path: itemBasePath.value, query: route.query })
+  }
 }
 watch(routeRowId, (id) => { if (id) void openFromRoute(); else resetDrawer() })
 
@@ -303,13 +312,39 @@ watch(routeRowId, (id) => { if (id) void openFromRoute(); else resetDrawer() })
 // (« Cannot access … before initialization », OTO-DASHBOARD-8).
 watch(() => props.nsRef, reload, { immediate: true })
 
-async function onSave(payload: Record<string, unknown>) {
+// ── journal du tableau : « qu'est-ce qui vient de changer, et sur quoi » ────
+const activityOpen = ref(false)
+const activityNonce = ref(0)   // remonte le panneau après une mutation
+
+// Rechargement complet après mutation : la table, les compteurs de statut, les
+// tuiles, la file de bail — et le journal, qui vient d'y gagner une entrée.
+async function refreshAll() {
+  await fetchRows()
+  void fetchStatusCounts(); void fetchMetricTiles(); void fetchQueue()
+  activityNonce.value++
+}
+
+// Annulation d'une transition : confirmation nommée + retour par le chemin légal.
+const { announceTransition } = useTransitionUndo({
+  lifecycle: () => statusField.value?.lifecycle,
+  titleKey: () => titleFieldKey.value,
+  refresh: refreshAll,
+})
+
+async function onSave(payload: Record<string, unknown>, transition?: LifecycleIntent) {
   const n = name.value
   if (!n) return
   try {
     if (drawerNew.value) { await appendNamespaceRow(n, payload); toast('row added') }
-    else if (drawerRow.value) { await updateNamespaceRow(n, drawerRow.value._id, payload); toast('row saved') }
-    closeDrawer(); await fetchRows(); void fetchStatusCounts(); void fetchMetricTiles(); void fetchQueue()
+    else if (drawerRow.value) {
+      const row = drawerRow.value
+      await updateNamespaceRow(n, row._id, payload)
+      // Une transition de cycle de vie se confirme en NOMMANT la ligne et l'état
+      // d'avant — puis en proposant le retour quand le graphe l'autorise.
+      if (transition) announceTransition(n, row, transition)
+      else toast('row saved')
+    }
+    closeDrawer(); await refreshAll()
   } catch (e) { toast(humanize(e)) }
 }
 async function onDelete() {
@@ -317,8 +352,14 @@ async function onDelete() {
   if (!n || !drawerRow.value) return
   const id = drawerRow.value._id
   if (!await confirmAction({ title: 'delete row?', message: 'this row is permanently removed.', confirmLabel: 'delete', danger: true })) return
-  try { await deleteNamespaceRow(n, id); toast('row deleted'); closeDrawer(); await fetchRows(); void fetchStatusCounts(); void fetchMetricTiles(); void fetchQueue() }
+  try { await deleteNamespaceRow(n, id); toast('row deleted'); closeDrawer(); await refreshAll() }
   catch (e) { toast(humanize(e)) }
+}
+
+function openRowById(id: string) {
+  // L'URL porte la fiche ouverte : le watch sur `routeRowId` fetch la row même si
+  // elle est hors page ou hors filtre courant.
+  void router.replace({ path: `${itemBasePath.value}/item/${id}`, query: route.query })
 }
 
 // ── export CSV du jeu FILTRÉ (paginé pour couvrir tout le vivier) ──
@@ -381,6 +422,9 @@ async function transfer() {
     <template #actions>
       <Tag v-if="readOnly" tone="saffron">lecture seule</Tag>
       <Btn v-if="isTyped" kind="mini" @click="cardView = !cardView">{{ cardView ? 'vue table' : 'vue fiches' }}</Btn>
+      <Btn kind="mini" icon="chart" @click="activityOpen = !activityOpen">
+        {{ activityOpen ? 'masquer l\'activité' : 'activité' }}
+      </Btn>
       <Btn kind="mini" icon="doc" :disabled="exporting || !total" @click="exportCsv">{{ exporting ? 'export en cours…' : 'export csv' }}</Btn>
       <Btn v-if="!readOnly" kind="mini" icon="plus" @click="openNew">ajouter une ligne</Btn>
       <template v-if="canGovern">
@@ -407,6 +451,9 @@ async function transfer() {
     <DatastoreQueueBar v-if="queueRows.length" :rows="queueRows" :can-write="!readOnly"
       :title-field="titleFieldKey" @open="openRow" @release="onRelease" />
 
+    <DatastoreActivity v-if="activityOpen && name" :key="`${name}:${activityNonce}`"
+      :namespace="name" @open="openRowById" />
+
     <p v-if="rowsError" class="helptext" style="color: var(--color-terra-ink); padding: 12px 16px">{{ rowsError }}</p>
     <div v-else-if="!rowsLoading && !total && !search && !filters.length" class="dim" style="text-align: center; padding: 24px">
       aucune ligne pour l'instant — ajoutes-en une ci-dessus, ou tes agents en ajoutent avec
@@ -414,7 +461,9 @@ async function transfer() {
     </div>
     <template v-else-if="isTyped && cardView">
       <!-- La vue fiches porte les MÊMES verbes serveur que la table (recherche, tri,
-           filtre de date) : basculer de présentation ne doit pas retirer de pouvoir. -->
+           filtre de date) : basculer de présentation ne doit pas retirer de pouvoir.
+           (Cette barre complète a remplacé un champ de recherche seul — même besoin,
+           résolu plus largement en amont.) -->
       <DatastoreToolbar :search="search" :sort-field="sortField" :sort-dir="sortDir"
         :filters="filters" :schema="meta.schema ?? null"
         @update:search="onSearch" @update:sort="onSort" @update:filters="onFilters" />

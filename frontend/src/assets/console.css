@@ -442,10 +442,18 @@ select.inp.sm { padding-right: 22px; background-position: right 6px center; back
 
 .toast {
   position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 14px;
   background: var(--color-ink); color: var(--color-bg);
   border-radius: var(--radius-pill); padding: 8px 18px; font-size: 12.5px; font-weight: 600;
   z-index: var(--z-toast); animation: toast-in 180ms var(--ease-out);
 }
+/* Action portée par le toast (ex. « annuler ») — un seul geste, dans la confirmation. */
+.toast-action {
+  font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+  background: transparent; color: var(--color-saffron);
+  border: 1px solid currentColor; border-radius: var(--radius-pill); padding: 1px 10px;
+}
+.toast-action:hover { background: var(--color-saffron); color: var(--color-ink); }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 .fadein { animation: view-in 220ms var(--ease-out); }

@@ -9,7 +9,7 @@ import type {
   GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption,
-  ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, SharePrincipal, ToolCall, ToolEntry,
+  ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   FederatedStatus, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult,
@@ -443,23 +443,21 @@ export const releaseRowClaim = (ns: string, rowId: string) =>
   api<{ ok: boolean; released: boolean; id: string }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}/release`,
     { method: 'POST' })
-// Parcours de l'agent d'une row (ADR 0046 b4) : appels data_* du calllog
-// corrélés à la fiche + leur run. Fenêtre = rétention calllog (~30 j).
-export interface RowActivityEntry {
-  created_at: string
-  tool: string
-  ok: boolean
-  error: string | null
-  sub: string | null
-  email: string | null
-  run_id: string | null
-  run_label: string | null
-  doctrine: string | null
-  outcome: string | null
-}
+// Parcours d'une row (ADR 0046 b4) : gestes du calllog corrélés à la fiche + leur run.
+// Fenêtre = rétention calllog (~30 j), annoncée par le serveur (`retention_days`) —
+// c'est un journal de TRAVAIL, pas un audit permanent, et l'UI doit pouvoir le dire.
+// ⚠️ `RowActivityEntry` vient de `@/types/api` : une copie locale vivait ici et avait
+// pris du retard sur le serveur (ni `kind`, ni `from_status`/`to_status`, ni la fiche
+// touchée) — deux définitions du même contrat, dont une fausse.
 export const getRowActivity = (ns: string, rowId: string) =>
   api<{ activity: RowActivityEntry[]; key: string | null; retention_days: number }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}/activity`)
+// Même journal, au grain du TABLEAU : « qu'est-ce qui vient de changer, et sur quelle
+// ligne ». `limit` est facultatif — le serveur en fixe le défaut, on ne le duplique pas.
+export const getNamespaceActivity = (ns: string, limit?: number) =>
+  api<{ activity: RowActivityEntry[]; retention_days: number }>(
+    `/api/datastore/namespaces/${encodeURIComponent(ns)}/activity`
+    + (limit ? `?limit=${limit}` : ''))
 export const renameNamespace = (ns: string, name: string) =>
   api<{ ok: boolean; namespace: string }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}`, { method: 'PATCH', ...j({ name }) })

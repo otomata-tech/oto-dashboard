@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import Btn from './Btn.vue'
-import Icon from './Icon.vue'
 import OtoLoading from './OtoLoading.vue'
 import OtoSelect from './OtoSelect.vue'
 import ColumnFilterCell from './ColumnFilterCell.vue'
 import FilterChips from './FilterChips.vue'
+import DatastoreSearchBar from './DatastoreSearchBar.vue'
 import type { ColumnFilter, DatastoreRow, DatastoreSchema } from '@/types/api'
 import { cellKind, cellShort, absDate, relDate } from '@/lib/cellRender'
 import {
@@ -138,14 +138,8 @@ function sortTitle(col: string): string {
 }
 function cellVal(row: DatastoreRow, col: string): unknown { return row[col] }
 
-// Recherche : local + debounce → émission (le parent refetch & reset la page).
-const searchLocal = ref(props.search)
-let timer: ReturnType<typeof setTimeout> | null = null
-watch(() => props.search, (v) => { searchLocal.value = v })
-watch(searchLocal, (v) => {
-  if (timer) clearTimeout(timer)
-  timer = setTimeout(() => emit('update:search', v), 300)
-})
+// Recherche : champ partagé (frappe locale + débounce dans DatastoreSearchBar),
+// la source de vérité reste `props.search` côté parent.
 
 // ── filtres par colonne (server-side via le parent) ──────────────────────────
 const showFilters = ref(false)
@@ -177,7 +171,7 @@ function clearFilters() {
   emit('update:filters', [])
 }
 function clearAll() {
-  searchLocal.value = ''
+  emit('update:search', '')
   clearFilters()
 }
 // Chips = les filtres APPLIQUÉS (props), retirables un à un sans ouvrir la ligne.
@@ -210,11 +204,8 @@ watch(() => props.filters, (f) => {
 <template>
   <div class="dt">
     <div class="dt-bar">
-      <div class="dt-search">
-        <Icon name="search" :size="14" />
-        <input v-model="searchLocal" class="dt-search-input" placeholder="search…"
-          @keydown.esc="searchLocal = ''" />
-      </div>
+      <DatastoreSearchBar :model-value="search" placeholder="search…"
+        @update:model-value="(q: string) => emit('update:search', q)" />
       <button class="dt-filter-toggle" :class="{ on: showFilters || activeFilterCount }"
         :title="showFilters ? 'hide column filters' : 'filter by column'"
         @click="showFilters = !showFilters">
@@ -346,11 +337,6 @@ watch(() => props.filters, (f) => {
   background: transparent; font-size: 11.5px; color: var(--color-mute); cursor: pointer; text-align: left;
 }
 .dt-cols__reset:hover { color: var(--color-ink); }
-.dt-search { display: flex; align-items: center; gap: 6px; flex: 1; color: var(--color-mute); }
-.dt-search-input {
-  flex: 1; font: inherit; font-size: 12.5px; border: 0; background: none;
-  color: var(--color-ink); outline: none;
-}
 .dt-count { font-size: 11px; white-space: nowrap; }
 .dt-filter-toggle, .dt-filter-clear {
   font: inherit; font-size: 11px; cursor: pointer; border: 1px solid var(--color-hair);
