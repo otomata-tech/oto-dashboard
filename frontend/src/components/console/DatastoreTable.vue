@@ -28,7 +28,7 @@ import {
   getNamespaces, getNamespaceRows, getNamespaceRow, getNamespaceAggregate,
   getNamespaceQueue, releaseRowClaim,
   appendNamespaceRow, updateNamespaceRow, deleteNamespaceRow,
-  deleteNamespace, renameNamespace,
+  deleteNamespace, renameNamespace, setNamespaceSchema,
 } from '@/api/console'
 import type { NamespaceEntry, DatastoreRow, ColumnFilter } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -55,7 +55,7 @@ const router = useRouter()
 const DEFAULT_PAGE_SIZE = 25
 const PAGE_SIZES = [25, 50, 100]
 const META = new Set(['_id', '_created_at', '_updated_at'])
-const TABLE_QUERY_KEYS = ['q', 'sort', 'dir', 'page', 'ps', 'f']
+const TABLE_QUERY_KEYS = ['q', 'sort', 'dir', 'page', 'ps', 'f', 'cols']
 
 const meta = ref<NamespaceEntry | null>(props.nsMeta ?? null)
 const rows = ref<DatastoreRow[]>([])
@@ -73,6 +73,7 @@ const sortField = ref<string | null>('_updated_at')
 const sortDir = ref<'asc' | 'desc'>('desc')
 const search = ref('')
 const filters = ref<ColumnFilter[]>([])
+const cols = ref<string[] | null>(null)   // null = colonnes déclarées au schéma
 const exporting = ref(false)
 
 const name = computed(() => meta.value?.namespace ?? null)
@@ -192,6 +193,10 @@ function readTableQuery() {
   const pg = Number(q.page)
   page.value = Number.isInteger(pg) && pg > 1 ? pg - 1 : 0
   filters.value = filtersFromParam(typeof q.f === 'string' ? q.f : null)
+  // `cols` absent = les colonnes du schéma ; présent = choix explicite (partageable
+  // par lien, et surtout conservé d'une navigation à l'autre — une valeur locale au
+  // composant se perdait au remontage).
+  cols.value = typeof q.cols === 'string' && q.cols ? q.cols.split(',').filter(Boolean) : null
 }
 function syncTableQuery() {
   const query: Record<string, string> = {}
@@ -206,6 +211,7 @@ function syncTableQuery() {
   if (page.value > 0) query.page = String(page.value + 1)
   const f = filtersToParam(filters.value)
   if (f) query.f = f
+  if (cols.value?.length) query.cols = cols.value.join(',')
   void router.replace({ path: route.path, query })
 }
 
@@ -262,6 +268,36 @@ function onSearch(q: string) { search.value = q; page.value = 0; syncTableQuery(
 function onFilters(f: ColumnFilter[]) { filters.value = f; page.value = 0; syncTableQuery(); fetchRows(); void fetchMetricTiles() }
 function onPageSize(ps: number) { pageSize.value = ps; page.value = 0; syncTableQuery(); fetchRows() }
 function clearSearchAndFilters() { search.value = ''; onFilters([]) }
+// Choix de colonnes : pas de refetch (le serveur renvoie déjà toute la row, la
+// sélection est un rendu) — seulement le miroir d'URL.
+function onCols(next: string[] | null) { cols.value = next; syncTableQuery() }
+
+// « Enregistrer comme vue par défaut » : on ne crée pas un objet « vue », on écrit
+// le `hidden` du SCHÉMA — le mécanisme qui gouvernait déjà l'affichage et qu'on
+// éditait à la main. La vue vaut donc pour tout le monde et depuis n'importe où,
+// et le choix ponctuel (`?cols=`) redevient inutile → on le lève.
+async function onSaveView(hidden: string[]) {
+  const n = name.value
+  const schema = meta.value?.schema
+  if (!n || !schema?.fields?.length) return
+  const hide = new Set(hidden)
+  const next = {
+    ...schema,
+    fields: schema.fields.map((f) => {
+      const { hidden: _drop, ...rest } = f          // pas de `hidden: false` inutile
+      return hide.has(f.key) ? { ...rest, hidden: true } : rest
+    }),
+  }
+  try {
+    await setNamespaceSchema(n, next)
+    await resolveMeta()
+    onCols(null)
+    toast(hidden.length
+      ? `vue enregistrée — ${hidden.length} colonne${hidden.length > 1 ? 's' : ''} masquée${hidden.length > 1 ? 's' : ''} par défaut`
+      : 'vue enregistrée — toutes les colonnes sont visibles par défaut')
+    emit('changed')
+  } catch (e) { toast(humanize(e)) }
+}
 
 // ── drawer (détail / édition / ajout) — la fiche ouverte est DANS l'URL
 // (`…/item/<rowId>`, deep-link partageable). Ouvrir/fermer = replace du path ;
@@ -485,8 +521,10 @@ async function transfer() {
     <DataTable v-else :rows="rows" :total="total" :page="page" :page-size="pageSize"
       :sort-field="sortField" :sort-dir="sortDir" :search="search" :filters="filters" :loading="rowsLoading"
       :schema="meta.schema ?? null"
+      :cols="cols" :can-save-view="canGovern && isTyped"
       @open="openRow" @update:page="onPage" @update:page-size="onPageSize" @update:sort="onSort"
-      @update:search="onSearch" @update:filters="onFilters" />
+      @update:search="onSearch" @update:filters="onFilters"
+      @update:cols="onCols" @save-view="onSaveView" />
 
     <RowDrawer :open="drawerOpen" :row="drawerRow" :fields="fields" :is-new="drawerNew"
       :read-only="readOnly" :schema="meta.schema ?? null" :namespace="name"

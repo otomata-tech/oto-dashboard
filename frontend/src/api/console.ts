@@ -9,7 +9,7 @@ import type {
   GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption,
-  ColumnFilter, DatastoreRow, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, SharePrincipal, ToolCall, ToolEntry,
+  ColumnFilter, DatastoreRow, DatastoreSchema, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   FederatedStatus, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult,
@@ -458,6 +458,12 @@ export const getNamespaceActivity = (ns: string, limit?: number) =>
   api<{ activity: RowActivityEntry[]; retention_days: number }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}/activity`
     + (limit ? `?limit=${limit}` : ''))
+// Schéma d'un tableau (ADR 0046) — miroir REST de `data_set_schema`. Sert la vue par
+// défaut : les colonnes masquées SONT le `hidden` des champs, pas un objet « vue » à part.
+export const setNamespaceSchema = (ns: string, schema: DatastoreSchema) =>
+  api<{ ok: boolean }>(
+    `/api/datastore/namespaces/${encodeURIComponent(ns)}/schema`,
+    { method: 'PUT', ...j({ schema }) })
 export const renameNamespace = (ns: string, name: string) =>
   api<{ ok: boolean; namespace: string }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}`, { method: 'PATCH', ...j({ name }) })

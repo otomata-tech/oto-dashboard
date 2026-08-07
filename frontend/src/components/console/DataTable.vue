@@ -27,6 +27,8 @@ const props = defineProps<{
   filters: ColumnFilter[]
   loading?: boolean
   schema?: DatastoreSchema | null   // libellés + priorité des colonnes (ADR 0046)
+  cols?: string[] | null            // colonnes choisies (null = celles du schéma)
+  canSaveView?: boolean             // droit de figer la vue dans le schéma du tableau
 }>()
 const emit = defineEmits<{
   (e: 'open', row: DatastoreRow): void
@@ -35,6 +37,8 @@ const emit = defineEmits<{
   (e: 'update:sort', field: string, dir: 'asc' | 'desc'): void
   (e: 'update:search', q: string): void
   (e: 'update:filters', filters: ColumnFilter[]): void
+  (e: 'update:cols', cols: string[] | null): void
+  (e: 'save-view', hidden: string[]): void   // figer la vue = déclarer `hidden` au schéma
 }>()
 
 const DEFAULT_SORT = '_updated_at'
@@ -51,44 +55,43 @@ const fields = computed<string[]>(() => {
   return seen
 })
 // ── colonnes AFFICHÉES ──────────────────────────────────────────────────────
-// Tout afficher fait déborder la table dès qu'un schéma a ~10 champs (scroll
-// horizontal permanent). On garde donc par défaut les colonnes SIGNIFIANTES —
-// celles que le schéma qualifie par un rôle — puis on complète jusqu'à un plafond ;
-// le reste est masqué mais réactivable via le sélecteur (rien n'est perdu).
-// Sans schéma (table libre) : comportement historique, toutes les colonnes.
-const MAX_DEFAULT_COLS = 7
-const ROLE_PRIORITY = ['title', 'status', 'badge', 'metric', 'qualif']
-
+// **Le schéma décide.** Un champ déclaré `hidden` est masqué, tous les autres sont
+// affichés — sans plafond. Un plafond arbitraire par-dessus `hidden` contredisait
+// l'intention de l'auteur du tableau : il fallait rallumer une à une les colonnes
+// qu'on avait explicitement laissées visibles (vécu en démo client sur un tableau
+// à ~30 champs enrichis). Le débordement horizontal se règle en déclarant `hidden`
+// (ou en décochant puis en enregistrant la vue), pas en devinant à la place de l'auteur.
+// Sans schéma (table libre) : tout, comme avant — il n'y a ni `hidden` à déclarer ni
+// vue à enregistrer, plafonner n'y laisserait aucun moyen de revenir en arrière.
 const schemaFields = computed(() => props.schema?.fields ?? [])
 const fieldByKey = computed(() =>
   Object.fromEntries(schemaFields.value.filter((f) => f.key).map((f) => [f.key, f])))
 
-/** Colonnes proposées par défaut : rôles d'abord, puis l'ordre du schéma, plafonné. */
+/** Colonnes par défaut : tout ce que le schéma ne masque pas, dans son ordre. */
 const defaultCols = computed<string[]>(() => {
   const all = fields.value
   if (!schemaFields.value.length) return all
-  const declared = new Set(schemaFields.value.map((f) => f.key))
-  const visible = all.filter((k) => fieldByKey.value[k]?.hidden !== true)
-  const scored = [...visible].sort((a, b) => {
-    const ra = ROLE_PRIORITY.indexOf(fieldByKey.value[a]?.role ?? '')
-    const rb = ROLE_PRIORITY.indexOf(fieldByKey.value[b]?.role ?? '')
-    return (ra < 0 ? 99 : ra) - (rb < 0 ? 99 : rb)
-  })
-  const kept = scored.slice(0, MAX_DEFAULT_COLS)
-  // on restitue l'ordre NATUREL (schéma) — le score ne sert qu'à choisir QUI garder
-  return visible.filter((k) => kept.includes(k) || !declared.has(k)).slice(0, MAX_DEFAULT_COLS)
+  return all.filter((k) => fieldByKey.value[k]?.hidden !== true)
 })
 
-const chosenCols = ref<string[] | null>(null)   // null = défaut (suit le schéma)
+// `cols` est CONTRÔLÉ par le parent (miroir d'URL) comme la recherche et les filtres :
+// une valeur locale se perdait à chaque remontage du composant — c'est ce qui faisait
+// « disparaître » les colonnes choisies en naviguant.
+const chosenCols = computed<string[] | null>(() => props.cols ?? null)
 const shownFields = computed<string[]>(() =>
   (chosenCols.value ?? defaultCols.value).filter((k) => fields.value.includes(k)))
 const hiddenCount = computed(() => fields.value.length - shownFields.value.length)
 const colsOpen = ref(false)
+/** La sélection courante s'écarte-t-elle de ce que le schéma déclare ? */
+const colsDiffer = computed(() => {
+  const a = shownFields.value, b = defaultCols.value
+  return a.length !== b.length || a.some((k, i) => k !== b[i])
+})
 
 function toggleCol(k: string) {
-  const cur = new Set(chosenCols.value ?? defaultCols.value)
+  const cur = new Set(shownFields.value)
   cur.has(k) ? cur.delete(k) : cur.add(k)
-  chosenCols.value = fields.value.filter((f) => cur.has(f))   // ordre stable
+  emit('update:cols', fields.value.filter((f) => cur.has(f)))   // ordre stable
 }
 const isShown = (k: string) => shownFields.value.includes(k)
 
@@ -106,6 +109,20 @@ function toggleMeta(k: string) {
 }
 
 const columns = computed(() => [...shownFields.value, ...shownMeta.value])
+
+// Largeur par NATURE du champ : un statut ou une date n'a pas besoin de la même place
+// qu'une note. Dérivée du schéma quand il existe (rôle puis type), sinon largeur médiane.
+const TIGHT_ROLES = new Set(['status', 'badge', 'metric'])
+const TIGHT_TYPES = new Set(['bool', 'number', 'date', 'datetime', 'enum'])
+const WIDE_ROLES = new Set(['note'])
+function colWidthClass(col: string): string {
+  if (isMetaDateField(col)) return 'dt-td--tight'
+  const f = fieldByKey.value[col]
+  if (!f) return ''
+  if (WIDE_ROLES.has(f.role ?? '')) return 'dt-td--wide'
+  if (TIGHT_ROLES.has(f.role ?? '') || TIGHT_TYPES.has(f.type ?? '')) return 'dt-td--tight'
+  return ''
+}
 
 const pageCount = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)))
 const rangeText = computed(() => {
@@ -230,8 +247,17 @@ watch(() => props.filters, (f) => {
               <input type="checkbox" :checked="isMetaShown(k)" @change="toggleMeta(k)" />
               <span>{{ metaFieldLabel(k) }}</span>
             </label>
-            <button v-if="chosenCols" class="dt-cols__reset" @click="chosenCols = null">
-              Rétablir les colonnes par défaut
+            <!-- Figer la vue = écrire `hidden` dans le SCHÉMA du tableau (pas une
+                 préférence locale) : la vue vaut alors pour tous ceux qui l'ouvrent,
+                 depuis n'importe quel poste, et reste le mécanisme qu'on éditait déjà
+                 à la main. Réservé à qui peut gouverner le tableau. -->
+            <button v-if="canSaveView && colsDiffer" class="dt-cols__save"
+              title="Les colonnes décochées seront masquées par défaut pour tout le monde"
+              @click="emit('save-view', fields.filter((k) => !isShown(k))); colsOpen = false">
+              Enregistrer comme vue par défaut
+            </button>
+            <button v-if="chosenCols" class="dt-cols__reset" @click="emit('update:cols', null)">
+              Rétablir les colonnes du schéma
             </button>
           </div>
         </template>
@@ -260,7 +286,8 @@ watch(() => props.filters, (f) => {
         </thead>
         <tbody>
           <tr v-for="row in rows" :key="row._id" class="dt-row" @click="emit('open', row)">
-            <td v-for="col in columns" :key="col" :class="{ num: isMetaDateField(col) }">
+            <td v-for="col in columns" :key="col"
+              :class="[colWidthClass(col), { num: isMetaDateField(col) }]">
               <span v-if="isMetaDateField(col)" class="dim mono" :title="absDate(String(cellVal(row, col) ?? ''))">
                 {{ relDate(cellVal(row, col)) }}
               </span>
@@ -337,6 +364,11 @@ watch(() => props.filters, (f) => {
   background: transparent; font-size: 11.5px; color: var(--color-mute); cursor: pointer; text-align: left;
 }
 .dt-cols__reset:hover { color: var(--color-ink); }
+.dt-cols__save {
+  width: 100%; margin-top: 4px; padding: 6px 8px; border: 0; border-top: 1px solid var(--color-hair-soft);
+  background: transparent; font-size: 11.5px; color: var(--color-cobalt); cursor: pointer; text-align: left;
+}
+.dt-cols__save:hover { text-decoration: underline; }
 .dt-count { font-size: 11px; white-space: nowrap; }
 .dt-filter-toggle, .dt-filter-clear {
   font: inherit; font-size: 11px; cursor: pointer; border: 1px solid var(--color-hair);
@@ -368,9 +400,15 @@ watch(() => props.filters, (f) => {
 .dt-sort { color: var(--color-faint); }
 .dt-th.sorted .dt-sort { color: var(--color-cobalt); }
 .dt-row { cursor: pointer; }
+/* Largeur ADAPTATIVE au contenu : une largeur unique de 320px donnait des colonnes
+   étroites illisibles pour la prose et un gâchis de place pour un statut ou un code
+   postal. On borne par nature de champ (classe posée sur la cellule), le tout restant
+   tronqué sur une ligne — la valeur entière se lit dans la fiche. */
 .tbl-scroll .tbl td {
-  max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.tbl-scroll .tbl td.dt-td--tight { max-width: 130px; }   /* statut, badge, date, booléen, nombre */
+.tbl-scroll .tbl td.dt-td--wide  { max-width: 520px; }   /* note, texte long, angle d'appel */
 .dt-link { color: var(--color-cobalt); text-decoration: none; }
 .dt-link:hover { text-decoration: underline; }
 .dt-pager {
