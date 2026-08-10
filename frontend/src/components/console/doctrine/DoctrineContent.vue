@@ -36,8 +36,23 @@ export default defineComponent({
       const lines = (props.text || '').split('\n')
       const blocks: VNode[] = []
       let headings = 0
+      // Paragraphe en cours d'accumulation. En markdown, les lignes consécutives d'un
+      // paragraphe se JOIGNENT — seule une ligne vide (ou un titre, ou une puce) le
+      // ferme. Rendre une ligne source = un <p> hachait le texte de tout auteur qui
+      // wrappe à 80 colonnes, et forçait à écrire un paragraphe sur une seule ligne.
+      let para: string[] = []
+      let paraAt = 0
+
+      const flush = () => {
+        if (!para.length) return
+        blocks.push(h('p', { key: `p${paraAt}`, class: 'oto-p' },
+                      parseInline(para.join(' '), `p${paraAt}`)))
+        para = []
+      }
+
       lines.forEach((ln, i) => {
         if (/^##\s+/.test(ln)) {
+          flush()
           headings += 1
           blocks.push(
             h('div', { key: `h${i}`, class: 'oto-h', style: { margin: `${blocks.length ? 20 : 0}px 0 6px` } }, [
@@ -46,16 +61,21 @@ export default defineComponent({
             ]),
           )
         } else if (/^-\s+/.test(ln)) {
+          flush()
           blocks.push(
             h('div', { key: `l${i}`, class: 'oto-li' }, [
               h('span', { class: 'oto-li__b' }, '·'),
               h('span', null, parseInline(ln.replace(/^-\s+/, ''), `l${i}`)),
             ]),
           )
-        } else if (ln.trim() !== '') {
-          blocks.push(h('p', { key: `p${i}`, class: 'oto-p' }, parseInline(ln, `p${i}`)))
+        } else if (ln.trim() === '') {
+          flush()                       // ligne vide = fin de paragraphe
+        } else {
+          if (!para.length) paraAt = i   // la clé reste celle de la PREMIÈRE ligne
+          para.push(ln.trim())
         }
       })
+      flush()
       return h('div', { class: 'oto-content' }, blocks)
     }
   },
