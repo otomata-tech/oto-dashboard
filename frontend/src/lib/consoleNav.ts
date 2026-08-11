@@ -45,6 +45,10 @@ export const NAV: NavGroup[] = [
     // Plomberie de l'agent : subordonnée aux projets, ancrée en bas (refonte nav pt 4).
     { path: '/connectors', label: 'nav.connectors', icon: 'plug', plomberie: true },
     { path: '/procedures', label: 'nav.procedures', icon: 'doc', plomberie: true },
+    // Automatisations : QUAND l'agent part tout seul, là où « procédures » dit CE
+    // qu'il fait. Même étage de plomberie, juste après, parce qu'une automatisation
+    // déroule une procédure.
+    { path: '/automations', label: 'nav.automations', icon: 'bolt', plomberie: true },
   ]},
   { group: 'nav.section.memory', level: 'work', items: [
     { path: '/data', label: 'nav.data', icon: 'db' },

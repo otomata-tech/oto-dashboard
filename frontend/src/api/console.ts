@@ -923,3 +923,21 @@ export const getMyCalls = (params: { limit?: number; tool?: string; errors?: boo
   const qs = q.toString()
   return api<{ calls: ToolCall[] }>(`/api/me/calls${qs ? `?${qs}` : ''}`)
 }
+
+// ── automatisations (routines Claude Code) ──
+// Une automatisation = une routine hébergée chez Anthropic, déclenchée par oto.
+// Le credential porte la routine (`routine_id` + jeton), donc UNE INSTANCE = UNE
+// ROUTINE : la liste des automatisations se dérive de `getConnectorInstances()`
+// filtrée sur `connector === 'routine'` — pas d'endpoint ni de type en double.
+export interface FireResult {
+  fired: boolean
+  session_id?: string | null
+  // L'URL de la session est LA supervision : le déclenchement ne rend pas le
+  // résultat du run, il rend l'endroit où le lire.
+  session_url?: string | null
+}
+
+// `text` = contexte du run. Il arrive à l'agent étiqueté DONNÉE NON FIABLE, donc on
+// y met une RÉFÉRENCE que l'agent recharge par le MCP, jamais l'enregistrement.
+export const fireAutomation = (body: { text?: string; account?: string } = {}) =>
+  api<FireResult>('/api/me/automations/fire', { method: 'POST', ...j(body) })

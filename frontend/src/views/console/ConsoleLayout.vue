@@ -28,6 +28,7 @@ const VIEWS: Record<string, Component> = {
   '/projects': defineAsyncComponent(() => import('./ProjectsView.vue')),
   '/connectors': defineAsyncComponent(() => import('./ConnectorsHubView.vue')),
   '/procedures': defineAsyncComponent(() => import('./DoctrineHubView.vue')),
+  '/automations': defineAsyncComponent(() => import('./AutomationsView.vue')),
   '/data': defineAsyncComponent(() => import('./DataView.vue')),
   '/documents': defineAsyncComponent(() => import('./DocumentsView.vue')),
   '/activity': defineAsyncComponent(() => import('./ActivityView.vue')),
