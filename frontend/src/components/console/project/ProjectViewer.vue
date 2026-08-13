@@ -20,7 +20,8 @@ import {
   requestDocChange, listDocChanges, resolveDocChange,
   getConnectorIdentities, linkProject, unlinkProject,
   setProjectFilePublic, deleteProjectFile,
-  getToolRegistry, getConnectors, getProjectRuns, getInstruction,
+  getToolRegistry, getConnectors, getProjectRuns, getRunThread, getInstruction,
+  type RunThreadMessage,
 } from '@/api/console'
 import type {
   Doc, DocKind, DocRevision, DocChangeRequest, ProjectLink, ConnectorIdentity,
@@ -265,6 +266,30 @@ const toolsLoading = ref(false)
 // (Le TABLEAU affiche sa vue complète via <DatastoreTable>, plus d'aperçu à charger ici.)
 const runs = ref<ProjectRun[]>([])
 const runsLoading = ref(false)
+// Le fil d'un run hébergé, chargé AU CLIC (la plupart des runs sont tracés par un
+// agent externe et n'en ont pas — on ne le sait qu'en le demandant).
+const filOuvert = ref<string | null>(null)
+const filMessages = ref<RunThreadMessage[]>([])
+const filLoading = ref(false)
+const filErreur = ref<string | null>(null)
+
+function toggleFil(r: ProjectRun) {
+  if (filOuvert.value === r.run_id) { filOuvert.value = null; return }
+  filOuvert.value = r.run_id
+  filMessages.value = []; filErreur.value = null; filLoading.value = true
+  getRunThread(r.run_id)
+    .then((res) => { filMessages.value = res.messages || [] })
+    .catch(() => { filErreur.value = 'fil illisible (droits ou run purgé)' })
+    .finally(() => { filLoading.value = false })
+}
+
+function filTexte(m: RunThreadMessage): string {
+  const c = m.content || {}
+  if (typeof c.text === 'string' && c.text.trim()) return c.text
+  const calls = Array.isArray(c.tool_calls) ? c.tool_calls as Array<Record<string, unknown>> : []
+  if (calls.length) return calls.map((t) => String(t.name ?? '?')).join(' · ')
+  return '—'
+}
 // Déroulé de la procédure liée (rendu inline, comme un tableau) — #procédure-inline.
 const procDoc = ref<InstructionDetail | null>(null)
 const procLoading = ref(false)
@@ -535,12 +560,28 @@ async function removeFile() {
         <template v-if="runs.length">
           <div class="vw__sub" style="margin-top: 16px">derniers runs</div>
           <div class="vw__runs">
-            <div v-for="r in runs" :key="r.run_id" class="vw__run">
-              <span class="vw__rundot" :style="{ background: runDot(r.outcome) }"></span>
-              <span class="vw__runt">{{ fmtDate(r.started_at) }}</span>
-              <span class="vw__runl">{{ r.label }}</span>
-              <span class="vw__runo" :class="{ dim: !r.outcome }">{{ r.outcome || 'en cours' }}</span>
-            </div>
+            <template v-for="r in runs" :key="r.run_id">
+              <button type="button" class="vw__run vw__run--btn" @click="toggleFil(r)">
+                <span class="vw__rundot" :style="{ background: runDot(r.outcome) }"></span>
+                <span class="vw__runt">{{ fmtDate(r.started_at) }}</span>
+                <span class="vw__runl">{{ r.label }}</span>
+                <span class="vw__runo" :class="{ dim: !r.outcome }">{{ r.outcome || 'en cours' }}</span>
+              </button>
+              <div v-if="filOuvert === r.run_id" class="vw__fil">
+                <p v-if="filLoading" class="dim" style="font-size: 12px">chargement du fil…</p>
+                <p v-else-if="filErreur" class="dim" style="font-size: 12px">{{ filErreur }}</p>
+                <p v-else-if="!filMessages.length" class="dim" style="font-size: 12px">
+                  Ce run n'a pas de fil — exécution tracée par un agent externe, son
+                  déroulé vit dans le journal.
+                </p>
+                <div v-else class="vw__filmsgs">
+                  <div v-for="m in filMessages" :key="m.seq" class="vw__filmsg">
+                    <span class="vw__filrole" :data-role="m.role">{{ m.role }}</span>
+                    <span class="vw__filtxt">{{ filTexte(m) }}</span>
+                  </div>
+                </div>
+              </div>
+            </template>
           </div>
         </template>
         <p v-else-if="runsLoading" class="dim" style="font-size: 12.5px; margin-top: 12px">chargement des runs…</p>
@@ -632,6 +673,16 @@ async function removeFile() {
 .vw__runt { font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); width: 62px; flex: none; }
 .vw__runl { flex: 1; min-width: 0; font-size: 12.5px; color: var(--color-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vw__runo { font-family: var(--font-mono); font-size: 10px; color: var(--color-mute); flex: none; }
+/* La ligne de run est cliquable : elle déplie le FIL du run hébergé (lecture neutre).
+   Bouton nu pour l'accessibilité clavier, même dessin que la ligne inerte. */
+.vw__run--btn { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--color-hair-soft); text-align: left; cursor: pointer; font: inherit; }
+.vw__run--btn:hover .vw__runl { color: var(--color-ink); }
+.vw__fil { margin: 2px 0 8px 16px; padding: 8px 10px; border-left: 2px solid var(--color-hair); }
+.vw__filmsgs { display: flex; flex-direction: column; gap: 6px; }
+.vw__filmsg { display: flex; gap: 8px; align-items: baseline; }
+.vw__filrole { font-family: var(--font-mono); font-size: 10px; color: var(--color-mute); flex: none; width: 62px; text-transform: uppercase; letter-spacing: 0.04em; }
+.vw__filrole[data-role="assistant"] { color: var(--color-ink-soft); }
+.vw__filtxt { font-size: 12.5px; color: var(--color-ink-soft); line-height: 1.5; white-space: pre-wrap; word-break: break-word; min-width: 0; }
 
 .vw__filebox { display: grid; place-items: center; height: 190px; width: 100%; background: var(--color-paper-2); border: 1px dashed var(--color-hair); border-radius: var(--radius-md); margin-bottom: 14px; color: var(--color-mute); gap: 7px; grid-auto-flow: row; cursor: pointer; font: inherit; }
 .vw__filebox:hover { border-color: var(--color-ink-soft); color: var(--color-ink-soft); }

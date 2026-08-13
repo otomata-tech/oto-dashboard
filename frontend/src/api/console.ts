@@ -255,6 +255,21 @@ export const getProjectActivity = (id: number) =>
 export const getProjectRuns = (id: number, target_ref?: string) =>
   projectsApi<{ id: number; target_ref?: string; runs: ProjectRun[] }>(
     { op: 'runs', project_id: id, target_ref })
+// Le FIL d'un run hébergé (chantier runner R1) — l'état d'exécution, pas le journal.
+// Lecture NEUTRE seulement ici (le segment provider reste au propriétaire du run) ;
+// la plupart des runs sont TRACÉS (agent externe) et n'ont pas de fil : liste vide.
+export interface RunThreadMessage {
+  seq: number
+  role: 'user' | 'assistant' | 'tool'
+  content: Record<string, unknown>
+  created_at?: string
+}
+export const getRunThread = (runId: string) =>
+  api<{ run_id: string; messages: RunThreadMessage[] }>('/api/me/runs/thread', {
+    method: 'POST',
+    body: JSON.stringify({ op: 'read', run_id: runId }),
+  })
+
 // « Reprendre dans Claude » — blob copier-coller qui pré-écrit oto_use_project (B5b).
 export const projectHandoff = (id: number) =>
   projectsApi<{ id: number; markdown: string }>({ op: 'handoff', project_id: id })
