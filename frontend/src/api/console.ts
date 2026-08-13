@@ -269,6 +269,19 @@ export const getRunThread = (runId: string) =>
     method: 'POST',
     body: JSON.stringify({ op: 'read', run_id: runId }),
   })
+// « Continuer » un run hébergé (R4) : apposer le message user par la capacité R1
+// (JAMAIS un chemin d'écriture neuf — on hérite de ses droits : propriétaire seul),
+// puis enfiler un job `continue` que le worker claimera.
+export const appendRunThread = (runId: string, text: string) =>
+  api<{ run_id: string; seq: number }>('/api/me/runs/thread', {
+    method: 'POST',
+    body: JSON.stringify({ op: 'append', run_id: runId, role: 'user', content: { text } }),
+  })
+export const enqueueRunContinue = (runId: string) =>
+  api<{ id: number; status: string }>('/api/me/runner/jobs', {
+    method: 'POST',
+    body: JSON.stringify({ op: 'enqueue', kind: 'continue', run_id: runId }),
+  })
 
 // « Reprendre dans Claude » — blob copier-coller qui pré-écrit oto_use_project (B5b).
 export const projectHandoff = (id: number) =>

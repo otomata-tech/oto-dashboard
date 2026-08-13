@@ -20,7 +20,8 @@ import {
   requestDocChange, listDocChanges, resolveDocChange,
   getConnectorIdentities, linkProject, unlinkProject,
   setProjectFilePublic, deleteProjectFile,
-  getToolRegistry, getConnectors, getProjectRuns, getRunThread, getInstruction,
+  getToolRegistry, getConnectors, getProjectRuns, getRunThread, appendRunThread,
+  enqueueRunContinue, getInstruction,
   type RunThreadMessage,
 } from '@/api/console'
 import type {
@@ -281,6 +282,34 @@ function toggleFil(r: ProjectRun) {
     .then((res) => { filMessages.value = res.messages || [] })
     .catch(() => { filErreur.value = 'fil illisible (droits ou run purgé)' })
     .finally(() => { filLoading.value = false })
+}
+
+// « Continuer » (R4) : append par la capacité R1 (droits du propriétaire hérités),
+// puis un job `continue` — pending tant qu'aucun worker armé ne le claime.
+const filSaisie = ref('')
+const filEnvoi = ref(false)
+const filEnvoiNote = ref<string | null>(null)
+
+function continuerRun(r: ProjectRun) {
+  const texte = filSaisie.value.trim()
+  if (!texte || filEnvoi.value) return
+  filEnvoi.value = true; filEnvoiNote.value = null
+  appendRunThread(r.run_id, texte)
+    .then((res) => {
+      filMessages.value = [...filMessages.value,
+        { seq: res.seq, role: 'user', content: { text: texte } }]
+      filSaisie.value = ''
+      return enqueueRunContinue(r.run_id)
+        .then(() => { filEnvoiNote.value = 'Message apposé — repris au prochain passage du worker.' })
+        .catch(() => { filEnvoiNote.value = 'Message apposé au fil ; la reprise n\'a pas pu être enfilée (réessaie).' })
+    })
+    .catch((e) => {
+      const msg = String((e as Error)?.message || '')
+      filEnvoiNote.value = msg.includes('404') || msg.includes('run_not_found')
+        ? 'Seul le propriétaire du run peut le continuer.'
+        : 'Écriture refusée — le fil n\'a pas bougé.'
+    })
+    .finally(() => { filEnvoi.value = false })
 }
 
 function filTexte(m: RunThreadMessage): string {
@@ -580,6 +609,19 @@ async function removeFile() {
                     <span class="vw__filtxt">{{ filTexte(m) }}</span>
                   </div>
                 </div>
+                <form v-if="!filLoading && !filErreur" class="vw__filcont"
+                      @submit.prevent="continuerRun(r)">
+                  <input v-model="filSaisie" class="inp sm vw__filin" type="text"
+                         placeholder="continuer ce run — le message s'appose au fil"
+                         :disabled="filEnvoi" />
+                  <button class="vw__filbtn" type="submit"
+                          :disabled="filEnvoi || !filSaisie.trim()">
+                    {{ filEnvoi ? '…' : 'Continuer' }}
+                  </button>
+                </form>
+                <p v-if="filEnvoiNote" class="dim" style="font-size: 12px; margin: 6px 0 0">
+                  {{ filEnvoiNote }}
+                </p>
               </div>
             </template>
           </div>
@@ -683,6 +725,11 @@ async function removeFile() {
 .vw__filrole { font-family: var(--font-mono); font-size: 10px; color: var(--color-mute); flex: none; width: 62px; text-transform: uppercase; letter-spacing: 0.04em; }
 .vw__filrole[data-role="assistant"] { color: var(--color-ink-soft); }
 .vw__filtxt { font-size: 12.5px; color: var(--color-ink-soft); line-height: 1.5; white-space: pre-wrap; word-break: break-word; min-width: 0; }
+.vw__filcont { display: flex; gap: 8px; margin-top: 10px; }
+.vw__filin { flex: 1; min-width: 0; }
+.vw__filbtn { border: 1px solid var(--color-hair); background: none; color: var(--color-ink-soft); font: inherit; font-size: 12.5px; padding: 4px 14px; border-radius: var(--radius-pill); cursor: pointer; }
+.vw__filbtn:hover:not(:disabled) { color: var(--color-ink); border-color: var(--color-mute); }
+.vw__filbtn:disabled { opacity: 0.5; cursor: default; }
 
 .vw__filebox { display: grid; place-items: center; height: 190px; width: 100%; background: var(--color-paper-2); border: 1px dashed var(--color-hair); border-radius: var(--radius-md); margin-bottom: 14px; color: var(--color-mute); gap: 7px; grid-auto-flow: row; cursor: pointer; font: inherit; }
 .vw__filebox:hover { border-color: var(--color-ink-soft); color: var(--color-ink-soft); }
