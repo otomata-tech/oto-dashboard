@@ -25,6 +25,7 @@ import {
   scalarDraft, type FieldDesc,
 } from '@/lib/datastoreForm'
 import { getRowActivity } from '@/api/console'
+import { cleTitre } from '../../lib/datastoreTitle'
 
 const props = defineProps<{
   open: boolean
@@ -55,7 +56,13 @@ const editFields = computed<FieldDesc[]>(() =>
   formFields(props.schema, props.row, props.fields, extra.value))
 
 // ── répartition PAR RÔLE (l'auto-adaptation au schéma) ──────────────────────
-const titleDesc = computed(() => editFields.value.find((d) => d.role === 'title') ?? null)
+// ⚠️ Résolu depuis le SCHÉMA puis apparié par clé : `FieldDesc` ne porte que
+// `role`, et lui faire traverser `display` ajouterait une seconde règle là où
+// une seule suffit.
+const titleKey = computed(() => cleTitre(props.schema?.fields))
+const titleDesc = computed(
+  () => editFields.value.find((d) => d.key === titleKey.value) ?? null,
+)
 const statusField = computed(() =>
   (props.schema?.fields ?? []).find((f) => f.role === 'status') ?? null)
 const lifecycleStates = computed<string[]>(() =>

@@ -729,6 +729,11 @@ export interface DatastoreField {
   // STABLE d'une ligne à l'autre (avant : deviné de la longueur de la valeur).
   width?: 'half' | 'full'
   hidden?: boolean              // hors table par défaut (reste éditable en fiche)
+  // ⚠️ Le serveur nomme une ligne depuis `display` — les rôles sont sortis du
+  // schéma côté serveur (oto-backend#317 étape A). `role` reste servi sur les
+  // schémas convertis (additif) et reste la convention des autres rendus, qui
+  // sont désormais des conventions de CONSOMMATEUR. Voir `lib/datastoreTitle`.
+  display?: 'title'
   role?: DatastoreFieldRole
   fields?: DatastoreField[]  // type=object
   of?: Partial<DatastoreField>  // type=list — field-def d'item, key optionnelle (scalaire n'en a pas)

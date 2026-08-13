@@ -9,6 +9,7 @@
 import { computed } from 'vue'
 import Tag from '@/components/console/Tag.vue'
 import type { DatastoreRow, DatastoreSchema, DatastoreField } from '@/types/api'
+import { champTitre } from '../../lib/datastoreTitle'
 
 const props = defineProps<{ rows: DatastoreRow[]; schema: DatastoreSchema }>()
 const emit = defineEmits<{ open: [row: DatastoreRow] }>()
@@ -16,7 +17,10 @@ const emit = defineEmits<{ open: [row: DatastoreRow] }>()
 const fields = computed<DatastoreField[]>(() => props.schema.fields ?? [])
 const byRole = (role: string) => fields.value.filter((f) => f.role === role)
 const isComposite = (f: DatastoreField) => f.type === 'object' || f.type === 'list'
-const titleF = computed(() => byRole('title')[0])
+// ⚠️ Le titre NE passe PAS par `byRole` : le serveur le nomme désormais par
+// `display`. Les autres rendus restent des rôles — ce sont des conventions de
+// consommateur, et le dashboard en est un.
+const titleF = computed(() => champTitre(fields.value) ?? undefined)
 const badgeF = computed(() => byRole('badge').filter((f) => !isComposite(f)))
 const metricF = computed(() => byRole('metric'))
 const statusF = computed(() => byRole('status')[0])

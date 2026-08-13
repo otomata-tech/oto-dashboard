@@ -35,6 +35,7 @@ import { humanize } from '@/lib/errors'
 import { rowsToCsv, downloadCsv } from '@/lib/csv'
 import { filtersFromParam, filtersToParam } from '@/lib/datastoreFilters'
 import type { LifecycleIntent } from '@/lib/datastoreLifecycle'
+import { cleTitre } from '../../lib/datastoreTitle'
 
 const props = defineProps<{
   // Réf du namespace (id BIGSERIAL en texte, ou nom) — le lien projet porte le nom.
@@ -156,8 +157,7 @@ async function fetchMetricTiles() {
 
 // ── file de travail (ADR 0046 D) : rows sous bail + libération forcée.
 const queueRows = ref<DatastoreRow[]>([])
-const titleFieldKey = computed(() =>
-  (meta.value?.schema?.fields ?? []).find((f) => f.role === 'title')?.key ?? null)
+const titleFieldKey = computed(() => cleTitre(meta.value?.schema?.fields))
 async function fetchQueue() {
   const n = name.value
   if (!n) { queueRows.value = []; return }
