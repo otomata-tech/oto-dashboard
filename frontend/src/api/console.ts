@@ -287,6 +287,50 @@ export const enqueueRunContinue = (runId: string) =>
     body: JSON.stringify({ op: 'enqueue', kind: 'continue', run_id: runId }),
   })
 
+// ── Surveillance des agents (page Automatisations) ──────────────────────────
+// La file d'exécution du runner (jobs) + les déclencheurs programmés. Lecture
+// org-scopée ; le fil d'un run se lit par getRunThread (même capacité R1).
+export interface RunnerJob {
+  id: number
+  kind: 'start' | 'continue'
+  run_id: string | null
+  payload: Record<string, unknown> | null
+  status: 'pending' | 'claimed' | 'done' | 'failed'
+  attempts: number
+  max_attempts: number
+  claimed_by: string | null
+  last_error: string | null
+  result: { usage_tokens?: number; stopped?: string; steps?: number } | null
+  due_at: string | null
+  created_at: string | null
+  finished_at: string | null
+}
+export const listRunnerJobs = (status?: RunnerJob['status'], limit = 50) =>
+  api<{ jobs: RunnerJob[] }>('/api/me/runner/jobs', {
+    method: 'POST', ...j({ op: 'list', status, limit }),
+  })
+
+export interface RunnerTrigger {
+  id: number
+  procedure: string
+  cron: string
+  tz: string
+  tools: string[]
+  project_id: number | null
+  label: string | null
+  enabled: boolean
+  next_due: string | null
+  max_steps: number | null
+}
+export const listRunnerTriggers = () =>
+  api<{ triggers: RunnerTrigger[] }>('/api/me/runner/triggers', {
+    method: 'POST', ...j({ op: 'list' }),
+  })
+export const setRunnerTriggerEnabled = (id: number, enabled: boolean) =>
+  api<{ trigger: RunnerTrigger }>('/api/me/runner/triggers', {
+    method: 'POST', ...j({ op: 'update', trigger_id: id, enabled }),
+  })
+
 // « Reprendre dans Claude » — blob copier-coller qui pré-écrit oto_use_project (B5b).
 export const projectHandoff = (id: number) =>
   projectsApi<{ id: number; markdown: string }>({ op: 'handoff', project_id: id })

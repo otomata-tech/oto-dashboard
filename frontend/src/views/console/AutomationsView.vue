@@ -14,6 +14,8 @@ import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Icon from '@/components/console/Icon.vue'
+import RunnerJobsCard from '@/components/console/RunnerJobsCard.vue'
+import RunnerTriggersCard from '@/components/console/RunnerTriggersCard.vue'
 import { getConnectorInstances, fireAutomation, type FireResult } from '@/api/console'
 import type { ConnectorInstance } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -67,6 +69,10 @@ onMounted(load)
 </script>
 
 <template>
+  <!-- Le poste de surveillance des agents : la file d'exécution d'abord (qui
+       tourne, qu'est-ce qui a échoué), les déclencheurs, puis les routines. -->
+  <RunnerJobsCard />
+  <RunnerTriggersCard />
   <ConsoleCard
     title="Automatisations"
     sub="Des routines Claude Code — un agent autonome qui tourne chez Anthropic avec tes outils oto branchés."
