@@ -14,6 +14,7 @@ import MarkdownView from '@/components/console/MarkdownView.vue'
 const MarkdownEditor = defineAsyncComponent(() => import('@/components/console/MarkdownEditor.vue'))
 import AttachmentViewer from '@/components/console/AttachmentViewer.vue'
 import DatastoreTable from '@/components/console/DatastoreTable.vue'
+import ProjectWorkQueues from './ProjectWorkQueues.vue'
 import { parseDocSegments } from '@/lib/docEmbeds'
 import {
   updateDoc, deleteDoc, setDocPublic, getDocRevisions, getBacklinks,
@@ -50,6 +51,7 @@ const props = defineProps<{
   brief?: string | null
   readOnly?: boolean
   docTitleMap?: Record<string, number>   // casefold(titre)→id (résolution [[…]], Ship 4)
+  tableNamespaces?: string[]             // namespaces des liens tableau (bloc files de travail, home)
 }>()
 const emit = defineEmits<{
   'save-brief': [string]
@@ -487,6 +489,11 @@ async function removeFile() {
               </template>
             </template>
             <p v-else class="dim vw__novalue">{{ readOnly ? 'aucun contenu.' : (isHome ? 'aucun brief — clique « éditer » pour le rédiger.' : 'page vide — clique « éditer ».') }}</p>
+
+            <!-- Files de travail (home) : supervision dérivée des tableaux liés à
+                 cycle de vie — se rend seulement s'il y en a. -->
+            <ProjectWorkQueues v-if="isHome && tableNamespaces?.length"
+              :namespaces="tableNamespaces" :project-id="projectId" />
           </div>
 
           <!-- actions secondaires page (doc) -->
