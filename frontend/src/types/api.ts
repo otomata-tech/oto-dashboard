@@ -877,17 +877,25 @@ export interface AccountGrant {
 }
 
 // Siège de la clé plateforme unipile : un compte de l'instance partagée + son
-// propriétaire oto (orphan = présent sur l'instance, mappé à aucun user).
+// propriétaire oto. Un siège se paie tant qu'il EXISTE chez unipile — se déconnecter
+// côté oto ne le rend pas, d'où trois états distincts et non deux :
+//   bound        = binding vivant, en service (ne pas libérer)
+//   disconnected = plus que des bindings morts ; on sait encore à qui il est
+//   orphan       = aucune ligne, personne ne le réclame
 export interface UnipileSeat {
   account_id: string
   name: string | null
-  type: string | null
+  type: string | null          // = provider (compat : valait null depuis la bascule v2)
+  provider: string | null
   status: string
+  created_at?: string | null
   owner_sub: string | null
   owner_email: string | null
   org_id: number | null
   org_name: string | null
-  orphan: boolean
+  disconnected_at: string | null
+  state: 'bound' | 'disconnected' | 'orphan'
+  orphan: boolean              // = state === 'orphan'
 }
 
 // ── orgs ──

@@ -169,8 +169,15 @@ export const revokeAccountAccess = (channel: string, grantee: string) =>
 
 // ── admin : sièges de la clé plateforme unipile (réconciliation owners) ──
 export const getUnipilePlatformSeats = () =>
-  api<{ configured: boolean; instance_dsn: string | null; seats: UnipileSeat[]; orphan_count: number }>(
-    '/api/admin/unipile/seats')
+  api<{
+    configured: boolean; instance_dsn: string | null; seats: UnipileSeat[]
+    orphan_count: number; reclaimable_count: number
+  }>('/api/admin/unipile/seats')
+/** Libère un siège : supprime le compte chez unipile, donc arrête de le payer.
+ *  IRRÉVERSIBLE. Le backend refuse (409 seat_in_use) un siège encore en service. */
+export const releaseUnipileSeat = (accountId: string) =>
+  api<{ ok: boolean; account_id: string; was: string }>(
+    `/api/admin/unipile/seats/${encodeURIComponent(accountId)}`, { method: 'DELETE' })
 
 // ── cli tokens ──
 export const getTokens = () => api<{ tokens: ApiToken[] }>('/api/me/tokens')
