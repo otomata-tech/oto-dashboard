@@ -3,7 +3,7 @@
 // échoué, combien ça coûte », grain ORDONNANCEUR. Le grain donnée (lignes sous
 // bail, états) vit sur la home projet et la page tableau ; ici c'est la file
 // de jobs elle-même, avec le fil d'un run dépliable au clic.
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import ConsoleCard from './ConsoleCard.vue'
 import Btn from './Btn.vue'
 import Tag from './Tag.vue'
@@ -11,6 +11,7 @@ import { getRunThread, listRunnerJobs } from '@/api/console'
 import type { RunnerJob, RunThreadMessage } from '@/api/console'
 import { humanize } from '@/lib/errors'
 import { absDate } from '@/lib/cellRender'
+import { useMe } from '@/composables/useMe'
 
 const jobs = ref<RunnerJob[]>([])
 const loaded = ref(false)
@@ -74,7 +75,22 @@ function procOf(j: RunnerJob): string {
   return String(j.payload?.procedure ?? (j.kind === 'continue' ? 'reprise de fil' : '?'))
 }
 
-onMounted(load)
+// Le `claimed_by` est le SUB du compte du worker (V1 : un worker = ton jeton) —
+// un identifiant opaque ne se montre pas brut, il se traduit.
+const { me } = useMe()
+function workerLabel(j: RunnerJob): string | null {
+  if (!j.claimed_by) return null
+  return j.claimed_by === me.value?.sub ? 'ton compte' : `${j.claimed_by.slice(0, 8)}…`
+}
+
+// Rafraîchissement léger tant que la page est ouverte : un job « en cours »
+// figé à l'écran après sa conclusion fait douter de la surveillance elle-même.
+let tick: ReturnType<typeof setInterval> | null = null
+onMounted(() => {
+  void load()
+  tick = setInterval(() => { void load() }, 30_000)
+})
+onBeforeUnmount(() => { if (tick) clearInterval(tick) })
 defineExpose({ load })
 </script>
 
@@ -103,7 +119,8 @@ defineExpose({ load })
             <span class="rj-id">#{{ jb.id }}</span>
             <Tag :tone="TONE[jb.status]">{{ LIBELLE[jb.status] }}</Tag>
             <span class="rj-proc">{{ procOf(jb) }}</span>
-            <span v-if="jb.claimed_by" class="rj-worker">{{ jb.claimed_by }}</span>
+            <span v-if="workerLabel(jb)" class="rj-worker" :title="jb.claimed_by ?? ''">
+              worker : {{ workerLabel(jb) }}</span>
             <span v-if="jb.result?.usage_tokens" class="rj-cost">
               {{ Math.round(jb.result.usage_tokens / 1000) }}k jetons</span>
             <span class="rj-date">{{ absDate(String(jb.finished_at ?? jb.created_at ?? '')) }}</span>
