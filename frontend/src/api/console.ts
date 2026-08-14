@@ -213,7 +213,11 @@ export const setProfile = (fields: Record<string, string>) =>
 // ── Projets (couche d'organisation, ADR 0030) — capacité op-aware oto_project ──
 const projectsApi = <T>(body: Record<string, unknown>) =>
   api<T>('/api/me/projects', { method: 'POST', ...j(body) })
-export const listProjects = () => projectsApi<{ projects: Project[] }>({ op: 'list' })
+// `fields: ['*']` = les fiches ENTIÈRES. Le défaut serveur est une vue de tri (noms +
+// `brief_length`, sans les briefs) : elle existe pour un agent, dont la fenêtre de contexte
+// est la ressource rare. Un navigateur n'a pas ce problème et REND le brief (extrait de
+// carte, page projet) — il demande donc explicitement le brut.
+export const listProjects = () => projectsApi<{ projects: Project[] }>({ op: 'list', fields: ['*'] })
 // Base de connaissance d'org = zone Documents — résout/crée le projet KB.
 export const getKbProject = () =>
   api<{ project_id: number; name: string; brief_md: string }>('/api/me/kb', { method: 'POST', ...j({ op: 'get' }) })
@@ -315,7 +319,11 @@ export const setProjectFilePublic = (id: number, fileId: number, isPublic: boole
 // Docs (incrément 3) — pages markdown d'un projet, op-aware oto_doc
 const docsApi = <T>(body: Record<string, unknown>) =>
   api<T>('/api/me/docs', { method: 'POST', ...j(body) })
-export const listDocs = (project_id: number) => docsApi<{ project_id: number; docs: Doc[] }>({ op: 'list', project_id })
+// `fields: ['*']` = les pages ENTIÈRES — le viewer rend `body_md` depuis cette liste, sans
+// re-fetch par page. Le défaut serveur est l'INDEX (titres + `body_length`) : une liste de
+// 37 pages pesait 201 K caractères et dépassait le plafond d'un tool result côté agent.
+export const listDocs = (project_id: number) =>
+  docsApi<{ project_id: number; docs: Doc[] }>({ op: 'list', project_id, fields: ['*'] })
 export const getDoc = (doc_id: number) => docsApi<Doc>({ op: 'get', doc_id })
 export const createDoc = (project_id: number, title: string,
   opts?: { parent_id?: number | null; body_md?: string; kind?: DocKind }) =>
