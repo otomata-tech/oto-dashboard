@@ -204,6 +204,21 @@ op-aware, `POST /api/resources`). **Plan gouvernance only** — jamais le conten
 sans réécriture. Réutilise `DataTable`/conventions admin existantes (pas de framework admin tiers,
 TanStack présent mais inutilisé).
 
+**Suivi des tenants (ADR 0052).** `/platform/tenants` (`AdminTenantsView`) = l'étage
+d'identité AU-DESSUS des orgs : un tenant porte un émetteur dédié, des domaines, des orgs,
+des comptes. Une ligne par tenant déclaré (`getAdminTenants(days)` → `/api/admin/tenants`),
+fiche dépliée en place via deep-link `?tenant=<slug>` (`getAdminTenant`), fenêtre `?win=`
+7/30/90 j. **Lecture seule, par construction** : déclarer un tenant est un runbook de
+provisionnement côté backend (instance d'annuaire + client OAuth + hosts) et le registre
+d'émetteurs y est bâti AU BOOT — d'où le verdict **« redémarrage requis »** (déclaré en base,
+absent du registre ⟹ ses jetons sont encore rejetés) plutôt qu'un formulaire. Le verdict vit
+dans **`lib/tenantVerdict.ts`** (testé, patron `connectorVerdict`) : une erreur n'y casse
+aucun rendu, elle fait dire au tableau qu'un partenaire est servi. ⚠️ Les colonnes « orgs »
+et « comptes » viennent de DEUX sources indépendantes côté backend (rattachement d'org vs
+qualification du sub) — l'écart est la colonne « écarts », et la fiche en donne la liste
+nominative. `CopyField` gagne un `label` optionnel + la classe `.copystack` (console.css)
+pour les fiches techniques qui alignent plusieurs valeurs copiables.
+
 ## Fédération MCP (otomata#16)
 
 `ConnectorsView.vue` porte la carte « federated mcp » (connect/disconnect d'un compte

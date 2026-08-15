@@ -15,6 +15,7 @@ import type {
   InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
   EmailSettingsBundle, EmailSender, QuietHours, ScheduledEmail,
+  TenantRow, TenantTotals, TenantSheet,
 } from '@/types/api'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
@@ -832,6 +833,17 @@ export const getPlatformAccess = (provider: string) =>
   api<PlatformAccess>(`/api/admin/connectors/${encodeURIComponent(provider)}/platform-access`)
 export const setPlatformAccess = (provider: string, scope: 'org' | 'user', id: string, on: boolean) =>
   api(`/api/admin/connectors/${encodeURIComponent(provider)}/platform-access`, { method: 'POST', ...j({ scope, id, on }) })
+
+// ── admin tenants (étage d'identité, ADR 0052) — suivi, LECTURE SEULE ──
+// Pas de POST/PUT ici, et ce n'est pas un oubli : déclarer un tenant est un runbook
+// de provisioning (instance Logto dédiée + client OAuth + hosts) et le registre
+// d'émetteurs du backend est construit AU BOOT.
+export const getAdminTenants = (days = 30) =>
+  api<{ tenants: TenantRow[]; days: number; totals: TenantTotals }>(
+    `/api/admin/tenants?days=${days}`)
+export const getAdminTenant = (slug: string, days = 30) =>
+  api<{ tenant: TenantSheet; days: number }>(
+    `/api/admin/tenants/${encodeURIComponent(slug)}?days=${days}`)
 
 // ── admin orgs (cross-org governance) ──
 export const getAdminOrgs = () => api<{ orgs: AdminOrgSummary[] }>('/api/admin/orgs')

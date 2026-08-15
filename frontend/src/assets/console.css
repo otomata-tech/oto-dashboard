@@ -405,6 +405,10 @@ select.inp.sm { padding-right: 22px; background-position: right 6px center; back
   background: var(--color-hair-soft); padding: 7px 8px 7px 12px;
 }
 .copyfield code { background: none; border: 0; padding: 0; font-size: 12px; color: var(--color-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+/* Pile de champs copiables LABELLISÉS (fiche technique : émetteur, jwks, client
+   oauth…). Un champ isolé se lit seul ; dès qu'une carte en aligne plusieurs, ils
+   ont besoin d'un pas régulier — ici, pas dans la vue. */
+.copystack { display: flex; flex-direction: column; gap: 10px; }
 
 /* ════ bars, sparks, quota ════ */
 .quota { display: flex; flex-direction: column; gap: 4px; }

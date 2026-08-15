@@ -1111,6 +1111,78 @@ export interface AdminOrgSummary {
   logo_url: string | null   // logo effectif (upload > logo.dev du domaine), null si absent
   domain: string | null
 }
+
+// ── Tenants (étage d'identité, ADR 0052) — suivi plateforme, LECTURE SEULE ──
+// Un tenant porte un émetteur (son Logto dédié), des hosts, des orgs. Déclarer un
+// tenant est un runbook de provisioning côté backend : cet écran ne l'édite pas.
+// ⚠️ `orgs` et `comptes` viennent de DEUX sources différentes qui peuvent diverger
+// (`orgs.tenant_id` vs la qualification du sub) — `orgs_desalignees` mesure l'écart.
+export interface TenantRow {
+  id: number
+  slug: string
+  name: string
+  created_at: string | null
+  // Configuration d'annuaire (aucun secret : la table n'en porte pas).
+  issuer: string | null
+  jwks_uri: string | null
+  hosts: string[]
+  oauth_client_id: string | null
+  dashboard_url: string | null
+  link_paths: Record<string, string>
+  primary: boolean              // le tenant `oto` : son émetteur vient de l'env
+  issuer_source: 'env' | 'db' | null
+  authenticates: boolean        // un émetteur est déclaré
+  loaded: boolean               // présent dans le registre du process (bâti au boot)
+  pending_restart: boolean      // déclaré MAIS pas chargé ⟹ ses jetons sont rejetés
+  live_hosts: string[]          // hosts effectivement servis par le process
+  orgs: number
+  orgs_archivees: number
+  comptes: number
+  comptes_actifs: number
+  appels: number
+  dernier_compte_at: string | null
+  last_seen_at: string | null
+  orgs_desalignees: number
+}
+export interface TenantTotals {
+  tenants: number
+  orgs: number
+  comptes: number
+  comptes_actifs: number
+  appels: number
+}
+export interface TenantOrgRow {
+  id: number
+  name: string
+  created_at: string | null
+  archived_at: string | null
+  personal: boolean
+  front_base_url: string | null
+  front_brand: string | null
+  membres: number
+}
+export interface TenantAccountRow {
+  sub: string
+  email: string | null
+  name: string | null
+  role: Role
+  created_at: string | null
+  appels: number
+  last_seen_at: string | null
+}
+export interface TenantMisalignedOrg {
+  id: number
+  name: string
+  created_by: string | null
+  tenant_du_createur: string
+}
+// La fiche = la ligne + les listes qui expliquent ses compteurs (bornées à 50 côté
+// backend : une fiche rend son index, pas la population).
+export interface TenantSheet extends TenantRow {
+  orgs_recentes: TenantOrgRow[]
+  comptes_recents: TenantAccountRow[]
+  orgs_desalignees_detail: TenantMisalignedOrg[]
+}
 // ADR 0044 §F : instance scope PLATFORM du coffre (identité = provider+label, plus d'id/secret).
 export interface PlatformKey {
   provider: string

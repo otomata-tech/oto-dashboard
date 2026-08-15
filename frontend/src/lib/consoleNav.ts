@@ -100,6 +100,9 @@ export const NAV: NavGroup[] = [
     { path: '/platform/monitoring', label: 'nav.monitoring', icon: 'chart' },
     { path: '/platform/users', label: 'nav.usersGrants', icon: 'shield' },
     { path: '/platform/orgs', label: 'nav.orgs', icon: 'building' },
+    // Étage d'identité au-dessus des orgs (ADR 0052) — suivi seul : qui est servi,
+    // sous quel émetteur, avec quelle empreinte. Le provisionnement reste un runbook.
+    { path: '/platform/tenants', label: 'nav.tenants', icon: 'shield' },
     { path: '/platform/objects', label: 'nav.objects', icon: 'db' },
     { path: '/platform/connectors', label: 'nav.connectorsKeys', icon: 'plug' },
   ]},
@@ -144,6 +147,7 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/platform/monitoring': { title: 'pageMeta.platformMonitoring.title', crumb: 'pageMeta.platformMonitoring.crumb' },
   '/platform/users': { title: 'pageMeta.platformUsers.title', crumb: 'pageMeta.platformUsers.crumb' },
   '/platform/orgs': { title: 'pageMeta.platformOrgs.title', crumb: 'pageMeta.platformOrgs.crumb' },
+  '/platform/tenants': { title: 'pageMeta.platformTenants.title', crumb: 'pageMeta.platformTenants.crumb' },
   '/platform/objects': { title: 'pageMeta.platformObjects.title', crumb: 'pageMeta.platformObjects.crumb' },
   '/platform/connectors': { title: 'pageMeta.platformConnectors.title', crumb: 'pageMeta.platformConnectors.crumb' },
 }

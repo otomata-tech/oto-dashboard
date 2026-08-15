@@ -55,6 +55,7 @@ const VIEWS: Record<string, Component> = {
   '/platform/monitoring': defineAsyncComponent(() => import('./MonitoringView.vue')),
   '/platform/users': defineAsyncComponent(() => import('./AdminUsersView.vue')),
   '/platform/orgs': defineAsyncComponent(() => import('./AdminOrgsView.vue')),
+  '/platform/tenants': defineAsyncComponent(() => import('./AdminTenantsView.vue')),
   '/platform/objects': defineAsyncComponent(() => import('./AdminObjectsView.vue')),
   '/platform/connectors': defineAsyncComponent(() => import('./AdminConnectorsView.vue')),
 }
