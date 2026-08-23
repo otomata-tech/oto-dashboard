@@ -10,7 +10,10 @@
 // de provisioning (instance Logto dédiée + client OAuth + hosts sur le proxy) et le
 // registre backend est construit AU BOOT : un formulaire ici laisserait croire qu'une
 // ligne en base suffit. D'où, à la place, le verdict `pending_restart` — déclaré mais
-// pas chargé, donc ses jetons sont encore rejetés.
+// pas chargé, donc ses jetons sont encore rejetés. **La seule écriture est le bouton
+// « Recharger le registre »** (super_admin, 23/08) : il n'écrit rien en base, il fait
+// relire les déclarations au process — c'est la moitié « prise d'effet » du runbook,
+// et ce qui éteint le verdict sans fenêtre de redémarrage.
 //
 // ⚠️ Les colonnes « orgs » et « comptes » viennent de DEUX sources indépendantes
 // (`orgs.tenant_id` d'un côté, la qualification du sub de l'autre) que rien ne tient
@@ -25,7 +28,8 @@ import Icon from '@/components/console/Icon.vue'
 import StateError from '@/components/console/StateError.vue'
 import CopyField from '@/components/console/CopyField.vue'
 import { useDeepLink } from '@/composables/useDeepLink'
-import { getAdminTenants, getAdminTenant } from '@/api/console'
+import { getAdminTenants, getAdminTenant, reloadTenantRegistry } from '@/api/console'
+import { useMe, isSuperAdmin } from '@/composables/useMe'
 import type { TenantRow, TenantSheet, TenantTotals } from '@/types/api'
 import { fmtDate, fmtDateTime } from '@/types/api'
 import { tenantVerdict as verdict, needsAttention } from '@/lib/tenantVerdict'
@@ -89,6 +93,26 @@ function setWin(w: number) {
   if (sheet.value) void openSheet(sheet.value.slug, false)
 }
 
+// ── reload du registre (super_admin) — la moitié « prise d'effet » du runbook ──
+// Le backend relit la table `tenants` et swappe le registre d'émetteurs du process
+// à chaud : c'est ce qui éteint le verdict « redémarrage requis ». Aucune écriture
+// en base — le provisionnement lui-même reste un runbook.
+const { me } = useMe()
+const canReload = computed(() => isSuperAdmin(me.value))
+const reloading = ref(false)
+const reloadError = ref<string | null>(null)
+
+async function reload() {
+  reloading.value = true
+  reloadError.value = null
+  try {
+    await reloadTenantRegistry()
+    await load()
+    if (sheet.value) await openSheet(sheet.value.slug, false)
+  } catch (e) { reloadError.value = humanize(e) }
+  finally { reloading.value = false }
+}
+
 onMounted(async () => {
   await load()
   const s = dlTenant.read()
@@ -115,7 +139,16 @@ onMounted(async () => {
       <!-- Ce qui demande une action : un tenant déclaré mais pas chargé (ses jetons
            sont rejetés), ou un écart entre les deux rattachements. -->
       <ConsoleCard v-if="alertes.length" title="à regarder"
-        sub="un tenant déclaré n'est servi qu'après un redémarrage du serveur ; un écart de rattachement ne se répare pas tout seul.">
+        sub="un tenant déclaré n'est servi que lorsque le serveur a rechargé son registre d'émetteurs ; un écart de rattachement ne se répare pas tout seul.">
+        <template v-if="canReload" #actions>
+          <Btn kind="mini" icon="refresh" :disabled="reloading" @click="reload"
+            title="fait relire les déclarations au serveur, sans redémarrage — c'est ce qui fait passer les jetons d'un tenant déclaré">
+            {{ reloading ? 'Rechargement…' : 'Recharger le registre' }}
+          </Btn>
+        </template>
+        <p v-if="reloadError" class="helptext" style="color: var(--color-terra-ink)">
+          {{ reloadError }}
+        </p>
         <div class="rowlist">
           <div v-for="t in alertes" :key="t.slug" class="rowitem">
             <div style="display: flex; align-items: center; gap: 9px; min-width: 0">

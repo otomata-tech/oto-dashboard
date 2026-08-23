@@ -834,16 +834,22 @@ export const getPlatformAccess = (provider: string) =>
 export const setPlatformAccess = (provider: string, scope: 'org' | 'user', id: string, on: boolean) =>
   api(`/api/admin/connectors/${encodeURIComponent(provider)}/platform-access`, { method: 'POST', ...j({ scope, id, on }) })
 
-// ── admin tenants (étage d'identité, ADR 0052) — suivi, LECTURE SEULE ──
-// Pas de POST/PUT ici, et ce n'est pas un oubli : déclarer un tenant est un runbook
-// de provisioning (instance Logto dédiée + client OAuth + hosts) et le registre
-// d'émetteurs du backend est construit AU BOOT.
+// ── admin tenants (étage d'identité, ADR 0052) — suivi ──
+// Déclarer un tenant reste un runbook de provisioning (instance Logto dédiée +
+// client OAuth + hosts) : aucun POST de création ici, et ce n'est pas un oubli.
+// La seule écriture est le RELOAD (super_admin) : il n'écrit rien en base, il fait
+// relire au process les déclarations du runbook — fin du verdict « redémarrage
+// requis » sans fenêtre de redémarrage. Par-process : recharger la preprod ne
+// recharge pas la prod.
 export const getAdminTenants = (days = 30) =>
   api<{ tenants: TenantRow[]; days: number; totals: TenantTotals }>(
     `/api/admin/tenants?days=${days}`)
 export const getAdminTenant = (slug: string, days = 30) =>
   api<{ tenant: TenantSheet; days: number }>(
     `/api/admin/tenants/${encodeURIComponent(slug)}?days=${days}`)
+export const reloadTenantRegistry = () =>
+  api<{ reloaded: boolean; tenants: string[]; issuers: number; verifier_updated: boolean }>(
+    '/api/admin/tenants/reload', { method: 'POST' })
 
 // ── admin orgs (cross-org governance) ──
 export const getAdminOrgs = () => api<{ orgs: AdminOrgSummary[] }>('/api/admin/orgs')
