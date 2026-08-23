@@ -1,0 +1,47 @@
+name: Tag release (poser un tag de version)
+
+# POURQUOI CE WORKFLOW (même motif que release.yml d'oto-backend et
+# tag-release.yml d'oto-core). La prod se déclenche sur un tag `v*` — ce qui
+# suppose un `git push` de tag depuis une machine autorisée. Une session Claude
+# Code cloud/web peut pousser sur main mais PAS pousser un tag (403). Ce
+# workflow pose le tag sur le HEAD de main via le GITHUB_TOKEN.
+#
+# ⚠️ Un tag créé avec le GITHUB_TOKEN ne déclenche AUCUN autre workflow (garde
+# anti-récursion GitHub) : « Deploy prod » ne partira PAS tout seul sur ce tag.
+# Après ce workflow, déclencher « Deploy prod » (deploy.yml) en
+# workflow_dispatch avec le même tag en input — c'est l'étape 2, explicite.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Tag à poser sur le HEAD de main (ex: v1.41.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: main
+      - name: Vérifier le format
+        env:
+          DEMANDEE: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          case "$DEMANDEE" in
+            v[0-9]*.[0-9]*.[0-9]*) : ;;
+            *) echo "::error::version invalide '$DEMANDEE' (attendu vX.Y.Z)"; exit 1 ;;
+          esac
+      - name: Poser le tag
+        env:
+          DEMANDEE: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$DEMANDEE"
+          git push origin "refs/tags/$DEMANDEE"
