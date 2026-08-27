@@ -1,5 +1,38 @@
-// Contrats REST oto-backend (mcp.oto.ninja) consommés par le dashboard.
-// Reflètent les handlers de oto-mcp (api_routes*.py) + l'ancien account/src/types.
+// Contrats REST d'oto-backend consommés par le dashboard.
+//
+// ── D'OÙ VIENNENT CES TYPES ─────────────────────────────────────────────────────
+// Ils ne se recopient plus à la main. Ils se DÉRIVENT du document OpenAPI que
+// oto-backend produit depuis son registre de capacités — snapshot dans
+// `openapi/oto-openapi.json`, types dans `api.generated.ts` (`npm run api:gen`).
+// Un type d'écran est ici un ALIAS nommé vers un schéma généré : le nom reste
+// lisible à l'appel, la FORME vient du serveur. Deux formes d'alias :
+//
+//   components['schemas']['X'] — schéma nommé du document (partagé par plusieurs
+//                                opérations) ;
+//   ApiOut<'operation_id'>     — réponse 200 d'une opération, quand le backend
+//                                décrit la forme sans lui donner de nom global.
+//
+// Reste écrit à la main UNIQUEMENT ce que le document ne décrit pas — chaque bloc
+// concerné porte la raison. Les trois raisons, aujourd'hui :
+//   · `/api/admin/*` est HORS du document servi (préfixe admin exclu) — tout l'écran
+//     plateforme est donc à la main, et le restera tant que le backend n'expose pas
+//     ces opérations ;
+//   · la capacité ne déclare pas son `Output` (dette côté backend) ;
+//   · le contrat servi est plus LÂCHE que ce que l'écran suppose (champ déclaré
+//     optionnel/nullable, ou `str` là où le domaine est un ensemble fermé) : adopter
+//     le type généré tel quel dégraderait l'écran au lieu de le corriger.
+//
+// Pour rapatrier un type dans le généré : corriger l'`Output` côté oto-backend,
+// puis `npm run api:refresh` ici.
+
+import type { components, operations } from './api.generated'
+
+/** La réponse 200 (application/json) d'une opération du document OpenAPI. */
+export type ApiOut<K extends keyof operations> = operations[K]['responses'] extends {
+  200: { content: { 'application/json': infer T } }
+}
+  ? T
+  : never
 
 // Paliers de rôle plateforme (3 crans, ADR rôles) :
 //   super_admin > admin (opérateur) > member.
@@ -41,6 +74,8 @@ export interface AuthDescriptor {
   account_noun?: string
   fields: CredentialField[]
 }
+// ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (GET /api/connectors) : sa
+//    réponse est un `200 OK` nu dans le document.
 export interface ConnectorMeta {
   name: string
   label: string
@@ -70,6 +105,9 @@ export interface ConnectorMeta {
 // `pending:true` = credential ENREGISTRÉ mais volontairement incomplet (connexion en
 // deux temps : l'app est posée, le consentement se donne sur la fiche). Ce n'est PAS
 // une erreur de saisie — le formulaire doit se fermer, pas retenir l'utilisateur.
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`VerifyResult` :
+//    error et pending déclarés nullables ; `level` énuméré côté contrat, `str` ici). Le
+//    correctif est côté oto-backend — resserrer l'`Output` — puis `npm run api:refresh` ici.
 export interface VerifyResult {
   ok: boolean
   provider: string
@@ -136,6 +174,9 @@ export interface ZohoOauthModes {
 
 // Instance de connecteur (ADR 0038 §B / 0044) — projection lecture du coffre :
 // une config possédée à un niveau (member/group/org/platform). Métadonnées seulement.
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`ConnectorInstance` :
+//    account: déclaré nullable ; suspended: déclaré nullable). Le correctif est côté oto-
+//    backend — resserrer l'`Output` — puis `npm run api:refresh` ici.
 export interface ConnectorInstance {
   ref: string                  // handle opaque stable (cible de pin)
   connector: string
@@ -152,33 +193,14 @@ export interface ConnectorInstance {
 
 // ── bibliothèque publique de doctrines (marketplace, library.*) ──
 // Métadonnées d'une entrée publiée (sans body ; `snippet` présent si recherche).
-export interface LibraryEntry {
-  id: number
-  slug: string
-  title: string
-  description: string
-  author_kind: 'otomata' | 'org'
-  author_org_id: number | null
-  author_display: string
-  category: string
-  tags: string[]
-  visibility: 'public' | 'unlisted'
-  version: number
-  created_at: string
-  updated_at: string
-  snippet?: string
-}
+export type LibraryEntry = components['schemas']['LibraryEntrySummary']
 // Entrée complète (avec le markdown), pour la preview.
-export interface LibraryDoctrine extends LibraryEntry {
-  body_md: string
-  source_org_id: number | null
-  source_slug: string | null
-  forked_from: number | null
-  published_by: string | null
-}
+export type LibraryDoctrine = ApiOut<'library_get_get'>
 
 // Cran d'activation des connecteurs (ADR 0010, admin). `enabled` null = jamais
 // posé → OFF (deny-by-default). `overrides` = exceptions par org.
+// ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (POST
+//    /api/admin/connectors/activation) : rien à dériver tant qu'il l'est.
 export interface ConnectorActivation {
   connector: string
   label: string
@@ -193,50 +215,20 @@ export interface ConnectorActivation {
 // ADR 0022). master_enabled = master plateforme (null = jamais posé = OFF) ;
 // org_enabled = override de l'org (null = pas d'override) ; effective = ce que voient
 // les membres (override > master > OFF) ; recommended = baseline default_connectors.
-export interface OrgConnectorActivation {
-  connector: string
-  label: string
-  help: string
-  namespaces: string[]
-  master_enabled: boolean | null
-  org_enabled: boolean | null
-  effective: boolean
-  recommended: boolean
-  paid_option?: string | null   // option de connecteur (couche 3, ADR 0024) ; null = pas d'option
-  subscribed?: boolean          // l'org a l'option débloquée (comp admin)
-}
+export type OrgConnectorActivation = components['schemas']['OrgActivationRow']
 
 // Activation de connecteur au grain ÉQUIPE (ADR 0012, restrict-only). L'équipe ne peut
 // que COUPER ce que l'org expose (jamais exposer au-delà). `effective` = org_available
 // ET pas coupé par l'équipe.
-export interface GroupConnectorActivation {
-  connector: string
-  label: string
-  help: string
-  namespaces: string[]
-  org_available: boolean
-  group_cut: boolean
-  effective: boolean
-}
+export type GroupConnectorActivation = components['schemas']['GroupActivationRow']
 
 // ACL connecteur au grain ÉQUIPE (ADR 0012 B2, restrict-only) : réserver un connecteur
 // à des MEMBRES de l'équipe. Intersection avec l'ACL d'org (narrowing pur).
-export interface GroupAclEntry {
-  connector: string
-  principal_sub: string
-  granted_by?: string | null
-  granted_at?: string
-}
+export type GroupAclEntry = components['schemas']['GroupAclEntry']
 
 // RBAC connecteur interne à l'org (ADR 0025) : une entrée = un principal (département
 // ou membre) autorisé sur un connecteur. ≥1 entrée pour un connecteur ⟹ il est réservé.
-export interface ConnectorAclEntry {
-  connector: string
-  principal_type: 'group' | 'user'
-  principal_id: string           // group_id (en texte) ou sub
-  granted_by?: string | null
-  granted_at?: string
-}
+export type ConnectorAclEntry = components['schemas']['AclEntry']
 
 // Miroir de access.py::status_for (cascade user > group > org > platform).
 export interface ProviderStatus {
@@ -303,6 +295,8 @@ export interface Me {
 // Scope d'une invitation (feature cascade) — DÉRIVÉ des cibles côté backend.
 export type InviteScopeKind = 'platform' | 'org' | 'team'
 
+// ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (GET /api/invitations/code/{},
+//    GET /api/invitations/{}) : sa réponse est un `200 OK` nu dans le document.
 export interface InvitePreview {
   email: string | null
   inviter: string | null
@@ -312,13 +306,7 @@ export interface InvitePreview {
 }
 
 // Résultat d'une émission d'invitation d'org.
-export interface InviteResult {
-  ok: boolean
-  email: string | null
-  code: string
-  invite_url: string
-  emailed: boolean
-}
+export type InviteResult = ApiOut<'group_invite_create_post'>
 
 // ── tools ──
 export interface ToolEntry {
@@ -332,6 +320,8 @@ export interface ToolEntry {
 }
 // Entrée du registre résolu (ADR 0014). `source` = native (in-process oto) ou
 // federated (MCP tiers monté) ; `mcp` = nom du connecteur fédéré le cas échéant.
+// ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (GET /api/me/tools/registry) :
+//    sa réponse est un `200 OK` nu dans le document.
 export interface ToolRegistryEntry {
   name: string
   description: string
@@ -356,6 +346,8 @@ export interface ToolInputSchema {
 }
 // Fiche détaillée d'un outil (`GET /api/me/tools/{name}/detail`) : description
 // complète + schémas + connecteur + état perso + testabilité (bouton « tester »).
+// ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (GET /api/me/tools/{}/detail) :
+//    sa réponse est un `200 OK` nu dans le document.
 export interface ToolDetail {
   name: string
   description: string
@@ -373,6 +365,8 @@ export interface ToolDetail {
 }
 // Résultat d'un test d'outil (`POST /api/me/tools/{name}/call`). L'erreur de
 // l'outil est renvoyée EN DONNÉE (`ok:false`) — la voir EST le but du test.
+// ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (POST /api/me/tools/{}/call) :
+//    sa réponse est un `200 OK` nu dans le document.
 export interface ToolCallResult {
   ok: boolean
   name: string
@@ -381,12 +375,7 @@ export interface ToolCallResult {
   elapsed_ms?: number
 }
 // Usage d'une doctrine : nb de chargements par l'agent, appelants, série 30j.
-export interface InstructionUsage {
-  slug: string
-  count: number
-  callers: string[]
-  series: number[]
-}
+export type InstructionUsage = ApiOut<'org_instruction_usage_get'>
 // ── agent readme (niveau USER) — prose injectée à chaque session (cumulable) ──
 // Readme INJECTÉ d'un scope (guide delivery='init', ADR 0042) — la prose que l'agent
 // reçoit au handshake. Les quatre niveaux partagent cette forme.
@@ -401,6 +390,10 @@ export interface InitGuide {
 
 // ── guides on-demand (ADR 0042) : how-to chargés par l'agent via oto_guide ──
 export type GuideScope = 'platform' | 'org' | 'group' | 'user'
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`GuideRef` : scope:
+//    `str` là où l'écran a un ensemble fermé (group|org|platform|user) ; title: déclaré
+//    optionnel ; description: déclaré optionnel ; body_md: absent du contrat). Le correctif
+//    est côté oto-backend — resserrer l'`Output` — puis `npm run api:refresh` ici.
 export interface Guide {
   slug: string
   scope: GuideScope
@@ -410,6 +403,11 @@ export interface Guide {
 }
 
 // ── procédures / instructions ──
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran
+//    (`GroupInstructionIndexEntry` : title: déclaré optionnel ; title: déclaré nullable ;
+//    description: déclaré optionnel ; description: déclaré nullable ; updated_at: déclaré
+//    optionnel). Le correctif est côté oto-backend — resserrer l'`Output` — puis `npm run
+//    api:refresh` ici.
 export interface InstructionMeta {
   id: number
   slug: string
@@ -418,17 +416,18 @@ export interface InstructionMeta {
   version: number
   updated_at: string | null
 }
+// ⚠️ ÉCRIT À LA MAIN — les DEUX vues du même objet n'ont pas la même forme :
+//    `InstructionView` (org) porte `slots` et pas `id`, `GroupInstructionView` (équipe)
+//    porte `id` et pas `slots`. Aucun des deux n'est un sur-ensemble de ce que l'écran lit.
 export interface InstructionDetail extends InstructionMeta {
   body_md: string
   set_by: string | null
   created_at: string | null
 }
-export interface InstructionVersion {
-  version: number
-  title: string
-  set_by: string | null
-  created_at: string | null
-}
+export type InstructionVersion = components['schemas']['InstructionVersion']
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`InstructionsBundle` :
+//    org_id: déclaré optionnel ; org_name: déclaré optionnel). Le correctif est côté oto-
+//    backend — resserrer l'`Output` — puis `npm run api:refresh` ici.
 export interface DoctrineBundle {
   org_id: number | null
   org_name: string | null
@@ -448,26 +447,15 @@ export interface AgentDoctrine {
   doctrines: { slug: string; title: string; description: string; scope: string }[]
   referenced_tools: { name: string; description?: string }[]
 }
-export interface AgentToolNamespace {
-  namespace: string
-  visible: number
-  total: number
-}
-export interface AgentToolsView {
-  available: boolean
-  total_visible?: number
-  total_hidden?: number
-  namespaces?: AgentToolNamespace[]
-}
+export type AgentToolNamespace = components['schemas']['ToolsNamespace']
+export type AgentToolsView = components['schemas']['ToolsView']
 // Une couche de l'artefact injecté (backend `instructions.session_layers`) —
 // l'invariant : la concaténation "\n\n" des bodies == `instructions`.
-export interface ContextLayer {
-  key: 'platform' | 'catalog' | 'context' | 'profile' | 'org' | 'group' | 'user'
-  label: string
-  body: string
-  chars: number
-}
+export type ContextLayer = components['schemas']['ContextLayer']
 
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`AgentContextView` :
+//    org_id: déclaré optionnel). Le correctif est côté oto-backend — resserrer l'`Output` —
+//    puis `npm run api:refresh` ici.
 export interface AgentContext {
   org_id: number | null
   instructions: string
@@ -478,7 +466,10 @@ export interface AgentContext {
 
 // Fiche profil « situation avec oto » (GET/PUT /api/me/profile). Data model libre :
 // `profile` = clés/valeurs, `fields` = schéma suggéré (question/why) pour guider l'UI.
-export interface ProfileField { key: string; question: string; why: string }
+export type ProfileField = components['schemas']['ProfileField']
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`ProfileView` :
+//    updated_at: déclaré optionnel). Le correctif est côté oto-backend — resserrer
+//    l'`Output` — puis `npm run api:refresh` ici.
 export interface AccountProfile {
   profile: Record<string, string>
   updated_at: string | null
@@ -487,6 +478,9 @@ export interface AccountProfile {
 }
 
 // ── Blocs d'instructions plateforme A/B (#50) — édités par l'admin plateforme ──
+// ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (PUT
+//    /api/admin/platform-instructions, PUT /api/admin/platform-instructions/{}) : rien à
+//    dériver tant qu'il l'est.
 export interface PlatformInstrBlock {
   key: string                   // 'secret_sauce' (bloc A)
   body_md: string               // contenu effectif (override DB, ou le seed si jamais édité)
@@ -550,6 +544,9 @@ export interface Project {
 }
 // Fichier brut d'un projet — carte « Autre document » (ADR 0032 §3, B4a). Blob
 // durable en Object Storage ; `download_url` = lien signé expirant (jamais la clé S3).
+// ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (GET /api/me/projects/{}/files,
+//    POST /api/me/projects/{}/files/{}/public) : sa réponse est un `200 OK` nu dans le
+//    document.
 export interface ProjectFile {
   id: number
   filename: string
@@ -567,6 +564,12 @@ export type DocKind = 'doc' | 'note' | 'source'
 // Hit de la recherche transverse (lot 3 Ship 1) — deux familles : passages
 // (page/brief/procedure/guide, avec fragment surligné) et conteneurs
 // (tableau/fichier/connecteur, nom+description). `ref` dépend du kind.
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`SearchHit` : kind:
+//    `str` là où l'écran a un ensemble fermé
+//    (brief|connecteur|fichier|guide|page|procedure|tableau) ; project_id: déclaré nullable
+//    ; project_name: déclaré nullable ; matched_by: déclaré optionnel ; matched_by: déclaré
+//    nullable). Le correctif est côté oto-backend — resserrer l'`Output` — puis `npm run
+//    api:refresh` ici.
 export interface SearchHit {
   kind: 'page' | 'brief' | 'procedure' | 'guide' | 'tableau' | 'fichier' | 'connecteur'
   ref: number | string | { scope: string; slug: string }
@@ -580,28 +583,15 @@ export interface SearchHit {
 }
 
 // Inbox d'accueil (lot 3 Ship 3) — deux voies : À traiter (décision de moi) / Récent.
-export interface InboxReviewItem {
-  request_id: number
-  kind: 'create' | 'modif'
-  project_id: number | null
-  project_name?: string | null
-  doc_id?: number | null
-  doc_title?: string | null
-  proposed_title?: string | null
-  proposed_body_md?: string | null   // corps proposé (base du diff avant/après)
-  requested_by?: string | null
-  message?: string | null
-  created_at?: string | null
-}
+export type InboxReviewItem = components['schemas']['InboxProposal']
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`InboxInvitation` :
+//    code: déclaré nullable ; org_id: déclaré nullable). Le correctif est côté oto-backend
+//    — resserrer l'`Output` — puis `npm run api:refresh` ici.
 export interface InboxInvite { code?: string; org_id?: number; org_name?: string | null; invited_by?: string | null; created_at?: string | null }
-export interface InboxRecent {
-  type: 'proposal_resolved' | 'project_shared'
-  request_id?: number; status?: string
-  project_id?: number | null; project_name?: string | null
-  doc_id?: number | null; doc_title?: string | null; proposed_title?: string | null
-  resolved_by?: string | null; resolved_at?: string | null
-  permission?: string; granted_at?: string | null
-}
+export type InboxRecent = components['schemas']['InboxRecent']
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`InboxView` : ). Le
+//    correctif est côté oto-backend — resserrer l'`Output` — puis `npm run api:refresh`
+//    ici.
 export interface Inbox {
   to_review: InboxReviewItem[]
   invitations: InboxInvite[]
@@ -680,6 +670,8 @@ export interface GoogleOauthStatus {
   scopes: string[]
   accounts?: GoogleAccount[]
 }
+// ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (POST /api/me/tokens) : sa
+//    réponse est un `200 OK` nu dans le document.
 export interface ApiToken {
   id: number
   label: string
@@ -694,6 +686,11 @@ export interface FederatedStatus {
 }
 
 // Datastore (ADR 0016 + primitive d'ownership ADR 0030) — un namespace possédé ou partagé.
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`NamespaceEntry` :
+//    owner_type: déclaré nullable ; owner_type: `str` là où l'écran a un ensemble fermé
+//    (group|org|user) ; owner_id: déclaré nullable ; owner_sub: absent du contrat ;
+//    permission: déclaré nullable). Le correctif est côté oto-backend — resserrer
+//    l'`Output` — puis `npm run api:refresh` ici.
 export interface NamespaceEntry {
   id: number          // BIGSERIAL stable — handle de deeplink, survit au renommage
   namespace: string
@@ -753,6 +750,8 @@ export interface DatastoreSchema {
 }
 
 // Bénéficiaire d'un partage de ressource (vue propriétaire).
+// ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (POST /api/resources) : sa
+//    réponse est un `200 OK` nu dans le document.
 export interface NamespaceShare {
   email: string | null
   label?: string | null   // libellé résolu backend : email (user) / nom (org, équipe)
@@ -772,6 +771,8 @@ export interface SharePrincipal {
 }
 
 // Object-browser admin (ADR 0030) — une ressource possédée, plan gouvernance.
+// ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (POST /api/resources) : sa
+//    réponse est un `200 OK` nu dans le document.
 export interface ResourceEntry {
   resource_type: string
   resource_id: string
@@ -785,6 +786,8 @@ export interface ResourceEntry {
 
 // Une row du datastore : méta à plat (`_id`/`_created_at`/`_updated_at`) + champs
 // user arbitraires (schéma libre). Cf. datastore.py::_row_to_dict.
+// ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (POST
+//    /api/datastore/namespaces/{}/rows) : sa réponse est un `200 OK` nu dans le document.
 export interface DatastoreRow {
   _id: string
   _created_at?: string | null
@@ -837,6 +840,8 @@ export interface UnipileChannel {
   account_id: string | null
   connected_at: string | null
 }
+// ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (GET /api/me/unipile) : sa
+//    réponse est un `200 OK` nu dans le document.
 export interface UnipileStatus {
   subscribed: boolean       // option débloquée (BYO ou comp admin) — gate l'étape « connecter »
   mode?: string             // user|group|org|platform|over_quota|forbidden (origine de la clé)
@@ -849,17 +854,7 @@ export interface UnipileStatus {
 }
 
 // Identité connectée d'un connecteur (sélecteur générique, ADR 0024).
-export interface ConnectorIdentity {
-  id: string
-  label: string | null
-  status: string
-  is_default: boolean
-  channel: string | null    // canal (unipile : LINKEDIN/…) ; null hors multi-canal
-  granted?: boolean         // compte PARTAGÉ par son propriétaire (#55)
-  // owner.org/org_name = l'org sous laquelle le propriétaire a connecté ce compte
-  // (d'où vient le partage ; le grant lui-même n'est pas scopé à une org).
-  owner?: { sub: string; email?: string | null; name?: string | null; org?: number | null; org_name?: string | null } | null
-}
+export type ConnectorIdentity = components['schemas']['Identity']
 
 // Autorisation de compte connecteur partagé (#55) : le propriétaire accorde à un
 // user nommé (par email/sub, même hors de ses orgs) le droit d'OPÉRER son compte sur un canal.
@@ -887,6 +882,8 @@ export interface AccountGrant {
 //   bound        = binding vivant, en service (ne pas libérer)
 //   disconnected = plus que des bindings morts ; on sait encore à qui il est
 //   orphan       = aucune ligne, personne ne le réclame
+// ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (GET
+//    /api/admin/unipile/seats) : rien à dériver tant qu'il l'est.
 export interface UnipileSeat {
   account_id: string
   name: string | null
@@ -904,38 +901,17 @@ export interface UnipileSeat {
 }
 
 // ── orgs ──
-export interface Org {
-  id: number
-  name: string
-  description?: string | null
-  // logo EFFECTIF : upload sinon dérivé logo.dev du `domain` déclaré (backend).
-  logo_url?: string | null
-  logo_custom?: boolean      // true = un logo uploadé existe (gate « remove logo »)
-  domain?: string | null     // domaine de marque (acme.com) — pilote aussi le logo
-  industry?: string | null
-  location?: string | null
-  member_count?: number
-  my_role?: OrgRole
-  personal?: boolean   // espace perso : non supprimable
-}
-export interface OrgMember {
-  sub: string
-  email: string | null
-  name: string | null
-  avatar_url?: string | null
-  role: OrgRole
-  active: boolean
-}
-export interface OrgSecret {
-  provider: string
-  base_url?: string | null
-  set_at?: string | null
-  set_by?: string | null
-}
+export type Org = components['schemas']['OrgBrief']
+export type OrgMember = components['schemas']['OrgMemberEntry']
+export type OrgSecret = components['schemas']['OrgSecretEntry']
 export interface OrgEntitlement {
   namespace: string
   granted_at?: string | null
 }
+// ⚠️ ÉCRIT À LA MAIN — `entitlements` n'est PAS servi : `_org_detail` renvoie {org,
+//    members, secrets, option_comps, billing}. La carte « accès débloqués »
+//    d'OrgSettingsView en dépend et ne peut donc jamais s'afficher — à trancher côté
+//    backend (servir le champ) ou ici (retirer la carte), pas à masquer.
 export interface OrgDetail {
   org: Org
   members: OrgMember[]
@@ -983,6 +959,9 @@ export interface FieldFilterTemplate {
   hint?: string
   rules: FieldRule[]
 }
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`FieldFiltersView` :
+//    schemas: déclaré optionnel ; schemas: déclaré nullable). Le correctif est côté oto-
+//    backend — resserrer l'`Output` — puis `npm run api:refresh` ici.
 export interface FieldFiltersBundle {
   org_id: number
   filters: Record<string, FieldFilterBlock>   // service -> politique de l'org
@@ -994,6 +973,12 @@ export interface FieldFiltersBundle {
 
 // Invitation en attente, tous scopes (org/équipe/plateforme — feature cascade). Le
 // backend enrichit chaque ligne de son scope dérivé + noms d'org/équipe.
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`InvitationEntry` :
+//    email: déclaré optionnel ; org_role: déclaré optionnel ; org_role: déclaré nullable ;
+//    org_role: `str` là où l'écran a un ensemble fermé (org_admin|org_member) ; group_role:
+//    `str` là où l'écran a un ensemble fermé (group_admin|group_member) ; scope: `str` là
+//    où l'écran a un ensemble fermé (org|platform|team)). Le correctif est côté oto-backend
+//    — resserrer l'`Output` — puis `npm run api:refresh` ici.
 export interface OrgInvitation {
   id: number
   email: string | null
@@ -1021,15 +1006,11 @@ export interface GroupListItem {
   my_role: GroupRole | null
   active: boolean
 }
-export interface GroupBrief {
-  id: number
-  group_id: number
-  org_id: number
-  name: string
-  description: string
-  member_count: number
-  my_role: GroupRole | null
-}
+export type GroupBrief = components['schemas']['GroupBrief']
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`GroupMemberEntry` :
+//    email: déclaré optionnel ; name: déclaré optionnel ; role: `str` là où l'écran a un
+//    ensemble fermé (group_admin|group_member)). Le correctif est côté oto-backend —
+//    resserrer l'`Output` — puis `npm run api:refresh` ici.
 export interface GroupMember {
   sub: string
   email: string | null
@@ -1037,24 +1018,16 @@ export interface GroupMember {
   role: GroupRole
   active: boolean
 }
-export interface GroupSecret {
-  provider: string
-  base_url?: string | null
-  set_at?: string | null
-  set_by?: string | null
-}
+export type GroupSecret = components['schemas']['GroupSecretEntry']
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`GroupDetail` : ). Le
+//    correctif est côté oto-backend — resserrer l'`Output` — puis `npm run api:refresh`
+//    ici.
 export interface GroupDetail {
   group: GroupBrief
   members: GroupMember[]
   secrets: GroupSecret[]
 }
-export interface GroupInstructionsBundle {
-  group_id: number
-  doctrine: string
-  doctrine_version: number | null
-  instructions: InstructionMeta[]
-  can_edit: boolean
-}
+export type GroupInstructionsBundle = ApiOut<'group_instruction_list_get'>
 
 // ── admin ──
 export interface AdminGrant {
@@ -1062,6 +1035,8 @@ export interface AdminGrant {
   label: string
   daily_quota: number | null
 }
+// ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (POST
+//    /api/admin/users) : rien à dériver tant qu'il l'est.
 export interface AdminUser {
   sub: string
   email: string | null
@@ -1081,6 +1056,8 @@ export interface AdminUserOrg {
   is_active: boolean
   joined_at: string
 }
+// ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (POST
+//    /api/admin/users/{}) : rien à dériver tant qu'il l'est.
 export interface AdminUserDetail {
   sub: string
   email: string | null
@@ -1109,6 +1086,8 @@ export interface AdminUserUnipileOrg {
     org_comp: boolean
   } | null
 }
+// ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (POST
+//    /api/admin/orgs) : rien à dériver tant qu'il l'est.
 export interface AdminOrgSummary {
   id: number
   name: string
@@ -1122,6 +1101,8 @@ export interface AdminOrgSummary {
 // tenant est un runbook de provisioning côté backend : cet écran ne l'édite pas.
 // ⚠️ `orgs` et `comptes` viennent de DEUX sources différentes qui peuvent diverger
 // (`orgs.tenant_id` vs la qualification du sub) — `orgs_desalignees` mesure l'écart.
+// ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (GET
+//    /api/admin/tenants) : rien à dériver tant qu'il l'est.
 export interface TenantRow {
   id: number
   slug: string
@@ -1149,6 +1130,8 @@ export interface TenantRow {
   last_seen_at: string | null
   orgs_desalignees: number
 }
+// ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (GET
+//    /api/admin/tenants) : rien à dériver tant qu'il l'est.
 export interface TenantTotals {
   tenants: number
   orgs: number
@@ -1183,12 +1166,16 @@ export interface TenantMisalignedOrg {
 }
 // La fiche = la ligne + les listes qui expliquent ses compteurs (bornées à 50 côté
 // backend : une fiche rend son index, pas la population).
+// ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (POST
+//    /api/admin/tenants/{}) : rien à dériver tant qu'il l'est.
 export interface TenantSheet extends TenantRow {
   orgs_recentes: TenantOrgRow[]
   comptes_recents: TenantAccountRow[]
   orgs_desalignees_detail: TenantMisalignedOrg[]
 }
 // ADR 0044 §F : instance scope PLATFORM du coffre (identité = provider+label, plus d'id/secret).
+// ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (POST
+//    /api/admin/platform-keys) : rien à dériver tant qu'il l'est.
 export interface PlatformKey {
   provider: string
   label: string
@@ -1205,6 +1192,8 @@ export interface PlatformAccessBeneficiary {
   logo_url?: string | null   // org
   email?: string | null      // user
 }
+// ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (POST
+//    /api/admin/connectors/{}/platform-access) : rien à dériver tant qu'il l'est.
 export interface PlatformAccess {
   connector: string
   paid_option: string | null   // null = pas d'option payante
@@ -1214,6 +1203,12 @@ export interface PlatformAccess {
 }
 
 // ── monitoring ──
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`CallRow` : sub:
+//    déclaré optionnel ; email: déclaré optionnel ; name: déclaré optionnel ; tool_name:
+//    déclaré optionnel ; tool_name: déclaré nullable ; called_at: déclaré optionnel ;
+//    called_at: déclaré nullable ; duration_ms: déclaré optionnel ; ok: déclaré optionnel ;
+//    ok: déclaré nullable ; error: déclaré optionnel). Le correctif est côté oto-backend —
+//    resserrer l'`Output` — puis `npm run api:refresh` ici.
 export interface ToolCall {
   id: number
   sub: string | null
@@ -1234,6 +1229,8 @@ export interface ToolCall {
 }
 // Fiche d'UN appel (`GET /api/admin/monitoring/calls/{id}`) : la ligne complète,
 // args TRONQUÉS à l'écriture (jamais le payload intégral, garantie calllog).
+// ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (GET
+//    /api/admin/monitoring/calls/{}) : rien à dériver tant qu'il l'est.
 export interface ToolCallDetail {
   id: number
   kind: string
@@ -1254,13 +1251,7 @@ export interface ToolCallDetail {
   client_id: string | null
   sentry_event_id: string | null
 }
-export interface MonitoringToolStat {
-  tool_name: string
-  calls: number
-  errors: number
-  avg_ms: number | null
-  p95_ms?: number | null
-}
+export type MonitoringToolStat = components['schemas']['ToolStat']
 
 // ── lentilles par kind (ADR 0017, « un seul flux ») ──
 export interface MonitoringRouteStat {
@@ -1270,6 +1261,8 @@ export interface MonitoringRouteStat {
   avg_ms: number | null
   p95_ms: number | null
 }
+// ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (GET
+//    /api/admin/monitoring/rest) : rien à dériver tant qu'il l'est.
 export interface MonitoringRestStats {
   since_days: number
   total_calls: number
@@ -1277,17 +1270,10 @@ export interface MonitoringRestStats {
   active_users: number
   by_route: MonitoringRouteStat[]
 }
-export interface ConnectorFailureStat {
-  provider: string
-  failures: number
-  users_affected: number
-  last_at: string | null
-}
-export interface MonitoringConnectorStats {
-  since_days: number
-  total_failures: number
-  by_provider: ConnectorFailureStat[]
-}
+export type ConnectorFailureStat = components['schemas']['ConnectorFailure']
+export type MonitoringConnectorStats = ApiOut<'org_monitoring_connectors_get'>
+// ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (GET
+//    /api/admin/monitoring/funnel) : rien à dériver tant qu'il l'est.
 export interface ActivationFunnel {
   window_days: number
   total_accounts: number
@@ -1300,60 +1286,19 @@ export interface ActivationFunnel {
 // Adoption d'une org, membre par membre (`GET /api/orgs/{id}/monitoring/adoption`) —
 // le pendant du funnel à l'échelle d'une équipe. Part des MEMBRES (pas des appels) :
 // un membre à 0 appel doit apparaître, c'est justement lui qu'on cherche.
-export interface OrgMemberAdoption {
-  sub: string
-  email: string | null
-  name: string | null
-  org_role: string | null
-  calls: number
-  errors: number
-  last_call_at: string | null   // hors fenêtre : date un décrochage
-  connector_failures: number    // a essayé, rien ne résolvait ≠ n'a jamais essayé
-}
-export interface OrgAdoption {
-  org_id: number
-  window_days: number
-  total_members: number
-  active: number
-  never_active: number
-  blocked_by_connector: number
-  truncated: boolean            // la LISTE est plafonnée ; les compteurs, non
-  members: OrgMemberAdoption[]
-}
-export interface MonitoringUserStat {
-  sub: string | null
-  email: string | null
-  name: string | null
-  calls: number
-  errors: number
-}
-export interface MonitoringDayStat {
-  day: string
-  calls: number
-  errors: number
-}
-export interface MonitoringSummary {
-  since_days: number
-  total_calls: number
-  error_count: number
-  active_users: number
-  by_tool: MonitoringToolStat[]
-  by_user: MonitoringUserStat[]
-  by_day: MonitoringDayStat[]
-}
+export type OrgMemberAdoption = components['schemas']['AdoptionMember']
+export type OrgAdoption = ApiOut<'org_monitoring_adoption_get'>
+export type MonitoringUserStat = components['schemas']['UserStat']
+export type MonitoringDayStat = components['schemas']['DayStat']
+export type MonitoringSummary = ApiOut<'org_monitoring_summary_get'>
 
 // ── usage / déroulés de doctrine (ADR 0017) ──
-export interface DoctrineRun {
-  run_id: string
-  slug: string | null
-  sub: string | null
-  email: string | null        // acteur (LEFT JOIN users, repli sub)
-  name: string | null
-  started_at: string
-  finished_at: string | null
-  outcome: string | null      // done | abandoned | failed | blocked (null = en cours)
-  n_calls: number
-}
+export type DoctrineRun = components['schemas']['RunRow']
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`GapRow` : kind:
+//    déclaré optionnel ; kind: déclaré nullable ; intent: déclaré optionnel ; last_at:
+//    déclaré optionnel ; last_at: déclaré nullable ; users: déclaré optionnel). Le
+//    correctif est côté oto-backend — resserrer l'`Output` — puis `npm run api:refresh`
+//    ici.
 export interface UsageGap {
   kind: string                // missing_tool | missing_doctrine | missing_data | other
   intent: string | null       // ce que l'agent voulait faire
@@ -1361,6 +1306,11 @@ export interface UsageGap {
   last_at: string
   users: string[]             // emails distincts des rapporteurs (repli sub)
 }
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`ToolFeedbackRow` :
+//    tool: déclaré optionnel ; kind: déclaré optionnel ; kind: déclaré nullable ; last_at:
+//    déclaré optionnel ; last_at: déclaré nullable ; users: déclaré optionnel). Le
+//    correctif est côté oto-backend — resserrer l'`Output` — puis `npm run api:refresh`
+//    ici.
 export interface ToolFeedbackAgg {
   tool: string | null
   kind: string                // bug | misleading_doc | wrong_result | praise | other
@@ -1370,6 +1320,8 @@ export interface ToolFeedbackAgg {
 }
 // Un signal d'usage brut (usage_signals) — le détail derrière un agrégat
 // tool-quality/gap (le `body` = le texte du feedback/gap).
+// ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (GET
+//    /api/admin/usage/signals{}) : rien à dériver tant qu'il l'est.
 export interface UsageSignal {
   id: number
   created_at: string
@@ -1384,13 +1336,7 @@ export interface UsageSignal {
 }
 // Un appel dans la timeline d'un déroulé (get_doctrine_run) — colonnes brutes
 // tool_calls (tool/created_at), distinct du ToolCall aliasé du monitoring.
-export interface RunCall {
-  created_at: string
-  tool: string
-  ok: boolean
-  error: string | null
-  duration_ms: number | null
-}
+export type RunCall = components['schemas']['RunCall']
 
 // ── email & envoi de l'org, PAR CONNECTEUR (ADR 0009, carte connecteur ORG) ──
 // Adresses expéditrices déclarées par l'org pour `email_send` + fenêtre calme
@@ -1413,6 +1359,9 @@ export interface EmailBlock {
 }
 // Bundle keyé par connecteur (scaleway = hébergé, resend = BYOK) — le transport
 // se déduit du connecteur (transports[connector]).
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`EmailSettingsView` :
+//    ). Le correctif est côté oto-backend — resserrer l'`Output` — puis `npm run
+//    api:refresh` ici.
 export interface EmailSettingsBundle {
   org_id: number
   settings: Record<string, EmailBlock>
@@ -1422,22 +1371,7 @@ export interface EmailSettingsBundle {
   resend_key_set: boolean         // le connecteur resend exige la clé d'org
 }
 // Colonnes réelles de db.list_scheduled_emails (sans le HTML).
-export interface ScheduledEmail {
-  id: number
-  org_id?: number
-  to_email?: string
-  subject?: string
-  from_email?: string
-  from_name?: string
-  transport?: string
-  status: string                 // pending | sent | failed | cancelled
-  scheduled_at: string
-  attempts?: number
-  sent_at?: string | null
-  error?: string | null
-  created_at?: string
-  created_by?: string
-}
+export type ScheduledEmail = components['schemas']['ScheduledEmail']
 
 // MCP endpoint public (config, pas un secret) — affiché tel quel. DÉCOUPLÉ de
 // VITE_LOGTO_AUDIENCE : l'URL vitrine est mcp.oto.cx (coexistence multi-domaine,
@@ -1446,15 +1380,14 @@ export interface ScheduledEmail {
 export const MCP_URL = (import.meta.env.VITE_MCP_PUBLIC_URL as string) || 'https://mcp.oto.cx/mcp'
 
 // ── Billing / abonnement par org (ADR 0043) ──
-export interface BillingPlan {
-  plan: string
-  label: string
-  amount: number | null           // centimes ; null = sur devis (custom)
-  currency: string
-  interval: string                // 'month' | 'year'
-  unipile_accounts: number | null // plafond de comptes messagerie (null = illimité)
-  custom: boolean
-}
+export type BillingPlan = components['schemas']['Plan']
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`BillingStatus` :
+//    plans: déclaré nullable ; plan: déclaré nullable ; currency: déclaré nullable ;
+//    interval: déclaré nullable ; status: déclaré nullable ; status: `str` là où l'écran a
+//    un ensemble fermé (active|canceled|failed|incomplete|past_due|pending) ; method:
+//    déclaré nullable ; method: `str` là où l'écran a un ensemble fermé (card|comp|sepa)).
+//    Le correctif est côté oto-backend — resserrer l'`Output` — puis `npm run api:refresh`
+//    ici.
 export interface BillingStatus {
   subscribed: boolean
   plans?: BillingPlan[]           // présent seulement si pas encore abonné
@@ -1473,22 +1406,8 @@ export interface BillingStatus {
   grace_until?: string | null
   canceled_at?: string | null
 }
-export interface BillingSubscribeResult {
-  checkout_url: string            // page hébergée Stancer (paiement OU signature SEPA)
-  plan: string
-  method: 'card' | 'sepa'
-  payment_intent_id?: string
-  mandate_id?: string
-}
-export interface BillingPayment {
-  id: number
-  kind: string                    // initial | renewal | method_change
-  amount: number
-  currency: string
-  status: string
-  attempt: number
-  created_at: string
-}
+export type BillingSubscribeResult = ApiOut<'billing_subscribe_post'>
+export type BillingPayment = components['schemas']['Payment']
 
 // Accepte les timestamps PG ("YYYY-MM-DD HH:MM:SS", UTC implicite) ET les ISO
 // portant déjà un offset/Z (ex. granted_at = datetime.isoformat() → "…+00:00").

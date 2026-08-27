@@ -22,6 +22,10 @@ Dashboard produit d'**oto-mcp** (gestion de compte, connecteurs, orgs, doctrine)
 - **Design system console : `DESIGN.md`** (racine repo) — catalogue d'usage des classes `console.css` (shell, card, grilles, stats, tables, tags sémantiques, boutons, états empty/error/loading, checklist nouvel écran) + tableau « marketing vs console » (mêmes tokens, deux dialectes à ne pas transplanter). Tokens « Manuscrit chaud » communs : `@otomata/ui` `THEME.md`.
 - Auth : `@logto/browser` (PKCE) via `src/composables/useAuth.ts` — interface `initAuth/login/logout/getAccessToken` ; `getAccessToken` lève `stale_session` sur token undefined (gotcha @logto)
 - API : `src/api.ts` — fetch authentifié vers `VITE_OTO_MCP_BASE`
+- **Types d'API = DÉRIVÉS, plus recopiés** : `src/types/api.generated.ts` est généré
+  du document OpenAPI servi par oto-backend (snapshot `frontend/openapi/`), et
+  `src/types/api.ts` n'en est plus qu'une couche d'**alias nommés**. Détail et
+  commandes : `docs/types-api.md`.
 
 ## Commandes
 
@@ -29,6 +33,10 @@ Dashboard produit d'**oto-mcp** (gestion de compte, connecteurs, orgs, doctrine)
 cd frontend && npm install
 honcho start            # ou : cd frontend && npm run dev (port 5192)
 npm run build           # vue-tsc + vite build → frontend/dist
+
+npm run api:check       # les types dérivés de l'OpenAPI ont-ils dérivé ? (le contrôle du CI)
+npm run api:gen         # les régénérer depuis le snapshot commité
+npm run api:refresh     # aller rechercher le document sur un backend VIVANT (prod par défaut)
 ```
 
 `.env` : copier `frontend/.env.example` (VITE_LOGTO_APP_ID à créer via le skill `logto-client` — pas de DCR, client SPA pré-créé avec redirect `https://<domaine>/callback` + `http://localhost:5192/callback`).
@@ -92,6 +100,14 @@ Les **contrats backend** sont dans `oto-backend/` : `CLAUDE.md` pour la carte,
 ## Conventions
 
 - API RESTful consommée sous `/api/*` (contrats : `oto-mcp/CLAUDE.md` §REST + `oto-app/docs/ORG_API_CONTRACT.md`)
+- ⚠️ **On n'écrit plus de type d'API à la main.** Les contrats du backend se DÉRIVENT
+  du document OpenAPI (`npm run api:gen`) ; `src/types/api.ts` ne porte que des alias
+  nommés vers le généré. Un champ manquant ou faux se corrige **côté oto-backend**
+  (déclarer ou resserrer l'`Output` de la capacité), puis `npm run api:refresh` ici —
+  jamais en retouchant le type côté front. Les rares interfaces encore écrites à la
+  main portent leur raison en commentaire (admin hors document · `Output` non déclaré ·
+  contrat plus lâche que l'écran). Chaîne, contrôles CI et état mesuré :
+  **`docs/types-api.md`**.
 - Composants dans `components/`, pages dans `views/`
 - Pas de fichier > 500 lignes ; pas de fallback silencieux (lever une erreur)
 - ⚠️ **Avant push : typecheck avec la commande DU CI = `npx vue-tsc --build`** (script
@@ -144,4 +160,5 @@ d'intégration et **note datée sur l'archivage de `design-system/` (2026-08-27)
 | `recherche.md` | popup ⌘K + page `/search`, un seul chemin de rendu, deep-link `?doc=`, backlinks, boîte « À traiter ». |
 | `identite-et-consultation.md` | affichage (sidebar) vs switch (popin compte), consultation vs maison (ADR 0023), « voir en tant que » USER, hub `/account`. |
 | `plateforme.md` | `/platform/objects` (objets possédés, ADR 0030) et `/platform/tenants` (ADR 0052, lecture seule, verdict « redémarrage requis »). |
+| `types-api.md` | la chaîne `Output` → OpenAPI → snapshot → types générés → alias, les deux contrôles CI, et ce qui reste écrit à la main (avec pourquoi). |
 | `observabilite.md` | PostHog (gaté consentement) + Sentry `@sentry/vue`, source maps au build, token à scoper. |

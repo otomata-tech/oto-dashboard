@@ -1,0 +1,52 @@
+name: Dérive du contrat backend
+
+# Le contrôle bloquant (`npm run api:check`, dans le job `test`) vérifie que les types
+# générés correspondent au SNAPSHOT commité — hors ligne, donc reproductible.
+# Ce workflow-ci vérifie l'autre moitié : que le snapshot correspond encore au backend
+# de PROD. Il ne bloque aucune PR (il dépend du réseau et d'un backend vivant) ; il
+# devient rouge quand le contrat a bougé, ce qui est exactement l'information voulue —
+# le dashboard se compile alors contre un contrat périmé.
+#
+# Rouge ⇒ `npm run api:refresh` en local, relire le diff du snapshot (il dit ce que le
+# backend a changé), puis commiter snapshot + types régénérés.
+on:
+  schedule:
+    - cron: "17 6 * * 1"   # tous les lundis matin
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: cd frontend && npm ci
+      - name: Rafraîchir depuis la prod
+        run: cd frontend && npm run api:refresh
+      - name: Le snapshot commité est-il encore celui de la prod ?
+        run: |
+          if git diff --quiet -- frontend/openapi frontend/src/types/api.generated.ts; then
+            echo "Snapshot à jour — le contrat servi n'a pas bougé."
+            exit 0
+          fi
+          {
+            echo "## Le contrat servi par la prod a bougé"
+            echo
+            echo "Le snapshot commité (\`frontend/openapi/oto-openapi.json\`) ne décrit plus ce que"
+            echo "sert \`mcp.oto.cx\`. Rejouer en local : \`cd frontend && npm run api:refresh\`,"
+            echo "relire le diff, puis commiter le snapshot et les types régénérés."
+            echo
+            echo '```diff'
+            git --no-pager diff --stat -- frontend/openapi frontend/src/types/api.generated.ts
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          git --no-pager diff --stat -- frontend/openapi frontend/src/types/api.generated.ts
+          exit 1
