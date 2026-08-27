@@ -65,7 +65,9 @@ vrai à l'écriture : le dossier portait le design system « Oto Console » (bri
 
 Ça ne l'est plus. Décision du 27/08 : **le futur design system du produit sera celui du nouveau
 front** — maintenir en parallèle un design system dashboard n'avait plus d'objet. Le dossier a été
-supprimé du repo (180 fichiers, 1,1 Mo) ; l'historique git le conserve.
+supprimé du repo (178 fichiers, 1,1 Mo) ; l'historique git le conserve. Dernier commit où il est
+complet : **`53c0802`** — `git show 53c0802:design-system/readme.md`,
+`git checkout 53c0802 -- design-system/` pour tout ressortir.
 
 Où est parti quoi :
 
