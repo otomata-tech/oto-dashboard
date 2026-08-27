@@ -2,9 +2,9 @@
 title: Design system (sources & intégration)
 type: reference
 description: >-
-  D'où vient le DS (brief JB déposé dans design-system/, catalogue d'usage DESIGN.md, le bri
-  ef gagne en cas de conflit), la direction « 2a », les deux fichiers de tokens à ne pas con
-  fondre, et l'état d'intégration barreau par barreau.
+  Où vit l'identité Otomata (oto-studio/brand/ → @otomata/ui) et pourquoi le dashboard ne s'y
+   branche pas encore, la direction « 2a », les deux fichiers de tokens à ne pas confondre, e
+  t l'état d'intégration barreau par barreau.
 ---
 
 # Design system « Oto Console » — sources & état d'intégration
@@ -20,12 +20,21 @@ description: >-
 
 ## Sources de vérité & direction « 2a »
 
-Source de vérité visuelle : le DS **« Oto Console »** livré par JB Fleury, déposé dans
-**`design-system/`** (brief `design-system/DESIGN-BRIEF.md` = le *pourquoi*, à lire d'abord ;
-inventaire `design-system/readme.md` ; tokens `design-system/tokens/*.css` ; composants de
-référence en JSX/`.d.ts`/`.prompt.md`/`*.card.html`). Le catalogue d'usage des classes
-`console.css` reste `DESIGN.md` (racine). En cas de conflit repo ↔ brief, **le brief gagne**.
-Skill dédiée : `.claude/skills/oto-frontend`.
+**L'identité Otomata se définit dans `oto-studio/brand/`** (repo public `otomata-tech/oto-studio`)
+— palette, typo, logos, tokens, charte formelle. Elle s'implémente pour les frontends dans
+**`@otomata/ui`** (`oto-websites/packages/ui/`), et la règle de la plateforme est :
+**un nouveau frontend prend les tokens par `import "@otomata/ui/src/theme.css"`**, il ne les
+recopie pas.
+
+⚠️ **Le dashboard ne suit PAS encore cette règle** : ses tokens sont écrits en dur dans
+`console.css` (aucune dépendance à `@otomata/ui`, ADR 0007). Le branchement est **un lot à part,
+à décider** — ne pas l'improviser au détour d'un écran. En attendant, une évolution de charte part
+de `oto-studio/brand/` et se porte à la main dans `console.css`.
+
+Le *pourquoi* de la direction artistique — palette « Manuscrit chaud », direction « 2a » — vit
+dans **`oto-studio/brand/charte-doc/DESIGN-BRIEF.md`** (§0-3 ; ses §4-8 inventorient un design
+system archivé, cf. la note datée en bas de page). Le catalogue d'usage des classes `console.css`
+reste `DESIGN.md` (racine). Skill dédiée : `.claude/skills/oto-frontend`.
 
 Direction **« 2a »** : sidebar **encre** (`--sidebar-bg #2c2112`, texte crème ; actif = aplat
 saffron), cartes chaudes (filet doux `#ede1bd` + `--shadow-card`, **jamais de bord noir**),
@@ -46,4 +55,26 @@ logo **« O ouvert »**.
 > Breadcrumb, Pagination, Accordion… — à porter au fil des besoins) · **b8** audit des scoped-styles
 > (rayons magiques résiduels ; fait sur les composants partagés + 2 vues) · recapitaliser
 > `ContextProfileCard`/`DataView`/`OrgView` (exclus le 04/07, WIP parallèle) · revue visuelle des
-> écrans authentifiés (seul LoginGate vérifié au rendu). Plan : `design-system/handoff-alexis.md`.
+> écrans authentifiés (seul LoginGate vérifié au rendu). Plan : `handoff-design-system.md`.
+
+## 2026-08-27 — `design-system/` archivé
+
+**Ce doc a désigné `design-system/` comme source de vérité visuelle jusqu'au 2026-08-27.** C'était
+vrai à l'écriture : le dossier portait le design system « Oto Console » (brief, tokens, guidelines,
+54 composants React de référence, un UI kit d'écrans) et le front s'alignait dessus.
+
+Ça ne l'est plus. Décision du 27/08 : **le futur design system du produit sera celui du nouveau
+front** — maintenir en parallèle un design system dashboard n'avait plus d'objet. Le dossier a été
+supprimé du repo (180 fichiers, 1,1 Mo) ; l'historique git le conserve.
+
+Où est parti quoi :
+
+| | |
+|---|---|
+| **Marque** — tokens, guidelines, composants de marque (`OtoMark`/`Medallion`/`Avatar`), explorations d'identité, brief de direction artistique | **`oto-studio/brand/`** (`theme/dashboard-tokens/`, `charte-doc/`) — la source de vérité déclarée |
+| **Cahiers des charges** — le plan de portage, la refonte UX des pages Projet | ici, `handoff-design-system.md` et `refonte-pages-projet.md` |
+| **Maquettes d'écrans produit** — 133 fichiers JSX/HTML de prototypage + l'UI kit console | supprimés (historique git) |
+| **Outillage** — les deux README du dossier, la skill `oto-design` | supprimés (historique git) |
+
+Ce qui **n'a pas changé** : la direction « 2a » décrite plus haut est toujours celle du dashboard
+servi, et `console.css` + `DESIGN.md` restent le contrat de ses écrans.

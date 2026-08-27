@@ -1,3 +1,17 @@
+---
+title: Refonte UX des pages Projet & Projets (cahier des charges, historique)
+type: reference
+description: >-
+  Le cahier des charges de la refonte des pages Projet/Projets, écrit le 16/07/2026. Documen
+  t historique : ce qui reste valide, ce qui est périmé, et pourquoi les pages Projet visées
+  seront celles du nouveau front.
+---
+
+> **Déplacé ici le 2026-08-27** depuis `design-system/`, archivé le même jour. Le cahier des
+> charges reste utile au dashboard **actuel** tant qu'il vit — mais les pages Projet qu'il vise
+> seront celles du **nouveau front** : le futur design system du produit est le sien, pas celui
+> décrit ici. Lire ce document comme l'énoncé d'un besoin UX, pas comme une spec à implémenter.
+
 > ⚠️ **Document historique — ne pas implémenter tel quel.**
 >
 > Écrit le 16/07/2026 contre le modèle où un projet est un **conteneur d'entités liées**. Ce qui a changé depuis :
@@ -36,7 +50,7 @@ Retours issus de la revue (transcript) qui motivent la refonte :
 - **Manque de hiérarchie / contraste**, « trop monochrome ». → application stricte du design system (sidebar ink, accents sémantiques, cartes chaudes).
 - **Objectif n°1 de la liste** : « voir l'état de chaque projet d'un coup d'œil ». → cartes/lignes orientées état.
 - **« tout est une page »** : fusion brief ↔ page (déjà amorcée dans `ProjectWiki`). Le brief est la page d'accueil.
-- **Entités = pointeurs résolus** : un connecteur s'affiche avec sa **résolution** (compte), ex. `Unipile · compte Alexandra` ; la procédure reste générique, le **projet porte la résolution**.
+- **Entités = pointeurs résolus** : un connecteur s'affiche avec sa **résolution** (compte), ex. `Unipile · compte partagé` ; la procédure reste générique, le **projet porte la résolution**.
 - **Partage = un seul endroit à 4 modes** : équipe · lien public (browser) · endpoint MCP (sans compte) · transférer. Aujourd'hui éclaté en 3 cartes + boutons dispersés = « le bordel ».
 - **Procédure = entité à part** (traçable, partageable, runs) — distincte du doc. *(Hors périmètre du pur portage UI ; le viewer procédure est prêt à recevoir les runs quand le backend les expose.)*
 

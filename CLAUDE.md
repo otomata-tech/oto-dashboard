@@ -106,11 +106,14 @@ Les **contrats backend** sont dans `oto-backend/` : `CLAUDE.md` pour la carte,
 
 ## Design system — règles front (DRY, non négociables)
 
-Source de vérité visuelle : le DS **« Oto Console »** livré par JB Fleury, déposé dans
-**`design-system/`** (brief `design-system/DESIGN-BRIEF.md` = le *pourquoi*, à lire d'abord).
-Le catalogue d'usage des classes `console.css` reste `DESIGN.md` (racine). **En cas de
-conflit repo ↔ brief, le brief gagne.** Skill dédiée : `.claude/skills/oto-frontend`.
-Direction, tokens et état d'intégration barreau par barreau : **`docs/design-system.md`**.
+**L'identité Otomata se définit dans `oto-studio/brand/`** (repo public `otomata-tech/oto-studio`)
+et s'implémente pour les frontends dans **`@otomata/ui`** — règle de la plateforme : un nouveau
+frontend prend les tokens par `import "@otomata/ui/src/theme.css"`. ⚠️ **Le dashboard n'y est pas
+branché** : ses tokens sont écrits en dur dans `console.css` (ADR 0007) et le branchement est un
+lot à part, à décider — ne pas l'improviser. Le catalogue d'usage des classes `console.css` reste
+`DESIGN.md` (racine). Skill dédiée : `.claude/skills/oto-frontend`. Direction « 2a », tokens, état
+d'intégration et **note datée sur l'archivage de `design-system/` (2026-08-27)** :
+**`docs/design-system.md`**.
 
 - **Réutiliser avant d'écrire.** Toujours composer les classes `console.css` et les composants
   existants. Ne jamais redéfinir un style qui existe déjà.
@@ -120,7 +123,6 @@ Direction, tokens et état d'intégration barreau par barreau : **`docs/design-s
 - **Besoin récurrent (≥2×) manquant → créer un composant** dans le design system (documenté),
   puis l'utiliser. Étendre le système, jamais bricoler dans une vue.
 - **Contraste** : petits libellés lisibles (mute `#675a3c`, faint `#6d603f`). Vérifier WCAG.
-- Le DS est fourni en **React** : **porter en Vue**, ne pas copier les `.jsx` tels quels.
 - Toute nouvelle vue rend **empty / error / loading** explicitement.
 - **Jamais de dialog natif** (`window.prompt`/`confirm`/`alert`) : éditeur + confirmation inline.
 
@@ -131,7 +133,9 @@ Direction, tokens et état d'intégration barreau par barreau : **`docs/design-s
 | `commands.md` | lancer le dashboard, et tester un fix en local contre les **vraies données de prod**. |
 | `deploiement.md` | modèle tronc unique (`main` = preprod, tag `vX.Y.Z` = prod), artefact-only, cutover ADR 0040. |
 | `conventions.md` | le typecheck du CI (`vue-tsc --build`) et les deux vecteurs vécus de « local vert / CI rouge ». |
-| `design-system.md` | sources du DS (brief JB, `design-system/`), direction « 2a », les deux fichiers de tokens, état d'intégration b1→b8. |
+| `design-system.md` | où vit l'identité (`oto-studio/brand/` → `@otomata/ui`) et pourquoi le dashboard ne s'y branche pas encore, direction « 2a », les deux fichiers de tokens, état d'intégration b1→b8, archivage de `design-system/`. |
+| `handoff-design-system.md` | le plan de portage du DS dans le front (b1→b8) — **historique**. |
+| `refonte-pages-projet.md` | cahier des charges de la refonte UX des pages Projet/Projets — **historique** : les pages visées seront celles du nouveau front. |
 | `connecteurs.md` | le moteur unique `connector-scope` (4 surfaces), la présentation verdict-first, les 3 projections ADR 0022, la carte-shell, le compte partagé, la fédération MCP, les hubs à onglets. |
 | `orgs-groupes-invitations.md` | départements (ADR 0012) et invitations en feature cascade aux 3 niveaux. |
 | `projets.md` | index + page `/projects/:id`, slots & inventaire dérivé (ADR 0035), partage navigable `<slug>.share.oto.cx` et « Ajouter à mon Oto ». |

@@ -1,3 +1,20 @@
+---
+title: Portage du design system « Oto Console » dans le repo (plan, historique)
+type: reference
+description: >-
+  Le plan de portage du design system dans le front Vue — décisions de design non négociables
+  , étapes ordonnées, barreaux b1 à b8. Document historique : le dossier design-system/ qu'il
+   référence a été archivé le 27/08/2026.
+---
+
+> **Déplacé ici le 2026-08-27** depuis `design-system/handoff-alexis.md`, archivé le même jour.
+> Ce plan reste le seul endroit qui décrit **ce qui a été porté dans le front et ce qui ne l'a
+> pas été** (barreaux b1→b6 faits, b7/b8 ouverts — état dans `design-system.md`). Ses renvois à
+> `design-system/…` ne résolvent plus : la part de marque est dans `oto-studio/brand/`
+> (`charte-doc/DESIGN-BRIEF.md`, `theme/dashboard-tokens/`), le reste vit dans l'historique git.
+> Le design system du produit à venir sera celui du **nouveau front** — ce plan ne s'y applique
+> pas.
+
 # Handoff — Mettre à jour le design system d'Oto (pour Alexis / Claude Code)
 
 > À coller comme prompt dans Claude Code, à la racine de `oto-dashboard`. Objectif :

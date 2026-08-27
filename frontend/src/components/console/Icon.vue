@@ -4,9 +4,8 @@ import { computed } from 'vue'
 // Oto icon set — Lucide (la librairie configurée du produit, @lucide/vue).
 // Markup SVG interne recopié verbatim depuis lucide-icons/lucide (ISC) : grille
 // 24, currentColor, bouts/joins ronds. Auto-porté : pas de CDN, pas de dépendance
-// runtime. Curé aux ~36 glyphes qu'Oto utilise réellement. Port du design system
-// (design-system/components/core/Icon.jsx) — même API `name` (noms Lucide OU
-// alias sémantiques Oto), donc les vues consommatrices restent inchangées.
+// runtime. Curé aux ~36 glyphes qu'Oto utilise réellement. API `name` : noms
+// Lucide OU alias sémantiques Oto.
 const ICONS: Record<string, string> = {
   house: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
