@@ -85,6 +85,7 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
     if (m?.secret_kind === 'fields' && (m.credential_fields?.length ?? 0) > 0) {
       ctx.openCredential({
         label: r.label, fields: m.credential_fields, single: false,
+        docs: m.doc_sections,
         verify: m.verifiable ? () => verifyConnector(r.connector, 'org') : undefined,
         onConfirm: async (values) => {
           await setOrgSecret(orgId.value!, r.connector, '', undefined, values)

@@ -75,6 +75,7 @@ export function useTeamAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<GroupConnec
       : [{ name: 'api_key', label: `clé api ${r.label}`, secret: true, required: true }]
     ctx.openCredential({
       label: r.label, fields, single: !multi,
+      docs: m?.doc_sections,
       onConfirm: async (values) => {
         const gid = team.groupId.value
         if (gid == null) return
