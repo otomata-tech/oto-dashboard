@@ -10,7 +10,7 @@ import Btn from '@/components/console/Btn.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useDeepLink } from '@/composables/useDeepLink'
-import { useMe } from '@/composables/useMe'
+import { useMe, isPlatformOperator } from '@/composables/useMe'
 import {
   listLibraryDoctrines, getLibraryDoctrine, forkLibraryDoctrine, unpublishDoctrine, getToolRegistry,
 } from '@/api/console'
@@ -72,7 +72,7 @@ const categories = computed(() => {
 const shown = computed(() =>
   category.value ? entries.value.filter((e) => e.category === category.value) : entries.value)
 
-const isPlatformAdmin = computed(() => me.value?.role === 'admin' || me.value?.role === 'super_admin')
+const isPlatformAdmin = computed(() => isPlatformOperator(me.value))
 function canUnpublish(e: LibraryEntry | LibraryDoctrine): boolean {
   if (isPlatformAdmin.value) return true
   return e.author_kind === 'org' && e.author_org_id != null

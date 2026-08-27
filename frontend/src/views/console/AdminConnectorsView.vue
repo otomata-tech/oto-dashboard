@@ -7,12 +7,12 @@ import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import ConnectorScopeView from '@/components/console/connector-scope/ConnectorScopeView.vue'
-import { useMe } from '@/composables/useMe'
+import { useMe, isSuperAdmin as hasSuperAdminRole } from '@/composables/useMe'
 import { getUnipilePlatformSeats, releaseUnipileSeat } from '@/api/console'
 import type { UnipileSeat } from '@/types/api'
 
 const { me } = useMe()
-const isSuperAdmin = computed(() => me.value?.role === 'super_admin')
+const isSuperAdmin = computed(() => hasSuperAdminRole(me.value))
 const seats = ref<UnipileSeat[]>([])
 const seatsConfigured = ref(false)
 const orphanCount = computed(() => seats.value.filter((s) => s.state === 'orphan').length)

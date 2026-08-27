@@ -7,7 +7,7 @@ import Tag from '@/components/console/Tag.vue'
 import ConsoleTable from '@/components/console/ConsoleTable.vue'
 import InvitationsCard from '@/components/console/InvitationsCard.vue'
 import { getAdminUsers } from '@/api/console'
-import { useMe } from '@/composables/useMe'
+import { useMe, isPlatformOperator } from '@/composables/useMe'
 import type { AdminUser } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
@@ -18,7 +18,7 @@ const error = ref<string | null>(null)
 const q = ref('')
 
 // Inviter un user sur la plateforme = sommet de la feature cascade (admin plateforme).
-const canInvite = computed(() => me.value?.role === 'admin' || me.value?.role === 'super_admin')
+const canInvite = computed(() => isPlatformOperator(me.value))
 
 const filtered = computed(() =>
   users.value.filter((u) => !q.value || ((u.email ?? '') + (u.name ?? '')).toLowerCase().includes(q.value.toLowerCase())),

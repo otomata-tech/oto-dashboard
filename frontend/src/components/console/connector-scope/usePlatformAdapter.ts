@@ -8,13 +8,13 @@ import {
   getAdminConnectors, setConnectorActivation, getConnectors,
   getPlatformKeys, createPlatformKey, deletePlatformKey,
 } from '@/api/console'
-import { useMe } from '@/composables/useMe'
+import { useMe, isSuperAdmin as hasSuperAdminRole } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
 import type { ConnectorActivation, ConnectorMeta, PlatformKey } from '@/types/api'
 
 export function usePlatformAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<ConnectorActivation> {
   const { me } = useMe()
-  const isSuperAdmin = computed(() => me.value?.role === 'super_admin')
+  const isSuperAdmin = computed(() => hasSuperAdminRole(me.value))
   const rows = ref<ConnectorActivation[]>([])
   const metaMap = ref<Record<string, ConnectorMeta>>({})
   const keys = ref<PlatformKey[]>([])
@@ -140,9 +140,12 @@ export function usePlatformAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<Connect
         removeKey(key.slice(0, idx), key.slice(idx + 1))
       },
     },
+    // ⚠️ Drapeau d'autz RÉACTIF (getter, pas un snapshot) : à froid `me` n'est pas
+    // encore chargé quand l'adaptateur est construit ; une valeur figée resterait à
+    // `false` et masquerait le picker de grant même pour un super_admin (oto-dashboard#122).
     platformAccess: {
       provider: (c) => c.connector,
-      isSuperAdmin: isSuperAdmin.value,
+      get isSuperAdmin() { return isSuperAdmin.value },
     },
   }
 }

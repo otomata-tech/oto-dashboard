@@ -14,7 +14,7 @@ import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
-import { useMe } from '@/composables/useMe'
+import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { listGroups, createGroup, updateGroup, deleteGroup } from '@/api/console'
 import type { GroupListItem } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -29,7 +29,7 @@ const error = ref<string | null>(null)
 const loaded = ref(false)
 
 const activeOrgId = computed(() => me.value?.active_org ?? null)
-const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin' || me.value?.role === 'admin')
+const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin' || isPlatformOperator(me.value))
 
 async function load() {
   if (activeOrgId.value == null) { loaded.value = true; return }

@@ -12,7 +12,7 @@ import {
   setOrgSecret, deleteOrgSecret, verifyConnector, startConnectorFlow,
   getConnectorAcl, setConnectorAccess, clearConnectorAccess, forceConnectorForMember, listGroups,
 } from '@/api/console'
-import { useMe } from '@/composables/useMe'
+import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
 import type {
   OrgConnectorActivation, ConnectorMeta, FieldFiltersBundle, EmailSettingsBundle,
@@ -23,7 +23,7 @@ import type { FormDialogField } from '@/composables/useFormDialog'
 export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnectorActivation> {
   const { me } = useMe()
   const orgId = computed(() => me.value?.active_org ?? null)
-  const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin' || me.value?.role === 'admin')
+  const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin' || isPlatformOperator(me.value))
 
   const rows = ref<OrgConnectorActivation[]>([])
   const metaMap = ref<Record<string, ConnectorMeta>>({})

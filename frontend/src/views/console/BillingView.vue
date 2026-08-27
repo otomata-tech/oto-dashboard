@@ -14,7 +14,7 @@ import StateError from '@/components/console/StateError.vue'
 import SkeletonOverview from '@/components/console/SkeletonOverview.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
-import { useMe } from '@/composables/useMe'
+import { useMe, isSuperAdmin } from '@/composables/useMe'
 import {
   getBilling, getBillingPayments, subscribeBilling, confirmBilling, cancelBilling,
 } from '@/api/console'
@@ -35,7 +35,7 @@ const error = ref<string | null>(null)
 // Souscrire/résilier réservé à l'org_admin (le backend le garde aussi — l'UI ne
 // fait que masquer les leviers).
 const canManage = computed(() =>
-  me.value?.org_role === 'org_admin' || me.value?.role === 'super_admin')
+  me.value?.org_role === 'org_admin' || isSuperAdmin(me.value))
 
 const STATUS_TONE: Record<string, 'olive' | 'saffron' | 'terra' | 'ink'> = {
   active: 'olive', past_due: 'terra', incomplete: 'saffron', canceled: 'ink',
