@@ -9,7 +9,7 @@
 // mappe les mêmes opérations vers les bonnes fonctions `api/console.ts`.
 import type { Ref } from 'vue'
 import type {
-  ConnectorMeta, CredentialField, VerifyResult,
+  ConnectorMeta, CredentialField, DocSection, VerifyResult,
   ConnectorFieldSchema, FieldRule, FieldFilterTemplate, FieldActionSchema,
   EmailBlock, QuietHours,
 } from '@/types/api'
@@ -221,6 +221,9 @@ export interface CredentialDialogSpec {
   account?: string            // 'fixed' : le compte visé
   accountNoun?: string        // le mot du fournisseur, servi par le registre
   accountNames?: string[]     // déjà posés — refuser un doublon à la saisie
+  // La doc « how-to » du connecteur (prérequis + mise en route), rendue DANS le
+  // dialogue : c'est là qu'on colle, donc là qu'il faut savoir quoi créer et où.
+  docs?: DocSection[]
 }
 
 // Services partagés injectés par la vue (une seule instance de FormDialog / prompt /

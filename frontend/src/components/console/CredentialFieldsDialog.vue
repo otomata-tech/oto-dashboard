@@ -14,7 +14,8 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/comp
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { humanize } from '@/lib/errors'
-import type { VerifyResult } from '@/types/api'
+import DocSections from '@/components/console/DocSections.vue'
+import type { DocSection, VerifyResult } from '@/types/api'
 
 interface Field { name: string; label: string; secret?: boolean; required?: boolean; help?: string }
 
@@ -30,6 +31,12 @@ const props = defineProps<{
   account?: string
   accountNoun?: string
   accountNames?: string[]
+  // La doc « how-to » du connecteur, rendue DANS le dialogue. Elle vivait sur la
+  // fiche de la bibliothèque, c'est-à-dire pas là où on colle : devant deux champs
+  // « bot token / user token » et rien d'autre, on ne sait ni quoi créer chez le
+  // fournisseur, ni avec quels droits. Seuls le prérequis et la mise en route sont
+  // repris ; l'usage n'a rien à faire dans un formulaire.
+  docs?: DocSection[]
   onConfirm: (values: Record<string, string>, account: string) => Promise<void>
   // Optionnel : sonde exécutée APRÈS un enregistrement réussi (« tester la connexion »).
   // OK → ferme ; échec → reste ouvert avec le message provider pour corriger.
@@ -84,6 +91,10 @@ const testRes = ref<VerifyResult | null>(null)
 // firait jamais → valeurs initiales absentes (champs undefined).
 watch(() => props.open, (o) => { if (o) { resetForm({ values: blank() }); testRes.value = null } },
       { immediate: true })
+
+const howto = computed(() =>
+  (props.docs ?? []).filter((d) => d.kind === 'prerequisite' || d.kind === 'setup'))
+const showHowto = ref(false)
 
 const title = computed(() => {
   if (props.accountMode === 'new') return `ajouter un ${noun.value} ${props.label}`
@@ -140,6 +151,13 @@ const submit = handleSubmit(async (values) => {
         <DialogDescription>{{ description }}</DialogDescription>
       </DialogHeader>
 
+      <div v-if="howto.length" class="cfd-howto">
+        <button type="button" class="cfd-toggle" @click="showHowto = !showHowto">
+          {{ showHowto ? '▾' : '▸' }} où trouver ces identifiants ?
+        </button>
+        <DocSections v-if="showHowto" :sections="howto" />
+      </div>
+
       <form class="grid gap-4" @submit.prevent="submit">
         <FormField v-if="asksAccount" v-slot="{ componentField }" :name="ACCOUNT_KEY">
           <FormItem>
@@ -179,3 +197,12 @@ const submit = handleSubmit(async (values) => {
     </DialogContent>
   </Dialog>
 </template>
+
+<style scoped>
+.cfd-howto { border-top: 1px solid var(--color-hair-soft); padding-top: 10px; margin-top: 2px; }
+.cfd-toggle {
+  font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer;
+  background: none; border: 0; padding: 0; color: var(--color-cobalt-ink);
+}
+.cfd-toggle:hover { text-decoration: underline; }
+</style>

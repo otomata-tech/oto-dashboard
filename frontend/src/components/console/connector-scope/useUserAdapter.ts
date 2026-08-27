@@ -143,6 +143,7 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
         if (!fields.length) return
         ctx.openCredential({
           label: r.label, fields, single: fields.length === 1,
+          docs: r.doc_sections,
           verify: r.verifiable ? () => verifyConnector(r.name) : undefined,
           onConfirm: async (values, account) => {
             await setCredential(r.name, values, account)
@@ -160,6 +161,7 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
         const noun = r.auth.account_noun || 'compte'
         ctx.openCredential({
           label: r.label, fields, single: fields.length === 1,
+          docs: r.doc_sections,
           accountMode: 'new', accountNoun: noun, accountNames: existing,
           verify: r.verifiable ? () => verifyConnector(r.name) : undefined,
           onConfirm: async (values, account) => {
