@@ -162,12 +162,14 @@ onMounted(async () => {
 
   <ConnectorScopeDrawer v-if="selectedRow" :adapter="adapter" :row="selectedRow" @close="selectedKey = null" />
 
-  <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
-    :title="formDialog.title" :description="formDialog.description"
-    :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
-  <CredentialFieldsDialog v-if="credSpec" v-model:open="credOpen"
-    :label="credSpec.label" :fields="credSpec.fields" :single="credSpec.single"
-    :on-confirm="credSpec.onConfirm" :verify="credSpec.verify" />
+  <FormDialog v-if="formDialog" v-model:open="formDialogOpen" v-bind="formDialog" />
+  <!-- La spec est passée ENTIÈRE (`v-bind`), jamais champ par champ : une liste
+       écrite à la main ne suit pas quand la spec s'enrichit, et elle échoue en
+       SILENCE — le dialogue reçoit `undefined`, se rend sans broncher, et la
+       fonctionnalité n'existe simplement pas à l'écran. Vécu deux fois le même
+       jour (27/08) : le champ « nom du compte » et l'aide « où trouver ces
+       identifiants ? » étaient codés, testés, déployés… et jamais transmis. -->
+  <CredentialFieldsDialog v-if="credSpec" v-model:open="credOpen" v-bind="credSpec" />
 </template>
 
 <style scoped>
