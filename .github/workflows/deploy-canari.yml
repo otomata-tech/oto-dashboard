@@ -2,7 +2,7 @@ name: Deploy preprod
 
 # Modèle de release (ADR 0020, refonte 2026-07-20) : push sur `main` → PREPROD.
 # `main` = tronc ; build env VITE staging (runner HOSTED) → deploy artefact (runner
-# SELF-HOSTED otomata-0) vers /opt/oto-dashboard-canari (dashboard-canari.oto.ninja,
+# SELF-HOSTED oto-platform) vers /opt/oto-dashboard-canari (dashboard-canari.oto.ninja,
 # l'ancien « canari » de l'ADR 0040, désormais alimenté par main). La PROD ne se
 # déploie QUE sur un tag `v*` (deploy.yml). Le job `test` tourne aussi sur PR vers main
 # (= le check de validation avant merge).
@@ -48,7 +48,7 @@ jobs:
   deploy-preprod:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, otomata-0]
+    runs-on: [self-hosted, oto-platform]
     concurrency:
       group: deploy-dashboard-canari
       cancel-in-progress: false

@@ -4,7 +4,7 @@ name: Deploy prod
 # main = tronc/preprod (deploy-canari.yml) ; la prod est un acte explicite = poser un
 # tag `vX.Y.Z` (`git tag vX.Y.Z && git push origin vX.Y.Z`). Build artefact au tag
 # (runner HOSTED, env VITE prod = défauts commités) → deploy artefact (runner
-# SELF-HOSTED otomata-0, /opt/deploy/oto-dashboard-deploy.sh : copie atomique + smoke
+# SELF-HOSTED oto-platform, /opt/deploy/oto-dashboard-deploy.sh : copie atomique + smoke
 # + rollback). test/build → deploy (`needs: test`). Cf. ADR 0020.
 on:
   push:
@@ -54,7 +54,7 @@ jobs:
 
   deploy:
     needs: test
-    runs-on: [self-hosted, otomata-0]
+    runs-on: [self-hosted, oto-platform]
     concurrency:
       group: deploy-dashboard
       cancel-in-progress: false
