@@ -25,6 +25,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install
         run: cd frontend && npm ci
+      - name: Types dérivés de l'OpenAPI à jour (pas de dérive)
+        run: cd frontend && npm run api:check
       - name: Build preprod (env VITE staging)
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
