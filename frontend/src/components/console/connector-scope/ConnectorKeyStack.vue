@@ -12,7 +12,7 @@ import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
 import { getConnectorInstances, suspendInstance } from '@/api/console'
-import { rowState, relayOf, isHealthKo } from '@/lib/keyStack'
+import { rowState, relayOf, relayFor, isHealthKo } from '@/lib/keyStack'
 import type { RowState } from '@/lib/keyStack'
 import type { ConnectionLever } from './adapter'
 import type { ConnectorInstance, MyConnector } from '@/types/api'
@@ -47,6 +47,11 @@ const isPersonal = computed(() => !!me.value?.active_org_is_personal)
 
 const LEVEL_RANK: Record<string, number> = { member: 0, group: 1, org: 2, platform: 3 }
 // Nom contextuel d'un niveau (principe 8) — court, sans pédagogie de cascade.
+// Le nom d'un compte NOMMÉ, avec le mot du fournisseur servi par le registre
+// (« workspace » chez Slack). Vide pour la ligne mono historique.
+function accountSuffix(i: ConnectorInstance): string {
+  return i.account ? ` (${accountNoun.value} « ${i.account} »)` : ''
+}
 function levelName(i: ConnectorInstance): string {
   if (i.via === 'shared_with_me') return `Prêtée par ${i.owner.label || 'un pair'}`
   if (i.via === 'personal_cross_org') return 'Ta clé — suit ton compte (autre org)'
@@ -89,6 +94,9 @@ const memberRow = computed(() => rows.value.find((i) => i.level === 'member' && 
 // la clé perso si on la retire = la clé la plus proche en dessous, non suspendue, hors
 // prêt nominatif (le prêt s'utilise par pin, pas en repli automatique).
 const relayInstance = computed(() => relayOf(rows.value, memberRow.value, activeGroup.value))
+const relay = computed(() => relayFor(rows.value, memberRow.value, activeGroup.value))
+// Mot du fournisseur pour un compte (registre) — « compte » à défaut.
+const accountNoun = computed(() => c.value.auth?.account_noun || 'compte')
 // Note du dialog de retrait (CDC P8, « les dialogs disent la vérité ») : l'état de santé
 // vient EN PREMIER, c'est lui qui justifie souvent le retrait — retirer une clé morte
 // n'est pas une perte, et l'utilisateur doit le savoir avant de renoncer.
@@ -96,9 +104,16 @@ const relayNote = computed(() => {
   const ko = healthKo.value
     ? `Son dernier test a échoué${healthReason.value ? ` (${healthReason.value})` : ''}. `
     : ''
-  return ko + (relayInstance.value
-    ? `${levelName(relayInstance.value)} prendra le relais.`
-    : 'Aucune clé ne prendra le relais — ton agent perdra ce connecteur.')
+  const r = relay.value
+  if (r.kind === 'instance')
+    return ko + `${levelName(r.instance)}${accountSuffix(r.instance)} prendra le relais.`
+  // Multi-compte : plusieurs clés restent au même niveau, et la cascade n'en choisit
+  // aucune d'office — le dire, plutôt qu'en désigner une au hasard ou annoncer une
+  // perte qui n'aura pas lieu.
+  if (r.kind === 'ambiguous')
+    return ko + `Il te restera ${r.count} ${accountNoun.value}s — ton agent devra `
+      + 'préciser lequel utiliser, ou tu en désignes un par défaut.'
+  return ko + 'Aucune clé ne prendra le relais — ton agent perdra ce connecteur.'
 })
 const hasSuspended = computed(() => instances.value.some((i) => i.suspended))
 const hasSpecial = computed(() => instances.value.some((i) => i.via === 'shared_with_me' || i.via === 'personal_cross_org'))
@@ -167,7 +182,7 @@ async function toggleSuspend(i: ConnectorInstance) {
       <!-- Forme repliée : la clé effective en une ligne. -->
       <div v-if="rows[0]" class="ks-line">
         <Dot :tone="toneOf(rows[0])" />
-        <span class="ks-name">{{ levelName(rows[0]) }}</span>
+        <span class="ks-name">{{ levelName(rows[0]) }}{{ accountSuffix(rows[0]) }}</span>
         <span v-if="koOn(rows[0])" class="ks-ko">{{ healthReason || 'connexion KO' }}</span>
         <span v-else class="ks-meta">{{ meta(rows[0]) }}</span>
       </div>
@@ -185,7 +200,7 @@ async function toggleSuspend(i: ConnectorInstance) {
         <li v-for="i in rows" :key="i.ref" class="ks-row" :class="[stateOf(i), { ko: koOn(i) }]">
           <div class="ks-row-head">
             <Dot :tone="toneOf(i)" />
-            <span class="ks-name">{{ levelName(i) }}</span>
+            <span class="ks-name">{{ levelName(i) }}{{ accountSuffix(i) }}</span>
             <!-- Santé (erreur réelle) prime sur l'état de cascade : une clé « utilisée »
                  mais KO doit se lire comme cassée, pas comme opérationnelle. -->
             <span v-if="koOn(i)" class="ks-tag ko">connexion KO — reconnecte</span>

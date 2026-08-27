@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isInactiveTeam, rowState, relayOf, isHealthKo } from './keyStack'
+import { isInactiveTeam, rowState, relayOf, relayFor, isHealthKo } from './keyStack'
 import type { ConnectorInstance } from '@/types/api'
 
 function inst(p: Partial<ConnectorInstance> & { level: ConnectorInstance['level'] }): ConnectorInstance {
@@ -97,5 +97,45 @@ describe('isHealthKo', () => {
   })
   it('ne marque rien quand la santé est bonne', () => {
     expect(isHealthKo(inst({ level: 'member' }), false)).toBe(false)
+  })
+})
+
+describe('relayFor — multi-compte (oto-dashboard#121)', () => {
+  const mine = (account: string) => inst({ level: 'member', ref: `member:${account}`, account })
+
+  it("nomme le compte qui prend la suite quand il n'en reste qu'un", () => {
+    const a = mine('otomata'), b = mine('client-x')
+    const r = relayFor([a, b], a, null)
+    expect(r).toEqual({ kind: 'instance', instance: b })
+  })
+
+  it("ne désigne AUCUN relais quand plusieurs comptes restent au même palier — la cascade demande lequel, elle n'en choisit pas un", () => {
+    const a = mine('a'), b = mine('b'), c = mine('c')
+    expect(relayFor([a, b, c], a, null)).toEqual({ kind: 'ambiguous', count: 2 })
+    // …et la vue mince n'invente pas de filet de sécurité.
+    expect(relayOf([a, b, c], a, null)).toBeNull()
+  })
+
+  it("ne descend pas au palier org tant qu'un compte reste au palier retiré — la cascade ne le ferait pas", () => {
+    const a = mine('a'), b = mine('b'), org = inst({ level: 'org' })
+    const r = relayFor([a, b, org], a, null)
+    expect(r).toEqual({ kind: 'instance', instance: b })
+  })
+
+  it('mono-compte : le palier du dessous prend la suite, comme avant', () => {
+    const m = inst({ level: 'member' }), org = inst({ level: 'org' })
+    expect(relayFor([m, org], m, null)).toEqual({ kind: 'instance', instance: org })
+  })
+
+  it('plus rien de vivant : aucun relais', () => {
+    const m = inst({ level: 'member' })
+    expect(relayFor([m], m, null)).toEqual({ kind: 'none' })
+  })
+
+  it('une clé suspendue ou prêtée ne compte pas comme relais', () => {
+    const m = inst({ level: 'member' })
+    const susp = inst({ level: 'org', suspended: true })
+    const lent = inst({ level: 'org', via: 'shared_with_me' })
+    expect(relayFor([m, susp, lent], m, null)).toEqual({ kind: 'none' })
   })
 })

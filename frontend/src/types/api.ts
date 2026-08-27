@@ -34,6 +34,11 @@ export interface DocSection {
 export interface AuthDescriptor {
   method: 'secret' | 'oauth' | 'cookie' | 'remote' | 'hosted' | 'none'
   cardinality: 'single' | 'multi_account'
+  // Le MOT que l'utilisateur emploie chez ce fournisseur pour un compte —
+  // « workspace » (Slack), « organisation » (Zoho), « site » (navigateur connecté),
+  // « compte » par défaut. Servi par le registre : l'écran l'affiche, il ne le
+  // devine pas. Optionnel le temps qu'un backend plus ancien soit à jour.
+  account_noun?: string
   fields: CredentialField[]
 }
 export interface ConnectorMeta {

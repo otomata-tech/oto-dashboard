@@ -116,6 +116,44 @@ de toolbox vivent en bas de la même vue. Les **tokens CLI** ont migré vers le 
 > `revokeAccountAccess` (`/api/me/connector-accounts/*`). Backend : `oto-backend/CLAUDE.md`
 > §Compte partagé autorisé.
 
+## Plusieurs comptes sur un connecteur à clé (#121, 27/08/2026)
+
+> **Un compte du coffre = un workspace Slack, une organisation Zoho, un site du
+> navigateur connecté.** Le backend sert N comptes nommés par connecteur à clé
+> (multi-compte par défaut, credentials multi-champs inclus — oto-backend#409) ; le
+> dashboard ne lisait `cardinality` que dans sa branche OAuth, donc la famille
+> « formulaire de champs » n'avait aucun moyen d'en poser un deuxième autrement qu'en
+> appelant l'API à la main.
+>
+> **Le mot vient du REGISTRE, pas de l'écran** (`auth.account_noun` : « workspace »,
+> « organisation », « site », « compte » par défaut) — écrire « compte » partout
+> obligerait l'utilisateur à traduire, et le front n'a aucun moyen de savoir.
+>
+> **Le premier compte reste anonyme** : la pose ordinaire ne change pas d'un pixel
+> (c'était 100 % des cas — 26 lignes en base le 27/08, aucune nommée). Le nom n'est
+> demandé qu'à partir du **deuxième** (`CredentialDialogSpec.accountMode`, `'new'`), et
+> il est alors obligatoire : le serveur migre lui-même la ligne anonyme vers un libellé
+> au premier compte nommé, et refuse une pose anonyme là où des comptes nommés existent.
+> **L'écran suit ces règles, il ne les rejoue pas** — un doublon de nom est le seul refus
+> anticipé côté saisie, pour éviter un aller-retour.
+> Composants : `ConnectorKeyAccounts.vue` (liste, compte par défaut, retrait, « ajouter
+> un <mot> ») monté dans le panneau de connexion dès qu'un credential est posé sur un
+> connecteur `multi_account` ; `CredentialFieldsDialog.vue` (champ nom) ; geste
+> `ConnectionLever.addAccount` (scope USER — org/équipe posent toujours leur compte
+> partagé unique).
+>
+> ⚠️ **Piloté par la liste SERVIE** (`getConnectorIdentities`), jamais par une clé
+> composée reconstruite ici : quand le backend donnera aux instances un identifiant
+> stable (chantier v3 L6), cet écran n'aura rien à changer.
+>
+> ⚠️ **Le miroir de la cascade a dû apprendre le multi-compte** (`lib/keyStack.ts`,
+> `relayFor`). En mono-compte, « retirer ma clé » avait une seule suite possible : le
+> palier du dessous. Avec deux comptes au même palier, la cascade n'en choisit AUCUN
+> d'office (anti-usurpation) — elle demande lequel. Annoncer l'un d'eux comme relais
+> serait faux, annoncer « ton agent perdra ce connecteur » aussi : le dialog de retrait
+> dit désormais « il te restera N workspaces — ton agent devra préciser lequel ». Et les
+> lignes de la pile portent le nom du compte, sinon deux « Ta clé » ne se distinguent pas.
+
 ## Un connecteur = 3 projections par audience (ADR 0022)
 
 **Un connecteur = 3 projections par audience (ADR 0022).** La même chose vue de trois sièges,

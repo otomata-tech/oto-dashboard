@@ -69,13 +69,25 @@ export const unselectConnector = (name: string) =>
 // par le connecteur (`credential_fields`). api_key → {key}, basic_auth (planity) →
 // {email,password}, silae → {client_id,client_secret,subscription_key}. Le serveur
 // pack/chiffre selon la forme. Une seule surface, zéro branche par connecteur.
-export const setCredential = (provider: string, fields: Record<string, string>) =>
-  api(`/api/settings/api-keys/${provider}`, { method: 'POST', ...j(fields) })
+// `account` (multi-compte) = le NOM du compte visé — un workspace Slack, une
+// organisation Zoho. Omis / vide = le compte mono historique. Le serveur migre
+// lui-même la ligne anonyme au premier compte nommé, et refuse une pose anonyme
+// là où des comptes nommés existent : l'écran suit ses refus, il ne les rejoue pas.
+export const setCredential = (provider: string, fields: Record<string, string>, account = '') =>
+  api(`/api/settings/api-keys/${provider}`,
+    { method: 'POST', ...j(account ? { ...fields, account } : fields) })
 // `scope` (défaut 'member') = niveau de l'instance à effacer : ma clé/session perso,
 // celle de l'équipe active, ou celle de l'org (org/group réservés aux admins du scope).
-export const deleteApiKey = (provider: string, scope: 'member' | 'org' | 'group' = 'member') =>
-  api(`/api/settings/api-keys/${provider}${scope !== 'member' ? `?scope=${scope}` : ''}`,
-    { method: 'DELETE' })
+// `account` cible un compte NOMMÉ précis ; vide = le compte mono historique.
+export const deleteApiKey = (
+  provider: string, scope: 'member' | 'org' | 'group' = 'member', account = '',
+) => {
+  const q = new URLSearchParams()
+  if (scope !== 'member') q.set('scope', scope)
+  if (account) q.set('account', account)
+  const qs = q.toString()
+  return api(`/api/settings/api-keys/${provider}${qs ? `?${qs}` : ''}`, { method: 'DELETE' })
+}
 
 // Sonde « tester la connexion » (framework de vérification de credential). Résout le
 // credential et vérifie qu'il authentifie réellement, en remontant le vrai message
@@ -149,12 +161,16 @@ export const disconnectUnipile = (channel: string) =>
 
 // ── sélecteur d'identité connectée générique (ADR 0024) — choisir parmi les
 // comptes d'une clé (BYO unipile : LinkedIn de l'équipe ; Google : multi-compte) ──
-export const getConnectorIdentities = (connector: string) =>
+// `scope` : 'member' (mes comptes, défaut) | 'group' | 'org' — les comptes nommés
+// des paliers partagés, servis par le même contrat.
+export const getConnectorIdentities = (connector: string, scope: 'member' | 'org' | 'group' = 'member') =>
   api<{ connector: string; supported: boolean; identities: ConnectorIdentity[] }>(
-    `/api/connectors/${encodeURIComponent(connector)}/identities`)
-export const setConnectorIdentity = (connector: string, identity_id: string) =>
+    `/api/connectors/${encodeURIComponent(connector)}/identities${scope !== 'member' ? `?scope=${scope}` : ''}`)
+export const setConnectorIdentity = (
+  connector: string, identity_id: string, scope: 'member' | 'org' | 'group' = 'member',
+) =>
   api(`/api/connectors/${encodeURIComponent(connector)}/identities/default`,
-    { method: 'PUT', ...j({ identity_id }) })
+    { method: 'PUT', ...j(scope !== 'member' ? { identity_id, scope } : { identity_id }) })
 
 // ── autorisation de compte connecteur partagé (#55) — le PROPRIÉTAIRE accorde/
 // révoque à un user nommé (email/sub, même hors de ses orgs) le droit d'opérer SON compte ──

@@ -37,15 +37,53 @@ export function rowState(
 }
 
 /**
- * Le relais = ce qui résoudrait À LA PLACE de la clé retirée : la plus proche en
- * dessous, non suspendue, hors prêt nominatif (qui s'utilise par épinglage, jamais en
- * repli automatique) et hors équipe inactive (inerte).
+ * Ce qui se passe si on retire la clé visée. Trois issues, parce qu'en multi-compte
+ * « une autre clé prend la suite » n'est plus la seule (oto-dashboard#121) :
+ *  · `instance`  — cette clé-là résoudra à la place ;
+ *  · `ambiguous` — il restera PLUSIEURS comptes au même palier : la cascade n'en
+ *                  choisit aucun toute seule (anti-usurpation), elle demande lequel.
+ *                  Annoncer l'un d'eux comme relais serait faux ;
+ *  · `none`      — plus rien ne résout.
+ */
+export type Relay =
+  | { kind: 'instance'; instance: ConnectorInstance }
+  | { kind: 'ambiguous'; count: number }
+  | { kind: 'none' }
+
+/**
+ * Candidats au relais : les clés encore vivantes après le retrait — non suspendues,
+ * hors prêt nominatif (qui s'utilise par épinglage, jamais en repli automatique) et
+ * hors équipe inactive (inerte). Triées par proximité en amont (`rows`).
+ */
+function candidates(
+  rows: ConnectorInstance[], removed: ConnectorInstance | undefined, activeGroup: number | null,
+): ConnectorInstance[] {
+  return rows.filter((i) => i !== removed && !i.suspended && i.via !== 'shared_with_me'
+    && !isInactiveTeam(i, activeGroup))
+}
+
+export function relayFor(
+  rows: ConnectorInstance[], removed: ConnectorInstance | undefined, activeGroup: number | null,
+): Relay {
+  const left = candidates(rows, removed, activeGroup)
+  // Frères du palier de la clé retirée : la cascade ne descend PAS tant qu'il en reste
+  // (elle sert le compte unique, ou demande lequel s'il y en a plusieurs).
+  const siblings = removed ? left.filter((i) => i.level === removed.level) : []
+  if (siblings.length > 1) return { kind: 'ambiguous', count: siblings.length }
+  const next = siblings[0] ?? left[0]
+  return next ? { kind: 'instance', instance: next } : { kind: 'none' }
+}
+
+/**
+ * Le relais = ce qui résoudrait À LA PLACE de la clé retirée, ou `null` quand rien ne
+ * prend la suite tout seul. Vue mince sur `relayFor`, pour les appelants qui n'ont
+ * besoin que de « y a-t-il un filet ? ».
  */
 export function relayOf(
   rows: ConnectorInstance[], memberRow: ConnectorInstance | undefined, activeGroup: number | null,
 ): ConnectorInstance | null {
-  return rows.find((i) => i !== memberRow && !i.suspended && i.via !== 'shared_with_me'
-    && !isInactiveTeam(i, activeGroup)) ?? null
+  const r = relayFor(rows, memberRow, activeGroup)
+  return r.kind === 'instance' ? r.instance : null
 }
 
 /**

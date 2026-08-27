@@ -14,6 +14,7 @@ import ConnectorFederatedWidget from '@/components/console/ConnectorFederatedWid
 import ConnectorSessionWidget from '@/components/console/ConnectorSessionWidget.vue'
 import ConnectorHostedWidget from '@/components/console/ConnectorHostedWidget.vue'
 import ConnectorFlowConnect from '@/components/console/ConnectorFlowConnect.vue'
+import ConnectorKeyAccounts from '@/components/console/ConnectorKeyAccounts.vue'
 import ConnectorKeyStack from './ConnectorKeyStack.vue'
 import ConnectorVerdictLine from './ConnectorVerdictLine.vue'
 import { useMe } from '@/composables/useMe'
@@ -81,6 +82,9 @@ const statusMode = computed<ConnectorMode>(() => {
   return p.mode as ConnectorMode
 })
 const keyConfigured = computed(() => !!status.value?.user_key_configured)
+// Le connecteur porte-t-il plusieurs comptes ? Dérivé du descripteur backend, comme
+// tout le reste de ce panneau — jamais d'une liste de noms tenue côté front.
+const multiAccount = computed(() => c.value.auth.cardinality === 'multi_account')
 const needsKey = computed(() => connKind.value === 'key')
 const docRefCount = computed(() => c.value.doctrine_ref_count ?? 0)
 
@@ -140,6 +144,10 @@ const teamKey = computed(() => status.value?.team_key_group ?? null)
              gater là-dessus masquerait le bouton au moment où il sert). -->
         <ConnectorFlowConnect v-if="flow" :connector="c" :status="status"
                               :configure="() => lever.configureKey(c)" />
+        <!-- Comptes nommés (#121) : un compte du coffre = un workspace Slack, une
+             organisation Zoho. Ne s'affiche qu'une fois un credential posé — le
+             premier compte reste anonyme, la pose ordinaire ne change pas. -->
+        <ConnectorKeyAccounts v-if="keyConfigured && multiAccount" :connector="c" :lever="lever" />
       </div>
 
       <ConnectorOAuthAccounts v-else-if="connKind === 'google'" />

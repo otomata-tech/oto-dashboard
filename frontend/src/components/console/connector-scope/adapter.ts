@@ -141,6 +141,11 @@ export interface EmailLever<R> { visible(r: R): boolean; props(r: R): EmailPanel
 // (`me.providers`) ; l'adaptateur ne porte que les ACTIONS de la clé keyée.
 export interface ConnectionLever<R> {
   configureKey(r: R): void   // ouvre CredentialFieldsDialog (clé keyée)
+  // Multi-compte (#121) : poser un compte NOMMÉ de plus, à côté de l'existant — un
+  // second workspace Slack, une seconde organisation Zoho. `existing` = les comptes
+  // déjà posés (le dialog refuse un doublon avant l'aller-retour serveur). Absent =
+  // ce scope ne sait pas encore ajouter un compte ; l'écran n'affiche alors rien.
+  addAccount?(r: R, existing: string[]): void
   // `note` = phrase honnête sur le relais (calculée par la pile : ce qui prendrait
   // la suite, ou l'avertissement « rien ne prendra le relais ») — CDC P8.
   removeKey(r: R, note?: string): void
@@ -199,8 +204,23 @@ export interface CredentialDialogSpec {
   label: string
   fields: CredentialField[]
   single: boolean
-  onConfirm: (values: Record<string, string>) => Promise<void>
+  // `values` porte les champs déclarés ; `account` le NOM du compte visé quand le
+  // connecteur en gère plusieurs ('' = le compte mono historique).
+  onConfirm: (values: Record<string, string>, account: string) => Promise<void>
   verify?: () => Promise<VerifyResult>
+  // Multi-compte (oto-dashboard#121) — le GESTE dit quoi faire du nom, jamais une
+  // heuristique du dialog :
+  //  · 'none'  = pose ordinaire (premier credential, ou connecteur mono-compte) —
+  //              aucun champ, aucune friction ajoutée ;
+  //  · 'new'   = on AJOUTE un compte à côté d'un existant — le nom est obligatoire,
+  //              parce que le serveur refuse une seconde pose anonyme (il migre la
+  //              ligne anonyme vers un libellé au premier compte nommé) ;
+  //  · 'fixed' = on repose SUR un compte donné (remplacer) — pas de champ, `account`
+  //              est transmis tel quel.
+  accountMode?: 'none' | 'new' | 'fixed'
+  account?: string            // 'fixed' : le compte visé
+  accountNoun?: string        // le mot du fournisseur, servi par le registre
+  accountNames?: string[]     // déjà posés — refuser un doublon à la saisie
 }
 
 // Services partagés injectés par la vue (une seule instance de FormDialog / prompt /
