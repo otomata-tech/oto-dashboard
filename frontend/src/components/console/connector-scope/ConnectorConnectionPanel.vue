@@ -143,8 +143,18 @@ const keyCta = computed(() => (otherKeys.value > 0 ? 'Poser ma clé' : `Connecte
         <Quota v-if="status?.quota_daily" style="margin-top: 12px" :used="status.quota_used_today" :total="status.quota_daily" label="quota du jour" />
         <!-- Un connecteur à FLUX porte ses propres actions dans l'encart ci-dessous
              (dont « identifiants de l'application ») : deux boutons concurrents
-             rendaient le geste illisible. Dérivé du descripteur, plus d'un nom. -->
-        <div v-if="!keyConfigured && !flow" style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap">
+             rendaient le geste illisible. Dérivé du descripteur, plus d'un nom.
+
+             ⚠️ **Le niveau MANQUANT se nomme dès qu'un autre existe.** La pile ne
+             liste que les clés POSÉES : quand seule celle d'une équipe existe, le
+             bouton se retrouvait collé sous elle, dans le même encadré, et se lisait
+             comme une action SUR elle — « on dirait qu'on va la modifier », dit par
+             un admin d'org qui a cru remplacer la clé de son équipe. La césure et la
+             ligne « ta clé — aucune » rendent le geste à son propriétaire. Rien de
+             tout ça quand il n'y a aucune clé : il n'y a alors rien au-dessus à
+             confondre, et annoncer un vide de plus serait du bruit. -->
+        <div v-if="!keyConfigured && !flow" class="dr-mine" :class="{ split: otherKeys > 0 }">
+          <span v-if="otherKeys > 0" class="dr-mine-lbl"><Dot tone="saffron" />ta clé — aucune</span>
           <Btn kind="mini" @click="lever.configureKey(c)">{{ keyCta }}</Btn>
         </div>
         <!-- Geste de connexion déclaré (consentement OAuth…) : il COEXISTE avec le
@@ -189,6 +199,12 @@ const keyCta = computed(() => (otherKeys.value > 0 ? 'Poser ma clé' : `Connecte
 .dr-block { padding: 18px 20px; border-bottom: 1px solid var(--color-hair-soft); }
 .dr-box { border: 1px solid var(--color-hair); border-radius: 10px; padding: 14px; background: var(--color-surface); }
 .dr-box.dashed { border-style: dashed; border-color: var(--color-hair-classic); }
+/* L'action de l'utilisateur, détachée de la pile : la pile dit ce qui EXISTE, cette
+   ligne dit ce qu'il manque et ce qu'on peut y faire. */
+.dr-mine { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.dr-mine.split { border-top: 1px solid var(--color-hair-soft); padding-top: 13px; }
+.dr-mine-lbl { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px;
+  font-weight: 600; color: var(--color-mute); }
 .dim { color: var(--color-faint); font-weight: 500; }
 .statrow { display: flex; flex-wrap: wrap; gap: 14px; }
 .spill { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--color-ink); }
