@@ -149,8 +149,14 @@ const groupes = computed(() => {
         procedures: [...new Set(lot.map(procOf))],
         tableaux: [...new Set(lot.map(tableauOf).filter((n): n is string => !!n))],
         enCours: lot.filter((j) => j.status === 'claimed').length,
+        attente: lot.filter((j) => j.status === 'pending').length,
         finis: finis.length,
         echecs: lot.filter((j) => j.status === 'failed').length,
+        // L'avancement se lit sur les travaux VUS : le volume visé vit dans la
+        // déclaration de flotte, que l'API ne rend pas. Mieux vaut un dénominateur
+        // vrai et partiel qu'un total supposé — la carte dit d'ailleurs « sur les
+        // N derniers jobs » pour qu'on ne le lise pas comme la campagne entière.
+        part: lot.length ? Math.round((100 * finis.length) / lot.length) : 0,
         tokens: lot.reduce((s, j) => s + (j.result?.usage_tokens ?? 0), 0),
         // Débit observé : sert à estimer une fin de campagne. Muet sous deux jobs
         // conclus ou sur une fenêtre trop courte — un débit sur un point est faux.
@@ -195,14 +201,22 @@ async function toggleFil(runId: string) {
   }
 }
 
+// ⚠️ Le tour est apposé sous `content`, PAS sous `text` — la vue lisait la mauvaise
+// clé et affichait « — » sur chaque ligne d'un fil pourtant plein (constaté le
+// 2026-08-28 sur une campagne réelle). On accepte les deux formes : le chemin
+// stateless appose du `text`, celui qui délègue la boucle au fournisseur appose du
+// `content` accompagné d'un relevé d'outils.
 function resume(m: RunThreadMessage): string {
   const c = m.content as Record<string, unknown> | null
-  const texte = typeof c?.text === 'string' ? c.text : ''
+  const brut = c?.content ?? c?.text
+  const texte = typeof brut === 'string' ? brut : ''
   const appels = Array.isArray(c?.tool_calls)
     ? (c!.tool_calls as Array<{ name?: string }>).map((t) => t.name).filter(Boolean)
     : []
-  if (texte && appels.length) return `${texte} → ${appels.join(', ')}`
-  if (appels.length) return `outils : ${appels.join(', ')}`
+  const releve = typeof c?.tool_relevé === 'string' ? c.tool_relevé : ''
+  const outils = appels.length ? appels.join(', ') : releve
+  if (texte && outils) return `${texte}\n↳ ${outils}`
+  if (outils) return `outils : ${outils}`
   return texte || '—'
 }
 
@@ -272,12 +286,18 @@ defineExpose({ load })
           <span v-if="g.tableaux.length === 1" class="rj-gns">{{ g.tableaux[0] }}</span>
           <span class="rj-gstat">
             <span v-if="g.enCours">{{ g.enCours }} en cours</span>
-            <span v-if="g.enCours && g.finis"> · </span>
-            <span v-if="g.finis">{{ g.finis }} conclus</span>
+            <span v-if="g.attente" class="dim"> · {{ g.attente }} en attente</span>
+            <span v-if="g.finis"> · {{ g.finis }} conclus</span>
             <span v-if="g.echecs" class="rj-warn"> · {{ g.echecs }} en échec</span>
             <span v-if="g.parHeure" class="dim"> · ~{{ g.parHeure }}/h</span>
             <span v-if="g.tokens" class="dim"> · {{ jetons(g.tokens) }} jetons</span>
           </span>
+        </div>
+        <!-- L'avancement d'un coup d'œil : un compte sans proportion oblige à
+             calculer de tête, et c'est la première chose qu'on cherche. -->
+        <div v-if="g.flotte && g.jobs.length > 2" class="rj-jauge"
+          :title="`${g.finis} conclus sur ${g.jobs.length} travaux vus`">
+          <span class="rj-jauge-in" :style="{ width: g.part + '%' }" />
         </div>
 
         <ul class="rj-list">
@@ -354,6 +374,14 @@ defineExpose({ load })
 .rj-gproc { font-size: 12px; color: var(--color-mute); }
 .rj-gns { font-family: var(--font-mono, monospace); font-size: 11px; color: var(--color-faint); }
 .rj-gstat { margin-left: auto; font-size: 11.5px; color: var(--color-mute); }
+.rj-jauge {
+  width: 100%; height: 3px; border-radius: var(--radius-pill);
+  background: var(--color-hair); margin: 0 0 8px; overflow: hidden;
+}
+.rj-jauge-in {
+  display: block; height: 100%; background: var(--color-olive, #6b7a3a);
+  transition: width var(--t-fast, .2s) var(--ease-out, ease);
+}
 
 .rj-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .rj-item { border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 7px 10px; }
