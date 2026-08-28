@@ -17,7 +17,9 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from '@/components/ui/select'
 import { humanize } from '@/lib/errors'
-import { payloadFor, relevantFields, secretPlaceholder } from '@/lib/credentialForm'
+import {
+  keptSecrets, payloadFor, relevantFields, requiredAtInput, secretPlaceholder,
+} from '@/lib/credentialForm'
 import DocSections from '@/components/console/DocSections.vue'
 import type { CredentialField, DocSection, VerifyResult } from '@/types/api'
 
@@ -77,14 +79,24 @@ const shown = computed(() => relevantFields(
   props.fieldDiscriminator ? { [props.fieldDiscriminator]: picked.value } : {},
 ))
 
+// Les secrets DÉJÀ au coffre : les laisser vides est un geste légitime, l'écran le dit
+// et l'envoi les omet. La validation doit dire la même chose — sans ça, le champ
+// affiche « laisse vide pour conserver » ET se marque requis en rouge.
+const kept = computed(() => keptSecrets(
+  props.fields, props.fieldDiscriminator, props.initialValues, !!props.existing))
+
 const schema = computed(() =>
   toTypedSchema(
     z.object(Object.fromEntries([
       ...shown.value.map((f) => [
         f.name,
-        f.required === false
-          ? z.string().trim().optional().default('')
-          : z.string().trim().min(1, 'requis'),
+        // ⚠️ La vue ne DÉCIDE pas si un champ est requis : elle le demande à
+        // `credentialForm`, qui décide aussi de ce que l'envoi omet. Recalculer ici
+        // sur `f.required` est ce qui a produit « laisse vide pour conserver » ET
+        // « requis » en rouge sur le même champ.
+        requiredAtInput(f, kept.value)
+          ? z.string().trim().min(1, 'requis')
+          : z.string().trim().optional().default(''),
       ]),
       ...(asksAccount.value
         ? [[ACCOUNT_KEY, z.string().trim().min(1, 'requis').refine(
@@ -150,7 +162,7 @@ const submit = handleSubmit(async (values) => {
   testRes.value = null
   const all = values as Record<string, string>
   const account = asksAccount.value ? (all[ACCOUNT_KEY] ?? '').trim() : (props.account ?? '')
-  const fieldValues = payloadFor(shown.value, all, { existing: !!props.existing })
+  const fieldValues = payloadFor(shown.value, all, { kept: kept.value })
   try {
     await props.onConfirm(fieldValues, account)
   } catch {
@@ -232,7 +244,7 @@ const submit = handleSubmit(async (values) => {
               <Input
                 :type="f.secret ? 'password' : 'text'"
                 autocomplete="off"
-                :placeholder="secretPlaceholder(f, !!existing) || (single ? `colle ta clé ${label}` : '')"
+                :placeholder="secretPlaceholder(f, kept.has(f.name)) || (single ? `colle ta clé ${label}` : '')"
                 v-bind="componentField"
               />
             </FormControl>

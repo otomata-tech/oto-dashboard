@@ -90,10 +90,24 @@ Trois règles, toutes DÉRIVÉES du registre, aucune connaissance d'un connecteu
 2. **Pré-remplir depuis le palier.** `credentialPrefill(provider, scope)` relit les champs
    révélables du credential déjà posé — `member`, `group` ou `org`, admin du palier exigé.
    Un secret ne se relit JAMAIS ; un 404 « rien de posé » est un état, pas une erreur.
-3. **Ne pas renvoyer un secret vide.** Le serveur complète les clés ABSENTES et traite une
-   clé PRÉSENTE ET VIDE comme un effacement. Sur un credential existant, un champ secret
-   laissé vide est donc OMIS du corps ; les champs non secrets, eux, partent toujours
+3. **Ne pas renvoyer un secret CONSERVÉ vide.** Le serveur complète les clés ABSENTES et
+   traite une clé PRÉSENTE ET VIDE comme un effacement. Un secret déjà au coffre laissé
+   vide est donc OMIS du corps ; les champs non secrets, eux, partent toujours
    (l'utilisateur les voit, en vider un est délibéré). Le dialogue le dit à l'écran.
+
+   « Déjà au coffre » se DÉDUIT, il ne se demande pas : un secret ne se relit pas, mais le
+   mode STOCKÉ, lui, est non secret donc relu — un secret que ce mode-là rendait requis est
+   forcément posé. **Changer de mode rend un secret réellement manquant** (un credential
+   `bearer` n'a pas de mot de passe), et le formulaire le redemande inline plutôt que de
+   laisser le serveur refuser après l'envoi.
+
+   ⚠️ **Une seule notion, deux consommateurs.** `keptSecrets` alimente à la fois ce qui est
+   omis à l'envoi (`payloadFor`) et ce qui est exigé à la saisie (`requiredAtInput`) — la
+   vue ne recalcule ni l'un ni l'autre. **Corrigé le 28/08** : la première version avait
+   appris la règle à l'envoi seulement, la validation décidant encore sur le `required` du
+   registre. Le champ affichait « laisse vide pour conserver » ET « requis » en rouge, et
+   le formulaire refusait de partir — le geste que tout ce lot devait débloquer. Un test
+   d'invariant relie désormais les deux règles dans les deux sens.
 
 ⚠️ **`lib/credentialForm.ts` est un MIROIR du serveur**, au même titre que `keyStack.ts`
 l'est de la cascade : `relevantFields` reproduit `Connector.fields_for` et `payloadFor`

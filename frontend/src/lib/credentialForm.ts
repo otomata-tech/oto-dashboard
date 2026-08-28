@@ -36,35 +36,90 @@ export function relevantFields(
  *
  * Le serveur complète les clés ABSENTES par ce qu'il a au coffre, et traite une clé
  * PRÉSENTE ET VIDE comme un effacement explicite. D'où la seule asymétrie de ce
- * fichier : sur un credential qui existe déjà, **un champ secret laissé vide est
- * OMIS** — on ne peut pas le relire pour le pré-remplir, donc « vide » y veut dire
- * « je n'y touche pas », jamais « efface-le ».
+ * fichier : **un secret CONSERVÉ laissé vide est OMIS** — on ne peut pas le relire
+ * pour le pré-remplir, donc « vide » y veut dire « je n'y touche pas », jamais
+ * « efface-le ».
  *
  * Les champs non secrets, eux, partent toujours : ils sont pré-remplis, l'utilisateur
  * les VOIT, et en vider un est un geste délibéré qu'il faut respecter.
  *
+ * ⚠️ `kept` vient de `keptSecrets` — **la même valeur que celle qui décide du
+ * requis** (`requiredAtInput`). Les deux règles partagent volontairement cette
+ * notion : un champ omis ici ne doit jamais être exigé là-bas, et l'inverse. Elles
+ * ont divergé une fois, avec pour résultat un formulaire qu'on ne pouvait pas
+ * soumettre (28/08) ; l'invariant est gravé dans le test de ce fichier.
+ *
  * ⚠️ Renvoyer un secret vide sur un credential existant l'EFFACERAIT. C'est le piège
- * exact de ce lot (oto-dashboard#126) : le formulaire renvoyait tous ses champs, ce
- * qui était juste tant que le serveur remplaçait tout, et devient destructeur depuis
+ * de ce lot (oto-dashboard#126) : le formulaire renvoyait tous ses champs, ce qui
+ * était juste tant que le serveur remplaçait tout, et devient destructeur depuis
  * qu'il complète. */
 export function payloadFor(
   fields: CredentialField[],
   values: Record<string, string>,
-  opts: { existing: boolean },
+  opts: { kept: Set<string> },
 ): Record<string, string> {
   const out: Record<string, string> = {}
   for (const f of fields) {
     const v = values[f.name] ?? ''
-    if (v === '' && f.secret && opts.existing) continue
+    if (v === '' && opts.kept.has(f.name)) continue
     out[f.name] = v
   }
   return out
 }
 
-/** Un champ secret d'un credential déjà posé se saisit « à blanc » : on ne peut pas
- * le relire, et le laisser vide le conserve. Le dire à l'écran, sinon l'utilisateur
- * croit qu'il doit le retrouver — c'est ce qui a fait renoncer à un repointage. */
-export function secretPlaceholder(f: CredentialField, existing: boolean): string {
-  if (f.secret && existing) return 'déjà enregistré — laisse vide pour conserver'
+/** Les secrets qu'on a le droit de laisser VIDES : ceux qui sont déjà au coffre.
+ *
+ * Un secret ne se relit pas, donc on ne peut pas demander lesquels sont posés. Mais on
+ * connaît le mode STOCKÉ — il n'est pas secret, donc il revient avec le
+ * pré-remplissage : un secret que ce mode-là rendait requis est forcément au coffre,
+ * le serveur n'aurait pas accepté l'écriture sinon. Ceux-là, et eux seuls, cessent
+ * d'être requis à la saisie.
+ *
+ * ⚠️ **Changer de mode rend un secret réellement MANQUANT** : un credential `bearer`
+ * n'a pas de mot de passe au coffre. Passer en `basic` doit donc redemander le mot de
+ * passe, inline, plutôt que de laisser le serveur refuser après l'envoi.
+ *
+ * ⚠️ Ne concerne QUE les champs secrets. Une URL de base ou un mode d'auth restent
+ * requis même sur un credential existant — ils sont pré-remplis, donc les vider est un
+ * geste, pas un oubli, et un formulaire validable à blanc n'aurait plus de sens.
+ *
+ * D'où ça vient : la première version de ce lot a appris à l'ENVOI qu'un secret vide
+ * se conserve, et a oublié de le dire à la VALIDATION. Le champ affichait « laisse
+ * vide pour conserver » et se marquait requis en rouge — deux couches, deux avis
+ * contraires, formulaire impossible à soumettre (oto-dashboard#126, 28/08). */
+export function keptSecrets(
+  fields: CredentialField[],
+  discriminator: string | undefined,
+  stored: Record<string, string> | undefined,
+  existing: boolean,
+): Set<string> {
+  if (!existing) return new Set()
+  return new Set(
+    relevantFields(fields, discriminator, stored ?? {})
+      .filter((f) => f.secret)
+      .map((f) => f.name),
+  )
+}
+
+/** Le champ doit-il être NON VIDE pour que le formulaire parte ?
+ *
+ * Seule source de cette réponse — la vue ne la recalcule pas. C'est exactement ce qui
+ * a produit le défaut du 28/08 : le dialogue décidait « requis » sur le seul
+ * `f.required` du registre, pendant que `payloadFor`, ici, avait déjà le droit
+ * d'omettre le champ. Deux couches, deux avis contraires, formulaire impossible à
+ * soumettre. L'invariant qui les relie est gravé dans le test de ce fichier. */
+export function requiredAtInput(f: CredentialField, kept: Set<string>): boolean {
+  return f.required !== false && !kept.has(f.name)
+}
+
+/** Un secret CONSERVÉ se saisit « à blanc » : on ne peut pas le relire, et le laisser
+ * vide le garde. Le dire à l'écran, sinon l'utilisateur croit qu'il doit le retrouver
+ * ailleurs — c'est ce qui a fait renoncer à un repointage.
+ *
+ * ⚠️ `kept` vient de `keptSecrets`, pas de « un credential existe ». Un secret qu'un
+ * changement de mode vient de rendre nécessaire n'est PAS au coffre : lui promettre
+ * qu'il sera conservé serait faux, et le formulaire le redemande. */
+export function secretPlaceholder(f: CredentialField, kept: boolean): string {
+  if (f.secret && kept) return 'déjà enregistré — laisse vide pour conserver'
   return f.help ?? ''
 }
