@@ -4,6 +4,7 @@ import { api, apiUpload, apiPublic } from '@/api'
 import type {
   AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, InitGuide, InitScope, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, CredentialState, MyConnector, ProviderStatus, SearchHit, Inbox,
   BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
+  BillingIdentityView, BillingIdentityInput, BillingConfirmResult, LegalStatus,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
   GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
@@ -1049,27 +1050,46 @@ export const getBillingPayments = (limit = 20) =>
 // checkout_url = page de paiement hébergée Mollie (carte, ou prélèvement SEPA
 // dont le mandat est collecté sur LEUR page — plus aucun champ IBAN côté nous).
 // v1 = carte (ADR 0043 « v1 CB seule ») ; method='sepa' resterait un simple hint.
+// La réponse est TOUJOURS une souscription OUVERTE (`checkout_url` + la
+// décomposition HT/TVA/TTC réellement retenue) : à ce stade rien n'est débité et
+// aucun abonnement n'existe. Les préalables manquants sortent en 409, pas en 200.
 export const subscribeBilling = (body: {
   plan: string; return_url: string; method?: 'card' | 'sepa'
-}) => api<BillingSubscribeResult | BillingStatus>('/api/me/billing/subscribe', { method: 'POST', ...j(body) })
+}) => api<BillingSubscribeResult>('/api/me/billing/subscribe', { method: 'POST', ...j(body) })
 // Confirme au retour de la page hébergée (polling ; le webhook Mollie confirme
 // aussi côté serveur — ce confirm est le filet au retour navigateur).
-export const confirmBilling = () => api<BillingStatus>('/api/me/billing/confirm', { method: 'POST' })
+//
+// `payment_ref` = le paiement que le NAVIGATEUR vient de conclure, posé par le
+// serveur sur l'URL de retour (`?payment_ref=tr_…`). Sans lui, le serveur retombe
+// sur « le plus récent non conclu » — correct pour une re-sonde, approximatif au
+// retour d'un checkout. Le passer quand on l'a (#127).
+export const confirmBilling = (payment_ref?: string | null) =>
+  api<BillingConfirmResult>('/api/me/billing/confirm',
+    { method: 'POST', ...j(payment_ref ? { payment_ref } : {}) })
 export const cancelBilling = () => api<BillingStatus>('/api/me/billing/cancel', { method: 'POST' })
 
+// Identité de facturation de l'org (#486) — PRÉALABLE du cycle : le pays décide du
+// taux de TVA, donc du montant réellement débité, et `subscribe` refuse (409
+// `billing_identity_required`) tant qu'elle n'est pas complète. Consulter = tout
+// membre (le TTC affiché en dépend) ; écrire = org_admin.
+export const getBillingIdentity = () =>
+  api<BillingIdentityView>('/api/me/billing/identity')
+// La fiche part ENTIÈRE : le serveur remplace, il ne fusionne pas.
+export const setBillingIdentity = (body: BillingIdentityInput) =>
+  api<BillingIdentityView>('/api/me/billing/identity', { method: 'PUT', ...j(body) })
+
 // ── Documents légaux (acceptation CGU/CGV/DPA) — journal côté oto-mcp ──
-export interface LegalDocState {
-  slug: string; version: string; url: string; label: string
-  accepted: boolean; accepted_version: string | null; accepted_at: string | null
-}
-export interface LegalStatus {
-  documents: LegalDocState[]
-  contexts: Record<string, { required: string[]; outstanding: string[] }>
-}
+// Types DÉRIVÉS de l'OpenAPI (`LegalStatus`), ré-exportés ici parce que les écrans
+// les importaient de ce module quand ils étaient écrits à la main.
+export type { LegalStatus, LegalDocument } from '@/types/api'
 export const getLegal = () => api<LegalStatus>('/api/me/legal')
 // context = 'access' (inscription/CGU) | 'purchase' (achat) ; enregistre l'acceptation
 // des documents requis du contexte à leur version courante.
-export const acceptLegal = (context: string) =>
+//
+// ⚠️ La réponse est le statut légal RAFRAÎCHI, pas un accusé : si
+// `contexts.<context>.outstanding` n'est pas vide au retour, un document a bougé
+// entre l'affichage et le clic — il faut repeindre, pas enchaîner (#128).
+export const acceptLegal = (context: 'access' | 'purchase') =>
   api<LegalStatus>('/api/me/legal/accept', { method: 'POST', ...j({ context }) })
 // Admin (super_admin) : forcer un plan sur une org sans paiement (plan=null retire).
 export const adminSetPlan = (orgId: number, plan: string | null) =>

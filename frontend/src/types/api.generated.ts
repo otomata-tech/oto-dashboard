@@ -25,10 +25,10 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * DELETE /api/atlassian/oauth
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Retire mon jeton atlassian du coffre
+         * @description Retire mon jeton atlassian du coffre. Idempotent : `disconnected: false` veut dire qu'il n'y avait rien à retirer, pas que le retrait a échoué.
          */
-        delete: operations["delete_api_atlassian_oauth"];
+        delete: operations["me_federation_atlassian_disconnect_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -62,10 +62,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/atlassian/oauth/start
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Rend l'URL de consentement à ouvrir pour fédérer atlassian sous mon identité
+         * @description Rend l'URL de consentement à ouvrir pour fédérer atlassian sous mon identité. Rien n'est connecté tant que l'utilisateur n'y est pas passé.
          */
-        get: operations["get_api_atlassian_oauth_start"];
+        get: operations["me_federation_atlassian_start_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -82,10 +82,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/atlassian/oauth/status
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Mon consentement atlassian est-il posé, et depuis quand
+         * @description Mon consentement atlassian est-il posé, et depuis quand. `connected: false` avec `set_at: null` est l'état normal d'un compte jamais connecté.
          */
-        get: operations["get_api_atlassian_oauth_status"];
+        get: operations["me_federation_atlassian_status_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -160,7 +160,7 @@ export interface paths {
         };
         /**
          * List the connected identities/accounts your credential can act as for a connector (e.g
-         * @description List the connected identities/accounts your credential can act as for a connector (e.g. the LinkedIn accounts under your Unipile key, or your Google accounts), with which one is currently the default. Empty when the connector has no identity choice (or uses a shared platform key — connect via hosted auth instead).
+         * @description List the connected identities/accounts your credential can act as for a connector (e.g. the LinkedIn accounts under your Unipile key, or your Google accounts), with which one is currently the default. An EMPTY list always says why: `reason` is no_credential / paid_option_off / over_quota (a layer is missing) or no_identity_connected (everything resolves, nothing linked yet), with `next_step`. Never read an empty list as a bug before reading its reason.
          */
         get: operations["connectors_identities_get"];
         put?: never;
@@ -460,12 +460,12 @@ export interface paths {
         };
         /**
          * Read a namespace's declared TYPED schema (the one `data_set_schema` posts)
-         * @description Read a namespace's declared TYPED schema (the one `data_set_schema` posts). Returns `{namespace, schema}` — `schema` is null when none is declared, which is a normal state, not an error. Read it BEFORE amending: `data_set_schema` posts the schema WHOLE, it does not merge, so adding one field means re-posting the existing definition plus that field.
+         * @description Read a namespace's declared TYPED schema (the one `data_set_schema` posts). Returns `{namespace, schema, enforced}` — `schema` is null when none is declared, which is a normal state, not an error. Read it BEFORE amending: `data_set_schema` posts the schema WHOLE, it does not merge, so adding one field means re-posting the existing definition plus that field. The work-queue rules live on the `role:"status"` field, under `lifecycle`: `states`/`transitions`/`terminal`, plus `max_claims` + `abandon_state` — the ceiling of claims WITHOUT a write past which a row leaves the queue. `enforced` lists the validation keys THIS deployment actually applies (required, max_length, pattern…): check what you are about to declare against it, rather than against documentation — a key posted but not enforced looks like a contract and is not one, and one enforced only after the next deploy freezes rows all at once, weeks after the cause. `warning` appears only when the stored schema carries declaration keys oto does NOT read — typically a leftover `enum` sitting beside the `options` that actually constrains the field. When it does, trust the key the warning names: the unread one is a residue, whatever it says.
          */
         get: operations["me_datastore_get_schema_get"];
         /**
          * Pose (ou retire, avec `schema: null`) le schéma typé d'un tableau
-         * @description Pose (ou retire, avec `schema: null`) le schéma typé d'un tableau. Le schéma est posé ENTIER — relire avant d'amender.
+         * @description Pose (ou retire, avec `schema: null`) le schéma typé d'un tableau. Le schéma est posé ENTIER — relire avant d'amender. La réponse porte `enforced` (les clés de validation que CETTE version applique) et `declarations_effacees` (ce que la pose vient de RETIRER, valeurs comprises — elle en est la seule copie).
          */
         put: operations["me_datastore_set_schema_put"];
         post?: never;
@@ -578,10 +578,10 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * DELETE /api/folkmcp/oauth
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Retire mon jeton folkmcp du coffre
+         * @description Retire mon jeton folkmcp du coffre. Idempotent : `disconnected: false` veut dire qu'il n'y avait rien à retirer, pas que le retrait a échoué.
          */
-        delete: operations["delete_api_folkmcp_oauth"];
+        delete: operations["me_federation_folkmcp_disconnect_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -615,10 +615,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/folkmcp/oauth/start
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Rend l'URL de consentement à ouvrir pour fédérer folkmcp sous mon identité
+         * @description Rend l'URL de consentement à ouvrir pour fédérer folkmcp sous mon identité. Rien n'est connecté tant que l'utilisateur n'y est pas passé.
          */
-        get: operations["get_api_folkmcp_oauth_start"];
+        get: operations["me_federation_folkmcp_start_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -635,10 +635,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/folkmcp/oauth/status
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Mon consentement folkmcp est-il posé, et depuis quand
+         * @description Mon consentement folkmcp est-il posé, et depuis quand. `connected: false` avec `set_at: null` est l'état normal d'un compte jamais connecté.
          */
-        get: operations["get_api_folkmcp_oauth_status"];
+        get: operations["me_federation_folkmcp_status_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -718,10 +718,10 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * DELETE /api/google/oauth
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Révoque un compte Google précis (`?account=<email>`) ou, SANS paramètre, TOUS mes comptes Google
+         * @description Révoque un compte Google précis (`?account=<email>`) ou, SANS paramètre, TOUS mes comptes Google. `account: null` dans la réponse veut donc dire « tous », pas « aucun ».
          */
-        delete: operations["delete_api_google_oauth"];
+        delete: operations["me_federation_google_revoke_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -757,10 +757,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * POST /api/google/oauth/default
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Élit le compte Google par défaut de mon org de contexte — celui qu'utilisent les outils quand aucun compte n'est nommé à l'appel.
+         * @description Élit le compte Google par défaut de mon org de contexte — celui qu'utilisent les outils quand aucun compte n'est nommé à l'appel.
          */
-        post: operations["post_api_google_oauth_default"];
+        post: operations["me_federation_google_set_default_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -775,10 +775,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/google/oauth/start
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Rend l'URL de consentement Google à ouvrir
+         * @description Rend l'URL de consentement Google à ouvrir. ⚠️ Un `500 oauth_misconfigured:` signale une app OAuth mal configurée CÔTÉ PLATEFORME, pas une erreur de l'appelant.
          */
-        get: operations["get_api_google_oauth_start"];
+        get: operations["me_federation_google_start_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -795,10 +795,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/google/oauth/status
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Mes comptes Google connectés
+         * @description Mes comptes Google connectés. ⚠️ Les champs racine (`granted_at`, `scopes`) décrivent le compte PAR DÉFAUT seul — héritage du temps où Google était mono-compte. La vérité multi-compte est `accounts`.
          */
-        get: operations["get_api_google_oauth_status"];
+        get: operations["me_federation_google_status_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1483,10 +1483,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/me
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Le compte de l'appelant : identité, rôle plateforme, org et équipe EFFECTIVES (celles de la requête — la consultation `X-Oto-Org` l'emporte sur la maison), rôles associés, flags de
+         * @description Le compte de l'appelant : identité, rôle plateforme, org et équipe EFFECTIVES (celles de la requête — la consultation `X-Oto-Org` l'emporte sur la maison), rôles associés, flags de déploiement et accès effectif par connecteur. C'est la première requête d'un front qui se branche : tout le reste s'y scope.
          */
-        get: operations["get_api_me"];
+        get: operations["me_get_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1551,10 +1551,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/me/activity-summary
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Les agrégats de MON activité dans l'org active sur `days` jours (défaut 7) : total, échecs, membres actifs, et les ventilations par outil, par membre et par jour
+         * @description Les agrégats de MON activité dans l'org active sur `days` jours (défaut 7) : total, échecs, membres actifs, et les ventilations par outil, par membre et par jour. Un workspace neuf rend des agrégats vides.
          */
-        get: operations["get_api_me_activity-summary"];
+        get: operations["me_activity_summary_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1618,10 +1618,10 @@ export interface paths {
          */
         post: operations["post_api_me_avatar"];
         /**
-         * DELETE /api/me/avatar
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Efface mon avatar
+         * @description Efface mon avatar. L'objet stocké est supprimé avec la référence — pas d'orphelin dans le stockage.
          */
-        delete: operations["delete_api_me_avatar"];
+        delete: operations["me_avatar_clear_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1678,6 +1678,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/billing/identity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** me.billing.identity.get */
+        get: operations["me_billing_identity_get_get"];
+        /** me.billing.identity.set */
+        put: operations["me_billing_identity_set_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/billing/payments": {
         parameters: {
             query?: never;
@@ -1704,7 +1722,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** billing.subscribe */
+        /**
+         * Open a subscription: returns a hosted Mollie checkout URL
+         * @description Open a subscription: returns a hosted Mollie checkout URL. Refuses with 409 while a precondition is unmet — `billing_identity_required` (no billing identity on the org), `vat_consumer_unsupported` (EU consumer outside France), `legal_required` (caller has not accepted CGU/CGV/DPA at their current version), `already_subscribed`, `payment_pending`. ALL unmet preconditions are listed in `details.blockers`; the top-level code names only the first.
+         */
         post: operations["billing_subscribe_post"];
         delete?: never;
         options?: never;
@@ -1720,10 +1741,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/me/calls
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Le journal de MES appels MCP dans l'org active, récent d'abord
+         * @description Le journal de MES appels MCP dans l'org active, récent d'abord. Filtres : `limit` (défaut 200, plafond 1000), `tool` (nom EXACT), `errors=1` (échecs seuls), `days` (fenêtre). Ne montre jamais les appels d'un autre membre ni ceux émis sous une autre org — pour agréger tout le monde, ce sont les lentilles de monitoring d'org ou de plateforme.
          */
-        get: operations["get_api_me_calls"];
+        get: operations["me_calls_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1785,7 +1806,7 @@ export interface paths {
         };
         /**
          * List the connector INSTANCES (connector x auth/config) visible to you in the active org, by proximity: yours (member), your groups', the org's, then platform grants
-         * @description List the connector INSTANCES (connector x auth/config) visible to you in the active org, by proximity: yours (member), your groups', the org's, then platform grants. Metadata only — the secret is never returned. `ref` is a stable opaque handle (future binding target). Contrast with oto_identity (operable accounts of ONE connector) and oto_connector op=list (catalog of TYPES).
+         * @description List the connector INSTANCES (connector x auth/config) visible to you in the active org, by proximity: yours (member), your groups', the org's, then platform grants. Metadata only — the secret is never returned. `id` (`inst:<n>`) is the stable identifier of the instance and will replace `ref`; it may be missing on a key set since the last boot, so keep using `ref` as the pin handle for now. Both are opaque: pass them back as-is. Contrast with oto_identity (operable accounts of ONE connector) and oto_connector op=list (catalog of TYPES).
          */
         get: operations["connectors_instances_list_get"];
         put?: never;
@@ -1825,7 +1846,7 @@ export interface paths {
         };
         /**
          * List every connector available to you (the marketplace catalog) with your per-workspace state: not_selected (in the library) / active / paused, plus `recommended` when your org pro
-         * @description List every connector available to you (the marketplace catalog) with your per-workspace state: not_selected (in the library) / active / paused, plus `recommended` when your org proposes it. Source for both the connector library and your installed connectors. Returns a COMPACT row per connector by default (name/label/family/category/state/…) — pass verbose=true for the full card (doc, auth descriptor, credential fields). Filter with state=active|paused|not_selected, or with name=<connector> to read the state of a SINGLE connector (pair it with verbose=true instead of pulling the whole catalog).
+         * @description List every connector available to you (the marketplace catalog) with your per-workspace state: not_selected (in the library) / active / paused, plus `recommended` when your org proposes it. Source for both the connector library and your installed connectors. Returns a COMPACT row per connector by default (name/label/family/category/state/…) — pass verbose=true for the full card (doc, auth descriptor, credential fields). Filter with state=active|paused|not_selected, or with name=<connector> to read the state of a SINGLE connector (pair it with verbose=true instead of pulling the whole catalog). ⚠️ `state` is only YOUR SELECTION — it does NOT say the connector works. A name=<connector> lookup also returns `ready` (key resolves, paid option open, no step left) plus `not_ready`/`next_step` when it doesn't; the whole catalog returns readiness:not_computed (too costly) rather than a silent blank, so ask by name before concluding a connector is connected.
          */
         get: operations["connectors_me_get"];
         put?: never;
@@ -1966,10 +1987,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * POST /api/me/connectors/{name}/session/finalize
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Vérifie que la connexion a abouti dans la fenêtre ouverte par `…/start`, et, si oui, persiste la session au coffre — c'est un credential comme un autre
+         * @description Vérifie que la connexion a abouti dans la fenêtre ouverte par `…/start`, et, si oui, persiste la session au coffre — c'est un credential comme un autre. ⚠️ `connected: false` veut dire « pas encore logué », pas « échec » : rien n'a été écrit, on peut réessayer. `scope` pose l'instance au niveau `member` (défaut), `org` ou `group` — ces deux-là exigent d'être admin du palier ET un connecteur partageable. La session doit avoir été émise par `…/start` pour MOI : un `context_id` tiers n'est jamais persisté.
          */
-        post: operations["post_api_me_connectors_name_session_finalize"];
+        post: operations["me_browser_session_finalize_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1986,10 +2007,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * POST /api/me/connectors/{name}/session/start
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Ouvre une fenêtre de navigateur hébergée pour que JE me connecte à la main au site d'un connecteur à session (ADR 0026)
+         * @description Ouvre une fenêtre de navigateur hébergée pour que JE me connecte à la main au site d'un connecteur à session (ADR 0026). Rend l'URL de la Live View à afficher, plus le couple `context_id`/`session_id` à rendre tel quel à `…/finalize`. `url` ne sert qu'au connecteur générique, dont le site vient de l'appel. `404 not_a_session_connector` si le connecteur ne se connecte pas ainsi ; `503 browserbase_unavailable` si le substrat navigateur ne répond pas.
          */
-        post: operations["post_api_me_connectors_name_session_start"];
+        post: operations["me_browser_session_start_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2047,7 +2068,7 @@ export interface paths {
         put?: never;
         /**
          * Docs (markdown pages tree inside a project; inherit the project's access)
-         * @description Docs (markdown pages tree inside a project; inherit the project's access). **This is also the org KNOWLEDGE BASE**: resolve it with oto_kb → project_id, then read/search/write reference pages here (the dashboard « Documents » zone). Prefer it over the web for org facts (processes, context, conventions), and CAPTURE durable, sourced facts here (kind=source/note) as you learn them. op=create (project_id, title; optional parent_id/body_md/kind) / bulk_create (project_id + `pages`=[{title, body_md?, kind?, parent_index?}] → N pages in ONE call, build a tree via parent_index = an earlier page in the batch) / list (project_id → the page INDEX, build the tree via parent_id: titles and `body_md_length`, NOT the bodies — pick a page here, then op=get it. `fields=["*"]` returns whole pages, `fields=[…]` picks columns) / search (project_id + query → full-text hits {id,title,kind,snippet}: LOCATE a page, then get its content) / get (returns `rev`, an ETag) / update (title/body_md/kind, full body; snapshots the prior version; pass `expected_rev` from op=get for optimistic conflict detection → 409 if the page changed since) / patch (edit ONE section in place: `section`=its markdown heading + `body_md` = the section's BODY, WITHOUT repeating that heading (the server keeps it) + `mode` replace|append|prepend → two authors on different sections don't clobber; also honours `expected_rev`. SCOPE: a section runs to the next heading of EQUAL-OR-HIGHER level, so its NESTED sub-sections are part of it — replacing a `###` also replaces its `####` children (the response then lists `removed_subsections`). To keep them, target the sub-heading itself or use mode=append) / A page's `description` is a chapô you STORE: leave it out and the index DERIVES one from the first prose line of the body (marked `description_derived`), so it moves with every body edit — that is not an overwrite. Pass `description` explicitly to pin one that stops following the body. / revisions (doc_id → version history, newest first) / backlinks (doc_id → the pages that CITE this one). LINK PAGES with `[[Exact page title]]` in body_md — that wiki-link is the ONLY thing that creates a backlink (prose mentions, [text](doc:88) and [text](/docs/88) create none). Resolved AT WRITE TIME against the current project then the org KB, case- and edge-space-insensitive; a title that doesn't exist yet is kept as a stub and links itself once the page is created or renamed / request_change (read-only users propose a new body_md/title + message) / list_changes (owner: pending requests) / resolve_change (request_id + accept: true applies it, false rejects) / set_public (public: true → shareable public read-only link, false → private ; returns public_url) / delete (cascades its subtree) / move (reparent/reorder in-project via parent_id [null=top-level] + position; OR cross-project via `to_project`=target project id → moves the page AND its subtree there, write required on both). kind ∈ doc|note|source. EMBED A LIVE DATASTORE in a page body with a fenced block ```oto-data<newline><namespace-name-or-id><newline>``` → the viewer renders that datastore's table LIVE (always up to date). Prefer this over a hand-typed summary table when the data lives in a datastore (single source of truth, no drift).
+         * @description Docs (markdown pages tree inside a project; inherit the project's access). **This is also the org KNOWLEDGE BASE**: resolve it with oto_kb → project_id, then read/search/write reference pages here (the dashboard « Documents » zone). Prefer it over the web for org facts (processes, context, conventions), and CAPTURE durable, sourced facts here (kind=source/note) as you learn them. op=create (project_id, title; optional parent_id/body_md/kind) / bulk_create (project_id + `pages`=[{title, body_md?, kind?, parent_index?}] → N pages in ONE call, build a tree via parent_index = an earlier page in the batch) / list (project_id → the page INDEX, build the tree via parent_id: titles and `body_md_length`, NOT the bodies — pick a page here, then op=get it. `fields=["*"]` returns whole pages, `fields=[…]` picks columns) / search (project_id + query → full-text hits {id,title,kind,snippet}: LOCATE a page, then get its content) / get (the whole page, incl. `rev`, an ETag; pass `fields=[…]` to read ONLY those columns — `fields=["id","rev"]` gets the rev for an optimistic patch without paying for the body) / update (title/body_md/kind, full body; snapshots the prior version; pass `expected_rev` from op=get for optimistic conflict detection → 409 if the page changed since) / patch (edit ONE region in place, WITHOUT re-emitting the page — this is how you edit a page too long to re-send: `mode` replace|append|prepend|delete, and ONE target, either `section`=its markdown heading + `body_md` = that section's BODY, WITHOUT repeating the heading (the server keeps it), OR `region="preamble"` = everything ABOVE the first heading (provenance banner, "Last verified" line, front-matter) — it belongs to no section, so no `section` value can ever reach it; that is a SEPARATE axis, never a reserved heading name like "__preamble__" (a page may legitimately have such a heading, and it stays reachable via `section`). Passing both, or neither, is refused. `mode=delete` removes the target INCLUDING its heading (pass no `body_md`) — the only way to drop a heading without rewriting the page; to merely empty a section and keep its heading, use mode=replace with an empty `body_md`. Two authors on different regions don't clobber; every mode honours `expected_rev` and snapshots a revision. SCOPE: a section runs to the next heading of EQUAL-OR-HIGHER level, so its NESTED sub-sections are part of it — replacing OR deleting a `###` also takes its `####` children (the response then lists `removed_subsections`). To keep them, target the sub-heading itself or use mode=append) / A SUCCESSFUL WRITE (create/update/patch/move) returns a RECEIPT, not the page: id, title, `url`, `rev`, `updated_at` and `body_md_length` — you just wrote the body, so it is not replayed back at you. Add `fields=["*"]` if you really want the stored page back, or `fields=[…]` to pick columns. / A page's `description` is a chapô you STORE: leave it out and the index DERIVES one from the first prose line of the body (marked `description_derived`), so it moves with every body edit — that is not an overwrite. Pass `description` explicitly to pin one that stops following the body. / EVERY page carries `url` — the web address to READ it, in the reader's own product. That is the answer to "where is it?": hand it over as-is, never rebuild an address from a pattern. `null` means that reader's product has no such view — then say where it lives (project + title) rather than invent a link. / revisions (doc_id → version history, newest first) / backlinks (doc_id → the pages that CITE this one). LINK PAGES with `[[Exact page title]]` in body_md — that wiki-link is the ONLY thing that creates a backlink (prose mentions, [text](doc:88) and [text](/docs/88) create none). Resolved AT WRITE TIME against the current project then the org KB, case- and edge-space-insensitive; a title that doesn't exist yet is kept as a stub and links itself once the page is created or renamed / request_change (read-only users propose a new body_md/title + message) / list_changes (owner: pending requests) / resolve_change (request_id + accept: true applies it, false rejects) / set_public (public: true → shareable public read-only link, false → private ; returns public_url) / delete (cascades its subtree) / move (reparent/reorder in-project via parent_id [null=top-level] + position; OR cross-project via `to_project`=target project id → moves the page AND its subtree there, write required on both). kind ∈ doc|note|source. EMBED A LIVE DATASTORE in a page body with a fenced block ```oto-data<newline><namespace-name-or-id><newline>``` → the viewer renders that datastore's table LIVE (always up to date). Prefer this over a hand-typed summary table when the data lives in a datastore (single source of truth, no drift).
          */
         post: operations["me_doc_post"];
         delete?: never;
@@ -2472,6 +2493,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/instructions/{slug}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retire a doctrine WITHOUT destroying it (org_admin) — prefer this to `delete` whenever the point is 'stop using it', not 'erase it'
+         * @description Retire a doctrine WITHOUT destroying it (org_admin) — prefer this to `delete` whenever the point is 'stop using it', not 'erase it'. The procedure and its whole version history stay in place; it simply leaves every listing, including the skills index you read, so it stops being offered and followed. Pass the EXACT slug. `org` pins to an explicit org id (default = active org; must be org_admin of it).
+         */
+        post: operations["org_instruction_archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/instructions/{slug}/revert": {
         parameters: {
             query?: never;
@@ -2594,7 +2635,7 @@ export interface paths {
         put?: never;
         /**
          * Record the user's acceptance of the documents required by a context ('access' at signup, 'purchase' at checkout) at their current version
-         * @description Record the user's acceptance of the documents required by a context ('access' at signup, 'purchase' at checkout) at their current version. Returns the refreshed legal status.
+         * @description Record the user's acceptance of the documents required by a context ('access' at signup, 'purchase' at checkout) at their current version. Appends one dated, situated row per document (IP, user-agent, context, session org) — acceptances are never overwritten. Returns the refreshed legal status, so `contexts[<context>].outstanding` says what is STILL missing.
          */
         post: operations["me_legal_accept_post"];
         delete?: never;
@@ -2742,7 +2783,7 @@ export interface paths {
         put?: never;
         /**
          * Projects (organization layer, ADR 0030 owned resource)
-         * @description Projects (organization layer, ADR 0030 owned resource). op=create (name, optional brief_md; owner_type user|org + owner_id for a team project) / list (ORG-SCOPED: the ACTIVE org's projects + projects shared with it or with you — pass `org=<id>` to see another org's; every response echoes the effective org in `_org`. An INDEX: names and `brief_md_length`, NOT the briefs — read one with op=get, or pass `fields=["*"]` for whole records) / list_templates (published MODEL projects you can copy) / get (project + its links + an `audit` of those links: dead_links / unbound_slots / inert_procedures — a linked entity that no longer resolves surfaces HERE, act on it) / update (name, icon = an emoji shown in the lists and headers ("" clears it), brief_md, is_template = publish/unpublish as a copyable model) / copy (deep-copy a project you can read — its own or a model — into a NEW project in your active org: brief + doc tree + links + raw files; a tableau link stays a POINTER to the same namespace by default (config.provision absent/`shared`), but with config.provision=`empty`|`seeded` it is PROVISIONED — a FRESH namespace (same schema, rows only if `seeded`) so each copy gets its own isolated table (e.g. a campaign template's lead pool). A `shared` tableau owned by ANOTHER org is re-provisioned EMPTY (never a pointer to the source's private data), and links whose namespace no longer resolves are skipped — both surfaced in the response `warnings`. Pass project_id = source + name = target) / handoff (a copy-paste « resume in Claude » blob that pre-writes the per-call `_project=` token for this project) / archive / link & unlink (attach an entity: target_type tableau|procedure|connecteur + target_ref = its id/slug/name, optional label + optional role = why this entity belongs to the project + optional config = the entity's PRE-MADE per-project override; for a connecteur: {identity_id?, instructions_md?} = which account to act as + prose instructions to apply (e.g. 'only filter agreements by the mutuelle theme'), or `instance_ref` (a ref from oto_instance op=list, ADR 0038 B5) to bind EXACTLY that credential — calls carrying this project's token then resolve it hard, no fallback; for a tableau: {provision?: shared|empty|seeded} = how a project copy treats it (empty/seeded = each copy gets its own fresh table). Optional `slot` = the SLOT NAME this link BINDS for the project (ADR 0035): procedures declare required entities as slots and reference them <slot:name> in their prose — the project maps each name to a concrete entity via its links. Slot names are a PROJECT-wide vocabulary (unique per project → 409 slot_taken; two linked procedures sharing `sortie` share the binding). Re-linking without role/config/slot preserves the existing ones. get/link return each link's role + slot + config + a derived `cross_project` flag (the same entity is linked by another project → avoid brutal edits / ask); a tableau link also returns its resolved `namespace` — address THIS project's table by that name with the data_* tools (never hardcode a namespace). Share & transfer go through oto_resource (resource_type='project') — this includes RE-PARENTING a project in place (same id, links, runs preserved): op=transfer new_owner_group=<id> hands it to a TEAM so the project and its connector credentials sit at the SAME level (the team's secrets then resolve when you open it), new_owner_org=<id> to an org, new_owner_email to a user. (op=update only changes name/icon/brief_md/is_template — never the owner; op=copy makes a NEW id.) inventory = the project's DERIVED surface (union of the linked procedures' <tool:> refs + tools actually used by the project's runs, plus connectors from links & declared slots) — never retype a tool list: derive, then curate. runs (optional target_ref = a linked procedure's stable id) = the project's recent runs (label/doctrine/outcome), filtered to that procedure when given. lint (optional stale_days, default 90) = KB health of this project's pages: stale (untouched since), empty (trivial body), duplicate_titles (likely merges). publish_mcp (mcp_slug + mcp_access anonymous|secret|org + mcp_tools = the fixed tool allowlist) publishes the project as a dedicated MCP endpoint `<mcp_slug>.mcp.oto.cx/mcp`, the toolset served under the OWNER ORG's credentials — `anonymous` = no login + LISTED in the public directory; `secret` = no login but UNLISTED, the slug is server-generated & unguessable (a secret URL; mcp_slug is an optional readable prefix); `org` = Logto JWT + pins the org. For anonymous/secret, tools that aren't credential-less or resolvable for the org are published anyway but FAIL cleanly at call time — they come back in `mcp_unresolvable_tools` (configure an org key or drop them). mcp_expose_datastore (SECRET only) opts the `data_*` tools in: they then act under the OWNER ORG's authority (read/write the org's namespaces) without a login — off by default (the datastore stays private); refused on anonymous/org. unpublish_mcp removes it. get returns mcp_slug/mcp_access/mcp_tools/mcp_expose_datastore/mcp_url.
+         * @description Projects (organization layer, ADR 0030 owned resource). EVERY project carries `url` — the web address to OPEN it, in the reader's own product; hand it over as-is when asked "where is it?", never rebuild one from a pattern (`null` = that reader's product has no such view). op=create (name, optional brief_md; owner_type user|org + owner_id for a team project) / list (ORG-SCOPED: the ACTIVE org's projects + projects shared with it or with you — pass `org=<id>` to see another org's; every response echoes the effective org in `_org`. An INDEX: names and `brief_md_length`, NOT the briefs — read one with op=get, or pass `fields=["*"]` for whole records) / list_templates (published MODEL projects you can copy) / get (project + its links + an `audit` of those links: dead_links / unbound_slots / inert_procedures — a linked entity that no longer resolves surfaces HERE, act on it) / update (name, icon = an emoji shown in the lists and headers ("" clears it), brief_md, is_template = publish/unpublish as a copyable model) / copy (deep-copy a project you can read — its own or a model — into a NEW project in your active org: brief + doc tree + links + raw files; a tableau link stays a POINTER to the same namespace by default (config.provision absent/`shared`), but with config.provision=`empty`|`seeded` it is PROVISIONED — a FRESH namespace (same schema, rows only if `seeded`) so each copy gets its own isolated table (e.g. a campaign template's lead pool). A `shared` tableau owned by ANOTHER org is re-provisioned EMPTY (never a pointer to the source's private data), and links whose namespace no longer resolves are skipped — both surfaced in the response `warnings`. Pass project_id = source + name = target) / handoff (a copy-paste « resume in Claude » blob that pre-writes the per-call `_project=` token for this project) / archive / link & unlink (attach an entity: target_type tableau|procedure|connecteur + target_ref = its id/slug/name, optional label + optional role = why this entity belongs to the project + optional config = the entity's PRE-MADE per-project override; for a connecteur: {identity_id?, instructions_md?} = which account to act as + prose instructions to apply (e.g. 'only filter agreements by the mutuelle theme'), or `instance_ref` (a ref from oto_instance op=list, ADR 0038 B5) to bind EXACTLY that credential — calls carrying this project's token then resolve it hard, no fallback; for a tableau: {provision?: shared|empty|seeded} = how a project copy treats it (empty/seeded = each copy gets its own fresh table). Optional `slot` = the SLOT NAME this link BINDS for the project (ADR 0035): procedures declare required entities as slots and reference them <slot:name> in their prose — the project maps each name to a concrete entity via its links. Slot names are a PROJECT-wide vocabulary (unique per project → 409 slot_taken; two linked procedures sharing `sortie` share the binding). Re-linking without role/config/slot preserves the existing ones. get/link return each link's role + slot + config + a derived `cross_project` flag (the same entity is linked by another project → avoid brutal edits / ask); a tableau link also returns its resolved `namespace` — address THIS project's table by that name with the data_* tools (never hardcode a namespace). Share & transfer go through oto_resource (resource_type='project') — this includes RE-PARENTING a project in place (same id, links, runs preserved): op=transfer new_owner_group=<id> hands it to a TEAM so the project and its connector credentials sit at the SAME level (the team's secrets then resolve when you open it), new_owner_org=<id> to an org, new_owner_email to a user. (op=update only changes name/icon/brief_md/is_template — never the owner; op=copy makes a NEW id.) inventory = the project's DERIVED surface (union of the linked procedures' <tool:> refs + tools actually used by the project's runs, plus connectors from links & declared slots) — never retype a tool list: derive, then curate. runs (optional target_ref = a linked procedure's stable id) = the project's recent runs (label/doctrine/outcome), filtered to that procedure when given. OMIT project_id on op=runs and you get YOUR OWN still-open runs instead, each with its `run_id` — that is how you find a run you opened and lost the id of, so you can finally close it with run_finish. Across every org, since a run you cannot find is usually one you opened elsewhere. lint (optional stale_days, default 90) = KB health of this project's pages: stale (untouched since), empty (trivial body), duplicate_titles (likely merges). publish_mcp (mcp_slug + mcp_access anonymous|secret|org + mcp_tools = the fixed tool allowlist) publishes the project as a dedicated MCP endpoint `<mcp_slug>.mcp.oto.cx/mcp`, the toolset served under the OWNER ORG's credentials — `anonymous` = no login + LISTED in the public directory; `secret` = no login but UNLISTED, the slug is server-generated & unguessable (a secret URL; mcp_slug is an optional readable prefix); `org` = Logto JWT + pins the org. For anonymous/secret, tools that aren't credential-less or resolvable for the org are published anyway but FAIL cleanly at call time — they come back in `mcp_unresolvable_tools` (configure an org key or drop them). mcp_expose_datastore (SECRET only) opts the `data_*` tools in: they then act under the OWNER ORG's authority (read/write the org's namespaces) without a login — off by default (the datastore stays private); refused on anonymous/org. unpublish_mcp removes it. get returns mcp_slug/mcp_access/mcp_tools/mcp_expose_datastore/mcp_url.
          */
         post: operations["me_project_post"];
         delete?: never;
@@ -2800,7 +2841,7 @@ export interface paths {
         };
         /**
          * Read ONE project by id (its brief, links and audit) — the same payload as oto_project op=get, on a URL that names its target
-         * @description Read ONE project by id (its brief, links and audit) — the same payload as oto_project op=get, on a URL that names its target. REST-only: agents already have oto_project. Exists so a SCOPED api token can be granted one project and nothing else ({"projects": {"12": "read"}}), which the POST form cannot express — its target sits in the body. Optional include=procedures adds the BODY of the linked procedures (title, version, body_md) so a reader can see the rule that produced a record; omitted, the response is byte-for-byte unchanged.
+         * @description Read ONE project by id (its brief, links and audit) — the same payload as oto_project op=get, on a URL that names its target. REST-only: agents already have oto_project. Exists so a SCOPED api token can be granted one project and nothing else ({"projects": {"12": "read"}}), which the POST form cannot express — its target sits in the body. Optional ?include=procedures adds the BODY of the linked procedures (title, version, body_md) so a reader can see the rule that produced a record; omitted, the response is byte-for-byte unchanged. Ask for several with ONE comma-separated value (?include=spine,procedures) — repeating the parameter keeps only the last one.
          */
         get: operations["me_project_read_get"];
         put?: never;
@@ -2819,10 +2860,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/me/projects/{project_id:int}/files
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Les fichiers bruts attachés à un projet (« Autre document »)
+         * @description Les fichiers bruts attachés à un projet (« Autre document »). Chaque ligne porte une `download_url` **signée et temporaire** — elle expire, on ne la met pas en cache. `public_url`, elle, est permanente tant que le partage est ouvert. Lecture bornée à l'org de consultation : un projet visible via une AUTRE de mes orgs rend 404.
          */
-        get: operations["get_api_me_projects_project_id:int_files"];
+        get: operations["me_project_file_list_get"];
         put?: never;
         /**
          * POST /api/me/projects/{project_id:int}/files
@@ -2846,10 +2887,10 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * DELETE /api/me/projects/{project_id:int}/files/{file_id:int}
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Supprime un fichier d'un projet (accès écriture)
+         * @description Supprime un fichier d'un projet (accès écriture). L'objet stocké part avec la ligne.
          */
-        delete: operations["delete_api_me_projects_project_id:int_files_file_id:int"];
+        delete: operations["me_project_file_delete_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2865,10 +2906,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * POST /api/me/projects/{project_id:int}/files/{file_id:int}/public
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Ouvre ou ferme le partage public d'un fichier
+         * @description Ouvre ou ferme le partage public d'un fichier. `public` est REQUIS : un corps sans lui est refusé plutôt que traité comme « rendre privé », parce qu'un corps mal formé ne doit pas départager un fichier en silence.
          */
-        post: operations["post_api_me_projects_project_id:int_files_file_id:int_public"];
+        post: operations["me_project_file_set_public_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2983,16 +3024,16 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/me/tokens
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Mes jetons API, sans leur secret — il n'est rendu qu'à la création et n'est stocké que haché
+         * @description Mes jetons API, sans leur secret — il n'est rendu qu'à la création et n'est stocké que haché. `scopes: null` = jeton non porté (pleins pouvoirs de mon compte). Réservé à une session interactive : un jeton ne peut pas lister les jetons.
          */
-        get: operations["get_api_me_tokens"];
+        get: operations["me_token_list_get"];
         put?: never;
         /**
-         * POST /api/me/tokens
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Émet un jeton API
+         * @description Émet un jeton API. ⚠️ Le secret n'est rendu QU'UNE FOIS. `scopes` le BORNE à des tableaux ou projets nommés — la forme à confier à une intégration tierce ; absent, le jeton a tous mes droits. Un tableau que je ne vois pas est refusé (`unknown_namespace`) : sinon le jeton serait muet et on le croirait branché. Réservé à une session interactive.
          */
-        post: operations["post_api_me_tokens"];
+        post: operations["me_token_create_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3010,10 +3051,10 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * DELETE /api/me/tokens/{token_id}
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Révoque un de mes jetons
+         * @description Révoque un de mes jetons. Réservé à une session interactive — un jeton ne peut pas en révoquer, sinon un attaquant couperait les jetons légitimes.
          */
-        delete: operations["delete_api_me_tokens_token_id"];
+        delete: operations["me_token_delete_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3027,10 +3068,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/me/tools
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Tous les outils du serveur avec MON état de visibilité dans l'org active
+         * @description Tous les outils du serveur avec MON état de visibilité dans l'org active. `enabled` est une préférence d'affichage, PAS une autorisation : un outil visible peut refuser à l'appel (credential absent, connecteur restreint ou non activé). `protected` marque les outils anti-lockout, qu'on ne peut pas masquer.
          */
-        get: operations["get_api_me_tools"];
+        get: operations["me_tools_list_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3047,10 +3088,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/me/tools/registry
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Le registre résolu des outils du produit : nom, résumé d'une ligne, origine (native ou fédérée)
+         * @description Le registre résolu des outils du produit : nom, résumé d'une ligne, origine (native ou fédérée). C'est la matière des marqueurs `<tool:slug>` d'une doctrine et de l'autocomplétion. Immunisé à la visibilité de session — il dit ce qui EXISTE, pas ce qui m'est visible.
          */
-        get: operations["get_api_me_tools_registry"];
+        get: operations["me_tools_registry_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3069,15 +3110,15 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * POST /api/me/tools/{name}
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * MASQUE un outil pour moi (visibilité seule, ADR 0031)
+         * @description MASQUE un outil pour moi (visibilité seule, ADR 0031). Le chemin nomme la ligne de denylist : la poser (POST) masque, la retirer (DELETE) démasque. Un outil protégé est refusé (400 `protected_tool:<nom>`) — le masquer n'aurait aucun effet.
          */
-        post: operations["post_api_me_tools_name"];
+        post: operations["me_tools_disable_post"];
         /**
-         * DELETE /api/me/tools/{name}
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * DÉMASQUE un outil pour moi
+         * @description DÉMASQUE un outil pour moi. Sur un outil masqué par défaut au niveau plateforme, pose en plus l'override positif qui lève ce masquage.
          */
-        delete: operations["delete_api_me_tools_name"];
+        delete: operations["me_tools_enable_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3093,10 +3134,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * POST /api/me/tools/{name}/call
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Exécute un outil TESTABLE sous mon identité (bouton « tester »)
+         * @description Exécute un outil TESTABLE sous mon identité (bouton « tester »). Borné aux connecteurs open-data en lecture seule — jamais un outil à effet de bord. Le corps est l'objet d'arguments, nu ou enveloppé dans `{"arguments": {…}}`. ⚠️ L'erreur de l'outil revient EN DONNÉE (`ok: false` en 200) : la voir est le but du test. Les 4xx disent qu'on n'a pas pu lancer, pas que l'outil a échoué.
          */
-        post: operations["post_api_me_tools_name_call"];
+        post: operations["me_tools_call_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3111,10 +3152,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/me/tools/{name}/detail
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * La fiche complète d'un outil : description, schémas d'entrée et de sortie dérivés par FastMCP, connecteur d'origine, état personnel et testabilité
+         * @description La fiche complète d'un outil : description, schémas d'entrée et de sortie dérivés par FastMCP, connecteur d'origine, état personnel et testabilité. Alimente le panneau « en savoir plus » et, si l'outil est testable, le formulaire de test.
          */
-        get: operations["get_api_me_tools_name_detail"];
+        get: operations["me_tools_detail_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3131,17 +3172,17 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/me/unipile
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * L'état de ma messagerie hébergée DANS L'ORG COURANTE : canaux connectés, origine de la clé, et option débloquée ou non
+         * @description L'état de ma messagerie hébergée DANS L'ORG COURANTE : canaux connectés, origine de la clé, et option débloquée ou non. ⚠️ `channels` ne montre que les comptes liés à CETTE org — un canal vu déconnecté peut être connecté ailleurs, et `elsewhere` le dit alors, avec ce qui est adoptable ici en un clic.
          */
-        get: operations["get_api_me_unipile"];
+        get: operations["me_unipile_status_get"];
         put?: never;
         post?: never;
         /**
-         * DELETE /api/me/unipile
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Délie un canal DE CETTE ORG
+         * @description Délie un canal DE CETTE ORG. ⚠️ Déconnexion SOUPLE : le compte survit chez le fournisseur et la ligne survit comme preuve de propriété, ce qui rend la reconnexion déterministe. Ce qui est affiché est ce qui est délié — jamais un binding d'une autre org.
          */
-        delete: operations["delete_api_me_unipile"];
+        delete: operations["me_unipile_disconnect_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3157,10 +3198,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * POST /api/me/unipile/connect
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Démarre la connexion d'un compte de messagerie hébergée sous l'abonnement de mon org
+         * @description Démarre la connexion d'un compte de messagerie hébergée sous l'abonnement de mon org. Rend `{url}` : la page de consentement à ouvrir. ⚠️ Deuxième issue possible — `{adopted: true, channel, account_name}` **sans url** : le compte était déjà connecté sous mon identité dans une autre org et vient d'être rattaché ici, il n'y a rien à consentir, il faut rafraîchir. `premium` active un produit LinkedIn (`recruiter`, `sales_navigator`) sans lequel ces APIs répondent 403.
          */
-        post: operations["post_api_me_unipile_connect"];
+        post: operations["me_unipile_connect_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3177,10 +3218,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * POST /api/me/unipile/reconcile
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Lie explicitement le compte que je viens de connecter (poll-and-bind), à appeler au retour du consentement
+         * @description Lie explicitement le compte que je viens de connecter (poll-and-bind), à appeler au retour du consentement. Idempotent. `bound: false` avec `accounts: []` veut dire « rien à lier », pas « panne ».
          */
-        post: operations["post_api_me_unipile_reconcile"];
+        post: operations["me_unipile_reconcile_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3795,10 +3836,10 @@ export interface paths {
          */
         post: operations["post_api_orgs_id_logo"];
         /**
-         * DELETE /api/orgs/{id}/logo
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Efface le logo UPLOADÉ de l'org (org_admin)
+         * @description Efface le logo UPLOADÉ de l'org (org_admin). ⚠️ Le logo AFFICHÉ ne disparaît pas forcément : il retombe sur celui dérivé du domaine de marque déclaré. C'est l'upload qu'on retire, pas l'affichage.
          */
-        delete: operations["delete_api_orgs_id_logo"];
+        delete: operations["org_logo_clear_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3983,6 +4024,26 @@ export interface paths {
         };
         /** org.monitoring.run */
         get: operations["org_monitoring_run_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/orgs/{id}/monitoring/signals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Raw usage signals REPORTED UNDER this org — the BODY, not just the count
+         * @description Raw usage signals REPORTED UNDER this org — the BODY, not just the count. Filters: `signal` (tool_feedback|gap), `tool` (target), `status`. Org admin only.
+         */
+        get: operations["org_monitoring_signals_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4221,14 +4282,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * L'état de TON credential pour un connecteur : posé ou non, et les seuls champs révélables (une clé d'API à recopier, un email)
-         * @description L'état de TON credential pour un connecteur : posé ou non, et les seuls champs révélables (une clé d'API à recopier, un email). Un secret ne se relit jamais.
+         * L'état d'un credential pour un connecteur : posé ou non, et les seuls champs révélables (une URL de base à corriger, une clé d'API à recopier, un email)
+         * @description L'état d'un credential pour un connecteur : posé ou non, et les seuls champs révélables (une URL de base à corriger, une clé d'API à recopier, un email). Un secret ne se relit jamais. `scope` : `member` (le tien, défaut), `group` ou `org` — ces deux-là exigent d'être admin du palier, comme pour le retrait. `account` cible un compte nommé précis ; vide = le compte unique.
          */
         get: operations["me_credential_get_get"];
         put?: never;
         /**
-         * Pose (ou remplace) TON credential pour un connecteur, dans l'org de contexte
-         * @description Pose (ou remplace) TON credential pour un connecteur, dans l'org de contexte. Le corps est un objet plat dont les clés sont les `credential_fields` du connecteur — publiés par `GET /api/connectors` — plus, optionnellement, `account` : le NOM du compte visé quand le connecteur en porte plusieurs (un workspace Slack, une organisation Zoho ; le mot d'usage est dans `auth.account_noun`). Sans `account`, c'est le compte unique. Au premier compte nommé, le compte anonyme existant est renommé ; ensuite une pose anonyme est refusée (409 `account_required`), et un compte nommé sur un connecteur mono-compte l'est aussi (400 `single_account_connector`). Le credential est testé AVANT d'être écrit quand le connecteur expose une sonde.
+         * Pose (ou met à jour) TON credential pour un connecteur, dans l'org de contexte
+         * @description Pose (ou met à jour) TON credential pour un connecteur, dans l'org de contexte. Les champs ABSENTS du corps sont complétés par ce qui est déjà au coffre, côté serveur — changer une URL sans repasser la clé est un geste d'un champ. Un champ envoyé VIDE est un effacement explicite, pas une omission. Le corps est un objet plat dont les clés sont les `credential_fields` du connecteur — publiés par `GET /api/connectors` — plus, optionnellement, `account` : le NOM du compte visé quand le connecteur en porte plusieurs (un workspace Slack, une organisation Zoho ; le mot d'usage est dans `auth.account_noun`). Sans `account`, c'est le compte unique. Au premier compte nommé, le compte anonyme existant est renommé ; ensuite une pose anonyme est refusée (409 `account_required`), et un compte nommé sur un connecteur mono-compte l'est aussi (400 `single_account_connector`). Le credential est testé AVANT d'être écrit quand le connecteur expose une sonde.
          */
         post: operations["me_credential_set_post"];
         /**
@@ -4459,6 +4520,26 @@ export interface components {
             role: string;
             /** Active */
             active: boolean;
+        };
+        /**
+         * OrgQuota
+         * @description Où tu en es du plafond d'espaces CRÉÉS, lisible **avant** de s'y cogner (#464).
+         *
+         *     `created` ne compte que ce qui occupe encore une place : ni les espaces archivés
+         *     (l'archivage rend sa place), ni ton espace personnel (posé d'office, non
+         *     supprimable en tant que tel). `created` peut donc être plus petit que le nombre
+         *     d'entrées d'`orgs` ci-dessus — l'espace perso y figure, il est bien à toi.
+         *     ⚠️ Le plafond porte sur les espaces que TU as créés : rejoindre celui d'autrui
+         *     n'en consomme aucun, et une org dont tu es membre sans l'avoir créée n'y entre pas.
+         *     `remaining == 0` ⟹ la prochaine création sera refusée (429 `org_quota`).
+         */
+        OrgQuota: {
+            /** Created */
+            created: number;
+            /** Cap */
+            cap: number;
+            /** Remaining */
+            remaining: number;
         };
         /**
          * OrgBilling
@@ -5008,9 +5089,39 @@ export interface components {
             kind: string;
             /**
              * Amount
-             * @description Montant de la tentative en CENTIMES, figé au moment de la tentative : il peut différer du prix courant du palier rendu par billing.status.
+             * @description Montant de la tentative en CENTIMES, figé au moment de la tentative : il peut différer du prix courant du palier rendu par billing.status. C'est ce qui a été passé au PSP, donc le **TTC** depuis #486.
              */
             amount: number;
+            /**
+             * Amount Ht
+             * @description Part hors taxes, en centimes. ⚠️ `null` sur les DEUX encaissements antérieurs au 28/08/2026, débités du HT sans TVA et délibérément NON réécrits : `null` = « ligne d'avant la règle », surtout pas « zéro ». C'est ce champ qui les distingue.
+             * @default null
+             */
+            amount_ht: number | null;
+            /**
+             * Vat Rate Bps
+             * @description Taux appliqué, en points de base (2000 = 20,00 %).
+             * @default null
+             */
+            vat_rate_bps: number | null;
+            /**
+             * Vat Amount
+             * @description TVA facturée, en centimes (amount − amount_ht).
+             * @default null
+             */
+            vat_amount: number | null;
+            /**
+             * Country Code
+             * @description Pays de facturation retenu au moment du débit (ISO-3166-1 alpha-2) — il ne suit pas un déménagement ultérieur de l'org.
+             * @default null
+             */
+            country_code: string | null;
+            /**
+             * Vat Scheme
+             * @description 'fr_ttc' | 'reverse_charge' | 'export'.
+             * @default null
+             */
+            vat_scheme: string | null;
             /**
              * Currency
              * @description Code devise ISO en minuscules ('eur').
@@ -5031,6 +5142,56 @@ export interface components {
              * @description Création de la TENTATIVE ('YYYY-MM-DD HH:MM:SS' UTC), pas la date d'encaissement — qui n'est pas exposée ici.
              */
             created_at: string;
+        };
+        /**
+         * BillingIdentity
+         * @description Qui paie, et depuis où. Collectée avant le premier paiement (#486) : le pays
+         *     décide du taux de TVA, donc du montant réellement débité, et la facture (#488)
+         *     ne s'émet pas sans raison sociale ni adresse.
+         */
+        BillingIdentity: {
+            /**
+             * Legal Name
+             * @description Raison sociale, telle qu'elle figurera sur la facture.
+             */
+            legal_name: string;
+            /**
+             * Country Code
+             * @description Pays de facturation, code ISO-3166-1 alpha-2 en MAJUSCULES ('FR', 'BE', 'US'…). ⚠️ La Grèce est 'GR' ici, alors que son numéro de TVA commence par 'EL'.
+             */
+            country_code: string;
+            /**
+             * Vat Number
+             * @description Numéro de TVA intracommunautaire NORMALISÉ (sans espaces, préfixe pays compris : 'FR12345678901'). `null` = pas de numéro déclaré. Contrôlé en FORME seulement — l'existence du numéro n'est pas vérifiée auprès de VIES (TODO #486).
+             * @default null
+             */
+            vat_number: string | null;
+            /**
+             * Address Line
+             * @default null
+             */
+            address_line: string | null;
+            /**
+             * Address Line2
+             * @default null
+             */
+            address_line2: string | null;
+            /**
+             * Postal Code
+             * @default null
+             */
+            postal_code: string | null;
+            /**
+             * City
+             * @default null
+             */
+            city: string | null;
+            /**
+             * Billing Email
+             * @description Destinataire de la facture s'il diffère de l'administrateur.
+             * @default null
+             */
+            billing_email: string | null;
         };
         /**
          * ReferencedTool
@@ -5255,6 +5416,21 @@ export interface components {
              * @default null
              */
             reachable_instances: components["schemas"]["ReachableInstance"][] | null;
+            /**
+             * Ready
+             * @default null
+             */
+            ready: boolean | null;
+            /**
+             * Not Ready
+             * @default null
+             */
+            not_ready: string | null;
+            /**
+             * Next Step
+             * @default null
+             */
+            next_step: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -5275,6 +5451,25 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+        };
+        /**
+         * ToolboxScope
+         * @description L'écart entre l'org pour laquelle la SESSION a été montée et celle que l'appel
+         *     ÉPINGLE (#577). Présent seulement quand les deux diffèrent — cf. `_toolbox_scope`.
+         */
+        ToolboxScope: {
+            /**
+             * Mounted For Org
+             * @default null
+             */
+            mounted_for_org: number | null;
+            /**
+             * Listing For Org
+             * @default null
+             */
+            listing_for_org: number | null;
+            /** Note */
+            note: string;
         };
         /**
          * Identity
@@ -5448,6 +5643,175 @@ export interface components {
             /** Subscribed */
             subscribed: boolean;
         };
+        /** UnipileChannel */
+        UnipileChannel: {
+            /** Connected */
+            connected: boolean;
+            /**
+             * Account Id
+             * @default null
+             */
+            account_id: string | null;
+            /**
+             * Account Name
+             * @default null
+             */
+            account_name: string | null;
+            /**
+             * Connected At
+             * @default null
+             */
+            connected_at: string | null;
+        };
+        /**
+         * UnipileElsewhere
+         * @description Un compte à MOI, connecté sous une AUTRE org avec la même clé plateforme : il est
+         *     adoptable ici en un clic — le bouton « Connecter » l'adopte côté backend, sans wizard.
+         */
+        UnipileElsewhere: {
+            /** Account Id */
+            account_id: string;
+            /**
+             * Account Name
+             * @default null
+             */
+            account_name: string | null;
+            /**
+             * Org Id
+             * @default null
+             */
+            org_id: number | null;
+        };
+        /** GoogleAccount */
+        GoogleAccount: {
+            /**
+             * Email
+             * @default null
+             */
+            email: string | null;
+            /**
+             * Is Default
+             * @default false
+             */
+            is_default: boolean;
+            /**
+             * Scopes
+             * @default []
+             */
+            scopes: string[];
+            /**
+             * Granted At
+             * @default null
+             */
+            granted_at: string | null;
+        };
+        /**
+         * ApiToken
+         * @description Un jeton, SANS son secret : celui-ci n'est rendu qu'UNE FOIS, à la création.
+         *     `scopes: null` = jeton non porté (pleins pouvoirs du sub). `expires_at: null` =
+         *     jeton sans expiration.
+         */
+        ApiToken: {
+            /** Id */
+            id: number;
+            /**
+             * Label
+             * @default null
+             */
+            label: string | null;
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: unknown | null;
+            /**
+             * Last Used At
+             * @default null
+             */
+            last_used_at: unknown | null;
+            /**
+             * Expires At
+             * @default null
+             */
+            expires_at: unknown | null;
+            /**
+             * Scopes
+             * @default null
+             */
+            scopes: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * ProjectFile
+         * @description ⚠️ `s3_key` n'en fait PAS partie : la clé de stockage est retirée de chaque ligne
+         *     et remplacée par `download_url`, une URL **signée et temporaire**. Elle expire — on
+         *     ne la met pas en cache, on redemande la liste.
+         *
+         *     `public_url` est l'autre régime : permanente, servie tant que le partage est ouvert.
+         *     `null` = fichier privé.
+         */
+        ProjectFile: {
+            /** Id */
+            id: number;
+            /** Project Id */
+            project_id: number;
+            /**
+             * Filename
+             * @default null
+             */
+            filename: string | null;
+            /**
+             * Mime
+             * @default null
+             */
+            mime: string | null;
+            /**
+             * Size Bytes
+             * @default null
+             */
+            size_bytes: number | null;
+            /**
+             * Title
+             * @default null
+             */
+            title: string | null;
+            /**
+             * Description
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Summary
+             * @default null
+             */
+            summary: string | null;
+            /**
+             * Public
+             * @default null
+             */
+            public: boolean | null;
+            /**
+             * Public Url
+             * @default null
+             */
+            public_url: string | null;
+            /**
+             * Created By
+             * @default null
+             */
+            created_by: string | null;
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: unknown | null;
+            /**
+             * Download Url
+             * @default null
+             */
+            download_url: string | null;
+        };
         /**
          * GroupAclEntry
          * @description Une ligne d'ACL d'équipe. Le seul type de principal est le membre — d'où
@@ -5496,6 +5860,49 @@ export interface components {
              * @default null
              */
             granted_at: string | null;
+        };
+        /**
+         * ToolState
+         * @description ⚠️ `enabled` est un état de VISIBILITÉ, pas une autorisation (ADR 0031) :
+         *     un outil visible peut très bien refuser à l'appel (credential absent, connecteur
+         *     restreint dans l'org, connecteur non activé). `protected` = anti-lockout : ces
+         *     outils-là ne peuvent pas être masqués, la bascule échouerait en 400.
+         */
+        ToolState: {
+            /** Name */
+            name: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Protected */
+            protected: boolean;
+        };
+        /**
+         * RegistryEntry
+         * @description Entrée du registre résolu (ADR 0014). `description` est un RÉSUMÉ d'une ligne
+         *     (la 1ʳᵉ ligne de la docstring, écrêtée), pas la fiche — pour ça, `…/detail`.
+         */
+        RegistryEntry: {
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** Source */
+            source: string;
+            /**
+             * Mcp
+             * @default null
+             */
+            mcp: string | null;
+        };
+        /** ToolConnector */
+        ToolConnector: {
+            /** Name */
+            name: string;
+            /**
+             * Label
+             * @default null
+             */
+            label: string | null;
         };
         /**
          * GrantedByMe
@@ -5599,6 +6006,11 @@ export interface components {
          *     seulement `daily_quota` (grant) ou `set_at` (free-tier).
          */
         ConnectorInstance: {
+            /**
+             * Id
+             * @default null
+             */
+            id: string | null;
             /** Ref */
             ref: string;
             /** Connector */
@@ -5852,6 +6264,91 @@ export interface components {
              * @default null
              */
             sentry_event_id: string | null;
+        };
+        /**
+         * OrgSignalRow
+         * @description Un signal tel qu'un responsable d'ORG le voit. `resolved_by` est absent : qui a
+         *     tranché chez nous est notre conduite interne, pas la sienne. La NOTE, elle, est là
+         *     — c'est la réponse qu'on lui doit.
+         */
+        OrgSignalRow: {
+            /** Id */
+            id: number;
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: string | null;
+            /**
+             * Sub
+             * @default null
+             */
+            sub: string | null;
+            /**
+             * Email
+             * @default null
+             */
+            email: string | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Org Id
+             * @default null
+             */
+            org_id: number | null;
+            /**
+             * Signal
+             * @default null
+             */
+            signal: string | null;
+            /**
+             * Kind
+             * @default null
+             */
+            kind: string | null;
+            /**
+             * Target
+             * @default null
+             */
+            target: string | null;
+            /**
+             * Body
+             * @default null
+             */
+            body: string | null;
+            /**
+             * Session Id
+             * @default null
+             */
+            session_id: string | null;
+            /**
+             * Source
+             * @default null
+             */
+            source: string | null;
+            /**
+             * Status
+             * @default null
+             */
+            status: string | null;
+            /**
+             * Resolved At
+             * @default null
+             */
+            resolved_at: string | null;
+            /**
+             * Resolution
+             * @default null
+             */
+            resolution: string | null;
+            /**
+             * Notified At
+             * @default null
+             */
+            notified_at: string | null;
         };
         /** ConnectorFailure */
         ConnectorFailure: {
@@ -6131,6 +6628,137 @@ export interface components {
              * @default
              */
             description: string;
+        };
+        /**
+         * MeFeatures
+         * @description Flags par-DÉPLOIEMENT (dark launch), pas par-utilisateur : le dashboard dérive
+         *     sa navigation de l'effet backend plutôt que de dupliquer un flag côté front.
+         */
+        MeFeatures: {
+            /** Billing */
+            billing: boolean;
+        };
+        /**
+         * ToolCall
+         * @description Un appel MCP du journal. `tool_name`/`called_at` sont des ALIAS SQL (colonnes
+         *     `tool`/`created_at`) : ce sont eux qui sont servis, pas les noms de colonnes.
+         */
+        ToolCall: {
+            /** Id */
+            id: number;
+            /**
+             * Sub
+             * @default null
+             */
+            sub: string | null;
+            /**
+             * Email
+             * @default null
+             */
+            email: string | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Tool Name
+             * @default null
+             */
+            tool_name: string | null;
+            /**
+             * Called At
+             * @default null
+             */
+            called_at: unknown | null;
+            /**
+             * Duration Ms
+             * @default null
+             */
+            duration_ms: number | null;
+            /**
+             * Ok
+             * @default null
+             */
+            ok: boolean | null;
+            /**
+             * Error
+             * @default null
+             */
+            error: string | null;
+            /**
+             * Session Id
+             * @default null
+             */
+            session_id: string | null;
+            /**
+             * Run Id
+             * @default null
+             */
+            run_id: string | null;
+            /**
+             * Org Id
+             * @default null
+             */
+            org_id: number | null;
+            /**
+             * Sentry Event Id
+             * @default null
+             */
+            sentry_event_id: string | null;
+        };
+        /** ByDay */
+        ByDay: {
+            /** Day */
+            day: string;
+            /** Calls */
+            calls: number;
+            /** Errors */
+            errors: number;
+        };
+        /** ByTool */
+        ByTool: {
+            /**
+             * Tool Name
+             * @default null
+             */
+            tool_name: string | null;
+            /** Calls */
+            calls: number;
+            /** Errors */
+            errors: number;
+            /**
+             * Avg Ms
+             * @default null
+             */
+            avg_ms: number | null;
+            /**
+             * P95 Ms
+             * @default null
+             */
+            p95_ms: number | null;
+        };
+        /** ByUser */
+        ByUser: {
+            /**
+             * Sub
+             * @default null
+             */
+            sub: string | null;
+            /**
+             * Email
+             * @default null
+             */
+            email: string | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /** Calls */
+            calls: number;
+            /** Errors */
+            errors: number;
         };
         /**
          * ProfileField
@@ -6940,7 +7568,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    delete_api_atlassian_oauth: {
+    me_federation_atlassian_disconnect_delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -6951,6 +7579,27 @@ export interface operations {
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                        /** Disconnected */
+                        disconnected: boolean;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6976,7 +7625,7 @@ export interface operations {
             };
         };
     };
-    get_api_atlassian_oauth_start: {
+    me_federation_atlassian_start_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -6990,11 +7639,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": {
+                        /** Auth Url */
+                        auth_url: string;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
             };
         };
     };
-    get_api_atlassian_oauth_status: {
+    me_federation_atlassian_status_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -7005,6 +7673,30 @@ export interface operations {
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Connected */
+                        connected: boolean;
+                        /**
+                         * Set At
+                         * @default null
+                         */
+                        set_at: string | null;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7111,6 +7803,21 @@ export interface operations {
                         supported: boolean;
                         /** Identities */
                         identities: components["schemas"]["Identity"][];
+                        /**
+                         * Noun
+                         * @default compte
+                         */
+                        noun: string;
+                        /**
+                         * Reason
+                         * @default null
+                         */
+                        reason: string | null;
+                        /**
+                         * Next Step
+                         * @default null
+                         */
+                        next_step: string | null;
                     };
                 };
             };
@@ -7526,6 +8233,11 @@ export interface operations {
                      * @default null
                      */
                     lease_s?: number | null;
+                    /**
+                     * Max Claims
+                     * @default null
+                     */
+                    max_claims?: number | null;
                 };
             };
         };
@@ -8174,6 +8886,16 @@ export interface operations {
                         schema: {
                             [key: string]: unknown;
                         } | null;
+                        /**
+                         * Enforced
+                         * @default []
+                         */
+                        enforced: unknown[];
+                        /**
+                         * Warning
+                         * @default null
+                         */
+                        warning: string | null;
                     };
                 };
             };
@@ -8233,10 +8955,25 @@ export interface operations {
                             [key: string]: unknown;
                         } | null;
                         /**
+                         * Enforced
+                         * @default []
+                         */
+                        enforced: unknown[];
+                        /**
                          * Warning
                          * @default null
                          */
                         warning: string | null;
+                        /**
+                         * Declarations Effacees
+                         * @default []
+                         */
+                        declarations_effacees: unknown[];
+                        /**
+                         * Declarations Effacees Hint
+                         * @default null
+                         */
+                        declarations_effacees_hint: string | null;
                     };
                 };
             };
@@ -8323,6 +9060,21 @@ export interface operations {
                          * @default []
                          */
                         removed: unknown[];
+                        /**
+                         * Enforced
+                         * @default []
+                         */
+                        enforced: unknown[];
+                        /**
+                         * Declarations Effacees
+                         * @default []
+                         */
+                        declarations_effacees: unknown[];
+                        /**
+                         * Declarations Effacees Hint
+                         * @default null
+                         */
+                        declarations_effacees_hint: string | null;
                         /**
                          * Warning
                          * @default null
@@ -8576,7 +9328,7 @@ export interface operations {
             };
         };
     };
-    delete_api_folkmcp_oauth: {
+    me_federation_folkmcp_disconnect_delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -8587,6 +9339,27 @@ export interface operations {
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                        /** Disconnected */
+                        disconnected: boolean;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8612,7 +9385,7 @@ export interface operations {
             };
         };
     };
-    get_api_folkmcp_oauth_start: {
+    me_federation_folkmcp_start_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -8626,11 +9399,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": {
+                        /** Auth Url */
+                        auth_url: string;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
             };
         };
     };
-    get_api_folkmcp_oauth_status: {
+    me_federation_folkmcp_status_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -8641,6 +9433,30 @@ export interface operations {
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Connected */
+                        connected: boolean;
+                        /**
+                         * Set At
+                         * @default null
+                         */
+                        set_at: string | null;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8704,9 +9520,11 @@ export interface operations {
             };
         };
     };
-    delete_api_google_oauth: {
+    me_federation_google_revoke_delete: {
         parameters: {
-            query?: never;
+            query?: {
+                account?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -8715,6 +9533,30 @@ export interface operations {
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                        /**
+                         * Account
+                         * @default null
+                         */
+                        account: string | null;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8740,7 +9582,56 @@ export interface operations {
             };
         };
     };
-    post_api_google_oauth_default: {
+    me_federation_google_set_default_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * Account
+                     * @default
+                     */
+                    account?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                        /** Default */
+                        default: string;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    me_federation_google_start_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -8754,11 +9645,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": {
+                        /** Auth Url */
+                        auth_url: string;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
             };
         };
     };
-    get_api_google_oauth_start: {
+    me_federation_google_status_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -8772,21 +9682,34 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": {
+                        /** Connected */
+                        connected: boolean;
+                        /**
+                         * Granted At
+                         * @default null
+                         */
+                        granted_at: string | null;
+                        /**
+                         * Scopes
+                         * @default []
+                         */
+                        scopes: string[];
+                        /** Accounts */
+                        accounts: components["schemas"]["GoogleAccount"][];
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
             };
-        };
-    };
-    get_api_google_oauth_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10280,7 +11203,7 @@ export interface operations {
             };
         };
     };
-    get_api_me: {
+    me_get_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -10291,6 +11214,125 @@ export interface operations {
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Sub */
+                        sub: string;
+                        /**
+                         * Email
+                         * @default null
+                         */
+                        email: string | null;
+                        /**
+                         * Name
+                         * @default null
+                         */
+                        name: string | null;
+                        /**
+                         * Avatar Url
+                         * @default null
+                         */
+                        avatar_url: string | null;
+                        /**
+                         * Locale
+                         * @default null
+                         */
+                        locale: string | null;
+                        /**
+                         * Role
+                         * @default null
+                         */
+                        role: string | null;
+                        /**
+                         * Active Org
+                         * @default null
+                         */
+                        active_org: number | null;
+                        /**
+                         * Active Org Name
+                         * @default null
+                         */
+                        active_org_name: string | null;
+                        /**
+                         * Active Org Logo Url
+                         * @default null
+                         */
+                        active_org_logo_url: string | null;
+                        /**
+                         * Org Role
+                         * @default null
+                         */
+                        org_role: string | null;
+                        /**
+                         * Active Org Readonly
+                         * @default false
+                         */
+                        active_org_readonly: boolean;
+                        /**
+                         * Active Org Is Personal
+                         * @default false
+                         */
+                        active_org_is_personal: boolean;
+                        /**
+                         * Active Org Require Mfa
+                         * @default false
+                         */
+                        active_org_require_mfa: boolean;
+                        /**
+                         * Home Org
+                         * @default null
+                         */
+                        home_org: number | null;
+                        /**
+                         * Home Org Name
+                         * @default null
+                         */
+                        home_org_name: string | null;
+                        /**
+                         * Active Group
+                         * @default null
+                         */
+                        active_group: number | null;
+                        /**
+                         * Active Group Name
+                         * @default null
+                         */
+                        active_group_name: string | null;
+                        /**
+                         * Group Role
+                         * @default null
+                         */
+                        group_role: string | null;
+                        /**
+                         * Home Group
+                         * @default null
+                         */
+                        home_group: number | null;
+                        /**
+                         * Home Group Name
+                         * @default null
+                         */
+                        home_group_name: string | null;
+                        features: components["schemas"]["MeFeatures"];
+                        /** Providers */
+                        providers: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10526,9 +11568,11 @@ export interface operations {
             };
         };
     };
-    "get_api_me_activity-summary": {
+    me_activity_summary_get: {
         parameters: {
-            query?: never;
+            query?: {
+                days?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -10537,6 +11581,37 @@ export interface operations {
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Since Days */
+                        since_days: number;
+                        /** Total Calls */
+                        total_calls: number;
+                        /** Error Count */
+                        error_count: number;
+                        /** Active Users */
+                        active_users: number;
+                        /** By Tool */
+                        by_tool: components["schemas"]["ByTool"][];
+                        /** By User */
+                        by_user: components["schemas"]["ByUser"][];
+                        /** By Day */
+                        by_day: components["schemas"]["ByDay"][];
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10673,7 +11748,7 @@ export interface operations {
             };
         };
     };
-    delete_api_me_avatar: {
+    me_avatar_clear_delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -10684,6 +11759,25 @@ export interface operations {
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10732,10 +11826,40 @@ export interface operations {
                         label: string | null;
                         /**
                          * Amount
-                         * @description Prix courant du palier au catalogue, en CENTIMES. Ce n'est PAS un montant facturé : un abonnement offert (comp) affiche le prix du palier alors que rien n'a jamais été encaissé. Les montants réellement passés au PSP se lisent sur billing.payments.
+                         * @description Prix courant du palier au catalogue, en CENTIMES **HORS TAXES**. Ce n'est PAS un montant facturé : un abonnement offert (comp) affiche le prix du palier alors que rien n'a jamais été encaissé, et depuis #486 ce qui est débité est le TTC (`amount_ttc`). Les montants réellement passés au PSP se lisent sur billing.payments.
                          * @default null
                          */
                         amount: number | null;
+                        /**
+                         * Vat Rate Bps
+                         * @description Taux appliqué à la PROCHAINE échéance, en points de base (2000 = 20,00 %). `null` si aucun régime n'est calculable — `vat_blocked` dit pourquoi.
+                         * @default null
+                         */
+                        vat_rate_bps: number | null;
+                        /**
+                         * Vat Amount
+                         * @description TVA de la prochaine échéance, en centimes.
+                         * @default null
+                         */
+                        vat_amount: number | null;
+                        /**
+                         * Amount Ttc
+                         * @description Ce qui sera RÉELLEMENT prélevé à la prochaine échéance, en centimes. Dérivé de l'identité de facturation COURANTE : il bouge si l'org change de pays, ce qui est voulu — ce qui a déjà été pris ne bouge pas, lui, et se lit sur billing.payments.
+                         * @default null
+                         */
+                        amount_ttc: number | null;
+                        /**
+                         * Vat Scheme
+                         * @description 'fr_ttc' | 'reverse_charge' | 'export'. `null` si non calculable.
+                         * @default null
+                         */
+                        vat_scheme: string | null;
+                        /**
+                         * Vat Blocked
+                         * @description Pourquoi le TTC est inconnu : 'billing_identity_required' ou 'vat_consumer_unsupported'. `null` = rien ne bloque. Un abonnement ACTIF avec un `vat_blocked` posé signale une échéance que le runner ne pourra pas prélever — à réparer. ⚠️ Sur un abonnement OFFERT (comp=true), les quatre champs de TVA valent TOUJOURS `null`, `vat_blocked` compris : rien n'y sera jamais prélevé, donc il n'y a ni TTC à annoncer ni alerte à lever.
+                         * @default null
+                         */
+                        vat_blocked: string | null;
                         /**
                          * Currency
                          * @description Devise du palier ('eur').
@@ -10854,10 +11978,40 @@ export interface operations {
                         label: string | null;
                         /**
                          * Amount
-                         * @description Prix courant du palier au catalogue, en CENTIMES. Ce n'est PAS un montant facturé : un abonnement offert (comp) affiche le prix du palier alors que rien n'a jamais été encaissé. Les montants réellement passés au PSP se lisent sur billing.payments.
+                         * @description Prix courant du palier au catalogue, en CENTIMES **HORS TAXES**. Ce n'est PAS un montant facturé : un abonnement offert (comp) affiche le prix du palier alors que rien n'a jamais été encaissé, et depuis #486 ce qui est débité est le TTC (`amount_ttc`). Les montants réellement passés au PSP se lisent sur billing.payments.
                          * @default null
                          */
                         amount: number | null;
+                        /**
+                         * Vat Rate Bps
+                         * @description Taux appliqué à la PROCHAINE échéance, en points de base (2000 = 20,00 %). `null` si aucun régime n'est calculable — `vat_blocked` dit pourquoi.
+                         * @default null
+                         */
+                        vat_rate_bps: number | null;
+                        /**
+                         * Vat Amount
+                         * @description TVA de la prochaine échéance, en centimes.
+                         * @default null
+                         */
+                        vat_amount: number | null;
+                        /**
+                         * Amount Ttc
+                         * @description Ce qui sera RÉELLEMENT prélevé à la prochaine échéance, en centimes. Dérivé de l'identité de facturation COURANTE : il bouge si l'org change de pays, ce qui est voulu — ce qui a déjà été pris ne bouge pas, lui, et se lit sur billing.payments.
+                         * @default null
+                         */
+                        amount_ttc: number | null;
+                        /**
+                         * Vat Scheme
+                         * @description 'fr_ttc' | 'reverse_charge' | 'export'. `null` si non calculable.
+                         * @default null
+                         */
+                        vat_scheme: string | null;
+                        /**
+                         * Vat Blocked
+                         * @description Pourquoi le TTC est inconnu : 'billing_identity_required' ou 'vat_consumer_unsupported'. `null` = rien ne bloque. Un abonnement ACTIF avec un `vat_blocked` posé signale une échéance que le runner ne pourra pas prélever — à réparer. ⚠️ Sur un abonnement OFFERT (comp=true), les quatre champs de TVA valent TOUJOURS `null`, `vat_blocked` compris : rien n'y sera jamais prélevé, donc il n'y a ni TTC à annoncer ni alerte à lever.
+                         * @default null
+                         */
+                        vat_blocked: string | null;
                         /**
                          * Currency
                          * @description Devise du palier ('eur').
@@ -10940,7 +12094,13 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": {
+                    /**
+                     * Payment Ref
+                     * @default null
+                     */
+                    payment_ref?: string | null;
+                };
             };
         };
         responses: {
@@ -10953,9 +12113,15 @@ export interface operations {
                     "application/json": {
                         /**
                          * Status
-                         * @description 'active' = encaissé, mandat récupéré, miroir posé, accès OUVERT. 'pending' = pas encore encaissé (le payeur est peut-être encore sur la page) : re-poller. 'failed' = paiement failed/canceled/expired, l'org n'est PAS abonnée et il faut re-souscrire (aucune reprise possible sur ce paiement).
+                         * @description 'active' = encaissé, mandat récupéré, miroir posé, accès OUVERT. 'pending' = pas encore encaissé (le payeur est peut-être encore sur la page) : re-poller. 'pending_mandate' = ENCAISSÉ, mais le mandat réutilisable n'existe pas encore chez le PSP (il naît quelques minutes après le paiement) : l'argent est pris, l'accès s'ouvrira seul — re-poller après `retry_after`, et surtout ne PAS reproposer de payer. 'failed' = paiement failed/canceled/expired, l'org n'est PAS abonnée et il faut re-souscrire (aucune reprise possible sur ce paiement).
                          */
                         status: string;
+                        /**
+                         * Retry After
+                         * @description Délai conseillé avant la re-sonde, en SECONDES. Porté par la branche 'pending_mandate' uniquement.
+                         * @default null
+                         */
+                        retry_after: number | null;
                         /**
                          * Plan
                          * @description Palier activé — relu de la metadata du paiement. Présent sur 'active' seulement.
@@ -10976,10 +12142,196 @@ export interface operations {
                         current_period_end: string | null;
                         /**
                          * Payment Status
-                         * @description État BRUT du paiement chez Mollie (open, pending, authorized, paid, failed, canceled, expired). Porté par les branches 'pending' et 'failed' uniquement.
+                         * @description État BRUT du paiement chez Mollie (open, pending, authorized, paid, failed, canceled, expired). Porté par les branches 'pending', 'pending_mandate' (où il vaut toujours 'paid') et 'failed'.
                          * @default null
                          */
                         payment_status: string | null;
+                        /**
+                         * Amount
+                         * @description Montant RÉELLEMENT passé au PSP pour ce paiement, en centimes — TTC depuis #486. Relu du journal, pas du catalogue : c'est ce que le client a été débité, même si le prix du palier a changé depuis. Absent sur le no-op idempotent (aucun paiement n'y est lu).
+                         * @default null
+                         */
+                        amount: number | null;
+                        /**
+                         * Amount Ht
+                         * @description Part hors taxes du montant, en centimes. ⚠️ `null` sur les encaissements ANTÉRIEURS au 28/08/2026 : ils ont réellement été débités du HT sans TVA et ne sont pas réécrits — un `null` ici veut dire « ligne d'avant la règle », jamais « zéro ».
+                         * @default null
+                         */
+                        amount_ht: number | null;
+                        /**
+                         * Vat Rate Bps
+                         * @description Taux appliqué, en points de base (2000 = 20,00 %).
+                         * @default null
+                         */
+                        vat_rate_bps: number | null;
+                        /**
+                         * Vat Amount
+                         * @description TVA effectivement facturée, en centimes.
+                         * @default null
+                         */
+                        vat_amount: number | null;
+                        /**
+                         * Vat Scheme
+                         * @description 'fr_ttc' | 'reverse_charge' | 'export' — le régime figé au moment du débit, qui ne suit PAS un changement d'identité ultérieur.
+                         * @default null
+                         */
+                        vat_scheme: string | null;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    me_billing_identity_get_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description `null` tant qu'aucune identité n'a été posée sur cette org.
+                         * @default null
+                         */
+                        identity: components["schemas"]["BillingIdentity"] | null;
+                        /**
+                         * Missing
+                         * @description Champs requis encore absents, dans l'ordre du formulaire. Liste VIDE = `billing.subscribe` ne refusera pas pour cette raison. C'est la même liste que celle nommée par le refus `billing_identity_required`.
+                         */
+                        missing: string[];
+                        /**
+                         * Vat Scheme
+                         * @description Régime qui s'appliquerait aujourd'hui : 'fr_ttc' (TVA française 20 %), 'reverse_charge' (autoliquidation intracommunautaire, 0 %), 'export' (hors UE, 0 %). `null` si l'identité ne permet pas encore de trancher — `vat_blocked` dit alors pourquoi.
+                         * @default null
+                         */
+                        vat_scheme: string | null;
+                        /**
+                         * Vat Rate Bps
+                         * @description Taux applicable en POINTS DE BASE (2000 = 20,00 %, 0 = exonéré). Jamais un flottant : le taux sert à calculer un montant en centimes, et un flottant y introduirait un arrondi.
+                         * @default null
+                         */
+                        vat_rate_bps: number | null;
+                        /**
+                         * Vat Blocked
+                         * @description Pourquoi aucun régime ne peut être servi : 'billing_identity_required' (identité incomplète) ou 'vat_consumer_unsupported' (client de l'Union hors France sans numéro de TVA — le guichet OSS n'est pas en place, la souscription en ligne lui est fermée). `null` = rien ne bloque.
+                         * @default null
+                         */
+                        vat_blocked: string | null;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    me_billing_identity_set_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Legal Name */
+                    legal_name: string;
+                    /** Country Code */
+                    country_code: string;
+                    /** Address Line */
+                    address_line: string;
+                    /** Postal Code */
+                    postal_code: string;
+                    /** City */
+                    city: string;
+                    /**
+                     * Address Line2
+                     * @default null
+                     */
+                    address_line2?: string | null;
+                    /**
+                     * Vat Number
+                     * @default null
+                     */
+                    vat_number?: string | null;
+                    /**
+                     * Billing Email
+                     * @default null
+                     */
+                    billing_email?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * @description `null` tant qu'aucune identité n'a été posée sur cette org.
+                         * @default null
+                         */
+                        identity: components["schemas"]["BillingIdentity"] | null;
+                        /**
+                         * Missing
+                         * @description Champs requis encore absents, dans l'ordre du formulaire. Liste VIDE = `billing.subscribe` ne refusera pas pour cette raison. C'est la même liste que celle nommée par le refus `billing_identity_required`.
+                         */
+                        missing: string[];
+                        /**
+                         * Vat Scheme
+                         * @description Régime qui s'appliquerait aujourd'hui : 'fr_ttc' (TVA française 20 %), 'reverse_charge' (autoliquidation intracommunautaire, 0 %), 'export' (hors UE, 0 %). `null` si l'identité ne permet pas encore de trancher — `vat_blocked` dit alors pourquoi.
+                         * @default null
+                         */
+                        vat_scheme: string | null;
+                        /**
+                         * Vat Rate Bps
+                         * @description Taux applicable en POINTS DE BASE (2000 = 20,00 %, 0 = exonéré). Jamais un flottant : le taux sert à calculer un montant en centimes, et un flottant y introduirait un arrondi.
+                         * @default null
+                         */
+                        vat_rate_bps: number | null;
+                        /**
+                         * Vat Blocked
+                         * @description Pourquoi aucun régime ne peut être servi : 'billing_identity_required' (identité incomplète) ou 'vat_consumer_unsupported' (client de l'Union hors France sans numéro de TVA — le guichet OSS n'est pas en place, la souscription en ligne lui est fermée). `null` = rien ne bloque.
+                         * @default null
+                         */
+                        vat_blocked: string | null;
                     };
                 };
             };
@@ -11088,6 +12440,37 @@ export interface operations {
                          * @description 'card' | 'sepa' — écho de l'entrée, il RESTREINT la page de checkout. Ne présume pas du moyen finalement enregistré : le `method` réel se lit sur confirm/status.
                          */
                         method: string;
+                        /**
+                         * Amount Ht
+                         * @description Prix du palier en centimes, HORS TAXES.
+                         */
+                        amount_ht: number;
+                        /**
+                         * Vat Rate Bps
+                         * @description Taux retenu, en points de base (2000 = 20,00 %, 0 = exonéré).
+                         */
+                        vat_rate_bps: number;
+                        /**
+                         * Vat Amount
+                         * @description TVA en centimes.
+                         */
+                        vat_amount: number;
+                        /**
+                         * Amount Ttc
+                         * @description Ce que la page de checkout va RÉELLEMENT débiter, en centimes. C'est ce montant-là qu'il faut annoncer au payeur avant de l'envoyer sur la page hébergée — sinon il découvre le TTC chez le PSP.
+                         */
+                        amount_ttc: number;
+                        /**
+                         * Vat Scheme
+                         * @description 'fr_ttc' (TVA française 20 %) | 'reverse_charge' (autoliquidation intracommunautaire) | 'export' (hors UE).
+                         */
+                        vat_scheme: string;
+                        /**
+                         * Vat Mention
+                         * @description Mention légale à porter sur la facture (art. 196 de la directive 2006/112/CE en autoliquidation, art. 259-1 du CGI en export). `null` en régime français : une facture avec TVA n'a rien à justifier.
+                         * @default null
+                         */
+                        vat_mention: string | null;
                     };
                 };
             };
@@ -11107,9 +12490,14 @@ export interface operations {
             };
         };
     };
-    get_api_me_calls: {
+    me_calls_get: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+                tool?: string | null;
+                errors?: string | null;
+                days?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -11118,6 +12506,25 @@ export interface operations {
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Calls */
+                        calls: components["schemas"]["ToolCall"][];
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -11397,6 +12804,18 @@ export interface operations {
                         connectors: components["schemas"]["MyConnectorRow"][];
                         /** Verbose */
                         verbose: boolean;
+                        /**
+                         * Readiness
+                         * @default not_computed
+                         */
+                        readiness: string;
+                        /**
+                         * Readiness Hint
+                         * @default null
+                         */
+                        readiness_hint: string | null;
+                        /** @default null */
+                        toolbox_scope: components["schemas"]["ToolboxScope"] | null;
                     };
                 };
             };
@@ -11768,7 +13187,7 @@ export interface operations {
             };
         };
     };
-    post_api_me_connectors_name_session_finalize: {
+    me_browser_session_finalize_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -11777,10 +13196,63 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * Context Id
+                     * @default
+                     */
+                    context_id?: string;
+                    /**
+                     * Session Id
+                     * @default
+                     */
+                    session_id?: string;
+                    /**
+                     * Scope
+                     * @default member
+                     */
+                    scope?: string;
+                    /**
+                     * Account
+                     * @default
+                     */
+                    account?: string;
+                    /**
+                     * Force
+                     * @default false
+                     */
+                    force?: boolean;
+                };
+            };
+        };
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Connected */
+                        connected: boolean;
+                        /** Scope */
+                        scope: string;
+                        /** Account */
+                        account: string;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -11788,7 +13260,7 @@ export interface operations {
             };
         };
     };
-    post_api_me_connectors_name_session_start: {
+    me_browser_session_start_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -11797,10 +13269,43 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * Url
+                     * @default null
+                     */
+                    url?: string | null;
+                };
+            };
+        };
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Live View Url */
+                        live_view_url: string;
+                        /** Context Id */
+                        context_id: string;
+                        /** Session Id */
+                        session_id: string;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12015,10 +13520,15 @@ export interface operations {
                      */
                     section?: string | null;
                     /**
+                     * Region
+                     * @default null
+                     */
+                    region?: "preamble" | null;
+                    /**
                      * Mode
                      * @default null
                      */
-                    mode?: ("replace" | "append" | "prepend") | null;
+                    mode?: ("replace" | "append" | "prepend" | "delete") | null;
                     /**
                      * To Project
                      * @default null
@@ -13110,6 +14620,64 @@ export interface operations {
             };
         };
     };
+    org_instruction_archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * Org
+                     * @default null
+                     */
+                    org?: number | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                        /**
+                         * Org Id
+                         * @default null
+                         */
+                        org_id: number | null;
+                        /** Slug */
+                        slug: string;
+                        /** Archived */
+                        archived: boolean;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     org_instruction_revert_post: {
         parameters: {
             query?: never;
@@ -13675,6 +15243,7 @@ export interface operations {
                     "application/json": {
                         /** Orgs */
                         orgs: components["schemas"]["MyOrgEntry"][];
+                        quota: components["schemas"]["OrgQuota"];
                         /**
                          * Active Org
                          * @default null
@@ -14170,7 +15739,7 @@ export interface operations {
     me_project_read_get: {
         parameters: {
             query?: {
-                include?: string[] | null;
+                include?: string[] | string | null;
             };
             header?: never;
             path: {
@@ -14191,6 +15760,11 @@ export interface operations {
                         id: number;
                         /** Name */
                         name: string;
+                        /**
+                         * Url
+                         * @default null
+                         */
+                        url: string | null;
                         /**
                          * Icon
                          * @default null
@@ -14315,12 +15889,12 @@ export interface operations {
             };
         };
     };
-    "get_api_me_projects_project_id:int_files": {
+    me_project_file_list_get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                project_id: string;
+                project_id: number;
             };
             cookie?: never;
         };
@@ -14328,6 +15902,25 @@ export interface operations {
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Files */
+                        files: components["schemas"]["ProjectFile"][];
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14355,13 +15948,13 @@ export interface operations {
             };
         };
     };
-    "delete_api_me_projects_project_id:int_files_file_id:int": {
+    me_project_file_delete_delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                project_id: string;
-                file_id: string;
+                project_id: number;
+                file_id: number;
             };
             cookie?: never;
         };
@@ -14372,24 +15965,70 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
             };
         };
     };
-    "post_api_me_projects_project_id:int_files_file_id:int_public": {
+    me_project_file_set_public_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                project_id: string;
-                file_id: string;
+                project_id: number;
+                file_id: number;
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Public */
+                    public: boolean;
+                };
+            };
+        };
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                        file: components["schemas"]["ProjectFile"];
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14836,7 +16475,7 @@ export interface operations {
             };
         };
     };
-    get_api_me_tokens: {
+    me_token_list_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -14850,21 +16489,22 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": {
+                        /** Tokens */
+                        tokens: components["schemas"]["ApiToken"][];
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
             };
-        };
-    };
-    post_api_me_tokens: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14872,7 +16512,71 @@ export interface operations {
             };
         };
     };
-    delete_api_me_tokens_token_id: {
+    me_token_create_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * Label
+                     * @default null
+                     */
+                    label?: string | null;
+                    /**
+                     * Scopes
+                     * @default null
+                     */
+                    scopes?: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Token */
+                        token: string;
+                        /**
+                         * Label
+                         * @default null
+                         */
+                        label: string | null;
+                        /**
+                         * Scopes
+                         * @default null
+                         */
+                        scopes: {
+                            [key: string]: unknown;
+                        } | null;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    me_token_delete_delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -14888,11 +16592,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
             };
         };
     };
-    get_api_me_tools: {
+    me_tools_list_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -14906,11 +16629,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": {
+                        /** Tools */
+                        tools: components["schemas"]["ToolState"][];
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
             };
         };
     };
-    get_api_me_tools_registry: {
+    me_tools_registry_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -14924,11 +16666,79 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": {
+                        /** Tools */
+                        tools: components["schemas"]["RegistryEntry"][];
+                        /** Count */
+                        count: number;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
             };
         };
     };
-    post_api_me_tools_name: {
+    me_tools_disable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                        /** Name */
+                        name: string;
+                        /** Enabled */
+                        enabled: boolean;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    me_tools_enable_delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -14944,11 +16754,96 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                        /** Name */
+                        name: string;
+                        /** Enabled */
+                        enabled: boolean;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
             };
         };
     };
-    delete_api_me_tools_name: {
+    me_tools_call_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                } | null;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                        /** Name */
+                        name: string;
+                        /**
+                         * Result
+                         * @default null
+                         */
+                        result: unknown | null;
+                        /**
+                         * Elapsed Ms
+                         * @default null
+                         */
+                        elapsed_ms: number | null;
+                        /**
+                         * Error
+                         * @default null
+                         */
+                        error: string | null;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    me_tools_detail_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -14964,23 +16859,55 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": {
+                        /** Name */
+                        name: string;
+                        /** Description */
+                        description: string;
+                        /**
+                         * Input Schema
+                         * @default null
+                         */
+                        input_schema: {
+                            [key: string]: unknown;
+                        } | null;
+                        /**
+                         * Output Schema
+                         * @default null
+                         */
+                        output_schema: {
+                            [key: string]: unknown;
+                        } | null;
+                        /**
+                         * Namespace
+                         * @default null
+                         */
+                        namespace: string | null;
+                        /** @default null */
+                        connector: components["schemas"]["ToolConnector"] | null;
+                        /** Source */
+                        source: string;
+                        /** Enabled */
+                        enabled: boolean;
+                        /** Protected */
+                        protected: boolean;
+                        /** Default Hidden */
+                        default_hidden: boolean;
+                        /** Testable */
+                        testable: boolean;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
             };
-        };
-    };
-    post_api_me_tools_name_call: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14988,27 +16915,7 @@ export interface operations {
             };
         };
     };
-    get_api_me_tools_name_detail: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_api_me_unipile: {
+    me_unipile_status_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -15022,13 +16929,49 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": {
+                        /** Subscribed */
+                        subscribed: boolean;
+                        /**
+                         * Mode
+                         * @default null
+                         */
+                        mode: string | null;
+                        /** Byo */
+                        byo: boolean;
+                        /** Channels */
+                        channels: {
+                            [key: string]: components["schemas"]["UnipileChannel"];
+                        };
+                        /** Elsewhere */
+                        elsewhere: {
+                            [key: string]: components["schemas"]["UnipileElsewhere"];
+                        };
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
             };
         };
     };
-    delete_api_me_unipile: {
+    me_unipile_disconnect_delete: {
         parameters: {
-            query?: never;
+            query?: {
+                channel?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -15040,21 +16983,22 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
             };
-        };
-    };
-    post_api_me_unipile_connect: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -15062,17 +17006,122 @@ export interface operations {
             };
         };
     };
-    post_api_me_unipile_reconcile: {
+    me_unipile_connect_post: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * Channel
+                     * @default linkedin
+                     */
+                    channel?: string;
+                    /**
+                     * Force
+                     * @default false
+                     */
+                    force?: boolean;
+                    /**
+                     * Premium
+                     * @default null
+                     */
+                    premium?: string | null;
+                    /**
+                     * App
+                     * @default null
+                     */
+                    app?: string | null;
+                };
+            };
+        };
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Url
+                         * @default null
+                         */
+                        url: string | null;
+                        /**
+                         * Adopted
+                         * @default null
+                         */
+                        adopted: boolean | null;
+                        /**
+                         * Channel
+                         * @default null
+                         */
+                        channel: string | null;
+                        /**
+                         * Account Name
+                         * @default null
+                         */
+                        account_name: string | null;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    me_unipile_reconcile_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Bound */
+                        bound: boolean;
+                        /** Accounts */
+                        accounts: unknown[];
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -16550,11 +18599,12 @@ export interface operations {
             };
         };
     };
-    delete_api_orgs_id_logo: {
+    org_logo_clear_delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                /** @description champ `org_id` de la requête */
                 id: string;
             };
             cookie?: never;
@@ -16563,6 +18613,25 @@ export interface operations {
         responses: {
             /** @description OK */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -17130,6 +19199,66 @@ export interface operations {
                         run_id: string;
                         /** Calls */
                         calls: components["schemas"]["RunCall"][];
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    org_monitoring_signals_get: {
+        parameters: {
+            query: {
+                op: "summary" | "calls" | "call" | "connectors" | "adoption" | "runs" | "run" | "gaps" | "tool_quality" | "signals" | "export";
+                days?: number | null;
+                limit?: number | null;
+                sub?: string | null;
+                tool?: string | null;
+                errors?: boolean;
+                run_id?: string | null;
+                session_id?: string | null;
+                min_duration_ms?: number | null;
+                error_contains?: string | null;
+                call_id?: number | null;
+                signal?: string | null;
+                status?: string | null;
+                since?: string | null;
+                until?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description champ `org_id` de la requête */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Org Id */
+                        org_id: number;
+                        /** Signals */
+                        signals: components["schemas"]["OrgSignalRow"][];
+                        /** Count */
+                        count: number;
                     };
                 };
             };
@@ -17765,7 +19894,10 @@ export interface operations {
     };
     me_credential_get_get: {
         parameters: {
-            query?: never;
+            query?: {
+                scope?: string;
+                account?: string;
+            };
             header?: never;
             path: {
                 provider: string;
@@ -17785,6 +19917,16 @@ export interface operations {
                         provider: string;
                         /** Configured */
                         configured: boolean;
+                        /**
+                         * Read Scope
+                         * @default member
+                         */
+                        read_scope: string;
+                        /**
+                         * Read Account
+                         * @default
+                         */
+                        read_account: string;
                     } & {
                         [key: string]: unknown;
                     };
