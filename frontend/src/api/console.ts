@@ -365,7 +365,24 @@ export interface RunnerJob {
   max_attempts: number
   claimed_by: string | null
   last_error: string | null
-  result: { usage_tokens?: number; stopped?: string; steps?: number } | null
+  // Le résultat DÉCLARÉ par le worker. `usage_tokens` = input+output NON cachés ;
+  // le cache se compte à côté (`usage_cache_*`), sinon un run à gros cache paraît
+  // gratuit. `claims`/`writes` disent le TOUR PERDU d'un coup d'œil : un agent qui
+  // réserve une ligne et conclut sans écrire ne produit aucune erreur.
+  result: {
+    usage_tokens?: number
+    usage_cache_read?: number
+    usage_cache_write?: number
+    stopped?: string
+    steps?: number
+    claims?: number
+    writes?: number
+    claim_vide?: boolean
+    faux_depart?: boolean
+    model?: string | null
+    estampille?: boolean
+    tool_counts?: Record<string, number>
+  } | null
   due_at: string | null
   created_at: string | null
   finished_at: string | null

@@ -72,6 +72,7 @@
     "orgContext": { "title": "ce que voit l'agent · org", "crumb": "gérer mon org" },
     "org": { "title": "membres de l'org", "crumb": "gérer mon org" },
     "orgSettings": { "title": "paramètres de l'org", "crumb": "gérer mon org" },
+    "orgBilling": { "title": "abonnement", "crumb": "gérer mon org" },
     "orgSecurity": { "title": "sécurité de l'org", "crumb": "gérer mon org" },
     "orgConnectors": { "title": "connecteurs de l'org", "crumb": "gérer mon org" },
     "orgTeams": { "title": "équipes", "crumb": "gérer mon org" },

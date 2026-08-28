@@ -126,6 +126,12 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/procedures': { title: 'pageMeta.procedures.title', crumb: 'pageMeta.procedures.crumb' },
   '/data': { title: 'pageMeta.data.title', crumb: 'pageMeta.data.crumb' },
   '/documents': { title: 'pageMeta.documents.title', crumb: 'pageMeta.documents.crumb' },
+  // ⚠️ Une page absente de cette table retombe SILENCIEUSEMENT sur l'overview :
+  // la topbar affichait « overview » sur /automations, alors que ses libellés
+  // existaient déjà dans les locales (constaté le 2026-08-28). Toute entrée de
+  // NAV doit avoir sa ligne ici — le repli n'est pas un défaut acceptable, il
+  // fait mentir le titre de la page.
+  '/automations': { title: 'pageMeta.automations.title', crumb: 'pageMeta.automations.crumb' },
   '/account': { title: 'pageMeta.account.title', crumb: 'pageMeta.account.crumb' },
   '/account/preferences': { title: 'pageMeta.accountPreferences.title', crumb: 'pageMeta.accountPreferences.crumb' },
   '/account/security': { title: 'pageMeta.accountSecurity.title', crumb: 'pageMeta.accountSecurity.crumb' },
@@ -139,6 +145,7 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/org/context': { title: 'pageMeta.orgContext.title', crumb: 'pageMeta.orgContext.crumb' },
   '/org': { title: 'pageMeta.org.title', crumb: 'pageMeta.org.crumb' },
   '/org/settings': { title: 'pageMeta.orgSettings.title', crumb: 'pageMeta.orgSettings.crumb' },
+  '/org/billing': { title: 'pageMeta.orgBilling.title', crumb: 'pageMeta.orgBilling.crumb' },
   '/org/security': { title: 'pageMeta.orgSecurity.title', crumb: 'pageMeta.orgSecurity.crumb' },
   '/org/connectors': { title: 'pageMeta.orgConnectors.title', crumb: 'pageMeta.orgConnectors.crumb' },
   '/org/teams': { title: 'pageMeta.orgTeams.title', crumb: 'pageMeta.orgTeams.crumb' },
