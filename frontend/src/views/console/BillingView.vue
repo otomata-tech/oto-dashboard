@@ -1,25 +1,39 @@
 <script setup lang="ts">
 // Abonnement de l'ORG active (ADR 0043) — PSP Mollie. Scopé à l'org consultée
 // (X-Oto-Org injecté par api()). Souscrire/résilier = org_admin ; consulter = tout
-// membre. v1 = carte (« v1 CB seule ») : le paiement + le mandat récurrent se font
-// sur la page de checkout hébergée Mollie. Au retour navigateur on confirme (le
-// webhook Mollie confirme aussi côté serveur — ce confirm est le filet).
-import { computed, onMounted, ref } from 'vue'
+// membre. v1 = carte (« v1 CB seule ») : le paiement + le moyen de paiement
+// récurrent se font sur la page de checkout hébergée Mollie.
+//
+// Cette vue porte le catalogue, l'état d'abonnement et le RETOUR du paiement ; le
+// tunnel (identité → montant → consentement → paiement) vit dans
+// `components/console/billing/`.
+//
+// ⚠️ **Au retour, un paiement réussi ne produit jamais d'échec.** Toutes les branches
+// d'avancement de `confirm` sont des 200 discriminées par `status`, et
+// `pending_mandate` veut dire « encaissé, le moyen de paiement réutilisable n'existe
+// pas encore chez le PSP » : on sonde, on n'annonce rien de négatif, et on ne
+// repropose surtout pas de payer. C'est ce bouton reproposé qui a débité deux fois
+// le premier client payant le 25/08/2026 (#127).
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
+import Notice from '@/components/console/Notice.vue'
 import Icon from '@/components/console/Icon.vue'
 import StateError from '@/components/console/StateError.vue'
 import SkeletonOverview from '@/components/console/SkeletonOverview.vue'
+import BillingCheckout from '@/components/console/billing/BillingCheckout.vue'
+import BillingPending from '@/components/console/billing/BillingPending.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe, isSuperAdmin } from '@/composables/useMe'
 import {
-  getBilling, getBillingPayments, subscribeBilling, confirmBilling, cancelBilling,
+  getBilling, getBillingPayments, confirmBilling, cancelBilling,
 } from '@/api/console'
-import type { BillingStatus, BillingPlan, BillingPayment, BillingSubscribeResult } from '@/types/api'
-import { humanize } from '@/lib/errors'
+import type { BillingStatus, BillingPlan, BillingPayment, VatScheme } from '@/types/api'
+import { PENDING_WINDOW_MS, VAT_SCHEME_LABEL, nextProbeDelayMs } from '@/lib/billingTunnel'
+import { explain, humanize } from '@/lib/errors'
 import { fmtDate, fmtDateTime } from '@/types/api'
 
 const { toast } = useToast()
@@ -31,6 +45,8 @@ const payments = ref<BillingPayment[]>([])
 const loading = ref(true)
 const busy = ref(false)
 const error = ref<string | null>(null)
+// Palier choisi = on est dans le tunnel. Retour au catalogue en le remettant à null.
+const chosen = ref<BillingPlan | null>(null)
 
 // Souscrire/résilier réservé à l'org_admin (le backend le garde aussi — l'UI ne
 // fait que masquer les leviers).
@@ -80,17 +96,24 @@ function payTone(s: string): 'olive' | 'terra' | 'ink' {
   return 'ink'
 }
 
-// Bandeau d'alerte de l'état abonné (résiliation programmée / impayé / mandat non signé).
-const alert = computed<{ tone: 'warn' | 'info'; icon: string; text: string } | null>(() => {
+// Bandeau d'alerte de l'état abonné (résiliation programmée / impayé / échéance que
+// le prélèvement ne pourra pas honorer).
+const alert = computed<{ tone: 'warn' | 'info'; text: string } | null>(() => {
   const s = status.value
   if (!s?.subscribed) return null
   if (s.canceled_at) {
-    return { tone: 'warn', icon: 'warn', text: `Résiliation programmée — l'accès reste ouvert `
+    return { tone: 'warn', text: `Résiliation programmée — l'accès reste ouvert `
       + `jusqu'au ${fmtDate(s.current_period_end)}, puis passage au niveau gratuit.` }
   }
   if (s.status === 'past_due') {
-    return { tone: 'warn', icon: 'warn', text: `Paiement en échec — un nouvel essai est en cours, `
+    return { tone: 'warn', text: `Paiement en échec — un nouvel essai est en cours, `
       + `l'accès est maintenu jusqu'au ${fmtDate(s.grace_until)}.` }
+  }
+  // Un abonnement actif dont le TTC n'est pas calculable = une échéance que le
+  // serveur ne pourra pas prélever. Le dire avant qu'elle tombe.
+  if (s.vat_blocked) {
+    return { tone: 'warn', text: 'La prochaine échéance ne peut pas être calculée : '
+      + 'complétez l\'identité de facturation de l\'organisation.' }
   }
   return null
 })
@@ -99,6 +122,14 @@ const alert = computed<{ tone: 'warn' | 'info'; icon: string; text: string } | n
 const showNextBilling = computed(() => {
   const s = status.value
   return !!(s && !s.comp && s.status === 'active' && !s.canceled_at && s.next_billing_at)
+})
+
+// Ce qui sera réellement prélevé à la prochaine échéance (TTC), avec son régime —
+// tous deux servis par l'API. `null` sur un abonnement offert : rien n'y transite.
+const nextCharge = computed(() => {
+  const s = status.value
+  if (!s?.subscribed || s.comp || s.amount_ttc == null) return null
+  return { ttc: s.amount_ttc, scheme: (s.vat_scheme ?? null) as VatScheme | null }
 })
 
 async function load() {
@@ -116,51 +147,71 @@ async function load() {
   }
 }
 
-// Retour de la page de checkout Mollie (?billing=return) → on confirme (filet).
+// ── retour de la page de paiement ────────────────────────────────────────────
+
+// Branche d'attente en cours (spinner + re-sonde), ou null quand il n'y a rien à
+// attendre. Tant qu'elle est posée, le catalogue est masqué : aucun bouton « payer »
+// ne doit être atteignable pendant qu'un encaissement s'achève.
+const pending = ref<'pending' | 'pending_mandate' | null>(null)
+const givenUp = ref(false)
+let timer: ReturnType<typeof setTimeout> | undefined
+let deadline = 0
+
+function isWaiting(s: string): s is 'pending' | 'pending_mandate' {
+  return s === 'pending' || s === 'pending_mandate'
+}
+
+// Une sonde de `confirm`. Se rappelle elle-même après le délai conseillé par le
+// serveur, jusqu'à l'ouverture de l'abonnement ou l'épuisement de la fenêtre.
+async function probe(paymentRef: string | null) {
+  try {
+    const r = await confirmBilling(paymentRef)
+    if (isWaiting(r.status)) {
+      pending.value = r.status
+      if (Date.now() >= deadline) {
+        // On cesse de sonder, mais surtout pas en annonçant un échec : l'argent est
+        // pris et la reprise est côté serveur (`billing_runner`).
+        givenUp.value = true
+        return
+      }
+      timer = setTimeout(() => probe(paymentRef), nextProbeDelayMs(r.retry_after))
+      return
+    }
+    pending.value = null
+    toast(r.status === 'active' ? 'abonnement activé' : 'paiement non abouti')
+    await load()
+  } catch (e) {
+    // `confirm` ne refuse que si l'APPEL est fautif (paiement inconnu, aucune
+    // souscription en cours) — jamais parce qu'un paiement a réussi.
+    pending.value = null
+    toast(explain(e))
+    await load()
+  }
+}
+
 onMounted(async () => {
   const url = new URL(window.location.href)
   if (url.searchParams.get('billing') === 'return') {
+    // `payment_ref` est posé par le serveur sur l'URL de retour : le navigateur DIT
+    // quel paiement il vient de conclure, au lieu de laisser le serveur prendre « le
+    // plus récent ». Les deux paramètres sont nettoyés de la barre d'adresse.
+    const paymentRef = url.searchParams.get('payment_ref')
     url.searchParams.delete('billing')
+    url.searchParams.delete('payment_ref')
     window.history.replaceState({}, '', url.toString())
-    loading.value = true
-    try {
-      const s = await confirmBilling()
-      toast(s.status === 'active' ? 'abonnement activé'
-        : s.status === 'pending' ? 'paiement en attente — on vérifie sous peu'
-        : 'paiement non abouti')
-    } catch (e) {
-      toast(humanize(e))
-    }
+    deadline = Date.now() + PENDING_WINDOW_MS
+    loading.value = false
+    await probe(paymentRef)
+    if (pending.value) return   // l'attente s'affiche seule, `load` viendra à la fin
   }
   await load()
 })
 
+onBeforeUnmount(() => clearTimeout(timer))
+
+// ── résiliation ──────────────────────────────────────────────────────────────
+
 const returnUrl = `${window.location.origin}/org/billing?billing=return`
-
-async function subscribe(plan: string) {
-  await go(() => subscribeBilling({ plan, return_url: returnUrl, method: 'card' }))
-}
-
-// Ouvre la page de checkout hébergée Mollie dans le même onglet.
-async function go(call: () => Promise<BillingSubscribeResult | BillingStatus>) {
-  busy.value = true
-  try {
-    const r = await call()
-    if ('checkout_url' in r && r.checkout_url) {
-      window.location.href = r.checkout_url
-    } else {
-      await load()
-    }
-  } catch (e) {
-    toast(humanize(e))
-  } finally {
-    busy.value = false
-  }
-}
-
-function contactSales() {
-  window.location.href = 'mailto:contact@otomata.tech?subject=Abonnement%20Entreprise'
-}
 
 async function resiliate() {
   if (!await confirmAction({
@@ -173,15 +224,28 @@ async function resiliate() {
     status.value = await cancelBilling()
     toast('résiliation enregistrée')
   } catch (e) {
-    toast(humanize(e))
+    toast(explain(e))
   } finally {
     busy.value = false
   }
 }
+
+function contactSales() {
+  window.location.href = 'mailto:contact@otomata.tech?subject=Abonnement%20Entreprise'
+}
 </script>
 
 <template>
-  <div class="content-inner fadein">
+  <!-- Attente d'ouverture : elle remplace tout le reste, y compris le catalogue. -->
+  <div v-if="pending" class="content-inner fadein">
+    <BillingPending :status="pending" :given-up="givenUp" />
+  </div>
+
+  <!-- Tunnel du palier choisi (identité → montant → consentement → paiement). -->
+  <BillingCheckout v-else-if="chosen" :plan="chosen" :can-manage="canManage"
+    :return-url="returnUrl" @back="chosen = null" />
+
+  <div v-else class="content-inner fadein">
     <SkeletonOverview v-if="loading" />
     <StateError v-else-if="error" :message="error" @retry="load" />
 
@@ -197,16 +261,19 @@ async function resiliate() {
 
         <div class="grid3">
           <Stat label="montant"
-            :value="euros(status.amount)" :sub="status.amount ? 'par mois' : undefined" />
+            :value="euros(nextCharge?.ttc ?? status.amount)"
+            :sub="nextCharge ? 'par mois, TTC' : status.amount ? 'par mois' : undefined" />
           <Stat v-if="showNextBilling" label="prochaine échéance"
             :value="fmtDate(status.next_billing_at) ?? '—'" />
           <Stat label="paiement" :value="methodLabel(status.method)" />
         </div>
 
-        <div v-if="alert" class="notice" :class="alert.tone">
-          <Icon :name="alert.icon" :size="15" />
-          <span>{{ alert.text }}</span>
-        </div>
+        <p v-if="nextCharge?.scheme" class="hint">
+          {{ VAT_SCHEME_LABEL[nextCharge.scheme] }} —
+          {{ euros(status.amount) }} hors taxes.
+        </p>
+
+        <Notice v-if="alert" :tone="alert.tone" class="mt">{{ alert.text }}</Notice>
 
         <div v-if="canManage && !status.comp && status.status !== 'canceled'" class="row-actions">
           <Btn kind="danger" icon="trash" :disabled="busy" @click="resiliate">
@@ -236,12 +303,16 @@ async function resiliate() {
               <Btn v-if="p.custom" kind="ghost" icon="ext" @click="contactSales">
                 Nous contacter</Btn>
               <template v-else-if="canManage">
-                <Btn icon="card" :disabled="busy"
-                  @click="subscribe(p.plan)">S'abonner</Btn>
+                <!-- « Choisir » et non « S'abonner » : le clic ouvre le tunnel, il
+                     n'engage aucun paiement. -->
+                <Btn icon="card" @click="chosen = p">Choisir</Btn>
               </template>
             </div>
           </div>
         </div>
+
+        <p class="hint">Les prix sont hors taxes ; la TVA applicable est calculée à
+          l'étape suivante, à partir de votre pays de facturation.</p>
 
         <div class="incl">
           <div class="incl-h">Inclus dans tous les plans</div>
@@ -306,15 +377,7 @@ async function resiliate() {
 }
 .incl-list li :deep(svg) { color: var(--color-olive-ink); flex: none; }
 
-.notice {
-  display: flex; align-items: flex-start; gap: 9px; margin-top: 14px; padding: 10px 12px;
-  border-radius: var(--radius-md); font-size: var(--fs-small); line-height: 1.5;
-}
-.notice.warn { background: var(--color-terra-soft); color: var(--color-terra-ink); }
-.notice.warn :deep(svg) { color: var(--color-terra-ink); flex: none; margin-top: 1px; }
-.notice.info { background: var(--color-hair-soft); color: var(--color-ink-soft); }
-.notice.info :deep(svg) { color: var(--color-mute); flex: none; margin-top: 1px; }
-
+.mt { margin-top: 14px; }
 .row-actions { margin-top: 16px; }
 .hint { font-size: 12px; color: var(--color-mute); margin: 14px 0 0; line-height: 1.5; }
 </style>

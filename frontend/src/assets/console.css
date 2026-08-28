@@ -378,6 +378,15 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-small); 
 .btn-mini.danger:hover { background: var(--color-terra-soft); }
 .linklike { background: none; border: 0; padding: 0; font-size: var(--fs-small); font-weight: 600; color: var(--color-saffron-ink); }
 .linklike:hover { color: var(--color-ink); }
+/* :disabled — même langage que `.inp:disabled`. Un bouton momentanément inerte doit
+   SE VOIR inerte : sans ça il se clique, et le geste ne produit rien (l'écran de
+   souscription en dépend — son bouton de paiement attend l'identité et l'acceptation
+   des conditions). À distinguer du levier qu'un scope n'a pas, lui simplement OMIS. */
+.btn:disabled, .btn-mini:disabled, .linklike:disabled { opacity: .55; cursor: not-allowed; }
+.btn:disabled:hover, .btn.ghost:disabled:hover { transform: none; background: var(--color-ink); }
+.btn.ghost:disabled:hover { background: transparent; }
+.btn-mini:disabled:hover { background: var(--color-surface); color: var(--color-ink-soft); }
+.linklike:disabled:hover { color: var(--color-saffron-ink); }
 
 /* ════ inputs ════ */
 .inp {

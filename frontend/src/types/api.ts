@@ -34,6 +34,15 @@ export type ApiOut<K extends keyof operations> = operations[K]['responses'] exte
   ? T
   : never
 
+/** Le corps (application/json) attendu par une opération du document OpenAPI. Même
+ *  raison qu'`ApiOut` : un formulaire qui POSTe une fiche décrite par le serveur ne
+ *  redéclare pas ses champs — il les dérive, et le CI voit la dérive. */
+export type ApiIn<K extends keyof operations> = operations[K] extends {
+  requestBody: { content: { 'application/json': infer T } }
+}
+  ? T
+  : never
+
 // Paliers de rôle plateforme (3 crans, ADR rôles) :
 //   super_admin > admin (opérateur) > member.
 // super_admin = tout-puissant (rôles plateforme, platform keys) ; admin = palier
@@ -1431,7 +1440,7 @@ export interface BillingStatus {
   plans?: BillingPlan[]           // présent seulement si pas encore abonné
   plan?: string
   label?: string | null
-  amount?: number | null
+  amount?: number | null          // prix du palier au catalogue, en centimes HORS TAXES
   currency?: string
   interval?: string
   // 'incomplete'|'active'|'past_due'|'canceled' = statut miroir ; 'pending'|'failed'
@@ -1443,9 +1452,38 @@ export interface BillingStatus {
   next_billing_at?: string | null
   grace_until?: string | null
   canceled_at?: string | null
+  // Décomposition de la PROCHAINE échéance (#486). ⚠️ Sur un abonnement offert
+  // (comp), les cinq champs valent toujours `null` : rien n'y sera jamais prélevé.
+  vat_rate_bps?: number | null
+  vat_amount?: number | null
+  amount_ttc?: number | null      // ce qui sera RÉELLEMENT prélevé, en centimes
+  vat_scheme?: VatScheme | null
+  vat_blocked?: VatBlocked | null
 }
 export type BillingSubscribeResult = ApiOut<'billing_subscribe_post'>
 export type BillingPayment = components['schemas']['Payment']
+
+// ── Identité de facturation, TVA et consentement d'achat (#486/#487, tunnel #128) ──
+// Le régime fiscal servi par l'API. Le front ne le CALCULE pas : il l'affiche.
+export type VatScheme = 'fr_ttc' | 'reverse_charge' | 'export'
+// Pourquoi aucun régime n'est calculable — donc pourquoi il n'y a pas de TTC à
+// annoncer. `vat_consumer_unsupported` (Union hors France sans n° de TVA) ferme la
+// souscription en ligne : le guichet OSS n'est pas en place.
+export type VatBlocked = 'billing_identity_required' | 'vat_consumer_unsupported'
+
+export type BillingIdentity = components['schemas']['BillingIdentity']
+/** L'identité, ce qui lui manque, et le régime qu'elle produirait. Forme COMMUNE à
+ *  la lecture et à l'écriture : `set` rend l'état rafraîchi, pas un accusé. */
+export type BillingIdentityView = ApiOut<'me_billing_identity_get_get'>
+/** La fiche POSTÉE ENTIÈRE (la capacité remplace, elle ne fusionne pas). */
+export type BillingIdentityInput = ApiIn<'me_billing_identity_set_put'>
+/** Avancement du premier paiement — quatre branches discriminées par `status`,
+ *  toutes en 200. ⚠️ `pending_mandate` = ENCAISSÉ, mandat pas encore né : une
+ *  ATTENTE, jamais un échec (#127). */
+export type BillingConfirmResult = ApiOut<'billing_confirm_post'>
+export type LegalDocument = components['schemas']['LegalDocument']
+export type LegalContext = components['schemas']['LegalContext']
+export type LegalStatus = ApiOut<'me_legal_get_get'>
 
 // Accepte les timestamps PG ("YYYY-MM-DD HH:MM:SS", UTC implicite) ET les ISO
 // portant déjà un offset/Z (ex. granted_at = datetime.isoformat() → "…+00:00").

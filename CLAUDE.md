@@ -72,6 +72,7 @@ historique des refontes) vit dans le doc du concept.
 | recherche transverse (⌘K + page) | `/search` | `docs/recherche.md` |
 | identité, consultation (view-as), hub compte | `/account` + sidebar/popin | `docs/identite-et-consultation.md` |
 | écrans plateforme — objets possédés, tenants | `/platform/objects`, `/platform/tenants` | `docs/plateforme.md` |
+| facturation — abonnement, tunnel de souscription | `/org/billing` | `docs/facturation.md` |
 | observabilité (PostHog + Sentry) | — | `docs/observabilite.md` |
 
 Les **contrats backend** sont dans `oto-backend/` : `CLAUDE.md` pour la carte,
@@ -98,6 +99,12 @@ Les **contrats backend** sont dans `oto-backend/` : `CLAUDE.md` pour la carte,
   `lib/credentialForm.ts`, **miroir du serveur au même titre que `keyStack.ts`** : une
   erreur n'y casse pas l'écran, elle écrit au coffre autre chose que ce qui est affiché.
   Détail : `docs/connecteurs.md`.
+- ⚠️ **Un paiement RÉUSSI ne produit jamais de copie négative.** Toutes les branches
+  d'avancement de `confirm` sont des 200 discriminées par `status` ; `pending_mandate`
+  veut dire « encaissé, moyen de paiement en cours de validation » — une ATTENTE. Le
+  25/08/2026, l'écran a annoncé un échec 1,4 s après un encaissement réussi : le payeur a
+  recliqué et a été débité deux fois. Pendant l'attente, **aucun bouton de paiement n'est
+  atteignable**. Détail : `docs/facturation.md`.
 - ⚠️ **Copy user-facing = verbatim** (`lib/connectorVerdict.ts` porte la copy du CDC), jamais
   reformulée. i18n FR complète, 0 terme banni.
 - ⚠️ Les identifiants de code/API gardent le mot « doctrine » (`Doctrine*View`,
@@ -167,5 +174,6 @@ d'intégration et **note datée sur l'archivage de `design-system/` (2026-08-27)
 | `recherche.md` | popup ⌘K + page `/search`, un seul chemin de rendu, deep-link `?doc=`, backlinks, boîte « À traiter ». |
 | `identite-et-consultation.md` | affichage (sidebar) vs switch (popin compte), consultation vs maison (ADR 0023), « voir en tant que » USER, hub `/account`. |
 | `plateforme.md` | `/platform/objects` (objets possédés, ADR 0030) et `/platform/tenants` (ADR 0052, lecture seule, verdict « redémarrage requis »). |
+| `facturation.md` | l'écran `/org/billing` et son tunnel (identité → montant → consentement → paiement), `pending_mandate` = attente et non échec, les préalables peints d'un coup, le miroir de TVA. |
 | `types-api.md` | la chaîne `Output` → OpenAPI → snapshot → types générés → alias, les deux contrôles CI, et ce qui reste écrit à la main (avec pourquoi). |
 | `observabilite.md` | PostHog (gaté consentement) + Sentry `@sentry/vue`, source maps au build, token à scoper. |

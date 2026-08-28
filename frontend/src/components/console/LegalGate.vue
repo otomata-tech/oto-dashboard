@@ -2,8 +2,14 @@
 // Gate d'acceptation à l'inscription (contexte 'access' = CGU). Overlay bloquant
 // affiché au premier accès tant que l'utilisateur n'a pas accepté les documents
 // requis à leur version courante — et re-affiché si une version évolue
-// (le backend recalcule le reste-à-accepter). L'achat a sa propre gate (BillingView),
-// enforcée côté serveur ; celle-ci trace le consentement d'accès.
+// (le backend recalcule le reste-à-accepter). Celle-ci trace le consentement d'ACCÈS.
+//
+// L'achat a sa propre gate, enforcée côté serveur depuis oto-backend#506 : `subscribe`
+// refuse en 409 `legal_required` tant que le contexte `purchase` (CGU + CGV + DPA) n'est
+// pas accepté à sa version courante. Elle se peint dans le tunnel de souscription
+// (`components/console/billing/`), avec les documents que la réponse porte — cf.
+// `docs/facturation.md`. Cette phrase était FAUSSE avant #506 : la gate d'achat
+// n'existait pas.
 import { computed, onMounted, ref } from 'vue'
 import { getLegal, acceptLegal, type LegalStatus } from '@/api/console'
 

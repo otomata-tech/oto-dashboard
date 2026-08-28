@@ -100,6 +100,7 @@ Sparkline optionnelle : `.stat .v.with-spark` + `.spark`.
 | `.btn-mini` | action de carte/ligne (surface + hairline, pill) |
 | `.btn-mini.danger` | destructif (terra) |
 | `.linklike` | action inline texte (saffron-ink) |
+| `:disabled` | opacité .55 + `not-allowed` sur les trois, hover neutralisé — un levier **momentanément** inerte se voit (à distinguer du pouvoir qu'un scope n'a pas, lui **omis**) |
 | `.seg` + `button.on` | segmented control (jetons 8px, lowercase) |
 
 ## Inputs
@@ -114,6 +115,7 @@ Sparkline optionnelle : `.stat .v.with-spark` + `.spark`.
 ## Process & feedback
 
 - `.checkstep` (`.done`) : étapes d'onboarding/checklist (pastille `.ck`, titre barré si fait).
+- `<Notice tone="warn|ok|info">` : bandeau d'information **dans** une carte — l'état qu'il faut lire avant d'agir (résiliation programmée, paiement en cours de validation, préalable manquant). L'icône se déduit du ton ; l'accent est **du sens**, jamais un ornement : `warn` = ce qui demande une action ou un délai, `ok` = ce qui est acquis, `info` = le contexte neutre. Remplace les `.notice` redessinés dans les styles locaux des vues.
 - `.toast` : confirmation transitoire (encre, bas centré, `toast-in`).
 - `.divider-dotted`, `.helptext`, `.eyebrow` : ponctuation de section.
 

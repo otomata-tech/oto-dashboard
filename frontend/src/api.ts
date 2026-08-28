@@ -2,6 +2,35 @@ import { useAuth } from '@/composables/useAuth'
 import { viewHeaders } from '@/lib/viewOrg'
 import { beginBusy, endBusy } from '@/lib/busy'
 
+// Un refus REST tel que le backend le rend : `error` (jeton machine), `detail`
+// (la phrase écrite pour être lue telle quelle) et `details` — la forme STRUCTURÉE
+// du refus quand il y en a une (ADR 0009 `AuthzDenied.details`).
+//
+// ⚠️ `message` reste exactement `"<status> <code>"` : c'est ce que `humanize()` parse
+// et ce que tout l'écran attendait déjà. La sous-classe n'ajoute que ce que
+// l'enveloppe portait ET qu'on jetait — le tunnel de souscription (#127/#128) en a
+// besoin, un 409 y nommant les préalables manquants dans `details.blockers`.
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    readonly detail?: string,
+    readonly details?: Record<string, unknown>,
+  ) {
+    super(`${status} ${code}`)
+    this.name = 'ApiError'
+  }
+}
+
+// Construit l'ApiError d'une réponse non-ok. Le corps peut ne pas être du JSON
+// (502 d'un proxy, page d'erreur) : on retombe alors sur le statusText, comme avant.
+async function apiError(resp: Response): Promise<ApiError> {
+  const body = (await resp.json().catch(() => ({}))) as {
+    error?: string; detail?: string; details?: Record<string, unknown>
+  }
+  return new ApiError(resp.status, body.error ?? resp.statusText, body.detail, body.details)
+}
+
 // Le backend du dashboard est oto-mcp (REST /api/*) — pas de serveur propre
 // (ADR 0004/0007 : le front ne détient aucun secret, le centre est oto-mcp).
 const base = (import.meta.env.VITE_OTO_MCP_BASE as string).replace(/\/$/, '')
@@ -28,10 +57,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
         ...init.headers,
       },
     })
-    if (!resp.ok) {
-      const body = await resp.json().catch(() => ({}))
-      throw new Error(`${resp.status} ${(body as { error?: string }).error ?? resp.statusText}`)
-    }
+    if (!resp.ok) throw await apiError(resp)
     return resp.json() as Promise<T>
   } finally {
     endBusy()
@@ -42,10 +68,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 // d'invitation, où le token de l'URL est le seul secret). Même gestion d'erreur.
 export async function apiPublic<T>(path: string, init: RequestInit = {}): Promise<T> {
   const resp = await fetch(`${base}${path}`, init)
-  if (!resp.ok) {
-    const body = await resp.json().catch(() => ({}))
-    throw new Error(`${resp.status} ${(body as { error?: string }).error ?? resp.statusText}`)
-  }
+  if (!resp.ok) throw await apiError(resp)
   return resp.json() as Promise<T>
 }
 
@@ -59,10 +82,7 @@ export async function apiDownload(path: string, fallbackName = 'export.zip'): Pr
   const resp = await fetch(`${base}${path}`, {
     headers: { Authorization: `Bearer ${token}`, ...viewHeaders() },
   })
-  if (!resp.ok) {
-    const body = await resp.json().catch(() => ({}))
-    throw new Error(`${resp.status} ${(body as { error?: string }).error ?? resp.statusText}`)
-  }
+  if (!resp.ok) throw await apiError(resp)
   const blob = await resp.blob()
   const cd = resp.headers.get('Content-Disposition') || ''
   const m = cd.match(/filename="?([^"]+)"?/)
@@ -88,9 +108,6 @@ export async function apiUpload<T>(path: string, file: File, method = 'POST'): P
     headers: { Authorization: `Bearer ${token}`, ...viewHeaders() },
     body: form,
   })
-  if (!resp.ok) {
-    const body = await resp.json().catch(() => ({}))
-    throw new Error(`${resp.status} ${(body as { error?: string }).error ?? resp.statusText}`)
-  }
+  if (!resp.ok) throw await apiError(resp)
   return resp.json() as Promise<T>
 }
