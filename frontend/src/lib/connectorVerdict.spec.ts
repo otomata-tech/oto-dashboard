@@ -120,10 +120,28 @@ describe('connectorVerdict — résolution (actif)', () => {
 
 describe('connectorVerdict — indisponible', () => {
   it('pas de clé → À connecter', () => {
+    // ⚠️ Ce test affirmait « Réservé » — le nom disait l'intention, l'assertion gravait
+    // le défaut. `forbidden` veut dire « aucune clé ne résout », pas « accès refusé » :
+    // on affichait « demande à un admin » à qui n'était bloqué par rien, jusqu'à un
+    // admin d'org devant sa propre org. Corrigé le 2026-08-28 (oto-dashboard#126).
     const v = connectorVerdict(conn(), ps({ mode: 'forbidden', user_key_configured: false }))
-    // forbidden sans option ni team → réservé
+    expect(v.list).toBe('À connecter')
+    expect(v.hint).toBe(false)
+    expect(v.cta).toBe('Connecter HubSpot')
+  })
+
+  it('réellement restreint → Réservé, et là seulement', () => {
+    const v = connectorVerdict(conn(), ps({
+      mode: 'forbidden', user_key_configured: false, rbac_restricted: true,
+    }))
     expect(v.list).toBe('Réservé')
     expect(v.hint).toBe(true)
+  })
+
+  it('un backend qui ne dit rien de la restriction n\'en invente pas', () => {
+    // Le drapeau est optionnel : son absence vaut « rien n'est annoncé », jamais un mur.
+    const v = connectorVerdict(conn(), ps({ mode: 'forbidden', user_key_configured: false }))
+    expect(v.list).not.toBe('Réservé')
   })
 
   it('aucun provider status → À connecter', () => {
@@ -148,6 +166,18 @@ describe('connectorVerdict — indisponible', () => {
     }))
     expect(v.list).toBe('Clé d’équipe Sales')
     expect(v.hint).toBe(false)
+  })
+
+  it('clé d\'équipe : les DEUX voies sont nommées, pas seulement l\'équipe', () => {
+    // Ne dire que « active cette équipe » envoyait faire un détour celui qui voulait
+    // justement ses propres droits — sa clé perso passe avant celle de l'équipe.
+    const v = connectorVerdict(conn(), ps({
+      mode: 'forbidden', user_key_configured: false,
+      team_key_group: { id: 3, name: 'Sales' },
+    }))
+    expect(v.phrase).toContain('pose la tienne')
+    expect(v.phrase).toContain('passera avant')
+    expect(v.cta).toBe('Poser ma clé')
   })
 })
 

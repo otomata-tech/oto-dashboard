@@ -89,16 +89,28 @@ const needsKey = computed(() => connKind.value === 'key')
 const docRefCount = computed(() => c.value.doctrine_ref_count ?? 0)
 
 // Verdict « état pour toi » (ADR 0044) — ET-logique des 3 couches.
-// ⚠️ `mode='forbidden'` ≠ RBAC : côté backend (status_for) c'est « aucune clé ne
-// résout » — l'état par défaut de tout connecteur BYO pas encore connecté. Un
-// connecteur réellement RBAC-restreint est FILTRÉ du catalogue du membre
-// (connectors_selection), il n'ouvre pas de drawer. La disponibilité est donc
-// acquise dès que la fiche s'affiche ; le manque de clé se dit sur la couche
-// connexion (vécu 2026-07-16 : faux « Réservé à certaines équipes » sur un Zoho
-// simplement pas connecté).
-// Clé d'équipe à portée (membre d'une équipe qui a le secret, non active) —
-// backend-driven (ProviderStatus.team_key_group), jamais recalculé côté front.
-const teamKey = computed(() => status.value?.team_key_group ?? null)
+// ⚠️ `mode='forbidden'` ≠ RBAC : côté backend c'est « aucune clé ne résout », l'état
+// par défaut de tout connecteur BYO pas encore connecté. La restriction RÉELLE se lit
+// sur `ProviderStatus.rbac_restricted`, servi depuis le 2026-08-28 — avant, le verdict
+// la déduisait de `forbidden` et affichait « Réservé à certaines équipes — demande à
+// un admin » à qui n'était bloqué par rien. Le raisonnement de repli qui vivait ici
+// (« un connecteur restreint est filtré du catalogue, donc le voir prouve qu'on y a
+// droit ») était juste pour un membre et FAUX pour un opérateur plateforme, qui voit
+// tout — et il n'empêchait pas le verdict de mentir. Constaté le 2026-07-16 sur un
+// Zoho simplement pas connecté, puis en clientèle sur un admin d'org devant SA propre
+// org (oto-dashboard#126).
+// La phrase « une clé existe dans ton équipe » vivait ici EN DOUBLE du verdict, mot
+// pour mot : deux fois la même consigne dans le même bloc, et aucune des deux ne
+// disait qu'on pouvait poser la sienne. Elle n'est plus écrite qu'au verdict.
+
+// Nombre de clés visibles dans la pile (remonté par elle) — voir plus bas pourquoi ce
+// n'est pas déductible de `me.providers`.
+const otherKeys = ref(0)
+// Ce que fait le bouton, dit littéralement. « Connecter Pennylane » à côté d'une clé
+// d'équipe déjà posée se lit comme « brancher le connecteur », donc comme quelque chose
+// de déjà fait — et personne ne le prend pour « poser MA clé, qui passera avant ». Le
+// cas est arrivé jusqu'à un admin d'org devant sa propre org (oto-dashboard#126).
+const keyCta = computed(() => (otherKeys.value > 0 ? 'Poser ma clé' : `Connecter ${c.value.label}`))
 </script>
 
 <template>
@@ -127,14 +139,13 @@ const teamKey = computed(() => status.value?.team_key_group ?? null)
       <div v-if="needsKey" class="dr-box">
         <!-- KeyStack (lot 2 B2) : la clé effective en une ligne, dépliable en pile de
              provenance (« la plus proche gagne »), avec suspension réversible (B7). -->
-        <ConnectorKeyStack :connector="c" :lever="lever" />
-        <p v-if="teamKey && statusMode === 'none'" class="helptext" style="margin: 10px 0 0">Une clé existe dans ton équipe « {{ teamKey.name }} » — active cette équipe pour l’utiliser.</p>
+        <ConnectorKeyStack :connector="c" :lever="lever" @keys="(n) => otherKeys = n" />
         <Quota v-if="status?.quota_daily" style="margin-top: 12px" :used="status.quota_used_today" :total="status.quota_daily" label="quota du jour" />
         <!-- Un connecteur à FLUX porte ses propres actions dans l'encart ci-dessous
              (dont « identifiants de l'application ») : deux boutons concurrents
              rendaient le geste illisible. Dérivé du descripteur, plus d'un nom. -->
         <div v-if="!keyConfigured && !flow" style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap">
-          <Btn kind="mini" @click="lever.configureKey(c)">Connecter {{ c.label }}</Btn>
+          <Btn kind="mini" @click="lever.configureKey(c)">{{ keyCta }}</Btn>
         </div>
         <!-- Geste de connexion déclaré (consentement OAuth…) : il COEXISTE avec le
              formulaire de champs, il ne le remplace pas — pour ces connecteurs on pose

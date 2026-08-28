@@ -19,6 +19,12 @@ import type { ConnectorInstance, MyConnector } from '@/types/api'
 import type { DotTone } from '@/lib/consoleTypes'
 
 const props = defineProps<{ connector: MyConnector; lever: ConnectionLever<MyConnector> }>()
+// Combien de clés la pile a réellement trouvées. Le parent en a besoin pour nommer son
+// action : « poser MA clé » n'a de sens que si une autre clé existe déjà quelque part.
+// ⚠️ Le compte ne se déduit pas de `me.providers` : une clé d'équipe qu'on GOUVERNE
+// sans en être membre y est invisible (elle n'entre pas dans la cascade), alors qu'elle
+// s'affiche bien ici. C'est le cas exact où l'écran a menti (oto-dashboard#126).
+const emit = defineEmits<{ (e: 'keys', count: number): void }>()
 const { me, reload: reloadMe } = useMe()
 const { toast } = useToast()
 
@@ -38,6 +44,7 @@ async function load() {
   try {
     const all = (await getConnectorInstances()).instances
     instances.value = all.filter((i) => i.connector === c.value.name)
+    emit('keys', instances.value.length)
   } catch (e) { toast(humanize(e)) } finally { loading.value = false }
 }
 onMounted(load)

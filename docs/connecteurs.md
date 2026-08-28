@@ -77,6 +77,34 @@ cliente par client, issue otomata-private#31) : la cible courante vient de
 `me.providers[name].identity_label` (zéro coût), le **listing** (`getConnectorIdentities`)
 loue une session Browserbase (~10 s) → chargé au clic seulement ; choix via
 `setConnectorIdentity`.
+### Le verdict ne dit « Réservé » que si ça l'est
+
+⚠️ **`mode: 'forbidden'` veut dire « aucune clé ne résout », PAS « accès refusé ».** C'est
+l'état par défaut de tout connecteur BYO pas encore connecté. Le verdict en déduisait
+« Réservé à certaines équipes — demande à un admin » : un mur affiché à qui n'était bloqué
+par rien. La restriction réelle se lit sur **`ProviderStatus.rbac_restricted`** (servi
+depuis le 2026-08-28), qui suit le même seam que l'enforcement au call-time — donc les
+mêmes escalades : super_admin, admin d'org et chef d'équipe ne sont jamais refusés.
+
+Absent (backend antérieur) ⇒ **rien n'est annoncé**, jamais un mur. Côté serveur le calcul
+est fail-open par palier : un hoquet de base n'invente pas une restriction.
+
+**Ce que ça a coûté** : repéré le 2026-07-16 sur un Zoho simplement pas connecté, resté
+tel quel faute de signal pour le corriger, puis vécu en clientèle — un responsable ne
+trouvait pas où poser sa clé, l'écran lui disant de demander à un admin alors qu'il
+*était* l'admin. Le bouton pour poser sa clé était pourtant là, sous la phrase.
+
+Deux corrections du même écran, même jour :
+- la phrase « une clé existe dans ton équipe » était écrite **deux fois** dans le bloc
+  connexion — une fois par le verdict, une fois recopiée mot pour mot par le panneau. Elle
+  ne vit plus qu'au verdict, et nomme désormais **les deux** voies : activer l'équipe, ou
+  poser sa propre clé, qui passe avant dans la cascade ;
+- le bouton devient **« Poser ma clé »** dès qu'une clé existe à un autre niveau. Le compte
+  vient de la pile (`ConnectorKeyStack` l'émet), **pas** de `me.providers` : une clé
+  d'équipe qu'on gouverne sans en être membre n'entre pas dans la cascade et y est donc
+  invisible, alors qu'elle s'affiche bien dans la pile. C'est exactement le cas où l'écran
+  a menti.
+
 ### Le formulaire de credential — sélection par mode, pré-remplissage, écriture partielle
 
 Trois règles, toutes DÉRIVÉES du registre, aucune connaissance d'un connecteur à l'écran

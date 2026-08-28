@@ -96,17 +96,29 @@ export function connectorVerdict(
   if (!m || m === 'forbidden') {
     if (m === 'forbidden') {
       // Une clé d'équipe existe mais l'équipe n'est pas active → pas « réservé ».
+      // On nomme les DEUX voies : activer l'équipe, ou poser sa propre clé — qui
+      // passe avant dans la cascade. Ne dire que la première envoyait chercher un
+      // détour à qui voulait justement ses propres droits (oto-dashboard#126).
       if (ps?.team_key_group) {
         return {
-          ...base, dot: 'saffron', hint: false,
+          ...base, dot: 'saffron', hint: false, cta: 'Poser ma clé',
           list: `Clé d’équipe ${ps.team_key_group.name}`,
-          phrase: `Une clé existe dans l’équipe ${ps.team_key_group.name} — active cette équipe pour l’utiliser.`,
+          phrase: `Une clé existe dans l’équipe ${ps.team_key_group.name} — active cette équipe, ou pose la tienne : elle passera avant.`,
         }
       }
-      return {
-        ...base, dot: 'saffron', hint: true,
-        list: 'Réservé',
-        phrase: 'Réservé à certaines équipes — demande à un admin.',
+      // ⚠️ « Réservé » se dit sur la RESTRICTION RÉELLE (`rbac_restricted`), jamais
+      // sur `forbidden` — qui veut seulement dire « aucune clé ne résout », l'état
+      // par défaut de tout connecteur pas encore connecté. Déduit de `forbidden`,
+      // ce mur s'affichait à qui n'était pas bloqué : un org_admin devant le
+      // connecteur de SA propre org lisait « demande à un admin ». Faux diagnostic
+      // repéré le 2026-07-16, corrigé le 2026-08-28 quand le serveur a enfin su
+      // dire la différence.
+      if (ps?.rbac_restricted) {
+        return {
+          ...base, dot: 'saffron', hint: true,
+          list: 'Réservé',
+          phrase: 'Réservé à certaines équipes — demande à un admin.',
+        }
       }
     }
     // Pas de clé du tout.

@@ -293,6 +293,14 @@ export interface ProviderStatus {
   // effacé quand il repasse. `health_reason` = message provider nettoyé.
   health_ko?: boolean | null
   health_reason?: string | null
+  // L'accès à ce connecteur t'est-il RÉELLEMENT refusé (RBAC ADR 0025/0012 B2) ?
+  // ⚠️ À ne PAS confondre avec `mode: 'forbidden'`, qui dit seulement « aucune clé ne
+  // résout » — l'état par défaut de tout connecteur pas encore connecté. L'écran a
+  // longtemps déduit « Réservé à certaines équipes — demande à un admin » du second,
+  // et affichait donc un mur à qui n'était pas bloqué, jusqu'à un org_admin devant le
+  // connecteur de sa propre org. Optionnel : un backend antérieur ne le renvoie pas,
+  // et son absence vaut « pas de restriction annoncée ».
+  rbac_restricted?: boolean
 }
 
 // Langue de l'UI (i18n EN/FR). Défini ici pour que `lib/i18n.ts` l'importe sans
