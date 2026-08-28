@@ -13,17 +13,29 @@ import {
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from '@/components/ui/select'
 import { humanize } from '@/lib/errors'
+import { payloadFor, relevantFields, secretPlaceholder } from '@/lib/credentialForm'
 import DocSections from '@/components/console/DocSections.vue'
-import type { DocSection, VerifyResult } from '@/types/api'
-
-interface Field { name: string; label: string; secret?: boolean; required?: boolean; help?: string }
+import type { CredentialField, DocSection, VerifyResult } from '@/types/api'
 
 const props = defineProps<{
   open: boolean
   label: string
-  fields: Field[]
+  fields: CredentialField[]
   single?: boolean
+  // Le champ dont la VALEUR sélectionne les autres (`auth_mode` chez `http`) —
+  // déclaré par le connecteur, jamais deviné ici. Vide = schéma plat, tous les
+  // champs s'affichent (le cas des ~90 autres connecteurs).
+  fieldDiscriminator?: string
+  // Ce qui est DÉJÀ au coffre, pour pré-remplir : uniquement les champs révélables
+  // (URL de base, mode d'auth, nom de header…). Un secret ne se relit jamais.
+  initialValues?: Record<string, string>
+  // Un credential existe-t-il déjà à ce palier ? Ça change le sens d'un champ secret
+  // laissé vide : « je n'y touche pas » au lieu de « efface-le ».
+  existing?: boolean
   // Multi-compte (#121) : 'new' ajoute un compte NOMMÉ à côté d'un existant (nom
   // obligatoire — le serveur refuse une seconde pose anonyme) ; 'fixed' repose sur
   // `account` sans le demander ; 'none' (défaut) = pose ordinaire, aucun champ.
@@ -56,10 +68,19 @@ const asksAccount = computed(() => props.accountMode === 'new')
 // credential, qui vient du registre et n'a jamais ce nom.
 const ACCOUNT_KEY = '__account'
 
+// Valeur courante du champ discriminant — la seule dont dépend la composition du
+// formulaire. On la suit à part plutôt que de lire tout `values` : `shown` et le
+// schéma se construisent AVANT `useForm`, qui les consomme.
+const picked = ref('')
+const shown = computed(() => relevantFields(
+  props.fields, props.fieldDiscriminator,
+  props.fieldDiscriminator ? { [props.fieldDiscriminator]: picked.value } : {},
+))
+
 const schema = computed(() =>
   toTypedSchema(
     z.object(Object.fromEntries([
-      ...props.fields.map((f) => [
+      ...shown.value.map((f) => [
         f.name,
         f.required === false
           ? z.string().trim().optional().default('')
@@ -72,25 +93,39 @@ const schema = computed(() =>
         : []),
     ])).refine(
       // Le nom du compte ne compte pas comme un champ renseigné : sans identifiant,
-      // il n'y a rien à enregistrer.
-      (v) => props.fields.some((f) => ((v as Record<string, string>)[f.name] ?? '').length > 0),
-      { message: 'renseigne au moins un champ', path: [props.fields[0]?.name ?? ''] },
+      // il n'y a rien à enregistrer. ⚠️ Sur un credential qui EXISTE déjà, un
+      // formulaire tout vide est légitime : les secrets restent au coffre et les
+      // champs non secrets sont pré-remplis — c'est justement le geste « je ne
+      // change qu'une URL ».
+      (v) => props.existing
+        || shown.value.some((f) => ((v as Record<string, string>)[f.name] ?? '').length > 0),
+      { message: 'renseigne au moins un champ', path: [shown.value[0]?.name ?? ''] },
     ),
   ),
 )
 
-const { handleSubmit, isSubmitting, resetForm } = useForm({ validationSchema: schema })
+const { handleSubmit, isSubmitting, resetForm, values } = useForm({ validationSchema: schema })
+watch(
+  () => (values as Record<string, unknown>)[props.fieldDiscriminator ?? ''],
+  (v) => { picked.value = typeof v === 'string' ? v : '' },
+  { immediate: true },
+)
 
+// Les champs NON SECRETS partent pré-remplis avec ce qui est au coffre : c'est ce qui
+// rend une correction possible sans tout resaisir. Un secret naît vide, toujours.
 const blank = () => Object.fromEntries([
-  ...props.fields.map((f) => [f.name, '']),
+  ...props.fields.map((f) => [f.name, (!f.secret && props.initialValues?.[f.name]) || '']),
   ...(asksAccount.value ? [[ACCOUNT_KEY, '']] : []),
 ])
 const testing = ref(false)
 const testRes = ref<VerifyResult | null>(null)
 // immediate : si le dialog est monté déjà ouvert, le watch transitionnel ne
 // firait jamais → valeurs initiales absentes (champs undefined).
-watch(() => props.open, (o) => { if (o) { resetForm({ values: blank() }); testRes.value = null } },
-      { immediate: true })
+// Rejoue aussi quand les valeurs pré-remplies arrivent : le parent les charge en
+// asynchrone (un aller-retour au serveur), souvent APRÈS l'ouverture du dialogue.
+watch(() => [props.open, props.initialValues] as const,
+      ([o]) => { if (o) { resetForm({ values: blank() }); testRes.value = null } },
+      { immediate: true, deep: true })
 
 const howto = computed(() =>
   (props.docs ?? []).filter((d) => d.kind === 'prerequisite' || d.kind === 'setup'))
@@ -115,7 +150,7 @@ const submit = handleSubmit(async (values) => {
   testRes.value = null
   const all = values as Record<string, string>
   const account = asksAccount.value ? (all[ACCOUNT_KEY] ?? '').trim() : (props.account ?? '')
-  const fieldValues = Object.fromEntries(props.fields.map((f) => [f.name, all[f.name] ?? '']))
+  const fieldValues = payloadFor(shown.value, all, { existing: !!props.existing })
   try {
     await props.onConfirm(fieldValues, account)
   } catch {
@@ -158,6 +193,13 @@ const submit = handleSubmit(async (values) => {
         <DocSections v-if="showHowto" :sections="howto" />
       </div>
 
+      <!-- Ce credential existe déjà : dire ce que le formulaire fait des vides, sinon
+           l'utilisateur croit devoir retrouver un secret qu'aucune surface ne rend —
+           c'est ce qui a fait renoncer à un repointage d'adresse. -->
+      <p v-if="existing" class="cfd-note">
+        les champs non secrets sont pré-remplis. laisse un champ secret vide pour le conserver tel quel.
+      </p>
+
       <form class="grid gap-4" @submit.prevent="submit">
         <FormField v-if="asksAccount" v-slot="{ componentField }" :name="ACCOUNT_KEY">
           <FormItem>
@@ -170,17 +212,31 @@ const submit = handleSubmit(async (values) => {
           </FormItem>
         </FormField>
 
-        <FormField v-for="f in fields" :key="f.name" v-slot="{ componentField }" :name="f.name">
+        <!-- `shown`, pas `fields` : le mode choisi décide de ce qui sert. Un
+             formulaire `bearer` affiche 4 champs, pas les 12 du connecteur. -->
+        <FormField v-for="f in shown" :key="f.name" v-slot="{ componentField }" :name="f.name">
           <FormItem>
             <FormLabel>{{ f.label.toLowerCase() }}<span v-if="f.required === false" class="dim"> · optionnel</span></FormLabel>
-            <FormControl>
+            <!-- Jeu FERMÉ de valeurs déclaré par le connecteur : un select, pas un
+                 champ libre — une faute de frappe y était acceptée puis refusée au
+                 premier appel réel. -->
+            <Select v-if="f.choices?.length" v-bind="componentField">
+              <FormControl>
+                <SelectTrigger class="w-full"><SelectValue :placeholder="f.help || 'choisir'" /></SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem v-for="opt in f.choices" :key="opt" :value="opt">{{ opt }}</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormControl v-else>
               <Input
                 :type="f.secret ? 'password' : 'text'"
                 autocomplete="off"
-                :placeholder="f.help || (single ? `colle ta clé ${label}` : '')"
+                :placeholder="secretPlaceholder(f, !!existing) || (single ? `colle ta clé ${label}` : '')"
                 v-bind="componentField"
               />
             </FormControl>
+            <p v-if="f.choices?.length && f.help" class="cfd-hint">{{ f.help }}</p>
             <FormMessage />
           </FormItem>
         </FormField>
@@ -205,4 +261,9 @@ const submit = handleSubmit(async (values) => {
   background: none; border: 0; padding: 0; color: var(--color-cobalt-ink);
 }
 .cfd-toggle:hover { text-decoration: underline; }
+.cfd-note {
+  margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--color-mute);
+  border-left: 2px solid var(--color-hair); padding-left: 9px;
+}
+.cfd-hint { margin: 2px 0 0; font-size: 11.5px; color: var(--color-faint); }
 </style>

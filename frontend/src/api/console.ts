@@ -2,7 +2,7 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiUpload, apiPublic } from '@/api'
 import type {
-  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, InitGuide, InitScope, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, MyConnector, ProviderStatus, SearchHit, Inbox,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, InitGuide, InitScope, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, CredentialState, MyConnector, ProviderStatus, SearchHit, Inbox,
   BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
@@ -76,6 +76,47 @@ export const unselectConnector = (name: string) =>
 export const setCredential = (provider: string, fields: Record<string, string>, account = '') =>
   api(`/api/settings/api-keys/${provider}`,
     { method: 'POST', ...j(account ? { ...fields, account } : fields) })
+// Les champs RÉVÉLABLES d'un credential déjà posé, au palier demandé — de quoi
+// pré-remplir un formulaire de modification. Un secret n'en sort jamais : ce qui
+// revient, ce sont l'URL de base, le mode d'auth, un nom de header, un identifiant.
+// `scope` 'group'/'org' exige d'être admin du palier ; `account` cible un compte nommé.
+// 404 `not_configured` = rien de posé à ce palier — ce n'est pas une erreur d'écran.
+export const getCredential = (
+  provider: string, scope: 'member' | 'org' | 'group' = 'member', account = '',
+) => {
+  const q = new URLSearchParams()
+  if (scope !== 'member') q.set('scope', scope)
+  if (account) q.set('account', account)
+  const qs = q.toString()
+  return api<CredentialState>(`/api/settings/api-keys/${provider}${qs ? `?${qs}` : ''}`)
+}
+
+// Le pré-remplissage d'un formulaire de MODIFICATION : ce qui est relisible du
+// credential posé à ce palier, et s'il y en a un.
+//
+// ⚠️ **Ne lève jamais, et ce n'est pas un fallback silencieux** : « rien de posé »
+// (404 `not_configured`) et « ce palier ne se lit pas » sont des ÉTATS d'écran. Le
+// formulaire s'ouvre alors vide — exactement son comportement d'avant ce lot. Une
+// panne réseau produit le même écran vide, et c'est acceptable : la pose, elle,
+// remontera son erreur.
+export async function credentialPrefill(
+  provider: string, scope: 'member' | 'org' | 'group' = 'member', account = '',
+): Promise<{ existing: boolean; values: Record<string, string> }> {
+  try {
+    const st = await getCredential(provider, scope, account)
+    const values: Record<string, string> = {}
+    for (const [k, v] of Object.entries(st)) {
+      // L'enveloppe n'est pas un champ de credential — et `read_*` porte son préfixe
+      // précisément pour ne pas se confondre avec un champ du connecteur.
+      if (k === 'provider' || k === 'configured' || k.startsWith('read_')) continue
+      if (typeof v === 'string') values[k] = v
+    }
+    return { existing: true, values }
+  } catch {
+    return { existing: false, values: {} }
+  }
+}
+
 // `scope` (défaut 'member') = niveau de l'instance à effacer : ma clé/session perso,
 // celle de l'équipe active, ou celle de l'org (org/group réservés aux admins du scope).
 // `account` cible un compte NOMMÉ précis ; vide = le compte mono historique.

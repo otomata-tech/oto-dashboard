@@ -77,6 +77,40 @@ cliente par client, issue otomata-private#31) : la cible courante vient de
 `me.providers[name].identity_label` (zéro coût), le **listing** (`getConnectorIdentities`)
 loue une session Browserbase (~10 s) → chargé au clic seulement ; choix via
 `setConnectorIdentity`.
+### Le formulaire de credential — sélection par mode, pré-remplissage, écriture partielle
+
+Trois règles, toutes DÉRIVÉES du registre, aucune connaissance d'un connecteur à l'écran
+(`CredentialFieldsDialog.vue` + `lib/credentialForm.ts`, oto-dashboard#126) :
+
+1. **Ne montrer que ce qui sert.** Un connecteur peut déclarer un champ DISCRIMINANT
+   (`auth.field_discriminator` — `auth_mode` chez `http`) ; chaque champ dit par `when=`
+   les valeurs qui le rendent pertinent, et par `choices=` son jeu fermé de valeurs (rendu
+   en select, pas en champ libre). `http` passe de 12 champs affichés à 4 en `bearer`.
+   Discriminant absent (les ~90 autres connecteurs) ou pas encore choisi ⇒ tout s'affiche.
+2. **Pré-remplir depuis le palier.** `credentialPrefill(provider, scope)` relit les champs
+   révélables du credential déjà posé — `member`, `group` ou `org`, admin du palier exigé.
+   Un secret ne se relit JAMAIS ; un 404 « rien de posé » est un état, pas une erreur.
+3. **Ne pas renvoyer un secret vide.** Le serveur complète les clés ABSENTES et traite une
+   clé PRÉSENTE ET VIDE comme un effacement. Sur un credential existant, un champ secret
+   laissé vide est donc OMIS du corps ; les champs non secrets, eux, partent toujours
+   (l'utilisateur les voit, en vider un est délibéré). Le dialogue le dit à l'écran.
+
+⚠️ **`lib/credentialForm.ts` est un MIROIR du serveur**, au même titre que `keyStack.ts`
+l'est de la cascade : `relevantFields` reproduit `Connector.fields_for` et `payloadFor`
+s'appuie sur `credentials_store.merge_with_existing`. Aucun test ne relie les deux repos —
+une erreur ici ne casse pas l'écran, **elle écrit au coffre autre chose que ce qui est
+affiché**. Toute évolution se fait des deux côtés.
+
+⚠️ **`read_scope` / `read_account`, jamais `scope` / `account`.** La réponse de lecture est
+un objet PLAT dont les autres clés sont les champs du connecteur — et `http` déclare
+lui-même un champ nommé `scope` (les scopes oauth2). Le préfixe est ce qui empêche
+l'enveloppe de manger un champ révélable.
+
+**D'où ça vient** : le 27/08, un pont client avait changé de machine et il fallait corriger
+son URL de base. Le formulaire affichait douze champs vides, dont un jeton qu'aucune surface
+ne rendait, et renvoyait tout — poser la nouvelle URL aurait écrasé le jeton. Le geste a été
+abandonné. Le serveur a livré sa moitié (oto-backend#448/#449) ; ceci est la nôtre.
+
 > **Session navigateur (`connKind='session'` : brevo/crunchbase).** `ConnectorSessionWidget`
 > dérive l'état de `me.providers[name]` (`user_key_configured` + `session_set_at`, plus de
 > `me.crunchbase`). « Connecter » ouvre `ConnectorSessionConnect.vue` = **Live View Browserbase

@@ -52,6 +52,13 @@ export interface CredentialField {
   secret: boolean
   help?: string              // aide de saisie (ex. « ex. https://eu1.make.com »)
   required?: boolean         // false = facultatif (connecteur « ET/OU » type slack, ≥1 champ au total)
+  // Valeurs du champ DISCRIMINANT du connecteur (`AuthDescriptor.field_discriminator`)
+  // qui rendent ce champ pertinent. Vide/absent = le champ vaut toujours. Ex. `http` :
+  // `header_name` n'a de sens qu'en `auth_mode=header`. Cf. `lib/credentialForm.ts`.
+  when?: string[]
+  // Jeu FERMÉ de valeurs acceptées → se rend en select, pas en champ libre. Vide =
+  // saisie libre. Une valeur hors liste est refusée par le serveur à l'écriture.
+  choices?: string[]
 }
 // Section de doc « how-to » d'un connecteur (user-facing, markdown) — rendue
 // partout où le connecteur s'affiche. `kind` = type curé (ordre + icône).
@@ -72,6 +79,10 @@ export interface AuthDescriptor {
   // « compte » par défaut. Servi par le registre : l'écran l'affiche, il ne le
   // devine pas. Optionnel le temps qu'un backend plus ancien soit à jour.
   account_noun?: string
+  // Le champ dont la VALEUR sélectionne les autres (`auth_mode` chez `http`). Vide =
+  // credential à schéma plat, tous les champs valent toujours — le cas des ~90 autres
+  // connecteurs. Optionnel le temps qu'un backend plus ancien soit à jour.
+  field_discriminator?: string
   fields: CredentialField[]
 }
 // ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (GET /api/connectors) : sa
@@ -119,6 +130,25 @@ export interface VerifyResult {
   // qu'on croyait tester. Optionnels — un backend antérieur ne les renvoie pas.
   level?: string        // user | group | org | platform
   ref?: string          // ex. « org:2:salesforce »
+}
+
+// ⚠️ ÉCRIT À LA MAIN — le contrat servi ne PEUT PAS décrire ce corps : il est PLAT et
+// ses clés sont les `credential_fields` du connecteur visé, donc variables (base_url,
+// auth_mode, header_name, username…). Le document OpenAPI n'en connaît que l'enveloppe.
+//
+// Les champs rendus sont ceux que le registre déclare révélables ou non secrets — un
+// secret ne se relit JAMAIS, à aucun palier. C'est ce qui permet de corriger une URL
+// sans détenir la clé (oto-backend#448).
+//
+// ⚠️ **`read_scope`, pas `scope`.** Le préfixe n'est pas décoratif : le connecteur
+// `http` déclare lui-même un champ nommé `scope` (les scopes oauth2), et une clé
+// d'enveloppe du même nom l'aurait écrasé en silence.
+export interface CredentialState {
+  provider: string
+  configured: boolean
+  read_scope: 'member' | 'group' | 'org'
+  read_account: string
+  [field: string]: string | boolean | null | undefined
 }
 
 // État de sélection marketplace d'un connecteur pour le membre (ADR 0019).

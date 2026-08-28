@@ -221,6 +221,17 @@ export interface CredentialDialogSpec {
   account?: string            // 'fixed' : le compte visé
   accountNoun?: string        // le mot du fournisseur, servi par le registre
   accountNames?: string[]     // déjà posés — refuser un doublon à la saisie
+  // Le champ dont la valeur SÉLECTIONNE les autres (`auth_mode` chez `http`), déclaré
+  // par le connecteur (`auth.field_discriminator`) — le dialogue n'affiche alors que
+  // les champs que ce mode rend pertinents (oto-dashboard#126).
+  fieldDiscriminator?: string
+  // Ce qui est déjà au coffre à ce palier, pour pré-remplir : les champs révélables
+  // seulement. Un secret ne se relit jamais, à aucun palier.
+  initialValues?: Record<string, string>
+  // Un credential existe-t-il déjà ici ? Un champ secret laissé vide est alors OMIS
+  // du corps — le serveur conserve ce qu'il a. À ne pas poser sur un connecteur à clé
+  // unique : il n'y a rien à y conserver, la reposer, c'est la retaper.
+  existing?: boolean
   // La doc « how-to » du connecteur (prérequis + mise en route), rendue DANS le
   // dialogue : c'est là qu'on colle, donc là qu'il faut savoir quoi créer et où.
   docs?: DocSection[]

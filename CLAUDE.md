@@ -91,6 +91,13 @@ Les **contrats backend** sont dans `oto-backend/` : `CLAUDE.md` pour la carte,
   régime pour `lib/tenantVerdict.ts` et `lib/connectorVerdict.ts`.
 - ⚠️ **Jamais de levier inerte** : un pouvoir qu'un scope n'a pas ⇒ colonne/onglet **omis**,
   jamais affiché grisé.
+- ⚠️ **Le formulaire de credential ne renvoie PAS un champ secret vide** (#126) : depuis
+  le 27/08 le serveur complète les clés absentes et traite une clé vide comme un
+  EFFACEMENT — renvoyer tout, comme avant, effacerait la clé qu'on voulait garder. Les
+  règles (sélection des champs par mode, pré-remplissage, corps envoyé) vivent dans
+  `lib/credentialForm.ts`, **miroir du serveur au même titre que `keyStack.ts`** : une
+  erreur n'y casse pas l'écran, elle écrit au coffre autre chose que ce qui est affiché.
+  Détail : `docs/connecteurs.md`.
 - ⚠️ **Copy user-facing = verbatim** (`lib/connectorVerdict.ts` porte la copy du CDC), jamais
   reformulée. i18n FR complète, 0 terme banni.
 - ⚠️ Les identifiants de code/API gardent le mot « doctrine » (`Doctrine*View`,

@@ -8,7 +8,7 @@ import {
   getMyConnectors, getTools, getToolRegistry,
   selectConnector, pauseConnector, unselectConnector,
   setCredential, deleteApiKey, verifyConnector, enableTool, disableTool,
-  getOrgFieldFilters,
+  getOrgFieldFilters, credentialPrefill,
 } from '@/api/console'
 import { useMe } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
@@ -138,11 +138,20 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
       set: (r, next) => setExposure(r, next as ExposureState),
     },
     connection: {
-      configureKey: (r) => {
+      configureKey: async (r) => {
         const fields = r.credential_fields ?? []
         if (!fields.length) return
+        const single = fields.length === 1
+        // Relire ce qui est relisible AVANT d'ouvrir : sans ça, corriger une valeur
+        // non secrète oblige à tout resaisir, secret compris — et le secret, lui,
+        // ne se relit pas. Un connecteur à clé unique n'a rien à pré-remplir.
+        const prefill = single
+          ? { existing: false, values: {} }
+          : await credentialPrefill(r.name, 'member')
         ctx.openCredential({
-          label: r.label, fields, single: fields.length === 1,
+          label: r.label, fields, single,
+          fieldDiscriminator: r.auth?.field_discriminator,
+          initialValues: prefill.values, existing: prefill.existing,
           docs: r.doc_sections,
           verify: r.verifiable ? () => verifyConnector(r.name) : undefined,
           onConfirm: async (values, account) => {
@@ -161,6 +170,8 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
         const noun = r.auth.account_noun || 'compte'
         ctx.openCredential({
           label: r.label, fields, single: fields.length === 1,
+          fieldDiscriminator: r.auth?.field_discriminator,
+          // Un compte NEUF : rien à pré-remplir, rien à conserver.
           docs: r.doc_sections,
           accountMode: 'new', accountNoun: noun, accountNames: existing,
           verify: r.verifiable ? () => verifyConnector(r.name) : undefined,

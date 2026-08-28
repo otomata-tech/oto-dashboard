@@ -11,6 +11,7 @@ import {
   getOrgFieldFilters, getOrgEmailSettings, getConnectors, getOrg,
   setOrgSecret, deleteOrgSecret, verifyConnector, startConnectorFlow,
   getConnectorAcl, setConnectorAccess, clearConnectorAccess, forceConnectorForMember, listGroups,
+  credentialPrefill,
 } from '@/api/console'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
@@ -79,12 +80,17 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
   }
 
   // ── clé partagée d'org (simple / multi-champs) ──
-  function editKey(r: OrgConnectorActivation) {
+  async function editKey(r: OrgConnectorActivation) {
     if (!isOrgAdmin.value || orgId.value == null) return
     const m = metaMap.value[r.connector]
     if (m?.secret_kind === 'fields' && (m.credential_fields?.length ?? 0) > 0) {
+      // Même geste qu'au palier équipe : on relit ce qui est relisible pour que
+      // corriger UNE valeur non secrète n'oblige pas à resaisir un secret illisible.
+      const prefill = await credentialPrefill(r.connector, 'org')
       ctx.openCredential({
         label: r.label, fields: m.credential_fields, single: false,
+        fieldDiscriminator: m.auth?.field_discriminator,
+        initialValues: prefill.values, existing: prefill.existing,
         docs: m.doc_sections,
         verify: m.verifiable ? () => verifyConnector(r.connector, 'org') : undefined,
         onConfirm: async (values) => {

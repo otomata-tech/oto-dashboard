@@ -10,7 +10,7 @@ import {
   getConnectors, getGroupConnectorActivation, setGroupConnectorActivation, clearGroupConnectorActivation,
   getGroupConnectorAcl, setGroupConnectorAccess, clearGroupConnectorAccess,
   setGroupSecret, deleteGroupSecret,
-  startConnectorFlow,
+  startConnectorFlow, credentialPrefill,
 } from '@/api/console'
 import { useTeamScope } from '@/composables/useTeamScope'
 import { humanize } from '@/lib/errors'
@@ -67,14 +67,22 @@ export function useTeamAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<GroupConnec
   }
 
   // ── clé partagée d'équipe ──
-  function editKey(r: GroupConnectorActivation) {
+  async function editKey(r: GroupConnectorActivation) {
     const m = metaMap.value[r.connector]
     const multi = m?.secret_kind === 'fields' && (m.credential_fields?.length ?? 0) > 0
     const fields: CredentialField[] = multi
       ? m!.credential_fields
       : [{ name: 'api_key', label: `clé api ${r.label}`, secret: true, required: true }]
+    // Relire ce qui est relisible du credential D'ÉQUIPE avant d'ouvrir. C'est le cas
+    // qui a motivé ce lot : changer l'adresse d'un pont sans avoir à retrouver le
+    // jeton, qu'aucune surface ne rend (oto-backend#448).
+    const prefill = multi
+      ? await credentialPrefill(r.connector, 'group')
+      : { existing: false, values: {} }
     ctx.openCredential({
       label: r.label, fields, single: !multi,
+      fieldDiscriminator: m?.auth?.field_discriminator,
+      initialValues: prefill.values, existing: prefill.existing,
       docs: m?.doc_sections,
       onConfirm: async (values) => {
         const gid = team.groupId.value
