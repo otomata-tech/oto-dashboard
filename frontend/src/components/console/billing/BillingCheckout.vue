@@ -16,15 +16,12 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Notice from '@/components/console/Notice.vue'
 import StateError from '@/components/console/StateError.vue'
 import SkeletonOverview from '@/components/console/SkeletonOverview.vue'
-import Tag from '@/components/console/Tag.vue'
 import BillingIdentityForm from './BillingIdentityForm.vue'
 import BillingLegalConsent from './BillingLegalConsent.vue'
+import BillingPriceCard from './BillingPriceCard.vue'
 import { ApiError } from '@/api'
 import { acceptLegal, getBillingIdentity, getLegal, subscribeBilling } from '@/api/console'
-import {
-  VAT_BLOCKED_MESSAGE, VAT_SCHEME_LABEL, VAT_SCHEME_NOTE,
-  blockersOf, docsToAccept, priceParts, type TunnelDoc,
-} from '@/lib/billingTunnel'
+import { blockersOf, docsToAccept, priceParts, type TunnelDoc } from '@/lib/billingTunnel'
 import { explain, humanize } from '@/lib/errors'
 import type { BillingIdentityView, BillingPlan, VatBlocked, VatScheme } from '@/types/api'
 
@@ -43,6 +40,11 @@ const loadError = ref<string | null>(null)
 const identity = ref<BillingIdentityView | null>(null)
 const docs = ref<TunnelDoc[]>([])
 const accepted = ref(false)
+// Champs SURLIGNÉS. Distinct de `missing` : la fiche vide en sert cinq dès le premier
+// affichage, et peindre en rouge un formulaire auquel personne n'a touché est une
+// alarme sans fait. Le surlignage n'apparaît qu'après un refus — quand le serveur a
+// vraiment nommé ce qui manque.
+const highlight = ref<string[]>([])
 const busy = ref(false)
 const error = ref<string | null>(null)
 // Un paiement de cette org est déjà en vol : le serveur l'a dit, et rouvrir un
@@ -87,6 +89,8 @@ function euros(cents: number): string {
 
 function onIdentitySaved(view: BillingIdentityView) {
   identity.value = view
+  highlight.value = []
+  error.value = null
 }
 
 async function pay() {
@@ -126,7 +130,10 @@ async function onRefused(e: unknown) {
     // (`missing`), qui est la même que celle nommée par le refus — le blocker, lui,
     // ne la porte qu'en prose.
     if (blockers.identity) {
-      try { identity.value = await getBillingIdentity() } catch { /* la fiche reste celle affichée */ }
+      try {
+        identity.value = await getBillingIdentity()
+        highlight.value = identity.value.missing
+      } catch { /* la fiche reste celle affichée */ }
     }
     if (blockers.legal) {
       docs.value = blockers.legal.documents
@@ -166,31 +173,13 @@ async function onRefused(e: unknown) {
         <template #actions>
           <Btn kind="link" icon="chev" @click="emit('back')">Changer de palier</Btn>
         </template>
-        <BillingIdentityForm :view="identity" :can-manage="canManage" :highlight="missing"
+        <BillingIdentityForm :view="identity" :can-manage="canManage" :highlight="highlight"
           @saved="onIdentitySaved" />
       </ConsoleCard>
 
       <!-- ── 2. Le montant, avant tout consentement ── -->
-      <ConsoleCard :title="`Abonnement ${plan.label}`"
-        sub="ce que vous réglerez chaque mois, sans engagement.">
-        <template #actions>
-          <Tag v-if="scheme" tone="cobalt">{{ VAT_SCHEME_LABEL[scheme] }}</Tag>
-        </template>
-
-        <template v-if="price">
-          <dl class="bck-amounts">
-            <div><dt>Abonnement hors taxes</dt><dd>{{ euros(price.ht) }}</dd></div>
-            <div><dt>TVA</dt><dd>{{ euros(price.vat) }}</dd></div>
-            <div class="total"><dt>Total mensuel</dt><dd>{{ euros(price.ttc) }}</dd></div>
-          </dl>
-          <p v-if="scheme" class="helptext">{{ VAT_SCHEME_NOTE[scheme] }}</p>
-        </template>
-        <Notice v-else-if="vatBlocked" tone="warn">{{ VAT_BLOCKED_MESSAGE[vatBlocked] }}</Notice>
-        <Notice v-else tone="info">
-          Le montant à régler s'affichera dès que l'identité de facturation sera
-          enregistrée.
-        </Notice>
-      </ConsoleCard>
+      <BillingPriceCard :plan-label="plan.label" :price="price" :scheme="scheme"
+        :blocked="vatBlocked" />
 
       <!-- ── 3. Consentement, dernier geste avant la page de paiement ── -->
       <ConsoleCard v-if="docs.length" title="Conditions"
@@ -223,17 +212,5 @@ async function onRefused(e: unknown) {
 </template>
 
 <style scoped>
-.bck-amounts { display: flex; flex-direction: column; gap: 8px; max-width: 380px; }
-.bck-amounts > div {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
-  font-size: var(--fs-small); color: var(--color-ink-soft);
-}
-.bck-amounts dt { margin: 0; }
-.bck-amounts dd { margin: 0; font-family: var(--font-mono); color: var(--color-ink); }
-.bck-amounts .total {
-  padding-top: 8px; border-top: 1px solid var(--color-hair-soft);
-  font-weight: 700; color: var(--color-ink);
-}
-.bck-amounts .total dd { font-size: 16px; }
 .bck-pay { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
 </style>
