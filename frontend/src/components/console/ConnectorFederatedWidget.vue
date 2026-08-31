@@ -1,14 +1,16 @@
 <script setup lang="ts">
 // Widget credential MCP FÉDÉRÉ (ADR 0024 R1) — rendu INLINE dans la ConnectorCard
 // (fin de la carte ancrée #federated). Auto-suffisant : charge son propre statut,
-// connect/disconnect via les routes génériques /api/<name>/oauth/*, + doc « how-to ».
-// On fédère le LOGIN du MCP tiers ; ses outils sont proxifiés et restent sous la
-// gouvernance oto (redaction/calllog).
+// se connecte via le flux générique déclaré (`startConnectorFlow`, ADR 0042 §Convergence
+// des surfaces — oto-dashboard#125), se déconnecte via la route nommée /api/<name>/oauth
+// (status/disconnect : leur équivalent générique reste à cadrer avec le backend), +
+// doc « how-to ». On fédère le LOGIN du MCP tiers ; ses outils sont proxifiés et
+// restent sous la gouvernance oto (redaction/calllog).
 import { onMounted, ref, computed } from 'vue'
 import Btn from './Btn.vue'
 import Dot from './Dot.vue'
 import DocSections from './DocSections.vue'
-import { getFederatedStatus, startFederatedOauth, disconnectFederated } from '@/api/console'
+import { getFederatedStatus, startConnectorFlow, disconnectFederated } from '@/api/console'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
@@ -32,7 +34,7 @@ const docs = computed(() => {
 })
 
 async function link() {
-  try { const { auth_url } = await startFederatedOauth(props.connector.name); window.location.href = auth_url }
+  try { const { auth_url } = await startConnectorFlow(props.connector.name, {}); window.location.href = auth_url }
   catch (e) { toast(humanize(e)) }
 }
 async function drop() {
