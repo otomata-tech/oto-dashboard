@@ -580,6 +580,9 @@ export interface Project {
   mcp_expose_datastore_write?: boolean        // opt-in ADDITIONNEL : écriture (data_write/data_set_schema) ; sans objet si lecture non exposée
   mcp_expose_docs?: boolean                   // `secret` : PAGES du projet lisibles (oto_doc) par l'invité branché ; défaut false (elles portent des notes internes)
   mcp_instructions_md?: string                // ce que l'agent de l'invité lit en se branchant — ≠ brief_md, qui reste interne
+  // Périmètre d'URL (oto-backend#605) : motifs canoniques `hôte/chemin/` (ou `hôte/*`)
+  // que les outils de recherche écartent et que les outils d'extraction refusent.
+  excluded_url_prefixes?: string[]
   created_at?: string | null
   updated_at?: string | null
   archived_at?: string | null
