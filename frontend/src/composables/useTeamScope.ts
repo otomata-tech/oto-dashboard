@@ -10,7 +10,12 @@ import { humanize } from '@/lib/errors'
 // quand une page team est ouverte sans préfixe d'équipe (sémantique legacy de `/group`).
 // Entrer dans une équipe = NAVIGATION (le dashboard affiche cette équipe), PAS une mutation
 // de « maison » MCP. L'autz est portée backend (`getGroup` re-vérifie) ; `canManage` masque
-// seulement les contrôles (chef d'équipe OU admin d'org/plateforme).
+// les contrôles réservés au CHEF (membres, secrets, readme, suppression) ; `isMember`
+// masque les contrôles ouverts à tout MEMBRE (oto-backend#681 : écrire une procédure
+// d'équipe, et la restaurer, est un geste de travail, pas un geste d'administration —
+// `GROUP_MEMBER_OF` gate déjà `group.get`, donc atteindre cet écran EST la preuve
+// d'appartenance ; on la relit ici sur `my_role` pour rester correct même si un jour
+// `GroupDoctrineCard` est monté hors de `TeamScopeHeader`).
 export function useTeamScope() {
   const route = useRoute()
   const { me } = useMe()
@@ -29,6 +34,10 @@ export function useTeamScope() {
   const loaded = ref(false)
   const canManage = computed(() =>
     !!detail.value && (detail.value.group.my_role === 'group_admin' || isOrgAdmin.value))
+  // Tout membre explicite de l'équipe (pas seulement son chef), plus l'escalade
+  // org/plateforme qui gère l'équipe sans y être formellement membre.
+  const isMember = computed(() =>
+    !!detail.value && (detail.value.group.my_role != null || isOrgAdmin.value))
 
   async function reload() {
     const id = groupId.value
@@ -40,5 +49,5 @@ export function useTeamScope() {
   }
   watch(groupId, reload, { immediate: true })
 
-  return { groupId, detail, error, loaded, canManage, meSub, reload }
+  return { groupId, detail, error, loaded, canManage, isMember, meSub, reload }
 }
