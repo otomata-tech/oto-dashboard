@@ -14,6 +14,7 @@ import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Icon from '@/components/console/Icon.vue'
+import RunnerMonitorCard from '@/components/console/RunnerMonitorCard.vue'
 import RunnerJobsCard from '@/components/console/RunnerJobsCard.vue'
 import RunnerTriggersCard from '@/components/console/RunnerTriggersCard.vue'
 import { getConnectorInstances, fireAutomation, type FireResult } from '@/api/console'
@@ -69,8 +70,13 @@ onMounted(load)
 </script>
 
 <template>
-  <!-- Le poste de surveillance des agents : la file d'exécution d'abord (qui
-       tourne, qu'est-ce qui a échoué), les déclencheurs, puis les routines. -->
+  <!-- Le poste de surveillance des agents, du général au particulier : l'état de
+       la flotte d'abord (les gardes, l'avancement, le coût, qui est bloqué), la
+       file ensuite (quel travail, dans quel état), puis les déclencheurs et les
+       routines. On ouvre cette page pour savoir si la campagne va bien, pas pour
+       lire le travail n° 47 — la file seule obligeait à reconstituer la réponse
+       de tête, ligne par ligne. -->
+  <RunnerMonitorCard />
   <RunnerJobsCard />
   <RunnerTriggersCard />
   <ConsoleCard

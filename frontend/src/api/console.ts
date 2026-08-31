@@ -373,6 +373,14 @@ export interface RunnerJob {
   // le cache se compte à côté (`usage_cache_*`), sinon un run à gros cache paraît
   // gratuit. `claims`/`writes` disent le TOUR PERDU d'un coup d'œil : un agent qui
   // réserve une ligne et conclut sans écrire ne produit aucune erreur.
+  //
+  // ⚠️ Le schéma SERVI (`JobResult`, capacité `runner.jobs`) ne nomme que quatre
+  // de ces champs — `usage_tokens`, `stopped`, `steps`, `tool_counts` — et se
+  // déclare `extra=allow`. Tout le reste ci-dessous traverse le contrat sans y
+  // être décrit : c'est une convention entre le worker et cet écran, pas une
+  // garantie d'API. D'où l'`index signature` en fin de bloc, et le rendu
+  // générique de `lib/runnerJobs` : un champ neuf s'affiche sous sa clé brute
+  // au lieu d'attendre qu'on pense à le déclarer ici.
   result: {
     usage_tokens?: number
     usage_cache_read?: number
@@ -386,6 +394,16 @@ export interface RunnerJob {
     model?: string | null
     estampille?: boolean
     tool_counts?: Record<string, number>
+    // Colonnes écrites hors du schéma déclaré du tableau.
+    hors_schema?: string[]
+    // Les POSTES DE GARDE — ce que la garde a dû rattraper sur les données que
+    // le travail a écrites. Un travail peut se conclure « terminé » avec des
+    // gardes non nulles : aucune erreur n'est levée, et c'est justement pour ça
+    // que la surveillance les remonte en tête plutôt qu'au fond d'une fiche.
+    valeurs_cliente_reparees?: number
+    contacts_fabriques_retires?: number
+    valeurs_cliente_detruites?: number
+    [champ: string]: unknown
   } | null
   due_at: string | null
   created_at: string | null

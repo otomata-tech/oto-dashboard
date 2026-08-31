@@ -109,7 +109,7 @@ Les **contrats backend** sont dans `oto-backend/` : `CLAUDE.md` pour la carte,
 - ⚠️ **Les horodatages du backend arrivent en UTC SANS fuseau** (`2026-08-28 13:53:53`) :
   `Date.parse` les lit comme heure LOCALE, soit deux heures d'écart l'été. Un travail de
   l'instant s'affichait « il y a 2 h ». Forcer le fuseau avant de parser (cf. `instant()`
-  dans `RunnerJobsCard.vue`). Le même piège a fait conclure à un ralentissement de
+  dans `lib/runnerJobs.ts`). Le même piège a fait conclure à un ralentissement de
   campagne inexistant en comparant une heure UTC à une heure locale.
 - ⚠️ **Une page absente de `PAGE_META` retombe SILENCIEUSEMENT sur l'overview** — le titre
   ment sans que rien ne casse. `lib/consoleNav.spec.ts` tient la règle : tout écran de la
@@ -184,6 +184,6 @@ d'intégration et **note datée sur l'archivage de `design-system/` (2026-08-27)
 | `identite-et-consultation.md` | affichage (sidebar) vs switch (popin compte), consultation vs maison (ADR 0023), « voir en tant que » USER, hub `/account`. |
 | `plateforme.md` | `/platform/objects` (objets possédés, ADR 0030) et `/platform/tenants` (ADR 0052, lecture seule, verdict « redémarrage requis »). |
 | `facturation.md` | l'écran `/org/billing` et son tunnel (identité → montant → consentement → paiement), `pending_mandate` = attente et non échec, les préalables peints d'un coup, le miroir de TVA. |
-| `automations.md` | la file d'exécution des agents hébergés (grain ORDONNANCEUR, pas donnée), le regroupement par flotte, et les pièges vécus : horodatages UTC sans fuseau, fil de forme différente selon le chemin, page absente de `PAGE_META` qui retombe en silence sur l'overview. |
+| `automations.md` | la surveillance de flotte (gardes en tête, renvois du harnais, agents bloqués), la file d'exécution (grain ORDONNANCEUR, pas donnée) et la fiche d'un agent ; **le contrat OUVERT de `RunnerJob['result']`** (`extra=allow` : les postes de garde ne sont pas dans l'OpenAPI) ; les pièges vécus : horodatages UTC sans fuseau, fil de forme différente selon le chemin, page absente de `PAGE_META` qui retombe en silence sur l'overview. |
 | `types-api.md` | la chaîne `Output` → OpenAPI → snapshot → types générés → alias, les deux contrôles CI, et ce qui reste écrit à la main (avec pourquoi). |
 | `observabilite.md` | PostHog (gaté consentement) + Sentry `@sentry/vue`, source maps au build, token à scoper. |
