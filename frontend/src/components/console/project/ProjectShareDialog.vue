@@ -10,7 +10,9 @@ import Tag from '@/components/console/Tag.vue'
 import OtoSelect from '@/components/console/OtoSelect.vue'
 import ModalOverlay from '@/components/console/ModalOverlay.vue'
 import ProjectMcpPublishDialog from './ProjectMcpPublishDialog.vue'
+import ProjectExposureStatus from './ProjectExposureStatus.vue'
 import { projectVisibility, projectOwnerLabel } from '@/lib/projectVisibility'
+import { linkedTablesOf } from '@/lib/projectExposure'
 import {
   getMyOrgs, getOrg, listGroups, shareResource, unshareResource,
   publishProjectMcp, unpublishProjectMcp,
@@ -152,25 +154,41 @@ function defaultSlug(): string {
 //   (slug + accès + PICKER d'outils à cases groupées par connecteur, R3).
 async function publishPublicLink() {
   if (mcpBusy.value) return
-  await doPublish('secret', '', [])   // slug vide → slug secret généré ; outils vides → tout navigable
+  // slug vide → slug secret généré ; outils vides → tout navigable ; exposition fermée par
+  // défaut (opt-in explicite ensuite, cf. bloc « Pages du projet » / « Datastore » ci-dessous).
+  await doPublish('secret', '', [])
 }
 
-// Endpoint MCP complet (dialog dédié, R3).
+// Endpoint MCP complet (dialog dédié, R3) — l'exposition (pages/tableaux) s'y règle
+// désormais AU MOMENT de publier (issue #131), plutôt que de rester invisible jusqu'à
+// republier depuis cet écran.
 const endpointOpen = ref(false)
-async function onEndpointPublish(v: { slug: string; access: 'anonymous' | 'secret' | 'org'; tools: string[] }) {
+async function onEndpointPublish(v: {
+  slug: string; access: 'anonymous' | 'secret' | 'org'; tools: string[]
+  exposeDocs: boolean; exposeDatastore: boolean; exposeDatastoreWrite: boolean
+}) {
   if (!v.tools.length && v.access !== 'secret') {
     toast('liste d’outils requise pour un endpoint public ou org — seuls les liens « secret » peuvent tout exposer en lecture seule')
     return
   }
   endpointOpen.value = false
-  await doPublish(v.access, v.slug, v.tools)
+  await doPublish(v.access, v.slug, v.tools, { docs: v.exposeDocs, datastore: v.exposeDatastore, datastoreWrite: v.exposeDatastoreWrite })
 }
 
-// Pose la publication (partagée entre lien public et endpoint) + retours.
-async function doPublish(access: 'anonymous' | 'secret' | 'org', slug: string, tools: string[]) {
+// Pose la publication (partagée entre lien public et endpoint) + retours. `expose` absent
+// (lien public un clic) → tout fermé par défaut, à ouvrir ensuite explicitement.
+async function doPublish(
+  access: 'anonymous' | 'secret' | 'org', slug: string, tools: string[],
+  expose?: { docs: boolean; datastore: boolean; datastoreWrite: boolean },
+) {
   mcpBusy.value = true
   try {
-    const updated = await publishProjectMcp(projectId.value, { mcp_slug: slug, mcp_access: access, mcp_tools: tools })
+    const updated = await publishProjectMcp(projectId.value, {
+      mcp_slug: slug, mcp_access: access, mcp_tools: tools,
+      mcp_expose_docs: expose?.docs ?? false,
+      mcp_expose_datastore: expose?.datastore ?? false,
+      mcp_expose_datastore_write: expose?.datastoreWrite ?? false,
+    })
     const unresolvable = updated.mcp_unresolvable_tools ?? []
     toast(unresolvable.length ? `endpoint publié — ${unresolvable.length} outil(s) non résoluble(s) sans login : ${unresolvable.join(', ')}` : 'endpoint MCP publié')
     emit('reload-project')
@@ -196,8 +214,7 @@ const dsWritable = computed(() => dsExposed.value && !!props.project.mcp_expose_
 const dsLegacy = computed(() => (props.project.mcp_tools ?? []).some((t) => t.startsWith('data_')))
 // Tableaux RÉELLEMENT liés au projet — pour ne pas promettre « les tableaux liés à ce
 // projet » quand il n'y en a aucun (retour JB : la copy datastore s'affichait sans tableau).
-const linkedTables = computed(() => (props.project.links ?? []).filter((l) => l.target_type === 'tableau'))
-const hasLinkedTables = computed(() => linkedTables.value.length > 0)
+const linkedTables = computed(() => linkedTablesOf(props.project))
 
 // ── Pages du projet lisibles par l'invité (#310) ──
 // Opt-in SÉPARÉ du datastore : les pages portent typiquement des notes internes
@@ -339,6 +356,17 @@ async function transfer() {
               <Btn kind="mini" icon="copy" @click="copyShareUrl">Copier</Btn>
             </div>
             <Btn v-else-if="!readOnly" kind="mini" icon="external-link" @click="publishPublicLink()">Partager par lien public</Btn>
+
+            <!-- Ce que verra le destinataire (issue #131) : pages puis tableaux — visible dès
+                 que le lien « secret » est actif, quel que soit le chemin qui l'a créé (un
+                 clic ou l'endpoint MCP ci-dessous), pour que l'opt-in ne reste jamais invisible
+                 une fois publié. -->
+            <div v-if="dsSecret" class="sd__exposure">
+              <ProjectExposureStatus
+                :docs-exposed="docsExposed" :ds-exposed="dsExposed" :ds-writable="dsWritable" :ds-legacy="dsLegacy"
+                :table-count="linkedTables.length" :read-only="readOnly" :busy="mcpBusy"
+                @set-docs="setDocs" @set-datastore="(v) => setDatastore(v.expose, v.write)" @normalize-legacy="normalizeLegacy" />
+            </div>
           </section>
 
           <div class="sd__hr"></div>
@@ -358,53 +386,6 @@ async function transfer() {
               </div>
               <p v-if="project.mcp_tools?.length" class="sd__tools">{{ project.mcp_tools.length }} outil(s) : {{ project.mcp_tools.join(', ') }}</p>
               <p v-else class="sd__tools">aucun outil dédié — tout le projet visible, lecture seule</p>
-
-              <!-- Datastore (secret uniquement) : état effectif + réglage lecture/écriture -->
-              <div v-if="dsSecret" class="sd__ds">
-                <div class="sd__dsrow">
-                  <Icon name="database" :size="14" />
-                  <span class="sd__dslbl">Datastore</span>
-                  <Tag v-if="dsWritable" tone="olive">lecture + écriture</Tag>
-                  <Tag v-else-if="dsExposed" tone="cobalt">lecture</Tag>
-                  <Tag v-else tone="terra">fermé</Tag>
-                </div>
-                <template v-if="hasLinkedTables">
-                  <p class="sd__desc">Les invités branchés voient les {{ linkedTables.length }} tableau{{ linkedTables.length > 1 ? 'x' : '' }} <strong>liés à ce projet</strong> (data_list_namespaces, data_rows) — jamais le reste du datastore de l’org.</p>
-                  <div v-if="dsLegacy" class="sd__dswarn">
-                    <Icon name="triangle-alert" :size="13" />
-                    <span>Exposition configurée par une version antérieure (des <code>data_*</code> figurent dans la liste d’outils). Normalise pour t’appuyer sur le réglage ci-dessous.</span>
-                    <Btn v-if="!readOnly" kind="mini" :disabled="mcpBusy" @click="normalizeLegacy">Normaliser</Btn>
-                  </div>
-                  <div v-if="!readOnly" class="sd__mcpact">
-                    <Btn v-if="!dsExposed" kind="mini" icon="database" :disabled="mcpBusy" @click="setDatastore(true, false)">Exposer en lecture</Btn>
-                    <template v-else>
-                      <Btn v-if="!dsWritable" kind="mini" :disabled="mcpBusy" @click="setDatastore(true, true)">Autoriser l’écriture</Btn>
-                      <Btn v-else kind="mini" :disabled="mcpBusy" @click="setDatastore(true, false)">Repasser en lecture seule</Btn>
-                      <Btn kind="mini" :disabled="mcpBusy" @click="setDatastore(false, false)">Fermer le datastore</Btn>
-                    </template>
-                  </div>
-                </template>
-                <p v-else class="sd__desc">Aucun tableau n’est lié à ce projet — <strong>lie un tableau</strong> au projet pour pouvoir l’exposer aux invités branchés.</p>
-              </div>
-
-              <!-- Pages du projet (secret uniquement) : opt-in séparé du datastore -->
-              <div v-if="dsSecret" class="sd__ds">
-                <div class="sd__dsrow">
-                  <Icon name="file-text" :size="14" />
-                  <span class="sd__dslbl">Pages du projet</span>
-                  <Tag v-if="docsExposed" tone="cobalt">lisibles</Tag>
-                  <Tag v-else tone="terra">fermées</Tag>
-                </div>
-                <p class="sd__desc">
-                  Les invités branchés peuvent lire les pages <strong>de ce projet</strong> — jamais celles du
-                  reste de l’org, et jamais en écriture. Relis-les avant d’ouvrir : elles portent souvent des
-                  notes internes (arbitrages, contacts, méthode).
-                </p>
-                <div v-if="!readOnly" class="sd__mcpact">
-                  <Btn v-if="!docsExposed" kind="mini" icon="file-text" :disabled="mcpBusy" @click="setDocs(true)">Rendre les pages lisibles</Btn>
-                  <Btn v-else kind="mini" :disabled="mcpBusy" @click="setDocs(false)">Refermer les pages</Btn>
-                </div>
-              </div>
 
               <!-- Mode d'emploi servi à l'invité au branchement (#309) -->
               <div v-if="dsSecret" class="sd__ds">
@@ -482,6 +463,7 @@ async function transfer() {
 .sd__grow { flex: 1; min-width: 150px; }
 .sd__ro { font-size: 11.5px; margin: 6px 0 0; }
 .sd__linkrow { display: flex; align-items: center; gap: 7px; }
+.sd__exposure { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; }
 .sd__url { flex: 1; min-width: 0; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 7px 10px; font-family: var(--font-mono); font-size: 10.5px; color: var(--color-ink-soft); background: var(--color-paper-2); }
 .sd__tools { font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); line-height: 1.5; margin: 7px 0 0; }
 .sd__mcpact { display: flex; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
