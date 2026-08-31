@@ -11,11 +11,12 @@ import Btn from '@/components/console/Btn.vue'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
-import { getConnectorInstances, suspendInstance } from '@/api/console'
+import { getConnectorInstances, suspendInstance, getOrg } from '@/api/console'
 import { rowState, relayOf, relayFor, isHealthKo } from '@/lib/keyStack'
 import type { RowState } from '@/lib/keyStack'
+import { accountLabel } from '@/lib/accountLabel'
 import type { ConnectionLever } from './adapter'
-import type { ConnectorInstance, MyConnector } from '@/types/api'
+import type { ConnectorInstance, MyConnector, OrgMember } from '@/types/api'
 import type { DotTone } from '@/lib/consoleTypes'
 
 const props = defineProps<{ connector: MyConnector; lever: ConnectionLever<MyConnector> }>()
@@ -39,11 +40,20 @@ const effective = computed<string | null>(() => {
 
 const instances = ref<ConnectorInstance[]>([])
 const loading = ref(true)
+// Roster de l'org consultée — résout `set_by` (un sub) en nom/email dans `meta()`
+// ci-dessous, plutôt que l'identifiant opaque (oto-dashboard#143). `org.get` est
+// ouvert à tout membre, pas seulement à un admin.
+const orgMembers = ref<OrgMember[]>([])
 async function load() {
   loading.value = true
   try {
-    const all = (await getConnectorInstances()).instances
+    const org = me.value?.active_org
+    const [all, members] = await Promise.all([
+      getConnectorInstances().then((r) => r.instances),
+      org != null ? getOrg(org).then((d) => d.members ?? []).catch(() => []) : Promise.resolve([]),
+    ])
     instances.value = all.filter((i) => i.connector === c.value.name)
+    orgMembers.value = members
     emit('keys', instances.value.length)
   } catch (e) { toast(humanize(e)) } finally { loading.value = false }
 }
@@ -145,7 +155,7 @@ function fmtDate(s?: string | null): string {
   return d.length === 3 ? `${d[2]}/${d[1]}` : s
 }
 function meta(i: ConnectorInstance): string {
-  const who = i.set_by ? `posée par ${i.set_by}` : 'posée'
+  const who = i.set_by ? `posée par ${accountLabel(i.set_by, orgMembers.value)}` : 'posée'
   const when = i.set_at ? ` · ${fmtDate(i.set_at)}` : ''
   return who + when
 }
