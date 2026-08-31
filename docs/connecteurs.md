@@ -53,6 +53,17 @@ description: >-
 > **« Effet pour un membre »** (M4, `ConnectorEffectForMember`, scope org → `getConnectorEffectForMember`).
 > i18n FR complète (0 terme banni). Partage projet : `ProjectShareDialog` = lien public simplifié +
 > **`ProjectMcpPublishDialog`** (picker d'outils à cases groupées par connecteur, R3).
+> **Palier `tenant` (01/09, oto-dashboard#133)** : la cascade backend a gagné un étage entre
+> `org` et `platform` (oto-backend#603/#604, L-clés) — la clé partagée d'un tenant tiers,
+> résolue sur le sub qualifié de l'appelant. `lib/keyStack.ts` restait déjà générique par
+> niveau (aucun changement) ; `ConnectorKeyStack.vue` connaît le rang (`LEVEL_RANK`) et le
+> libellé (« Clé de ton tenant », jamais collapsé en « ta clé » même en solo — contrairement
+> à `org`/`group`, un tenant n'EST pas l'org) ; `connectorVerdict.ts` sait dire « clé de
+> tenant » en liste. Non modifiable depuis cette pile (aucune action `.ks-actions` : elle ne
+> cible que `level === 'member'`) — le tenant se pose/retire depuis SA propre surface admin,
+> pas depuis le dashboard d'une org membre. Volontairement HORS scope : les écrans
+> d'administration tenant (rôle « admin de tenant », `/platform/tenants` admins/arêtes) —
+> ce que backend appelle « PR 2 » n'a livré QUE le mode `tenant` de `/api/me` à faire ici.
 
 ## La section unique `/console/connectors` (prose historique, vocabulaire)
 
