@@ -26,6 +26,9 @@
 // puis `npm run api:refresh` ici.
 
 import type { components, operations } from './api.generated'
+// ⚠️ Ce qu'un lot backend OUVERT sert et que l'OpenAPI en ligne ignore encore —
+// écrit à la main, à part, pour qu'une régénération ne l'efface pas. Cf. le fichier.
+import type { BailDeLaLigne } from './api.attendu'
 
 /** La réponse 200 (application/json) d'une opération du document OpenAPI. */
 export type ApiOut<K extends keyof operations> = operations[K]['responses'] extends {
@@ -849,7 +852,11 @@ export interface ResourceEntry {
 // user arbitraires (schéma libre). Cf. datastore.py::_row_to_dict.
 // ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (POST
 //    /api/datastore/namespaces/{}/rows) : sa réponse est un `200 OK` nu dans le document.
-export interface DatastoreRow {
+// `BailDeLaLigne` apporte `_claimed_run` — POUR QUEL RUN la ligne est réservée,
+// servi partout où `_claimed_by` l'est. Sans lui, la file de travail disait qu'un
+// agent tenait une ligne, jamais lequel tenait laquelle. ⚠️ Trois états : le run,
+// `null` (bail pris sans run), clé absente (aucun bail). Cf. `api.attendu.ts`.
+export interface DatastoreRow extends BailDeLaLigne {
   _id: string
   _created_at?: string | null
   _updated_at?: string | null

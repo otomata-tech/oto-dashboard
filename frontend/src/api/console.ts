@@ -18,6 +18,9 @@ import type {
   EmailSettingsBundle, EmailSender, QuietHours, ScheduledEmail,
   TenantRow, TenantTotals, TenantSheet,
 } from '@/types/api'
+// ⚠️ Contrat SERVI PAR UN LOT NON DÉPLOYÉ (oto-backend PR #723) — écrit à la main
+// parce qu'une régénération depuis l'OpenAPI en ligne l'effacerait. Cf. le fichier.
+import type { BailDuTravail, PostesDeGarde } from '@/types/api.attendu'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
 
@@ -359,7 +362,11 @@ export const enqueueRunContinue = (runId: string) =>
 // ── Surveillance des agents (page Automatisations) ──────────────────────────
 // La file d'exécution du runner (jobs) + les déclencheurs programmés. Lecture
 // org-scopée ; le fil d'un run se lit par getRunThread (même capacité R1).
-export interface RunnerJob {
+// `BailDuTravail` apporte `lease_until` — la fin du bail de la prise en cours,
+// servie désormais sur `list`/`get` et plus seulement au worker qui vient de
+// claimer. ⚠️ Elle ne se lit JAMAIS seule : c'est le `status` qui dit si cette
+// date est un bail en cours, un bail expiré, ou le bail qui ÉTAIT tenu.
+export interface RunnerJob extends BailDuTravail {
   id: number
   kind: 'start' | 'continue'
   run_id: string | null
@@ -381,7 +388,14 @@ export interface RunnerJob {
   // garantie d'API. D'où l'`index signature` en fin de bloc, et le rendu
   // générique de `lib/runnerJobs` : un champ neuf s'affiche sous sa clé brute
   // au lieu d'attendre qu'on pense à le déclarer ici.
-  result: {
+  //
+  // Les POSTES DE GARDE viennent de `PostesDeGarde` — ce que la garde a dû
+  // rattraper sur les données que le travail a écrites. Un travail peut se
+  // conclure « terminé » avec des gardes garnies : aucune erreur n'est levée,
+  // et c'est pour ça que la surveillance les remonte en tête. ⚠️ Ce sont des
+  // LISTES DE NOMS, pas des compteurs — on les avait typés `number`, et une
+  // liste lue comme un nombre vaut zéro : le bandeau ne s'affichait jamais.
+  result: ({
     usage_tokens?: number
     usage_cache_read?: number
     usage_cache_write?: number
@@ -396,15 +410,8 @@ export interface RunnerJob {
     tool_counts?: Record<string, number>
     // Colonnes écrites hors du schéma déclaré du tableau.
     hors_schema?: string[]
-    // Les POSTES DE GARDE — ce que la garde a dû rattraper sur les données que
-    // le travail a écrites. Un travail peut se conclure « terminé » avec des
-    // gardes non nulles : aucune erreur n'est levée, et c'est justement pour ça
-    // que la surveillance les remonte en tête plutôt qu'au fond d'une fiche.
-    valeurs_cliente_reparees?: number
-    contacts_fabriques_retires?: number
-    valeurs_cliente_detruites?: number
     [champ: string]: unknown
-  } | null
+  } & PostesDeGarde) | null
   due_at: string | null
   created_at: string | null
   finished_at: string | null

@@ -18,10 +18,11 @@ import ConsoleCard from './ConsoleCard.vue'
 import Btn from './Btn.vue'
 import MonitoringStats from './monitoring/MonitoringStats.vue'
 import RunnerJobDetail from './RunnerJobDetail.vue'
+import RunnerGardes from './RunnerGardes.vue'
 import { useRunnerJobs, FENETRE } from '@/composables/useRunnerJobs'
 import type { RunnerJob } from '@/api/console'
 import {
-  GARDES, aUneGarde, compteGarde, duree, jetons, procOf, flotteOf,
+  angleMort, aUneGarde, bail, bailExpire, bilanGardes, duree, jetons, procOf, flotteOf,
   renvoiMuet, renvois, sejour, sejourMs, totalGardes,
 } from '@/lib/runnerJobs'
 
@@ -35,12 +36,29 @@ function nombre(v: unknown): number {
 }
 
 // ── Les gardes, d'abord ─────────────────────────────────────────────────────
+// Au grain flotte on montre des COMPTES (les noms, eux, sont dans la fiche de
+// chaque travail) — mais jamais un compte seul : « 0 détruite sur 40 travaux » et
+// « 0 détruite sur 12 travaux, 28 non mesurés » ne s'entendent pas pareil, et
+// c'est tout l'objet du second bloc.
 const gardes = computed(() => {
-  const postes = GARDES
-    .map((g) => ({ ...g, n: somme((j) => compteGarde(j, g.cle)) }))
-    .filter((p) => p.n > 0)
-  const touches = jobs.value.filter(aUneGarde)
-  return { postes, touches, actif: postes.length > 0 }
+  const bilan = bilanGardes(jobs.value)
+  return {
+    garnies: bilan.filter((b) => b.n > 0).map((b) => ({ ...b, texte: String(b.n) })),
+    // ⚠️ Ce que PERSONNE N'A REGARDÉ. Sans ce bloc, un travail non vérifié se range
+    // à l'écran avec les travaux vérifiés propres — le silence qu'on corrige.
+    aveugles: bilan
+      .filter((b) => b.nonMesure > 0 || b.illisible > 0)
+      .map((b) => ({
+        ...b,
+        texte: b.illisible
+          ? `${b.nonMesure + b.illisible} (dont ${b.illisible} illisible${b.illisible > 1 ? 's' : ''})`
+          : String(b.nonMesure),
+      })),
+    // Vérifié pour de bon : mesuré au moins une fois, jamais garni, jamais aveugle.
+    verifiees: bilan.filter((b) => b.mesures > 0 && b.n === 0 && !b.nonMesure && !b.illisible),
+    touches: jobs.value.filter(aUneGarde),
+    aveuglesJobs: jobs.value.filter(angleMort),
+  }
 })
 
 // ── Mesures de la fenêtre ───────────────────────────────────────────────────
@@ -117,23 +135,45 @@ const parts = computed(() => {
 })
 
 // ── Agents bloqués ──────────────────────────────────────────────────────────
-// Le seuil est DÉRIVÉ de la campagne elle-même (3 × le séjour médian observé),
-// jamais d'une constante : une flotte dont chaque tour dure 20 s et une autre dont
-// il dure 8 min n'ont pas le même « trop long ». Sans médiane (rien de conclu), on
-// se garde d'accuser : la liste s'affiche, sans verdict.
+// Depuis oto-backend #723, le harnais sert le BAIL RÉEL de chaque prise
+// (`lease_until`). Un bail dépassé sur un travail en cours est un FAIT : le worker
+// est parti, le job est re-claimable. C'est ce qui remplace la présomption.
+//
+// ⚠️ Le seuil dérivé (3 × le séjour médian) RESTE, en repli, là où la date manque
+// — il a servi et il est juste. Mais il ne s'applique JAMAIS à un travail qui a un
+// bail : sur celui-là le fait a déjà tranché, et un « il traîne » de présomption
+// contredirait un « son bail court » de mesure, sur la même ligne.
 const seuilBloque = computed(() => {
   const v = m.value
   return v.conclus >= 2 && v.mediane ? v.mediane * 3 : null
 })
+
+/** `bail` = mesuré ; `seuil` = présumé, faute de date ; `null` = rien à dire. */
+type Verdict = 'bail' | 'seuil' | null
+
 const enCoursLongs = computed(() =>
   jobs.value
     .filter((j) => j.status === 'claimed')
-    .map((j) => ({ j, ms: sejourMs(j, maintenant.value) ?? 0 }))
-    .sort((a, b) => b.ms - a.ms)
+    .map((j) => {
+      const ms = sejourMs(j, maintenant.value) ?? 0
+      const b = bail(j, maintenant.value)
+      const verdict: Verdict = bailExpire(j, maintenant.value)
+        ? 'bail'
+        : b.etat === 'aucun' && seuilBloque.value !== null && ms > seuilBloque.value
+          ? 'seuil'
+          : null
+      return { j, ms, verdict, reste: b.resteMs }
+    })
+    // Le bail dépassé passe devant : c'est le seul qui appelle un geste.
+    .sort((a, b) => (b.verdict === 'bail' ? 1 : 0) - (a.verdict === 'bail' ? 1 : 0) || b.ms - a.ms)
     .slice(0, 5))
-function bloque(ms: number): boolean {
-  return seuilBloque.value !== null && ms > seuilBloque.value
-}
+
+/** Combien de travaux en cours portent une vraie date de bail : ce qui dit si le
+ * seuil dérivé sert encore de repli, ou s'il n'a plus lieu d'être annoncé. */
+const avecBail = computed(() =>
+  jobs.value.filter((j) => j.status === 'claimed' && bail(j, maintenant.value).etat !== 'aucun').length)
+const expires = computed(() =>
+  jobs.value.filter((j) => bailExpire(j, maintenant.value)).length)
 
 const ouvert = ref<RunnerJob | null>(null)
 </script>
@@ -155,25 +195,31 @@ const ouvert = ref<RunnerJob | null>(null)
       </p>
 
       <template v-else-if="loaded">
-        <!-- ① Les gardes. Seul bloc coloré de la carte, et le premier lu. -->
-        <div v-if="gardes.actif" class="rm-garde">
-          <div class="rm-garde-t">Une garde est intervenue sur les données</div>
-          <p class="rm-garde-s">
-            Ces travaux se sont conclus sans erreur : la garde a rattrapé ce qu'ils
-            avaient écrit. À vérifier avant de se fier au tableau.
-          </p>
-          <ul class="rm-garde-l">
-            <li v-for="p in gardes.postes" :key="p.cle" :class="{ severe: p.severe }">
-              <b>{{ p.n }}</b> {{ p.label }}
-            </li>
-          </ul>
-          <div class="rm-garde-j">
-            <button
-              v-for="j in gardes.touches" :key="j.id" type="button"
-              class="rm-jchip" @click="ouvert = j"
-            >#{{ j.id }} <span>{{ totalGardes(j) }}</span></button>
-          </div>
-        </div>
+        <!-- ① Les gardes. Seuls blocs colorés de la carte, et les premiers lus. -->
+        <RunnerGardes
+          class="rm-gardes"
+          titre="Une garde est intervenue sur les données"
+          sous="Ces travaux se sont conclus sans erreur : la garde a rattrapé ce qu'ils
+                avaient écrit. À vérifier avant de se fier au tableau."
+          :garnies="gardes.garnies" :aveugles="gardes.aveugles" :verifiees="gardes.verifiees"
+        >
+          <template #jetons>
+            <div class="rm-garde-j">
+              <button
+                v-for="j in gardes.touches" :key="j.id" type="button"
+                class="rm-jchip" @click="ouvert = j"
+              >#{{ j.id }} <span>{{ totalGardes(j) }}</span></button>
+            </div>
+          </template>
+          <template #aveugles>
+            <div class="rm-garde-j">
+              <button
+                v-for="j in gardes.aveuglesJobs" :key="j.id" type="button"
+                class="rm-jchip aveugle" @click="ouvert = j"
+              >#{{ j.id }}</button>
+            </div>
+          </template>
+        </RunnerGardes>
 
         <!-- ② Les mesures -->
         <MonitoringStats :items="mesures" />
@@ -208,14 +254,26 @@ const ouvert = ref<RunnerJob | null>(null)
         <div v-if="enCoursLongs.length" class="rm-bloc">
           <div class="rm-bloc-t">
             En cours depuis le plus longtemps
-            <span v-if="seuilBloque" class="rm-bloc-s">
-              — au-delà de {{ duree(seuilBloque) }}, c'est trois fois le séjour médian
+            <!-- Ce qui est MESURÉ se dit d'abord ; le seuil dérivé n'est annoncé
+                 que s'il sert encore, c'est-à-dire s'il reste des prises sans bail. -->
+            <span v-if="expires" class="rm-bloc-a">
+              — {{ expires }} bail{{ expires > 1 ? 'x' : '' }} dépassé{{ expires > 1 ? 's' : '' }}
+            </span>
+            <span v-if="seuilBloque && avecBail < m.enCours" class="rm-bloc-s">
+              — sans bail servi, on présume au-delà de {{ duree(seuilBloque) }}
+              (trois fois le séjour médian)
             </span>
           </div>
           <ul class="rm-bloc-l">
             <li v-for="e in enCoursLongs" :key="e.j.id">
               <button type="button" class="rm-bl-id" @click="ouvert = e.j">#{{ e.j.id }}</button>
-              <span class="rm-bl-d" :class="{ alerte: bloque(e.ms) }">{{ sejour(e.j, maintenant) }}</span>
+              <span class="rm-bl-d" :class="{ alerte: e.verdict === 'bail', presume: e.verdict === 'seuil' }">
+                {{ sejour(e.j, maintenant) }}
+              </span>
+              <!-- Le mot dit d'où vient le verdict : « bail dépassé » est un fait
+                   servi, « traîne » reste une présomption tirée de la campagne. -->
+              <span v-if="e.verdict === 'bail'" class="rm-bl-v alerte">bail dépassé</span>
+              <span v-else-if="e.verdict === 'seuil'" class="rm-bl-v">traîne</span>
               <span class="rm-bl-p">{{ procOf(e.j) }}</span>
               <span v-if="flotteOf(e.j)" class="rm-bl-f">{{ flotteOf(e.j) }}</span>
             </li>
@@ -232,24 +290,8 @@ const ouvert = ref<RunnerJob | null>(null)
 .rm-err { margin: 0; font-size: 12.5px; color: var(--color-terra-ink); }
 .rm-vide { margin: 0; font-size: 13px; line-height: 1.6; color: var(--color-mute); }
 
-/* ── Les gardes : le seul bloc coloré, en tête ── */
-.rm-garde {
-  border: 1px solid var(--color-terra-soft);
-  background: color-mix(in srgb, var(--color-terra-soft) 34%, transparent);
-  border-radius: var(--radius-md);
-  padding: 11px 13px;
-  margin-bottom: 16px;
-}
-.rm-garde-t { font-weight: 700; font-size: 13px; color: var(--color-terra-ink); }
-.rm-garde-s { margin: 3px 0 8px; font-size: 12px; line-height: 1.5; color: var(--color-ink); }
-.rm-garde-l { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-.rm-garde-l li {
-  font-size: 12px; padding: 2px 9px; border-radius: var(--radius-pill);
-  background: var(--color-surface); border: 1px solid var(--color-terra-soft);
-  color: var(--color-ink);
-}
-.rm-garde-l li.severe { border-color: var(--color-terra-ink); color: var(--color-terra-ink); font-weight: 600; }
-.rm-garde-l b { font-family: var(--font-mono, monospace); }
+/* ── Les gardes, en tête ── */
+.rm-gardes { margin-bottom: 16px; }
 .rm-garde-j { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
 .rm-jchip {
   font: inherit; font-family: var(--font-mono, monospace); font-size: 11px; cursor: pointer;
@@ -258,6 +300,9 @@ const ouvert = ref<RunnerJob | null>(null)
 }
 .rm-jchip:hover { background: var(--color-terra-soft); }
 .rm-jchip span { opacity: .65; }
+/* L'angle mort a son propre ton : ni succès, ni échec. */
+.rm-jchip.aveugle { border-color: var(--color-saffron-soft); color: var(--color-saffron-ink); }
+.rm-jchip.aveugle:hover { background: var(--color-saffron-soft); }
 
 /* ── Composition de la fenêtre ── */
 .rm-barre {
@@ -285,6 +330,13 @@ const ouvert = ref<RunnerJob | null>(null)
 .rm-bloc { margin-top: 16px; border-top: 1px solid var(--color-hair); padding-top: 11px; }
 .rm-bloc-t { font-size: 12px; font-weight: 600; color: var(--color-ink); margin-bottom: 7px; }
 .rm-bloc-s { font-weight: 400; color: var(--color-faint); }
+.rm-bloc-a { font-weight: 600; color: var(--color-terra-ink); }
+.rm-bl-v {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--color-faint);
+}
+.rm-bl-v.alerte { color: var(--color-terra-ink); font-weight: 700; }
+.rm-bl-d.presume { color: var(--color-saffron-ink); }
 .rm-bloc-l { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .rm-bloc-l li { display: flex; align-items: baseline; gap: 9px; font-size: 12px; }
 .rm-bl-id {

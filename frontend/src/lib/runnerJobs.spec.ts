@@ -1,9 +1,19 @@
 import { describe, it, expect } from 'vitest'
 import type { RunnerJob } from '@/api/console'
 import {
-  autresResultat, compteGarde, instant, outilsResultat, postesResultat,
+  GARDES, angleMort, aUneGarde, autresResultat, bail, bailExpire, bilanGardes,
+  instant, outilsResultat, postesResultat, releveGarde,
   renvoiMuet, renvois, sejourMs, totalGardes,
 } from './runnerJobs'
+
+/** Une valeur de `result` qui TRAHIT le contrat déclaré. Le worker vit dans un
+ * autre dépôt (`oto-runner`) et `JobResult` est `extra=allow` : le type nous
+ * protège à l'écriture, il ne protège de rien à l'exécution. Ce cast sert à
+ * fabriquer exprès la forme que le type interdit, pour vérifier qu'on ne la
+ * recompte pas zéro en silence. */
+function servi(v: unknown): string[] {
+  return v as string[]
+}
 
 function job(over: Partial<RunnerJob> = {}): RunnerJob {
   return {
@@ -55,21 +65,114 @@ describe('renvois du harnais', () => {
   })
 })
 
-describe('postes de garde', () => {
-  it('additionne les trois postes d’un travail pourtant conclu sans erreur', () => {
-    // Le cas qui justifie la carte : statut « terminé », aucune erreur, et
-    // pourtant la garde a dû intervenir.
-    const j = job({
-      status: 'done',
-      result: { valeurs_cliente_reparees: 2, valeurs_cliente_detruites: 1 },
-    })
-    expect(totalGardes(j)).toBe(3)
-    expect(compteGarde(j, 'contacts_fabriques_retires')).toBe(0)
+describe('le bail du travail', () => {
+  const t = (s: string) => Date.parse(s)
+
+  it('dit EXPIRÉ sur une prise en cours dont la date est passée — le worker est parti', () => {
+    const j = job({ status: 'claimed', lease_until: '2026-09-01 10:00:00' })
+    const b = bail(j, t('2026-09-01T10:05:00Z'))
+    expect(b.etat).toBe('expire')
+    expect(b.resteMs).toBe(-5 * 60_000)
+    expect(bailExpire(j, t('2026-09-01T10:05:00Z'))).toBe(true)
   })
 
-  it('ne voit aucune garde là où le worker n’en déclare pas', () => {
-    expect(totalGardes(job({ result: { usage_tokens: 400 } }))).toBe(0)
+  it('dit EN COURS tant que la date est à venir', () => {
+    const j = job({ status: 'claimed', lease_until: '2026-09-01 10:10:00' })
+    expect(bail(j, t('2026-09-01T10:05:00Z')).etat).toBe('en-cours')
+  })
+
+  // LE contresens à ne pas commettre. Sur un travail conclu, `lease_until` est le
+  // bail qui ÉTAIT tenu : la date est vraie, elle est simplement PASSÉE. L'afficher
+  // « expiré » accuserait de mort un travail qui s'est terminé normalement — et,
+  // comme tous les travaux conclus ont une date passée, la file entière virerait
+  // au rouge.
+  it('ne dit JAMAIS « expiré » sur un travail conclu, même avec une date passée', () => {
+    const fini = job({ status: 'done', lease_until: '2026-09-01 10:00:00' })
+    const b = bail(fini, t('2026-09-01T18:00:00Z'))
+    expect(b.etat).toBe('tenu')
+    expect(bailExpire(fini, t('2026-09-01T18:00:00Z'))).toBe(false)
+    // Un « dépassement » n'a de sens que sur une prise vivante.
+    expect(b.resteMs).toBeNull()
+    // La date reste lisible : on ne détruit pas une information vraie.
+    expect(b.fin).toBe(t('2026-09-01T10:00:00Z'))
+  })
+
+  it('n’invente pas de bail là où le travail n’a jamais été pris', () => {
+    expect(bail(job({ status: 'pending' }), Date.now()).etat).toBe('aucun')
+    expect(bail(job({ status: 'pending', lease_until: null }), Date.now()).etat).toBe('aucun')
+  })
+})
+
+describe('postes de garde', () => {
+  // ⚠️ Ce sont des LISTES DE NOMS, pas des compteurs. On les avait lus comme des
+  // entiers : une liste lue par un lecteur d'entier vaut zéro, et le bandeau ne
+  // s'affichait donc jamais — le défaut déguisé en bonne nouvelle. Ce test tient
+  // la forme réellement servie.
+  it('lit les postes comme des listes de noms — un compteur les aurait vus à zéro', () => {
+    const j = job({
+      status: 'done',
+      result: {
+        valeurs_cliente_reparees: ['ville', 'telephone'],
+        valeurs_cliente_detruites: ['siret'],
+      },
+    })
+    expect(aUneGarde(j)).toBe(true)
+    expect(totalGardes(j)).toBe(3)
+    const r = releveGarde(j, GARDES[0]!)
+    expect(r.etat).toBe('garni')
+    expect(r.noms).toEqual(['ville', 'telephone'])
+  })
+
+  // LE piège du lot. `[]` et `null` s'affichent pareil sur un écran qui compte,
+  // et l'un des deux dit que PERSONNE N'A REGARDÉ. Ils doivent donc sortir d'ici
+  // par des états différents — sinon l'écran annonce « aucune destruction » là où
+  // rien n'a été mesuré, exactement ce que ces postes existent pour empêcher.
+  it('sépare « mesuré, rien trouvé » de « pas mesuré » — ils comptent 0 tous les deux', () => {
+    const detruit = GARDES.find((g) => g.cle === 'valeurs_cliente_detruites')!
+    const mesure = job({ status: 'done', result: { valeurs_cliente_detruites: [] } })
+    const aveugle = job({ status: 'done', result: { valeurs_cliente_detruites: null } })
+
+    expect(releveGarde(mesure, detruit).etat).toBe('neant')
+    expect(releveGarde(aveugle, detruit).etat).toBe('non-mesure')
+    // Le compteur ne les distingue PAS : c'est bien pour ça qu'il ne suffit pas.
+    expect(totalGardes(mesure)).toBe(0)
+    expect(totalGardes(aveugle)).toBe(0)
+    // Le seul signal qui les sépare.
+    expect(angleMort(mesure)).toBe(false)
+    expect(angleMort(aveugle)).toBe(true)
+  })
+
+  it('distingue un poste ABSENT d’un poste à null — l’un se tait, l’autre avoue', () => {
+    const detruit = GARDES.find((g) => g.cle === 'valeurs_cliente_detruites')!
+    const muet = job({ result: { usage_tokens: 400 } })
+    expect(releveGarde(muet, detruit).etat).toBe('absent')
+    // Un travail qui ne déclare rien n'est pas un travail non mesuré : il est
+    // d'avant les postes de garde. L'accuser d'angle mort noierait le vrai signal.
+    expect(angleMort(muet)).toBe(false)
     expect(totalGardes(job({ result: null }))).toBe(0)
+  })
+
+  it('ressort une forme qu’il ne sait pas lire au lieu de la compter zéro', () => {
+    // La régression précédente en une ligne : un entier là où une liste est
+    // attendue ne doit plus se lire « rien à signaler ».
+    const j = job({ result: { valeurs_cliente_reparees: servi(2) } })
+    const r = releveGarde(j, GARDES[0]!)
+    expect(r.etat).toBe('illisible')
+    expect(r.brut).toBe('2')
+    expect(angleMort(j)).toBe(true)
+  })
+
+  it('compte les non-mesurés à côté du total, jamais fondus dedans', () => {
+    const bilan = bilanGardes([
+      job({ result: { valeurs_cliente_detruites: ['siret'] } }),
+      job({ result: { valeurs_cliente_detruites: null } }),
+      job({ result: { valeurs_cliente_detruites: null } }),
+      job({ result: { valeurs_cliente_detruites: [] } }),
+    ])
+    const d = bilan.find((b) => b.cle === 'valeurs_cliente_detruites')!
+    expect(d.n).toBe(1)
+    expect(d.travaux).toBe(1)
+    expect(d.nonMesure).toBe(2)
   })
 })
 
@@ -119,7 +222,7 @@ describe('lecture du résultat', () => {
   })
 
   it('ne range pas les postes de garde dans « autres » — ils ont leur bandeau', () => {
-    const autres = autresResultat(job({ result: { valeurs_cliente_reparees: 2 } }))
+    const autres = autresResultat(job({ result: { valeurs_cliente_reparees: ['ville'] } }))
     expect(autres.map((a) => a.cle)).not.toContain('valeurs_cliente_reparees')
   })
 })

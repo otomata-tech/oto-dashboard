@@ -23,12 +23,16 @@ import { computed, ref, watch } from 'vue'
 import ModalOverlay from './ModalOverlay.vue'
 import Tag from './Tag.vue'
 import Icon from './Icon.vue'
-import { getRunThread, type RunnerJob, type RunThreadMessage } from '@/api/console'
+import RunnerGardes from './RunnerGardes.vue'
+import {
+  getNamespaceQueue, getRunThread, type RunnerJob, type RunThreadMessage,
+} from '@/api/console'
 import { useMe } from '@/composables/useMe'
 import { absDate } from '@/lib/cellRender'
+import { bailLigne } from '@/lib/bailDeLigne'
 import {
-  GARDES, autresResultat, compteGarde, duree, outilsResultat, postesResultat,
-  procOf, renvois, sejour, sejourMs, totalGardes,
+  autresResultat, bail, duree, outilsResultat, postesResultat,
+  procOf, relevesGardes, renvois, sejour, sejourMs, totalGardes,
 } from '@/lib/runnerJobs'
 
 const props = defineProps<{ job: RunnerJob | null }>()
@@ -49,12 +53,40 @@ const j = computed(() => props.job)
 const ouvert = computed(() => props.job !== null)
 
 // ── Les gardes ──────────────────────────────────────────────────────────────
-const gardes = computed(() => {
+// Ici on montre les NOMS, pas des comptes : sur une seule fiche, « 2 valeurs
+// réparées » n'aide pas — « ville, telephone » dit quelle colonne aller relire.
+const releves = computed(() => (j.value ? relevesGardes(j.value) : []))
+const garnies = computed(() =>
+  releves.value.filter((g) => g.etat === 'garni')
+    .map((g) => ({ ...g, texte: g.noms.join(', ') })))
+// ⚠️ Ni succès ni échec : la garde n'a PAS tourné (`null`), ou son relevé est
+// d'une forme qu'on ne sait pas lire. Sans ce bloc, la fiche d'un travail non
+// vérifié serait indiscernable de celle d'un travail vérifié propre.
+const aveugles = computed(() =>
+  releves.value.filter((g) => g.etat === 'non-mesure' || g.etat === 'illisible')
+    .map((g) => ({ ...g, texte: g.etat === 'illisible' ? `relevé illisible : ${g.brut}` : '' })))
+const verifiees = computed(() => releves.value.filter((g) => g.etat === 'neant'))
+
+// ── Le bail de la prise ─────────────────────────────────────────────────────
+// ⚠️ Se lit CONTRE le statut : sur un travail conclu, une date passée est le bail
+// qui ÉTAIT tenu — pas un bail « expiré ». Dire « expiré » là accuserait de mort
+// un travail terminé normalement.
+const LIB_BAIL: Record<string, string> = {
+  'en-cours': 'court jusqu’à', expire: 'expiré depuis', tenu: 'tenu jusqu’à',
+}
+const bailDit = computed(() => {
   const job = j.value
-  if (!job) return []
-  return GARDES
-    .map((g) => ({ ...g, n: compteGarde(job, g.cle) }))
-    .filter((g) => g.n > 0)
+  if (!job) return null
+  const b = bail(job, maintenant.value)
+  if (b.etat === 'aucun' || b.fin === null) return null
+  const quand = absDate(new Date(b.fin).toISOString())
+  return {
+    etat: b.etat,
+    texte: `${LIB_BAIL[b.etat]} ${quand}`,
+    // Le seul cas qui appelle un geste : le worker est parti, le job attend d'être
+    // repris. Ailleurs, la date est un fait, pas une alerte.
+    alerte: b.etat === 'expire',
+  }
 })
 
 // ── Ce que le travail visait ────────────────────────────────────────────────
@@ -83,11 +115,10 @@ const tableau = computed(() => {
   return typeof ns === 'string' && ns ? ns : null
 })
 
-// Le lien vers LA LIGNE travaillée, quand le payload la nomme. Le datastore ne
-// sert PAS l'inverse (`claimed_run`, qui relie une ligne à son run, n'est pas
-// projeté par l'API) : sans référence dans le payload, il n'y a pas de chemin
-// honnête du travail vers sa ligne, et on n'en invente pas.
-const ligne = computed(() => {
+// Le lien vers la ligne, quand le PAYLOAD la nomme — un travail enfilé sur une
+// ligne précise porte sa référence, et c'est le seul chemin qui vaut aussi après
+// la conclusion.
+const lignePayload = computed(() => {
   const p = j.value?.payload
   if (!p || !tableau.value) return null
   for (const cle of ['row_id', 'row', 'item_id']) {
@@ -97,6 +128,45 @@ const ligne = computed(() => {
   }
   return null
 })
+
+// ── La ligne que ce travail TIENT ───────────────────────────────────────────
+// `_claimed_run` (oto-backend #723) relie enfin une ligne au run qui la tient. On
+// la résout en lisant la file de travail du tableau visé et en y cherchant notre
+// run.
+//
+// ⚠️ ET IL RÉPOND À UNE SEULE QUESTION : « quelle ligne ce run tient-il MAINTENANT »,
+// jamais « laquelle a-t-il travaillée ». La colonne est effacée à la libération.
+// Sur un travail CONCLU il n'y a donc rien à résoudre — et l'écran le DIT, au lieu
+// de laisser un silence qui se lirait « ce travail n'a touché aucune ligne ».
+type LigneTenue =
+  | { etat: 'sans-objet' }      // pas de run, pas de tableau : la question ne se pose pas
+  | { etat: 'chargement' }
+  | { etat: 'trouvee'; id: string }
+  | { etat: 'aucune' }          // le run ne tient aucune ligne de ce tableau en ce moment
+  | { etat: 'illisible' }       // la file du tableau ne nous est pas lisible
+  | { etat: 'liberee' }         // travail conclu : le lien n'existe pas, et c'est connu
+const tenue = ref<LigneTenue>({ etat: 'sans-objet' })
+
+async function resoudreLigneTenue(job: RunnerJob | null) {
+  tenue.value = { etat: 'sans-objet' }
+  if (!job?.run_id) return
+  if (job.status !== 'claimed') {
+    // Conclu ou pas encore pris : la colonne ne porte plus (ou pas encore) ce run.
+    if (job.status === 'done' || job.status === 'failed') tenue.value = { etat: 'liberee' }
+    return
+  }
+  const ns = tableau.value
+  if (!ns) return
+  tenue.value = { etat: 'chargement' }
+  try {
+    const { rows } = await getNamespaceQueue(ns)
+    const maintenantMs = Date.now()
+    const trouvee = rows.find((r) => bailLigne(r, maintenantMs).run === job.run_id)
+    tenue.value = trouvee ? { etat: 'trouvee', id: trouvee._id } : { etat: 'aucune' }
+  } catch {
+    tenue.value = { etat: 'illisible' }
+  }
+}
 
 const visees = computed(() => {
   const p = j.value?.payload
@@ -142,6 +212,7 @@ function resume(m: RunThreadMessage): string {
 watch(() => props.job?.id, async () => {
   fil.value = null
   maintenant.value = Date.now()
+  void resoudreLigneTenue(props.job)
   const runId = props.job?.run_id
   if (!runId) return
   fil.value = 'chargement'
@@ -175,17 +246,16 @@ watch(() => props.job?.id, async () => {
 
       <div class="jd-body">
         <!-- ① Les gardes, avant tout le reste -->
-        <div v-if="gardes.length" class="jd-garde">
-          <div class="jd-garde-t">
-            La garde est intervenue sur ce que cet agent a écrit
+        <RunnerGardes
+          titre="La garde est intervenue sur ce que cet agent a écrit"
+          sous="Ce travail s'est conclu sans erreur : la garde a rattrapé ce qu'il avait
+                écrit. Les colonnes nommées ci-dessous sont à relire avant de se fier au tableau."
+          :garnies="garnies" :aveugles="aveugles" :verifiees="verifiees"
+        >
+          <template #compteur>
             <span class="jd-garde-n">{{ totalGardes(j) }}</span>
-          </div>
-          <ul class="jd-garde-l">
-            <li v-for="g in gardes" :key="g.cle" :class="{ severe: g.severe }" :title="g.cle">
-              <b>{{ g.n }}</b> {{ g.label }}
-            </li>
-          </ul>
-        </div>
+          </template>
+        </RunnerGardes>
 
         <!-- ② L'échec, en toutes lettres -->
         <div v-if="j.last_error" class="jd-err">
@@ -219,6 +289,12 @@ watch(() => props.job?.id, async () => {
             <dt>tentatives</dt>
             <dd>{{ j.attempts }} / {{ j.max_attempts }}</dd>
           </div>
+          <!-- Le bail RÉEL de la prise, servi depuis oto-backend #723. Il remplace
+               la présomption d'ancienneté : « expiré » n'est plus une déduction. -->
+          <div v-if="bailDit">
+            <dt>bail</dt>
+            <dd :class="{ alerte: bailDit.alerte }">{{ bailDit.texte }}</dd>
+          </div>
           <div>
             <dt>worker</dt>
             <dd :title="j.claimed_by ?? ''">{{ worker ?? 'pas encore pris' }}</dd>
@@ -237,10 +313,31 @@ watch(() => props.job?.id, async () => {
               ouvrir le tableau {{ tableau }}
             </RouterLink>
             <RouterLink
-              v-if="ligne"
-              :to="`/data/${encodeURIComponent(tableau)}/item/${encodeURIComponent(ligne)}`"
+              v-if="lignePayload"
+              :to="`/data/${encodeURIComponent(tableau)}/item/${encodeURIComponent(lignePayload)}`"
               class="jd-lien"
-            >ouvrir la ligne travaillée</RouterLink>
+            >ouvrir la ligne visée</RouterLink>
+            <RouterLink
+              v-if="tenue.etat === 'trouvee'"
+              :to="`/data/${encodeURIComponent(tableau)}/item/${encodeURIComponent(tenue.id)}`"
+              class="jd-lien"
+            >ouvrir la ligne qu'il tient</RouterLink>
+          </p>
+          <!-- ⚠️ On dit ce qu'on ne peut PAS montrer. Le tableau n'enregistre que la
+               ligne qu'un run tient EN CE MOMENT ; elle est libérée à la conclusion.
+               Laisser un silence ici se lirait « ce travail n'a touché aucune ligne ». -->
+          <p v-if="tenue.etat === 'liberee'" class="jd-vide">
+            La ligne qu'il a travaillée n'est plus retrouvable : le tableau ne retient
+            que la ligne qu'un agent tient sur le moment, et elle est relâchée à la
+            conclusion. Le journal du tableau, lui, garde la trace de l'écriture.
+          </p>
+          <p v-else-if="tenue.etat === 'aucune'" class="jd-vide">
+            Cet agent ne tient aucune ligne de ce tableau en ce moment — il n'en a pas
+            encore réservé, ou il l'a déjà rendue.
+          </p>
+          <p v-else-if="tenue.etat === 'illisible'" class="jd-vide">
+            La file de travail de ce tableau ne t'est pas lisible : impossible de dire
+            quelle ligne cet agent tient.
           </p>
           <dl class="jd-meta">
             <div v-for="v in visees" :key="v.cle">
@@ -335,26 +432,10 @@ watch(() => props.job?.id, async () => {
   display: flex; flex-direction: column; gap: 15px;
 }
 
-.jd-garde {
-  border: 1px solid var(--color-terra-soft);
-  background: color-mix(in srgb, var(--color-terra-soft) 34%, transparent);
-  border-radius: var(--radius-md); padding: 10px 12px;
-}
-.jd-garde-t {
-  font-weight: 700; font-size: 12.5px; color: var(--color-terra-ink);
-  display: flex; align-items: center; gap: 8px;
-}
 .jd-garde-n {
   font-family: var(--font-mono, monospace); font-size: 11px; font-weight: 600;
   background: var(--color-surface); border-radius: var(--radius-pill); padding: 1px 8px;
 }
-.jd-garde-l { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-.jd-garde-l li {
-  font-size: 12px; padding: 2px 9px; border-radius: var(--radius-pill);
-  background: var(--color-surface); border: 1px solid var(--color-terra-soft); color: var(--color-ink);
-}
-.jd-garde-l li.severe { border-color: var(--color-terra-ink); color: var(--color-terra-ink); font-weight: 600; }
-.jd-garde-l b { font-family: var(--font-mono, monospace); }
 
 .jd-err {
   background: var(--color-terra-soft); color: var(--color-terra-ink);

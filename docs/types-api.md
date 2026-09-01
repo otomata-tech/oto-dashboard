@@ -61,7 +61,7 @@ ce que le backend a changé depuis la dernière fois.
 Les mettre dans le même contrôle rendrait une PR rouge parce qu'un backend a été déployé
 ailleurs — ou verte parce que le réseau était coupé. Ce sont deux questions différentes.
 
-## Ce qui reste écrit à la main — les trois raisons
+## Ce qui reste écrit à la main — les trois raisons, plus un cas à part
 
 Un type reste dans `api.ts` sous forme d'interface, avec la raison en commentaire :
 
@@ -80,6 +80,28 @@ Un type reste dans `api.ts` sous forme d'interface, avec la raison en commentair
 > couvert par le document se traite côté backend (déclarer ou resserrer l'`Output`), puis
 > `npm run api:refresh` ici. Écrire l'interface à la main est le dernier recours, et il
 > se justifie dans le commentaire du bloc par l'une des trois raisons ci-dessus.
+
+### Le cas à part : `src/types/api.attendu.ts` (TEMPORAIRE)
+
+Une quatrième situation, qui n'est **pas** une exception à la règle mais un **sas** : le
+backend sert déjà des champs qu'on veut consommer, **sur une PR ouverte, ni mergée ni
+déployée**. Le document OpenAPI en ligne ne les porte donc pas encore, et
+`npm run api:refresh` — qui interroge un backend **vivant** — les **effacerait**.
+
+Ces champs vont dans **`src/types/api.attendu.ts`**, à part du reste, avec en tête la PR
+d'où ils viennent. La forme du fichier est le point : on le **supprime d'un coup** le jour
+du déploiement, au lieu de retrouver trois déclarations semées dans le code qui
+survivraient à leur raison d'être. Les interfaces qui les consomment les prennent par
+`extends` / intersection, jamais en recopiant les champs.
+
+**À la fusion de la PR** : `npm run api:refresh`, vérifier que le document régénéré porte
+bien ces champs, basculer les usages sur les types générés, supprimer le fichier.
+
+État au 2026-09-01 : il porte `_claimed_run` (le run qui tient une ligne), `lease_until`
+(le bail d'un travail) et les trois postes de garde de `JobResult` — oto-backend PR #723.
+⚠️ Les postes de garde y sont des **`string[]`**, et `valeurs_cliente_detruites` vaut
+`null` quand la garde **n'a pas tourné** : les typer autrement a déjà rendu un écran de
+surveillance muet (cf. `docs/automations.md`).
 
 ## Un défaut du document qu'il faut connaître
 

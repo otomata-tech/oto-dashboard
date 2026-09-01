@@ -20,7 +20,8 @@
 //     file hors de l'écran ;
 //   • le chargement est passé au magasin partagé — la carte et Surveillance
 //     lisaient sinon deux instantanés différents, à 30 s d'écart.
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import ConsoleCard from './ConsoleCard.vue'
 import Btn from './Btn.vue'
 import Tag from './Tag.vue'
@@ -30,7 +31,8 @@ import type { RunnerJob } from '@/api/console'
 import { absDate } from '@/lib/cellRender'
 import { useMe } from '@/composables/useMe'
 import {
-  aUneGarde, flotteOf, instant, jetons, procOf, renvois, sejour, tableauOf, totalGardes,
+  angleMort, aUneGarde, bailExpire, flotteOf, instant, jetons, procOf, renvois,
+  sejour, tableauOf, totalGardes,
 } from '@/lib/runnerJobs'
 
 const { jobs, loaded, error, maintenant, charger } = useRunnerJobs({ veille: true })
@@ -114,6 +116,34 @@ function setFiltre(s: RunnerJob['status'] | null) {
   filtre.value = filtre.value === s ? null : s
 }
 
+// ── Arriver ici depuis une LIGNE ────────────────────────────────────────────
+// `_claimed_run` (oto-backend #723) permet à une ligne du datastore de nommer le
+// run qui la tient ; ses liens atterrissent sur `/automations?run=<run>` et cette
+// carte ouvre le travail correspondant.
+//
+// ⚠️ Le run peut être HORS de la fenêtre chargée (les N derniers travaux). Dans ce
+// cas on le DIT : un écran qui s'ouvre sans rien montrer se lirait « ce run n'a
+// jamais existé », alors qu'il est simplement plus vieux que la fenêtre.
+const route = useRoute()
+const cible = ref<string | null>(null)
+const introuvable = ref<string | null>(null)
+
+watch(() => route.query.run, (v) => {
+  cible.value = typeof v === 'string' && v ? v : null
+  introuvable.value = null
+}, { immediate: true })
+
+// La cible est consommée UNE fois : sans ça, refermer la fiche la rouvrirait
+// au tick suivant du magasin partagé, et elle deviendrait impossible à fermer.
+watch([jobs, cible, loaded], () => {
+  const run = cible.value
+  if (!run || !loaded.value) return
+  const trouve = jobs.value.find((j) => j.run_id === run)
+  cible.value = null
+  if (trouve) ouvert.value = trouve
+  else introuvable.value = run
+}, { immediate: true })
+
 defineExpose({ charger })
 </script>
 
@@ -135,6 +165,13 @@ defineExpose({ charger })
         >{{ LIBELLE[s] }} <b>{{ compte[s] }}</b></button>
         <Btn kind="mini" @click="charger">Rafraîchir</Btn>
       </div>
+
+      <!-- ⚠️ Venu d'une ligne du datastore, ce run peut être plus vieux que la
+           fenêtre. Le taire ferait lire « ce run n'existe pas ». -->
+      <p v-if="introuvable" class="rj-notice">
+        Le travail du run <span class="mono">{{ introuvable }}</span> n'est pas dans les
+        {{ FENETRE }} derniers travaux — il est plus ancien que la fenêtre affichée.
+      </p>
 
       <p v-if="error" class="rj-err">{{ error }}</p>
       <p v-else-if="loaded && !jobs.length" class="dim rj-empty">
@@ -183,6 +220,15 @@ defineExpose({ charger })
                    range à l'œil avec les succès. -->
               <span v-if="aUneGarde(jb)" class="rj-garde">
                 garde · {{ totalGardes(jb) }}</span>
+              <!-- ⚠️ Ni succès ni échec : la garde n'a pas pu vérifier ce que ce
+                   travail a écrit. Sans ce libellé, il se range avec les vérifiés. -->
+              <span v-else-if="angleMort(jb)" class="rj-aveugle"
+                title="la garde n'a pas tourné : la ligne travaillée n'a pas pu être identifiée">
+                non vérifié</span>
+              <!-- Un FAIT servi, pas une présomption d'ancienneté : le bail de la
+                   prise est dépassé, le worker est parti, le job est re-claimable. -->
+              <span v-if="bailExpire(jb, maintenant)" class="rj-warn"
+                title="le prochain passage du harnais reprendra ce travail">bail dépassé</span>
               <span v-if="sejour(jb, maintenant)" class="rj-dur"
                 :class="{ vif: jb.status === 'claimed' }">{{ sejour(jb, maintenant) }}</span>
               <span v-if="renvois(jb)" class="rj-renvoi"
