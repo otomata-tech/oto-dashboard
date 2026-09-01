@@ -7,11 +7,13 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
 import LocaleSwitch from '@/components/console/LocaleSwitch.vue'
-import { analyticsEnabled, consent, grantConsent, denyConsent } from '@/lib/analytics'
+import { analyticsEnabled, consent, grantConsent, reopenConsent } from '@/lib/analytics'
 
 const { t } = useI18n()
 // Consentement analytics (RGPD) : n'a de sens que si PostHog est configuré. `granted`
-// = capture active ; tout autre état (denied/null) = rien collecté. Retrait à tout moment.
+// = capture active ; tout autre état (denied/null) = rien collecté. Retrait à tout
+// moment via `reopenConsent` (coupe + purge le stockage local + rouvre le bandeau
+// pour un choix neuf) — pas un simple `denyConsent`, réservé au refus initial.
 const analyticsOn = analyticsEnabled()
 const analyticsGranted = computed(() => consent.value === 'granted')
 </script>
@@ -30,7 +32,7 @@ const analyticsGranted = computed(() => consent.value === 'granted')
             <Tag :tone="analyticsGranted ? 'olive' : 'ink'">
               {{ analyticsGranted ? t('account.privacyGranted') : t('account.privacyDenied') }}
             </Tag>
-            <Btn kind="ghost" @click="analyticsGranted ? denyConsent() : grantConsent()">
+            <Btn kind="ghost" @click="analyticsGranted ? reopenConsent() : grantConsent()">
               {{ analyticsGranted ? t('account.privacyDisable') : t('account.privacyEnable') }}
             </Btn>
           </span>
