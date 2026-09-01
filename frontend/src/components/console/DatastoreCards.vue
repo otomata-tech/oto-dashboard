@@ -10,6 +10,7 @@ import { computed } from 'vue'
 import Tag from '@/components/console/Tag.vue'
 import type { DatastoreRow, DatastoreSchema, DatastoreField } from '@/types/api'
 import { champTitre } from '../../lib/datastoreTitle'
+import { abandonVerdict, claimBudget } from '@/lib/datastoreClaims'
 
 const props = defineProps<{ rows: DatastoreRow[]; schema: DatastoreSchema }>()
 const emit = defineEmits<{ open: [row: DatastoreRow] }>()
@@ -63,6 +64,18 @@ function titleOf(row: DatastoreRow): string {
   return titleF.value ? fmt(row[titleF.value.key]) : row._id
 }
 
+// ── ce que la FILE sait de la fiche (oto-backend#433) ────────────────────────
+// Le compteur de réservations sans écriture (contre le plafond du cycle de vie) et,
+// si le plafond l'a sortie de la file, le motif que le serveur y a posé. Ce motif
+// s'AFFICHE : `otherEntries` écarte tout ce qui commence par `_`, donc il n'aurait
+// jamais de place ailleurs — et un tooltip ne se lit pas en balayant une grille.
+// Précalculé par row : la grille en rend des centaines.
+const fileState = computed(() => new Map(props.rows.map((r) => [r._id, {
+  budget: claimBudget(r, statusF.value?.lifecycle),
+  abandon: abandonVerdict(r, statusF.value?.key, statusF.value?.lifecycle),
+}])))
+const fileOf = (row: DatastoreRow) => fileState.value.get(row._id)
+
 // ── sous-records (object / list) ─────────────────────────────────────────────
 type Pair = [string, string]
 const subFields = (f: DatastoreField): DatastoreField[] =>
@@ -99,8 +112,15 @@ function itemsOf(row: DatastoreRow, f: DatastoreField): unknown[] {
         <Tag v-if="row._claimed_by" tone="cobalt" :title="`bail de traitement (file de travail) jusqu'à ${row._claimed_until ?? '?'}`">
           en cours · {{ row._claimed_by }}
         </Tag>
+        <Tag v-if="fileOf(row)?.budget" :tone="fileOf(row)!.budget!.atCeiling ? 'terra' : undefined"
+          :title="`${fileOf(row)!.budget!.claims} réservation${fileOf(row)!.budget!.claims > 1 ? 's' : ''} sans écriture depuis la dernière écriture réussie`">
+          {{ fileOf(row)!.budget!.label }}
+        </Tag>
         <Tag v-for="f in badgeF" :key="f.key" v-show="present(row, f)" tone="cobalt">{{ fmt(row[f.key]) }}</Tag>
       </header>
+
+      <!-- motif d'abandon : SERVI par le serveur, rendu tel quel (il cite ses chiffres). -->
+      <p v-if="fileOf(row)?.abandon" class="ds-abandon">{{ fileOf(row)!.abandon!.reason }}</p>
 
       <div v-if="metricF.some((f) => present(row, f))" class="ds-card__metrics">
         <div v-for="f in metricF" :key="f.key" v-show="present(row, f)" class="ds-metric">
@@ -156,6 +176,11 @@ function itemsOf(row: DatastoreRow, f: DatastoreField): unknown[] {
 .ds-metric { display: flex; flex-direction: column; }
 .ds-metric__v { font-size: 18px; font-weight: 700; color: var(--color-ink, #2a2a2a); line-height: 1.1; }
 .ds-metric__l { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--color-faint, #9a9a9a); }
+.ds-abandon {
+  margin: 0 0 8px; padding: 5px 8px; border-radius: var(--radius-md);
+  font-size: 11.5px; font-weight: 600; line-height: 1.4;
+  background: var(--color-terra-soft); color: var(--color-terra-ink);
+}
 .ds-qualif { margin: 6px 0; }
 .ds-qualif p { margin: 2px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--color-ink-soft, #4a463d); white-space: pre-wrap; }
 .ds-fieldlabel { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--color-faint, #9a9a9a); font-weight: 700; }

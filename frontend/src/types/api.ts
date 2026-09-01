@@ -763,6 +763,12 @@ export interface DatastoreLifecycle {
   states?: string[]
   transitions?: Record<string, string[]>
   terminal?: string[]
+  // Plafond de réservations SANS écriture (oto-backend#433) : au-delà, le serveur
+  // verse la ligne dans `abandon_state` (un état terminal déclaré), pose le motif
+  // dans `_abandon` et la sort de la file. Les deux clés vont ensemble — l'une sans
+  // l'autre est refusée à la pose. Absentes = aucun plafond.
+  max_claims?: number | null
+  abandon_state?: string | null
 }
 export interface DatastoreField {
   key: string

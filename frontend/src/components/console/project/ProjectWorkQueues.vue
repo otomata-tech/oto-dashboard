@@ -11,6 +11,7 @@ import Tag from '../Tag.vue'
 import { getNamespaceAggregate, getNamespaceQueue, getNamespaces, getProjectRuns } from '@/api/console'
 import type { ProjectRun } from '@/types/api'
 import { absDate } from '@/lib/cellRender'
+import { abandonState, claimBudget, maxClaims } from '@/lib/datastoreClaims'
 
 const props = defineProps<{ namespaces: string[]; projectId: number }>()
 
@@ -22,6 +23,12 @@ interface QueueLine {
   total: number
   claimed: number
   expired: number
+  // Le plafond de réservations sans écriture du tableau (oto-backend#433) : ce qui
+  // sort une ligne de la file toute seule. Sans lui affiché, une campagne pouvait
+  // fondre sans qu'aucun compteur de cette page ne dise pourquoi.
+  ceiling: number | null            // lifecycle.max_claims, null = aucun plafond
+  abandonState: string | null       // lifecycle.abandon_state, l'état où le plafond verse
+  atCeiling: number                 // lignes sous bail déjà au plafond
 }
 
 const lines = ref<QueueLine[]>([])
@@ -71,6 +78,9 @@ onMounted(async () => {
           nsId: n.id, namespace: n.namespace,
           states: [...declared, ...observed], counts, total,
           claimed: queue.rows.length, expired,
+          ceiling: maxClaims(sf.lifecycle),
+          abandonState: abandonState(sf.lifecycle),
+          atCeiling: queue.rows.filter((r) => claimBudget(r, sf.lifecycle)?.atCeiling).length,
         } satisfies QueueLine
       } catch { return null }
     }))).filter((x): x is QueueLine => x !== null)
@@ -96,11 +106,19 @@ const visible = computed(() => !loading.value && lines.value.length > 0)
     <div v-for="l in lines" :key="l.nsId" class="pwq-line">
       <RouterLink class="pwq-ns" :to="`/data/${l.nsId}`">{{ l.namespace }}</RouterLink>
       <span class="pwq-total">{{ l.total }}</span>
-      <span v-for="s in l.states" :key="s" class="pwq-chip">
+      <span v-for="s in l.states" :key="s" class="pwq-chip"
+        :class="{ abandon: !!l.abandonState && s === l.abandonState }"
+        :title="s === l.abandonState
+          ? `état d'abandon : la plateforme y verse une ligne à bout de réservations sans écriture`
+          : undefined">
         {{ s }} <b>{{ l.counts[s] ?? 0 }}</b></span>
       <Tag v-if="l.claimed" tone="cobalt">{{ l.claimed }} sous bail</Tag>
       <Tag v-if="l.expired" tone="terra" title="le prochain claim recycle ces rows">
         {{ l.expired }} expiré{{ l.expired > 1 ? 's' : '' }}</Tag>
+      <Tag v-if="l.atCeiling" tone="terra"
+        title="sortie de la file à la prochaine libération sans écriture">
+        {{ l.atCeiling }} au plafond</Tag>
+      <span v-if="l.ceiling" class="pwq-mute">plafond {{ l.ceiling }}</span>
     </div>
   </div>
 </template>
@@ -125,4 +143,6 @@ const visible = computed(() => !loading.value && lines.value.length > 0)
   padding: 1px 8px; font-size: 11px; color: var(--color-mute); background: var(--color-surface);
 }
 .pwq-chip b { font-family: var(--font-mono, monospace); font-weight: 600; color: var(--color-ink); }
+/* L'état d'abandon n'est pas un état métier : c'est là que le plafond verse. */
+.pwq-chip.abandon { border-color: var(--color-terra-soft); color: var(--color-terra-ink); }
 </style>

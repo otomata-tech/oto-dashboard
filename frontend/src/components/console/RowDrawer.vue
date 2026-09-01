@@ -15,9 +15,11 @@ import OtoSelect from './OtoSelect.vue'
 import FormDialog from './FormDialog.vue'
 import SubRecordEditor from './SubRecordEditor.vue'
 import ModalOverlay from './ModalOverlay.vue'
+import RowAbandonNotice from './RowAbandonNotice.vue'
 import { useFormDialog } from '@/composables/useFormDialog'
 import type { DatastoreRow, DatastoreSchema, RowActivityEntry } from '@/types/api'
 import type { LifecycleIntent } from '@/lib/datastoreLifecycle'
+import { abandonVerdict, claimBudget } from '@/lib/datastoreClaims'
 import { cellKind, absDate, relDate } from '@/lib/cellRender'
 import { actorOf, changeOf, originLabel, originTone, whenOf } from '@/lib/rowActivity'
 import {
@@ -208,6 +210,14 @@ const terminalStates = computed<Set<string>>(() => {
     .filter(([, tos]) => tos?.length).map(([from]) => from))
   return new Set((lc.states ?? []).map(String).filter((s) => !outgoing.has(s)))
 })
+// Ce que la FILE sait de la fiche (oto-backend#433) : le compteur de réservations
+// sans écriture, et le motif si le plafond l'a sortie de la file. Les deux étaient
+// muets ici — on voyait « en cours · worker » sans savoir que c'était la 3ᵉ fois,
+// ni pourquoi la ligne avait cessé d'être servie.
+const budget = computed(() => claimBudget(props.row, statusField.value?.lifecycle))
+const abandon = computed(() =>
+  abandonVerdict(props.row, statusField.value?.key, statusField.value?.lifecycle))
+
 function applyTransition(state: string) {
   const k = statusField.value?.key
   if (!k) return
@@ -252,10 +262,19 @@ watch(() => [props.open, props.row?._id], async () => {
             :title="`bail de traitement jusqu'à ${row?._claimed_until ?? '?'}`">
             en cours · {{ row._claimed_by }}
           </Tag>
+          <Tag v-if="budget" :tone="budget.atCeiling ? 'terra' : undefined"
+            :title="`${budget.claims} réservation${budget.claims > 1 ? 's' : ''} sans écriture`
+              + (budget.max ? ` — plafond ${budget.max}` : '')">
+            {{ budget.label }}
+          </Tag>
           <button class="rd-close" aria-label="fermer" @click="emit('close')">
             <Icon name="close" :size="15" />
           </button>
         </header>
+
+        <!-- une ligne que le plafond a sortie de la file dit POURQUOI avant tout le
+             reste — et ce qui la remet en circuit. Le motif vient du serveur. -->
+        <RowAbandonNotice v-if="abandon" class="rd-abandon" :verdict="abandon" :can-write="!readOnly" />
 
         <!-- transitions du cycle de vie, sous l'en-tête (l'état courant est le chip) -->
         <div v-if="transitions.length" class="rd-lifecycle">
@@ -402,6 +421,7 @@ watch(() => [props.open, props.row?._id], async () => {
   border-radius: 7px; color: var(--color-faint); line-height: 0;
 }
 .rd-close:hover { background: var(--color-paper-2); color: var(--color-ink); }
+.rd-abandon { margin: 0 18px 10px; }
 .rd-lifecycle {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   padding: 0 18px 10px;

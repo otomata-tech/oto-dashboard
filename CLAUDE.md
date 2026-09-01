@@ -90,7 +90,10 @@ Les **contrats backend** sont dans `oto-backend/` : `CLAUDE.md` pour la carte,
 - ⚠️ **`lib/keyStack.ts` est un MIROIR de `access.walk_cascade`** (backend) : aucun test ne
   relie les deux repos, donc une erreur n'y casse rien à l'écran — **elle fait mentir l'UI**
   (c'est elle qui annonce quelle clé prendrait le relais si l'user retire la sienne). Même
-  régime pour `lib/tenantVerdict.ts` et `lib/connectorVerdict.ts`.
+  régime pour `lib/tenantVerdict.ts`, `lib/connectorVerdict.ts` et `lib/datastoreClaims.ts`
+  (plafond de réservations et motif d'abandon d'une ligne de file — le motif est SERVI et se
+  rend tel quel : il cite le compte et le plafond du jour de l'abandon, et le plafond a pu
+  changer depuis). Détail : `docs/datastore.md`.
 - ⚠️ **Jamais de levier inerte** : un pouvoir qu'un scope n'a pas ⇒ colonne/onglet **omis**,
   jamais affiché grisé.
 - ⚠️ **Le formulaire de credential ne renvoie PAS un champ secret vide** (#126) : depuis
