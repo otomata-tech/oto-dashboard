@@ -9,11 +9,12 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   getDoctrine, getInstruction, putInstruction, deleteInstruction,
   getInstructionVersions, revertInstruction, getToolRegistry, getInstructionUsage,
-  publishDoctrine,
+  publishDoctrine, getOrg,
 } from '@/api/console'
-import type { DoctrineBundle, InstructionUsage, InstructionVersion } from '@/types/api'
+import type { DoctrineBundle, InstructionUsage, InstructionVersion, OrgMember } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { accountLabel } from '@/lib/accountLabel'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { buildReg, hasDead, refNames, type ToolReg } from '@/components/console/doctrine/tools'
@@ -71,6 +72,18 @@ const shareOpen = ref(false)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const bodyCache = reactive<Record<string, string>>({})
+// Roster de l'org consultée (bundle.org_id, ADR 0023) — résout `set_by` (un sub) en
+// nom/email dans l'historique des versions (oto-dashboard#143). `org.get` est ouvert
+// à tout membre de l'org, pas seulement à un admin : aucun appel au-delà de ceux que
+// cet écran fait déjà pour son propre contenu.
+const orgMembers = ref<OrgMember[]>([])
+async function loadOrgMembers(orgId: number) {
+  try { orgMembers.value = (await getOrg(orgId)).members ?? [] }
+  catch { orgMembers.value = [] }
+}
+function authorLabel(v: InstructionVersion): string {
+  return accountLabel(v.set_by, orgMembers.value)
+}
 
 const canEdit = computed(() => bundle.value?.can_edit ?? false)
 const noOrg = computed(() => bundle.value?.org_id == null)
@@ -122,7 +135,10 @@ async function loadAll() {
     const [b, r] = await Promise.all([getDoctrine(), getToolRegistry().catch(() => ({ tools: [] }))])
     bundle.value = b
     reg.value = buildReg(r.tools)
-    if (b.org_id != null) await selectDoc(resolveToSlug(routeParam.value))
+    if (b.org_id != null) {
+      void loadOrgMembers(b.org_id)
+      await selectDoc(resolveToSlug(routeParam.value))
+    }
   } catch (e) {
     error.value = humanize(e)
   } finally {
@@ -423,7 +439,7 @@ async function removeSkill(slug: string, label: string) {
             <div v-for="v in versions" :key="v.version" class="vrow">
               <span class="vrow__dot" :class="{ cur: v.version === curVersion }" />
               <span class="vrow__v">v{{ v.version }}</span>
-              <div class="vrow__meta">{{ v.set_by ?? '—' }} · {{ fmtDate(v.created_at) }}</div>
+              <div class="vrow__meta">{{ authorLabel(v) }} · {{ fmtDate(v.created_at) }}</div>
               <span v-if="v.version === curVersion" class="tag tag--ver">actuelle</span>
               <template v-else>
                 <button type="button" class="btn-ghost-xs" :disabled="viewLoading"

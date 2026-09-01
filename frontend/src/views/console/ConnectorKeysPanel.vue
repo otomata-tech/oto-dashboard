@@ -8,20 +8,32 @@ import { onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
-import { getConnectorInstances, verifyConnector } from '@/api/console'
+import { getConnectorInstances, verifyConnector, getOrg } from '@/api/console'
 import { fmtDate } from '@/types/api'
-import type { ConnectorInstance } from '@/types/api'
+import type { ConnectorInstance, OrgMember } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { accountLabel } from '@/lib/accountLabel'
+import { useMe } from '@/composables/useMe'
 
+const { me } = useMe()
 const rows = ref<ConnectorInstance[]>([])
+const orgMembers = ref<OrgMember[]>([])
 const loaded = ref(false)
 const error = ref<string | null>(null)
 
 async function load() {
   try {
-    rows.value = (await getConnectorInstances()).instances
+    const org = me.value?.active_org
+    const [inst, members] = await Promise.all([
+      getConnectorInstances(),
+      // Roster de l'org consultée : résout `set_by` (un sub) en nom/email — un
+      // membre de l'équipe qui pose une clé y figure aussi (oto-dashboard#143).
+      org != null ? getOrg(org).then((d) => d.members ?? []).catch(() => []) : Promise.resolve([]),
+    ])
+    rows.value = inst.instances
       .filter((i) => i.level === 'org' || i.level === 'group')
       .sort((a, b) => a.connector.localeCompare(b.connector))
+    orgMembers.value = members
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
@@ -56,7 +68,7 @@ const scopeLabel = (i: ConnectorInstance) =>
           <tr v-for="i in rows" :key="i.ref">
             <td class="k-name">{{ i.name }}</td>
             <td><Tag :tone="i.level === 'group' ? 'cobalt' : 'olive'">{{ scopeLabel(i) }}</Tag></td>
-            <td class="k-dim">{{ i.set_by || '—' }}<span v-if="i.set_at"> · {{ fmtDate(i.set_at) }}</span></td>
+            <td class="k-dim">{{ accountLabel(i.set_by, orgMembers) }}<span v-if="i.set_at"> · {{ fmtDate(i.set_at) }}</span></td>
             <td class="k-test">
               <span v-if="tests[i.ref]?.label" class="k-res" :class="{ ok: tests[i.ref]?.ok }">{{ tests[i.ref]?.label }}</span>
               <Btn kind="mini" @click="test(i)">{{ tests[i.ref]?.busy ? '…' : 'tester' }}</Btn>
