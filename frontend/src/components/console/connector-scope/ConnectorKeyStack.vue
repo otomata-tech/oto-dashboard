@@ -5,7 +5,7 @@
 // Alimenté par la cascade réelle (`getConnectorInstances`, ADR 0038/0044) + le mode
 // résolu (`me.providers[name].mode`). Vocabulaire FR imposé (§2). Pas de réordonnancement :
 // pour passer sur la clé du dessous, on SUSPEND (temporaire) ou on RETIRE (définitif).
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import Dot from '@/components/console/Dot.vue'
 import Btn from '@/components/console/Btn.vue'
 import { useMe } from '@/composables/useMe'
@@ -48,6 +48,16 @@ async function load() {
   } catch (e) { toast(humanize(e)) } finally { loading.value = false }
 }
 onMounted(load)
+
+// ⚠️ La pile suit le PROFIL, sinon elle MENT. Les gestes qui changent la cascade ne
+// vivent pas tous ici : poser une clé et ajouter un compte nommé passent par le
+// dialogue hébergé à côté du panneau, qui ne démonte rien. Restée sur son instantané
+// de montage, la pile ignorait le compte qui vient d'être ajouté — donc `relayFor` y
+// voyait une seule clé et le dialog de retrait annonçait « rien ne prendra le relais »
+// alors qu'il restait un second workspace. C'est exactement le mensonge que ce
+// composant existe pour éviter (`lib/keyStack.ts`). `me` est le signal partagé de
+// toutes les écritures de credential : chaque geste de l'adaptateur le recharge.
+watch(me, load)
 
 // Solo (org perso, principe 9) : jamais les mots « org » ni « équipe ».
 const isPersonal = computed(() => !!me.value?.active_org_is_personal)

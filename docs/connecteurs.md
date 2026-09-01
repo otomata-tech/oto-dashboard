@@ -230,6 +230,51 @@ de toolbox vivent en bas de la même vue. Les **tokens CLI** ont migré vers le 
 > dit désormais « il te restera N workspaces — ton agent devra préciser lequel ». Et les
 > lignes de la pile portent le nom du compte, sinon deux « Ta clé » ne se distinguent pas.
 
+### Amendement du 2026-09-01 — les deux vues suivent le profil, et l'absence de défaut se dit
+
+Deux pannes du premier lot, contrôlées contre le contrat servi par oto-backend et
+figées par des tests.
+
+**1. La liste ne suivait pas le geste qu'elle documente.** `ConnectorKeyAccounts` et
+`ConnectorKeyStack` chargent leur liste au montage. Or le dialogue d'ajout est hébergé
+par `ConnectorScopeView`, **à côté** du panneau : une pose réussie ne démonte rien.
+Ajouter un second workspace affichait donc « ajouté » au toast, puis **un seul compte à
+l'écran**, sous la phrase qui invite à en ajouter un second — et la pile, elle, n'y
+voyait toujours qu'une clé, donc `relayFor` annonçait « rien ne prendra le relais »
+alors qu'il restait bien un second compte. Le miroir mentait exactement là où il
+existe pour ne pas mentir.
+
+Les deux composants suivent désormais `me` (`watch(me, load)`). C'est le signal
+partagé de toute écriture de credential — chaque geste de l'adaptateur le recharge — et
+c'est le bon signal, pas seulement un signal disponible : les comptes se lisent au
+palier membre de l'**org de contexte**, qui change avec `me`. La couture est testée des
+deux côtés (`useUserAdapter.spec.ts` : le geste recharge le profil ;
+`ConnectorKeyAccounts.spec.ts` : la liste suit le profil) — une moitié seule ne serait
+qu'une intention.
+
+**2. Rien ne pose de compte par défaut, et l'écran ne le disait pas.** Le serveur
+n'écrit `is_default` que sur le geste explicite (`_keyed_select`) : **après une deuxième
+pose, aucune ligne ne le porte**. La cascade refuse alors de choisir à la place de
+l'utilisateur et lève « plusieurs comptes configurés, aucun marqué par défaut — précise
+lequel ». Autrement dit : ajouter un second workspace **casse les appels d'outil** tant
+qu'on n'a pas choisi. L'écran affichait deux lignes sans un mot là-dessus. Il porte
+maintenant l'avertissement à côté du bouton qui répare.
+
+**3. Le geste d'ajout survit à une liste illisible.** Le bloc n'est monté que sur un
+credential déjà posé : « poser un compte de plus » reste donc vrai même quand
+`getConnectorIdentities` échoue. Il était masqué avec la liste — la capacité
+disparaissait sur un hoquet réseau.
+
+⚠️ **Angle mort connu, côté backend.** La garde d'écriture tranche sur
+`connectors.cardinality.is_multi_account(connector, org)` (surcharge org > plateforme >
+registre), mais le catalogue `GET /api/connectors` est servi **sans auth** et ne peut
+donc porter que le défaut du CODE (`auth.cardinality`), et le sélecteur d'identités
+enregistre ses backends **au boot** sur ce même défaut. Un connecteur rendu multi par
+surcharge DB seulement accepte donc un `account` à l'écriture, mais l'écran ne le
+propose pas et `/identities` répond `supported:false`. Rien à contourner ici : c'est un
+écart à remonter à oto-backend. Sans objet pour les 74 connecteurs multi par le code
+(Slack compris).
+
 ## Un connecteur = 3 projections par audience (ADR 0022)
 
 **Un connecteur = 3 projections par audience (ADR 0022).** La même chose vue de trois sièges,
