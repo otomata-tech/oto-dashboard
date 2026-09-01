@@ -485,12 +485,15 @@ async function transfer() {
     </div>
 
     <DatastoreStatusBar v-if="cockpit" :states="lifecycleStates" :counts="statusCounts"
-      :active="activeStatus" :total="statusTotal" @select="onStatusSelect" />
+      :active="activeStatus" :total="statusTotal"
+      :abandon-state="statusField?.lifecycle?.abandon_state ?? null"
+      :max-claims="statusField?.lifecycle?.max_claims ?? null" @select="onStatusSelect" />
 
     <DatastoreMetrics v-if="metricTiles.length" :tiles="metricTiles" />
 
     <DatastoreQueueBar v-if="queueRows.length" :rows="queueRows" :can-write="!readOnly"
-      :title-field="titleFieldKey" @open="openRow" @release="onRelease" />
+      :title-field="titleFieldKey" :lifecycle="statusField?.lifecycle ?? null"
+      @open="openRow" @release="onRelease" />
 
     <DatastoreActivity v-if="activityOpen && name" :key="`${name}:${activityNonce}`"
       :namespace="name" @open="openRowById" />
