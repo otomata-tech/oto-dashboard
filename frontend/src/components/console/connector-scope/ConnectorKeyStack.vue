@@ -62,7 +62,7 @@ onMounted(load)
 // Solo (org perso, principe 9) : jamais les mots « org » ni « équipe ».
 const isPersonal = computed(() => !!me.value?.active_org_is_personal)
 
-const LEVEL_RANK: Record<string, number> = { member: 0, group: 1, org: 2, platform: 3 }
+const LEVEL_RANK: Record<string, number> = { member: 0, group: 1, org: 2, tenant: 3, platform: 4 }
 // Nom contextuel d'un niveau (principe 8) — court, sans pédagogie de cascade.
 // Le nom d'un compte NOMMÉ, avec le mot du fournisseur servi par le registre
 // (« workspace » chez Slack). Vide pour la ligne mono historique.
@@ -77,6 +77,11 @@ function levelName(i: ConnectorInstance): string {
     // En solo, une clé de niveau org/équipe (rare dans un espace perso) reste « ta clé ».
     case 'group': return isPersonal.value ? 'Ta clé' : `Clé de l’équipe ${i.owner.label || ''}`.trim()
     case 'org': return isPersonal.value ? 'Ta clé' : `Clé de ton org${i.owner.label ? ` ${i.owner.label}` : ''}`
+    // Jamais « ta clé », même en solo (principe 9 : l'org, c'est toi — mais un tenant
+    // ne l'est pas). Non modifiable ici : le tenant se pose/retire depuis SA propre
+    // surface admin (oto-backend#603/#604), jamais depuis la pile d'une org membre —
+    // et sans action dans `.ks-actions` ci-dessous puisqu'elle ne cible que `member`.
+    case 'tenant': return `Clé de ton tenant${i.owner.label ? ` ${i.owner.label}` : ''}`
     case 'platform': return 'Clé oto'
     default: return i.name
   }

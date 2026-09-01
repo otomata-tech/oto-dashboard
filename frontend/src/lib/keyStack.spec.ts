@@ -28,6 +28,9 @@ describe('isInactiveTeam', () => {
   it('ne concerne que le palier équipe', () => {
     expect(isInactiveTeam(inst({ level: 'org' }), null)).toBe(false)
     expect(isInactiveTeam(inst({ level: 'member' }), null)).toBe(false)
+    // Palier tenant (oto-backend#603/#604, oto-dashboard#133) : ni équipe active ni
+    // inactive, la notion ne s'applique juste pas.
+    expect(isInactiveTeam(inst({ level: 'tenant' }), null)).toBe(false)
   })
 })
 
@@ -51,6 +54,11 @@ describe('rowState', () => {
   })
   it('un prêt nominatif au même palier ne se déclare pas « utilisée »', () => {
     expect(rowState(inst({ level: 'member', via: 'shared_with_me' }), 'member', null)).toBe('reserve')
+  })
+  it("le palier tenant se comporte comme n'importe quel autre palier partagé (oto-dashboard#133)", () => {
+    const tenant = inst({ level: 'tenant', owner: { type: 'tenant', id: 'pilote' }, via: 'tenant_key' })
+    expect(rowState(tenant, 'tenant', null)).toBe('used')
+    expect(rowState(tenant, 'platform', null)).toBe('reserve')
   })
 })
 
@@ -125,6 +133,12 @@ describe('relayFor — multi-compte (oto-dashboard#121)', () => {
   it('mono-compte : le palier du dessous prend la suite, comme avant', () => {
     const m = inst({ level: 'member' }), org = inst({ level: 'org' })
     expect(relayFor([m, org], m, null)).toEqual({ kind: 'instance', instance: org })
+  })
+
+  it("une clé de tenant est un relais valide, entre l'org et la plateforme (oto-dashboard#133)", () => {
+    const org = inst({ level: 'org' })
+    const tenant = inst({ level: 'tenant', owner: { type: 'tenant', id: 'pilote' }, via: 'tenant_key' })
+    expect(relayFor([org, tenant], org, null)).toEqual({ kind: 'instance', instance: tenant })
   })
 
   it('plus rien de vivant : aucun relais', () => {

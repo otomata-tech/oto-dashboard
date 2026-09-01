@@ -212,21 +212,25 @@ export interface ZohoOauthModes {
 }
 
 // Instance de connecteur (ADR 0038 §B / 0044) — projection lecture du coffre :
-// une config possédée à un niveau (member/group/org/platform). Métadonnées seulement.
+// une config possédée à un niveau (member/group/org/tenant/platform). Métadonnées
+// seulement.
 // ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`ConnectorInstance` :
 //    account: déclaré nullable ; suspended: déclaré nullable). Le correctif est côté oto-
 //    backend — resserrer l'`Output` — puis `npm run api:refresh` ici.
 export interface ConnectorInstance {
   ref: string                  // handle opaque stable (cible de pin)
   connector: string
-  level: 'member' | 'group' | 'org' | 'platform'
+  // `tenant` (oto-backend#603/#604, oto-dashboard#133) : la clé partagée du tenant de
+  // l'appelant — entre `org` et `platform`, comme dans le walker (`access.walk_cascade`).
+  level: 'member' | 'group' | 'org' | 'tenant' | 'platform'
   owner: { type: string; id: string | number; label?: string | null }
   name: string                 // nom dérivé (Connecteur · compte)
   account?: string
   secret_kind?: string | null
   set_by?: string | null
   set_at?: string | null
-  via?: string                 // 'credential' | 'shared_with_me' | grant plateforme…
+  // 'credential' | 'shared_with_me' | 'tenant_key' | grant plateforme…
+  via?: string
   suspended?: boolean          // clé membre mise de côté (lot 2) — sautée par la cascade
 }
 
@@ -269,9 +273,16 @@ export type GroupAclEntry = components['schemas']['GroupAclEntry']
 // ou membre) autorisé sur un connecteur. ≥1 entrée pour un connecteur ⟹ il est réservé.
 export type ConnectorAclEntry = components['schemas']['AclEntry']
 
-// Miroir de access.py::status_for (cascade user > group > org > platform).
+// Miroir de access.py::status_for (cascade user > group > org > tenant > platform).
+// ⚠️ ÉCRIT À LA MAIN — `/api/me` est bien dans le document servi, mais son champ
+// `providers` y est déclaré `additionalProperties: true` (dict ouvert, aucune forme) :
+// le contrat servi est plus LÂCHE que l'écran, comme `ConnectorInstance` ci-dessus.
 export interface ProviderStatus {
-  mode: 'user' | 'group' | 'org' | 'platform' | 'forbidden' | 'over_quota'
+  // `tenant` (oto-backend#603/#604, oto-dashboard#133) : la clé gagnante est celle
+  // partagée par le tenant de l'appelant — pas de flag `tenant_secret_configured`
+  // séparé côté backend (contrairement à `org_secret_configured`), donc `keyLevelCount`
+  // ne la compte pas dans le suffixe (+N) : limite assumée, pas un oubli d'ici.
+  mode: 'user' | 'group' | 'org' | 'tenant' | 'platform' | 'forbidden' | 'over_quota'
   user_key_configured: boolean
   group_secret_configured?: boolean
   org_secret_configured: boolean

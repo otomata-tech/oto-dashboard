@@ -74,6 +74,17 @@ describe('connectorVerdict — résolution (actif)', () => {
     expect(v.list).toBe('Actif · ta clé')
   })
 
+  it('résolu par clé de tenant → Actif · clé de tenant (oto-backend#603/#604, oto-dashboard#133)', () => {
+    const v = connectorVerdict(conn(), ps({ mode: 'tenant', user_key_configured: false }))
+    expect(v.list).toBe('Actif · clé de tenant')
+  })
+
+  it("tenant : jamais « ta clé », même en solo — contrairement à org/group (le tenant n'est pas toi)", () => {
+    const v = connectorVerdict(
+      conn(), ps({ mode: 'tenant', user_key_configured: false }), { isPersonal: true })
+    expect(v.list).toBe('Actif · clé de tenant')
+  })
+
   it('multi-clés (ta clé + équipe + org) → suffixe (+2)', () => {
     const v = connectorVerdict(conn(), ps({
       mode: 'user', user_key_configured: true,
