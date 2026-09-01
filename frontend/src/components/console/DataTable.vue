@@ -13,6 +13,7 @@ import {
   metaFieldLabel, META_DATE_FIELDS,
   type ColFilterState, type FilterKind,
 } from '@/lib/datastoreFilters'
+import { userFields, defaultColumns } from '@/lib/datastoreColumns'
 
 // Grille SERVER-DRIVEN : tri/pagination/recherche/filtres côté API (le parent fetch).
 // Ce composant n'affiche que la page courante et émet les changements.
@@ -46,14 +47,11 @@ const PAGE_SIZES = [25, 50, 100]
 
 // Colonnes = champs user de la page courante (ordre de 1re apparition) + « updated ».
 // Tout champ méta `_…` est exclu (dont `_claimed_by`/`_claimed_until`, bail de la
-// file de travail v2 — rendu en badge dans les fiches, pas en colonne).
-const fields = computed<string[]>(() => {
-  const seen: string[] = []
-  for (const row of props.rows)
-    for (const k of Object.keys(row))
-      if (!k.startsWith('_') && !seen.includes(k)) seen.push(k)
-  return seen
-})
+// file de travail v2 — rendu en badge dans les fiches, pas en colonne). Règle
+// partagée avec l'export CSV (`lib/datastoreColumns`, oto-dashboard#137) : deux
+// calculs indépendants du « quelles colonnes » sont ce qui a laissé les colonnes
+// internes fuiter côté export.
+const fields = computed<string[]>(() => userFields(props.rows))
 // ── colonnes AFFICHÉES ──────────────────────────────────────────────────────
 // **Le schéma décide.** Un champ déclaré `hidden` est masqué, tous les autres sont
 // affichés — sans plafond. Un plafond arbitraire par-dessus `hidden` contredisait
@@ -68,11 +66,7 @@ const fieldByKey = computed(() =>
   Object.fromEntries(schemaFields.value.filter((f) => f.key).map((f) => [f.key, f])))
 
 /** Colonnes par défaut : tout ce que le schéma ne masque pas, dans son ordre. */
-const defaultCols = computed<string[]>(() => {
-  const all = fields.value
-  if (!schemaFields.value.length) return all
-  return all.filter((k) => fieldByKey.value[k]?.hidden !== true)
-})
+const defaultCols = computed<string[]>(() => defaultColumns(fields.value, props.schema))
 
 // `cols` est CONTRÔLÉ par le parent (miroir d'URL) comme la recherche et les filtres :
 // une valeur locale se perdait à chaque remontage du composant — c'est ce qui faisait
