@@ -262,7 +262,8 @@ export interface PosteResultat {
  * (gardes, relevé d'outils) — elles ne doivent pas retomber dans « autres ». */
 const NOMMEES = new Set<string>([
   'model', 'steps', 'stopped', 'claims', 'writes',
-  'usage_tokens', 'usage_cache_read', 'usage_cache_write',
+  'usage_tokens', 'usage_input', 'usage_output',
+  'usage_cache_read', 'usage_cache_write',
   'faux_depart', 'claim_vide', 'hors_schema',
   'tool_counts',
   ...GARDES.map((g) => g.cle),
@@ -315,6 +316,11 @@ export function postesResultat(j: RunnerJob): PosteResultat[] {
   pousse('model', 'modèle', chaine(r.model))
 
   pousse('usage_tokens', 'jetons facturés', jetons(entier(r.usage_tokens)))
+  // Entrée et sortie séparées : avec un cache, « facturés » seul ne dit plus d'où
+  // vient le coût — un tour cher en sortie et un tour cher en entrée ne se
+  // corrigent pas de la même façon.
+  pousse('usage_input', 'jetons en entrée', jetons(entier(r.usage_input)))
+  pousse('usage_output', 'jetons en sortie', jetons(entier(r.usage_output)))
   pousse('usage_cache_read', 'jetons lus en cache', jetons(entier(r.usage_cache_read)))
   pousse('usage_cache_write', 'jetons écrits en cache', jetons(entier(r.usage_cache_write)))
   return out

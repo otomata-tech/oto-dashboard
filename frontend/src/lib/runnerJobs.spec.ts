@@ -226,3 +226,52 @@ describe('lecture du résultat', () => {
     expect(autres.map((a) => a.cle)).not.toContain('valeurs_cliente_reparees')
   })
 })
+
+describe('le worker démonté (01/09/2026) — ce que l’écran fait du silence', () => {
+  /** La forme RÉELLE que le worker sert depuis qu'il a perdu son métier : plus
+   * aucun poste de garde, plus de `claims`/`writes`, plus de `faux_depart`. Il
+   * exécute des agents et ne sait plus ce qu'ils font — c'était le but.
+   * Ces tests gravent le fait qu'un écran nourri de ce silence reste MUET au
+   * lieu de devenir FAUX : un poste absent n'est pas un poste à zéro. */
+  const DEMONTE = {
+    usage_tokens: 12345, usage_input: 10000, usage_output: 2345,
+    usage_cache_read: 9000, usage_cache_write: 0,
+    stopped: 'end_turn', steps: 7, model: 'mistral-large-2512',
+    tool_counts: { data_claim_next: 1, data_write: 1 },
+  }
+
+  it('ne rend aucun poste de garde, et surtout aucun à zéro', () => {
+    const j = job({ result: DEMONTE })
+    const etats = GARDES.map((g) => releveGarde(j, g).etat)
+    expect(etats.every((e) => e === 'absent')).toBe(true)
+    expect(aUneGarde(j)).toBe(false)
+    expect(totalGardes(j)).toBe(0)
+  })
+
+  it('ne crie pas à l’angle mort : ne rien déclarer n’est pas ne pas avoir regardé', () => {
+    // `non-mesure` dit « la garde a tourné sans pouvoir conclure ». Un worker qui
+    // n'a plus de garde du tout ne doit pas emprunter ce mot-là.
+    expect(angleMort(job({ result: DEMONTE }))).toBe(false)
+  })
+
+  it('n’invente ni réservation ni écriture quand le worker n’en parle plus', () => {
+    const cles = postesResultat(job({ result: DEMONTE })).map((p) => p.cle)
+    expect(cles).not.toContain('claims')
+    expect(cles).not.toContain('writes')
+    expect(cles).not.toContain('faux_depart')
+    expect(cles).not.toContain('claim_vide')
+  })
+
+  it('rend quand même ce que le worker déclare VRAIMENT — coût, arrêt, modèle', () => {
+    const cles = postesResultat(job({ result: DEMONTE })).map((p) => p.cle)
+    expect(cles).toContain('usage_tokens')
+    expect(cles).toContain('stopped')
+    expect(cles).toContain('model')
+    expect(cles).toContain('steps')
+  })
+
+  it('ne déverse pas les compteurs connus dans « autres »', () => {
+    const autres = autresResultat(job({ result: DEMONTE })).map((a) => a.cle)
+    expect(autres).toEqual([])
+  })
+})
