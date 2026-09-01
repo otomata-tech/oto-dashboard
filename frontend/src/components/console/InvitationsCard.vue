@@ -17,7 +17,8 @@ import { useFormDialog } from '@/composables/useFormDialog'
 import { useInvitations, type InviteScope } from '@/composables/useInvitations'
 import type { OrgInvitation } from '@/types/api'
 import { fmtDate } from '@/types/api'
-import { humanize } from '@/lib/errors'
+import { humanize, explain } from '@/lib/errors'
+import { ApiError } from '@/api'
 
 const props = defineProps<{ scope: InviteScope; canManage: boolean }>()
 
@@ -47,6 +48,25 @@ function isLead(iv: OrgInvitation): boolean {
   return roleOf(iv) === 'group_admin' || roleOf(iv) === 'org_admin'
 }
 
+// Émet l'invitation et enchaîne l'effet de bord (mail envoyé → toast, lien à
+// partager → dialog de révélation) ; factorisé pour être rejoué tel quel depuis
+// l'action « resend » du toast `already_invited`.
+async function doInvite(email: string | null, role: string, sendMail: boolean) {
+  const res = await invite(email, role, sendMail)
+  if (res.emailed) toast(`invite sent to ${res.email}`)
+  else openReveal({
+    title: 'share this invite yourself',
+    description: `send this link (or code) to the person — it joins them to ${noun.value}.`,
+    submitLabel: 'done',
+    fields: [
+      { key: 'url', label: 'invite link', initial: res.invite_url },
+      { key: 'code', label: 'code', initial: res.code },
+    ],
+    onConfirm: async () => {},
+  })
+  await reload()
+}
+
 function openInvite() {
   // Le rôle n'a de sens que pour org/équipe ; au niveau plateforme = onboarding pur.
   const fields = [
@@ -71,20 +91,30 @@ function openInvite() {
       if (sendMail && !email) { toast('an email is required to send by email'); throw new Error('email required') }
       const role = (v.role as string) || defaultRole.value
       try {
-        const res = await invite(email || null, role, sendMail)
-        if (res.emailed) toast(`invite sent to ${res.email}`)
-        else openReveal({
-          title: 'share this invite yourself',
-          description: `send this link (or code) to the person — it joins them to ${noun.value}.`,
-          submitLabel: 'done',
-          fields: [
-            { key: 'url', label: 'invite link', initial: res.invite_url },
-            { key: 'code', label: 'code', initial: res.code },
-          ],
-          onConfirm: async () => {},
-        })
-        await reload()
-      } catch (e) { toast(humanize(e)); throw e }
+        await doInvite(email || null, role, sendMail)
+      } catch (e) {
+        // 409 already_member / already_invited (oto-backend#624) : le backend écrit
+        // `detail` pour être lu tel quel — jamais le code brut. `already_invited`
+        // porte en plus `details.invitation.id`, de quoi RENVOYER (révoquer puis
+        // ré-émettre) sans faire retaper le formulaire.
+        const invite409 = e instanceof ApiError && e.code === 'already_invited'
+          ? (e.details?.invitation as { id: number } | undefined) : undefined
+        if (invite409) {
+          toast(explain(e), { action: {
+            label: 'resend',
+            run: async () => {
+              try {
+                await revoke(invite409.id)
+                await doInvite(email || null, role, sendMail)
+                formDialogOpen.value = false
+              } catch (e2) { toast(explain(e2)) }
+            },
+          } })
+        } else {
+          toast(explain(e))
+        }
+        throw e
+      }
     },
   })
 }
