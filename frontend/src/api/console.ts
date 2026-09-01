@@ -18,6 +18,10 @@ import type {
   EmailSettingsBundle, EmailSender, QuietHours, ScheduledEmail,
   TenantRow, TenantTotals, TenantSheet,
 } from '@/types/api'
+// ⚠️ Contrat SERVI PAR UN LOT NON DÉPLOYÉ (oto-backend PR #723) — écrit à la main
+// parce qu'une régénération depuis l'OpenAPI en ligne l'effacerait. Cf. le fichier.
+import type { BailDuTravail, PostesDeGarde, RunnerFleet, RunnerFleetState }
+  from '@/types/api.attendu'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
 
@@ -163,25 +167,28 @@ export const finalizeConnectorSession = (
 
 // ── google ──
 export const getGoogleStatus = () => api<GoogleOauthStatus>('/api/google/oauth/status')
-export const startGoogleOauth = () => api<{ auth_url: string }>('/api/google/oauth/start')
 export const setGoogleDefault = (account: string) =>
   api('/api/google/oauth/default', { method: 'POST', ...j({ account }) })
 export const revokeGoogle = (account?: string) =>
   api(`/api/google/oauth${account ? `?account=${encodeURIComponent(account)}` : ''}`, { method: 'DELETE' })
 
 // ── MCP fédéré générique, par connecteur (#40 — atlassian & co.) ──
-// Routes paramétrées par le nom du connecteur :
-// /api/<name>/oauth/{status,start} + DELETE /api/<name>/oauth.
+// `status`/`disconnect` restent sur le chemin nommé par connecteur : leur forme
+// diffère d'un connecteur à l'autre (Google est multi-compte, les fédérations MCP
+// rendent {connected, set_at}) et leur équivalent générique reste à cadrer avec le
+// backend (oto-dashboard#125, item 2). Démarrer le flux, lui, n'a plus besoin d'un
+// chemin par connecteur — `startConnectorFlow` ci-dessous le fait pour tous.
 export const getFederatedStatus = (name: string) => api<FederatedStatus>(`/api/${name}/oauth/status`)
-export const startFederatedOauth = (name: string) => api<{ auth_url: string }>(`/api/${name}/oauth/start`)
 export const disconnectFederated = (name: string) => api(`/api/${name}/oauth`, { method: 'DELETE' })
 
-// ── zoho : connexion « server-based » (SECOND mode, le self client reste) ──
-// UNE paire de routes pour les 3 connecteurs zoho (le connecteur voyage dans le state
-// signé) ; la région est obligatoire — app et token sont liés à leur data center.
+// ── connexion « server-based » via flux déclaré (zoho, salesforce, atlassian,
+// folkmcp, google…) ──
+// UN chemin fixe pour tous les connecteurs à flux : le connecteur voyage en
+// paramètre, jamais dans le chemin.
 /** Démarre le flux de connexion DÉCLARÉ par le connecteur. Chemin FIXE, nom en
  *  paramètre : plus une fonction cliente par connecteur, plus de liste de noms.
- *  Les valeurs attendues viennent de `connector.connect.params`. */
+ *  Les valeurs attendues viennent de `connector.connect.params` (objet vide pour un
+ *  flux sans paramètre — google, atlassian, folkmcp). */
 export const startConnectorFlow = (connector: string, params: Record<string, string>) =>
   api<{ auth_url: string }>(`/api/me/connectors/${encodeURIComponent(connector)}/connect`,
     { method: 'POST', body: JSON.stringify({ params }) })
@@ -298,7 +305,7 @@ export const getProject = (id: number) => projectsApi<Project>({ op: 'get', proj
 export const createProject = (name: string, brief_md = '',
                               owner?: { owner_type: 'user' | 'org' | 'group' | 'platform'; owner_id?: string }) =>
   projectsApi<Project>({ op: 'create', name, brief_md, ...(owner ?? {}) })
-export const updateProject = (id: number, fields: { name?: string; icon?: string; brief_md?: string; is_template?: boolean }) =>
+export const updateProject = (id: number, fields: { name?: string; icon?: string; brief_md?: string; is_template?: boolean; excluded_url_prefixes?: string[] }) =>
   projectsApi<Project>({ op: 'update', project_id: id, ...fields })
 // Copie profonde d'un projet (le sien ou un modèle) → nouveau projet dans l'org active (B5a).
 export const copyProject = (id: number, name: string) =>
@@ -356,7 +363,11 @@ export const enqueueRunContinue = (runId: string) =>
 // ── Surveillance des agents (page Automatisations) ──────────────────────────
 // La file d'exécution du runner (jobs) + les déclencheurs programmés. Lecture
 // org-scopée ; le fil d'un run se lit par getRunThread (même capacité R1).
-export interface RunnerJob {
+// `BailDuTravail` apporte `lease_until` — la fin du bail de la prise en cours,
+// servie désormais sur `list`/`get` et plus seulement au worker qui vient de
+// claimer. ⚠️ Elle ne se lit JAMAIS seule : c'est le `status` qui dit si cette
+// date est un bail en cours, un bail expiré, ou le bail qui ÉTAIT tenu.
+export interface RunnerJob extends BailDuTravail {
   id: number
   kind: 'start' | 'continue'
   run_id: string | null
@@ -370,7 +381,22 @@ export interface RunnerJob {
   // le cache se compte à côté (`usage_cache_*`), sinon un run à gros cache paraît
   // gratuit. `claims`/`writes` disent le TOUR PERDU d'un coup d'œil : un agent qui
   // réserve une ligne et conclut sans écrire ne produit aucune erreur.
-  result: {
+  //
+  // ⚠️ Le schéma SERVI (`JobResult`, capacité `runner.jobs`) ne nomme que quatre
+  // de ces champs — `usage_tokens`, `stopped`, `steps`, `tool_counts` — et se
+  // déclare `extra=allow`. Tout le reste ci-dessous traverse le contrat sans y
+  // être décrit : c'est une convention entre le worker et cet écran, pas une
+  // garantie d'API. D'où l'`index signature` en fin de bloc, et le rendu
+  // générique de `lib/runnerJobs` : un champ neuf s'affiche sous sa clé brute
+  // au lieu d'attendre qu'on pense à le déclarer ici.
+  //
+  // Les POSTES DE GARDE viennent de `PostesDeGarde` — ce que la garde a dû
+  // rattraper sur les données que le travail a écrites. Un travail peut se
+  // conclure « terminé » avec des gardes garnies : aucune erreur n'est levée,
+  // et c'est pour ça que la surveillance les remonte en tête. ⚠️ Ce sont des
+  // LISTES DE NOMS, pas des compteurs — on les avait typés `number`, et une
+  // liste lue comme un nombre vaut zéro : le bandeau ne s'affichait jamais.
+  result: ({
     usage_tokens?: number
     usage_cache_read?: number
     usage_cache_write?: number
@@ -383,7 +409,10 @@ export interface RunnerJob {
     model?: string | null
     estampille?: boolean
     tool_counts?: Record<string, number>
-  } | null
+    // Colonnes écrites hors du schéma déclaré du tableau.
+    hors_schema?: string[]
+    [champ: string]: unknown
+  } & PostesDeGarde) | null
   due_at: string | null
   created_at: string | null
   finished_at: string | null
@@ -391,6 +420,16 @@ export interface RunnerJob {
 export const listRunnerJobs = (status?: RunnerJob['status'], limit = 50) =>
   api<{ jobs: RunnerJob[] }>('/api/me/runner/jobs', {
     method: 'POST', ...j({ op: 'list', status, limit }),
+  })
+
+export type { RunnerFleet, RunnerFleetState }
+export const listRunnerFleets = (status?: string) =>
+  api<{ fleets: RunnerFleet[] }>('/api/me/runner/fleets', {
+    method: 'POST', ...j({ op: 'list', status }),
+  })
+export const getRunnerFleetState = (id: number) =>
+  api<{ fleet: RunnerFleet; state: RunnerFleetState }>('/api/me/runner/fleets', {
+    method: 'POST', ...j({ op: 'state', fleet_id: id }),
   })
 
 export interface RunnerTrigger {

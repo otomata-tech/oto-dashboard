@@ -73,16 +73,17 @@ export function denyConsent(): void {
   if (enabled) posthog.opt_out_capturing()
 }
 
-// Retrait/révision du consentement (RGPD : retirer aussi simple que donner).
-// Efface la décision → le bandeau réapparaît ; l'état effectif reste tel quel
-// jusqu'au nouveau choix.
+// Retrait/révision du consentement (RGPD art. 7 §3 : retirer aussi simple que donner).
+// Coupe la capture, PURGE l'état PostHog stocké en local (persistence + session du
+// SDK — distinct_id, cookies/localStorage) puis efface notre propre décision → le
+// bandeau réapparaît pour un choix neuf. `opt_out_capturing_by_default: true` garantit
+// que rien ne repart après la purge tant qu'aucun nouveau consentement n'est donné.
+// Aucun rechargement de page nécessaire (tout est réactif via `consent`/`analyticsEnabled`).
 export function reopenConsent(): void {
-  // Suspend la capture pendant la ré-ouverture : tant que l'utilisateur n'a pas
-  // re-décidé, on ne collecte rien (le bandeau promet « rien avant accord »).
-  // Re-armé seulement s'il ré-accepte (grantConsent → applyOptIn).
   if (enabled) {
     posthog.opt_out_capturing()
     posthog.stopSessionRecording()
+    posthog.reset(true) // purge distinct_id + persistence/session (cookies, localStorage)
   }
   localStorage.removeItem(CONSENT_KEY)
   consent.value = null

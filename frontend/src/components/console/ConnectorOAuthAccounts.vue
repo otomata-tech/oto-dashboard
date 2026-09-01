@@ -1,14 +1,16 @@
 <script setup lang="ts">
 // Widget credential OAuth MULTI-COMPTE (ADR 0024, B2) — rendu INLINE dans la
 // ConnectorCard (fin de la carte ancrée #google). Auto-suffisant : charge son
-// propre statut et porte link / make-default / revoke. Aujourd'hui câblé sur les
-// endpoints Google (seul connecteur multi-compte) ; B3 généralisera aux autres
-// flux oauth en injectant le jeu d'endpoints par connecteur.
+// propre statut et porte link / make-default / revoke. `link` passe par le flux
+// générique déclaré (`startConnectorFlow`, ADR 0042 §Convergence des surfaces —
+// oto-dashboard#125) ; statut et révocation restent sur les endpoints Google
+// (seul connecteur multi-compte, forme propre — leur équivalent générique reste à
+// cadrer avec le backend) ; B3 généralisera l'affichage aux autres flux oauth.
 import { onMounted, ref } from 'vue'
 import Tag from './Tag.vue'
 import Btn from './Btn.vue'
 import Dot from './Dot.vue'
-import { getGoogleStatus, startGoogleOauth, setGoogleDefault, revokeGoogle } from '@/api/console'
+import { getGoogleStatus, startConnectorFlow, setGoogleDefault, revokeGoogle } from '@/api/console'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
@@ -24,7 +26,7 @@ async function refresh() { status.value = await getGoogleStatus().catch(() => nu
 onMounted(async () => { await refresh(); loading.value = false })
 
 async function link() {
-  try { const { auth_url } = await startGoogleOauth(); window.location.href = auth_url }
+  try { const { auth_url } = await startConnectorFlow('google', {}); window.location.href = auth_url }
   catch (e) { toast(humanize(e)) }
 }
 async function makeDefault(email: string) {

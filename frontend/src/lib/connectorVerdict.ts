@@ -21,6 +21,10 @@ export interface ConnectorVerdict {
 
 // Nb de niveaux qui portent réellement une clé — pour le suffixe (+N) et la décision
 // « déplier la pile » (KeyStack). On ne compte que ce qui existe pour la personne.
+// ⚠️ Ne compte PAS le palier `tenant` : le backend ne rend pas de flag
+// `tenant_secret_configured` (contrairement à `org_secret_configured`) — une clé de
+// tenant qui coexiste avec une autre est donc sous-comptée ici. `ConnectorKeyStack`
+// n'a pas ce trou : il compte la vraie liste d'instances (`getConnectorInstances`).
 export function keyLevelCount(ps?: ProviderStatus): number {
   if (!ps) return 0
   return (
@@ -43,6 +47,10 @@ function sourceLabel(r: MyConnector, ps: ProviderStatus, isPersonal: boolean): s
         : 'ta clé'
     case 'group': return isPersonal ? 'ta clé' : 'clé d’équipe'
     case 'org': return isPersonal ? 'ta clé' : 'clé d’org'
+    // Jamais « ta clé », même en solo : contrairement à `org`/`group`, un tenant n'est
+    // pas « toi » (principe 9 ne vaut que pour ce qui EST l'org — un tenant est un
+    // tiers au-dessus). oto-backend#603/#604, oto-dashboard#133.
+    case 'tenant': return 'clé de tenant'
     case 'platform': return 'clé oto'
     default: return 'ta clé'
   }

@@ -33,6 +33,7 @@ import {
 import type { NamespaceEntry, DatastoreRow, ColumnFilter } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { rowsToCsv, downloadCsv } from '@/lib/csv'
+import { userFields, visibleColumns } from '@/lib/datastoreColumns'
 import { filtersFromParam, filtersToParam } from '@/lib/datastoreFilters'
 import type { LifecycleIntent } from '@/lib/datastoreLifecycle'
 import { cleTitre } from '../../lib/datastoreTitle'
@@ -399,6 +400,12 @@ function openRowById(id: string) {
 }
 
 // ── export CSV du jeu FILTRÉ (paginé pour couvrir tout le vivier) ──
+// Colonnes = EXACTEMENT ce que l'écran montre (oto-dashboard#137) : les colonnes
+// internes de la plateforme (`_id`, `_claimed_by`…) en sont exclues par
+// construction (`userFields`), et parmi les colonnes utilisateur, le choix
+// ponctuel (`?cols=`, ref `cols` ci-dessus) ou à défaut le `hidden` enregistré au
+// schéma décide — jamais l'union brute des clés servies. Un export qui ignore ce
+// que l'utilisateur vient de masquer contredirait son geste.
 async function exportCsv() {
   const n = name.value
   if (!n || exporting.value) return
@@ -416,10 +423,8 @@ async function exportCsv() {
       all.push(...r.rows)
       if (off + STEP >= r.total || !r.rows.length) break
     }
-    const EXP = new Set(['_created_at'])
-    const cols: string[] = []
-    for (const row of all) for (const k of Object.keys(row)) if (!EXP.has(k) && !cols.includes(k)) cols.push(k)
-    downloadCsv(`${n}.csv`, rowsToCsv(all as Record<string, unknown>[], cols))
+    const exportCols = visibleColumns(userFields(all), meta.value?.schema, cols.value)
+    downloadCsv(`${n}.csv`, rowsToCsv(all as Record<string, unknown>[], exportCols))
     toast(`${all.length} row${all.length === 1 ? '' : 's'} exported`)
   } catch (e) { toast(humanize(e)) }
   finally { exporting.value = false }

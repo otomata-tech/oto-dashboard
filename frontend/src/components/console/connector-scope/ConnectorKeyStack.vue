@@ -5,17 +5,18 @@
 // Alimenté par la cascade réelle (`getConnectorInstances`, ADR 0038/0044) + le mode
 // résolu (`me.providers[name].mode`). Vocabulaire FR imposé (§2). Pas de réordonnancement :
 // pour passer sur la clé du dessous, on SUSPEND (temporaire) ou on RETIRE (définitif).
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import Dot from '@/components/console/Dot.vue'
 import Btn from '@/components/console/Btn.vue'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
-import { getConnectorInstances, suspendInstance } from '@/api/console'
+import { getConnectorInstances, suspendInstance, getOrg } from '@/api/console'
 import { rowState, relayOf, relayFor, isHealthKo } from '@/lib/keyStack'
 import type { RowState } from '@/lib/keyStack'
+import { accountLabel } from '@/lib/accountLabel'
 import type { ConnectionLever } from './adapter'
-import type { ConnectorInstance, MyConnector } from '@/types/api'
+import type { ConnectorInstance, MyConnector, OrgMember } from '@/types/api'
 import type { DotTone } from '@/lib/consoleTypes'
 
 const props = defineProps<{ connector: MyConnector; lever: ConnectionLever<MyConnector> }>()
@@ -39,20 +40,39 @@ const effective = computed<string | null>(() => {
 
 const instances = ref<ConnectorInstance[]>([])
 const loading = ref(true)
+// Roster de l'org consultée — résout `set_by` (un sub) en nom/email dans `meta()`
+// ci-dessous, plutôt que l'identifiant opaque (oto-dashboard#143). `org.get` est
+// ouvert à tout membre, pas seulement à un admin.
+const orgMembers = ref<OrgMember[]>([])
 async function load() {
   loading.value = true
   try {
-    const all = (await getConnectorInstances()).instances
+    const org = me.value?.active_org
+    const [all, members] = await Promise.all([
+      getConnectorInstances().then((r) => r.instances),
+      org != null ? getOrg(org).then((d) => d.members ?? []).catch(() => []) : Promise.resolve([]),
+    ])
     instances.value = all.filter((i) => i.connector === c.value.name)
+    orgMembers.value = members
     emit('keys', instances.value.length)
   } catch (e) { toast(humanize(e)) } finally { loading.value = false }
 }
 onMounted(load)
 
+// ⚠️ La pile suit le PROFIL, sinon elle MENT. Les gestes qui changent la cascade ne
+// vivent pas tous ici : poser une clé et ajouter un compte nommé passent par le
+// dialogue hébergé à côté du panneau, qui ne démonte rien. Restée sur son instantané
+// de montage, la pile ignorait le compte qui vient d'être ajouté — donc `relayFor` y
+// voyait une seule clé et le dialog de retrait annonçait « rien ne prendra le relais »
+// alors qu'il restait un second workspace. C'est exactement le mensonge que ce
+// composant existe pour éviter (`lib/keyStack.ts`). `me` est le signal partagé de
+// toutes les écritures de credential : chaque geste de l'adaptateur le recharge.
+watch(me, load)
+
 // Solo (org perso, principe 9) : jamais les mots « org » ni « équipe ».
 const isPersonal = computed(() => !!me.value?.active_org_is_personal)
 
-const LEVEL_RANK: Record<string, number> = { member: 0, group: 1, org: 2, platform: 3 }
+const LEVEL_RANK: Record<string, number> = { member: 0, group: 1, org: 2, tenant: 3, platform: 4 }
 // Nom contextuel d'un niveau (principe 8) — court, sans pédagogie de cascade.
 // Le nom d'un compte NOMMÉ, avec le mot du fournisseur servi par le registre
 // (« workspace » chez Slack). Vide pour la ligne mono historique.
@@ -67,6 +87,11 @@ function levelName(i: ConnectorInstance): string {
     // En solo, une clé de niveau org/équipe (rare dans un espace perso) reste « ta clé ».
     case 'group': return isPersonal.value ? 'Ta clé' : `Clé de l’équipe ${i.owner.label || ''}`.trim()
     case 'org': return isPersonal.value ? 'Ta clé' : `Clé de ton org${i.owner.label ? ` ${i.owner.label}` : ''}`
+    // Jamais « ta clé », même en solo (principe 9 : l'org, c'est toi — mais un tenant
+    // ne l'est pas). Non modifiable ici : le tenant se pose/retire depuis SA propre
+    // surface admin (oto-backend#603/#604), jamais depuis la pile d'une org membre —
+    // et sans action dans `.ks-actions` ci-dessous puisqu'elle ne cible que `member`.
+    case 'tenant': return `Clé de ton tenant${i.owner.label ? ` ${i.owner.label}` : ''}`
     case 'platform': return 'Clé oto'
     default: return i.name
   }
@@ -145,7 +170,7 @@ function fmtDate(s?: string | null): string {
   return d.length === 3 ? `${d[2]}/${d[1]}` : s
 }
 function meta(i: ConnectorInstance): string {
-  const who = i.set_by ? `posée par ${i.set_by}` : 'posée'
+  const who = i.set_by ? `posée par ${accountLabel(i.set_by, orgMembers.value)}` : 'posée'
   const when = i.set_at ? ` · ${fmtDate(i.set_at)}` : ''
   return who + when
 }

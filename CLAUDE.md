@@ -112,7 +112,7 @@ Les **contrats backend** sont dans `oto-backend/` : `CLAUDE.md` pour la carte,
 - ⚠️ **Les horodatages du backend arrivent en UTC SANS fuseau** (`2026-08-28 13:53:53`) :
   `Date.parse` les lit comme heure LOCALE, soit deux heures d'écart l'été. Un travail de
   l'instant s'affichait « il y a 2 h ». Forcer le fuseau avant de parser (cf. `instant()`
-  dans `RunnerJobsCard.vue`). Le même piège a fait conclure à un ralentissement de
+  dans `lib/runnerJobs.ts`). Le même piège a fait conclure à un ralentissement de
   campagne inexistant en comparant une heure UTC à une heure locale.
 - ⚠️ **Une page absente de `PAGE_META` retombe SILENCIEUSEMENT sur l'overview** — le titre
   ment sans que rien ne casse. `lib/consoleNav.spec.ts` tient la règle : tout écran de la
@@ -132,7 +132,10 @@ Les **contrats backend** sont dans `oto-backend/` : `CLAUDE.md` pour la carte,
   (déclarer ou resserrer l'`Output` de la capacité), puis `npm run api:refresh` ici —
   jamais en retouchant le type côté front. Les rares interfaces encore écrites à la
   main portent leur raison en commentaire (admin hors document · `Output` non déclaré ·
-  contrat plus lâche que l'écran). Chaîne, contrôles CI et état mesuré :
+  contrat plus lâche que l'écran). ⚠️ **Un cas à part, temporaire** :
+  `src/types/api.attendu.ts` porte ce qu'une PR backend **ouverte** sert déjà —
+  `api:refresh` interroge un backend vivant et l'effacerait. Fichier à supprimer d'un
+  coup au déploiement, jamais à essaimer. Chaîne, contrôles CI et état mesuré :
   **`docs/types-api.md`**.
 - Composants dans `components/`, pages dans `views/`
 - Pas de fichier > 500 lignes ; pas de fallback silencieux (lever une erreur)
@@ -181,12 +184,12 @@ d'intégration et **note datée sur l'archivage de `design-system/` (2026-08-27)
 | `connecteurs.md` | le moteur unique `connector-scope` (4 surfaces), la présentation verdict-first, les 3 projections ADR 0022, la carte-shell, le compte partagé, la fédération MCP, les hubs à onglets. |
 | `orgs-groupes-invitations.md` | départements (ADR 0012) et invitations en feature cascade aux 3 niveaux. |
 | `projets.md` | index + page `/projects/:id`, slots & inventaire dérivé (ADR 0035), partage navigable `<slug>.share.oto.cx` et « Ajouter à mon Oto ». |
-| `datastore.md` | grille server-driven, vue fiches aux mêmes verbes que la table, deeplink par id, ownership ADR 0030, partage unifié. |
+| `datastore.md` | grille server-driven, vue fiches aux mêmes verbes que la table, deeplink par id, ownership ADR 0030, partage unifié, **la file de travail et le run qui tient une ligne** (`_claimed_run`, ses trois états, et pourquoi il ne se lit que sous bail). |
 | `agent-context.md` | agent readme (injecté, cumulable, UNE surface depuis ADR 0042), procédures, guides, onboarding devenu un projet, fiche profil. |
 | `recherche.md` | popup ⌘K + page `/search`, un seul chemin de rendu, deep-link `?doc=`, backlinks, boîte « À traiter ». |
 | `identite-et-consultation.md` | affichage (sidebar) vs switch (popin compte), consultation vs maison (ADR 0023), « voir en tant que » USER, hub `/account`. |
 | `plateforme.md` | `/platform/objects` (objets possédés, ADR 0030) et `/platform/tenants` (ADR 0052, lecture seule, verdict « redémarrage requis »). |
 | `facturation.md` | l'écran `/org/billing` et son tunnel (identité → montant → consentement → paiement), `pending_mandate` = attente et non échec, les préalables peints d'un coup, le miroir de TVA. |
-| `automations.md` | la file d'exécution des agents hébergés (grain ORDONNANCEUR, pas donnée), le regroupement par flotte, et les pièges vécus : horodatages UTC sans fuseau, fil de forme différente selon le chemin, page absente de `PAGE_META` qui retombe en silence sur l'overview. |
-| `types-api.md` | la chaîne `Output` → OpenAPI → snapshot → types générés → alias, les deux contrôles CI, et ce qui reste écrit à la main (avec pourquoi). |
+| `automations.md` | la surveillance de flotte (gardes en tête, bail réel vs seuil dérivé, renvois du harnais), la file d'exécution (grain ORDONNANCEUR, pas donnée) et la fiche d'un agent ; **le contrat OUVERT de `RunnerJob['result']`** (`extra=allow` — *servi* n'est pas *déclaré*) ; les pièges vécus : **postes de garde lus comme des compteurs alors que ce sont des listes** (bandeau muet en prod), **`null` = non mesuré ≠ zéro**, `lease_until` jamais lu sans le statut, horodatages UTC sans fuseau, page absente de `PAGE_META`. |
+| `types-api.md` | la chaîne `Output` → OpenAPI → snapshot → types générés → alias, les deux contrôles CI, ce qui reste écrit à la main (avec pourquoi), et le **sas `api.attendu.ts`** pour ce qu'une PR backend ouverte sert déjà. |
 | `observabilite.md` | PostHog (gaté consentement) + Sentry `@sentry/vue`, source maps au build, token à scoper. |

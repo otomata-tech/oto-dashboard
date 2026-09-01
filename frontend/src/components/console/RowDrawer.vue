@@ -22,6 +22,7 @@ import type { LifecycleIntent } from '@/lib/datastoreLifecycle'
 import { abandonVerdict, claimBudget } from '@/lib/datastoreClaims'
 import { cellKind, absDate, relDate } from '@/lib/cellRender'
 import { actorOf, changeOf, originLabel, originTone, whenOf } from '@/lib/rowActivity'
+import { bailLigne } from '@/lib/bailDeLigne'
 import {
   compositeDraft, formFields, isComposite, isEmptyPayloadValue, payloadValue,
   scalarDraft, type FieldDesc,
@@ -189,6 +190,11 @@ function reqWhenLabel(d: FieldDesc): string {
 // ── cycle de vie (ADR 0046 b1) : chip d'état en tête + transitions DÉRIVÉES du
 // schéma — seuls les états atteignables sont proposés ; le backend refuse de
 // toute façon une transition illégale ou un état incomplet (required_when).
+// Le bail de la fiche — et, depuis oto-backend #723, le RUN qui la tient. La
+// fiche disait « en cours · <sub du worker> » : on savait qu'un agent la tenait,
+// jamais lequel, donc on ne pouvait pas aller voir ce qu'il faisait.
+const bail = computed(() => (props.row ? bailLigne(props.row, Date.now()) : null))
+
 const currentStatus = computed<string | null>(() => {
   const k = statusField.value?.key
   const v = k ? props.row?.[k] : null
@@ -381,6 +387,13 @@ watch(() => [props.open, props.row?._id], async () => {
             updated {{ absDate(String(row._updated_at)) }}
             <template v-if="row?._claimed_by"> · bail
               jusqu'à {{ absDate(String(row._claimed_until ?? '?')) }}</template>
+            <!-- ⚠️ « sans run » est un FAIT — bail pris à la main, ou par un agent
+                 qui n'a pas passé son run — pas une donnée manquante. -->
+            <template v-if="bail?.porteur === 'run'"> ·
+              <RouterLink class="rd-run" :to="`/automations?run=${encodeURIComponent(bail.run!)}`"
+                :title="`run ${bail.run}`">voir le travail qui la tient</RouterLink>
+            </template>
+            <template v-else-if="bail?.porteur === 'sans-run'"> · bail pris sans run</template>
           </div>
         </div>
 
@@ -456,6 +469,8 @@ watch(() => [props.open, props.row?._id], async () => {
 /* date lisible sous une valeur ISO non typée (aide, la donnée reste intacte) */
 .rd-hint { display: block; margin-top: 3px; font-size: 10.5px; color: var(--color-faint); }
 .rd-meta { padding: 10px 0 2px; font-size: 11px; }
+.rd-run { font-weight: 600; color: var(--color-saffron-ink); }
+.rd-run:hover { color: var(--color-ink); }
 .rd-activity { margin: 14px 0 4px; padding-top: 8px; border-top: 1px dashed var(--color-hair-soft); }
 .rd-activity-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 /* états vide / échec / chargement de l'historique, même gabarit que ses lignes */

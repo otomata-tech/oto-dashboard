@@ -1,8 +1,16 @@
 <script setup lang="ts">
-// Agent readme & procédures d'un groupe (ADR 0012). Lecture = membre, écriture = chef
-// (prop can-edit, le backend re-vérifie). L'agent readme d'équipe (slug claude_md) est
-// INJECTÉ à chaque session des membres du groupe actif, cumulé APRÈS celui de l'org ;
-// les procédures d'équipe = progressive disclosure (chargées à la demande).
+// Agent readme & procédures d'un groupe (ADR 0012). Le backend re-vérifie tout, mais
+// depuis oto-backend#681 les deux gestes n'ont plus la même garde et cet écran doit le
+// refléter (oto-dashboard#144) :
+//   · écrire/éditer/restaurer une procédure = tout MEMBRE de l'équipe (prop `can-write`) —
+//     geste de travail, réversible (chaque écriture verse une version, `revert` la restaure) ;
+//   · éditer le readme et SUPPRIMER une procédure = le CHEF (prop `can-manage`) — le readme
+//     reste écrit sur la surface guide (chef seul), et la suppression emporte l'historique
+//     sans corbeille.
+// `can-manage` implique `can-write` (un chef est aussi un membre), mais l'inverse est faux :
+// ne jamais dériver l'un de l'autre, ce sont deux droits distincts. L'agent readme d'équipe
+// (slug claude_md) est INJECTÉ à chaque session des membres du groupe actif, cumulé APRÈS
+// celui de l'org ; les procédures d'équipe = progressive disclosure (chargées à la demande).
 import { ref, watch } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
@@ -21,7 +29,12 @@ import { humanize } from '@/lib/errors'
 // `section` : 'all' = readme + procédures (défaut) ; 'procedures' = procédures seules
 // (le readme s'édite ailleurs, p.ex. /team/context). Diff minimal, zéro backend.
 const props = withDefaults(
-  defineProps<{ groupId: number; canEdit: boolean; section?: 'all' | 'procedures' }>(),
+  defineProps<{
+    groupId: number
+    canManage: boolean       // chef d'équipe (+ escalade org/plateforme) : readme, suppression
+    canWrite: boolean        // tout membre : créer/éditer/restaurer une procédure
+    section?: 'all' | 'procedures'
+  }>(),
   { section: 'all' },
 )
 const { toast } = useToast()
@@ -97,9 +110,9 @@ async function removeSkill(slug: string) {
     :sub="section === 'procedures'
       ? 'the team\'s procedures (named instructions, loaded on demand). the team readme is edited under « context ».'
       : 'the team\'s agent readme (injected each session, after the org\'s) + its procedures (loaded on demand).'">
-    <template #actions v-if="canEdit">
-      <Btn v-if="section !== 'procedures'" kind="mini" @click="editDoctrine">Edit readme</Btn>
-      <Btn kind="mini" icon="plus" @click="editSkill()">Procedure</Btn>
+    <template #actions v-if="(section !== 'procedures' && canManage) || canWrite">
+      <Btn v-if="section !== 'procedures' && canManage" kind="mini" @click="editDoctrine">Edit readme</Btn>
+      <Btn v-if="canWrite" kind="mini" icon="plus" @click="editSkill()">Procedure</Btn>
     </template>
     <div v-if="bundle">
       <div v-if="section !== 'procedures'" class="rowitem" style="gap: 10px; padding-bottom: 8px">
@@ -112,10 +125,8 @@ async function removeSkill(slug: string) {
             <div style="font-weight: 600; font-size: 13px">{{ i.title || i.slug }} <span class="dim" style="font-weight: 400">· {{ i.slug }} · v{{ i.version }}</span></div>
             <div v-if="i.description" style="font-size: 11.5px; color: var(--color-mute)">{{ i.description }}</div>
           </div>
-          <template v-if="canEdit">
-            <Btn kind="mini" @click="editSkill(i.slug)">Edit</Btn>
-            <Btn kind="danger" @click="removeSkill(i.slug)">Delete</Btn>
-          </template>
+          <Btn v-if="canWrite" kind="mini" @click="editSkill(i.slug)">Edit</Btn>
+          <Btn v-if="canManage" kind="danger" @click="removeSkill(i.slug)">Delete</Btn>
         </div>
         <div v-if="!bundle.instructions.length" class="helptext">no procedures yet.</div>
       </div>

@@ -11,6 +11,7 @@ import Tag from '../Tag.vue'
 import { getNamespaceAggregate, getNamespaceQueue, getNamespaces, getProjectRuns } from '@/api/console'
 import type { ProjectRun } from '@/types/api'
 import { absDate } from '@/lib/cellRender'
+import { bailLigne } from '@/lib/bailDeLigne'
 import { abandonState, claimBudget, maxClaims } from '@/lib/datastoreClaims'
 
 const props = defineProps<{ namespaces: string[]; projectId: number }>()
@@ -69,11 +70,13 @@ onMounted(async () => {
         }
         const declared = sf.lifecycle?.states ?? []
         const observed = Object.keys(counts).filter((s) => !declared.includes(s))
+        // ⚠️ Lu par `bailLigne`, pas par `Date.parse` : les horodatages arrivent
+        // en UTC SANS fuseau, et un parse naïf les prend pour de l'heure LOCALE —
+        // deux heures d'écart l'été, donc des baux annoncés expirés à tort. Le
+        // même piège avait fait conclure à un ralentissement de campagne qui
+        // n'existait pas.
         const now = Date.now()
-        const expired = queue.rows.filter((r) => {
-          const t = Date.parse(String(r._claimed_until ?? ''))
-          return !Number.isNaN(t) && t < now
-        }).length
+        const expired = queue.rows.filter((r) => bailLigne(r, now).etat === 'expire').length
         return {
           nsId: n.id, namespace: n.namespace,
           states: [...declared, ...observed], counts, total,
