@@ -163,25 +163,28 @@ export const finalizeConnectorSession = (
 
 // ── google ──
 export const getGoogleStatus = () => api<GoogleOauthStatus>('/api/google/oauth/status')
-export const startGoogleOauth = () => api<{ auth_url: string }>('/api/google/oauth/start')
 export const setGoogleDefault = (account: string) =>
   api('/api/google/oauth/default', { method: 'POST', ...j({ account }) })
 export const revokeGoogle = (account?: string) =>
   api(`/api/google/oauth${account ? `?account=${encodeURIComponent(account)}` : ''}`, { method: 'DELETE' })
 
 // ── MCP fédéré générique, par connecteur (#40 — atlassian & co.) ──
-// Routes paramétrées par le nom du connecteur :
-// /api/<name>/oauth/{status,start} + DELETE /api/<name>/oauth.
+// `status`/`disconnect` restent sur le chemin nommé par connecteur : leur forme
+// diffère d'un connecteur à l'autre (Google est multi-compte, les fédérations MCP
+// rendent {connected, set_at}) et leur équivalent générique reste à cadrer avec le
+// backend (oto-dashboard#125, item 2). Démarrer le flux, lui, n'a plus besoin d'un
+// chemin par connecteur — `startConnectorFlow` ci-dessous le fait pour tous.
 export const getFederatedStatus = (name: string) => api<FederatedStatus>(`/api/${name}/oauth/status`)
-export const startFederatedOauth = (name: string) => api<{ auth_url: string }>(`/api/${name}/oauth/start`)
 export const disconnectFederated = (name: string) => api(`/api/${name}/oauth`, { method: 'DELETE' })
 
-// ── zoho : connexion « server-based » (SECOND mode, le self client reste) ──
-// UNE paire de routes pour les 3 connecteurs zoho (le connecteur voyage dans le state
-// signé) ; la région est obligatoire — app et token sont liés à leur data center.
+// ── connexion « server-based » via flux déclaré (zoho, salesforce, atlassian,
+// folkmcp, google…) ──
+// UN chemin fixe pour tous les connecteurs à flux : le connecteur voyage en
+// paramètre, jamais dans le chemin.
 /** Démarre le flux de connexion DÉCLARÉ par le connecteur. Chemin FIXE, nom en
  *  paramètre : plus une fonction cliente par connecteur, plus de liste de noms.
- *  Les valeurs attendues viennent de `connector.connect.params`. */
+ *  Les valeurs attendues viennent de `connector.connect.params` (objet vide pour un
+ *  flux sans paramètre — google, atlassian, folkmcp). */
 export const startConnectorFlow = (connector: string, params: Record<string, string>) =>
   api<{ auth_url: string }>(`/api/me/connectors/${encodeURIComponent(connector)}/connect`,
     { method: 'POST', body: JSON.stringify({ params }) })
