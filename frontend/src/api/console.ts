@@ -298,7 +298,7 @@ export const getProject = (id: number) => projectsApi<Project>({ op: 'get', proj
 export const createProject = (name: string, brief_md = '',
                               owner?: { owner_type: 'user' | 'org' | 'group' | 'platform'; owner_id?: string }) =>
   projectsApi<Project>({ op: 'create', name, brief_md, ...(owner ?? {}) })
-export const updateProject = (id: number, fields: { name?: string; icon?: string; brief_md?: string; is_template?: boolean }) =>
+export const updateProject = (id: number, fields: { name?: string; icon?: string; brief_md?: string; is_template?: boolean; excluded_url_prefixes?: string[] }) =>
   projectsApi<Project>({ op: 'update', project_id: id, ...fields })
 // Copie profonde d'un projet (le sien ou un modèle) → nouveau projet dans l'org active (B5a).
 export const copyProject = (id: number, name: string) =>

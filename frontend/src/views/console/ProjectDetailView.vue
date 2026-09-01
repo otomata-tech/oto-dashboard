@@ -390,8 +390,9 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
         <ProjectViewer class="pj-body__vw" :item="selItem" :project-id="projectId" :project-name="project.name"
           :brief="project.brief_md" :read-only="readOnly" :doc-title-map="docTitleMap"
           :table-namespaces="linksOf('tableau').map((l) => l.namespace ?? l.target_ref)"
+          :excluded-url-prefixes="project.excluded_url_prefixes"
           @save-brief="saveBrief" @reload-docs="onReloadDocs" @reload-files="onReloadFiles"
-          @reload-links="onReloadLinks" @changed="onChanged" @open-doc="(id) => sel = `doc:${id}`"
+          @reload-links="onReloadLinks" @reload-project="reloadProject" @changed="onChanged" @open-doc="(id) => sel = `doc:${id}`"
           @add-subpage="openSubPage" @create-page="onCreatePage" />
         <ProjectRail class="pj-body__rail" :groups="railGroups" :sel="sel" :read-only="readOnly"
           @select="onSelect" @add="openAdd" @move="onMove" />

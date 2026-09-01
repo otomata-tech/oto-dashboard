@@ -15,6 +15,7 @@ const MarkdownEditor = defineAsyncComponent(() => import('@/components/console/M
 import AttachmentViewer from '@/components/console/AttachmentViewer.vue'
 import DatastoreTable from '@/components/console/DatastoreTable.vue'
 import ProjectWorkQueues from './ProjectWorkQueues.vue'
+import ProjectUrlPerimeter from './ProjectUrlPerimeter.vue'
 import { parseDocSegments } from '@/lib/docEmbeds'
 import {
   updateDoc, deleteDoc, setDocPublic, getDocRevisions, getBacklinks,
@@ -52,6 +53,7 @@ const props = defineProps<{
   readOnly?: boolean
   docTitleMap?: Record<string, number>   // casefold(titre)→id (résolution [[…]], Ship 4)
   tableNamespaces?: string[]             // namespaces des liens tableau (bloc files de travail, home)
+  excludedUrlPrefixes?: string[]         // périmètre d'URL du projet (home, oto-backend#605)
 }>()
 const emit = defineEmits<{
   'save-brief': [string]
@@ -61,6 +63,7 @@ const emit = defineEmits<{
   'open-doc': [number]
   'add-subpage': [number]
   'reload-links': []
+  'reload-project': []                   // le projet lui-même a changé hors brief/icône/nom (ex. périmètre d'URL)
   'create-page': [string]                // lien-souche [[Titre]] cliqué → créer la page
 }>()
 
@@ -494,6 +497,11 @@ async function removeFile() {
                  cycle de vie — se rend seulement s'il y en a. -->
             <ProjectWorkQueues v-if="isHome && tableNamespaces?.length"
               :namespaces="tableNamespaces" :project-id="projectId" />
+            <!-- Périmètre d'URL (home, oto-backend#605) : toujours affiché — même une
+                 liste vide répond à « est-ce que quelque chose est exclu ? ». -->
+            <ProjectUrlPerimeter v-if="isHome" :project-id="projectId"
+              :prefixes="excludedUrlPrefixes ?? []" :read-only="readOnly"
+              @changed="emit('reload-project'); emit('changed')" />
           </div>
 
           <!-- actions secondaires page (doc) -->
