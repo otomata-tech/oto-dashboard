@@ -11,12 +11,16 @@ import Btn from '@/components/console/Btn.vue'
 import Icon from '@/components/console/Icon.vue'
 import OtoSelect from '@/components/console/OtoSelect.vue'
 import { getProjectInventory } from '@/api/console'
+import { exposureFlagsOf, exposureRowsOf, linkedTablesOf } from '@/lib/projectExposure'
 import type { Project } from '@/types/api'
 
 const props = defineProps<{ open: boolean; project: Project; defaultSlug: string }>()
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'publish', v: { slug: string; access: 'anonymous' | 'secret' | 'org'; tools: string[] }): void
+  (e: 'publish', v: {
+    slug: string; access: 'anonymous' | 'secret' | 'org'; tools: string[]
+    exposeDocs: boolean; exposeDatastore: boolean; exposeDatastoreWrite: boolean
+  }): void
 }>()
 
 const ACCESS_OPTIONS = [
@@ -31,6 +35,21 @@ const checked = ref<Set<string>>(new Set())
 const inventory = ref<string[]>([])
 const loading = ref(false)
 const extra = ref('')
+
+// ── Exposition côté « secret » : pages + tableaux (issue #131) ── visible et réglable
+// AU MOMENT de publier, pas seulement après coup dans l'écran de partage.
+const exposeDocs = ref(false)
+const exposeDsRead = ref(false)
+const exposeDsWrite = ref(false)
+const tableCount = computed(() => linkedTablesOf(props.project).length)
+const exposureRows = computed(() =>
+  exposureRowsOf({ docs: exposeDocs.value, datastoreRead: exposeDsRead.value, datastoreWrite: exposeDsWrite.value }, tableCount.value))
+function toggleDocs() { exposeDocs.value = !exposeDocs.value }
+function toggleDsRead() {
+  exposeDsRead.value = !exposeDsRead.value
+  if (!exposeDsRead.value) exposeDsWrite.value = false // l'écriture ne survit pas à la fermeture de la lecture
+}
+function toggleDsWrite() { if (exposeDsRead.value) exposeDsWrite.value = !exposeDsWrite.value }
 
 // Candidats = inventaire dérivé ∪ outils déjà exposés (pour ne jamais perdre un outil
 // curé absent de l'inventaire courant). Groupés par CONNECTEUR (préfixe = namespace).
@@ -55,6 +74,8 @@ watch(() => props.open, async (o) => {
   const active = !!props.project.mcp_access && props.project.mcp_access !== 'off'
   access.value = active ? (props.project.mcp_access as 'anonymous' | 'secret' | 'org') : 'anonymous'
   extra.value = ''
+  const flags = exposureFlagsOf(props.project)
+  exposeDocs.value = flags.docs; exposeDsRead.value = flags.datastoreRead; exposeDsWrite.value = flags.datastoreWrite
   loading.value = true
   try {
     inventory.value = (await getProjectInventory(props.project.id)).tools ?? []
@@ -85,7 +106,14 @@ function addExtra() {
 }
 function submit() {
   if (!canPublish.value) return
-  emit('publish', { slug: slug.value.trim(), access: access.value, tools: [...checked.value] })
+  emit('publish', {
+    slug: slug.value.trim(), access: access.value, tools: [...checked.value],
+    // Réservé à `secret` (backend) : envoyer false ailleurs évite de laisser croire
+    // qu'un endpoint public/org les honore.
+    exposeDocs: access.value === 'secret' && exposeDocs.value,
+    exposeDatastore: access.value === 'secret' && exposeDsRead.value,
+    exposeDatastoreWrite: access.value === 'secret' && exposeDsWrite.value,
+  })
 }
 </script>
 
@@ -135,6 +163,32 @@ function submit() {
         <Btn kind="mini" icon="plus" :disabled="!extra.trim()" @click="addExtra">Ajouter</Btn>
       </div>
 
+      <!-- Ce que verra le destinataire (issue #131) : visible AU MOMENT de publier, pas
+           seulement après coup dans l'écran de partage. `secret` uniquement (backend). -->
+      <template v-if="access === 'secret'">
+        <label class="pmp-lbl">Ce que verra le destinataire</label>
+        <div class="pmp-exp">
+          <label class="pmp-exp-row">
+            <input type="checkbox" :checked="exposeDocs" @change="toggleDocs" />
+            <span class="pmp-exp-txt"><strong>Pages du projet</strong> — {{ exposureRows.docs.sentence }}</span>
+          </label>
+          <label class="pmp-exp-row" :class="{ 'pmp-exp-row--off': !!exposureRows.datastoreRead.disabledReason }">
+            <input type="checkbox" :checked="exposeDsRead" :disabled="!!exposureRows.datastoreRead.disabledReason" @change="toggleDsRead" />
+            <span class="pmp-exp-txt">
+              <strong>Tableaux · lecture</strong> — {{ exposureRows.datastoreRead.sentence }}
+              <em v-if="exposureRows.datastoreRead.disabledReason" class="pmp-exp-why">({{ exposureRows.datastoreRead.disabledReason }})</em>
+            </span>
+          </label>
+          <label class="pmp-exp-row" :class="{ 'pmp-exp-row--off': !!exposureRows.datastoreWrite.disabledReason }">
+            <input type="checkbox" :checked="exposeDsWrite" :disabled="!!exposureRows.datastoreWrite.disabledReason" @change="toggleDsWrite" />
+            <span class="pmp-exp-txt">
+              <strong>Tableaux · écriture</strong> — {{ exposureRows.datastoreWrite.sentence }}
+              <em v-if="exposureRows.datastoreWrite.disabledReason" class="pmp-exp-why">({{ exposureRows.datastoreWrite.disabledReason }})</em>
+            </span>
+          </label>
+        </div>
+      </template>
+
       <div class="pmp-actions">
         <Btn :disabled="!canPublish" @click="submit">Publier</Btn>
         <button class="pmp-x" @click="emit('close')">Annuler</button>
@@ -163,6 +217,15 @@ function submit() {
 .pmp-tool-name { font-family: var(--font-mono); font-size: 11.5px; }
 .pmp-add { display: flex; gap: 7px; margin-top: 10px; }
 .pmp-add .inp { flex: 1; }
+.pmp-exp { margin-top: 8px; display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); background: var(--color-surface); padding: 4px; }
+.pmp-exp-row { display: flex; align-items: flex-start; gap: 9px; padding: 7px 8px; border-radius: 6px; cursor: pointer; }
+.pmp-exp-row:hover { background: var(--color-paper-2); }
+.pmp-exp-row input { margin-top: 2px; flex: none; }
+.pmp-exp-row--off { cursor: default; opacity: .6; }
+.pmp-exp-row--off:hover { background: transparent; }
+.pmp-exp-txt { font-size: 12px; line-height: 1.5; color: var(--color-ink-soft); }
+.pmp-exp-txt strong { color: var(--color-ink); }
+.pmp-exp-why { font-style: normal; color: var(--color-faint); }
 .pmp-actions { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
 .pmp-x { border: none; background: none; font: inherit; font-size: 13px; color: var(--color-ink-soft); cursor: pointer; }
 .pmp-x:hover { color: var(--color-ink); }
