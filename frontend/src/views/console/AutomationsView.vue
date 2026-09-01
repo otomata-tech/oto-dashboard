@@ -17,6 +17,7 @@ import Icon from '@/components/console/Icon.vue'
 import RunnerMonitorCard from '@/components/console/RunnerMonitorCard.vue'
 import RunnerJobsCard from '@/components/console/RunnerJobsCard.vue'
 import RunnerTriggersCard from '@/components/console/RunnerTriggersCard.vue'
+import RunnerFleetsCard from '@/components/console/RunnerFleetsCard.vue'
 import { getConnectorInstances, fireAutomation, type FireResult } from '@/api/console'
 import type { ConnectorInstance } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -77,6 +78,7 @@ onMounted(load)
        lire le travail n° 47 — la file seule obligeait à reconstituer la réponse
        de tête, ligne par ligne. -->
   <RunnerMonitorCard />
+  <RunnerFleetsCard />
   <RunnerJobsCard />
   <RunnerTriggersCard />
   <ConsoleCard

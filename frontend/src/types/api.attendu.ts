@@ -79,3 +79,69 @@ export interface PostesDeGarde {
   /** Colonnes du client trouvées DÉTRUITES. ⚠️ `null` = NON MESURÉ, jamais zéro. */
   valeurs_cliente_detruites?: string[] | null
 }
+
+
+// ── ② Les FLOTTES : la configuration déclarée d'un passage ─────────────────
+// Servi par la PRÉPRODUCTION (`/api/me/runner/fleets`, schémas `Fleet` et
+// `FleetState` — vérifié sur le document OpenAPI de `mcp.oto.ninja`), PAS encore
+// par la production : le lot est mergé sur le tronc, la prod part au tag.
+// `api.generated.ts` se régénère depuis la PROD — régénérer aujourd'hui
+// effacerait ces types. Ils vivent donc ici, à part, et cette section se supprime
+// d'un coup au premier tag qui emporte le lot.
+/** Une FLOTTE : la configuration DÉCLARÉE d'un passage d'agents.
+ *
+ * Une flotte vivait dans un fichier YAML sur une machine — invisible d'ici.
+ * Ce qu'elle porte est ce qui donne un domicile aux gardes : sa CIBLE
+ * (`namespace` + `row_filter`, figés à la déclaration), son contexte
+ * d'exécution (`provider`/`model`, figés aussi — les changer en vol rendrait
+ * fausse l'attribution des lignes déjà écrites), et ses BORNES.
+ *
+ * ⚠️ Le budget se compte en JETONS, jamais en monnaie : les tarifs changent et
+ * diffèrent par fournisseur. La conversion appartient à qui lit, avec un tarif
+ * daté — ne JAMAIS l'afficher en euros ici. */
+export interface RunnerFleet {
+  id: number
+  label: string | null
+  procedure: string | null
+  namespace: string | null
+  row_filter: Record<string, unknown> | null
+  provider: string | null
+  model: string | null
+  tools: string[] | null
+  workers: number | null
+  max_rows: number | null
+  max_tokens: number | null
+  max_tokens_per_row: number | null
+  max_consecutive_failures: number | null
+  status: string | null
+  /** ÉCRIT, jamais déduit du statut : « arrêtée » sans raison oblige à rouvrir
+   * les journaux pour savoir si le budget a coupé ou si la file s'est vidée. */
+  stop_reason: string | null
+  started_at: string | null
+  /** Le battement de l'ordonnanceur. Une flotte `running` qui ne bat plus n'est
+   * pas une concurrence à attendre : c'est un RÉSIDU de passage mort. */
+  heartbeat_at: string | null
+  stopped_at: string | null
+  created_at: string | null
+}
+
+/** L'avancement d'un passage, agrégé sur ses travaux.
+ *
+ * ⚠️ `no_jobs_attached` est DÉCLARÉ, pas déduit de compteurs à zéro. Un zéro qui
+ * peut vouloir dire « rien trouvé » ou « personne n'a regardé » est le défaut le
+ * plus coûteux de ce chantier : l'écran doit dire « aucun travail rattaché », pas
+ * afficher des zéros qui ressemblent à un passage vide et sage. */
+export interface RunnerFleetState {
+  jobs_total: number
+  pending?: number | null
+  claimed?: number | null
+  done?: number | null
+  failed?: number | null
+  abandoned?: number | null
+  usage_tokens?: number | null
+  /** La ligne la PLUS LOURDE du passage — à ne pas confondre avec le plafond
+   * `max_tokens_per_row`, qui est une borne, pas une mesure. */
+  heaviest_row_tokens?: number | null
+  last_finished?: string | null
+  no_jobs_attached: boolean
+}

@@ -20,7 +20,8 @@ import type {
 } from '@/types/api'
 // ⚠️ Contrat SERVI PAR UN LOT NON DÉPLOYÉ (oto-backend PR #723) — écrit à la main
 // parce qu'une régénération depuis l'OpenAPI en ligne l'effacerait. Cf. le fichier.
-import type { BailDuTravail, PostesDeGarde } from '@/types/api.attendu'
+import type { BailDuTravail, PostesDeGarde, RunnerFleet, RunnerFleetState }
+  from '@/types/api.attendu'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
 
@@ -419,6 +420,16 @@ export interface RunnerJob extends BailDuTravail {
 export const listRunnerJobs = (status?: RunnerJob['status'], limit = 50) =>
   api<{ jobs: RunnerJob[] }>('/api/me/runner/jobs', {
     method: 'POST', ...j({ op: 'list', status, limit }),
+  })
+
+export type { RunnerFleet, RunnerFleetState }
+export const listRunnerFleets = (status?: string) =>
+  api<{ fleets: RunnerFleet[] }>('/api/me/runner/fleets', {
+    method: 'POST', ...j({ op: 'list', status }),
+  })
+export const getRunnerFleetState = (id: number) =>
+  api<{ fleet: RunnerFleet; state: RunnerFleetState }>('/api/me/runner/fleets', {
+    method: 'POST', ...j({ op: 'state', fleet_id: id }),
   })
 
 export interface RunnerTrigger {
