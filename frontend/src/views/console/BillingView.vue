@@ -24,14 +24,17 @@ import Icon from '@/components/console/Icon.vue'
 import StateError from '@/components/console/StateError.vue'
 import SkeletonOverview from '@/components/console/SkeletonOverview.vue'
 import BillingCheckout from '@/components/console/billing/BillingCheckout.vue'
+import BillingIdentityForm from '@/components/console/billing/BillingIdentityForm.vue'
 import BillingPending from '@/components/console/billing/BillingPending.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe, isSuperAdmin } from '@/composables/useMe'
 import {
-  getBilling, getBillingPayments, confirmBilling, cancelBilling,
+  getBilling, getBillingIdentity, getBillingPayments, confirmBilling, cancelBilling,
 } from '@/api/console'
-import type { BillingStatus, BillingPlan, BillingPayment, VatScheme } from '@/types/api'
+import type {
+  BillingStatus, BillingPlan, BillingPayment, BillingIdentityView, VatScheme,
+} from '@/types/api'
 import { PENDING_WINDOW_MS, VAT_SCHEME_LABEL, nextProbeDelayMs } from '@/lib/billingTunnel'
 import { explain, humanize } from '@/lib/errors'
 import { fmtDate, fmtDateTime } from '@/types/api'
@@ -42,6 +45,11 @@ const { me } = useMe()
 
 const status = ref<BillingStatus | null>(null)
 const payments = ref<BillingPayment[]>([])
+// La fiche d'identité de l'org abonnée (#128). Elle n'était lue QUE par le tunnel
+// de souscription — et le tunnel disparaît une fois abonné : l'alerte « complétez
+// l'identité » ne menait alors nulle part.
+const identity = ref<BillingIdentityView | null>(null)
+const identityError = ref<string | null>(null)
 const loading = ref(true)
 const busy = ref(false)
 const error = ref<string | null>(null)
@@ -62,10 +70,16 @@ const STATUS_LABEL: Record<string, string> = {
   canceled: 'Résilié', pending: 'En cours', failed: 'Échec',
 }
 
+// `minimumFractionDigits: 0` évite le « 19,00 € » d'un prix de catalogue rond — mais
+// il tronquait aussi les montants qui, eux, ont des centimes : le TTC réellement
+// prélevé (2280) s'affichait « 22,8 € », et les lignes de l'historique avec lui. Un
+// montant d'argent n'a jamais UN seul chiffre après la virgule : les centimes se
+// montrent quand il y en a, et se taisent quand il n'y en a pas.
 function euros(cents: number | null | undefined): string {
   if (cents == null) return 'sur devis'
+  const decimales = cents % 100 === 0 ? 0 : 2
   return (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR',
-    minimumFractionDigits: 0 })
+    minimumFractionDigits: decimales, maximumFractionDigits: decimales })
 }
 
 // Le seul axe qui varie réellement entre paliers (backend : options + unmetered
@@ -98,7 +112,8 @@ function payTone(s: string): 'olive' | 'terra' | 'ink' {
 
 // Bandeau d'alerte de l'état abonné (résiliation programmée / impayé / échéance que
 // le prélèvement ne pourra pas honorer).
-const alert = computed<{ tone: 'warn' | 'info'; text: string } | null>(() => {
+const alert = computed<
+  { tone: 'warn' | 'info'; text: string; fix?: boolean } | null>(() => {
   const s = status.value
   if (!s?.subscribed) return null
   if (s.canceled_at) {
@@ -110,10 +125,25 @@ const alert = computed<{ tone: 'warn' | 'info'; text: string } | null>(() => {
       + `l'accès est maintenu jusqu'au ${fmtDate(s.grace_until)}.` }
   }
   // Un abonnement actif dont le TTC n'est pas calculable = une échéance que le
-  // serveur ne pourra pas prélever. Le dire avant qu'elle tombe.
+  // serveur ne pourra pas prélever. Le dire avant qu'elle tombe — et OUVRIR le
+  // formulaire qui la débloque, dans la même phrase : une alerte qui réclame un
+  // geste sans le rendre atteignable a laissé le seul abonné payant sans issue
+  // pendant huit jours.
   if (s.vat_blocked) {
-    return { tone: 'warn', text: 'La prochaine échéance ne peut pas être calculée : '
-      + 'complétez l\'identité de facturation de l\'organisation.' }
+    const cause = s.vat_blocked === 'vat_consumer_unsupported'
+      ? 'le numéro de TVA intracommunautaire de l\'organisation est requis'
+      : 'l\'identité de facturation de l\'organisation est incomplète'
+    return {
+      tone: 'warn',
+      // Le levier n'est proposé qu'à qui peut s'en servir : le serveur réserve
+      // l'écriture à l'org_admin, et un bouton qui refuserait au clic serait la
+      // même impasse, une porte plus loin.
+      fix: canManage.value,
+      text: canManage.value
+        ? `La prochaine échéance ne peut pas être calculée : ${cause}.`
+        : `La prochaine échéance ne peut pas être calculée : ${cause} — seul un `
+          + 'administrateur de l\'organisation peut la corriger.',
+    }
   }
   return null
 })
@@ -132,6 +162,12 @@ const nextCharge = computed(() => {
   return { ttc: s.amount_ttc, scheme: (s.vat_scheme ?? null) as VatScheme | null }
 })
 
+// La fiche d'identité n'est proposée qu'à un abonné PAYANT : sur un abonnement
+// offert, rien n'est jamais prélevé — le serveur n'y pose d'ailleurs jamais de
+// `vat_blocked`, et un formulaire de facturation sous « offert par Otomata »
+// annoncerait une échéance qui n'existe pas.
+const showIdentity = computed(() => !!status.value?.subscribed && !status.value.comp)
+
 async function load() {
   loading.value = true
   error.value = null
@@ -145,6 +181,44 @@ async function load() {
   } finally {
     loading.value = false
   }
+  if (showIdentity.value) await loadIdentity()
+}
+
+// Lecture À PART, et tolérante : l'identité complète l'écran, elle n'en est pas la
+// condition. Si elle échoue, l'état d'abonnement et son alerte restent affichés —
+// blanchir la page priverait justement l'abonné en difficulté de ce qu'il vient y
+// lire.
+async function loadIdentity() {
+  identityError.value = null
+  try {
+    identity.value = await getBillingIdentity()
+  } catch (e) {
+    identity.value = null
+    identityError.value = humanize(e)
+  }
+}
+
+// La fiche décide du régime de TVA, donc du TTC de la prochaine échéance et de
+// `vat_blocked` : l'état d'abonnement se RELIT après l'enregistrement, sinon
+// l'alerte resterait affichée alors qu'elle vient d'être traitée. On ne repasse pas
+// par `load()` : son squelette démonterait le formulaire sous les doigts.
+async function onIdentitySaved(view: BillingIdentityView) {
+  identity.value = view
+  try {
+    status.value = await getBilling()
+    toast('identité de facturation enregistrée')
+  } catch (e) {
+    toast(explain(e))
+  }
+}
+
+// Le lien de l'alerte mène au formulaire. Le défilement seul ne déplace pas le
+// focus : au clavier, il désignerait un endroit qu'on ne peut pas atteindre.
+function goToIdentity() {
+  const card = document.getElementById('billing-identity')
+  if (!card) return
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  card.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true })
 }
 
 // ── retour de la page de paiement ────────────────────────────────────────────
@@ -273,7 +347,11 @@ function contactSales() {
           {{ euros(status.amount) }} hors taxes.
         </p>
 
-        <Notice v-if="alert" :tone="alert.tone" class="mt">{{ alert.text }}</Notice>
+        <Notice v-if="alert" :tone="alert.tone" class="mt">
+          {{ alert.text }}
+          <Btn v-if="alert.fix" kind="link" icon="chev" class="notice-fix" @click="goToIdentity">
+            Compléter l'identité de facturation</Btn>
+        </Notice>
 
         <div v-if="canManage && !status.comp && status.status !== 'canceled'" class="row-actions">
           <Btn kind="danger" icon="trash" :disabled="busy" @click="resiliate">
@@ -322,6 +400,21 @@ function contactSales() {
             <li><Icon name="ok" :size="15" /> Données entreprises France, CRM, e-mail &amp; base de connaissance</li>
           </ul>
         </div>
+      </ConsoleCard>
+
+      <!-- ── Identité de facturation ──
+           Le MÊME formulaire que le tunnel, monté ici pour un abonné : le tunnel
+           n'existe qu'avant la souscription, et c'est pourtant après qu'une adresse
+           change, qu'un numéro de TVA arrive, et que l'échéance suivante en dépend.
+           Un seul composant, une seule règle de saisie — deux copies divergeraient. -->
+      <ConsoleCard v-if="showIdentity" id="billing-identity" title="Identité de facturation"
+        sub="elle figure sur les factures, et son pays décide de la TVA de la prochaine échéance.">
+        <Notice v-if="identityError" tone="warn">
+          {{ identityError }}
+          <Btn kind="link" icon="chev" class="notice-fix" @click="loadIdentity">Réessayer</Btn>
+        </Notice>
+        <BillingIdentityForm v-else :view="identity" :can-manage="canManage"
+          @saved="onIdentitySaved" />
       </ConsoleCard>
 
       <!-- ── Historique des paiements ── -->
@@ -376,6 +469,13 @@ function contactSales() {
   color: var(--color-ink-soft);
 }
 .incl-list li :deep(svg) { color: var(--color-olive-ink); flex: none; }
+
+/* Le lien d'action d'une alerte prend la couleur de l'alerte : un lien saffron sur
+   fond terra ferait un troisième ton dans un encadré qui n'en dit qu'un. */
+.notice-fix {
+  margin-left: 6px; color: inherit; text-decoration: underline; text-underline-offset: 2px;
+}
+.notice-fix:hover { color: inherit; opacity: 0.75; }
 
 .mt { margin-top: 14px; }
 .row-actions { margin-top: 16px; }

@@ -96,6 +96,14 @@ Les **contrats backend** sont dans `oto-backend/` : `CLAUDE.md` pour la carte,
   changer depuis). Détail : `docs/datastore.md`.
 - ⚠️ **Jamais de levier inerte** : un pouvoir qu'un scope n'a pas ⇒ colonne/onglet **omis**,
   jamais affiché grisé.
+- ⚠️ **Et jamais d'alerte sans levier — la règle symétrique.** Un message qui NOMME un geste
+  porte le geste, dans la même phrase ; sinon il n'informe pas, il accuse. Un formulaire
+  posé dans un tunnel doit se demander où il vit APRÈS : le préalable qu'il satisfait ne
+  disparaît pas avec la souscription. Du 25/08 au 02/09/2026, l'écran de facturation a
+  réclamé au seul abonné payant une identité de facturation qu'aucune surface ne lui
+  permettait de saisir — le tunnel qui portait le formulaire s'efface une fois abonné.
+  Corollaire : le levier n'est proposé qu'à qui peut s'en servir (sinon, nommer qui le
+  peut). Détail : `docs/facturation.md`.
 - ⚠️ **Le formulaire de credential ne renvoie PAS un champ secret vide** (#126) : depuis
   le 27/08 le serveur complète les clés absentes et traite une clé vide comme un
   EFFACEMENT — renvoyer tout, comme avant, effacerait la clé qu'on voulait garder. Les

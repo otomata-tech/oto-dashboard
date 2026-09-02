@@ -4,8 +4,9 @@ type: reference
 description: >-
   `/org/billing` — catalogue, tunnel en un écran (identité de facturation → montant
   HT/TVA/TTC → consentement d'achat → paiement), retour du checkout et attente
-  d'ouverture. Les deux pièges qui ont coûté de l'argent : `pending_mandate` lu
-  comme un échec, et un tunnel qui découvre ses préalables un par un.
+  d'ouverture. Les trois pièges qui ont coûté de l'argent : `pending_mandate` lu
+  comme un échec, un tunnel qui découvre ses préalables un par un, et une alerte
+  qui réclame un geste que l'écran n'offre nulle part.
 ---
 
 # Facturation — l'écran `/org/billing` (ADR 0043)
@@ -31,11 +32,55 @@ lui-même vit dans `components/console/billing/` :
 | composant | ce qu'il porte |
 |---|---|
 | `BillingCheckout.vue` | l'orchestration d'un palier choisi : charge l'identité + le statut légal, peint les blocs, appelle `subscribe`, traite le refus |
-| `BillingIdentityForm.vue` | la fiche (raison sociale, pays ISO, n° de TVA facultatif, adresse) — POSTÉE ENTIÈRE, le serveur remplace et ne fusionne pas |
+| `BillingIdentityForm.vue` | la fiche (raison sociale, pays ISO, n° de TVA facultatif, adresse) — POSTÉE ENTIÈRE, le serveur remplace et ne fusionne pas. ⚠️ Monté AUSSI par `BillingView` pour un abonné (voir plus bas) |
 | `BillingPriceCard.vue` | HT / TVA / TTC et le régime — le montant annoncé AVANT le consentement |
 | `BillingLegalConsent.vue` | les documents servis par la réponse + UNE case |
 | `BillingPending.vue` | l'attente d'ouverture au retour du paiement |
 | `lib/billingTunnel.ts` | la partie pure : décomposition du montant, lecture des refus, libellés, cadence de sonde |
+
+## ⚠️ Une alerte qui réclame un geste doit porter le geste
+
+`BillingIdentityForm` est monté **deux fois**, sur le même composant et la même API :
+
+- dans `BillingCheckout`, premier écran du tunnel — *avant* la souscription ;
+- dans `BillingView`, carte « Identité de facturation » — pour une org **déjà abonnée**
+  (`#billing-identity`, servie à tout membre, écriture réservée à l'org_admin).
+
+Le second manquait, et le trou n'était pas cosmétique : le tunnel **disparaît** dès qu'on
+est abonné, alors que l'alerte `vat_blocked` (« la prochaine échéance ne peut pas être
+calculée ») ne s'affiche, elle, **que** dans cet état. Du 25/08 au 02/09/2026, le seul
+abonné payant de la plateforme a donc lu une consigne dont l'écran n'offrait aucune
+exécution — et son prélèvement du 25/09 aurait échoué en silence, le service continuant
+gratuitement.
+
+Ce que le cas laisse comme règle, au-delà de lui :
+
+- **Une alerte qui nomme un geste porte son levier**, dans la même phrase. Sinon elle
+  n'informe pas : elle accuse.
+- **Le levier n'est proposé qu'à qui peut s'en servir.** L'écriture est `org_admin` côté
+  serveur ; à un membre, l'alerte nomme qui peut corriger au lieu d'offrir un bouton qui
+  refuserait au clic (règle transverse « jamais de levier inerte »).
+- **Un écran d'état et un tunnel ne partagent pas leur cycle de vie.** Tout formulaire posé
+  dans un tunnel doit se demander où il vit *après* — le préalable qu'il satisfait, lui, ne
+  disparaît pas avec la souscription : une adresse change, un numéro de TVA arrive.
+- Le formulaire n'est **pas recopié**. Deux formulaires pour la même fiche divergeraient, et
+  celle-ci décide du montant réellement débité.
+
+⚠️ **Un abonnement OFFERT (`comp`) n'affiche pas cette carte** : rien n'y sera jamais
+prélevé, le serveur n'y pose d'ailleurs jamais de `vat_blocked` — un formulaire de
+facturation sous « offert par Otomata » annoncerait une échéance qui n'existe pas.
+
+⚠️ **Les centimes se montrent quand il y en a.** `euros()` forçait `minimumFractionDigits: 0`
+pour éviter le « 19,00 € » d'un prix de catalogue rond ; il tronquait du même geste le TTC
+réellement prélevé — 2280 centimes rendus « 22,8 € », et les lignes de l'historique avec.
+Le nombre de décimales suit désormais le montant (0 s'il tombe juste, 2 sinon).
+
+Restent, à ce jour, **deux alertes de cet écran sans levier** — parce qu'aucune surface
+serveur ne les ouvre, pas par oubli du front : `past_due` (« un nouvel essai est en cours »)
+n'a **aucun moyen de changer de carte** — il n'existe pas de route de changement de moyen de
+paiement, alors que `billing_payments.kind` connaît déjà `method_change` ; et
+`canceled_at` (« résiliation programmée ») n'a **aucun moyen de revenir en arrière** —
+`cancel` n'a pas d'inverse. Les deux sont des lots oto-backend.
 
 ## ⚠️ `pending_mandate` est une ATTENTE, jamais un échec
 
