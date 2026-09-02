@@ -92,7 +92,10 @@ const outcome = ref(false)
 // La taille de CHAQUE segment, mesurée ensemble : Alexis a tranché pour UN SEUL
 // message, et voir les deux nombres côte à côte est ce qui rend cette décision
 // tenable — même campagne, même texte, un essai qui vaut pour les deux.
-const segments = ref<Record<string, number>>({})
+// ⚠️ `null` = **non mesuré** (l'appel a échoué), jamais zéro. Afficher « 0 venus
+// puis repartis » là où personne n'a regardé ferait prendre une décision de
+// campagne sur un chiffre qui n'existe pas.
+const segments = ref<Record<string, number | null>>({})
 
 const busy = ref(false)
 const error = ref<string | null>(null)
@@ -118,6 +121,22 @@ const premierBlocage = computed(() =>
 type ContentKey = keyof typeof content.value
 const champ = (quoi: 'subject' | 'body' | 'cta_label', lg: string) =>
   `${quoi}_${lg}` as ContentKey
+
+const SEGMENT_LABEL: Record<OutreachStatus, string> = {
+  never_active: 'jamais entrés', dormant: 'venus puis repartis',
+}
+/** Les deux segments écrits côte à côte, ou `null` tant qu'un seul est connu. Un
+ *  segment non mesuré se dit « non mesuré » — pas « 0 ». */
+const ligneSegments = computed(() => {
+  const vus = Object.keys(segments.value)
+  if (vus.length < 2) return null
+  return (['never_active', 'dormant'] as OutreachStatus[])
+    .filter((k) => k in segments.value)
+    .map((k) => segments.value[k] === null
+      ? `${SEGMENT_LABEL[k]} : non mesuré`
+      : `${segments.value[k]} ${SEGMENT_LABEL[k]}`)
+    .join(', ')
+})
 
 function params(): Omit<OutreachInput, 'op'> {
   return {
@@ -174,9 +193,9 @@ async function voirAudience() {
     const r = await getOutreachAudience({ ...params(), status: autre })
     segments.value = { ...segments.value, [autre]: r.total }
   } catch {
-    // La mesure de l'autre segment est un confort : son échec ne doit pas masquer
-    // l'audience qu'on vient d'obtenir.
-    segments.value = { ...segments.value }
+    // L'échec ne doit ni masquer l'audience qu'on vient d'obtenir, ni se déguiser en
+    // « 0 » : on le DIT. « Pas mesuré » et « rien trouvé » ne sont pas la même nouvelle.
+    segments.value = { ...segments.value, [autre]: null }
   }
 }
 
@@ -304,12 +323,10 @@ onMounted(chargeRegistres)
 
         <!-- Les deux segments côte à côte : un seul message les couvre tous les deux,
              sous le MÊME nom de campagne et avec le MÊME texte — donc un seul essai. -->
-        <Notice v-if="Object.keys(segments).length > 1" tone="info" class="mt">
-          {{ segments.never_active ?? 0 }} jamais entrés,
-          {{ segments.dormant ?? 0 }} venus puis repartis. Le même message peut couvrir
-          les deux : garde le même nom de campagne et le même texte, change seulement
-          le segment — l'essai vaut alors pour les deux envois, et personne n'est
-          relancé deux fois.
+        <Notice v-if="ligneSegments" tone="info" class="mt">
+          {{ ligneSegments }}. Le même message peut couvrir les deux : garde le même
+          nom de campagne et le même texte, change seulement le segment — l'essai vaut
+          alors pour les deux envois, et personne n'est relancé deux fois.
         </Notice>
       </ConsoleCard>
 

@@ -209,6 +209,22 @@ describe('AdminOutreachView — l\'écran ne saute aucun verrou', () => {
       v.done()
     })
 
+  it('⚠️ un segment non mesuré se DIT — il ne s\'affiche pas « 0 »', async () => {
+    // « Pas mesuré » et « rien trouvé » ne sont pas la même nouvelle : afficher 0 là
+    // où personne n'a regardé ferait décider d'une campagne sur un chiffre inexistant.
+    api.getOutreachAudience
+      .mockResolvedValueOnce({ ...BASE, total: 23, selected: 23 })
+      .mockRejectedValueOnce(new Error('500 boom'))
+    const v = await monte()
+    saisir(v.host, 'onboarding', 'onboarding-2026-09')
+    await settle()
+    bouton(v.host, 'Voir l\'audience')!.click()
+    await settle()
+    expect(v.host.textContent).toContain('venus puis repartis : non mesuré')
+    expect(v.host.textContent).not.toContain('0 venus puis repartis')
+    v.done()
+  })
+
   it('l\'aperçu est cloisonné et dit qu\'il n\'a pas de lien de désinscription', async () => {
     const v = await monte()
     await jusquAuPret(v.host)
