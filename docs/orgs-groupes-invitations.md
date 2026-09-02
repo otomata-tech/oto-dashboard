@@ -15,7 +15,28 @@ description: >-
 
 ## Groupes / départements (ADR 0012)
 
-Section `/console/groups` (`GroupsView.vue` + `GroupDoctrineCard.vue`) : départements d'une org avec **chef d'équipe** (`group_admin`). Un membre bascule son **groupe actif** (`useGroup` → `PUT /api/me/active-group`) ; le chef (ou un org_admin) gère membres, **secrets partagés** (résolus avant ceux de l'org), **preset de toolset** (baseline de visibilité) et **doctrine** de groupe. Hiérarchie de droits côté backend (`roles.py`, escalade descendante) — l'UI masque seulement les contrôles. `Me` porte `active_group`/`active_group_name`/`group_role` ; `ProviderStatus.mode` peut valoir `group` (libellé « team key »). Contrats : `oto-backend/docs/groups-and-roles.md`.
+Section `/console/groups` (`GroupsView.vue` + `GroupDoctrineCard.vue`) : départements d'une org avec **chef d'équipe** (`group_admin`). Un membre bascule son **groupe actif** (`useGroup` → `PUT /api/me/active-group`) ; le chef (ou un org_admin) gère membres, **secrets partagés** (résolus avant ceux de l'org), **preset de toolset** (baseline de visibilité) et le **readme** de groupe. Hiérarchie de droits côté backend (`roles.py`, escalade descendante) — l'UI masque seulement les contrôles.
+
+> **Une procédure d'équipe ne suit PAS cette règle** (oto-backend#695/#719, front #144).
+> **Écrire** une procédure — et **restaurer** une version, qui n'en est que le défaire —
+> est ouvert à **tout membre** de l'équipe, pour qu'une opératrice puisse annoter le
+> déroulé qu'elle exécute sans qu'on ait à la faire cheffe (un rôle qui emporte les clés
+> partagées). **Supprimer** reste au chef : ça emporte l'historique et c'est irréversible.
+> Le bundle sert donc **deux droits par verbe** — `can_write_instructions` et
+> `can_delete_instructions` — sous les **mêmes noms** sur les deux surfaces
+> (`GET /api/groups/{id}/instructions` et `GET /api/me/instructions`), pour qu'un composant
+> factorisé n'ait pas à savoir sur quelle page il est.
+>
+> **`can_edit` n'a pas changé de sens** : il dit toujours le droit d'ADMINISTRER, et un
+> intégrateur tiers le lit ainsi. Ici il ne gouverne plus que le readme, la publication en
+> bibliothèque et le partage — plus aucun geste d'écriture de procédure. Le câblage passe
+> par `lib/instructionRights.ts`, qui porte aussi le **repli** : champs absents = serveur
+> plus ancien, car une absence n'est pas un « non ». L'écran d'équipe lui donne alors le
+> rôle du requérant (`useTeamScope`, dérivé de `my_role`) plutôt que `can_edit`, qui
+> refermerait l'écriture à une membre ; l'écran d'org, qui n'a pas cette information,
+> retombe sur `can_edit`. Un `false` **servi** reste un refus et gagne sur tout repli.
+
+`Me` porte `active_group`/`active_group_name`/`group_role` ; `ProviderStatus.mode` peut valoir `group` (libellé « team key »). Contrats : `oto-backend/docs/groups-and-roles.md`.
 
 ## Invitations — feature cascade (plateforme / org / équipe)
 

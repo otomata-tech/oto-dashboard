@@ -103,6 +103,24 @@ bien ces champs, basculer les usages sur les types générés, supprimer le fich
 `null` quand la garde **n'a pas tourné** : les typer autrement a déjà rendu un écran de
 surveillance muet (cf. `docs/automations.md`).
 
+### L'autre cas de retard : le serveur sert, le SNAPSHOT date
+
+Symétrique du précédent, et à ne pas confondre : le lot backend est **déployé**, le champ
+est **servi et requis**, mais le snapshot commité date d'avant. `api:refresh` le
+ramènerait — **avec tout le reste** : le contrat a bougé partout depuis, et le diff se
+compte en milliers de lignes. Rafraîchir est un **acte à part**, dont le diff EST
+l'information (cf. « Les commandes ») ; ce n'est pas un effet de bord d'un lot d'écran.
+
+En attendant ce rafraîchissement, le champ s'ajoute en **optionnel** dans `api.ts`, en
+intersection du type généré — mais l'optionnalité n'y dit plus « pas encore servi », elle
+dit **« un serveur plus ancien peut répondre »** (un retour arrière de tag). La conduite
+de repli reste obligatoire, et un `false` SERVI reste un refus : `??`, jamais `||`.
+
+Aujourd'hui : `InstructionRights` (`can_write_instructions` / `can_delete_instructions`,
+oto-backend#695 puis #719) — servis requis sur `GET /api/me/instructions` et
+`GET /api/groups/{id}/instructions`, mesuré le 2026-09-02 sur `mcp.oto.cx` et
+`mcp.oto.ninja`. Le repli vit dans `src/lib/instructionRights.ts`.
+
 ## Un défaut du document qu'il faut connaître
 
 Le document servi **viole l'unicité des `operationId`** : `me_guides_get_get` et

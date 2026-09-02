@@ -15,6 +15,7 @@ import type { DoctrineBundle, InstructionUsage, InstructionVersion, OrgMember } 
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { accountLabel } from '@/lib/accountLabel'
+import { instructionRights } from '@/lib/instructionRights'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { buildReg, hasDead, refNames, type ToolReg } from '@/components/console/doctrine/tools'
@@ -85,10 +86,17 @@ function authorLabel(v: InstructionVersion): string {
   return accountLabel(v.set_by, orgMembers.value)
 }
 
-const canEdit = computed(() => bundle.value?.can_edit ?? false)
+// Chaque geste lit le drapeau de SON geste (#144) : écrire/restaurer est ouvert au
+// membre, supprimer reste au chef. `canAdmin` (ex-`canEdit`) ne gouverne plus que les
+// gestes d'ADMINISTRATION qui ne sont pas des écritures de procédure — publier dans la
+// bibliothèque publique, partager à un tiers.
+const canAdmin = computed(() => bundle.value?.can_edit ?? false)
+const rights = computed(() => instructionRights(bundle.value))
+const canWrite = computed(() => rights.value.canWrite)
+const canDelete = computed(() => rights.value.canDelete)
 const noOrg = computed(() => bundle.value?.org_id == null)
-const isEdit = computed(() => editing.value && canEdit.value)
-const isReadonly = computed(() => !canEdit.value)
+const isEdit = computed(() => editing.value && canWrite.value)
+const isReadonly = computed(() => !canWrite.value)
 
 // Les procédures de l'org (l'agent readme n'en fait pas partie).
 const docs = computed(() =>
@@ -251,7 +259,8 @@ async function createSkill(p: { title: string; slug: string; summary: string }) 
   }
 }
 
-// Publie la procédure courante dans la bibliothèque publique (org_admin → can_edit).
+// Publie la procédure courante dans la bibliothèque publique (org_admin → `can_edit`,
+// un droit d'ADMINISTRATION — pas l'écriture d'une procédure, cf. #144).
 // L'auteur (Otomata vs org) est résolu côté serveur selon le rôle du publieur.
 async function publishToLibrary(slug: string, label: string) {
   if (!await confirmAction({
@@ -307,7 +316,7 @@ async function removeSkill(slug: string, label: string) {
         <RouterLink to="/org">/org</RouterLink> et <RouterLink to="/account">/account</RouterLink>.
       </div>
       <div style="display: flex; gap: 10px">
-        <button v-if="canEdit" type="button" class="btn-ink-sm" @click="modalOpen = true">Nouvelle procédure</button>
+        <button v-if="canWrite" type="button" class="btn-ink-sm" @click="modalOpen = true">Nouvelle procédure</button>
         <button type="button" class="btn-ghost-sm" @click="router.push('/procedures?tab=marketplace')">Bibliothèque</button>
       </div>
     </div>
@@ -333,16 +342,16 @@ async function removeSkill(slug: string, label: string) {
             <span v-if="curVersion" class="tag tag--ver">v{{ curVersion }}</span>
             <span class="slug">{{ activeDoc?.slug }}</span>
             <span v-if="isReadonly" class="tag tag--ro">lecture seule</span>
-            <button v-if="!isEdit && canEdit" type="button" class="btn-edit" @click="onEdit">
+            <button v-if="!isEdit && canWrite" type="button" class="btn-edit" @click="onEdit">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
                 stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10a2 2 0 0 0-3-3L5 17v3z" /></svg>
               éditer
             </button>
-            <button v-if="!isEdit && canEdit && activeDoc?.exists" type="button"
+            <button v-if="!isEdit && canAdmin && activeDoc?.exists" type="button"
               class="btn-edit" @click="publishToLibrary(activeSlug, activeDoc?.title || activeSlug)">
               Publier
             </button>
-            <button v-if="!isEdit && canEdit && activeDoc?.exists && activeDoc.id > 0"
+            <button v-if="!isEdit && canAdmin && activeDoc?.exists && activeDoc.id > 0"
               type="button" class="btn-edit" @click="shareOpen = true">
               Partager
             </button>
@@ -382,7 +391,7 @@ async function removeSkill(slug: string, label: string) {
           <div v-if="viewing !== null" class="vbanner">
             <span>Tu consultes la version <strong>v{{ viewing }}</strong> — lecture seule.</span>
             <button type="button" class="btn-ghost-xs" @click="backToCurrent">Revenir à l'actuelle</button>
-            <button v-if="canEdit" type="button" class="btn-ghost-xs" @click="restore(viewing!)">Restaurer cette version</button>
+            <button v-if="canWrite" type="button" class="btn-ghost-xs" @click="restore(viewing!)">Restaurer cette version</button>
           </div>
           <DoctrineEditor v-if="isEdit" v-model="draft" :reg="reg" />
           <DoctrineContent v-else :text="viewing !== null ? viewingBody : saved" :reg="reg" />
@@ -405,7 +414,7 @@ async function removeSkill(slug: string, label: string) {
                   stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
                 bibliothèque
               </button>
-              <button v-if="canEdit" type="button" class="btn-ghost-sm" @click="modalOpen = true">
+              <button v-if="canWrite" type="button" class="btn-ghost-sm" @click="modalOpen = true">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
                   stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
                 procédure
@@ -422,7 +431,7 @@ async function removeSkill(slug: string, label: string) {
               </div>
               <div class="docrow__bot">
                 <span class="docrow__slug">{{ d.slug }}</span>
-                <span v-if="canEdit" class="docrow__del" title="supprimer"
+                <span v-if="canDelete" class="docrow__del" title="supprimer"
                   @click.stop="removeSkill(d.slug, d.title)">supprimer</span>
               </div>
             </button>
@@ -444,7 +453,7 @@ async function removeSkill(slug: string, label: string) {
               <template v-else>
                 <button type="button" class="btn-ghost-xs" :disabled="viewLoading"
                   @click="viewVersion(v.version)">Voir</button>
-                <button v-if="canEdit" type="button" class="btn-ghost-xs" @click="restore(v.version)">Restaurer</button>
+                <button v-if="canWrite" type="button" class="btn-ghost-xs" @click="restore(v.version)">Restaurer</button>
               </template>
             </div>
             <div v-if="!versions.length" class="dim">aucun historique.</div>
@@ -543,6 +552,8 @@ async function removeSkill(slug: string, label: string) {
 .vrow__dot.cur { background: var(--color-saffron); }
 .vrow__v { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--color-ink); flex: none; }
 .vrow__meta { flex: 1; min-width: 0; font-size: 11.5px; color: var(--color-mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Auteur non résolu : ce qui s'affiche est un identifiant de compte, et ça se voit. */
+.vrow__meta .raw { font-family: var(--font-mono); font-size: 10.5px; color: var(--color-faint); }
 
 /* empty */
 .empty-state { max-width: 520px; margin: 64px auto; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 15px; }

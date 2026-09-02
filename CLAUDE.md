@@ -119,6 +119,16 @@ Les **contrats backend** sont dans `oto-backend/` : `CLAUDE.md` pour la carte,
   nav a son titre, tout titre ses deux traductions.
 - ⚠️ **Copy user-facing = verbatim** (`lib/connectorVerdict.ts` porte la copy du CDC), jamais
   reformulée. i18n FR complète, 0 terme banni.
+- ⚠️ **Un droit d'ÉCRITURE ne se déduit pas d'un droit d'ADMINISTRATION** (#144) : sur les
+  procédures, écrire (et restaurer) est ouvert à tout **membre** d'équipe, supprimer reste
+  au **chef**. Chaque geste lit le drapeau de SON geste (`lib/instructionRights.ts`) ;
+  `can_edit` n'est plus qu'un **repli** quand le serveur est plus ancien — une absence
+  n'est pas un « non ». Élargir au lieu de dédoubler remplacerait une porte fermée à tort
+  par une porte ouverte à tort. Détail : `docs/orgs-groupes-invitations.md`.
+- ⚠️ **`set_by` est un identifiant de compte, pas un nom** (#143) : il s'affiche via
+  `lib/people.ts` — **nom, à défaut adresse, à défaut l'identifiant**, jamais l'inverse.
+  L'annuaire vient des membres d'org/équipe déjà lisibles côté client (`usePeople`), et un
+  compte absent (parti, geste de plateforme) garde son identifiant, marqué comme dégradé.
 - ⚠️ Les identifiants de code/API gardent le mot « doctrine » (`Doctrine*View`,
   `getDoctrine`, `/api/me/instructions*`) — seul le **vocabulaire produit** (routes, copy)
   est passé à « procédure » / « agent readme ».
@@ -132,10 +142,13 @@ Les **contrats backend** sont dans `oto-backend/` : `CLAUDE.md` pour la carte,
   (déclarer ou resserrer l'`Output` de la capacité), puis `npm run api:refresh` ici —
   jamais en retouchant le type côté front. Les rares interfaces encore écrites à la
   main portent leur raison en commentaire (admin hors document · `Output` non déclaré ·
-  contrat plus lâche que l'écran). ⚠️ **Un cas à part, temporaire** :
+  contrat plus lâche que l'écran). ⚠️ **Deux cas à part, temporaires** :
   `src/types/api.attendu.ts` porte ce qu'une PR backend **ouverte** sert déjà —
-  `api:refresh` interroge un backend vivant et l'effacerait. Fichier à supprimer d'un
-  coup au déploiement, jamais à essaimer. Chaîne, contrôles CI et état mesuré :
+  `api:refresh` interroge un backend vivant et l'effacerait ; fichier à supprimer d'un
+  coup au déploiement, jamais à essaimer. Et l'inverse — **servi et requis, mais le
+  snapshot date** — reste un champ optionnel dans `api.ts` avec sa conduite de repli,
+  parce que rafraîchir emporte tout le contrat et se lit à part. Chaîne, contrôles CI et
+  état mesuré :
   **`docs/types-api.md`**.
 - Composants dans `components/`, pages dans `views/`
 - Pas de fichier > 500 lignes ; pas de fallback silencieux (lever une erreur)
