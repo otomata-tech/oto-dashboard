@@ -1224,6 +1224,128 @@ export interface TenantRow {
   last_seen_at: string | null
   orgs_desalignees: number
 }
+// ── Relance des comptes inactifs (console plateforme) ──
+// ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (POST
+//    /api/admin/outreach) : rien à dériver tant qu'il l'est. Relevé sur la capacité
+//    `admin.outreach` d'oto-backend, présente au commit servi par la preprod ET au
+//    tag de prod.
+//
+// ⚠️ Cette surface FAIT PARTIR DES MAILS sous notre marque. Les cinq verrous vivent
+// au serveur, et l'écran n'en contourne aucun — il les rend visibles :
+//   1. les comptes d'un tenant PARTENAIRE sont exclus par la requête elle-même ;
+//   2. l'index unique `(campagne, compte)` interdit la seconde relance ;
+//   3. `send` refuse tant qu'un `test` n'a pas été REÇU pour cette empreinte de
+//      contenu et pour CHAQUE langue servie — toute retouche invalide l'essai ;
+//   4. `send` sans `confirm` refuse en annonçant N ; un `confirm` qui ne colle plus
+//      refuse aussi ; plafond dur au-delà de `OUTREACH_MAX_ENVOI` ;
+//   5. chaque message porte un lien de désinscription signé.
+export type OutreachOp = 'audience' | 'preview' | 'test' | 'send' | 'journal'
+  | 'optouts' | 'optout_clear'
+/** 'never_active' = aucun appel d'outil, jamais. 'dormant' = a appelé, puis plus
+ *  rien depuis `dormant_days`. Deux SEGMENTS d'une même campagne — pas deux
+ *  campagnes : le slug et le contenu restent les mêmes, donc l'essai vaut pour les
+ *  deux et personne n'est relancé deux fois. */
+export type OutreachStatus = 'never_active' | 'dormant'
+/** Plafond dur d'un envoi, côté serveur (`db_outreach.MAX_ENVOI`). Affiché pour que
+ *  l'opérateur sache où il est AVANT d'être refusé ; le refus reste au serveur. */
+export const OUTREACH_MAX_ENVOI = 200
+
+export interface OutreachRow {
+  sub: string
+  email: string | null
+  name: string | null
+  created_at: string | null
+  calls: number
+  last_seen_at: string | null
+  /** Relances DÉJÀ reçues, toutes campagnes confondues. */
+  previous_outreach: number
+  /** La préférence DÉCLARÉE (langue d'UI du dashboard), souvent `null`. */
+  locale: string | null
+  /** La langue réellement servie à cette personne. */
+  served_locale: string
+  /** ⚠️ `declared` = la personne a choisi ; `default` = c'est l'opérateur qui a
+   *  choisi pour elle. Les afficher pareil ferait passer un choix d'opérateur pour
+   *  une donnée de compte. */
+  locale_source: 'declared' | 'default'
+  /** INDICATION à l'œil seulement : le domaine n'entre dans aucune décision de
+   *  langue — un `.com` peut être français, un `.fr` une filiale. */
+  email_domain: string | null
+  /** Renseignés par `op=send` uniquement, ligne par ligne. */
+  sent: boolean | null
+  reason: string | null
+}
+
+export interface OutreachSend {
+  id: number
+  campaign: string
+  sub: string
+  to_email: string | null
+  locale: string
+  /** 'test' = parti chez l'opérateur ; 'send' = parti chez la personne. */
+  kind: string
+  fingerprint: string | null
+  sent_by: string | null
+  sent_at: string | null
+  desinscrit: boolean
+}
+
+export interface OutreachOptout {
+  sub: string
+  email: string | null
+  source: string | null
+  opted_out_at: string | null
+}
+
+export interface OutreachResult {
+  op: OutreachOp
+  campaign: string | null
+  recipients: OutreachRow[]
+  /** `total` = l'audience ENTIÈRE ; `selected` = ce que CETTE réponse porte, et donc
+   *  le nombre à confirmer. ⚠️ Ne jamais confirmer avec `total` : la troncature est
+   *  le seul écart que l'opérateur ne peut pas voir. */
+  total: number
+  selected: number
+  truncated: boolean
+  with_declared_locale: number
+  with_default_locale: number
+  sent: number
+  cleared: boolean
+  /** locale → HTML rendu. ⚠️ L'aperçu est rendu SANS lien de désinscription (il
+   *  n'existe pas de destinataire) ; le mail réel en porte toujours un. */
+  preview_html: Record<string, string>
+  /** sha256 du contenu servi, toutes langues. C'est LUI qui lie l'essai à l'envoi. */
+  fingerprint: string | null
+  /** Les langues pour lesquelles un essai a été reçu SUR CETTE EMPREINTE. */
+  tested_locales: string[]
+  log: OutreachSend[]
+  optouts: OutreachOptout[]
+}
+
+/** Le corps posté. `body_*` est du TEXTE BRUT : les lignes vides séparent des
+ *  paragraphes, les retours simples deviennent des sauts. Il est échappé au rendu —
+ *  aucun HTML ne passe. */
+export interface OutreachInput {
+  op: OutreachOp
+  campaign?: string
+  status?: OutreachStatus
+  dormant_days?: number
+  limit?: number
+  subject_fr?: string
+  body_fr?: string
+  subject_en?: string
+  body_en?: string
+  cta_label_fr?: string
+  cta_label_en?: string
+  cta_url?: string
+  /** La langue servie aux comptes SANS préférence déclarée — un CHOIX d'opérateur,
+   *  jamais une déduction. */
+  default_locale?: 'fr' | 'en'
+  /** Le nombre annoncé, renvoyé à l'identique. Absent ⟹ `send` refuse en donnant N. */
+  confirm?: number
+  target?: string
+  only?: string[]
+}
+
 // ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (GET
 //    /api/admin/tenants) : rien à dériver tant qu'il l'est.
 export interface TenantTotals {

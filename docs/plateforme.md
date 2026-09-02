@@ -2,12 +2,13 @@
 title: Écrans plateforme
 type: reference
 description: >-
-  `/platform/objects` (object-browser des objets possédés, ADR 0030, plan gouvernance only) 
-  et `/platform/tenants` (l'étage d'identité au-dessus des orgs, ADR 0052, lecture seule par
-   construction, verdict « redémarrage requis »).
+  `/platform/objects` (object-browser des objets possédés, ADR 0030, plan gouvernance only),
+  `/platform/tenants` (l'étage d'identité au-dessus des orgs, ADR 0052, lecture seule par
+   construction, verdict « redémarrage requis ») et `/platform/outreach` (relance des comptes
+   inactifs — cinq verrous, tous au serveur).
 ---
 
-# Écrans plateforme — objets possédés & tenants
+# Écrans plateforme — objets possédés, tenants & relance
 
 > Extrait de `CLAUDE.md` le 2026-08-27 — le contenu n'a pas changé, seule sa place a bougé.
 > La carte garde le résumé + le pointeur ; le détail (inventaires d'écrans, historique
@@ -40,3 +41,56 @@ et « comptes » viennent de DEUX sources indépendantes côté backend (rattach
 qualification du sub) — l'écart est la colonne « écarts », et la fiche en donne la liste
 nominative. `CopyField` gagne un `label` optionnel + la classe `.copystack` (console.css)
 pour les fiches techniques qui alignent plusieurs valeurs copiables.
+
+## ⚠️ Relance des comptes inactifs — l'écran ne garde rien, il rend les gardes visibles
+
+`/platform/outreach` (`AdminOutreachView`) est la console de la capacité `admin.outreach`
+d'oto-backend. Elle poste sur `POST /api/admin/outreach`, **qui passe par exactement la même
+autorisation et le même code que le verbe conversationnel `oto_admin_outreach`** : par
+construction, l'écran ne peut rien contourner.
+
+C'est la propriété qui rend cet écran acceptable, et il faut la garder telle quelle. **Les
+cinq verrous vivent au serveur** ; le travail du front est de les rendre lisibles :
+
+| verrou | où il vit | ce que l'écran en fait |
+|---|---|---|
+| tenant partenaire écarté | la requête SQL elle-même | rien — il n'y a pas de case à cocher, et c'est voulu |
+| pas de doublon | index unique `(campagne, compte)`, écrit **avant** l'envoi | affiche `previous_outreach` pour qu'on sache qu'on écrit une 2ᵉ fois |
+| essai reçu avant tout envoi | `send` refuse sans essai de **cette empreinte**, pour **chaque** langue servie | n'arme `Envoyer` qu'après constat du serveur, et **re-verrouille dès qu'un caractère change** |
+| nombre annoncé = nombre confirmé | `send` sans `confirm` refuse en donnant N ; un N qui ne colle plus refuse | la confirmation dit N, et c'est ce même N qui part |
+| lien de désinscription | posé par le serveur dans chaque message | le dit, et signale que l'**aperçu** n'en porte pas (il n'a pas de destinataire) |
+
+⚠️ **Un écran qui « simplifierait » en sautant l'essai ou la confirmation serait pire que pas
+d'écran.** Il ne contournerait rien — le serveur refuserait — mais il aurait menti sur l'état
+du garde, et c'est le mensonge qui coûte. `lib/outreach.ts` porte cette logique en fonctions
+pures, et son spec fixe le SENS de chaque refus ; `AdminOutreachView.spec.ts` couvre le
+câblage qu'aucun type ne protège (la retouche qui re-verrouille, le N confirmé,
+la confirmation refusée qui n'envoie rien, les boutons **omis** — jamais grisés — pour qui
+n'a pas le droit d'envoyer).
+
+**Sur la langue, on ne devine pas.** Le seul signal est `users.locale`, la préférence d'UI
+déclarée dans le dashboard ; elle prime toujours. Pour tout le reste, c'est `default_locale`,
+un **choix d'opérateur** — l'écran l'initialise à l'anglais et affiche combien de comptes
+tombent dans chaque cas. Le domaine de l'adresse est servi comme indication à l'œil et
+n'entre dans **aucune** décision : un `.com` peut être français, un `.fr` une filiale. Le
+tableau distingue donc « choisie par la personne » de « défaut de la campagne » — les
+confondre ferait passer un choix d'opérateur pour une donnée de compte.
+
+**Deux segments, un seul message.** `never_active` (aucun appel d'outil, jamais) et `dormant`
+(a appelé, puis plus rien) sont deux requêtes distinctes, donc deux envois. Ce ne sont pas
+deux campagnes : en gardant **le même nom de campagne et le même texte**, l'essai vaut pour
+les deux et l'index unique continue de garantir qu'une personne n'est relancée qu'une fois.
+L'écran mesure les deux segments ensemble et le dit, pour que la décision se prenne en
+voyant les deux nombres.
+
+⚠️ L'aperçu est rendu dans une **iframe `sandbox=""`** et non par `v-html` : le serveur rend
+un **document complet** (`<head>`, fond, carte, pied), qu'une `div` mutilerait tout en
+laissant ses styles fuir dans la console.
+
+**Droits** : lire l'audience, l'aperçu et les registres = `platform_admin` (lentille de
+supervision). Tout ce qui fait **partir** un mail (`test`, `send`) ou **lève** un refus
+(`optout_clear`) = `super_admin`. Les boutons correspondants sont **omis** pour qui n'a pas
+le droit, jamais grisés : un levier inerte se découvre au clic.
+
+⚠️ `POST /api/admin/outreach` est **hors du document OpenAPI servi**, comme tout
+`/api/admin/*` : les types de `types/api.ts` sont écrits à la main, relevés sur la capacité.

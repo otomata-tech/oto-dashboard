@@ -38,6 +38,7 @@
     "tenants": "tenants",
     "objects": "objects",
     "connectorsKeys": "connectors & keys",
+    "outreach": "outreach",
     "mcpConnected": "mcp connected",
     "moreProjects": "{n} more projects",
     "section": {
@@ -84,6 +85,7 @@
     "platformTenants": { "title": "tenants", "crumb": "platform" },
     "platformObjects": { "title": "owned objects", "crumb": "platform" },
     "platformConnectors": { "title": "platform connectors", "crumb": "platform" },
+    "platformOutreach": { "title": "inactive account outreach", "crumb": "platform" },
     "adminUser": { "title": "user record", "crumb": "platform" },
     "adminOrg": { "title": "organization record", "crumb": "platform" }
   },

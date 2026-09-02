@@ -71,7 +71,7 @@ historique des refontes) vit dans le doc du concept.
 | ce que voit l'agent — readme, guides, procédures, profil | `/context`, `/org/context`, `/team/context`, `/procedures` | `docs/agent-context.md` |
 | recherche transverse (⌘K + page) | `/search` | `docs/recherche.md` |
 | identité, consultation (view-as), hub compte | `/account` + sidebar/popin | `docs/identite-et-consultation.md` |
-| écrans plateforme — objets possédés, tenants | `/platform/objects`, `/platform/tenants` | `docs/plateforme.md` |
+| écrans plateforme — objets possédés, tenants, **relance des comptes inactifs** | `/platform/objects`, `/platform/tenants`, `/platform/outreach` | `docs/plateforme.md` |
 | facturation — abonnement, tunnel de souscription, **factures** | `/org/billing` | `docs/facturation.md` |
 | automatisations — file d'exécution, déclencheurs, routines | `/automations` | `docs/automations.md` |
 | observabilité (PostHog + Sentry) | — | `docs/observabilite.md` |
@@ -209,7 +209,7 @@ d'intégration et **note datée sur l'archivage de `design-system/` (2026-08-27)
 | `agent-context.md` | agent readme (injecté, cumulable, UNE surface depuis ADR 0042), procédures, guides, onboarding devenu un projet, fiche profil. |
 | `recherche.md` | popup ⌘K + page `/search`, un seul chemin de rendu, deep-link `?doc=`, backlinks, boîte « À traiter ». |
 | `identite-et-consultation.md` | affichage (sidebar) vs switch (popin compte), consultation vs maison (ADR 0023), « voir en tant que » USER, hub `/account`. |
-| `plateforme.md` | `/platform/objects` (objets possédés, ADR 0030) et `/platform/tenants` (ADR 0052, lecture seule, verdict « redémarrage requis »). |
+| `plateforme.md` | `/platform/objects` (objets possédés, ADR 0030), `/platform/tenants` (ADR 0052, lecture seule, verdict « redémarrage requis ») et `/platform/outreach` (relance des comptes inactifs : les cinq verrous vivent au SERVEUR, l'écran les rend visibles sans en alléger aucun). |
 | `facturation.md` | l'écran `/org/billing` et son tunnel (identité → montant → consentement → paiement), `pending_mandate` = attente et non échec, les préalables peints d'un coup, le miroir de TVA. |
 | `automations.md` | la surveillance de flotte (gardes en tête, bail réel vs seuil dérivé, renvois du harnais), la file d'exécution (grain ORDONNANCEUR, pas donnée) et la fiche d'un agent ; **le contrat OUVERT de `RunnerJob['result']`** (`extra=allow` — *servi* n'est pas *déclaré*) ; les pièges vécus : **postes de garde lus comme des compteurs alors que ce sont des listes** (bandeau muet en prod), **`null` = non mesuré ≠ zéro**, `lease_until` jamais lu sans le statut, horodatages UTC sans fuseau, page absente de `PAGE_META`. |
 | `types-api.md` | la chaîne `Output` → OpenAPI → snapshot → types générés → alias, les deux contrôles CI, ce qui reste écrit à la main (avec pourquoi), et le **sas `api.attendu.ts`** pour ce qu'une PR backend ouverte sert déjà. |

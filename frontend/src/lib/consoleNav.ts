@@ -105,6 +105,11 @@ export const NAV: NavGroup[] = [
     { path: '/platform/tenants', label: 'nav.tenants', icon: 'shield' },
     { path: '/platform/objects', label: 'nav.objects', icon: 'db' },
     { path: '/platform/connectors', label: 'nav.connectorsKeys', icon: 'plug' },
+    // Relance des comptes inactifs. Visible à tout opérateur plateforme : lire
+    // l'audience et le journal est une lentille de supervision. Ce qui FAIT PARTIR
+    // un mail est réservé au super_admin, et se gate DANS la vue — marquer la
+    // section `super` la cacherait à qui a le droit de la consulter.
+    { path: '/platform/outreach', label: 'nav.outreach', icon: 'mail' },
   ]},
 ]
 
@@ -157,4 +162,5 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/platform/tenants': { title: 'pageMeta.platformTenants.title', crumb: 'pageMeta.platformTenants.crumb' },
   '/platform/objects': { title: 'pageMeta.platformObjects.title', crumb: 'pageMeta.platformObjects.crumb' },
   '/platform/connectors': { title: 'pageMeta.platformConnectors.title', crumb: 'pageMeta.platformConnectors.crumb' },
+  '/platform/outreach': { title: 'pageMeta.platformOutreach.title', crumb: 'pageMeta.platformOutreach.crumb' },
 }

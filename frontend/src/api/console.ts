@@ -17,6 +17,7 @@ import type {
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
   EmailSettingsBundle, EmailSender, QuietHours, ScheduledEmail,
   TenantRow, TenantTotals, TenantSheet,
+  OutreachInput, OutreachResult,
 } from '@/types/api'
 // ⚠️ Contrat SERVI PAR UN LOT NON DÉPLOYÉ (oto-backend PR #723) — écrit à la main
 // parce qu'une régénération depuis l'OpenAPI en ligne l'effacerait. Cf. le fichier.
@@ -964,6 +965,46 @@ export const getAdminTenant = (slug: string, days = 30) =>
 export const reloadTenantRegistry = () =>
   api<{ reloaded: boolean; tenants: string[]; issuers: number; verifier_updated: boolean }>(
     '/api/admin/tenants/reload', { method: 'POST' })
+
+// ── admin : relance des comptes inactifs (capacité op-aware `admin.outreach`) ──
+// ⚠️ Cette surface FAIT PARTIR DES MAILS sous notre marque. L'écran n'ouvre AUCUN
+// raccourci : il appelle exactement le même code que le verbe conversationnel
+// `oto_admin_outreach`, avec la même autorisation. Les cinq verrous sont au serveur —
+// tenant partenaire exclu par la requête, index unique contre le doublon, essai reçu
+// avant tout envoi, compte annoncé puis confirmé à l'identique, plafond dur, lien de
+// désinscription. Le front les REND VISIBLES, il n'en rejoue aucun et n'en saute aucun.
+//
+// Lecture (`audience`, `preview`, `journal`, `optouts`) = platform_admin ; tout ce qui
+// fait partir un mail ou lève un refus (`test`, `send`, `optout_clear`) = super_admin.
+const outreachApi = (body: OutreachInput) =>
+  api<OutreachResult>('/api/admin/outreach', { method: 'POST', ...j(body) })
+
+/** Qui serait relancé, et dans quelle langue. N'envoie rien. */
+export const getOutreachAudience = (body: Omit<OutreachInput, 'op'>) =>
+  outreachApi({ ...body, op: 'audience' })
+/** L'audience PLUS le HTML rendu de chaque langue servie, l'empreinte du contenu et
+ *  les langues déjà essayées SUR CETTE EMPREINTE. N'envoie rien. C'est l'appel qui
+ *  dit si `send` est déverrouillé. */
+export const getOutreachPreview = (body: Omit<OutreachInput, 'op'>) =>
+  outreachApi({ ...body, op: 'preview' })
+/** ⚠️ Envoie le message À L'APPELANT, une fois par langue servie. Le destinataire
+ *  n'est pas un paramètre — et c'est cet essai reçu qui déverrouille `send`. */
+export const sendOutreachTest = (body: Omit<OutreachInput, 'op'>) =>
+  outreachApi({ ...body, op: 'test' })
+/** ⚠️ L'ENVOI RÉEL. `confirm` doit valoir EXACTEMENT le nombre de destinataires que
+ *  l'écran vient d'afficher (`selected`, jamais `total`) : le serveur refuse sinon,
+ *  et c'est voulu — l'audience a pu bouger depuis le dernier aperçu. */
+export const sendOutreach = (body: Omit<OutreachInput, 'op'> & { confirm: number }) =>
+  outreachApi({ ...body, op: 'send' })
+/** Qui a été contacté, quand, dans quelle langue, par qui. */
+export const getOutreachJournal = (campaign?: string, limit = 200) =>
+  outreachApi({ op: 'journal', campaign, limit })
+/** Qui a refusé de recevoir. Un compte désinscrit quitte TOUTE audience. */
+export const getOutreachOptouts = (limit = 200) =>
+  outreachApi({ op: 'optouts', limit })
+/** Lever un refus — sur la demande explicite de la personne, et jamais autrement. */
+export const clearOutreachOptout = (target: string) =>
+  outreachApi({ op: 'optout_clear', target })
 
 // ── admin orgs (cross-org governance) ──
 export const getAdminOrgs = () => api<{ orgs: AdminOrgSummary[] }>('/api/admin/orgs')

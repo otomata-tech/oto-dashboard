@@ -38,6 +38,7 @@
     "tenants": "tenants",
     "objects": "objets",
     "connectorsKeys": "connecteurs & clés",
+    "outreach": "relances",
     "mcpConnected": "mcp connecté",
     "moreProjects": "{n} projets restants",
     "section": {
@@ -84,6 +85,7 @@
     "platformTenants": { "title": "tenants", "crumb": "plateforme" },
     "platformObjects": { "title": "objets possédés", "crumb": "plateforme" },
     "platformConnectors": { "title": "connecteurs plateforme", "crumb": "plateforme" },
+    "platformOutreach": { "title": "relance des comptes inactifs", "crumb": "plateforme" },
     "adminUser": { "title": "fiche utilisateur", "crumb": "plateforme" },
     "adminOrg": { "title": "fiche organisation", "crumb": "plateforme" }
   },

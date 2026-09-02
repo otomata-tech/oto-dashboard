@@ -58,6 +58,7 @@ const VIEWS: Record<string, Component> = {
   '/platform/tenants': defineAsyncComponent(() => import('./AdminTenantsView.vue')),
   '/platform/objects': defineAsyncComponent(() => import('./AdminObjectsView.vue')),
   '/platform/connectors': defineAsyncComponent(() => import('./AdminConnectorsView.vue')),
+  '/platform/outreach': defineAsyncComponent(() => import('./AdminOutreachView.vue')),
 }
 
 const route = useRoute()
