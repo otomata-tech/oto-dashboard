@@ -86,6 +86,48 @@ paiement, alors que `billing_payments.kind` connaît déjà `method_change` ; et
 `canceled_at` (« résiliation programmée ») n'a **aucun moyen de revenir en arrière** —
 `cancel` n'a pas d'inverse. Les deux sont des lots oto-backend.
 
+## ⚠️ Les factures sont une PROMESSE ÉCRITE, pas une commodité
+
+Les CGV publiées le 2026-09-02 engagent Otomata mot pour mot : « Chaque encaissement donne
+lieu à une facture, envoyée par courrier électronique et **téléchargeable depuis
+manage.oto.cx** », et elle « **reste** téléchargeable au format PDF ».
+
+Le serveur tenait déjà sa part depuis oto-backend #488 — `GET /api/me/billing/invoices` et
+`GET /api/me/billing/invoices/{id}/pdf`, servis en production. **Aucun écran ne les
+demandait.** Un client payant ne pouvait donc récupérer aucune facture, alors que le contrat
+la lui promettait. `BillingInvoices.vue` est cette porte, et rien d'autre : le lot du
+2026-09-02 n'a touché aucune surface serveur.
+
+Trois choix de cet écran **sont** la promesse — les « simplifier » la rompt :
+
+- **La carte n'est pas conditionnée à l'abonnement en cours.** « Reste téléchargeable » vaut
+  après une résiliation : un `v-if="status.subscribed"` masquerait les factures de qui vient
+  de partir — précisément celles qu'on réclame ensuite à son comptable. Seule la phrase du
+  cas vide dépend de l'état (`paying`), jamais l'affichage des factures elles-mêmes.
+- **Un document `status='pending'` s'affiche, avec son montant.** L'encaissement a eu lieu ;
+  seule l'émission tarde, et elle est rejouée automatiquement. La copie ne dit ni « échec »
+  ni « erreur » — un `pending` n'est jamais un paiement perdu.
+- **Aucun lien mort.** Le bouton n'existe que si le serveur a servi un `pdf_path`, et il ne
+  le sert que s'il y a un fichier au bout. Un document émis dont le PDF n'est pas revenu du
+  fournisseur le **dit** au lieu d'offrir un clic qui tomberait sur un 409.
+
+⚠️ Un **avoir** (`kind='credit_note'`) porte des montants **négatifs** : les afficher en
+valeur absolue ferait passer un remboursement pour un débit.
+
+⚠️ Le type `BillingInvoice` est **écrit à la main** dans `types/api.ts`, et pas pour la
+raison des autres types billing : ici le contrat est parfaitement déclaré côté serveur. C'est
+le **snapshot commité** qui est antérieur au lot ; le rafraîchir emporterait toute la dérive
+accumulée. `api:refresh` est un acte à part, dont le diff est l'information — jamais l'effet
+de bord d'un lot d'écran. Les champs ont été relevés un à un sur le document servi par la
+prod (`v1.181.0`) **et** par la preprod, schémas identiques.
+
+⚠️ La règle des centimes vit désormais dans **`lib/euros.ts`**, pas dans l'écran : elle
+existait en plusieurs exemplaires dont un seul était juste. Une facture est un document
+opposable — le nombre qu'on y lit doit être celui qui a été débité. (Les trois copies
+restantes, `BillingCheckout`, `BillingPriceCard` et `BillingGranted`, formatent des prix de
+**catalogue** toujours ronds ; elles n'ont pas été touchées, mais ce sont les candidates si
+on reprend le sujet.)
+
 ## ⚠️ Un don n'écrit aucune ligne d'abonnement
 
 L'écran lit l'abonnement. Or un **don d'option** (`option_comps`, couche 3 d'ADR 0043)
@@ -222,6 +264,8 @@ cas. L'écran l'annonce et n'ouvre pas de paiement.
 | `POST /api/me/billing/subscribe` | ouvre le checkout ; 409 avec `details.blockers` tant qu'un préalable manque |
 | `POST /api/me/billing/confirm` | l'avancement au retour et en re-sonde ; accepte `payment_ref` |
 | `GET /api/me/billing/payments` | le journal des tentatives |
+| `GET /api/me/billing/invoices` | les factures ET avoirs de l'org, plus récents d'abord — lecture ouverte à **tout membre**, comme le journal des paiements |
+| `GET /api/me/billing/invoices/{id}/pdf` | le PDF, **authentifié** (jamais une URL publique) ; 409 `pdf_not_available` tant que le fichier n'est pas revenu du fournisseur |
 
 `api()` lève un **`ApiError`** qui conserve `error`, `detail` et `details` — l'enveloppe
 les portait, on les jetait. Son `message` reste `"<status> <code>"`, donc `humanize()` est

@@ -72,7 +72,7 @@ historique des refontes) vit dans le doc du concept.
 | recherche transverse (⌘K + page) | `/search` | `docs/recherche.md` |
 | identité, consultation (view-as), hub compte | `/account` + sidebar/popin | `docs/identite-et-consultation.md` |
 | écrans plateforme — objets possédés, tenants | `/platform/objects`, `/platform/tenants` | `docs/plateforme.md` |
-| facturation — abonnement, tunnel de souscription | `/org/billing` | `docs/facturation.md` |
+| facturation — abonnement, tunnel de souscription, **factures** | `/org/billing` | `docs/facturation.md` |
 | automatisations — file d'exécution, déclencheurs, routines | `/automations` | `docs/automations.md` |
 | observabilité (PostHog + Sentry) | — | `docs/observabilite.md` |
 
