@@ -198,7 +198,7 @@ d'intégration et **note datée sur l'archivage de `design-system/` (2026-08-27)
 |---|---|
 | `commands.md` | lancer le dashboard, et tester un fix en local contre les **vraies données de prod**. |
 | `deploiement.md` | modèle tronc unique (`main` = preprod, tag `vX.Y.Z` = prod), artefact-only, cutover ADR 0040. |
-| `conventions.md` | le typecheck du CI (`vue-tsc --build`) et les deux vecteurs vécus de « local vert / CI rouge ». |
+| `conventions.md` | le typecheck du CI (`vue-tsc --build`) et les deux vecteurs vécus de « local vert / CI rouge » ; la règle transverse « une alerte qui réclame un geste offre le moyen de l'accomplir » et son tripwire. |
 | `design-system.md` | où vit l'identité (`oto-studio/brand/` → `@otomata/ui`) et pourquoi le dashboard ne s'y branche pas encore, direction « 2a », les deux fichiers de tokens, état d'intégration b1→b8, archivage de `design-system/`. |
 | `handoff-design-system.md` | le plan de portage du DS dans le front (b1→b8) — **historique**. |
 | `refonte-pages-projet.md` | cahier des charges de la refonte UX des pages Projet/Projets — **historique** : les pages visées seront celles du nouveau front. |
