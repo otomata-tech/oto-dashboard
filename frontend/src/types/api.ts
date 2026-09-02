@@ -486,10 +486,30 @@ export interface InstructionDetail extends InstructionMeta {
   created_at: string | null
 }
 export type InstructionVersion = components['schemas']['InstructionVersion']
+// Les deux droits servis PAR VERBE sur les bundles de procédures (oto-backend#719,
+// suite de #695) : écrire (et restaurer, qui en est le défaire) est ouvert à tout
+// MEMBRE de l'équipe propriétaire ; supprimer reste au CHEF, parce que ça emporte
+// l'historique. `can_edit`, lui, ne change ni de valeur ni de sens — il dit le droit
+// d'ADMINISTRER (readme, membres, secrets) et un intégrateur tiers le lit ainsi.
+//
+// ⚠️ OPTIONNELS À DESSEIN, et pas parce que le contrat les déclare tels : le serveur les
+// sert REQUIS — mesuré le 2026-09-02 sur mcp.oto.cx (prod) ET mcp.oto.ninja (preprod),
+// sur `GET /api/me/instructions` et `GET /api/groups/{id}/instructions`. C'est le
+// SNAPSHOT commité qui est en retard, et `npm run api:refresh` emporterait tout le
+// contrat d'un coup (~18 000 lignes de dérive backend) : un acte à part, à lire, pas un
+// effet de bord de ce lot. Optionnels ici veut donc dire « un serveur plus ancien peut
+// répondre » — un retour arrière de tag — d'où le repli de `instructionRights`
+// (src/lib/instructionRights.ts). Au prochain `api:refresh` : ce bloc disparaît des deux
+// types, le généré les portera, requis.
+export interface InstructionRights {
+  can_write_instructions?: boolean
+  can_delete_instructions?: boolean
+}
+
 // ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`InstructionsBundle` :
 //    org_id: déclaré optionnel ; org_name: déclaré optionnel). Le correctif est côté oto-
 //    backend — resserrer l'`Output` — puis `npm run api:refresh` ici.
-export interface DoctrineBundle {
+export interface DoctrineBundle extends InstructionRights {
   org_id: number | null
   org_name: string | null
   can_edit: boolean
@@ -1101,7 +1121,7 @@ export interface GroupDetail {
   members: GroupMember[]
   secrets: GroupSecret[]
 }
-export type GroupInstructionsBundle = ApiOut<'group_instruction_list_get'>
+export type GroupInstructionsBundle = ApiOut<'group_instruction_list_get'> & InstructionRights
 
 // ── admin ──
 export interface AdminGrant {

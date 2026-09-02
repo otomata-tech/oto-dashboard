@@ -2,16 +2,23 @@
 // Agent readme & procédures d'un groupe (ADR 0012). Le backend re-vérifie tout, mais
 // depuis oto-backend#681 les deux gestes n'ont plus la même garde et cet écran doit le
 // refléter (oto-dashboard#144) :
-//   · écrire/éditer/restaurer une procédure = tout MEMBRE de l'équipe (prop `can-write`) —
+//   · écrire/éditer/restaurer une procédure = tout MEMBRE de l'équipe —
 //     geste de travail, réversible (chaque écriture verse une version, `revert` la restaure) ;
 //   · éditer le readme et SUPPRIMER une procédure = le CHEF (prop `can-manage`) — le readme
 //     reste écrit sur la surface guide (chef seul), et la suppression emporte l'historique
 //     sans corbeille.
 // `can-manage` implique `can-write` (un chef est aussi un membre), mais l'inverse est faux :
-// ne jamais dériver l'un de l'autre, ce sont deux droits distincts. L'agent readme d'équipe
-// (slug claude_md) est INJECTÉ à chaque session des membres du groupe actif, cumulé APRÈS
-// celui de l'org ; les procédures d'équipe = progressive disclosure (chargées à la demande).
-import { ref, watch } from 'vue'
+// ne jamais dériver l'un de l'autre, ce sont deux droits distincts.
+//
+// ⚠️ Depuis oto-backend#719 le bundle SERT les deux droits par verbe
+// (`can_write_instructions` / `can_delete_instructions`) : c'est LUI qui fait foi, et les
+// props ne servent plus que de repli devant un serveur plus ancien — re-dériver la règle
+// ici la ferait dériver de celle qu'applique le serveur. Le readme, lui, reste sur
+// `can-manage` : c'est de l'administration, pas une écriture de procédure.
+// L'agent readme d'équipe (slug claude_md) est INJECTÉ à chaque session des membres du
+// groupe actif, cumulé APRÈS celui de l'org ; les procédures d'équipe = progressive
+// disclosure (chargées à la demande).
+import { computed, ref, watch } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
@@ -25,6 +32,7 @@ import {
 } from '@/api/console'
 import type { GroupInstructionsBundle } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { instructionRights } from '@/lib/instructionRights'
 
 // `section` : 'all' = readme + procédures (défaut) ; 'procedures' = procédures seules
 // (le readme s'édite ailleurs, p.ex. /team/context). Diff minimal, zéro backend.
@@ -43,6 +51,11 @@ const { formDialog, formDialogOpen, openForm } = useFormDialog()
 
 const bundle = ref<GroupInstructionsBundle | null>(null)
 const readme = ref('')   // readme d'équipe (guide delivery='init', ADR 0042)
+// Le bundle fait foi ; les props (rôle du requérant, dérivé par `useTeamScope`) ne
+// servent que si le serveur ne répond pas à la question — une absence n'est pas un
+// « non ». Voir `src/lib/instructionRights.ts`.
+const rights = computed(() =>
+  instructionRights(bundle.value, { canWrite: props.canWrite, canDelete: props.canManage }))
 
 async function load() {
   // Le readme d'équipe ne vient PLUS du bundle de procédures : c'est un guide
@@ -110,9 +123,9 @@ async function removeSkill(slug: string) {
     :sub="section === 'procedures'
       ? 'the team\'s procedures (named instructions, loaded on demand). the team readme is edited under « context ».'
       : 'the team\'s agent readme (injected each session, after the org\'s) + its procedures (loaded on demand).'">
-    <template #actions v-if="(section !== 'procedures' && canManage) || canWrite">
+    <template #actions v-if="(section !== 'procedures' && canManage) || rights.canWrite">
       <Btn v-if="section !== 'procedures' && canManage" kind="mini" @click="editDoctrine">Edit readme</Btn>
-      <Btn v-if="canWrite" kind="mini" icon="plus" @click="editSkill()">Procedure</Btn>
+      <Btn v-if="rights.canWrite" kind="mini" icon="plus" @click="editSkill()">Procedure</Btn>
     </template>
     <div v-if="bundle">
       <div v-if="section !== 'procedures'" class="rowitem" style="gap: 10px; padding-bottom: 8px">
@@ -125,8 +138,8 @@ async function removeSkill(slug: string) {
             <div style="font-weight: 600; font-size: 13px">{{ i.title || i.slug }} <span class="dim" style="font-weight: 400">· {{ i.slug }} · v{{ i.version }}</span></div>
             <div v-if="i.description" style="font-size: 11.5px; color: var(--color-mute)">{{ i.description }}</div>
           </div>
-          <Btn v-if="canWrite" kind="mini" @click="editSkill(i.slug)">Edit</Btn>
-          <Btn v-if="canManage" kind="danger" @click="removeSkill(i.slug)">Delete</Btn>
+          <Btn v-if="rights.canWrite" kind="mini" @click="editSkill(i.slug)">Edit</Btn>
+          <Btn v-if="rights.canDelete" kind="danger" @click="removeSkill(i.slug)">Delete</Btn>
         </div>
         <div v-if="!bundle.instructions.length" class="helptext">no procedures yet.</div>
       </div>
