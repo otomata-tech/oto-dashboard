@@ -24,8 +24,10 @@ import Icon from '@/components/console/Icon.vue'
 import StateError from '@/components/console/StateError.vue'
 import SkeletonOverview from '@/components/console/SkeletonOverview.vue'
 import BillingCheckout from '@/components/console/billing/BillingCheckout.vue'
+import BillingGranted from '@/components/console/billing/BillingGranted.vue'
 import BillingIdentityForm from '@/components/console/billing/BillingIdentityForm.vue'
 import BillingPending from '@/components/console/billing/BillingPending.vue'
+import BillingUsageCard from '@/components/console/billing/BillingUsageCard.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe, isSuperAdmin } from '@/composables/useMe'
@@ -324,6 +326,14 @@ function contactSales() {
     <StateError v-else-if="error" :message="error" @retry="load" />
 
     <template v-else-if="status">
+      <!-- ── Ce qui est offert ──
+           AU-DESSUS du catalogue, et le catalogue RESTE affiché dessous : un don
+           n'est pas un abonnement, et la voie pour en prendre un ne doit pas se
+           refermer. C'est même tout l'enjeu — faute qu'un don écrive la moindre
+           ligne d'abonnement, cet écran vendait à ses bénéficiaires, prix affichés
+           et bouton armé, exactement ce qu'ils possédaient déjà. -->
+      <BillingGranted v-if="status.granted?.length" :grants="status.granted" />
+
       <!-- ── Abonné : état courant ── -->
       <ConsoleCard v-if="status.subscribed" :title="status.label ?? 'Abonnement'"
         :sub="`abonnement de « ${me?.active_org_name ?? '' } »`">
@@ -416,6 +426,11 @@ function contactSales() {
         <BillingIdentityForm v-else :view="identity" :can-manage="canManage"
           @saved="onIdentitySaved" />
       </ConsoleCard>
+
+      <!-- ── Utilisation du mois ──
+           Servie à TOUT LE MONDE, gratifié ou non, abonné ou non : c'est le seul
+           bloc de cet écran qui vaut pour tous les comptes. -->
+      <BillingUsageCard v-if="status.usage" :usage="status.usage" />
 
       <!-- ── Historique des paiements ── -->
       <ConsoleCard v-if="status.subscribed && payments.length" flush title="Paiements"

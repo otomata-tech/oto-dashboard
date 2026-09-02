@@ -1506,9 +1506,72 @@ export interface BillingStatus {
   amount_ttc?: number | null      // ce qui sera RÉELLEMENT prélevé, en centimes
   vat_scheme?: VatScheme | null
   vat_blocked?: VatBlocked | null
+  // ── Ce qui est OFFERT, et ce qui est consommé (backend `billing_grants`) ──
+  // Servis dans les DEUX branches, abonné ou non — et c'est tout le point : la
+  // branche « pas d'abonnement » est justement celle qui vendait au bénéficiaire
+  // d'un don ce qu'il possédait déjà. `[]` / `null` = rien à montrer.
+  granted?: BillingGrant[]
+  usage?: BillingUsage | null
 }
 export type BillingSubscribeResult = ApiOut<'billing_subscribe_post'>
 export type BillingPayment = components['schemas']['Payment']
+
+/** Un avantage payant OFFERT par Otomata (don d'option, couche 3 d'ADR 0043).
+ *
+ *  ⚠️ ÉCRIT À LA MAIN, pour la même raison que `BillingStatus` juste au-dessus :
+ *  `/api/me/billing` ne déclare pas d'`Output`, donc rien de tout cela n'existe
+ *  dans le document OpenAPI et `api:gen` ne peut pas le dériver. Le correctif de
+ *  fond est côté oto-backend (déclarer l'`Output`), puis `npm run api:refresh` ici.
+ *  D'ici là le champ reste OPTIONNEL côté `BillingStatus`, avec sa conduite de
+ *  repli à l'écran (`v-if`) : un backend antérieur ne sert rien, et l'écran se
+ *  contente de ne pas afficher le bloc.
+ *
+ *  ⚠️ Purement DESCRIPTIF : il n'ouvre aucun droit, l'entitlement reste au serveur.
+ *  Le backend ne rend que les options qui figurent dans un palier vendu — un
+ *  drapeau de population n'a pas de prix, donc n'est jamais présenté comme un
+ *  cadeau. */
+export interface BillingGrant {
+  option: string
+  /** NOMME l'avantage. Il n'y a pas que la messagerie qui coûte : l'écran affiche
+   *  ce libellé, jamais un « offert par Otomata » seul qui deviendrait faux le jour
+   *  où un second avantage s'offre. */
+  label: string
+  detail: string | null
+  /** 'org' = ouvert à toute l'organisation | 'user' = à CE compte, qui l'emporte
+   *  avec lui dans toutes ses organisations. */
+  scope: 'org' | 'user'
+  granted_at: string | null
+  /** `null` = sans terme. */
+  expires_at: string | null
+  /** `null` si sans terme. **NÉGATIF quand l'échéance est passée** : le serveur ne
+   *  le borne pas à zéro exprès, un don échu doit se lire comme échu et non comme
+   *  « expire aujourd'hui ». */
+  days_left: number | null
+  /** Centimes HORS TAXES — ce qu'il faudrait payer pour l'avoir (prix du palier le
+   *  moins cher qui l'inclut). */
+  value_amount: number | null
+  currency: string | null
+  interval: string | null
+}
+
+/** Les appels d'outil d'agent du MOIS EN COURS, et ce qui est inclus.
+ *
+ *  ⚠️ **Aucun ratio n'est servi, et aucun ne doit être calculé ici.** À une médiane
+ *  de 25 appels sur 1000 inclus, une barre de progression ou un pourcentage dit
+ *  « c'est gratuit et sans fin » — l'inverse exact de ce que ce bloc existe pour
+ *  faire comprendre. On affiche le nombre et le plafond, jamais leur division ;
+ *  `over` est le seul discriminant de ton.
+ *
+ *  ⚠️ Fenêtre = mois en cours SEULEMENT. La rétention du journal ne permet pas de
+ *  comparaison au mois précédent : ne rien bâtir dessus. */
+export interface BillingUsage {
+  calls: number
+  included: number
+  period_start: string
+  /** Servi par le serveur, jamais dérivé. N'entraîne AUCUN refus ni surfacturation :
+   *  le dépassement s'affiche, il ne coupe pas. */
+  over: boolean
+}
 
 // ── Identité de facturation, TVA et consentement d'achat (#486/#487, tunnel #128) ──
 // Le régime fiscal servi par l'API. Le front ne le CALCULE pas : il l'affiche.
@@ -1544,4 +1607,21 @@ export function fmtDate(iso: string | null | undefined): string | null {
 }
 export function fmtDateTime(iso: string | null | undefined): string | null {
   return iso ? parseTs(iso).toLocaleString('en-US') : null
+}
+
+/** Une date FRANÇAISE avec son JOUR — « 31 octobre 2026 ».
+ *
+ *  Distincte de `fmtDate`, qui rend « Oct 2026 » (en-US, mois + année) et reste
+ *  telle quelle pour les usages où seul le mois compte. Pour une ÉCHÉANCE, le jour
+ *  EST l'information : « offert jusqu'à Oct 2026 » ne dit pas à un bénéficiaire
+ *  s'il lui reste un jour ou trente. */
+export function fmtDay(iso: string | null | undefined): string | null {
+  if (!iso) return null
+  const d = parseTs(iso)
+  const s = d.toLocaleDateString('fr-FR',
+    { day: 'numeric', month: 'long', year: 'numeric' })
+  // En français, seul le premier du mois s'ordinalise (« 1er octobre ») ; les autres
+  // restent cardinaux. `Intl` ne le fait pas et rend « 1 octobre » — or le début de
+  // période d'usage tombe TOUJOURS un 1er, donc la faute se lirait tous les mois.
+  return d.getDate() === 1 ? s.replace(/^1\b/, '1er') : s
 }

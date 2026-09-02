@@ -6,7 +6,9 @@ description: >-
   HT/TVA/TTC → consentement d'achat → paiement), retour du checkout et attente
   d'ouverture. Les trois pièges qui ont coûté de l'argent : `pending_mandate` lu
   comme un échec, un tunnel qui découvre ses préalables un par un, et une alerte
-  qui réclame un geste que l'écran n'offre nulle part.
+  qui réclame un geste que l'écran n'offre nulle part. Et le bloc « offert » : un don
+  d'option n'écrivant aucune ligne d'abonnement, l'écran vendait à ses bénéficiaires
+  ce qu'ils possédaient déjà.
 ---
 
 # Facturation — l'écran `/org/billing` (ADR 0043)
@@ -36,6 +38,8 @@ lui-même vit dans `components/console/billing/` :
 | `BillingPriceCard.vue` | HT / TVA / TTC et le régime — le montant annoncé AVANT le consentement |
 | `BillingLegalConsent.vue` | les documents servis par la réponse + UNE case |
 | `BillingPending.vue` | l'attente d'ouverture au retour du paiement |
+| `BillingGranted.vue` | **hors tunnel** — la carte « ce qui vous est offert », au-dessus du catalogue (voir plus bas) |
+| `BillingUsageCard.vue` | **hors tunnel** — les appels du mois et le plafond inclus, côte à côte |
 | `lib/billingTunnel.ts` | la partie pure : décomposition du montant, lecture des refus, libellés, cadence de sonde |
 
 ## ⚠️ Une alerte qui réclame un geste doit porter le geste
@@ -81,6 +85,62 @@ n'a **aucun moyen de changer de carte** — il n'existe pas de route de changeme
 paiement, alors que `billing_payments.kind` connaît déjà `method_change` ; et
 `canceled_at` (« résiliation programmée ») n'a **aucun moyen de revenir en arrière** —
 `cancel` n'a pas d'inverse. Les deux sont des lots oto-backend.
+
+## ⚠️ Un don n'écrit aucune ligne d'abonnement
+
+L'écran lit l'abonnement. Or un **don d'option** (`option_comps`, couche 3 d'ADR 0043)
+ouvre un avantage payant sans en écrire la moindre ligne : son bénéficiaire tombait donc
+sur le catalogue, prix affichés et bouton armé, qui lui vendait exactement ce qu'il
+possédait déjà. Mesuré côté serveur le 2026-09-02 : **32 dons vivants pour un seul
+abonnement payant** sur toute la plateforme — le cas majoritaire, pas le cas limite.
+
+`GET /api/me/billing` porte donc deux blocs de plus, servis dans les **deux** branches
+(`subscribed` vrai comme faux) : `granted[]` (les avantages offerts — `label`, `detail`,
+`scope`, `value_amount` en centimes HT, `expires_at`, `days_left`) et `usage` (`calls`,
+`included`, `period_start`, `over`). `[]` et `null` veulent dire « rien à montrer ».
+
+Ce que ces deux blocs imposent à l'écran :
+
+- **Le catalogue RESTE affiché** sous la carte « offert ». Un don n'est pas un abonnement,
+  et la voie pour en prendre un ne doit pas se refermer — c'est même tout l'enjeu.
+- **On NOMME l'avantage** (`label`, dérivé du registre de connecteurs côté serveur). Un
+  « offert par Otomata » seul deviendrait faux le jour où un second avantage s'offre, et
+  il n'y a pas que la messagerie qui coûte.
+- **Le badge se réutilise, la phrase qui l'accompagne non.** L'abonnement `comp` dit
+  « aucun paiement, aucune échéance » ; un don, lui, **peut parfaitement avoir une
+  échéance**. Transplanter la phrase mentirait.
+- **Une échéance se date au JOUR.** `fmtDate` rend « Oct 2026 » (en-US, mois + année) :
+  à un bénéficiaire, ça ne dit pas s'il lui reste un jour ou trente. D'où **`fmtDay`**
+  (« 31 octobre 2026 »), ajoutée À CÔTÉ sans toucher `fmtDate`, qui garde ses usages.
+  Elle ordinalise le premier du mois (« 1er septembre ») : `Intl` ne le fait pas, et
+  `period_start` tombe toujours un 1er — la faute se lirait tous les mois.
+- **`days_left` NÉGATIF = échu**, et le serveur ne le borne pas à zéro exprès. « Expire
+  aujourd'hui » serait faux : on annonce la fin **et** ce qui la rouvre (choisir un
+  palier), sinon l'écran annonce une perte sans issue — la règle « jamais d'alerte sans
+  levier », un cran plus loin.
+- **Aucun ratio, nulle part : ni barre, ni jauge, ni pourcentage, ni anneau.** L'usage
+  médian mesuré est de **25 appels pour 1000 inclus** ; toute forme qui divise les deux
+  nombres affiche une barre vide, et une barre vide dit « c'est gratuit et sans fin » —
+  l'inverse exact de ce que ce compteur existe pour faire comprendre. On pose les deux
+  nombres côte à côte et on laisse le lecteur les rapprocher. Le ton se change sur
+  `over`, **servi**, jamais sur un ratio calculé à l'écran.
+- **Le dépassement ne coupe rien et ne facture rien** — le journal qui porte le chiffre
+  est best-effort côté serveur. La copie dit ce qui est, elle ne menace de rien.
+- **Fenêtre = mois en cours**, et c'est une contrainte de donnée, pas un choix de produit :
+  la rétention réelle du journal ne permet pas de comparaison au mois précédent. Ne rien
+  bâtir dessus tant qu'elle n'a pas rattrapé la politique.
+
+⚠️ Le serveur **referme le dispositif hors de son périmètre** : une org hébergée par un
+tenant tiers reçoit `granted: []` et `usage: null`. Ses clients sont ceux du partenaire —
+leur afficher « offert par Otomata jusqu'au … » serait s'adresser aux clients de quelqu'un
+d'autre par-dessus sa tête. Le front n'a rien à filtrer, mais il ne doit pas non plus
+reconstruire ces blocs depuis une autre source.
+
+⚠️ `BillingGrant` et `BillingUsage` sont **écrits à la main** dans `types/api.ts`, comme
+`BillingStatus` lui-même : `/api/me/billing` ne déclare pas d'`Output`, donc le document
+OpenAPI ne les porte pas et `api:gen` ne peut pas les dériver. Le correctif de fond est
+côté oto-backend. D'ici là les deux champs restent **optionnels**, et l'écran se contente
+de ne pas afficher le bloc si le backend est plus ancien.
 
 ## ⚠️ `pending_mandate` est une ATTENTE, jamais un échec
 
@@ -156,7 +216,7 @@ cas. L'écran l'annonce et n'ouvre pas de paiement.
 
 | appel | ce qu'il sert |
 |---|---|
-| `GET /api/me/billing` | état d'abonnement + catalogue quand l'org n'a rien ; depuis #486 il porte aussi `amount_ttc`/`vat_scheme` de la **prochaine** échéance |
+| `GET /api/me/billing` | état d'abonnement + catalogue quand l'org n'a rien ; depuis #486 il porte aussi `amount_ttc`/`vat_scheme` de la **prochaine** échéance, et depuis le 2026-09-02 `granted[]` + `usage` — servis dans les DEUX branches |
 | `GET`/`PUT /api/me/billing/identity` | la fiche, `missing` (les champs requis absents, dans l'ordre du formulaire), `vat_scheme`, `vat_rate_bps`, `vat_blocked` |
 | `GET /api/me/legal`, `POST /api/me/legal/accept` | les documents et le reste-à-accepter du contexte `purchase` |
 | `POST /api/me/billing/subscribe` | ouvre le checkout ; 409 avec `details.blockers` tant qu'un préalable manque |
