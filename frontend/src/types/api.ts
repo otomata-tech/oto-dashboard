@@ -1516,6 +1516,61 @@ export interface BillingStatus {
 export type BillingSubscribeResult = ApiOut<'billing_subscribe_post'>
 export type BillingPayment = components['schemas']['Payment']
 
+/** Une FACTURE — ou un AVOIR — émise pour un encaissement (oto-backend #488).
+ *
+ *  ⚠️ ÉCRIT À LA MAIN, mais **pas pour la raison des types juste au-dessus** : ici le
+ *  contrat est parfaitement déclaré côté serveur, et servi en production. C'est le
+ *  SNAPSHOT commité (`openapi/oto-openapi.json`) qui est antérieur au lot, et le
+ *  rafraîchir emporterait tout le reste de la dérive accumulée — un `api:refresh`
+ *  est un acte à part, dont le diff est l'information, jamais l'effet de bord d'un
+ *  lot d'écran. Les champs ci-dessous ont été relevés un à un sur le document servi
+ *  par un serveur vivant, pas recopiés d'une intention.
+ *
+ *  ⚠️ Une facture n'est PAS une tentative de paiement (ça, c'est `BillingPayment`) :
+ *  c'est le document comptable, et c'est lui que les CGV promettent téléchargeable.
+ *  Son numéro vient de Pennylane, qui porte la numérotation continue d'Otomata. */
+export interface BillingInvoice {
+  /** Identifiant local, celui qu'attend la route de téléchargement du PDF. */
+  id: number
+  /** ⚠️ Le serveur déclare `str` ; l'écran n'en connaît que deux valeurs. Un `kind`
+   *  inconnu doit donc se lire comme une facture ordinaire, jamais faire disparaître
+   *  la ligne : un document qu'on ne sait pas nommer reste un document dû. */
+  kind: 'invoice' | 'credit_note'
+  /** 'issued' = émis, numéroté, définitif. 'pending' = l'émission n'a pas encore
+   *  abouti — **l'encaissement, lui, a bien eu lieu** et la facture est due ; elle
+   *  est rejouée automatiquement. ⚠️ Un `pending` n'est jamais un paiement perdu, et
+   *  la copie ne doit pas le laisser croire. */
+  status: 'issued' | 'pending'
+  /** Attribué par Pennylane à la finalisation. `null` tant que `status='pending'` :
+   *  un numéro n'existe pas avant le document. */
+  number?: string | null
+  currency: string
+  /** En CENTIMES. */
+  amount_ht?: number | null
+  vat_rate_bps?: number | null
+  vat_amount?: number | null
+  /** Ce qui a été réellement débité, en centimes. ⚠️ **NÉGATIF sur un avoir.** */
+  amount_ttc?: number | null
+  vat_scheme?: VatScheme | null
+  period_start?: string | null
+  period_end?: string | null
+  /** Date PORTÉE par le document — celle de l'encaissement, pas celle de son
+   *  émission technique. */
+  issued_at?: string | null
+  /** `false` avec `status='issued'` = document bien émis dont le fichier n'a pas
+   *  encore été récupéré chez le fournisseur ; la reprise le fera. */
+  has_pdf: boolean
+  /** Chemin REST du PDF, à préfixer de la base d'API — **ce n'est pas une URL
+   *  publique** : la route exige le même jeton que le reste de `/api/me`. `null`
+   *  quand `has_pdf` est faux, et le serveur ne le sert QUE s'il y a quelque chose
+   *  au bout : un lien vers une 404 se subit au clic. */
+  pdf_path?: string | null
+  /** Envoi au contact de facturation. `null` = non envoyé — le document reste
+   *  téléchargeable, l'e-mail n'en conditionne rien. */
+  emailed_at?: string | null
+  created_at: string
+}
+
 /** Un avantage payant OFFERT par Otomata (don d'option, couche 3 d'ADR 0043).
  *
  *  ⚠️ ÉCRIT À LA MAIN, pour la même raison que `BillingStatus` juste au-dessus :

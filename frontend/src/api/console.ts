@@ -1,10 +1,10 @@
 // Client REST typé pour la console — toutes les routes oto-mcp (api_routes*.py).
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
-import { api, apiUpload, apiPublic } from '@/api'
+import { api, apiDownload, apiUpload, apiPublic } from '@/api'
 import type {
   AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, InitGuide, InitScope, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, CredentialState, MyConnector, ProviderStatus, SearchHit, Inbox,
   BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
-  BillingIdentityView, BillingIdentityInput, BillingConfirmResult, LegalStatus,
+  BillingIdentityView, BillingIdentityInput, BillingConfirmResult, BillingInvoice, LegalStatus,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
   GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
@@ -1133,6 +1133,20 @@ export const getBillingIdentity = () =>
 // La fiche part ENTIÈRE : le serveur remplace, il ne fusionne pas.
 export const setBillingIdentity = (body: BillingIdentityInput) =>
   api<BillingIdentityView>('/api/me/billing/identity', { method: 'PUT', ...j(body) })
+
+// ── Factures et avoirs de l'org (#488) ──
+// Ce que les CGV promettent : « chaque encaissement donne lieu à une facture […]
+// téléchargeable depuis manage.oto.cx ». Lecture = TOUT MEMBRE de l'org, comme le
+// journal des paiements — la restreindre à l'org_admin fermerait au comptable la
+// seule porte que le contrat lui ouvre.
+export const getBillingInvoices = (limit = 24) =>
+  api<{ invoices: BillingInvoice[] }>(`/api/me/billing/invoices?limit=${limit}`)
+// Le PDF n'est PAS du JSON : route écrite à la main côté serveur, et
+// `apiDownload` ici — même bearer, même view-as, le nom de fichier vient du
+// Content-Disposition. ⚠️ `path` est le `pdf_path` SERVI avec la facture, jamais
+// un chemin recomposé : le serveur ne le rend que s'il y a un fichier au bout.
+export const downloadBillingInvoicePdf = (path: string, fallbackName: string) =>
+  apiDownload(path, fallbackName)
 
 // ── Documents légaux (acceptation CGU/CGV/DPA) — journal côté oto-mcp ──
 // Types DÉRIVÉS de l'OpenAPI (`LegalStatus`), ré-exportés ici parce que les écrans

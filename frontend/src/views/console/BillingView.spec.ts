@@ -54,11 +54,17 @@ const api = vi.hoisted(() => ({
   getBillingIdentity: vi.fn(),
   setBillingIdentity: vi.fn(),
   getBillingPayments: vi.fn(),
+  // La carte « Factures » est montée par la vue et lit ce module : sans cette
+  // entrée, le mock rendrait `undefined` et la carte partirait en erreur sous des
+  // tests qui ne parlent pas d'elle.
+  getBillingInvoices: vi.fn(),
+  downloadBillingInvoicePdf: vi.fn(),
   confirmBilling: vi.fn(),
   cancelBilling: vi.fn(),
 }))
 vi.mock('@/api/console', () => api)
-const { getBilling, getBillingIdentity, setBillingIdentity, getBillingPayments } = api
+const { getBilling, getBillingIdentity, setBillingIdentity, getBillingPayments,
+  getBillingInvoices } = api
 
 const me = ref<{ org_role: string; role: string; active_org_name: string } | null>(null)
 vi.mock('@/composables/useMe', () => ({
@@ -101,6 +107,7 @@ beforeEach(() => {
   i18n.global.locale.value = 'fr'
   me.value = { org_role: 'org_admin', role: 'member', active_org_name: 'ACME' }
   getBillingPayments.mockResolvedValue({ payments: [] })
+  getBillingInvoices.mockResolvedValue({ invoices: [] })
 })
 
 describe('BillingView — identité de facturation hors du tunnel', () => {

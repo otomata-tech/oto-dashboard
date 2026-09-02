@@ -26,6 +26,7 @@ import SkeletonOverview from '@/components/console/SkeletonOverview.vue'
 import BillingCheckout from '@/components/console/billing/BillingCheckout.vue'
 import BillingGranted from '@/components/console/billing/BillingGranted.vue'
 import BillingIdentityForm from '@/components/console/billing/BillingIdentityForm.vue'
+import BillingInvoices from '@/components/console/billing/BillingInvoices.vue'
 import BillingPending from '@/components/console/billing/BillingPending.vue'
 import BillingUsageCard from '@/components/console/billing/BillingUsageCard.vue'
 import { useToast } from '@/composables/useToast'
@@ -38,6 +39,7 @@ import type {
   BillingStatus, BillingPlan, BillingPayment, BillingIdentityView, VatScheme,
 } from '@/types/api'
 import { PENDING_WINDOW_MS, VAT_SCHEME_LABEL, nextProbeDelayMs } from '@/lib/billingTunnel'
+import { euros as euroCents } from '@/lib/euros'
 import { explain, humanize } from '@/lib/errors'
 import { fmtDate, fmtDateTime } from '@/types/api'
 
@@ -72,16 +74,10 @@ const STATUS_LABEL: Record<string, string> = {
   canceled: 'Résilié', pending: 'En cours', failed: 'Échec',
 }
 
-// `minimumFractionDigits: 0` évite le « 19,00 € » d'un prix de catalogue rond — mais
-// il tronquait aussi les montants qui, eux, ont des centimes : le TTC réellement
-// prélevé (2280) s'affichait « 22,8 € », et les lignes de l'historique avec lui. Un
-// montant d'argent n'a jamais UN seul chiffre après la virgule : les centimes se
-// montrent quand il y en a, et se taisent quand il n'y en a pas.
+// La RÈGLE d'écriture d'un montant (les centimes se montrent quand il y en a) vit dans
+// `lib/euros` : une facture est opposable. Ne reste ici que le mot du CATALOGUE.
 function euros(cents: number | null | undefined): string {
-  if (cents == null) return 'sur devis'
-  const decimales = cents % 100 === 0 ? 0 : 2
-  return (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR',
-    minimumFractionDigits: decimales, maximumFractionDigits: decimales })
+  return cents == null ? 'sur devis' : euroCents(cents)
 }
 
 // Le seul axe qui varie réellement entre paliers (backend : options + unmetered
@@ -431,6 +427,11 @@ function contactSales() {
            Servie à TOUT LE MONDE, gratifié ou non, abonné ou non : c'est le seul
            bloc de cet écran qui vaut pour tous les comptes. -->
       <BillingUsageCard v-if="status.usage" :usage="status.usage" />
+
+      <!-- ── Factures ── AU-DESSUS du journal : la facture est le document que les CGV
+           promettent téléchargeable, le journal dessous n'est que la suite des tentatives.
+           Sans condition d'abonnement — « reste téléchargeable » vaut après résiliation. -->
+      <BillingInvoices :paying="!!status.subscribed && !status.comp" />
 
       <!-- ── Historique des paiements ── -->
       <ConsoleCard v-if="status.subscribed && payments.length" flush title="Paiements"
