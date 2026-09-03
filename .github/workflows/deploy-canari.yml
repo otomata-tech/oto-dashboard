@@ -2,8 +2,14 @@ name: Deploy preprod
 
 # Modèle de release (ADR 0020, refonte 2026-07-20) : push sur `main` → PREPROD.
 # `main` = tronc ; build env VITE staging (runner HOSTED) → deploy artefact (runner
-# SELF-HOSTED oto-platform) vers /opt/oto-dashboard-canari (dashboard-canari.oto.ninja,
-# l'ancien « canari » de l'ADR 0040, désormais alimenté par main). La PROD ne se
+# SELF-HOSTED oto-platform) vers /opt/oto-dashboard-canari — l'ancien « canari » de
+# l'ADR 0040, désormais alimenté par main.
+# ⚠️ L'adresse SERVIE de cette préprod est `manage.oto.ninja` (200). Le nom historique
+# `dashboard-canari.oto.ninja` vit toujours, mais il ne sert plus l'application : il
+# répond 302 vers `manage.oto.ninja` (vérifié le 03/09/2026). Le citer comme l'adresse
+# de la préprod est un piège de MESURE — qui l'interroge pour vérifier un déploiement
+# mesure une redirection, pas le bundle qu'il vient de pousser. Même piège que
+# `app.oto.ninja`, alias 302 de `manage.oto.cx` côté prod. La PROD ne se
 # déploie QUE sur un tag `v*` (deploy.yml). Le job `test` tourne aussi sur PR vers main
 # (= le check de validation avant merge).
 on:
