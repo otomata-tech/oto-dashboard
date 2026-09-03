@@ -160,7 +160,7 @@ export interface paths {
         };
         /**
          * List the connected identities/accounts your credential can act as for a connector (e.g
-         * @description List the connected identities/accounts your credential can act as for a connector (e.g. the LinkedIn accounts under your Unipile key, or your Google accounts), with which one is currently the default. An EMPTY list always says why: `reason` is no_credential / paid_option_off / over_quota (a layer is missing) or no_identity_connected (everything resolves, nothing linked yet), with `next_step`. Never read an empty list as a bug before reading its reason.
+         * @description List the connected identities/accounts your credential can act as for a connector (e.g. the LinkedIn accounts under your Unipile key, or your Google accounts), with which one is currently the default. An EMPTY list always says why: `reason` is no_credential / paid_option_off / over_quota / credential_rejected (a layer is missing — credential_rejected = the key resolves but the provider refused it at the last connection test) or no_identity_connected (everything resolves, nothing linked yet), with `next_step`. Never read an empty list as a bug before reading its reason.
          */
         get: operations["connectors_identities_get"];
         put?: never;
@@ -185,26 +185,6 @@ export interface paths {
          */
         put: operations["connectors_set_default_identity_put"];
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/contact": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * POST /api/contact
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
-         */
-        post: operations["post_api_contact"];
         delete?: never;
         options?: never;
         head?: never;
@@ -319,6 +299,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/datastore/namespaces/{namespace}/drop_column": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * DESTRUCTIVE — erase a column from EVERY row of a namespace (`confirm=True` required)
+         * @description DESTRUCTIVE — erase a column from EVERY row of a namespace (`confirm=True` required). Removing a field from the schema takes it out of the view, but the key stays in each row: it still shows up on read, and keeps attracting writes. Writing `null` does not erase it either. Use it after RENAMING fields — the old names often describe the content better than the new ones, so an agent re-reading a row writes into them believing it aims right; purge them once instead of warning every agent forever. A key still DECLARED in the schema is refused: take it out of the schema first (`data_set_schema`). Returns `{rows}` = how many rows carried it, ALWAYS >= 1: a name that no row carries is REFUSED, never reported as a zero — so a success is always a removal you can tick off. The refusal says which of the two it is: a typo (no column of that name), or an ANNOTATION such as `site_web.comment` — served flat next to its column but stored under it, so a column purge does not reach it (write `{"site_web": {"comment": null}}` instead).
+         */
+        post: operations["me_datastore_drop_column_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/datastore/namespaces/{namespace}/queue": {
         parameters: {
             query?: never;
@@ -353,8 +353,8 @@ export interface paths {
         get: operations["me_datastore_list_rows_get"];
         put?: never;
         /**
-         * Ajoute une ligne à un tableau (le corps EST la ligne).
-         * @description Ajoute une ligne à un tableau (le corps EST la ligne).
+         * Ajoute une ligne à un tableau (le corps EST la ligne)
+         * @description Ajoute une ligne à un tableau (le corps EST la ligne). `readonly_override=true` remplace les colonnes verrouillées de cet appel — propriétaire ou gouvernant du tableau seulement, et journalisé.
          */
         post: operations["me_datastore_append_row_post"];
         delete?: never;
@@ -385,8 +385,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Modifie une ligne (patch partiel ; le corps EST le patch).
-         * @description Modifie une ligne (patch partiel ; le corps EST le patch).
+         * Modifie une ligne (patch partiel ; le corps EST le patch)
+         * @description Modifie une ligne (patch partiel ; le corps EST le patch). `readonly_override=true` remplace les colonnes verrouillées de cet appel — propriétaire ou gouvernant du tableau seulement, et journalisé.
          */
         patch: operations["me_datastore_update_row_patch"];
         trace?: never;
@@ -474,7 +474,7 @@ export interface paths {
         head?: never;
         /**
          * Change a namespace's schema BY KEY, without rewriting the whole field list
-         * @description Change a namespace's schema BY KEY, without rewriting the whole field list. Prefer this over `data_set_schema` for any EDIT: `set` REPLACES, so rebuilding the list from what you know silently drops the per-field settings you did not restate (labels, help, max_length, pattern, width, options) — same call, same success, no way to tell. `fields` merges by `key`: listed properties overwrite, unlisted ones are PRESERVED, unknown keys are appended. `remove: ["key", …]` is the explicit deletion (a wrong key is refused, never silently ignored) — it takes the field out of the SCHEMA; to erase the column from the rows' DATA, that is `data_drop_column`. `strict`/`key` change the head keys, untouched when omitted. Field ORDER is never reshuffled. Returns the resulting schema plus `{added, updated, removed}` and any `warning` the schema raises.
+         * @description Change a namespace's schema BY KEY, without rewriting the whole field list. Prefer this over `data_set_schema` for any EDIT: `set` REPLACES, so rebuilding the list from what you know silently drops the per-field settings you did not restate (labels, help, max_length, pattern, width, options) — same call, same success, no way to tell. `fields` merges by `key`: listed properties overwrite, unlisted ones are PRESERVED, unknown keys are appended. `remove: ["key", …]` is the explicit deletion (a wrong key is refused, never silently ignored) — it takes the field out of the SCHEMA; to erase the column from the rows' DATA, that is `data_drop_column`. `strict`/`key`/`key_required`/`unknown_fields` change the head keys, untouched when omitted — `key_required: true` CLOSES the table (a write designating no existing row is refused), `false` reopens it. `unknown_fields` decides what happens to a column the schema does NOT declare: `"report"` (the default) CREATES it and names it back in `hors_schema` — `strict` alone never refused it — while `"reject"` refuses the write and stores nothing; set it on a table that has FINISHED being explored. Per field, `readonly: true` locks the value in place (layers such as `.comment` stay open) — the table's OWNER, or whoever GOVERNS it, can still replace such a value with `data_write(readonly_override=true)`, for that one call and journaled, so locking a column never means nobody can correct it again — `origine: "system"` makes the platform keep the previous value in `<field>.origine`, and `system: "run.id"|"run.started_at"|"write.at"` makes the PLATFORM write the value on every write (the caller is refused, by name) — `null` lifts any of them without touching the rows. Field ORDER is never reshuffled. Returns the resulting schema plus `{added, updated, removed}` and any `warning` the schema raises.
          */
         patch: operations["me_datastore_patch_schema_patch"];
         trace?: never;
@@ -535,8 +535,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/doctrines/library
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/guide-library (retrait le 29/10/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/guide-library` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 29/10/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         get: operations["get_api_doctrines_library"];
         put?: never;
@@ -555,8 +556,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/doctrines/library/{slug}
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/guide-library/{slug} (retrait le 29/10/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/guide-library/{slug}` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 29/10/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         get: operations["get_api_doctrines_library_slug"];
         put?: never;
@@ -822,8 +824,8 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete a group you lead (members/doctrine/secrets purged).
-         * @description Delete a group you lead (members/doctrine/secrets purged).
+         * Delete a group you lead (members/guide/secrets purged).
+         * @description Delete a group you lead (members/guide/secrets purged).
          */
         delete: operations["group_delete_delete"];
         options?: never;
@@ -994,20 +996,24 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Erreur"];
+                    };
                 };
                 /** @description refus d'autorisation (ou hors portée du jeton) */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Erreur"];
+                    };
                 };
             };
         };
         /**
-         * Create/update a guide (scope=platform|org|group|user)
-         * @description Create/update a guide (scope=platform|org|group|user). `delivery='init'` writes that scope's injected readme (empty body clears it).
+         * Create/update a guide (scope=platform|org|group|user|tenant)
+         * @description Create/update a guide (scope=platform|org|group|user|tenant). `delivery='init'` writes that scope's injected readme (empty body clears it). WHO MAY WRITE, per scope — checked on the REAL target, not the active one: `user` = yourself only; `org` = an admin of that org; `group` = that team's lead (org admins escalate); `platform` and `tenant` = a platform admin. ⚠️ The flag to read before showing an editor is `can_edit` on the org or team view — NEVER `can_write_instructions`, which governs PROCEDURES and is true for any team MEMBER: reading it here shows an editor that the server refuses.
          */
         put: {
             parameters: {
@@ -1032,6 +1038,7 @@ export interface paths {
                         delivery?: "init" | "on-demand";
                         /**
                          * Body Md
+                         * @description Corps markdown, au plus 65 536 OCTETS UTF-8 — au-delà : 400 `body_too_large`. `maxLength` compte des caractères : nécessaire, pas suffisant (un caractère accentué pèse deux octets).
                          * @default
                          */
                         body_md?: string;
@@ -1088,19 +1095,35 @@ export interface paths {
                         };
                     };
                 };
+                /** @description `body_too_large` — `body_md` dépasse 65 536 octets UTF-8 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Erreur"] & {
+                            /** @enum {unknown} */
+                            error?: "body_too_large";
+                        };
+                    };
+                };
                 /** @description jeton absent ou invalide */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Erreur"];
+                    };
                 };
                 /** @description refus d'autorisation (ou hors portée du jeton) */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Erreur"];
+                    };
                 };
             };
         };
@@ -1119,8 +1142,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Group base doctrine + skills index (+ can_edit flag).
-         * @description Group base doctrine + skills index (+ can_edit flag).
+         * Group base doctrine + skills index, plus the caller's rights: can_write_instructions (any member) and can_delete_instructions (team lead) — can_edit is the right to ADMINISTER the
+         * @description Group base doctrine + skills index, plus the caller's rights: can_write_instructions (any member) and can_delete_instructions (team lead) — can_edit is the right to ADMINISTER the team, not to edit a procedure.
          */
         get: operations["group_instruction_list_get"];
         put?: never;
@@ -1144,14 +1167,14 @@ export interface paths {
          */
         get: operations["group_instruction_get_get"];
         /**
-         * Create/update a group instruction (team lead)
-         * @description Create/update a group instruction (team lead). slug `claude_md` = the group base doctrine; any other slug = a named skill.
+         * Create/update a group instruction (any team MEMBER — whoever runs a procedure may improve it; a bad edit is undone by restoring a past version)
+         * @description Create/update a group instruction (any team MEMBER — whoever runs a procedure may improve it; a bad edit is undone by restoring a past version). slug `claude_md` = the group base doctrine; any other slug = a named skill.
          */
         put: operations["group_instruction_set_put"];
         post?: never;
         /**
-         * Delete a group instruction and its history.
-         * @description Delete a group instruction and its history.
+         * Delete a group instruction and its history (team LEAD) — destructive and irreversible, unlike writing.
+         * @description Delete a group instruction and its history (team LEAD) — destructive and irreversible, unlike writing.
          */
         delete: operations["group_instruction_delete_delete"];
         options?: never;
@@ -1169,8 +1192,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Restore an older version of a group instruction as a new version.
-         * @description Restore an older version of a group instruction as a new version.
+         * Restore an older version of a group instruction as a new version (any team MEMBER — it is the undo of `set`, and it destroys nothing).
+         * @description Restore an older version of a group instruction as a new version (any team MEMBER — it is the undo of `set`, and it destroys nothing).
          */
         post: operations["group_instruction_revert_post"];
         delete?: never;
@@ -1355,6 +1378,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/guide-library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /api/guide-library
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        get: operations["get_api_guide-library"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/guide-library/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /api/guide-library/{slug}
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        get: operations["get_api_guide-library_slug"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/guides/library": {
         parameters: {
             query?: never;
@@ -1505,7 +1568,7 @@ export interface paths {
         get?: never;
         /**
          * Resolve a group (department) you belong to and get the RELIABLE way to act under it
-         * @description Resolve a group (department) you belong to and get the RELIABLE way to act under it. NO session state (ADR 0038): pass `group=<id>` directly on each group-scoped call (its parent org is derived). Your default group is changed in the dashboard only. The group decides which group doctrine and shared secrets apply.
+         * @description Resolve a group (department) you belong to and get the RELIABLE way to act under it. NO session state (ADR 0038): pass `group=<id>` directly on each group-scoped call (its parent org is derived). Your default group is changed in the dashboard only. The group decides which group guide and shared secrets apply.
          */
         put: operations["group_use_put"];
         post?: never;
@@ -1571,8 +1634,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The exact oto context this user's Claude receives: static server instructions (posture + derived namespace catalog), effective org doctrine, and the tools currently visible for the
-         * @description The exact oto context this user's Claude receives: static server instructions (posture + derived namespace catalog), effective org doctrine, and the tools currently visible for the active org.
+         * The exact oto context this user's Claude receives: static server instructions (posture + derived namespace catalog), effective org guide, and the tools currently visible for the ac
+         * @description The exact oto context this user's Claude receives: static server instructions (posture + derived namespace catalog), effective org guide, and the tools currently visible for the active org.
          */
         get: operations["me_agent_context_get"];
         put?: never;
@@ -1696,6 +1759,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/billing/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the org's invoices and credit notes (most recent first)
+         * @description List the org's invoices and credit notes (most recent first). Numbers come from Pennylane, which holds Otomata's continuous numbering. The PDF itself is downloaded from `pdf_path`, a separate authenticated route that returns application/pdf.
+         */
+        get: operations["me_billing_invoices_list_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/billing/invoices/{id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /api/me/billing/invoices/{id}/pdf
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        get: operations["get_api_me_billing_invoices_id_pdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/billing/payments": {
         parameters: {
             query?: never;
@@ -1783,13 +1886,13 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * [account owner] Authorize any oto user (grantee = email or sub — including someone OUTSIDE your orgs, e.g
-         * @description [account owner] Authorize any oto user (grantee = email or sub — including someone OUTSIDE your orgs, e.g. an external freelancer or agency) to OPERATE your connected account on a channel (linkedin, whatsapp, …), acting as you. Only the owner can grant; revocable anytime with immediate effect; audited.
+         * [account owner] Authorize an oto user OR a whole group (grantee = email/sub, or `group:<id>` for every CURRENT member, dynamically — including someone or a group OUTSIDE your orgs,
+         * @description [account owner] Authorize an oto user OR a whole group (grantee = email/sub, or `group:<id>` for every CURRENT member, dynamically — including someone or a group OUTSIDE your orgs, e.g. an external freelancer or agency) to OPERATE your connected account on a channel (linkedin, whatsapp, …), acting as you. Only the owner can grant; revocable anytime with immediate effect; audited.
          */
         post: operations["connectors_account_grants_grant_post"];
         /**
-         * [account owner] Revoke a member's authorization to operate your account on a channel
-         * @description [account owner] Revoke a member's authorization to operate your account on a channel. Immediate: their next call under your identity fails explicitly. Idempotent.
+         * [account owner] Revoke a member's (or a group's, `group:<id>`) authorization to operate your account on a channel
+         * @description [account owner] Revoke a member's (or a group's, `group:<id>`) authorization to operate your account on a channel. Immediate: the next call under your identity fails explicitly. Idempotent.
          */
         delete: operations["connectors_account_grants_revoke_delete"];
         options?: never;
@@ -1805,8 +1908,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the connector INSTANCES (connector x auth/config) visible to you in the active org, by proximity: yours (member), your groups', the org's, then platform grants
-         * @description List the connector INSTANCES (connector x auth/config) visible to you in the active org, by proximity: yours (member), your groups', the org's, then platform grants. Metadata only — the secret is never returned. `id` (`inst:<n>`) is the stable identifier of the instance and will replace `ref`; it may be missing on a key set since the last boot, so keep using `ref` as the pin handle for now. Both are opaque: pass them back as-is. Contrast with oto_identity (operable accounts of ONE connector) and oto_connector op=list (catalog of TYPES).
+         * List the connector INSTANCES (connector x auth/config) visible to you in the active org, by proximity: yours (member), your groups', the org's, your tenant's (accounts of a third-p
+         * @description List the connector INSTANCES (connector x auth/config) visible to you in the active org, by proximity: yours (member), your groups', the org's, your tenant's (accounts of a third-party tenant only), then platform grants. Metadata only — the secret is never returned. `id` (`inst:<n>`) is the stable identifier of the instance and will replace `ref`; it is set as soon as the key is stored, but may still be missing if it could not be read, so keep using `ref` as the pin handle for now. Both are opaque: pass them back as-is. `visible_to` lists the scopes that can DISCOVER each instance (`user:<sub>`, `group:<id>`, `org:<id>`, or `platform` for a key open to everyone), derived from the access chain — it describes the instance, it does not filter this list. Contrast with oto_identity (operable accounts of ONE connector) and oto_connector op=list (catalog of TYPES).
          */
         get: operations["connectors_instances_list_get"];
         put?: never;
@@ -2068,7 +2171,7 @@ export interface paths {
         put?: never;
         /**
          * Docs (markdown pages tree inside a project; inherit the project's access)
-         * @description Docs (markdown pages tree inside a project; inherit the project's access). **This is also the org KNOWLEDGE BASE**: resolve it with oto_kb → project_id, then read/search/write reference pages here (the dashboard « Documents » zone). Prefer it over the web for org facts (processes, context, conventions), and CAPTURE durable, sourced facts here (kind=source/note) as you learn them. op=create (project_id, title; optional parent_id/body_md/kind) / bulk_create (project_id + `pages`=[{title, body_md?, kind?, parent_index?}] → N pages in ONE call, build a tree via parent_index = an earlier page in the batch) / list (project_id → the page INDEX, build the tree via parent_id: titles and `body_md_length`, NOT the bodies — pick a page here, then op=get it. `fields=["*"]` returns whole pages, `fields=[…]` picks columns) / search (project_id + query → full-text hits {id,title,kind,snippet}: LOCATE a page, then get its content) / get (the whole page, incl. `rev`, an ETag; pass `fields=[…]` to read ONLY those columns — `fields=["id","rev"]` gets the rev for an optimistic patch without paying for the body) / update (title/body_md/kind, full body; snapshots the prior version; pass `expected_rev` from op=get for optimistic conflict detection → 409 if the page changed since) / patch (edit ONE region in place, WITHOUT re-emitting the page — this is how you edit a page too long to re-send: `mode` replace|append|prepend|delete, and ONE target, either `section`=its markdown heading + `body_md` = that section's BODY, WITHOUT repeating the heading (the server keeps it), OR `region="preamble"` = everything ABOVE the first heading (provenance banner, "Last verified" line, front-matter) — it belongs to no section, so no `section` value can ever reach it; that is a SEPARATE axis, never a reserved heading name like "__preamble__" (a page may legitimately have such a heading, and it stays reachable via `section`). Passing both, or neither, is refused. `mode=delete` removes the target INCLUDING its heading (pass no `body_md`) — the only way to drop a heading without rewriting the page; to merely empty a section and keep its heading, use mode=replace with an empty `body_md`. Two authors on different regions don't clobber; every mode honours `expected_rev` and snapshots a revision. SCOPE: a section runs to the next heading of EQUAL-OR-HIGHER level, so its NESTED sub-sections are part of it — replacing OR deleting a `###` also takes its `####` children (the response then lists `removed_subsections`). To keep them, target the sub-heading itself or use mode=append) / A SUCCESSFUL WRITE (create/update/patch/move) returns a RECEIPT, not the page: id, title, `url`, `rev`, `updated_at` and `body_md_length` — you just wrote the body, so it is not replayed back at you. Add `fields=["*"]` if you really want the stored page back, or `fields=[…]` to pick columns. / A page's `description` is a chapô you STORE: leave it out and the index DERIVES one from the first prose line of the body (marked `description_derived`), so it moves with every body edit — that is not an overwrite. Pass `description` explicitly to pin one that stops following the body. / EVERY page carries `url` — the web address to READ it, in the reader's own product. That is the answer to "where is it?": hand it over as-is, never rebuild an address from a pattern. `null` means that reader's product has no such view — then say where it lives (project + title) rather than invent a link. / revisions (doc_id → version history, newest first) / backlinks (doc_id → the pages that CITE this one). LINK PAGES with `[[Exact page title]]` in body_md — that wiki-link is the ONLY thing that creates a backlink (prose mentions, [text](doc:88) and [text](/docs/88) create none). Resolved AT WRITE TIME against the current project then the org KB, case- and edge-space-insensitive; a title that doesn't exist yet is kept as a stub and links itself once the page is created or renamed / request_change (read-only users propose a new body_md/title + message) / list_changes (owner: pending requests) / resolve_change (request_id + accept: true applies it, false rejects) / set_public (public: true → shareable public read-only link, false → private ; returns public_url) / delete (cascades its subtree) / move (reparent/reorder in-project via parent_id [null=top-level] + position; OR cross-project via `to_project`=target project id → moves the page AND its subtree there, write required on both). kind ∈ doc|note|source. EMBED A LIVE DATASTORE in a page body with a fenced block ```oto-data<newline><namespace-name-or-id><newline>``` → the viewer renders that datastore's table LIVE (always up to date). Prefer this over a hand-typed summary table when the data lives in a datastore (single source of truth, no drift).
+         * @description Docs (markdown pages tree inside a project; inherit the project's access). **This is also the org KNOWLEDGE BASE**: resolve it with oto_kb → project_id, then read/search/write reference pages here (the dashboard « Documents » zone). Prefer it over the web for org facts (processes, context, conventions), and CAPTURE durable, sourced facts here (kind=source/note) as you learn them. op=create (project_id, title; optional parent_id/body_md/kind) / bulk_create (project_id + `pages`=[{title, body_md?, kind?, parent_index?}] → N pages in ONE call, build a tree via parent_index = an earlier page in the batch) / list (project_id → the page INDEX, build the tree via parent_id: titles and `body_md_length`, NOT the bodies — pick a page here, then op=get it. `fields=["*"]` returns whole pages, `fields=[…]` picks columns) / search (project_id + query → full-text hits {id,title,kind,snippet}: LOCATE a page, then get its content) / get (the whole page, incl. `rev`, an ETag; pass `fields=[…]` to read ONLY those columns — `fields=["id","rev"]` gets the rev for an optimistic patch without paying for the body) / update (title/body_md/kind, full body; snapshots the prior version; pass `expected_rev` from op=get for optimistic conflict detection → 409 if the page changed since) / patch (edit ONE region in place, WITHOUT re-emitting the page — this is how you edit a page too long to re-send: `mode` replace|append|prepend|delete, and ONE target, either `section`=its markdown heading + `body_md` = that section's BODY, WITHOUT repeating the heading (the server keeps it), OR `region="preamble"` = everything ABOVE the first heading (provenance banner, "Last verified" line, front-matter) — it belongs to no section, so no `section` value can ever reach it; that is a SEPARATE axis, never a reserved heading name like "__preamble__" (a page may legitimately have such a heading, and it stays reachable via `section`). Passing both, or neither, is refused. `mode=delete` removes the target INCLUDING its heading (pass no `body_md`) — the only way to drop a heading without rewriting the page; to merely empty a section and keep its heading, use mode=replace with an empty `body_md`. Two authors on different regions don't clobber; every mode honours `expected_rev` and snapshots a revision. SCOPE: a section runs to the next heading of EQUAL-OR-HIGHER level, so its NESTED sub-sections are part of it — replacing OR deleting a `###` also takes its `####` children (the response then lists `removed_subsections`). To keep them, target the sub-heading itself or use mode=append) / A SUCCESSFUL WRITE (create/update/patch/move) returns a RECEIPT, not the page: id, title, `url`, `rev`, `updated_at` and `body_md_length` — you just wrote the body, so it is not replayed back at you. Add `fields=["*"]` if you really want the stored page back, or `fields=[…]` to pick columns. / A page's `description` is a chapô you STORE: leave it out and the index DERIVES one from the first prose line of the body (marked `description_derived`), so it moves with every body edit — that is not an overwrite. Pass `description` explicitly to pin one that stops following the body. / EVERY page carries `url` — the web address to READ it, in the reader's own product. That is the answer to "where is it?": hand it over as-is, never rebuild an address from a pattern. `null` means that reader's product has no such view — then say where it lives (project + title) rather than invent a link. / revisions (doc_id → version history, newest first; each row's `id` is what op=revert takes) / revert (doc_id + `revision_id` from op=revisions → puts that past title+body back). A revert moves FORWARD: the current state is snapshotted first, so nothing is lost and a revert can itself be reverted; the response echoes `reverted_from`. It honours `expected_rev` too — pass it or you may silently overwrite a peer's edit. It restores a VERSION of a page that still exists; it does NOT undo a delete (a deleted page took its revisions with it) / backlinks (doc_id → the pages that CITE this one). LINK PAGES with `[[Exact page title]]` in body_md — that wiki-link is the ONLY thing that creates a backlink (prose mentions, [text](doc:88) and [text](/docs/88) create none). Resolved AT WRITE TIME against the current project then the org KB, case- and edge-space-insensitive; a title that doesn't exist yet is kept as a stub and links itself once the page is created or renamed. ⚠️ That scope is the WHOLE reach, so the graph is not symmetric: a page in the org KB resolves against the KB alone, so it can NEVER link to a page living in a project — while that project page links back to it fine. A page can therefore be cited from the org's top map and still read as an orphan here: do not use backlinks as a completeness or orphan check without knowing that. Every write says which of its `[[…]]` found nothing, under `citations_sans_cible` / request_change (read-only users propose a new body_md/title + message) / list_changes (owner: pending requests) / resolve_change (request_id + accept: true applies it, false rejects) / set_public (public: true → shareable public read-only link to THIS PAGE ALONE: the reader gets its title and body, and nothing else — not the project, not the sibling pages, not this page's own sub-pages, which each need their own link ; false → private ; returns public_url) / delete (removes the page AND its whole subtree, revisions included — irreversible, there is no trash and no undelete. The response says how many pages went with it (`descendants`); ask FIRST with `dry_run: true`, which deletes nothing and returns the same count, whenever a human has to confirm) / move (reparent/reorder in-project via parent_id [null=top-level] + position; OR cross-project via `to_project`=target project id → moves the page AND its subtree there, write required on both). kind ∈ doc|note|source. EMBED A LIVE DATASTORE in a page body with a fenced block ```oto-data<newline><namespace-name-or-id><newline>``` → the viewer renders that datastore's table LIVE (always up to date). Prefer this over a hand-typed summary table when the data lives in a datastore (single source of truth, no drift).
          */
         post: operations["me_doc_post"];
         delete?: never;
@@ -2087,10 +2190,11 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Fork (copy) a public-library doctrine into your active org as a new versioned skill
-         * @description Fork (copy) a public-library doctrine into your active org as a new versioned skill. Requires org_admin of your active org. slug = the public entry ; new_slug optional (defaults to source slug, de-duplicated).
+         * Déprécié : utilisez /api/me/guide-library/fork (retrait le 29/10/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/me/guide-library/fork` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 29/10/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
-        post: operations["library_fork_post"];
+        post: operations["post_api_me_doctrines_fork"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2105,10 +2209,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Browse/search the PUBLIC doctrine library (a marketplace of skills/templates)
-         * @description Browse/search the PUBLIC doctrine library (a marketplace of skills/templates). Each entry has an author (Otomata or a private creator). Filter by query / category / author_kind (otomata|org). Returns metadata + snippet, not the full body — use oto_procedure op=library_get for that.
+         * Déprécié : utilisez /api/me/guide-library (retrait le 29/10/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/me/guide-library` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 29/10/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
-        get: operations["library_list_get"];
+        get: operations["get_api_me_doctrines_library"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2128,10 +2233,11 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Remove a doctrine you published from the public library (author org_admin or platform admin)
-         * @description Remove a doctrine you published from the public library (author org_admin or platform admin). id = the library entry id.
+         * Déprécié : utilisez /api/me/guide-library/{id} (retrait le 29/10/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/me/guide-library/{id}` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 29/10/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
-        delete: operations["library_unpublish_delete"];
+        delete: operations["delete_api_me_doctrines_library_id"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2145,10 +2251,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read one public-library doctrine in full (markdown body) by its public slug — preview before forking it into your org with oto_procedure op=fork
-         * @description Read one public-library doctrine in full (markdown body) by its public slug — preview before forking it into your org with oto_procedure op=fork. Also serves `unlisted` entries by exact slug (unlisted = shared by link, never in the catalog), not a private-org secret.
+         * Déprécié : utilisez /api/me/guide-library/{slug} (retrait le 29/10/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/me/guide-library/{slug}` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 29/10/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
-        get: operations["library_get_get"];
+        get: operations["get_api_me_doctrines_library_slug"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2167,10 +2274,11 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Publish one of your org's named doctrines (skills) to the PUBLIC library so others can find and fork it
-         * @description Publish one of your org's named doctrines (skills) to the PUBLIC library so others can find and fork it. Requires org_admin of your active org. slug = the org skill to publish ; visibility = public | unlisted. Public names are unique and OWNED: re-publishing your own entry bumps its version, a name held by someone else is refused (409) — pick another public_slug.
+         * Déprécié : utilisez /api/me/guide-library/publish (retrait le 29/10/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/me/guide-library/publish` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 29/10/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
-        post: operations["library_publish_post"];
+        post: operations["post_api_me_doctrines_publish"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2185,10 +2293,111 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Operational doctrine of your active org
-         * @description Operational doctrine of your active org. The base doctrine is now INJECTED into your session instructions at connect — call this with `slug` to load ONE named skill's full markdown (list skills with oto_procedure op=list). No-arg returns base + index, e.g. to refresh after switching org with oto_use_org. `scope=group` targets your active department. `doctrine_id` loads a doctrine by its STABLE id (project procedure links) — including one SHARED to you/your org by another org (delivered project).
+         * Déprécié : utilisez /api/me/guides/{guide_id} (retrait le 29/10/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/me/guides/{guide_id}` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 29/10/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         get: operations["org_doctrine_get_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/guide-library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Browse/search the PUBLIC guide library (a marketplace of skills/templates)
+         * @description Browse/search the PUBLIC guide library (a marketplace of skills/templates). Each entry has an author (Otomata or a private creator). Filter by query / category / author_kind (otomata|org). Returns metadata + snippet, not the full body — use oto_procedure op=library_get for that.
+         */
+        get: operations["library_list_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/guide-library/fork": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fork (copy) a public-library guide into your active org as a new versioned skill
+         * @description Fork (copy) a public-library guide into your active org as a new versioned skill. Requires org_admin of your active org. slug = the public entry ; new_slug optional (defaults to source slug, de-duplicated).
+         */
+        post: operations["library_fork_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/guide-library/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish one of your org's named guides (skills) to the PUBLIC library so others can find and fork it
+         * @description Publish one of your org's named guides (skills) to the PUBLIC library so others can find and fork it. Requires org_admin of your active org. slug = the org skill to publish ; visibility = public | unlisted. Public names are unique and OWNED: re-publishing your own entry bumps its version, a name held by someone else is refused (409) — pick another public_slug.
+         */
+        post: operations["library_publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/guide-library/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a guide you published from the public library (author org_admin or platform admin)
+         * @description Remove a guide you published from the public library (author org_admin or platform admin). id = the library entry id.
+         */
+        delete: operations["library_unpublish_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/guide-library/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one public-library guide in full (markdown body) by its public slug — preview before forking it into your org with oto_procedure op=fork
+         * @description Read one public-library guide in full (markdown body) by its public slug — preview before forking it into your org with oto_procedure op=fork. Also serves `unlisted` entries by exact slug (unlisted = shared by link, never in the catalog), not a private-org secret.
+         */
+        get: operations["library_get_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2209,6 +2418,26 @@ export interface paths {
          * @description List the on-demand guides you can see (platform ∪ your org ∪ your own).
          */
         get: operations["me_guides_list_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/guides/{guide_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Operational guide of your active org
+         * @description Operational guide of your active org. The base guide is now INJECTED into your session instructions at connect — call this with `slug` to load ONE named skill's full markdown (list skills with oto_procedure op=list). No-arg returns base + index, e.g. to refresh after switching org with oto_use_org. `scope=group` targets your active department. `guide_id` loads a guide by its STABLE id (project procedure links) — including one SHARED to you/your org by another org (delivered project).
+         */
+        get: operations["org_guide_get_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2287,20 +2516,24 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Erreur"];
+                    };
                 };
                 /** @description refus d'autorisation (ou hors portée du jeton) */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Erreur"];
+                    };
                 };
             };
         };
         /**
-         * Create/update a guide (scope=platform|org|group|user)
-         * @description Create/update a guide (scope=platform|org|group|user). `delivery='init'` writes that scope's injected readme (empty body clears it).
+         * Create/update a guide (scope=platform|org|group|user|tenant)
+         * @description Create/update a guide (scope=platform|org|group|user|tenant). `delivery='init'` writes that scope's injected readme (empty body clears it). WHO MAY WRITE, per scope — checked on the REAL target, not the active one: `user` = yourself only; `org` = an admin of that org; `group` = that team's lead (org admins escalate); `platform` and `tenant` = a platform admin. ⚠️ The flag to read before showing an editor is `can_edit` on the org or team view — NEVER `can_write_instructions`, which governs PROCEDURES and is true for any team MEMBER: reading it here shows an editor that the server refuses.
          */
         put: {
             parameters: {
@@ -2328,6 +2561,7 @@ export interface paths {
                         owner_id?: string | null;
                         /**
                          * Body Md
+                         * @description Corps markdown, au plus 65 536 OCTETS UTF-8 — au-delà : 400 `body_too_large`. `maxLength` compte des caractères : nécessaire, pas suffisant (un caractère accentué pèse deux octets).
                          * @default
                          */
                         body_md?: string;
@@ -2384,19 +2618,35 @@ export interface paths {
                         };
                     };
                 };
+                /** @description `body_too_large` — `body_md` dépasse 65 536 octets UTF-8 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Erreur"] & {
+                            /** @enum {unknown} */
+                            error?: "body_too_large";
+                        };
+                    };
+                };
                 /** @description jeton absent ou invalide */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Erreur"];
+                    };
                 };
                 /** @description refus d'autorisation (ou hors portée du jeton) */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Erreur"];
+                    };
                 };
             };
         };
@@ -2440,7 +2690,7 @@ export interface paths {
         };
         /**
          * YOUR inbox — two lists
-         * @description YOUR inbox — two lists. `to_review`: change-request proposals awaiting your decision on projects you can write (resolve with oto_doc op=resolve) + pending org invitations. `recent`: YOUR own proposals now accepted/rejected + projects freshly shared with you. `count` = items needing a decision. Check it to know what awaits you (the « readers propose / authors validate » loop) — no argument needed.
+         * @description YOUR inbox — two lists. `to_review`: change-request proposals awaiting your decision on projects you can write (resolve with oto_doc op=resolve) + pending org invitations (each carries a `code`: join with oto_org op=accept_invite, or turn it down with op=reject_invite — declining clears it from this list). `recent`: YOUR own proposals now accepted/rejected + projects freshly shared with you. `count` = items needing a decision. Check it to know what awaits you (the « readers propose / authors validate » loop) — no argument needed.
          */
         get: operations["me_inbox_get"];
         put?: never;
@@ -2461,7 +2711,11 @@ export interface paths {
         /** org.instruction.list */
         get: operations["org_instruction_list_get"];
         put?: never;
-        post?: never;
+        /**
+         * CREATE a named procedure (org_admin) — refuses a slug that is already taken (409 `slug_taken`) instead of overwriting it
+         * @description CREATE a named procedure (org_admin) — refuses a slug that is already taken (409 `slug_taken`) instead of overwriting it. `slug` is REQUIRED and yours to choose (it is the readable reference cited in prose and tool descriptions); it is normalized to [a-z0-9_-]. Use PUT /api/me/instructions/{slug} to EDIT an existing one. Same body as the write otherwise (body_md, title, description, slots), and the same cross-check warnings in the response.
+         */
+        post: operations["org_instruction_create_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2478,19 +2732,23 @@ export interface paths {
         /** org.instruction.get */
         get: operations["org_instruction_get_get"];
         /**
-         * Write your org's doctrine (org_admin)
-         * @description Write your org's doctrine (org_admin). Each write bumps the version and archives a snapshot. slug omitted = base doctrine; given = a named skill. `from_version` restores a past version as a new one (revert). `slots` = the procedure's REQUIRED ENTITIES [{name, type: tableau|connecteur|base, description?, connector?}] — reference them BY NAME in the prose as <slot:name> (never a hardcoded instance: the project binds name→instance). EVERY procedure OPENS with `> **Self-improvement digest** — …` (what the last run taught and what was fixed, dated) and must carry a FLOWCHART (one untagged fenced block drawn in box characters, right after the « At a glance » table and before the first phase heading) — it is the DEFAULT view of the process page; read the `procedure-flowchart` guide first. Response returns cross-check warnings (unresolved/unreferenced slots, suggestions, `digest_warning`, `diagram_warning`). `org` pins the write to an EXPLICIT org id (default = your active org) — pass it to stay robust if a reconnect dropped your session org; you must be org_admin of it.
+         * Write your org's guide (org_admin)
+         * @description Write your org's guide (org_admin). Each write bumps the version and archives a snapshot. slug omitted = base guide; given = a named skill. `from_version` restores a past version as a new one (revert). `slots` = the procedure's REQUIRED ENTITIES [{name, type: tableau|connecteur|base, description?, connector?}] — reference them BY NAME in the prose as <slot:name> (never a hardcoded instance: the project binds name→instance). EVERY procedure OPENS with `> **Self-improvement digest** — …` (what the last run taught and what was fixed, dated) and must carry a FLOWCHART (one untagged fenced block drawn in box characters, right after the « At a glance » table and before the first phase heading) — it is the DEFAULT view of the process page; read the `procedure-flowchart` guide first. Response returns cross-check warnings (unresolved/unreferenced slots, suggestions, `digest_warning`, `diagram_warning`). `org` pins the write to an EXPLICIT org id (default = your active org) — pass it to stay robust if a reconnect dropped your session org; you must be org_admin of it. ⚠️ This is an UPSERT: a slug that already exists is EDITED (new version, prior one snapshotted), never rejected. To CREATE without risking someone else's procedure, use POST /api/me/instructions, which refuses a taken slug. Pass `expected_version` (the version you read) to turn a concurrent edit into a 409 instead of an overwrite.
          */
         put: operations["org_instruction_set_put"];
         post?: never;
         /**
-         * Delete a doctrine and its history (org_admin)
-         * @description Delete a doctrine and its history (org_admin). Pass the EXACT slug. `org` pins to an explicit org id (default = active org; must be org_admin of it).
+         * Delete a guide and its history (org_admin)
+         * @description Delete a guide and its history (org_admin). Pass the EXACT slug. `org` pins to an explicit org id (default = active org; must be org_admin of it).
          */
         delete: operations["org_instruction_delete_delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Fix a procedure's TITLE and/or DESCRIPTION without resending its body (org_admin)
+         * @description Fix a procedure's TITLE and/or DESCRIPTION without resending its body (org_admin). These two fields are the line an agent reads in the catalog to CHOOSE a procedure, so they go stale fastest — and until now correcting them meant re-sending the whole `body_md` through PUT, which risks degrading prose you did not mean to touch. The body and slots are carried over UNCHANGED. This still bumps the version and snapshots the previous one, so a bad edit is undone with `from_version` like any other write. Pass at least one of `title` / `description`; `expected_version` (the version you read) turns a concurrent edit into a 409 instead of an overwrite. `org` pins to an explicit org id (default = active org). To change the BODY, use PUT /api/me/instructions/{slug}.
+         */
+        patch: operations["org_instruction_describe_patch"];
         trace?: never;
     };
     "/api/me/instructions/{slug}/archive": {
@@ -2503,8 +2761,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Retire a doctrine WITHOUT destroying it (org_admin) — prefer this to `delete` whenever the point is 'stop using it', not 'erase it'
-         * @description Retire a doctrine WITHOUT destroying it (org_admin) — prefer this to `delete` whenever the point is 'stop using it', not 'erase it'. The procedure and its whole version history stay in place; it simply leaves every listing, including the skills index you read, so it stops being offered and followed. Pass the EXACT slug. `org` pins to an explicit org id (default = active org; must be org_admin of it).
+         * Retire a guide WITHOUT destroying it (org_admin) — prefer this to `delete` whenever the point is 'stop using it', not 'erase it'
+         * @description Retire a guide WITHOUT destroying it (org_admin) — prefer this to `delete` whenever the point is 'stop using it', not 'erase it'. The procedure and its whole version history stay in place; it simply leaves every listing, including the skills index you read, so it stops being offered and followed. Pass the EXACT slug. `org` pins to an explicit org id (default = active org; must be org_admin of it).
          */
         post: operations["org_instruction_archive_post"];
         delete?: never;
@@ -2584,6 +2842,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/invitations/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline an org invitation by mail token or short code — closes it WITHOUT joining anything
+         * @description Decline an org invitation by mail token or short code — closes it WITHOUT joining anything. Only the invited address can decline (unlike accept, which is bearer). Declining never adds or removes a membership: to leave an org you already belong to, use leave_org.
+         */
+        post: operations["org_invite_reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/kb": {
         parameters: {
             query?: never;
@@ -2594,8 +2872,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Resolve the active org's KNOWLEDGE BASE — a single dedicated project « Base de connaissance »
-         * @description Resolve the active org's KNOWLEDGE BASE — a single dedicated project « Base de connaissance ». This is the org-wide Documents space; its pages are managed with oto_doc (tree, versions, public share, change requests). op="get" (default) READS the anchor and returns project_id=null when the org has no knowledge base yet — it never creates one, so opening a Documents view costs the org nothing. op="ensure" resolves it and CREATES it if missing: use it right before writing the first page, not to look.
+         * Resolve the active org's KNOWLEDGE BASE — a single dedicated project, seeded as "Knowledge base" and freely renamable: it is anchored by project id, so NEVER look it up by name, ca
+         * @description Resolve the active org's KNOWLEDGE BASE — a single dedicated project, seeded as "Knowledge base" and freely renamable: it is anchored by project id, so NEVER look it up by name, call this tool. This is the org-wide Documents space; its pages are managed with oto_doc (tree, versions, public share, change requests). op="get" (default) READS the anchor and returns project_id=null when the org has no knowledge base yet — it never creates one, so opening a Documents view costs the org nothing. op="ensure" resolves it and CREATES it if missing: use it right before writing the first page, not to look.
          */
         post: operations["me_kb_post"];
         delete?: never;
@@ -2658,6 +2936,26 @@ export interface paths {
          */
         put: operations["me_locale_set_put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/nodes/edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Write a node in the NEW content universe (op=create | update | move | delete)
+         * @description Write a node in the NEW content universe (op=create | update | move | delete). THREE kinds, and only three: `page`, `tableau`, `ligne` (default page). A table row is a node too: create it with kind='ligne', `parent_id` of its table, and `data` holding the cell values — `data` is where user values live, never `props`, so a column named `title` cannot overwrite the node's own title. A table's column schema is `columns`, optional (a free table is a valid table), and re-posting it REPLACES it. Nodes written here are NATIVE: they have no source in the old world, nothing refreshes them, and the old surfaces (`oto_doc`, `oto_project`) do not see them — the two universes live side by side during the transition. A page BODY is stored as ordered blocks with STABLE ids, so editing a title never re-identifies the paragraphs and citations survive. `scope` picks the owner (platform | org | group | user, default org) and follows the SAME write ladder as guides; a row has no owner of its own, it takes its table's. `move` changes parent and rank WITHOUT changing identity — that is what makes children, blocks and inbound references survive. You may only write, move or delete a node you OWN, and only file one under a parent you own: anything else answers the SAME 404 as reading it, unknown and forbidden being indistinguishable. Editing a node that is a COPY of the old world is refused (409): it is edited on its own surface. PROVISIONAL surface, like its read side.
+         */
+        post: operations["me_node_edit_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2783,7 +3081,7 @@ export interface paths {
         put?: never;
         /**
          * Projects (organization layer, ADR 0030 owned resource)
-         * @description Projects (organization layer, ADR 0030 owned resource). EVERY project carries `url` — the web address to OPEN it, in the reader's own product; hand it over as-is when asked "where is it?", never rebuild one from a pattern (`null` = that reader's product has no such view). op=create (name, optional brief_md; owner_type user|org + owner_id for a team project) / list (ORG-SCOPED: the ACTIVE org's projects + projects shared with it or with you — pass `org=<id>` to see another org's; every response echoes the effective org in `_org`. An INDEX: names and `brief_md_length`, NOT the briefs — read one with op=get, or pass `fields=["*"]` for whole records) / list_templates (published MODEL projects you can copy) / get (project + its links + an `audit` of those links: dead_links / unbound_slots / inert_procedures — a linked entity that no longer resolves surfaces HERE, act on it) / update (name, icon = an emoji shown in the lists and headers ("" clears it), brief_md, is_template = publish/unpublish as a copyable model) / copy (deep-copy a project you can read — its own or a model — into a NEW project in your active org: brief + doc tree + links + raw files; a tableau link stays a POINTER to the same namespace by default (config.provision absent/`shared`), but with config.provision=`empty`|`seeded` it is PROVISIONED — a FRESH namespace (same schema, rows only if `seeded`) so each copy gets its own isolated table (e.g. a campaign template's lead pool). A `shared` tableau owned by ANOTHER org is re-provisioned EMPTY (never a pointer to the source's private data), and links whose namespace no longer resolves are skipped — both surfaced in the response `warnings`. Pass project_id = source + name = target) / handoff (a copy-paste « resume in Claude » blob that pre-writes the per-call `_project=` token for this project) / archive / link & unlink (attach an entity: target_type tableau|procedure|connecteur + target_ref = its id/slug/name, optional label + optional role = why this entity belongs to the project + optional config = the entity's PRE-MADE per-project override; for a connecteur: {identity_id?, instructions_md?} = which account to act as + prose instructions to apply (e.g. 'only filter agreements by the mutuelle theme'), or `instance_ref` (a ref from oto_instance op=list, ADR 0038 B5) to bind EXACTLY that credential — calls carrying this project's token then resolve it hard, no fallback; for a tableau: {provision?: shared|empty|seeded} = how a project copy treats it (empty/seeded = each copy gets its own fresh table). Optional `slot` = the SLOT NAME this link BINDS for the project (ADR 0035): procedures declare required entities as slots and reference them <slot:name> in their prose — the project maps each name to a concrete entity via its links. Slot names are a PROJECT-wide vocabulary (unique per project → 409 slot_taken; two linked procedures sharing `sortie` share the binding). Re-linking without role/config/slot preserves the existing ones. get/link return each link's role + slot + config + a derived `cross_project` flag (the same entity is linked by another project → avoid brutal edits / ask); a tableau link also returns its resolved `namespace` — address THIS project's table by that name with the data_* tools (never hardcode a namespace). Share & transfer go through oto_resource (resource_type='project') — this includes RE-PARENTING a project in place (same id, links, runs preserved): op=transfer new_owner_group=<id> hands it to a TEAM so the project and its connector credentials sit at the SAME level (the team's secrets then resolve when you open it), new_owner_org=<id> to an org, new_owner_email to a user. (op=update only changes name/icon/brief_md/is_template — never the owner; op=copy makes a NEW id.) inventory = the project's DERIVED surface (union of the linked procedures' <tool:> refs + tools actually used by the project's runs, plus connectors from links & declared slots) — never retype a tool list: derive, then curate. runs (optional target_ref = a linked procedure's stable id) = the project's recent runs (label/doctrine/outcome), filtered to that procedure when given. OMIT project_id on op=runs and you get YOUR OWN still-open runs instead, each with its `run_id` — that is how you find a run you opened and lost the id of, so you can finally close it with run_finish. Across every org, since a run you cannot find is usually one you opened elsewhere. lint (optional stale_days, default 90) = KB health of this project's pages: stale (untouched since), empty (trivial body), duplicate_titles (likely merges). publish_mcp (mcp_slug + mcp_access anonymous|secret|org + mcp_tools = the fixed tool allowlist) publishes the project as a dedicated MCP endpoint `<mcp_slug>.mcp.oto.cx/mcp`, the toolset served under the OWNER ORG's credentials — `anonymous` = no login + LISTED in the public directory; `secret` = no login but UNLISTED, the slug is server-generated & unguessable (a secret URL; mcp_slug is an optional readable prefix); `org` = Logto JWT + pins the org. For anonymous/secret, tools that aren't credential-less or resolvable for the org are published anyway but FAIL cleanly at call time — they come back in `mcp_unresolvable_tools` (configure an org key or drop them). mcp_expose_datastore (SECRET only) opts the `data_*` tools in: they then act under the OWNER ORG's authority (read/write the org's namespaces) without a login — off by default (the datastore stays private); refused on anonymous/org. unpublish_mcp removes it. get returns mcp_slug/mcp_access/mcp_tools/mcp_expose_datastore/mcp_url.
+         * @description Projects (organization layer, ADR 0030 owned resource). EVERY project carries `url` — the web address to OPEN it, in the reader's own product; hand it over as-is when asked "where is it?", never rebuild one from a pattern (`null` = that reader's product has no such view). op=create (name, optional brief_md; owner_type user|org + owner_id for a team project) / list (ORG-SCOPED: the ACTIVE org's projects + projects shared with it or with you — pass `org=<id>` to see another org's; every response echoes the effective org in `_org`. An INDEX: names and `brief_md_length`, NOT the briefs — read one with op=get, or pass `fields=["*"]` for whole records) / list_templates (published MODEL projects you can copy) / get (project + its links + an `audit` of those links: dead_links / unbound_slots / inert_procedures — a linked entity that no longer resolves surfaces HERE, act on it) / update (name, icon = an emoji shown in the lists and headers ("" clears it), brief_md, is_template = publish/unpublish as a copyable model, excluded_url_prefixes = URL prefixes such as `linkedin.com/in/` that search tools drop and extraction tools refuse under this project — a whole host must be written `host/*`, `[]` clears) / copy (deep-copy a project you can read — its own or a model — into a NEW project in your active org: brief + doc tree + links + raw files; a tableau link stays a POINTER to the same namespace by default (config.provision absent/`shared`), but with config.provision=`empty`|`seeded` it is PROVISIONED — a FRESH namespace (same schema, rows only if `seeded`) so each copy gets its own isolated table (e.g. a campaign template's lead pool). A `shared` tableau owned by ANOTHER org is re-provisioned EMPTY (never a pointer to the source's private data), and links whose namespace no longer resolves are skipped — both surfaced in the response `warnings`. Pass project_id = source + name = target) / handoff (a copy-paste « resume in Claude » blob that pre-writes the per-call `_project=` token for this project) / archive / link & unlink (attach an entity: target_type tableau|procedure|connecteur + target_ref = its id/slug/name, optional label + optional role = why this entity belongs to the project + optional config = the entity's PRE-MADE per-project override; for a connecteur: {identity_id?, instructions_md?} = which account to act as + prose instructions to apply (e.g. 'only filter agreements by the mutuelle theme'), or `instance_ref` (a ref from oto_instance op=list, ADR 0038 B5) to bind EXACTLY that credential — calls carrying this project's token then resolve it hard, no fallback; for a tableau: {provision?: shared|empty|seeded} = how a project copy treats it (empty/seeded = each copy gets its own fresh table). Optional `slot` = the SLOT NAME this link BINDS for the project (ADR 0035): procedures declare required entities as slots and reference them <slot:name> in their prose — the project maps each name to a concrete entity via its links. Slot names are a PROJECT-wide vocabulary (unique per project → 409 slot_taken; two linked procedures sharing `sortie` share the binding). Re-linking without role/config/slot preserves the existing ones. get/link return each link's role + slot + config + a derived `cross_project` flag (the same entity is linked by another project → avoid brutal edits / ask); a tableau link also returns its resolved `namespace` — address THIS project's table by that name with the data_* tools (never hardcode a namespace). Share & transfer go through oto_resource (resource_type='project') — this includes RE-PARENTING a project in place (same id, links, runs preserved): op=transfer new_owner_group=<id> hands it to a TEAM so the project and its connector credentials sit at the SAME level (the team's secrets then resolve when you open it), new_owner_org=<id> to an org, new_owner_email to a user. (op=update only changes name/icon/brief_md/is_template — never the owner; op=copy makes a NEW id.) inventory = the project's DERIVED surface (union of the linked procedures' <tool:> refs + tools actually used by the project's runs, plus connectors from links & declared slots) — never retype a tool list: derive, then curate. runs (optional target_ref = a linked procedure's stable id) = the project's recent runs (label/guide/outcome), filtered to that procedure when given. OMIT project_id on op=runs and you get YOUR OWN still-open runs instead, each with its `run_id` — that is how you find a run you opened and lost the id of, so you can finally close it with run_finish. Across every org, since a run you cannot find is usually one you opened elsewhere. lint (optional stale_days, default 90) = KB health of this project's pages: stale (untouched since), empty (trivial body), duplicate_titles (likely merges). publish_mcp (mcp_slug + mcp_access anonymous|secret|org + mcp_tools = the fixed tool allowlist) publishes the project as a dedicated MCP endpoint `<mcp_slug>.mcp.oto.cx/mcp`, the toolset served under the OWNER ORG's credentials — `anonymous` = no login + LISTED in the public directory; `secret` = no login but UNLISTED, the slug is server-generated & unguessable (a secret URL; mcp_slug is an optional readable prefix); `org` = Logto JWT + pins the org. For anonymous/secret, tools that aren't credential-less or resolvable for the org are published anyway but FAIL cleanly at call time — they come back in `mcp_unresolvable_tools` (configure an org key or drop them). mcp_expose_datastore (SECRET only) opts the `data_*` tools in: they then act under the OWNER ORG's authority (read/write the org's namespaces) without a login — off by default (the datastore stays private); refused on anonymous/org. unpublish_mcp removes it. get returns mcp_slug/mcp_access/mcp_tools/mcp_expose_datastore/mcp_url.
          */
         post: operations["me_project_post"];
         delete?: never;
@@ -2916,6 +3214,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/runner/fleets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Declared configuration of an agent PASS — what a fleet runs, on which table, within which perimeter, and up to which limit
+         * @description Declared configuration of an agent PASS — what a fleet runs, on which table, within which perimeter, and up to which limit. op=create (`label` + procedure slug + `tools` allowlist ; optional target `namespace` + `row_filter`, execution context `provider`/`model`, and limits `max_rows` / `max_tokens` / `max_consecutive_failures` / `max_tokens_per_row` — budgets are counted in TOKENS, never money) / list (optionally filtered by `status`) / get / state / update. ⚠️ op=launch ARMS the fleet — it does NOT start any process. The state becomes `armed`, never `running`: `running` means a scheduler has TAKEN it and is beating. A scheduler must still be running for the pass to move. Symmetrically, op=stop REQUESTS the stop (`stopping`); the fleet keeps reserving, calling and SPENDING until the scheduler reads the order and acknowledges it (`stopped`). Never report a launch on `armed`, nor a stop on `stopping` — the gap between the two is also the diagnosis: a `stopping` that never becomes `stopped`, or an `armed` nobody claims, means a dead scheduler. op=state returns the pass PROGRESS aggregated over its jobs — pending, claimed, done, failed, abandoned, tokens consumed, heaviest single row — and says `no_jobs_attached` explicitly rather than returning zeros you would read as 'nothing happened'. The TARGET is frozen at declaration: redirecting a running pass to another table is what declaring exists to prevent; the execution context (`provider`/`model`) is frozen too, since changing it mid-flight falsifies the attribution of rows already written — declare another fleet instead — duplicate, never switch. The scheduler's own three verbs are served HERE too: op=take (`armed`→`running`, refused if another scheduler already took it), op=beat (heartbeat AND reads back `stop_requested` in the same call) and op=ack_stop (`stopping`→`stopped`, the only verb that states the FACT of a stop). They exist so that op=stop is REAL: an order nobody can read is an order that never happens.
+         */
+        post: operations["runner_fleets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/runner/jobs": {
         parameters: {
             query?: never;
@@ -2947,7 +3265,7 @@ export interface paths {
         put?: never;
         /**
          * Scheduled triggers for hosted runs — the product's /schedule
-         * @description Scheduled triggers for hosted runs — the product's /schedule. op=create (procedure slug + `cron` + `tools` allowlist ; `tz` defaults to Europe/Paris and the cron evaluates IN that timezone — say WHICH 8am you mean) / list / get / update (editing cron or tz revalidates and recomputes the next due) / delete. The tick only ENQUEUES a job at each due time; execution belongs to the worker. Floor between two occurrences: 5 minutes — a run is not a ping.
+         * @description Scheduled triggers for hosted runs — the product's /schedule. op=create (procedure slug + `cron` + `tools` allowlist ; `tz` defaults to Europe/Paris and the cron evaluates IN that timezone — say WHICH 8am you mean) / list / get / update (editing cron or tz revalidates and recomputes the next due) / delete. The tick only ENQUEUES a job at each due time; execution belongs to the worker. Floor between two occurrences: 5 minutes — a run is not a ping. `create` (and `update enabled=true`) is REFUSED when no worker polls this org's queue — a trigger nothing executes would enqueue forever without an error; `list`/`get` carry `runner` (armed, workers, last_seen) so an existing trigger can be told apart from a live one. ⚠️ An occurrence nobody claimed BEFORE the next one is due is EXPIRED, not silently kept: a daily watch run thirteen days late does not return a late result, it returns a WRONG one — and a backlog released all at once would run with the procedure and context of its era. Expiry never deletes: `list`/`get` carry `expired_count` (a real 0, not a missing measure) plus `expired_since` and `expired_last` — since when, and whether it is STILL happening, are two different questions. A rising count on an enabled trigger means nobody is executing this org.
          */
         post: operations["runner_triggers_post"];
         delete?: never;
@@ -3089,7 +3407,7 @@ export interface paths {
         };
         /**
          * Le registre résolu des outils du produit : nom, résumé d'une ligne, origine (native ou fédérée)
-         * @description Le registre résolu des outils du produit : nom, résumé d'une ligne, origine (native ou fédérée). C'est la matière des marqueurs `<tool:slug>` d'une doctrine et de l'autocomplétion. Immunisé à la visibilité de session — il dit ce qui EXISTE, pas ce qui m'est visible.
+         * @description Le registre résolu des outils du produit : nom, résumé d'une ligne, origine (native ou fédérée). C'est la matière des marqueurs `<tool:slug>` d'un guide et de l'autocomplétion. Immunisé à la visibilité de session — il dit ce qui EXISTE, pas ce qui m'est visible.
          */
         get: operations["me_tools_registry_get"];
         put?: never;
@@ -3302,7 +3620,7 @@ export interface paths {
         };
         /**
          * Org audit log of tool calls (org_admin): timestamp, user, tool, namespace, duration, ok/error — never args or secrets
-         * @description Org audit log of tool calls (org_admin): timestamp, user, tool, namespace, duration, ok/error — never args or secrets. Window via since/until (ISO). Scoped to calls emitted UNDER this org.
+         * @description Org audit log of tool calls (org_admin): timestamp, user, tool, namespace, duration, ok/error — never args or secrets. Scoped to calls emitted UNDER this org. Window via since/until (ISO). IT STATES ITS OWN COMPLETENESS: `total` is the whole window, `count` this response, and both are guaranteed to describe the SAME set. `truncated` says this response is not the whole window; send `next_cursor` back verbatim as `cursor` to get the rest — do NOT resend since/until with it, the cursor carries the window (400 `window_with_cursor`). `until_effectif` is the upper bound actually applied, frozen at the first call, which makes the export a CLOSED period. Beware: calls older than the org column, and calls past the retention window, exist in no export — there `total: 0` does not mean nothing happened.
          */
         get: operations["org_audit_log_export_get"];
         put?: never;
@@ -3660,20 +3978,24 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Erreur"];
+                    };
                 };
                 /** @description refus d'autorisation (ou hors portée du jeton) */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Erreur"];
+                    };
                 };
             };
         };
         /**
-         * Create/update a guide (scope=platform|org|group|user)
-         * @description Create/update a guide (scope=platform|org|group|user). `delivery='init'` writes that scope's injected readme (empty body clears it).
+         * Create/update a guide (scope=platform|org|group|user|tenant)
+         * @description Create/update a guide (scope=platform|org|group|user|tenant). `delivery='init'` writes that scope's injected readme (empty body clears it). WHO MAY WRITE, per scope — checked on the REAL target, not the active one: `user` = yourself only; `org` = an admin of that org; `group` = that team's lead (org admins escalate); `platform` and `tenant` = a platform admin. ⚠️ The flag to read before showing an editor is `can_edit` on the org or team view — NEVER `can_write_instructions`, which governs PROCEDURES and is true for any team MEMBER: reading it here shows an editor that the server refuses.
          */
         put: {
             parameters: {
@@ -3698,6 +4020,7 @@ export interface paths {
                         delivery?: "init" | "on-demand";
                         /**
                          * Body Md
+                         * @description Corps markdown, au plus 65 536 OCTETS UTF-8 — au-delà : 400 `body_too_large`. `maxLength` compte des caractères : nécessaire, pas suffisant (un caractère accentué pèse deux octets).
                          * @default
                          */
                         body_md?: string;
@@ -3754,19 +4077,35 @@ export interface paths {
                         };
                     };
                 };
+                /** @description `body_too_large` — `body_md` dépasse 65 536 octets UTF-8 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Erreur"] & {
+                            /** @enum {unknown} */
+                            error?: "body_too_large";
+                        };
+                    };
+                };
                 /** @description jeton absent ou invalide */
                 401: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Erreur"];
+                    };
                 };
                 /** @description refus d'autorisation (ou hors portée du jeton) */
                 403: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Erreur"];
+                    };
                 };
             };
         };
@@ -4245,9 +4584,29 @@ export interface paths {
         put?: never;
         /**
          * Govern an OWNED resource (ADR 0030) without reading its content
-         * @description Govern an OWNED resource (ADR 0030) without reading its content. op=list: resources you govern (platform admins see all); op=get: owner + shares + metadata (each grant carries a `role`); op=transfer: hand ownership to a user (`new_owner_email`), to one of YOUR orgs (`new_owner_org`, you must be a member) OR to one of YOUR teams (`new_owner_group`, ADR 0049 — scoping a resource to a pôle IS the way to restrict it); a user-owned previous owner keeps editor access (transfer is owner/admin only, never a grantee). ANTI-LOCKOUT: if the transfer would leave YOU unable to ever get the resource back (handing to a third party, or to an org/team you don't administer), it is refused with code `confirm_loss_of_control` — resend with `confirm_transfer=true` to proceed consciously (a platform admin is never blocked and can always recover it). op=share/unshare — ONE unified « Share », two axes (ADR 0048): AUDIENCE (`audience`) = where it goes: `person` (`email`) / `team` (`group_id`, a group of an org you belong to) / `org` (`org_id`, a whole org, client delivery) → a grant; `public`/`secret` → PUBLISH the project (public = listed, secret = unguessable link) with `mcp_tools` (defaults to the already-published set); `private` → unpublish. ROLE (`role`) = what they can do: `viewer` (read), `editor` (write), `manager` (GOVERNANCE — re-share / delete / publish, grantable, but NOT ownership transfer); public/secret force viewer. Legacy `permission` read|write is still accepted (mapped to viewer/editor). resource_type ∈ {datastore_namespace, project, doctrine}. DELIVER A FULL PROJECT (#52): share/transfer a project with cascade=true to carry its linked entities in one gesture — linked tableaux get the same share/transfer, linked procedures are share-granted read (readable cross-org via oto_procedure op=get doctrine_id) or COPIED into the target org on transfer (link re-pointed, source untouched), connector links report `recipient_credential` (the recipient plugs their own key; the project's pre-made identity/instructions overrides travel with it); docs & files follow automatically. Returns a per-entity cascade report. Owner OR org/platform admin governing it; never exposes row content.
+         * @description Govern an OWNED resource (ADR 0030) without reading its content. op=list: resources you govern (platform admins see all); op=get: owner + shares + metadata (each grant carries a `role`); op=transfer: hand ownership to a user (`new_owner_email`), to one of YOUR orgs (`new_owner_org`, you must be a member) OR to one of YOUR teams (`new_owner_group`, ADR 0049 — scoping a resource to a pôle IS the way to restrict it); a user-owned previous owner keeps editor access (transfer is owner/admin only, never a grantee). ANTI-LOCKOUT: if the transfer would leave YOU unable to ever get the resource back (handing to a third party, or to an org/team you don't administer), it is refused with code `confirm_loss_of_control` — resend with `confirm_transfer=true` to proceed consciously (a platform admin is never blocked and can always recover it). op=share/unshare — ONE unified « Share », two axes (ADR 0048): AUDIENCE (`audience`) = where it goes: `person` (`email`) / `team` (`group_id`, a group of an org you belong to) / `org` (`org_id`, a whole org, client delivery) → a grant; `public`/`secret` → PUBLISH the project (public = listed, secret = unguessable link) with `mcp_tools` (defaults to the already-published set); `private` → unpublish. ROLE (`role`) = what they can do: `viewer` (read), `editor` (write), `manager` (GOVERNANCE — re-share / delete / publish, grantable, but NOT ownership transfer); public/secret force viewer. Legacy `permission` read|write is still accepted (mapped to viewer/editor). resource_type ∈ {datastore_namespace, project, doctrine} — it is the discriminant, and it also decides which shape comes back. ⚠️ KNOWN DEFECT, kept for backward compatibility: resource_type DEFAULTS to `datastore_namespace`. Omitting it does NOT mean « any type » — the call silently targets a datastore namespace, so op=get/list answer about the wrong family, and op=transfer/share ACT ON A DIFFERENT RESOURCE than the one you meant (same numeric id, other family). ALWAYS pass resource_type explicitly. The fix is a separate surface, oto_resource_v2 / POST /api/resources/v2, which REQUIRES the field — migrate to it. DELIVER A FULL PROJECT (#52): share/transfer a project with cascade=true to carry its linked entities in one gesture — linked tableaux get the same share/transfer, linked procedures are share-granted read (readable cross-org via oto_procedure op=get guide_id) or COPIED into the target org on transfer (link re-pointed, source untouched), connector links report `recipient_credential` (the recipient plugs their own key; the project's pre-made identity/instructions overrides travel with it); docs & files follow automatically. Returns a per-entity cascade report. Owner OR org/platform admin governing it; never exposes row content.
          */
         post: operations["resources_govern_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/resources/v2": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * BETA
+         * @description BETA. Same governance surface as oto_resource (ADR 0030), with a STRICT input contract: resource_type is REQUIRED (no default) ∈ {datastore_namespace, project, doctrine}, and resource_id must be numeric. Prefer this tool over oto_resource: on the legacy one, omitting resource_type silently targets a datastore namespace, so op=transfer/share act on a DIFFERENT resource than the one you meant. Everything else is identical — op=list: resources you govern (platform admins see all); op=get: owner + shares + metadata (each grant carries a `role`); op=transfer: hand ownership to a user (`new_owner_email`), to one of YOUR orgs (`new_owner_org`, you must be a member) OR to one of YOUR teams (`new_owner_group`, ADR 0049 — scoping a resource to a pôle IS the way to restrict it); a user-owned previous owner keeps editor access (transfer is owner/admin only, never a grantee). ANTI-LOCKOUT: if the transfer would leave YOU unable to ever get the resource back (handing to a third party, or to an org/team you don't administer), it is refused with code `confirm_loss_of_control` — resend with `confirm_transfer=true` to proceed consciously (a platform admin is never blocked and can always recover it). op=share/unshare — ONE unified « Share », two axes (ADR 0048): AUDIENCE (`audience`) = where it goes: `person` (`email`) / `team` (`group_id`, a group of an org you belong to) / `org` (`org_id`, a whole org, client delivery) → a grant; `public`/`secret` → PUBLISH the project (public = listed, secret = unguessable link) with `mcp_tools` (defaults to the already-published set); `private` → unpublish. ROLE (`role`) = what they can do: `viewer` (read), `editor` (write), `manager` (GOVERNANCE — re-share / delete / publish, grantable, but NOT ownership transfer); public/secret force viewer. Legacy `permission` read|write is still accepted (mapped to viewer/editor). DELIVER A FULL PROJECT (#52): share/transfer a project with cascade=true to carry its linked entities in one gesture — linked tableaux get the same share/transfer, linked procedures are share-granted read (readable cross-org via oto_procedure op=get guide_id) or COPIED into the target org on transfer (link re-pointed, source untouched), connector links report `recipient_credential` (the recipient plugs their own key; the project's pre-made identity/instructions overrides travel with it); docs & files follow automatically. Returns a per-entity cascade report. Owner OR org/platform admin governing it; never exposes row content.
+         */
+        post: operations["resources_govern_v2_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4282,8 +4641,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * L'état d'un credential pour un connecteur : posé ou non, et les seuls champs révélables (une URL de base à corriger, une clé d'API à recopier, un email)
-         * @description L'état d'un credential pour un connecteur : posé ou non, et les seuls champs révélables (une URL de base à corriger, une clé d'API à recopier, un email). Un secret ne se relit jamais. `scope` : `member` (le tien, défaut), `group` ou `org` — ces deux-là exigent d'être admin du palier, comme pour le retrait. `account` cible un compte nommé précis ; vide = le compte unique.
+         * L'état d'un credential pour un connecteur
+         * @description L'état d'un credential pour un connecteur. **La valeur d'un champ secret n'est jamais rendue** — sa clé est ABSENTE du corps, pas vide : depuis le 2026-08-31, une clé d'API ne se relit plus, à aucun palier et pour personne (demander sa valeur rend `403 secret_never_revealed`). Ce qui sort : les champs NON secrets tels quels (une URL de base à corriger, une région, un email), et de quoi reconnaître la clé sans la lire — `configured`, `read_set_at`, `read_set_by`, et `read_fingerprints` : quatre caractères non réversibles par champ secret renseigné (une empreinte, jamais un morceau du secret). Pour changer une clé, on la repose : le POST conserve les champs qu'il ne reçoit pas. `scope` : `member` (le tien, défaut), `group` ou `org` — ces deux-là exigent d'être admin du palier, comme pour le retrait. `account` cible un compte nommé précis ; vide = le compte unique.
          */
         get: operations["me_credential_get_get"];
         put?: never;
@@ -4422,26 +4781,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/unipile/webhook": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * POST /api/unipile/webhook
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
-         */
-        post: operations["post_api_unipile_webhook"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/upload/{token}": {
         parameters: {
             query?: never;
@@ -4464,6 +4803,26 @@ export interface paths {
          * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
          */
         post: operations["post_api_upload_token"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /api/version
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        get: operations["get_api_version"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4494,6 +4853,14 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Erreur: {
+            /** @description jeton machine stable — la clé sur laquelle décider */
+            error: string;
+            /** @description la phrase, actionnable ; jamais à parser */
+            detail?: string;
+            /** @description forme structurée du refus, quand une phrase ne suffit pas au client pour agir (rare) */
+            details?: Record<string, never>;
+        };
         /**
          * MyOrgEntry
          * @description Une org dont tu es membre. **Superset assumé de deux contrats historiques** :
@@ -4520,6 +4887,11 @@ export interface components {
             role: string;
             /** Active */
             active: boolean;
+            /**
+             * Beta
+             * @default false
+             */
+            beta: boolean;
         };
         /**
          * OrgQuota
@@ -4658,9 +5030,20 @@ export interface components {
         };
         /**
          * OrgMemberEntry
-         * @description Un membre de l'org. ⚠️ `active` ne qualifie PAS le membre (compte activé /
-         *     suspendu) : il dit que CETTE org est l'org maison de cette personne. Un membre
-         *     parfaitement actif y est `false` dès qu'il travaille par défaut ailleurs.
+         * @description Un membre de l'org.
+         *
+         *     ⚠️ **`active` et `suspended` ne parlent pas de la même chose**, et le premier est
+         *     un faux ami de longue date : `active` dit que CETTE org est l'org MAISON de cette
+         *     personne — un membre parfaitement en état y est `false` dès qu'il travaille par
+         *     défaut ailleurs. C'est `suspended` qui dit que le compte est neutralisé.
+         *
+         *     Un membre en pause **reste dans la liste**, marqué. Le retirer serait détruire une
+         *     appartenance qu'on a justement choisi de ne pas détruire, et laisserait un
+         *     administrateur devant des documents signés par quelqu'un qui n'apparaît plus nulle
+         *     part. Il ne compte en revanche dans aucune facture — non pas par décision de ce
+         *     lot, mais parce qu'aucune facture ne compte les membres : l'abonnement est un
+         *     forfait par org (`billing.PLANS`), et le seul compteur de « sièges » du dépôt
+         *     (`db.count_unipile_accounts_for_org`) porte sur des comptes de messagerie.
          */
         OrgMemberEntry: {
             /** Sub */
@@ -4684,6 +5067,11 @@ export interface components {
             role: string;
             /** Active */
             active: boolean;
+            /**
+             * Suspended
+             * @default false
+             */
+            suspended: boolean;
         };
         /**
          * OrgSecretEntry
@@ -4847,8 +5235,11 @@ export interface components {
          *     il lit donc `my_role: null` sur des équipes qu'il peut renommer, supprimer, dont
          *     il peut poser les secrets. Un front qui conditionne ses boutons de gestion à
          *     `my_role == "group_admin"` cache l'administration à ceux qui l'ont. La source du
-         *     droit, c'est `can_edit` (servi par `GET /api/groups/{id}/instructions`), jamais
-         *     ce champ.
+         *     droit, ce sont les drapeaux de `GET /api/groups/{id}/instructions`, jamais ce
+         *     champ : `can_edit` pour l'administration de l'équipe, et — depuis #695 —
+         *     `can_write_instructions` / `can_delete_instructions` pour les procédures, qui ne
+         *     se déduisent NI de `my_role` ni de `can_edit` (un simple membre écrit une
+         *     procédure sans rien administrer).
          *
          *     ⚠️ `member_count` compte les mêmes lignes explicites : une équipe « à 0 membre »
          *     peut être pleinement gouvernée (et son secret partagé pleinement actif).
@@ -5072,6 +5463,111 @@ export interface components {
             custom: boolean;
         };
         /**
+         * GrantedBenefit
+         * @description Un avantage payant OFFERT — un droit ouvert sans qu'aucun euro ne circule.
+         *
+         *     ⚠️ Ce n'est PAS un abonnement offert (`comp=true` plus haut, qui suppose une
+         *     ligne d'abonnement et un palier). C'est un **don d'option** : l'org n'a pas
+         *     d'abonnement du tout, et reçoit quand même un avantage du catalogue. Les deux
+         *     chemins coexistent et ne se lisent pas au même endroit — d'où ce bloc, servi
+         *     justement dans la branche `subscribed:false` où rien ne le disait.
+         */
+        GrantedBenefit: {
+            /**
+             * Option
+             * @description Identifiant technique de l'avantage ('unipile'). Seules les options VENDUES dans un palier apparaissent ici : un drapeau de population ('beta') n'est pas un cadeau et n'y figure pas.
+             */
+            option: string;
+            /**
+             * Label
+             * @description L'avantage NOMMÉ, tel qu'on l'affiche ('Messagerie hébergée (Unipile)'). Il ne se présume pas : plusieurs avantages peuvent s'offrir, ce champ dit lequel.
+             */
+            label: string;
+            /**
+             * Detail
+             * @description Ce que l'avantage permet, en une phrase.
+             * @default null
+             */
+            detail: string | null;
+            /**
+             * Scope
+             * @description 'org' = offert à l'espace (tous ses membres) | 'user' = offert à CE compte, et il le suit dans tous ses espaces. Offert des deux façons, l'avantage n'apparaît qu'une fois — avec l'échéance la plus lointaine des deux.
+             */
+            scope: string;
+            /**
+             * Granted At
+             * @description Date de la mise à disposition.
+             * @default null
+             */
+            granted_at: string | null;
+            /**
+             * Expires At
+             * @description Fin de la mise à disposition. `null` = SANS terme (l'état de tous les dons antérieurs au 2026-09-02) — surtout pas « expire bientôt ». Passée cette date, l'avantage cesse d'être accordé : le droit se referme, les données restent.
+             * @default null
+             */
+            expires_at: string | null;
+            /**
+             * Days Left
+             * @description Jours restants avant `expires_at`. `null` si sans terme. **NÉGATIF si l'échéance est passée** — un don échu se lit échu, il n'est pas ramené à zéro.
+             * @default null
+             */
+            days_left: number | null;
+            /**
+             * Value Amount
+             * @description Ce que cet avantage coûterait, en CENTIMES **hors taxes** : le prix du palier le MOINS cher qui l'inclut. Rien n'a été facturé — c'est la valeur du cadeau, pas une dette.
+             * @default null
+             */
+            value_amount: number | null;
+            /**
+             * Currency
+             * @description Devise ('eur').
+             * @default null
+             */
+            currency: string | null;
+            /**
+             * Interval
+             * @description 'month' | 'year'.
+             * @default null
+             */
+            interval: string | null;
+        };
+        /**
+         * MonthlyUsage
+         * @description Ce que l'org a CONSOMMÉ ce mois-ci, et ce qui est inclus.
+         *
+         *     ⚠️ **Rien ici ne refuse quoi que ce soit.** Le journal qui porte ce chiffre est
+         *     best-effort et non transactionnel : il mesure et il prévient, il ne facture pas
+         *     et ne coupe pas. Un dépassement s'affiche, il ne bloque aucun appel.
+         *
+         *     ⚠️ **Aucun ratio n'est servi, et c'est délibéré.** L'usage médian d'une org active
+         *     est de 25 appels par mois pour 1000 inclus : une barre de progression ou un
+         *     « 2,5 % » y dirait « c'est gratuit et sans fin », soit l'inverse de ce que ce
+         *     bloc existe pour faire comprendre. Afficher le NOMBRE et mentionner le plafond ;
+         *     ne pas les diviser.
+         */
+        MonthlyUsage: {
+            /**
+             * Calls
+             * @description Appels d'OUTIL D'AGENT émis sous cette org depuis le 1er du mois (UTC). N'inclut ni la navigation dans le tableau de bord, ni les handshakes : trois volumes sans rapport, dont le mélange ne mesurerait que le fait d'avoir un onglet ouvert.
+             */
+            calls: number;
+            /**
+             * Included
+             * @description Appels inclus par mois et par organisation.
+             */
+            included: number;
+            /**
+             * Period Start
+             * @description Début de la période comptée — le 1er du mois courant, UTC. ⚠️ Le MOIS EN COURS est la seule fenêtre disponible : la purge du journal ne garde qu'environ 35 jours, donc aucune comparaison avec le mois précédent n'est calculable sur cette source.
+             */
+            period_start: string;
+            /**
+             * Over
+             * @description Le compte dépasse-t-il l'inclus ? C'est CE booléen qui décide d'un message, jamais un pourcentage calculé côté écran — et il n'entraîne aucun refus.
+             */
+            over: boolean;
+        };
+        /**
          * Payment
          * @description Une TENTATIVE de paiement journalisée, pas une facture ni un reçu : une ligne
          *     peut n'avoir rien encaissé. Seul `status='paid'` atteste un encaissement.
@@ -5194,6 +5690,110 @@ export interface components {
             billing_email: string | null;
         };
         /**
+         * Invoice
+         * @description Un document COMPTABLE émis pour un encaissement — pas une tentative de
+         *     paiement (ça, c'est `billing.payments`). Son numéro vient de Pennylane, qui
+         *     porte la numérotation continue d'Otomata.
+         */
+        Invoice: {
+            /**
+             * Id
+             * @description Identifiant local du document (séquence), celui qu'attend la route de téléchargement du PDF.
+             */
+            id: number;
+            /**
+             * Kind
+             * @description 'invoice' (facture) | 'credit_note' (AVOIR, émis sur remboursement — ses montants sont NÉGATIFS).
+             */
+            kind: string;
+            /**
+             * Status
+             * @description 'issued' = document émis, numéroté, définitif. 'pending' = l'émission n'a pas encore abouti — l'encaissement, lui, a bien eu lieu et la facture est due ; elle est rejouée automatiquement. Un `pending` n'est jamais un paiement perdu.
+             */
+            status: string;
+            /**
+             * Number
+             * @description Numéro de facture, attribué par Pennylane à la finalisation. `null` tant que `status='pending'` : un numéro n'existe pas avant le document.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Currency
+             * @description Code devise ISO en minuscules ('eur').
+             */
+            currency: string;
+            /**
+             * Amount Ht
+             * @description Total hors taxes, en CENTIMES.
+             * @default null
+             */
+            amount_ht: number | null;
+            /**
+             * Vat Rate Bps
+             * @description Taux appliqué, en points de base (2000 = 20,00 %).
+             * @default null
+             */
+            vat_rate_bps: number | null;
+            /**
+             * Vat Amount
+             * @description TVA, en centimes.
+             * @default null
+             */
+            vat_amount: number | null;
+            /**
+             * Amount Ttc
+             * @description Total toutes taxes comprises, en centimes — ce qui a été réellement débité. ⚠️ NÉGATIF sur un avoir.
+             * @default null
+             */
+            amount_ttc: number | null;
+            /**
+             * Vat Scheme
+             * @description 'fr_ttc' | 'reverse_charge' (autoliquidation) | 'export'.
+             * @default null
+             */
+            vat_scheme: string | null;
+            /**
+             * Period Start
+             * @description Début de la période d'abonnement couverte ('YYYY-MM-DD HH:MM:SS' UTC).
+             * @default null
+             */
+            period_start: string | null;
+            /**
+             * Period End
+             * @description Fin de la période.
+             * @default null
+             */
+            period_end: string | null;
+            /**
+             * Issued At
+             * @description Date PORTÉE par le document, c'est-à-dire celle de l'encaissement — pas celle de son émission technique.
+             * @default null
+             */
+            issued_at: string | null;
+            /**
+             * Has Pdf
+             * @description Le PDF est-il disponible au téléchargement ? `false` avec `status='issued'` signale un document bien émis dont le fichier n'a pas encore été récupéré : la reprise le fera.
+             */
+            has_pdf: boolean;
+            /**
+             * Pdf Path
+             * @description Chemin REST du PDF, à préfixer de la base d'API (ce n'est pas une URL absolue, et surtout pas une URL publique : la route exige le même jeton que le reste de `/api/me`). `null` quand `has_pdf` est faux.
+             * @default null
+             */
+            pdf_path: string | null;
+            /**
+             * Emailed At
+             * @description Envoi au contact de facturation. `null` = non envoyé (adresse absente, ou relais indisponible) — le document reste téléchargeable, l'e-mail n'en conditionne rien.
+             * @default null
+             */
+            emailed_at: string | null;
+            /**
+             * Created At
+             * @description Création de la ligne de suivi.
+             */
+            created_at: string;
+        };
+        /**
          * ReferencedTool
          * @description Un `<tool:slug>` du corps, résolu **à la lecture** contre le registre vivant
          *     (ADR 0014). `status='missing'` = la référence ne désigne plus rien (outil renommé
@@ -5207,13 +5807,49 @@ export interface components {
             status: string;
         };
         /**
-         * DoctrineMeta
+         * SlotDecl
+         * @description Une entité requise déclarée par une procédure (ADR 0035), citée `<slot:name>`
+         *     dans la prose. C'est la sortie de `validate_slots` — donc la forme SERVIE.
+         *
+         *     Les clés facultatives sont réellement ABSENTES quand elles ne s'appliquent pas
+         *     (`validate_slots` ne pose jamais une clé vide) : `description` seulement si elle
+         *     a été écrite, `connector` seulement sur un slot `connecteur`, `schema` seulement
+         *     sur un slot `tableau`.
+         */
+        SlotDecl: {
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "tableau" | "connecteur" | "doc";
+            /**
+             * Description
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Connector
+             * @default null
+             */
+            connector: string | null;
+            /**
+             * Schema
+             * @default null
+             */
+            schema: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * GuideMeta
          * @description État du readme d'org. ⚠️ **`version` est un faux compteur** : il vaut 1 s'il
          *     existe un readme, 0 sinon, et n'atteint JAMAIS 2 — le readme est de la prose plate
          *     sans historique (ADR 0042). L'afficher comme un numéro de révision promet un
          *     versionnage qui n'existe pas.
          */
-        DoctrineMeta: {
+        GuideMeta: {
             /** Exists */
             exists: boolean;
             /** Version */
@@ -5271,6 +5907,41 @@ export interface components {
              * @default null
              */
             created_at: string | null;
+        };
+        /**
+         * SuggestedSlot
+         * @description Un slot que la prose RÉCLAME sans qu'il soit déclaré — jamais un warning, une
+         *     suggestion (`slots_check`). Même forme qu'une déclaration, PLUS le motif : c'est
+         *     ce qui la distingue, et c'est pourquoi `suggested_slots` ne peut pas être typé
+         *     `list[SlotDecl]` malgré la ressemblance.
+         */
+        SuggestedSlot: {
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "tableau" | "connecteur" | "doc";
+            /**
+             * Description
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Connector
+             * @default null
+             */
+            connector: string | null;
+            /**
+             * Schema
+             * @default null
+             */
+            schema: {
+                [key: string]: unknown;
+            } | null;
+            /** Reason */
+            reason: string;
         };
         /**
          * LibraryEntrySummary
@@ -5352,15 +6023,212 @@ export interface components {
             snippet: string | null;
         };
         /**
+         * AuthDescriptor
+         * @description Descripteur d'auth unifié (ADR 0024) — la source unique du rendu de la face
+         *     credential, quel que soit le mécanisme.
+         *
+         *     ⚠️ `method` est un jeu FERMÉ, et il est consommé par un `switch` dans un autre
+         *     dépôt (oto-dashboard) : y ajouter une valeur casse en silence (branche `default` →
+         *     panneau de connexion vide). Il est néanmoins déclaré `str` et non `Literal` ici, et
+         *     c'est délibéré : ce modèle DÉCRIT une réponse servie, et un énuméré au contrat
+         *     ferait échouer la génération de client d'un tiers le jour où le serveur en rend une
+         *     sixième valeur — le contrat doit vieillir moins mal que la liste. Les valeurs
+         *     servies au 2026-09-01 : `hosted` | `remote` | `oauth` | `cookie` | `none` |
+         *     `secret` (cf. `providers/_model.py::auth_method`, qui en est le domicile).
+         */
+        AuthDescriptor: {
+            /** Method */
+            method: string;
+            /**
+             * Cardinality
+             * @description `multi_account` | `single` — ce connecteur accepte-t-il PLUSIEURS comptes pour une même entité ? C'est cette clé qui décide si l'on propose « ajouter un compte ». Dérivée du connecteur, pas déclarée par lui. ⚠️ **Servie ici avec le réglage de l'org appliqué** : une org peut ouvrir le multi-compte sur un connecteur qui ne l'a pas par défaut. Le catalogue PUBLIC, lui, rend le défaut du registre — les deux surfaces peuvent donc différer pour le même connecteur, et c'est celle-ci qui vaut pour l'acteur qui la lit.
+             */
+            cardinality: string;
+            /** Account Noun */
+            account_noun: string;
+            /**
+             * Field Discriminator
+             * @description Le champ dont la valeur sélectionne les autres, quand il y en a un (`auth_mode` chez `http`). **Chaîne VIDE**, jamais `null`, quand il n'y en a pas. ⚠️ Tant qu'aucune valeur n'est choisie, TOUS les champs sont pertinents : le serveur ne masque rien avant que la saisie ait tranché, parce que masquer serait deviner. Un formulaire qui filtrerait dès l'ouverture cacherait des champs que la pose exige.
+             * @default
+             */
+            field_discriminator: string;
+            /**
+             * Hosted Channel
+             * @description Le canal hébergé que cette carte représente (`LINKEDIN`, `WHATSAPP`…), quand elle en est un. `null` = ce n'est pas une carte de canal. ⚠️ Le canal est ainsi DÉRIVABLE de la carte : le flux de connexion se déclare sans paramètre et l'écran n'a aucun sélecteur de canal à rendre — **la carte EST le canal**.
+             * @default null
+             */
+            hosted_channel: string | null;
+            /**
+             * Credential Of
+             * @description Le connecteur qui DÉTIENT le credential, quand ce n'est pas celui-ci. `null` = il détient le sien. ⚠️ Un connecteur qui délègue n'a **aucun champ à saisir**, et poser une clé sous son nom est REFUSÉ — sans quoi deux clés diraient le contraire l'une de l'autre. C'est le porteur nommé ici qu'il faut envoyer connecter.
+             * @default null
+             */
+            credential_of: string | null;
+            /**
+             * Fields
+             * @default []
+             */
+            fields: components["schemas"]["CredentialField"][];
+        };
+        /**
+         * ConnectFlow
+         * @description La FORME du geste « connecter » — jamais une URL d'autorisation ni un nom de
+         *     capacité (`/api/connectors` est servie SANS auth, et le chemin d'appel est fixe
+         *     côté client). `null` sur les ~85 connecteurs qui n'ont pas de flux : le front rend
+         *     alors son formulaire de champs habituel.
+         *
+         *     Les deux derniers champs n'existent QUE sur la projection authentifiée
+         *     (`GET /api/me/connectors?verbose=true`) et jamais dans le catalogue public : ils
+         *     répondent à qui demande, ce qu'un catalogue anonyme ne peut pas faire.
+         */
+        ConnectFlow: {
+            /** Label */
+            label: string;
+            /**
+             * Params
+             * @default []
+             */
+            params: components["schemas"]["ConnectParam"][];
+            /**
+             * Callback Url
+             * @default null
+             */
+            callback_url: string | null;
+            /**
+             * App Ready
+             * @default null
+             */
+            app_ready: boolean | null;
+        };
+        /**
+         * ConnectParam
+         * @description Une valeur que l'utilisateur doit fournir pour démarrer le flux de connexion.
+         */
+        ConnectParam: {
+            /** Name */
+            name: string;
+            /** Label */
+            label: string;
+            /** Required */
+            required: boolean;
+            /**
+             * Default
+             * @default
+             */
+            default: string;
+            /**
+             * Help
+             * @default
+             */
+            help: string;
+            /**
+             * Options
+             * @default []
+             */
+            options: components["schemas"]["ConnectParamOption"][];
+        };
+        /**
+         * ConnectParamOption
+         * @description Une valeur d'un choix fermé d'un paramètre de flux (le front rend un select).
+         */
+        ConnectParamOption: {
+            /** Value */
+            value: string;
+            /** Label */
+            label: string;
+        };
+        /**
+         * CredentialField
+         * @description Un champ de saisie du credential — la FORME, jamais une valeur.
+         *
+         *     C'est ce sur quoi le dashboard boucle pour rendre son formulaire. Homonyme
+         *     volontaire de `providers._model.CredentialField`, qui est la dataclass qui le
+         *     PRODUIT : celui-ci est sa projection servie, et il ne porte donc pas les champs
+         *     internes (`whitespace_significant` n'est pas sur le fil).
+         *
+         *     `secret=True` ⟹ la valeur n'est **jamais** rendue en lecture (ni tronquée, ni
+         *     vidée) : sa clé est absente du corps. Ce modèle ne décrit que la saisie.
+         */
+        CredentialField: {
+            /** Name */
+            name: string;
+            /** Label */
+            label: string;
+            /** Secret */
+            secret: boolean;
+            /** Required */
+            required: boolean;
+            /** Help */
+            help: string;
+            /**
+             * When
+             * @description Valeurs du champ discriminant (`AuthDescriptor.field_discriminator`) pour lesquelles ce champ-ci est pertinent. ⚠️ Liste VIDE = pertinent QUEL QUE SOIT le discriminant — « vide » veut dire « toujours », jamais « jamais » (c'est le cas des ~90 connecteurs qui n'en déclarent pas). Renseignée, elle dit deux choses d'un coup : le champ ne s'affiche que pour ces valeurs, et son `required` ne s'applique que là.
+             * @default []
+             */
+            when: string[];
+            /**
+             * Choices
+             * @description Jeu FERMÉ de valeurs acceptées — un select, pas un champ libre. Vide = libre. Une valeur hors liste est refusée à l'ÉCRITURE, avec le jeu attendu dans le message.
+             * @default []
+             */
+            choices: string[];
+        };
+        /**
+         * DocSection
+         * @description Une section de la doc « how-to » d'un connecteur, en markdown.
+         *
+         *     Curée par connecteur (`connectors/docs/<nom>.md`), lue par
+         *     `connectors/docs_reader.py`. `kind` observé : `prerequisite` | `setup` | `usage` |
+         *     `note` — jeu ouvert par construction (il vient des titres du markdown), donc
+         *     déclaré `str` et non un énuméré : figer un jeu que la prose peut élargir ferait
+         *     mentir le contrat au premier fichier de doc ajouté.
+         */
+        DocSection: {
+            /** Kind */
+            kind: string;
+            /** Title */
+            title: string;
+            /** Body Md */
+            body_md: string;
+        };
+        /**
+         * FreeTier
+         * @description Free-tier (ADR 0031) : la clé plateforme est ouverte sans grant, avec un quota
+         *     gratuit par utilisateur et par jour. `null` sur la carte = pas de free-tier.
+         */
+        FreeTier: {
+            /** Daily Quota */
+            daily_quota: number;
+        };
+        /**
          * MyConnectorRow
          * @description Un connecteur du catalogue vu par le membre : la carte + SON état à lui.
          *
-         *     Les champs ci-dessous sont ceux du mode COMPACT (défaut, cf. `_COMPACT_KEYS`).
-         *     En `verbose=true` la même ligne porte EN PLUS toute la carte publique du
-         *     catalogue (`description`, `doc_sections`, `auth`, `credential_fields`,
-         *     `namespaces`, `free_tier`, `identities`, `verifiable`, `connect` enrichi de
-         *     `callback_url`/`app_ready`) — d'où l'ouverture aux champs additionnels : la
-         *     forme large est celle du dashboard, elle n'est pas figée ici.
+         *     **Deux projections sortent du même champ**, selon `verbose` (l'enveloppe l'écho) :
+         *
+         *     - `verbose=false` (défaut) — identité + axes de tri + état : les huit clés de
+         *       `_COMPACT_KEYS`, plus l'état per-membre. C'est ce que lit une LISTE.
+         *     - `verbose=true` — la même ligne PLUS toute la carte publique du catalogue,
+         *       section « carte » ci-dessous. C'est ce que lit une CARTE, et ce dont dépend le
+         *       formulaire de credential.
+         *
+         *     Un champ de la carte est donc `Optional` parce qu'il est absent en compact, pas
+         *     parce qu'il serait parfois nul en verbeux : en `verbose=true` les treize sont
+         *     toujours présents (`base = c`, la ligne entière — cf. `_me`). `null` y garde son
+         *     sens propre, énoncé champ par champ.
+         *
+         *     ⚠️ Le docstring disait jusqu'au 2026-09-01 que « la forme large est celle du
+         *     dashboard, elle n'est pas figée ici » — et l'ouverture aux champs additionnels en
+         *     découlait. Levé (#667) : dès qu'un intégrateur hors du dépôt en dépend, « pas
+         *     figée » veut dire « cassable sans préavis, et sans qu'on sache qui casse ». Les
+         *     treize clés de premier niveau que servait le mode verbeux sans les déclarer sont
+         *     désormais nommées (cf. `catalog_card.py` pour les objets).
+         *
+         *     `extra="allow"` RESTE, et c'est provisoire : le retirer est le seul garde-fou
+         *     mécanique contre le prochain champ non déclaré, mais il faut d'abord que le
+         *     cliquet `tests/test_carte_connecteur_declaree.py` ait vécu — un champ oublié
+         *     disparaîtrait sinon du payload, ce qui casserait pour de bon ce que ce lot ne
+         *     fait que documenter.
          */
         MyConnectorRow: {
             /** Name */
@@ -5396,12 +6264,19 @@ export interface components {
              */
             logo_url: string | null;
             /**
+             * Secret Kind
+             * @default null
+             */
+            secret_kind: string | null;
+            /**
              * State
              * @enum {string}
              */
             state: "not_selected" | "active" | "paused";
             /** Recommended */
             recommended: boolean;
+            /** Guide Ref Count */
+            guide_ref_count: number;
             /** Doctrine Ref Count */
             doctrine_ref_count: number;
             /**
@@ -5431,6 +6306,62 @@ export interface components {
              * @default null
              */
             next_step: string | null;
+            /**
+             * Description
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Doc Sections
+             * @default null
+             */
+            doc_sections: components["schemas"]["DocSection"][] | null;
+            /**
+             * Href
+             * @default null
+             */
+            href: string | null;
+            /**
+             * Publisher
+             * @default null
+             */
+            publisher: string | null;
+            /**
+             * Auth Modes
+             * @default null
+             */
+            auth_modes: string[] | null;
+            /**
+             * Personal Session
+             * @default null
+             */
+            personal_session: boolean | null;
+            /** @default null */
+            auth: components["schemas"]["AuthDescriptor"] | null;
+            /**
+             * Namespaces
+             * @default null
+             */
+            namespaces: string[] | null;
+            /**
+             * Credential Fields
+             * @default null
+             */
+            credential_fields: components["schemas"]["CredentialField"][] | null;
+            /** @default null */
+            free_tier: components["schemas"]["FreeTier"] | null;
+            /**
+             * Identities
+             * @default null
+             */
+            identities: boolean | null;
+            /**
+             * Verifiable
+             * @default null
+             */
+            verifiable: boolean | null;
+            /** @default null */
+            connect: components["schemas"]["ConnectFlow"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -5906,8 +6837,10 @@ export interface components {
         };
         /**
          * GrantedByMe
-         * @description Une autorisation que J'AI accordée : « untel peut opérer mon compte sur ce
-         *     canal ».
+         * @description Une autorisation que J'AI accordée : « untel — ou tout un groupe — peut
+         *     opérer mon compte sur ce canal ». Exactement un des deux couples
+         *     (`grantee_sub`/`grantee_email`/`grantee_name`) ou (`grantee_group_id`/
+         *     `grantee_group_name`) est renseigné selon la cible du grant.
          */
         GrantedByMe: {
             /** Provider */
@@ -5922,8 +6855,11 @@ export interface components {
              * @default null
              */
             account_name: string | null;
-            /** Grantee Sub */
-            grantee_sub: string;
+            /**
+             * Grantee Sub
+             * @default null
+             */
+            grantee_sub: string | null;
             /**
              * Grantee Email
              * @default null
@@ -5934,6 +6870,16 @@ export interface components {
              * @default null
              */
             grantee_name: string | null;
+            /**
+             * Grantee Group Id
+             * @default null
+             */
+            grantee_group_id: number | null;
+            /**
+             * Grantee Group Name
+             * @default null
+             */
+            grantee_group_name: string | null;
             /**
              * Granted By
              * @default null
@@ -5993,6 +6939,16 @@ export interface components {
             granted_at: string | null;
             /** Active */
             active: boolean;
+            /**
+             * Via Group Id
+             * @default null
+             */
+            via_group_id: number | null;
+            /**
+             * Via Group Name
+             * @default null
+             */
+            via_group_name: string | null;
         };
         /**
          * ConnectorInstance
@@ -6019,7 +6975,7 @@ export interface components {
              * Level
              * @enum {string}
              */
-            level: "member" | "group" | "org" | "platform";
+            level: "member" | "group" | "org" | "tenant" | "platform";
             owner: components["schemas"]["InstanceOwner"];
             /** Name */
             name: string;
@@ -6050,8 +7006,12 @@ export interface components {
              * @default null
              */
             set_at: string | null;
-            /** Via */
-            via: string;
+            /**
+             * Via
+             * @description D'où vient l'instance. `credential` : une ligne du coffre à ma portée (membre, équipe, org). `tenant_key` : la clé du tenant de l'appelant. `user_grant` / `org_grant` / `free_tier` : paliers plateforme (accordé à moi, à mon org, ou ouvert sans grant). `shared_with_me` : prêt nominatif d'un pair, cross-org possible — l'instance appartient à QUELQU'UN D'AUTRE. `personal_cross_org` : MA propre clé, posée dans une autre org. Ces deux dernières sont les seules à se ressembler, et c'est ce champ qui les distingue.
+             * @enum {string}
+             */
+            via: "credential" | "tenant_key" | "user_grant" | "org_grant" | "free_tier" | "shared_with_me" | "personal_cross_org";
             /**
              * Is Default
              * @default null
@@ -6067,6 +7027,11 @@ export interface components {
              * @default null
              */
             daily_quota: number | null;
+            /**
+             * Visible To
+             * @default null
+             */
+            visible_to: string[] | null;
         } & {
             [key: string]: unknown;
         };
@@ -6081,7 +7046,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "user" | "group" | "org" | "platform";
+            type: "user" | "group" | "org" | "tenant" | "platform";
             /**
              * Id
              * @default null
@@ -6098,7 +7063,9 @@ export interface components {
          * @description Une ligne d'audit. Jamais d'arguments ni de secret (garantie calllog).
          *     `created_at` sort en `"YYYY-MM-DD HH:MM:SS"` — pas d'ISO, pas d'offset (le tzinfo
          *     est retiré par le row factory, pas converti), alors que `since`/`until` en entrée
-         *     sont, eux, de l'ISO.
+         *     sont, eux, de l'ISO. ⚠️ Il est donc tronqué à la SECONDE : deux lignes peuvent
+         *     partager le même `created_at` servi. Le curseur, lui, ne s'en sert pas — il porte
+         *     la microseconde, sans quoi il sauterait ces lignes-là en silence.
          */
         AuditCall: {
             /** Id */
@@ -6200,6 +7167,11 @@ export interface components {
          * @description Une ligne du journal. Les noms `tool_name`/`called_at` sont des ALIAS de compat
          *     (`tool`/`created_at` en base) — la fiche `op=call`, elle, rend les noms bruts :
          *     les deux surfaces du même objet ne nomment pas ses champs pareil.
+         *
+         *     La ligne ne porte pas les arguments : `arg_keys` en donne les CLÉS, triées (`[]` =
+         *     l'appel n'en portait aucun), jamais une valeur — « cet appel portait-il un numéro
+         *     d'entreprise ? » se répond ici ; le contenu, tronqué et masqué, est `call.args`
+         *     sur la fiche (#634).
          */
         CallRow: {
             /** Id */
@@ -6259,6 +7231,112 @@ export interface components {
              * @default null
              */
             org_id: number | null;
+            /**
+             * Sentry Event Id
+             * @default null
+             */
+            sentry_event_id: string | null;
+            /**
+             * Arg Keys
+             * @default []
+             */
+            arg_keys: string[];
+        };
+        /**
+         * CallDetail
+         * @description La ligne complète du journal, noms BRUTS (`tool`, `created_at` — pas les alias
+         *     de la liste). `args` = les arguments **tels que journalisés** : tronqués à
+         *     l'écriture (`truncated_args`, 300 caractères par valeur, les valeurs composées
+         *     stringifiées) et masqués (#582 : un jeton part en empreinte `#…`, jamais en clair).
+         *     `null` = l'appel n'en portait aucun. C'est la seule clé qui porte les arguments —
+         *     il n'y a pas d'`arguments` : un lecteur qui la cherche avec un défaut `{}` fabrique
+         *     lui-même l'objet vide (vécu le 29/08/2026, #634).
+         */
+        CallDetail: {
+            /** Id */
+            id: number;
+            /**
+             * Kind
+             * @default null
+             */
+            kind: string | null;
+            /**
+             * Server
+             * @default null
+             */
+            server: string | null;
+            /**
+             * Sub
+             * @default null
+             */
+            sub: string | null;
+            /**
+             * Email
+             * @default null
+             */
+            email: string | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Tool
+             * @default null
+             */
+            tool: string | null;
+            /**
+             * Args
+             * @default null
+             */
+            args: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Ok
+             * @default null
+             */
+            ok: boolean | null;
+            /**
+             * Error
+             * @default null
+             */
+            error: string | null;
+            /**
+             * Duration Ms
+             * @default null
+             */
+            duration_ms: number | null;
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: string | null;
+            /**
+             * Session Id
+             * @default null
+             */
+            session_id: string | null;
+            /**
+             * Run Id
+             * @default null
+             */
+            run_id: string | null;
+            /**
+             * Org Id
+             * @default null
+             */
+            org_id: number | null;
+            /**
+             * Org Name
+             * @default null
+             */
+            org_name: string | null;
+            /**
+             * Client Id
+             * @default null
+             */
+            client_id: string | null;
             /**
              * Sentry Event Id
              * @default null
@@ -6408,8 +7486,11 @@ export interface components {
         };
         /**
          * RunRow
-         * @description Un déroulé. `slug` est un alias de compat = `doctrine` s'il y en a une, sinon
+         * @description Un déroulé. `slug` est un alias de compat = `guide` s'il y en a un, sinon
          *     `label` — pas un troisième identifiant.
+         *
+         *     ⚠️ `guide` est servi aussi sous son nom d'hier, `doctrine`, jusqu'au 29/10/2026
+         *     (#519) — cf. `docs/alias-deprecies.md`.
          *
          *     ⚠️ `finished_at`/`outcome` à `null` = le déroulé n'a **pas été fermé** (`run_finish`
          *     jamais appelé, ou sa ligne purgée par la rétention). Ce n'est pas « en cours » au
@@ -6431,6 +7512,11 @@ export interface components {
              * @default null
              */
             label: string | null;
+            /**
+             * Guide
+             * @default null
+             */
+            guide: string | null;
             /**
              * Doctrine
              * @default null
@@ -6469,8 +7555,23 @@ export interface components {
             /** N Calls */
             n_calls: number;
         };
-        /** RunCall */
+        /**
+         * RunCall
+         * @description Un appel de la timeline d'un déroulé.
+         *
+         *     ⚠️ **Même ligne de journal que `CallDetail`, donc mêmes arguments** : la timeline
+         *     et la fiche d'un appel lisent la même colonne, écrite par la même fonction. Ce qui
+         *     vaut là-bas vaut ici, et le contrat le disait d'un seul côté jusqu'au 01/09/2026 —
+         *     un client prudent affichait « arguments journalisés » sans savoir de quoi il
+         *     parlait.
+         */
         RunCall: {
+            /**
+             * Id
+             * @description L'identifiant de CET appel — celui que prend `GET …/monitoring/calls/{call_id}` et `op=call`. ⚠️ Sans lui, une ligne de la timeline était une impasse : on voyait qu'un appel avait eu lieu sans pouvoir l'ouvrir. C'est le MÊME identifiant que `CallDetail.id` — la timeline et la fiche parlent de la même ligne de journal, elles la nomment donc pareil.
+             * @default null
+             */
+            id: number | null;
             /**
              * Created At
              * @default null
@@ -6483,6 +7584,7 @@ export interface components {
             tool: string | null;
             /**
              * Args
+             * @description Les arguments **tels que journalisés**, jamais l'appel d'origine : tronqués à l'écriture (300 caractères par valeur, les valeurs composées stringifiées) et masqués (un argument déclaré secret pour cet outil part en empreinte `#…`, jamais en clair — y compris à travers le dispatch universel). `null` = l'appel n'en portait aucun. Identique à `CallDetail.args` : même colonne, même voie d'écriture.
              * @default null
              */
             args: {
@@ -6558,6 +7660,545 @@ export interface components {
              * @default []
              */
             users: string[];
+        };
+        /**
+         * CascadeEntry
+         * @description Une entité liée touchée par la livraison d'un projet complet (#52).
+         *
+         *     `_cascade_project` ne lève jamais : chaque entité rapporte son `status`. Les
+         *     clés au-delà de `status` dépendent de l'issue (`role`/`permission` sur un
+         *     partage, `new_ref`/`slug` sur une copie, `reason` sur un saut ou un échec) —
+         *     toutes facultatives, parce qu'aucune n'est présente sur toutes les issues.
+         */
+        CascadeEntry: {
+            /**
+             * Target Type
+             * @default null
+             */
+            target_type: string | null;
+            /**
+             * Target Ref
+             * @default null
+             */
+            target_ref: string | null;
+            /**
+             * Label
+             * @default null
+             */
+            label: string | null;
+            /**
+             * Status
+             * @default null
+             */
+            status: ("shared" | "transferred" | "copied" | "skipped" | "action_required" | "failed") | null;
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Role
+             * @default null
+             */
+            role: string | null;
+            /**
+             * Permission
+             * @default null
+             */
+            permission: string | null;
+            /**
+             * New Ref
+             * @default null
+             */
+            new_ref: string | null;
+            /**
+             * Slug
+             * @default null
+             */
+            slug: string | null;
+        };
+        /** DatastoreResource */
+        DatastoreResource: {
+            /** Resource Id */
+            resource_id: string;
+            /**
+             * Owner Type
+             * @default null
+             */
+            owner_type: string | null;
+            /**
+             * Owner Id
+             * @default null
+             */
+            owner_id: string | null;
+            /**
+             * Owner Label
+             * @default null
+             */
+            owner_label: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            resource_type: "datastore_namespace";
+            /** Namespace */
+            namespace: string;
+            /** Row Count */
+            row_count: number;
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: string | null;
+        };
+        /** DatastoreResourceDetail */
+        DatastoreResourceDetail: {
+            /** Resource Id */
+            resource_id: string;
+            /**
+             * Owner Type
+             * @default null
+             */
+            owner_type: string | null;
+            /**
+             * Owner Id
+             * @default null
+             */
+            owner_id: string | null;
+            /**
+             * Owner Label
+             * @default null
+             */
+            owner_label: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            resource_type: "datastore_namespace";
+            /** Namespace */
+            namespace: string;
+            /** Row Count */
+            row_count: number;
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: string | null;
+            /** Grants */
+            grants: components["schemas"]["ResourceGrant"][];
+        };
+        /** GuideResource */
+        GuideResource: {
+            /** Resource Id */
+            resource_id: string;
+            /**
+             * Owner Type
+             * @default null
+             */
+            owner_type: string | null;
+            /**
+             * Owner Id
+             * @default null
+             */
+            owner_id: string | null;
+            /**
+             * Owner Label
+             * @default null
+             */
+            owner_label: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            resource_type: "doctrine";
+            /** Slug */
+            slug: string;
+            /**
+             * Title
+             * @default null
+             */
+            title: string | null;
+            /**
+             * Version
+             * @default null
+             */
+            version: number | null;
+            /**
+             * Updated At
+             * @default null
+             */
+            updated_at: string | null;
+        };
+        /** GuideResourceDetail */
+        GuideResourceDetail: {
+            /** Resource Id */
+            resource_id: string;
+            /**
+             * Owner Type
+             * @default null
+             */
+            owner_type: string | null;
+            /**
+             * Owner Id
+             * @default null
+             */
+            owner_id: string | null;
+            /**
+             * Owner Label
+             * @default null
+             */
+            owner_label: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            resource_type: "doctrine";
+            /** Slug */
+            slug: string;
+            /**
+             * Title
+             * @default null
+             */
+            title: string | null;
+            /**
+             * Version
+             * @default null
+             */
+            version: number | null;
+            /**
+             * Updated At
+             * @default null
+             */
+            updated_at: string | null;
+            /** Grants */
+            grants: components["schemas"]["ResourceGrant"][];
+        };
+        /** ProjectResource */
+        ProjectResource: {
+            /** Resource Id */
+            resource_id: string;
+            /**
+             * Owner Type
+             * @default null
+             */
+            owner_type: string | null;
+            /**
+             * Owner Id
+             * @default null
+             */
+            owner_id: string | null;
+            /**
+             * Owner Label
+             * @default null
+             */
+            owner_label: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            resource_type: "project";
+            /** Name */
+            name: string;
+            /**
+             * Archived At
+             * @default null
+             */
+            archived_at: string | null;
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: string | null;
+        };
+        /** ProjectResourceDetail */
+        ProjectResourceDetail: {
+            /** Resource Id */
+            resource_id: string;
+            /**
+             * Owner Type
+             * @default null
+             */
+            owner_type: string | null;
+            /**
+             * Owner Id
+             * @default null
+             */
+            owner_id: string | null;
+            /**
+             * Owner Label
+             * @default null
+             */
+            owner_label: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            resource_type: "project";
+            /** Name */
+            name: string;
+            /**
+             * Archived At
+             * @default null
+             */
+            archived_at: string | null;
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: string | null;
+            /** Grants */
+            grants: components["schemas"]["ResourceGrant"][];
+        };
+        /**
+         * PublishedProject
+         * @description `op=share` en audience `public`/`secret` (publication MCP, ADR 0048 B3) ou
+         *     `private` (dépublication) : le geste rend la **vue PROJET**, pas un accusé.
+         *
+         *     ⚠️ Cette forme est celle de `projects._view()`, qui vit dans un autre module.
+         *     La recopier ici est le seul moyen de la déclarer sans faire dépendre le
+         *     chargement de `resources` de celui de `projects` (le cycle est réel : l'import
+         *     y est paresseux, dans `_publish_audience`). Le prix de la copie est la dérive,
+         *     et c'est un test qui le paie : `test_resources_output.py` confronte ces champs
+         *     aux clés que `projects._view()` produit — un champ ajouté là-bas et pas ici
+         *     fait rougir, plutôt que de faire mentir le document en silence.
+         */
+        PublishedProject: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Icon
+             * @default null
+             */
+            icon: string | null;
+            /**
+             * Url
+             * @default null
+             */
+            url: string | null;
+            /** Brief Md */
+            brief_md: string;
+            /** Owner Type */
+            owner_type: string;
+            /** Owner Id */
+            owner_id: string;
+            /**
+             * Context Org Id
+             * @default null
+             */
+            context_org_id: string | null;
+            /** Is Template */
+            is_template: boolean;
+            /**
+             * Mcp Slug
+             * @default null
+             */
+            mcp_slug: string | null;
+            /** Mcp Access */
+            mcp_access: string;
+            /** Mcp Tools */
+            mcp_tools: string[];
+            /** Mcp Expose Datastore */
+            mcp_expose_datastore: boolean;
+            /** Mcp Expose Datastore Write */
+            mcp_expose_datastore_write: boolean;
+            /** Mcp Expose Docs */
+            mcp_expose_docs: boolean;
+            /** Mcp Instructions Md */
+            mcp_instructions_md: string;
+            /** Excluded Url Prefixes */
+            excluded_url_prefixes: string[];
+            /**
+             * Mcp Url
+             * @default null
+             */
+            mcp_url: string | null;
+            /**
+             * Share Url
+             * @default null
+             */
+            share_url: string | null;
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: string | null;
+            /**
+             * Updated At
+             * @default null
+             */
+            updated_at: string | null;
+            /**
+             * Archived At
+             * @default null
+             */
+            archived_at: string | null;
+            /**
+             * Logto Resource Registered
+             * @default null
+             */
+            logto_resource_registered: boolean | null;
+            /**
+             * Mcp Unresolvable Tools
+             * @default null
+             */
+            mcp_unresolvable_tools: string[] | null;
+            /**
+             * Warnings
+             * @default null
+             */
+            warnings: string[] | null;
+        };
+        /**
+         * ResourceGrant
+         * @description Un bénéficiaire d'une ressource. `label` est ce que le front AFFICHE (email
+         *     d'un user, nom d'une org/équipe) ; `principal_id` reste l'identifiant machine.
+         *     `role` (ADR 0048) est la surface produit, `permission` la rétro-compat.
+         */
+        ResourceGrant: {
+            /**
+             * Principal Type
+             * @default null
+             */
+            principal_type: string | null;
+            /**
+             * Principal Id
+             * @default null
+             */
+            principal_id: string | null;
+            /**
+             * Email
+             * @default null
+             */
+            email: string | null;
+            /**
+             * Label
+             * @default null
+             */
+            label: string | null;
+            /**
+             * Role
+             * @default null
+             */
+            role: string | null;
+            /**
+             * Permission
+             * @default null
+             */
+            permission: string | null;
+            /**
+             * Granted At
+             * @default null
+             */
+            granted_at: string | null;
+        };
+        /**
+         * ResourceList
+         * @description `op=list` — ce que l'acteur gouverne dans UNE famille (un admin plateforme
+         *     voit tout). Le `resource_type` de tête reprend celui demandé : la liste ne
+         *     mélange jamais deux familles.
+         */
+        ResourceList: {
+            /**
+             * Resource Type
+             * @enum {string}
+             */
+            resource_type: "datastore_namespace" | "project" | "doctrine";
+            /** Resources */
+            resources: (components["schemas"]["DatastoreResource"] | components["schemas"]["ProjectResource"] | components["schemas"]["GuideResource"])[];
+        };
+        /**
+         * ResourceShared
+         * @description `op=share` en audience `person`/`team`/`org` (ou sans audience — grant
+         *     legacy). L'audience `public`/`secret`/`private` ne passe PAS par ici : elle
+         *     publie le projet et rend `PublishedProject`.
+         */
+        ResourceShared: {
+            /**
+             * Ok
+             * @constant
+             */
+            ok: true;
+            /** Resource Id */
+            resource_id: string;
+            /**
+             * Shared With
+             * @default null
+             */
+            shared_with: string | null;
+            /** Principal Type */
+            principal_type: string;
+            /** Role */
+            role: string;
+            /** Permission */
+            permission: string;
+            /**
+             * Cascade
+             * @default null
+             */
+            cascade: components["schemas"]["CascadeEntry"][] | null;
+            /**
+             * Notified
+             * @default null
+             */
+            notified: boolean | null;
+        };
+        /**
+         * ResourceTransferred
+         * @description `op=transfer`. `notified` n'est là que si le nouveau propriétaire est un
+         *     user joignable par email — la notification est best-effort et ne casse jamais
+         *     le transfert, donc son absence ne dit rien de l'échec du geste.
+         */
+        ResourceTransferred: {
+            /**
+             * Ok
+             * @constant
+             */
+            ok: true;
+            /** Resource Id */
+            resource_id: string;
+            /**
+             * New Owner
+             * @default null
+             */
+            new_owner: string | null;
+            /**
+             * Cascade
+             * @default null
+             */
+            cascade: components["schemas"]["CascadeEntry"][] | null;
+            /**
+             * Notified
+             * @default null
+             */
+            notified: boolean | null;
+        };
+        /**
+         * ResourceUnshared
+         * @description `op=unshare`. `removed=False` = il n'y avait rien à révoquer (geste
+         *     idempotent, pas un refus).
+         */
+        ResourceUnshared: {
+            /**
+             * Ok
+             * @constant
+             */
+            ok: true;
+            /** Resource Id */
+            resource_id: string;
+            /**
+             * Unshared With
+             * @default null
+             */
+            unshared_with: string | null;
+            /** Removed */
+            removed: boolean;
+            /**
+             * Cascade
+             * @default null
+             */
+            cascade: components["schemas"]["CascadeEntry"][] | null;
         };
         /**
          * ContextLayer
@@ -6637,6 +8278,107 @@ export interface components {
         MeFeatures: {
             /** Billing */
             billing: boolean;
+        };
+        /**
+         * ProviderStatus
+         * @description L'accès effectif à un connecteur, pour l'acteur et dans l'org active.
+         *
+         *     ⚠️ **Trois refus différents, qu'un écran ne doit pas confondre** :
+         *     `mode='forbidden'` = aucune clé ne résout ; `rbac_restricted` = l'accès t'est
+         *     refusé par une règle ; `health_ko` = la clé est là mais elle ne répond plus.
+         *     Les afficher pareil produit le mur « demande à un admin » devant quelqu'un que
+         *     rien ne bloque — le faux diagnostic réparé le 2026-07-16.
+         */
+        ProviderStatus: {
+            /**
+             * Mode
+             * @description Comment l'accès se résout — le palier gagnant de la cascade, ou son refus. Valeurs servies au 2026-09-01 : `user` | `group` | `org` | `tenant` | `platform` (le palier qui fournit la clé), `over_quota` (une clé résout mais le quota du jour est épuisé), `forbidden` (aucune clé ne résout). Déclaré `str` et non énuméré à dessein : les cinq premiers viennent de la cascade, qui a son propre domicile — un énuméré ici ferait échouer un client généré le jour où elle en rend un sixième.
+             */
+            mode: string;
+            /**
+             * User Key Configured
+             * @default false
+             */
+            user_key_configured: boolean;
+            /**
+             * Group Secret Configured
+             * @default false
+             */
+            group_secret_configured: boolean;
+            /**
+             * Org Secret Configured
+             * @default false
+             */
+            org_secret_configured: boolean;
+            /**
+             * Platform Key Label
+             * @default null
+             */
+            platform_key_label: string | null;
+            /**
+             * Team Key Group
+             * @default null
+             */
+            team_key_group: number | null;
+            /**
+             * Quota Used Today
+             * @default 0
+             */
+            quota_used_today: number;
+            /**
+             * Quota Daily
+             * @default null
+             */
+            quota_daily: number | null;
+            /**
+             * Session Set At
+             * @default null
+             */
+            session_set_at: string | null;
+            /**
+             * Group Session Set At
+             * @default null
+             */
+            group_session_set_at: string | null;
+            /**
+             * Org Session Set At
+             * @default null
+             */
+            org_session_set_at: string | null;
+            /**
+             * Identity Id
+             * @default null
+             */
+            identity_id: string | null;
+            /**
+             * Identity Label
+             * @default null
+             */
+            identity_label: string | null;
+            /**
+             * Pending Action
+             * @description L'étape qui reste à faire alors que la clé résout déjà — lier un canal, par exemple. Renseignée par le module du connecteur, `null` partout où il n'y a rien à faire. ⚠️ Ce n'est PAS un refus : l'accès existe, il est incomplet.
+             * @default null
+             */
+            pending_action: string | null;
+            /**
+             * Rbac Restricted
+             * @description Une règle d'org ou d'équipe refuse ce connecteur à cet acteur. ⚠️ À ne pas confondre avec `mode='forbidden'`, qui dit seulement qu'aucune clé ne résout : afficher « réservé à certaines équipes » sur une simple absence de clé oppose un mur à quelqu'un que rien ne bloque. ⚠️ Fail-open : un incident de lecture rend `false`, jamais une restriction inventée — une absence de restriction annoncée ne prouve donc pas l'accès.
+             * @default false
+             */
+            rbac_restricted: boolean;
+            /**
+             * Health Ko
+             * @description La clé est posée mais le connecteur ne répond plus (session expirée, jeton révoqué…), constaté par la sonde de vérification et **persistant** jusqu'à une reconnexion ou un test réussi. Absent tant que rien n'a été constaté.
+             * @default null
+             */
+            health_ko: boolean | null;
+            /**
+             * Health Reason
+             * @description Pourquoi la clé ne répond plus, quand la sonde a su le dire — son texte, tel quel. ⚠️ Peut être `null` **alors même que `health_ko` est vrai** : on sait que ça ne répond plus, sans savoir pourquoi. Afficher l'état sans inventer la cause — un message fabriqué enverrait chercher au mauvais endroit.
+             * @default null
+             */
+            health_reason: string | null;
         };
         /**
          * ToolCall
@@ -7010,14 +8752,46 @@ export interface components {
              */
             granted_at: string | null;
         };
+        /**
+         * ProcedureRef
+         * @description The procedure an agent node runs: `id` is the stable guide id accepted by
+         *     `GET /api/me/guides/{guide_id}` and `oto_procedure`; `slug` its readable
+         *     reference; `scope` the owner of the node (`org` | `group`).
+         */
+        ProcedureRef: {
+            /** Id */
+            id: number;
+            /**
+             * Slug
+             * @default null
+             */
+            slug: string | null;
+            /** Scope */
+            scope: string;
+        };
         /** RailContext */
         RailContext: {
             /** Name */
             name: string;
         };
-        /** RailNode */
+        /**
+         * RailNode
+         * @description Une ligne du rail de navigation.
+         *
+         *     ⚠️ **`id` ne désigne pas la même chose selon `type`, et c'est le piège de cette
+         *     surface.** Sur `page`, `table` et `agent`, c'est l'identifiant d'un nœud, celui
+         *     que `GET /api/me/nodes/{node_id}` prend. Sur `execution`, c'est un **identifiant
+         *     de déroulé** : ces lignes sont projetées depuis le journal, sans aucune ligne en
+         *     base (~60 000 par an seraient créées pour des objets qui sont des JOURNAUX), et
+         *     `GET /api/me/nodes/{cet id}` rend donc **404**. Un client qui traite toutes les
+         *     lignes du rail de la même façon casse sur celle-là ; l'identifiant d'une
+         *     exécution se porte aux surfaces de run.
+         */
         RailNode: {
-            /** Id */
+            /**
+             * Id
+             * @description Identifiant de la ligne. ⚠️ Sa NATURE dépend de `type` : identifiant de nœud pour `page` / `table` / `agent` (accepté par `GET /api/me/nodes/{node_id}`), identifiant de DÉROULÉ pour `execution` — ce dernier n'a pas de fiche de nœud et rend 404 sur cette route.
+             */
             id: string;
             /** Name */
             name: string;
@@ -7046,6 +8820,13 @@ export interface components {
              * @default null
              */
             more: number | null;
+            /** @default null */
+            procedure: components["schemas"]["ProcedureRef"] | null;
+            /**
+             * Doc Id
+             * @default null
+             */
+            doc_id: number | null;
         };
         /** RailSection */
         RailSection: {
@@ -7127,6 +8908,11 @@ export interface components {
              * @default null
              */
             lang: string | null;
+            /**
+             * Ordered
+             * @default null
+             */
+            ordered: boolean | null;
         };
         /** NodeModified */
         NodeModified: {
@@ -7154,6 +8940,8 @@ export interface components {
              * @default []
              */
             siblings: components["schemas"]["TrailSibling"][];
+            /** @default null */
+            procedure: components["schemas"]["ProcedureRef"] | null;
         };
         /** TrailSibling */
         TrailSibling: {
@@ -7163,6 +8951,8 @@ export interface components {
             name: string;
             /** Type */
             type: string;
+            /** @default null */
+            procedure: components["schemas"]["ProcedureRef"] | null;
         };
         /** TableColumn */
         TableColumn: {
@@ -7190,23 +8980,37 @@ export interface components {
          * @description Un geste d'agent lu depuis la boucle d'usage (0017) — le journal EST la source,
          *     il n'y a pas de table d'activité. D'où la fenêtre bornée par `retention_days` :
          *     au-delà, l'appel n'existe plus, ce n'est pas un trou de données.
+         *
+         *     ⚠️ **Ce modèle DÉCRIT le payload, il ne le fabrique pas** (`Capability.Output` ne
+         *     valide rien : le handler rend un `dict`, servi tel quel). Déclarer un champ ne le
+         *     fait donc pas apparaître, et en retirer un ne l'enlève pas du fil — la seule chose
+         *     qui change est ce qu'un client peut LIRE dans le contrat. C'est ce qui a permis à
+         *     cette liste de dériver dans les deux sens jusqu'au 2026-09-01 : neuf clés servies
+         *     et tues (dont `row_id`, sans lequel le cockpit ne sait pas quelle ligne annuler),
+         *     quatre clés promises et jamais rendues (`call_id`, `at`, `run_doctrine`,
+         *     `run_outcome` — le producteur nomme l'instant `created_at`, et les deux dernières
+         *     sans leur préfixe `run_`). Un champ
+         *     promis et absent est le pire des deux : le client lit `undefined`, sans erreur,
+         *     sans log. Le cliquet `tests/datastore/test_journal_declare.py` compare désormais
+         *     les deux listes à chaque exécution.
          */
         ActivityEntry: {
             /**
-             * Call Id
+             * Created At
+             * @description heure locale serveur, sans offset — `YYYY-MM-DD HH:MM:SS`, à ne pas parser comme de l'ISO UTC
              * @default null
              */
-            call_id: number | null;
+            created_at: string | null;
+            /**
+             * Kind
+             * @default null
+             */
+            kind: string | null;
             /**
              * Tool
              * @default null
              */
             tool: string | null;
-            /**
-             * At
-             * @default null
-             */
-            at: string | null;
             /**
              * Sub
              * @default null
@@ -7238,20 +9042,46 @@ export interface components {
              */
             run_label: string | null;
             /**
-             * Run Doctrine
+             * Guide
              * @default null
              */
-            run_doctrine: string | null;
+            guide: string | null;
             /**
-             * Run Outcome
+             * Doctrine
              * @default null
              */
-            run_outcome: string | null;
+            doctrine: string | null;
+            /**
+             * Outcome
+             * @default null
+             */
+            outcome: string | null;
+            /**
+             * Row Id
+             * @default null
+             */
+            row_id: string | null;
             /**
              * Row Title
              * @default null
              */
             row_title: string | null;
+            /**
+             * Fields
+             * @description Les NOMS des champs touchés par l'écriture — **jamais leurs valeurs**. Bornés à 50 noms, chacun tronqué à 64 caractères : le journal dit ce qui a changé, il n'est pas une copie de la donnée. `[]` sur un geste qui ne touche aucun champ (une lecture) et sur les lignes antérieures à ce relevé. ⚠️ **Le delta n'est pas servi** : pour savoir ce que valait une colonne avant, il y a `from_status`/`to_status` sur le statut, et rien pour les autres champs — c'est un choix, pas un oubli (un journal qui porterait les deux états serait un second domicile pour une donnée qui en a déjà un).
+             * @default []
+             */
+            fields: string[];
+            /**
+             * From Status
+             * @default null
+             */
+            from_status: string | null;
+            /**
+             * To Status
+             * @default null
+             */
+            to_status: string | null;
         };
         /**
          * Share
@@ -7367,6 +9197,12 @@ export interface components {
              * @default null
              */
             _claimed_until: string | null;
+            /**
+             * Claimed Run
+             * @description The run holding this lease — what links a piece of work to the ROW it is working on. Present whenever `_claimed_by` is (the three travel together); null when the lease was taken WITHOUT a run (a person on the dashboard queue, an agent that passed no `_run_id`). Cleared when the run gives its rows back (`run_finish`, or the runner concluding its job), so it answers "which row is this run on NOW", not "which row did that run work".
+             * @default null
+             */
+            _claimed_run: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -7374,7 +9210,7 @@ export interface components {
          * Job
          * @description Un job tel que servi — Optional là où les PROJECTIONS divergent : le
          *     claim rend (id, kind, run_id, payload, attempts, max_attempts, lease_until)
-         *     sans status ni result ; list/get rendent le reste sans lease_until.
+         *     sans status ni result ; list/get rendent le reste, `lease_until` compris.
          */
         Job: {
             /** Id */
@@ -7389,6 +9225,35 @@ export interface components {
              * @default null
              */
             run_id: string | null;
+            /**
+             * Fleet Id
+             * @description The FLEET this job belongs to, when it was enqueued for a declared pass. Null for a standalone job (trigger, direct call). This is what makes `runner.fleets op=state` able to aggregate a pass — without it a pass is only readable by correlating timestamps by hand.
+             * @default null
+             */
+            fleet_id: number | null;
+            /**
+             * Sub
+             * @description WHOSE identity this job carries — the account the agent acts as while running it, not an audit trail. Defaults to whoever created the trigger. Null on jobs enqueued before 2026-09-02: their requester is unknown, and no default was invented for them — a null that says 'we do not know' beats a name that would be read as a fact.
+             * @default null
+             */
+            sub: string | null;
+            /**
+             * Org Id
+             * @default null
+             */
+            org_id: number | null;
+            /**
+             * Delegated Token
+             * @description A short-lived API token issued IN THE NAME OF this job's `sub`, returned by op=claim only. The worker is not a privileged actor: it is an ordinary MCP client carrying the requester's identity. Use it for every call made while executing this job, then drop it — it expires with the lease. Absent on jobs with no known requester (enqueued before 2026-09-02): fall back to your own token.
+             * @default null
+             */
+            delegated_token: string | null;
+            /**
+             * Delegation Refusee
+             * @description WHY this job cannot run: the account that scheduled it no longer exists, or no longer holds a role in that organisation. The job is already marked failed with this reason — do NOT retry it, and do not silently drop it either: report the reason. An agent whose identity is no longer valid stops SAYING SO.
+             * @default null
+             */
+            delegation_refusee: string | null;
             /**
              * Payload
              * @default null
@@ -7418,6 +9283,7 @@ export interface components {
             claimed_by: string | null;
             /**
              * Lease Until
+             * @description When the current take's lease expires. Read it AGAINST `status`: on a `claimed` job, past = the worker is gone and the job is reclaimable — the fact itself, not a staleness threshold guessed from `created_at`. On a concluded job it is the lease that WAS held (`done` keeps it; a re-queued failure clears it), and null on a `pending` job that no one has taken.
              * @default null
              */
             lease_until: string | null;
@@ -7450,8 +9316,18 @@ export interface components {
          *     d'exécution, jamais du contenu de fil. `stopped` = le motif d'arrêt de la
          *     boucle (end_turn, max_steps…) ; `tool_counts` = les appels RÉUSSIS par
          *     outil — c'est là qu'un « tour perdu » (analyser sans écrire) se lit au
-         *     grain job, sans ouvrir le fil. `extra=allow` : le worker peut déclarer
-         *     plus, le schéma nomme le socle sans le fermer.
+         *     grain job, sans ouvrir le fil.
+         *
+         *     Les trois derniers champs sont les POSTES DE GARDE du harnais : ce qu'il a dû
+         *     réparer sur la ligne travaillée. Ils étaient déjà servis — `extra=allow` les
+         *     laissait passer — mais *servi* n'est pas *déclaré* : leur forme n'était garantie
+         *     nulle part et un client typé ne les voyait pas. Ils sont nommés ici pour que
+         *     `valeurs_cliente_detruites` en particulier soit lu comme il doit l'être :
+         *     **`null` n'y est pas une liste vide**.
+         *
+         *     `extra=allow` reste : le worker déclare davantage (coût d'entrée/sortie, cache,
+         *     hors-schéma, faux départ, ligne abandonnée…), et le schéma nomme le socle sans
+         *     le fermer.
          */
         JobResult: {
             /**
@@ -7476,8 +9352,47 @@ export interface components {
             tool_counts: {
                 [key: string]: number;
             } | null;
+            /**
+             * Valeurs Cliente Reparees
+             * @description Guard post: the client's own values the harness had to PUT BACK on the row (column names), restored from the value the platform kept in `<column>.origine`. `[]` = the guard ran and had nothing to repair. A repaired row still counts as a fault — repairing must not make the defect vanish from the tally.
+             * @default null
+             */
+            valeurs_cliente_reparees: string[] | null;
+            /**
+             * Contacts Fabriques Retires
+             * @description Guard post: fabricated contacts REMOVED from the row (their names), not merely flagged — a flagged row still gets called. `[]` = the guard ran and found none.
+             * @default null
+             */
+            contacts_fabriques_retires: string[] | null;
+            /**
+             * Valeurs Cliente Detruites
+             * @description Guard post: the client's own values found destroyed on the row (column names). ⚠️ THREE states, not two: a list = those columns; `[]` = measured, none destroyed; **null = NOT MEASURED** — the harness could not identify the row it worked (the `conversations` path resolves it by alias and does not always succeed), so the check never ran. Reading null as "no destruction" would report a clean run where nothing was looked at.
+             * @default null
+             */
+            valeurs_cliente_detruites: string[] | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * RunnerArme
+         * @description La présence d'un runner pour l'org — SERVIE avec les déclencheurs.
+         *
+         *     ⚠️ Elle accompagne `list`/`get` parce qu'un déclencheur ne porte pas en
+         *     lui-même de quoi savoir s'il sera joué : c'est une propriété de l'ORG, et
+         *     elle manquait exactement là où on la cherche. Sans elle, la seule trace
+         *     qu'un déclencheur ne s'exécute pas a été, le 26/08, une phrase tapée dans
+         *     son propre LIBELLÉ.
+         */
+        RunnerArme: {
+            /** Armed */
+            armed: boolean;
+            /** Workers */
+            workers: number;
+            /**
+             * Last Seen
+             * @default null
+             */
+            last_seen: string | null;
         };
         /**
          * Trigger
@@ -7558,7 +9473,216 @@ export interface components {
              * @default null
              */
             created_at: string | null;
+            /**
+             * Expired Count
+             * @default null
+             */
+            expired_count: number | null;
+            /**
+             * Expired Since
+             * @default null
+             */
+            expired_since: string | null;
+            /**
+             * Expired Last
+             * @default null
+             */
+            expired_last: string | null;
         };
+        /**
+         * Fleet
+         * @description Une flotte telle que servie (les colonnes de `_COLS`, db/runner_fleets).
+         */
+        Fleet: {
+            /** Id */
+            id: number;
+            /**
+             * Org Id
+             * @default null
+             */
+            org_id: number | null;
+            /**
+             * Sub
+             * @default null
+             */
+            sub: string | null;
+            /**
+             * Label
+             * @default null
+             */
+            label: string | null;
+            /**
+             * Procedure
+             * @default null
+             */
+            procedure: string | null;
+            /**
+             * Project Id
+             * @default null
+             */
+            project_id: number | null;
+            /**
+             * Tools
+             * @default null
+             */
+            tools: string[] | null;
+            /**
+             * Input
+             * @default null
+             */
+            input: string | null;
+            /**
+             * Max Steps
+             * @default null
+             */
+            max_steps: number | null;
+            /**
+             * Namespace
+             * @default null
+             */
+            namespace: string | null;
+            /**
+             * Row Filter
+             * @default null
+             */
+            row_filter: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Provider
+             * @default null
+             */
+            provider: string | null;
+            /**
+             * Model
+             * @default null
+             */
+            model: string | null;
+            /**
+             * Workers
+             * @default null
+             */
+            workers: number | null;
+            /**
+             * Max Rows
+             * @default null
+             */
+            max_rows: number | null;
+            /**
+             * Max Tokens
+             * @default null
+             */
+            max_tokens: number | null;
+            /**
+             * Max Consecutive Failures
+             * @default null
+             */
+            max_consecutive_failures: number | null;
+            /**
+             * Max Tokens Per Row
+             * @default null
+             */
+            max_tokens_per_row: number | null;
+            /**
+             * Status
+             * @default null
+             */
+            status: string | null;
+            /**
+             * Stop Reason
+             * @default null
+             */
+            stop_reason: string | null;
+            /**
+             * Armed At
+             * @default null
+             */
+            armed_at: string | null;
+            /**
+             * Started At
+             * @default null
+             */
+            started_at: string | null;
+            /**
+             * Stopping At
+             * @default null
+             */
+            stopping_at: string | null;
+            /**
+             * Heartbeat At
+             * @default null
+             */
+            heartbeat_at: string | null;
+            /**
+             * Stopped At
+             * @default null
+             */
+            stopped_at: string | null;
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: string | null;
+        };
+        /**
+         * FleetState
+         * @description L'avancement d'un passage, agrégé sur ses travaux.
+         *
+         *     `no_jobs_attached` est DÉCLARÉ plutôt que déduit de compteurs à zéro :
+         *     un zéro qui peut vouloir dire « rien trouvé » ou « personne n'a regardé » est
+         *     le défaut qui a coûté le plus cher sur ce chantier.
+         */
+        FleetState: {
+            /** Jobs Total */
+            jobs_total: number;
+            /**
+             * Pending
+             * @default null
+             */
+            pending: number | null;
+            /**
+             * Claimed
+             * @default null
+             */
+            claimed: number | null;
+            /**
+             * Done
+             * @default null
+             */
+            done: number | null;
+            /**
+             * Failed
+             * @default null
+             */
+            failed: number | null;
+            /**
+             * Abandoned
+             * @default null
+             */
+            abandoned: number | null;
+            /**
+             * Usage Tokens
+             * @default null
+             */
+            usage_tokens: number | null;
+            /**
+             * Heaviest Row Tokens
+             * @default null
+             */
+            heaviest_row_tokens: number | null;
+            /**
+             * Last Finished
+             * @default null
+             */
+            last_finished: string | null;
+            /** No Jobs Attached */
+            no_jobs_attached: boolean;
+        };
+        /**
+         * @deprecated
+         * @description Déprécié : utilisez `GuideMeta` (retrait le 29/10/2026).
+         */
+        DoctrineMeta: components["schemas"]["GuideMeta"];
     };
     responses: never;
     parameters: never;
@@ -7596,14 +9720,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -7651,14 +9779,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -7693,14 +9825,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -7730,14 +9866,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -7826,14 +9966,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -7898,32 +10042,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
-            };
-        };
-    };
-    post_api_contact: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
                 };
-                content?: never;
             };
         };
     };
@@ -7953,14 +10083,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -8011,14 +10145,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -8052,14 +10190,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -8103,14 +10245,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -8146,14 +10292,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -8193,14 +10343,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -8276,14 +10430,81 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    me_datastore_drop_column_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Key
+                     * @description The column to erase. A key still DECLARED in the schema is refused — take it out with `data_set_schema` first. An ANNOTATION (`site_web.comment`) is not a column: erase it by writing `{"site_web": {"comment": null}}`.
+                     */
+                    key: string;
+                    /**
+                     * Confirm
+                     * @description REQUIRED `true` — the purge is refused without it. It erases the key from EVERY row, not just from the schema view.
+                     * @default false
+                     */
+                    confirm?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Namespace */
+                        namespace: string;
+                        /** Key */
+                        key: string;
+                        /** Rows */
+                        rows: number;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -8315,14 +10536,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -8368,20 +10593,26 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
     me_datastore_append_row_post: {
         parameters: {
-            query?: never;
+            query?: {
+                readonly_override?: boolean;
+            };
             header?: never;
             path: {
                 namespace: string;
@@ -8429,6 +10660,12 @@ export interface operations {
                          */
                         _claimed_until: string | null;
                         /**
+                         * Claimed Run
+                         * @description The run holding this lease — what links a piece of work to the ROW it is working on. Present whenever `_claimed_by` is (the three travel together); null when the lease was taken WITHOUT a run (a person on the dashboard queue, an agent that passed no `_run_id`). Cleared when the run gives its rows back (`run_finish`, or the runner concluding its job), so it answers "which row is this run on NOW", not "which row did that run work".
+                         * @default null
+                         */
+                        _claimed_run: string | null;
+                        /**
                          * Hors Schema
                          * @default null
                          */
@@ -8465,14 +10702,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -8520,6 +10761,12 @@ export interface operations {
                          * @default null
                          */
                         _claimed_until: string | null;
+                        /**
+                         * Claimed Run
+                         * @description The run holding this lease — what links a piece of work to the ROW it is working on. Present whenever `_claimed_by` is (the three travel together); null when the lease was taken WITHOUT a run (a person on the dashboard queue, an agent that passed no `_run_id`). Cleared when the run gives its rows back (`run_finish`, or the runner concluding its job), so it answers "which row is this run on NOW", not "which row did that run work".
+                         * @default null
+                         */
+                        _claimed_run: string | null;
                     } & {
                         [key: string]: unknown;
                     };
@@ -8530,14 +10777,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -8572,20 +10823,26 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
     me_datastore_update_row_patch: {
         parameters: {
-            query?: never;
+            query?: {
+                readonly_override?: boolean;
+            };
             header?: never;
             path: {
                 namespace: string;
@@ -8634,6 +10891,12 @@ export interface operations {
                          */
                         _claimed_until: string | null;
                         /**
+                         * Claimed Run
+                         * @description The run holding this lease — what links a piece of work to the ROW it is working on. Present whenever `_claimed_by` is (the three travel together); null when the lease was taken WITHOUT a run (a person on the dashboard queue, an agent that passed no `_run_id`). Cleared when the run gives its rows back (`run_finish`, or the runner concluding its job), so it answers "which row is this run on NOW", not "which row did that run work".
+                         * @default null
+                         */
+                        _claimed_run: string | null;
+                        /**
                          * Hors Schema
                          * @default null
                          */
@@ -8670,14 +10933,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -8717,14 +10984,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -8789,14 +11060,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -8836,6 +11111,11 @@ export interface operations {
                         /** Id */
                         id: string;
                         /**
+                         * Reason
+                         * @default null
+                         */
+                        reason: string | null;
+                        /**
                          * Hint
                          * @default null
                          */
@@ -8848,14 +11128,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -8904,14 +11188,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -8982,14 +11270,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9007,11 +11299,13 @@ export interface operations {
                 "application/json": {
                     /**
                      * Fields
+                     * @description Merges BY `key`: the properties you list overwrite, the ones you omit are PRESERVED, an unknown key is appended. Send only what changes.
                      * @default null
                      */
                     fields?: unknown[] | null;
                     /**
                      * Remove
+                     * @description Keys to take out of the SCHEMA (a key that is not there is refused, never silently ignored). It does not touch the rows' DATA — that is `data_drop_column`.
                      * @default null
                      */
                     remove?: unknown[] | null;
@@ -9025,6 +11319,17 @@ export interface operations {
                      * @default null
                      */
                     key?: string | null;
+                    /**
+                     * Key Required
+                     * @description `true` CLOSES the table — a write designating no existing row is refused; `false` reopens it. Omitted leaves it untouched.
+                     * @default null
+                     */
+                    key_required?: boolean | null;
+                    /**
+                     * Unknown Fields
+                     * @default null
+                     */
+                    unknown_fields?: string | null;
                 };
             };
         };
@@ -9088,14 +11393,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9127,14 +11436,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9187,14 +11500,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9240,14 +11557,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9279,14 +11600,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9299,9 +11624,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/guide-library */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -9319,9 +11647,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/guide-library/{slug} */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -9356,14 +11687,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9411,14 +11746,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9453,14 +11792,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9553,14 +11896,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9620,14 +11967,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9657,14 +12008,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9706,14 +12061,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9749,14 +12108,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9793,14 +12156,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9850,14 +12217,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `group_exists` — le nouveau nom est déjà pris dans l'org (casse ignorée) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "group_exists";
+                    };
+                };
             };
         };
     };
@@ -9894,14 +12277,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9936,14 +12323,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -9992,14 +12383,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10043,14 +12438,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10103,14 +12502,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10156,14 +12559,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10188,6 +12595,13 @@ export interface operations {
                     "application/json": {
                         /** Group Id */
                         group_id: number;
+                        /** Guide */
+                        guide: string;
+                        /**
+                         * Guide Version
+                         * @default null
+                         */
+                        guide_version: number | null;
                         /** Doctrine */
                         doctrine: string;
                         /**
@@ -10199,6 +12613,16 @@ export interface operations {
                         instructions: components["schemas"]["GroupInstructionIndexEntry"][];
                         /** Can Edit */
                         can_edit: boolean;
+                        /**
+                         * Can Write Instructions
+                         * @description Peut créer, modifier et restaurer une procédure de cette équipe (`PUT`/`revert`) : vrai pour tout MEMBRE. Le geste est réversible — chaque écriture ajoute une version.
+                         */
+                        can_write_instructions: boolean;
+                        /**
+                         * Can Delete Instructions
+                         * @description Peut supprimer une procédure de cette équipe ET tout son historique (irréversible) : vrai pour le CHEF d'équipe seulement. Toujours servi à côté de `can_write_instructions`, dont il diffère.
+                         */
+                        can_delete_instructions: boolean;
                     };
                 };
             };
@@ -10207,14 +12631,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10264,6 +12692,11 @@ export interface operations {
                         /** Body Md */
                         body_md: string;
                         /**
+                         * Slots
+                         * @default []
+                         */
+                        slots: unknown[];
+                        /**
                          * Set By
                          * @default null
                          */
@@ -10286,14 +12719,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10360,14 +12797,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10405,14 +12846,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10459,14 +12904,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10504,14 +12953,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10544,14 +12997,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10617,14 +13074,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10661,14 +13122,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10719,14 +13184,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10773,14 +13242,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10821,14 +13294,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10888,19 +13365,47 @@ export interface operations {
                     };
                 };
             };
+            /** @description `single_account_connector` — un `account` nommé sur un connecteur qui n'en gère qu'un — la clé écraserait l'unique */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "single_account_connector";
+                    };
+                };
+            };
             /** @description jeton absent ou invalide */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `account_required` — connecteur multi-compte sans `account` : il faut nommer le compte, sans quoi la pose est ambiguë */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "account_required";
+                    };
+                };
             };
         };
     };
@@ -10942,14 +13447,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -10984,14 +13493,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -11033,14 +13546,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -11078,10 +13595,52 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    "get_api_guide-library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "get_api_guide-library_slug": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -11319,7 +13878,7 @@ export interface operations {
                         features: components["schemas"]["MeFeatures"];
                         /** Providers */
                         providers: {
-                            [key: string]: unknown;
+                            [key: string]: components["schemas"]["ProviderStatus"];
                         };
                     };
                 };
@@ -11329,14 +13888,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -11406,14 +13969,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -11456,14 +14023,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -11507,14 +14078,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -11557,14 +14132,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -11608,14 +14187,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -11644,6 +14227,10 @@ export interface operations {
                         instructions: string;
                         /** Layers */
                         layers: components["schemas"]["ContextLayer"][];
+                        /** Guide */
+                        guide: {
+                            [key: string]: unknown;
+                        };
                         /** Doctrine */
                         doctrine: {
                             [key: string]: unknown;
@@ -11657,14 +14244,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -11719,14 +14310,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -11774,14 +14369,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -11914,6 +14513,34 @@ export interface operations {
                          * @default null
                          */
                         canceled_at: string | null;
+                        /**
+                         * Block Code
+                         * @description Ce que le runner a CONSTATÉ à la dernière échéance qu'il n'a PAS pu tirer : 'billing_identity_required', 'vat_consumer_unsupported', 'plan_unknown' ou 'no_mandate'. `null` = rien n'a échoué. ⚠️ À ne pas confondre avec `vat_blocked`, qui est une PRÉVISION recalculée à chaque lecture : `block_code` est un fait daté, et tant qu'il est posé le service est rendu SANS être encaissé — le cycle n'avance pas et le droit ne se ferme pas.
+                         * @default null
+                         */
+                        block_code: string | null;
+                        /**
+                         * Block Detail
+                         * @description Le message de diagnostic qui accompagne `block_code`. Destiné à l'exploitation, pas au payeur.
+                         * @default null
+                         */
+                        block_detail: string | null;
+                        /**
+                         * Block Since
+                         * @description Depuis QUAND l'échéance ne passe plus — donc depuis quand le service est rendu gratuitement. Ne bouge pas d'un tick à l'autre : c'est la date du PREMIER constat, pas du dernier.
+                         * @default null
+                         */
+                        block_since: string | null;
+                        /**
+                         * Granted
+                         * @description Avantages payants OFFERTS à l'org (et, sur /api/me/billing, au compte appelant) — servis dans les DEUX branches, y compris `subscribed:false`. Liste vide = rien d'offert **ou** org hors du périmètre du dispositif (une org hébergée par un tenant tiers n'en reçoit jamais : ses clients ne sont pas les nôtres). L'absence ne prouve donc pas l'absence de don.
+                         */
+                        granted?: components["schemas"]["GrantedBenefit"][];
+                        /**
+                         * @description Consommation du mois en cours face à ce qui est inclus, servie dans les DEUX branches et à tous les comptes — c'est le seul bloc de cet écran qui vaut pour tout le monde. `null` = rien à montrer : org hors périmètre du dispositif, ou journal illisible. Un compteur qui n'a pas su lire se TAIT plutôt que d'afficher un « 0 » qu'aucun lecteur ne peut recouper.
+                         * @default null
+                         */
+                        usage: components["schemas"]["MonthlyUsage"] | null;
                     };
                 };
             };
@@ -11922,14 +14549,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -12066,6 +14697,34 @@ export interface operations {
                          * @default null
                          */
                         canceled_at: string | null;
+                        /**
+                         * Block Code
+                         * @description Ce que le runner a CONSTATÉ à la dernière échéance qu'il n'a PAS pu tirer : 'billing_identity_required', 'vat_consumer_unsupported', 'plan_unknown' ou 'no_mandate'. `null` = rien n'a échoué. ⚠️ À ne pas confondre avec `vat_blocked`, qui est une PRÉVISION recalculée à chaque lecture : `block_code` est un fait daté, et tant qu'il est posé le service est rendu SANS être encaissé — le cycle n'avance pas et le droit ne se ferme pas.
+                         * @default null
+                         */
+                        block_code: string | null;
+                        /**
+                         * Block Detail
+                         * @description Le message de diagnostic qui accompagne `block_code`. Destiné à l'exploitation, pas au payeur.
+                         * @default null
+                         */
+                        block_detail: string | null;
+                        /**
+                         * Block Since
+                         * @description Depuis QUAND l'échéance ne passe plus — donc depuis quand le service est rendu gratuitement. Ne bouge pas d'un tick à l'autre : c'est la date du PREMIER constat, pas du dernier.
+                         * @default null
+                         */
+                        block_since: string | null;
+                        /**
+                         * Granted
+                         * @description Avantages payants OFFERTS à l'org (et, sur /api/me/billing, au compte appelant) — servis dans les DEUX branches, y compris `subscribed:false`. Liste vide = rien d'offert **ou** org hors du périmètre du dispositif (une org hébergée par un tenant tiers n'en reçoit jamais : ses clients ne sont pas les nôtres). L'absence ne prouve donc pas l'absence de don.
+                         */
+                        granted?: components["schemas"]["GrantedBenefit"][];
+                        /**
+                         * @description Consommation du mois en cours face à ce qui est inclus, servie dans les DEUX branches et à tous les comptes — c'est le seul bloc de cet écran qui vaut pour tout le monde. `null` = rien à montrer : org hors périmètre du dispositif, ou journal illisible. Un compteur qui n'a pas su lire se TAIT plutôt que d'afficher un « 0 » qu'aucun lecteur ne peut recouper.
+                         * @default null
+                         */
+                        usage: components["schemas"]["MonthlyUsage"] | null;
                     };
                 };
             };
@@ -12074,14 +14733,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -12184,14 +14847,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -12247,14 +14914,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -12340,10 +15011,77 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    me_billing_invoices_list_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Invoices */
+                        invoices: components["schemas"]["Invoice"][];
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    get_api_me_billing_invoices_id_pdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12379,14 +15117,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -12479,14 +15221,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -12521,14 +15267,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -12560,14 +15310,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -12602,13 +15356,26 @@ export interface operations {
                         channel: string;
                         /** Account Id */
                         account_id: string;
-                        /** Grantee Sub */
-                        grantee_sub: string;
+                        /**
+                         * Grantee Sub
+                         * @default null
+                         */
+                        grantee_sub: string | null;
                         /**
                          * Grantee Email
                          * @default null
                          */
                         grantee_email: string | null;
+                        /**
+                         * Grantee Group Id
+                         * @default null
+                         */
+                        grantee_group_id: number | null;
+                        /**
+                         * Grantee Group Name
+                         * @default null
+                         */
+                        grantee_group_name: string | null;
                         /** Note */
                         note: string;
                     };
@@ -12619,14 +15386,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -12654,8 +15425,16 @@ export interface operations {
                         ok: boolean;
                         /** Channel */
                         channel: string;
-                        /** Grantee Sub */
-                        grantee_sub: string;
+                        /**
+                         * Grantee Sub
+                         * @default null
+                         */
+                        grantee_sub: string | null;
+                        /**
+                         * Grantee Group Id
+                         * @default null
+                         */
+                        grantee_group_id: number | null;
                         /** Revoked */
                         revoked: boolean;
                     };
@@ -12666,14 +15445,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -12681,7 +15464,7 @@ export interface operations {
         parameters: {
             query?: {
                 connector?: string | null;
-                level?: ("member" | "group" | "org" | "platform") | null;
+                level?: ("member" | "group" | "org" | "tenant" | "platform") | null;
             };
             header?: never;
             path?: never;
@@ -12708,14 +15491,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -12764,19 +15551,47 @@ export interface operations {
                     };
                 };
             };
+            /** @description `no_active_org` — aucune org de contexte : une instance se met de côté DANS un espace de travail */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "no_active_org";
+                    };
+                };
+            };
             /** @description jeton absent ou invalide */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `no_instance` — aucune clé à toi pour ce connecteur et ce compte — il n'y a rien à suspendre */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "no_instance";
+                    };
+                };
             };
         };
     };
@@ -12824,14 +15639,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_connector` — nom inconnu du registre, connecteur non exposé pour l'org active, ou restreint par une règle — les trois sont indistinguables côté membre, et tous se règlent par la même demande à un admin */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_connector";
+                    };
+                };
             };
         };
     };
@@ -12868,14 +15699,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -12933,14 +15768,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -12992,14 +15831,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -13045,19 +15888,35 @@ export interface operations {
                     };
                 };
             };
+            /** @description `no_connection_flow` — ce connecteur n'a pas de flux de connexion : sa clé se POSE, elle ne se demande pas */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "no_connection_flow";
+                    };
+                };
+            };
             /** @description jeton absent ou invalide */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
+            /** @description refus d'autorisation (ou hors portée du jeton) ; `connector_restricted` — une règle d'org ou d'équipe interdit ce connecteur à cet acteur */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -13113,14 +15972,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_connector` — nom inconnu du registre, connecteur non exposé pour l'org active, ou restreint par une règle — les trois sont indistinguables côté membre, et tous se règlent par la même demande à un admin */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_connector";
+                    };
+                };
             };
         };
     };
@@ -13176,14 +16051,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_connector` — nom inconnu du registre, connecteur non exposé pour l'org active, ou restreint par une règle — les trois sont indistinguables côté membre, et tous se règlent par la même demande à un admin */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_connector";
+                    };
+                };
             };
         };
     };
@@ -13241,6 +16132,11 @@ export interface operations {
                         scope: string;
                         /** Account */
                         account: string;
+                        /**
+                         * Warning
+                         * @default
+                         */
+                        warning: string;
                     };
                 };
             };
@@ -13249,14 +16145,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -13302,14 +16202,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -13342,19 +16246,47 @@ export interface operations {
                     };
                 };
             };
+            /** @description `no_active_org` — aucune org de contexte pour juger l'effet */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "no_active_org";
+                    };
+                };
+            };
             /** @description jeton absent ou invalide */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `not_a_member` — la personne visée n'est pas membre de cette org */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "not_a_member";
+                    };
+                };
             };
         };
     };
@@ -13397,7 +16329,7 @@ export interface operations {
                          * Level
                          * @enum {string}
                          */
-                        level: "member" | "group" | "org" | "platform";
+                        level: "member" | "group" | "org" | "tenant" | "platform";
                         /** Ref */
                         ref: string;
                         /**
@@ -13413,19 +16345,35 @@ export interface operations {
                     };
                 };
             };
+            /** @description `no_org_credential` — aucune clé d'org posée pour ce connecteur : il n'y a rien à vérifier ; `verify_unavailable` — ce connecteur ne déclare aucune sonde de vérification */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "no_org_credential" | "verify_unavailable";
+                    };
+                };
+            };
             /** @description jeton absent ou invalide */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -13443,7 +16391,7 @@ export interface operations {
                      * Op
                      * @enum {string}
                      */
-                    op: "create" | "bulk_create" | "list" | "search" | "get" | "update" | "patch" | "delete" | "move" | "revisions" | "request_change" | "list_changes" | "resolve_change" | "set_public" | "backlinks";
+                    op: "create" | "bulk_create" | "list" | "search" | "get" | "update" | "patch" | "delete" | "move" | "revisions" | "revert" | "request_change" | "list_changes" | "resolve_change" | "set_public" | "backlinks";
                     /**
                      * Project Id
                      * @default null
@@ -13542,7 +16490,18 @@ export interface operations {
                         [key: string]: unknown;
                     }[] | null;
                     /**
+                     * Revision Id
+                     * @default null
+                     */
+                    revision_id?: number | null;
+                    /**
+                     * Dry Run
+                     * @default null
+                     */
+                    dry_run?: boolean | null;
+                    /**
                      * Fields
+                     * @description Output projection on list/get/create/update/patch/move (refused elsewhere). Omitted, a list returns its index and a write its receipt; `["*"]` returns the whole page everywhere; a list of names picks columns.
                      * @default null
                      */
                     fields?: string[] | null;
@@ -13562,14 +16521,198 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    post_api_me_doctrines_fork: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirection permanente vers /api/me/guide-library/fork */
+            308: {
+                headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
+                    [name: string]: unknown;
+                };
                 content?: never;
+            };
+        };
+    };
+    get_api_me_doctrines_library: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirection permanente vers /api/me/guide-library */
+            308: {
+                headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_api_me_doctrines_library_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirection permanente vers /api/me/guide-library/{id} */
+            308: {
+                headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_api_me_doctrines_library_slug: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirection permanente vers /api/me/guide-library/{slug} */
+            308: {
+                headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    post_api_me_doctrines_publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirection permanente vers /api/me/guide-library/publish */
+            308: {
+                headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    org_doctrine_get_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                doctrine_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirection permanente vers /api/me/guides/{guide_id} */
+            308: {
+                headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    library_list_get: {
+        parameters: {
+            query?: {
+                query?: string | null;
+                category?: string | null;
+                author_kind?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Guides */
+                        guides: components["schemas"]["LibraryEntrySummary"][];
+                        /** Doctrines */
+                        doctrines: components["schemas"]["LibraryEntrySummary"][];
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -13651,30 +16794,66 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
-    library_list_get: {
+    library_publish_post: {
         parameters: {
-            query?: {
-                query?: string | null;
-                category?: string | null;
-                author_kind?: string | null;
-                limit?: number;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Slug */
+                    slug: string;
+                    /**
+                     * Public Slug
+                     * @default null
+                     */
+                    public_slug?: string | null;
+                    /**
+                     * Title
+                     * @default null
+                     */
+                    title?: string | null;
+                    /**
+                     * Description
+                     * @default null
+                     */
+                    description?: string | null;
+                    /**
+                     * Category
+                     * @default null
+                     */
+                    category?: string | null;
+                    /**
+                     * Tags
+                     * @default null
+                     */
+                    tags?: unknown[] | null;
+                    /**
+                     * Visibility
+                     * @default public
+                     */
+                    visibility?: string;
+                };
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -13683,8 +16862,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Doctrines */
-                        doctrines: components["schemas"]["LibraryEntrySummary"][];
+                        /**
+                         * Published
+                         * @description Toujours `true` : un échec ne rend pas `published:false`, il lève (404 guide absente, 403 sans org_admin, 409 nom déjà pris par une autre org). Ne pas le tester comme un booléen d'issue.
+                         */
+                        published: boolean;
+                        /**
+                         * Id
+                         * @description Identifiant de l'entrée publiée — à conserver, c'est ce qu'attend library.unpublish.
+                         */
+                        id: number;
+                        /**
+                         * Slug
+                         * @description Slug public RÉELLEMENT retenu, après normalisation : il peut différer du `public_slug` demandé.
+                         */
+                        slug: string;
+                        /**
+                         * Version
+                         * @description Version de publication après l'opération. `1` = création ; ≥2 = le slug existait et vient d'être écrasé.
+                         */
+                        version: number;
+                        /**
+                         * Visibility
+                         * @description 'public' | 'unlisted' tel qu'enregistré.
+                         */
+                        visibility: string;
+                        /**
+                         * Diagram Warning
+                         * @description Le SCHÉMA manquant du corps publié (cf. `procedure_diagram`). `null` = rien à signaler. Non bloquant : la publication a eu lieu.
+                         * @default null
+                         */
+                        diagram_warning: string | null;
+                        /**
+                         * Digest Warning
+                         * @description Le DIGEST d'ouverture manquant (cf. `procedure_digest`).
+                         * @default null
+                         */
+                        digest_warning: string | null;
                     };
                 };
             };
@@ -13693,14 +16907,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -13735,14 +16953,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -13786,7 +17008,7 @@ export interface operations {
                         description: string;
                         /**
                          * Body Md
-                         * @description Le corps markdown intégral de la doctrine — la matière à lire avant de forker. Jamais vide : une publication au corps vide est refusée.
+                         * @description Le corps markdown intégral du guide — la matière à lire avant de forker. Jamais vide : une publication au corps vide est refusée.
                          */
                         body_md: string;
                         /**
@@ -13872,62 +17094,29 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
-    library_publish_post: {
+    me_guides_list_get: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Slug */
-                    slug: string;
-                    /**
-                     * Public Slug
-                     * @default null
-                     */
-                    public_slug?: string | null;
-                    /**
-                     * Title
-                     * @default null
-                     */
-                    title?: string | null;
-                    /**
-                     * Description
-                     * @default null
-                     */
-                    description?: string | null;
-                    /**
-                     * Category
-                     * @default null
-                     */
-                    category?: string | null;
-                    /**
-                     * Tags
-                     * @default null
-                     */
-                    tags?: unknown[] | null;
-                    /**
-                     * Visibility
-                     * @default public
-                     */
-                    visibility?: string;
-                };
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
@@ -13936,43 +17125,8 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /**
-                         * Published
-                         * @description Toujours `true` : un échec ne rend pas `published:false`, il lève (404 doctrine absente, 403 sans org_admin, 409 nom déjà pris par une autre org). Ne pas le tester comme un booléen d'issue.
-                         */
-                        published: boolean;
-                        /**
-                         * Id
-                         * @description Identifiant de l'entrée publiée — à conserver, c'est ce qu'attend library.unpublish.
-                         */
-                        id: number;
-                        /**
-                         * Slug
-                         * @description Slug public RÉELLEMENT retenu, après normalisation : il peut différer du `public_slug` demandé.
-                         */
-                        slug: string;
-                        /**
-                         * Version
-                         * @description Version de publication après l'opération. `1` = création ; ≥2 = le slug existait et vient d'être écrasé.
-                         */
-                        version: number;
-                        /**
-                         * Visibility
-                         * @description 'public' | 'unlisted' tel qu'enregistré.
-                         */
-                        visibility: string;
-                        /**
-                         * Diagram Warning
-                         * @description Le SCHÉMA manquant du corps publié (cf. `procedure_diagram`). `null` = rien à signaler. Non bloquant : la publication a eu lieu.
-                         * @default null
-                         */
-                        diagram_warning: string | null;
-                        /**
-                         * Digest Warning
-                         * @description Le DIGEST d'ouverture manquant (cf. `procedure_digest`).
-                         * @default null
-                         */
-                        digest_warning: string | null;
+                        /** Guides */
+                        guides: components["schemas"]["GuideRef"][];
                     };
                 };
             };
@@ -13981,28 +17135,33 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
-    org_doctrine_get_get: {
+    org_guide_get_get: {
         parameters: {
             query?: {
                 slug?: string | null;
+                doctrine_id?: number | null;
                 scope?: string;
                 version?: number | null;
                 with_history?: boolean;
             };
             header?: never;
             path: {
-                doctrine_id: number | null;
+                guide_id: number | null;
             };
             cookie?: never;
         };
@@ -14025,6 +17184,11 @@ export interface operations {
                          * @default null
                          */
                         group_id: number | null;
+                        /**
+                         * Guide Id
+                         * @default null
+                         */
+                        guide_id: number | null;
                         /**
                          * Doctrine Id
                          * @default null
@@ -14064,7 +17228,7 @@ export interface operations {
                          * Slots
                          * @default null
                          */
-                        slots: unknown[] | null;
+                        slots: components["schemas"]["SlotDecl"][] | null;
                         /**
                          * Referenced Tools
                          * @default null
@@ -14076,6 +17240,11 @@ export interface operations {
                          */
                         org: string | null;
                         /**
+                         * Guide
+                         * @default null
+                         */
+                        guide: string | null;
+                        /**
                          * Doctrine
                          * @default null
                          */
@@ -14086,10 +17255,22 @@ export interface operations {
                          */
                         group: string | null;
                         /**
+                         * Group Guide
+                         * @default null
+                         */
+                        group_guide: string | null;
+                        /**
                          * Group Doctrine
                          * @default null
                          */
                         group_doctrine: string | null;
+                        /**
+                         * Guides
+                         * @default null
+                         */
+                        guides: {
+                            [key: string]: unknown;
+                        }[] | null;
                         /**
                          * Doctrines
                          * @default null
@@ -14119,51 +17300,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    me_guides_list_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Guides */
-                        guides: components["schemas"]["GuideRef"][];
-                    };
+                    "application/json": components["schemas"]["Erreur"];
                 };
-            };
-            /** @description jeton absent ou invalide */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
@@ -14208,14 +17356,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -14259,14 +17411,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -14302,14 +17458,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -14341,7 +17501,18 @@ export interface operations {
                         org_name: string | null;
                         /** Can Edit */
                         can_edit: boolean;
-                        doctrine: components["schemas"]["DoctrineMeta"];
+                        /**
+                         * Can Write Instructions
+                         * @description Peut créer, modifier et restaurer une procédure de cette org : org_admin. ⚠️ Au palier ÉQUIPE le même champ est vrai pour tout membre — c'est la garde qui diffère, pas le champ.
+                         */
+                        can_write_instructions: boolean;
+                        /**
+                         * Can Delete Instructions
+                         * @description Peut supprimer une procédure de cette org ET tout son historique (irréversible) : org_admin.
+                         */
+                        can_delete_instructions: boolean;
+                        guide: components["schemas"]["GuideMeta"];
+                        doctrine: components["schemas"]["GuideMeta"];
                         /** Instructions */
                         instructions: components["schemas"]["InstructionIndexEntry"][];
                     };
@@ -14352,14 +17523,174 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    org_instruction_create_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Slug */
+                    slug: string;
+                    /**
+                     * Body Md
+                     * @default null
+                     */
+                    body_md?: string | null;
+                    /**
+                     * Title
+                     * @default null
+                     */
+                    title?: string | null;
+                    /**
+                     * Description
+                     * @default null
+                     */
+                    description?: string | null;
+                    /**
+                     * Slots
+                     * @default null
+                     */
+                    slots?: unknown[] | null;
+                    /**
+                     * Org
+                     * @default null
+                     */
+                    org?: number | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                        /**
+                         * Org Id
+                         * @default null
+                         */
+                        org_id: number | null;
+                        /**
+                         * Group Id
+                         * @default null
+                         */
+                        group_id: number | null;
+                        /**
+                         * Scope
+                         * @default null
+                         */
+                        scope: string | null;
+                        /** Slug */
+                        slug: string;
+                        /** Version */
+                        version: number;
+                        /** Set */
+                        set: boolean;
+                        /**
+                         * Reverted From
+                         * @default null
+                         */
+                        reverted_from: number | null;
+                        /**
+                         * Referenced Tools
+                         * @default null
+                         */
+                        referenced_tools: components["schemas"]["ReferencedTool"][] | null;
+                        /**
+                         * Unresolved Tools
+                         * @default null
+                         */
+                        unresolved_tools: string[] | null;
+                        /**
+                         * Slots
+                         * @default null
+                         */
+                        slots: components["schemas"]["SlotDecl"][] | null;
+                        /**
+                         * Unresolved Slots
+                         * @default null
+                         */
+                        unresolved_slots: string[] | null;
+                        /**
+                         * Unreferenced Slots
+                         * @default null
+                         */
+                        unreferenced_slots: string[] | null;
+                        /**
+                         * Slot Warnings
+                         * @default null
+                         */
+                        slot_warnings: string[] | null;
+                        /**
+                         * Suggested Slots
+                         * @default null
+                         */
+                        suggested_slots: components["schemas"]["SuggestedSlot"][] | null;
+                        /**
+                         * Diagram Warning
+                         * @default null
+                         */
+                        diagram_warning: string | null;
+                        /**
+                         * Digest Warning
+                         * @default null
+                         */
+                        digest_warning: string | null;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `slug_taken` — le slug porte déjà une procédure dans ce scope (y compris archivée) — rien n'a été écrit */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "slug_taken";
+                    };
+                };
             };
         };
     };
@@ -14400,7 +17731,7 @@ export interface operations {
                         /** Body Md */
                         body_md: string;
                         /** Slots */
-                        slots: unknown[];
+                        slots: components["schemas"]["SlotDecl"][];
                         /**
                          * Set By
                          * @default null
@@ -14424,14 +17755,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -14477,6 +17812,11 @@ export interface operations {
                      * @default null
                      */
                     org?: number | null;
+                    /**
+                     * Expected Version
+                     * @default null
+                     */
+                    expected_version?: number | null;
                 };
             };
         };
@@ -14495,6 +17835,16 @@ export interface operations {
                          * @default null
                          */
                         org_id: number | null;
+                        /**
+                         * Group Id
+                         * @default null
+                         */
+                        group_id: number | null;
+                        /**
+                         * Scope
+                         * @default null
+                         */
+                        scope: string | null;
                         /** Slug */
                         slug: string;
                         /** Version */
@@ -14520,7 +17870,7 @@ export interface operations {
                          * Slots
                          * @default null
                          */
-                        slots: unknown[] | null;
+                        slots: components["schemas"]["SlotDecl"][] | null;
                         /**
                          * Unresolved Slots
                          * @default null
@@ -14540,7 +17890,7 @@ export interface operations {
                          * Suggested Slots
                          * @default null
                          */
-                        suggested_slots: unknown[] | null;
+                        suggested_slots: components["schemas"]["SuggestedSlot"][] | null;
                         /**
                          * Diagram Warning
                          * @default null
@@ -14559,14 +17909,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `version_conflict` — `expected_version` fourni et ≠ version courante (ou procédure absente) — l'écriture n'a pas eu lieu */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "version_conflict";
+                    };
+                };
             };
         };
     };
@@ -14597,6 +17963,16 @@ export interface operations {
                          * @default null
                          */
                         org_id: number | null;
+                        /**
+                         * Group Id
+                         * @default null
+                         */
+                        group_id: number | null;
+                        /**
+                         * Scope
+                         * @default null
+                         */
+                        scope: string | null;
                         /** Slug */
                         slug: string;
                         /** Deleted */
@@ -14609,14 +17985,133 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    org_instruction_describe_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * Title
+                     * @default null
+                     */
+                    title?: string | null;
+                    /**
+                     * Description
+                     * @default null
+                     */
+                    description?: string | null;
+                    /**
+                     * Org
+                     * @default null
+                     */
+                    org?: number | null;
+                    /**
+                     * Expected Version
+                     * @default null
+                     */
+                    expected_version?: number | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                        /**
+                         * Org Id
+                         * @default null
+                         */
+                        org_id: number | null;
+                        /**
+                         * Group Id
+                         * @default null
+                         */
+                        group_id: number | null;
+                        /**
+                         * Scope
+                         * @default null
+                         */
+                        scope: string | null;
+                        /** Slug */
+                        slug: string;
+                        /** Version */
+                        version: number;
+                        /** Title */
+                        title: string;
+                        /** Description */
+                        description: string;
+                    };
+                };
+            };
+            /** @description `nothing_to_describe` — ni `title` ni `description` fourni — rien n'a été écrit (une correction vide consommerait une version) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "nothing_to_describe";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `version_conflict` — `expected_version` fourni et ≠ version courante — la correction n'a pas eu lieu */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "version_conflict";
+                    };
+                };
             };
         };
     };
@@ -14655,6 +18150,16 @@ export interface operations {
                          * @default null
                          */
                         org_id: number | null;
+                        /**
+                         * Group Id
+                         * @default null
+                         */
+                        group_id: number | null;
+                        /**
+                         * Scope
+                         * @default null
+                         */
+                        scope: string | null;
                         /** Slug */
                         slug: string;
                         /** Archived */
@@ -14667,14 +18172,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -14729,14 +18238,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -14766,6 +18279,16 @@ export interface operations {
                         callers: string[];
                         /** Series */
                         series: number[];
+                        /**
+                         * Runs Count
+                         * @default 0
+                         */
+                        runs_count: number;
+                        /**
+                         * Runs Series
+                         * @default []
+                         */
+                        runs_series: number[];
                     };
                 };
             };
@@ -14774,14 +18297,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -14815,14 +18342,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -14897,14 +18428,117 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    org_invite_reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * Token
+                     * @default null
+                     */
+                    token?: string | null;
+                    /**
+                     * Code
+                     * @default null
+                     */
+                    code?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                        /** Declined */
+                        declined: boolean;
+                        /** Scope */
+                        scope: string;
+                        /**
+                         * Org Id
+                         * @default null
+                         */
+                        org_id: number | null;
+                        /**
+                         * Group Id
+                         * @default null
+                         */
+                        group_id: number | null;
+                        /**
+                         * Name
+                         * @default null
+                         */
+                        name: string | null;
+                    };
+                };
+            };
+            /** @description `missing_token` — ni `token` ni `code` n'a été fourni */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "missing_token";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) ; `not_the_invitee` — l'invitation n'est pas adressée à l'adresse de ton compte — ou n'est adressée à personne (code anonyme) : seule la personne invitée refuse, l'émetteur révoque */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `invalid_or_expired` — invitation inconnue, expirée, déjà acceptée, ou déjà refusée par quelqu'un d'autre */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "invalid_or_expired";
+                    };
+                };
             };
         };
     };
@@ -14949,14 +18583,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -14990,14 +18628,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -15038,14 +18680,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -15088,14 +18734,135 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    me_node_edit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Op
+                     * @enum {string}
+                     */
+                    op: "create" | "update" | "move" | "delete";
+                    /**
+                     * Scope
+                     * @default null
+                     */
+                    scope?: string | null;
+                    /**
+                     * Owner Id
+                     * @default null
+                     */
+                    owner_id?: string | null;
+                    /**
+                     * Kind
+                     * @default null
+                     */
+                    kind?: ("page" | "tableau" | "ligne") | null;
+                    /**
+                     * Title
+                     * @default null
+                     */
+                    title?: string | null;
+                    /**
+                     * Description
+                     * @default null
+                     */
+                    description?: string | null;
+                    /**
+                     * Body Md
+                     * @default null
+                     */
+                    body_md?: string | null;
+                    /**
+                     * Columns
+                     * @default null
+                     */
+                    columns?: {
+                        [key: string]: unknown;
+                    }[] | null;
+                    /**
+                     * Data
+                     * @default null
+                     */
+                    data?: {
+                        [key: string]: unknown;
+                    } | null;
+                    /**
+                     * Node Id
+                     * @default null
+                     */
+                    node_id?: string | null;
+                    /**
+                     * Parent Id
+                     * @default null
+                     */
+                    parent_id?: string | null;
+                    /**
+                     * After Id
+                     * @default null
+                     */
+                    after_id?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                        /**
+                         * Id
+                         * @default null
+                         */
+                        id: string | null;
+                        /** Op */
+                        op: string;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -15128,6 +18895,29 @@ export interface operations {
                          * @enum {string}
                          */
                         type: "page" | "table" | "agent" | "execution";
+                        /** @default null */
+                        procedure: components["schemas"]["ProcedureRef"] | null;
+                        /**
+                         * Doc Id
+                         * @default null
+                         */
+                        doc_id: number | null;
+                        /**
+                         * Project Id
+                         * @default null
+                         */
+                        project_id: number | null;
+                        /**
+                         * Pinned
+                         * @default false
+                         */
+                        pinned: boolean;
+                        /**
+                         * Namespace
+                         * @description Tableau : le nom de namespace à repasser aux surfaces `data_*`. `null` sur une page. ⚠️ **C'est un NOM, et un nom peut désigner deux tableaux.** Les écritures de lignes le résolvent dans le scope de l'appelant, où « vivier », « leads » ou « contacts » existent souvent en plusieurs exemplaires (perso, équipe, org) : deux homonymes atteignables suffisent à écrire dans l'autre, sans erreur. Tant que l'écriture au grain du nœud n'existe pas, un client qui enchaîne « ouvrir ce tableau » puis « y écrire » assume cette ambiguïté.
+                         * @default null
+                         */
+                        namespace: string | null;
                         /**
                          * Trail
                          * @default []
@@ -15159,14 +18949,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -15209,19 +19003,35 @@ export interface operations {
                     };
                 };
             };
+            /** @description `invalid_filter` — une entrée de `filter` n'a pas la forme `colonne:valeur` ; `invalid_cursor` — `cursor` illisible, périmé, ou d'un autre régime de tri ; `non_supporte_sur_tableau_natif` — `q`, `sort` ou `filter` sur un tableau né dans la nouvelle surface — refusés, jamais ignorés */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "invalid_filter" | "invalid_cursor" | "non_supporte_sur_tableau_natif";
+                    };
+                };
+            };
             /** @description jeton absent ou invalide */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -15257,14 +19067,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -15307,14 +19121,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -15351,14 +19169,42 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_org` — l'org n'existe pas ; `not_a_member` — tu n'es pas membre de cette org */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_org" | "not_a_member";
+                    };
+                };
+            };
+            /** @description `personal_org` — on ne quitte pas son espace personnel ; `last_org_admin` — tu es le dernier admin — nomme un successeur avant */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "personal_org" | "last_org_admin";
+                    };
+                };
             };
         };
     };
@@ -15399,14 +19245,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -15459,14 +19309,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -15487,6 +19341,7 @@ export interface operations {
                     op: "create" | "list" | "list_templates" | "get" | "update" | "archive" | "copy" | "handoff" | "link" | "unlink" | "activity" | "runs" | "inventory" | "lint" | "publish_mcp" | "unpublish_mcp";
                     /**
                      * Project Id
+                     * @description OMIT it on op=runs and you get YOUR OWN still-open runs instead, across every org, each with its `run_id` — that is how you find a run whose id you lost.
                      * @default null
                      */
                     project_id?: number | null;
@@ -15502,6 +19357,7 @@ export interface operations {
                     name?: string | null;
                     /**
                      * Icon
+                     * @description update: emoji shown in lists and headers. `""` clears it.
                      * @default null
                      */
                     icon?: string | null;
@@ -15550,6 +19406,12 @@ export interface operations {
                      * @default null
                      */
                     mcp_instructions_md?: string | null;
+                    /**
+                     * Excluded Url Prefixes
+                     * @description update: `host/path/` patterns search tools drop and extraction tools refuse under this project. A whole host must be written `host/*` — a bare host is refused. `[]` clears the list.
+                     * @default null
+                     */
+                    excluded_url_prefixes?: string[] | null;
                     /**
                      * Owner Type
                      * @default user
@@ -15615,6 +19477,7 @@ export interface operations {
                     instance_ref?: string | null;
                     /**
                      * Fields
+                     * @description list/list_templates: output projection. Omitted returns the INDEX (no briefs); `["*"]` returns whole records; a list of names picks columns.
                      * @default null
                      */
                     fields?: string[] | null;
@@ -15639,14 +19502,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -15705,14 +19572,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -15825,6 +19696,11 @@ export interface operations {
                          */
                         mcp_instructions_md: string;
                         /**
+                         * Excluded Url Prefixes
+                         * @default []
+                         */
+                        excluded_url_prefixes: string[];
+                        /**
                          * Mcp Url
                          * @default null
                          */
@@ -15878,14 +19754,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -15917,14 +19797,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -15977,14 +19861,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -16025,14 +19913,202 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    runner_fleets_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Op
+                     * @enum {string}
+                     */
+                    op: "create" | "list" | "get" | "state" | "update" | "launch" | "stop" | "take" | "beat" | "ack_stop";
+                    /**
+                     * Fleet Id
+                     * @default null
+                     */
+                    fleet_id?: number | null;
+                    /**
+                     * Status
+                     * @default null
+                     */
+                    status?: string | null;
+                    /**
+                     * Label
+                     * @default null
+                     */
+                    label?: string | null;
+                    /**
+                     * Procedure
+                     * @default null
+                     */
+                    procedure?: string | null;
+                    /**
+                     * Tools
+                     * @default null
+                     */
+                    tools?: string[] | null;
+                    /**
+                     * Namespace
+                     * @default null
+                     */
+                    namespace?: string | null;
+                    /**
+                     * Row Filter
+                     * @default null
+                     */
+                    row_filter?: {
+                        [key: string]: unknown;
+                    } | null;
+                    /**
+                     * Project Id
+                     * @default null
+                     */
+                    project_id?: number | null;
+                    /**
+                     * Input
+                     * @default null
+                     */
+                    input?: string | null;
+                    /**
+                     * Max Steps
+                     * @default null
+                     */
+                    max_steps?: number | null;
+                    /**
+                     * Provider
+                     * @default null
+                     */
+                    provider?: string | null;
+                    /**
+                     * Model
+                     * @default null
+                     */
+                    model?: string | null;
+                    /**
+                     * Workers
+                     * @default null
+                     */
+                    workers?: number | null;
+                    /**
+                     * Max Rows
+                     * @default null
+                     */
+                    max_rows?: number | null;
+                    /**
+                     * Max Tokens
+                     * @default null
+                     */
+                    max_tokens?: number | null;
+                    /**
+                     * Max Consecutive Failures
+                     * @default null
+                     */
+                    max_consecutive_failures?: number | null;
+                    /**
+                     * Max Tokens Per Row
+                     * @default null
+                     */
+                    max_tokens_per_row?: number | null;
+                    /**
+                     * Reason
+                     * @default null
+                     */
+                    reason?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @default null */
+                        fleet: components["schemas"]["Fleet"] | null;
+                        /**
+                         * Stop Requested
+                         * @default null
+                         */
+                        stop_requested: boolean | null;
+                        /**
+                         * Beat Taken
+                         * @default null
+                         */
+                        beat_taken: boolean | null;
+                        /**
+                         * Fleets
+                         * @default null
+                         */
+                        fleets: components["schemas"]["Fleet"][] | null;
+                        /** @default null */
+                        state: components["schemas"]["FleetState"] | null;
+                    };
+                };
+            };
+            /** @description `missing_fields` — `create` sans `label`/`procedure`/`tools`, ou opération sur une flotte sans `fleet_id` ; `target_incomplete` — `row_filter` sans `namespace` — un périmètre suppose un tableau ; `target_is_frozen` — `namespace`/`row_filter` après la déclaration : la cible d'un passage ne se déplace pas ; `context_is_frozen` — `provider`/`model` après la déclaration : les changer falsifierait l'attribution des lignes déjà écrites ; `status_not_settable` — `update status=` — l'état ne se pose pas par une retouche de configuration ; `field_not_settable` — `update` sur un champ déclaré à la création (`procedure`, `project_id`…) ; `invalid_bound` — une borne (`workers`, `max_rows`, `max_tokens`…) inférieure à 1 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "missing_fields" | "target_incomplete" | "target_is_frozen" | "context_is_frozen" | "status_not_settable" | "field_not_settable" | "invalid_bound";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `fleet_not_found` — flotte inconnue dans l'org du porteur */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "fleet_not_found";
+                    };
+                };
             };
         };
     };
@@ -16074,6 +20150,11 @@ export interface operations {
                      */
                     max_attempts?: number;
                     /**
+                     * Fleet Id
+                     * @default null
+                     */
+                    fleet_id?: number | null;
+                    /**
                      * Lease Seconds
                      * @default 600
                      */
@@ -16110,6 +20191,11 @@ export interface operations {
                      * @default 50
                      */
                     limit?: number;
+                    /**
+                     * Cursor
+                     * @default null
+                     */
+                    cursor?: string | null;
                 };
             };
         };
@@ -16136,6 +20222,16 @@ export interface operations {
                          * @default null
                          */
                         due_at: string | null;
+                        /**
+                         * Fleet Id
+                         * @default null
+                         */
+                        fleet_id: number | null;
+                        /**
+                         * Sub
+                         * @default null
+                         */
+                        sub: string | null;
                         /** @default null */
                         job: components["schemas"]["Job"] | null;
                         /**
@@ -16148,6 +20244,36 @@ export interface operations {
                          * @default null
                          */
                         ok: boolean | null;
+                        /**
+                         * Total
+                         * @description list: how many jobs the queue holds under the SAME filters (org + `status`), regardless of `limit` and of where the cursor is. This is the number a fleet report wants; `len(jobs)` is only one page of it.
+                         * @default null
+                         */
+                        total: number | null;
+                        /**
+                         * Next Cursor
+                         * @description list: pass it back as `cursor` to read the next (older) page — opaque, do not parse. null = this page is the end of the queue. A full page WITH a next_cursor means the reading is truncated here.
+                         * @default null
+                         */
+                        next_cursor: string | null;
+                        /**
+                         * Run Id
+                         * @description complete: the run whose datastore leases were released — the call's `run_id`, else the one bound to the job (bind_run/enqueue). null: no run known, nothing to release by run.
+                         * @default null
+                         */
+                        run_id: string | null;
+                        /**
+                         * Rows Released
+                         * @description complete: datastore rows the run still held, now back in the queue — 0 is written explicitly (the run held nothing). null: no release was done, `release` says why.
+                         * @default null
+                         */
+                        rows_released: number | null;
+                        /**
+                         * Release
+                         * @description complete: outcome of the release step — ok (count in rows_released), no_run (no run known to this job), failed (the release itself errored; the job is concluded anyway, the leases expire on their own).
+                         * @default null
+                         */
+                        release: ("ok" | "no_run" | "failed") | null;
                     };
                 };
             };
@@ -16156,14 +20282,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `fleet_not_found` — `enqueue fleet_id=` désignant une flotte qui n'est pas celle de l'org du porteur */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "fleet_not_found";
+                    };
+                };
             };
         };
     };
@@ -16255,6 +20397,20 @@ export interface operations {
                          * @default null
                          */
                         ok: boolean | null;
+                        /** @default null */
+                        runner: components["schemas"]["RunnerArme"] | null;
+                    };
+                };
+            };
+            /** @description `missing_fields` — `create` sans `procedure`/`cron`/`tools`, ou une opération sur un déclencheur sans `trigger_id` ; `invalid_schedule` — cron malformé, fuseau inconnu, ou deux occurrences espacées de moins de 5 minutes ; `no_runner_armed` — aucun worker ne sonde la file de cette org : `create`, et `update enabled=true`, sont refusés plutôt que de promettre une exécution qui n'aurait pas lieu */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "missing_fields" | "invalid_schedule" | "no_runner_armed";
                     };
                 };
             };
@@ -16263,14 +20419,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `trigger_not_found` — déclencheur inconnu dans l'org du porteur */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "trigger_not_found";
+                    };
+                };
             };
         };
     };
@@ -16358,14 +20530,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -16410,14 +20586,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -16464,14 +20644,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -16501,14 +20685,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -16524,6 +20712,7 @@ export interface operations {
                 "application/json": {
                     /**
                      * Label
+                     * @description Comment reconnaître ce jeton plus tard — au plus 32 caractères, au-delà : 400 `label_too_long`, jamais une coupe. Absent ⇒ 'cli'.
                      * @default null
                      */
                     label?: string | null;
@@ -16565,14 +20754,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -16604,14 +20797,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -16641,14 +20838,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -16680,14 +20881,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -16727,14 +20932,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -16770,14 +20979,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -16832,14 +21045,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -16904,14 +21121,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -16956,14 +21177,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -16995,14 +21220,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -17075,14 +21304,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -17118,14 +21351,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -17176,14 +21413,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -17240,14 +21481,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -17284,14 +21529,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -17386,14 +21635,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -17403,6 +21656,7 @@ export interface operations {
                 since?: string | null;
                 until?: string | null;
                 limit?: number;
+                cursor?: string | null;
             };
             header?: never;
             path: {
@@ -17432,10 +21686,33 @@ export interface operations {
                          * @default null
                          */
                         until: string | null;
+                        /** Until Effectif */
+                        until_effectif: string;
+                        /** Total */
+                        total: number;
                         /** Count */
                         count: number;
+                        /** Truncated */
+                        truncated: boolean;
+                        /**
+                         * Next Cursor
+                         * @default null
+                         */
+                        next_cursor: string | null;
                         /** Calls */
                         calls: components["schemas"]["AuditCall"][];
+                    };
+                };
+            };
+            /** @description `invalid_cursor` — `cursor` illisible, tronqué, ou pris d'un autre export ; `window_with_cursor` — `since`/`until` repassés avec un `cursor`, qui porte déjà la fenêtre */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "invalid_cursor" | "window_with_cursor";
                     };
                 };
             };
@@ -17444,14 +21721,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -17488,14 +21769,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -17530,14 +21815,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -17596,14 +21885,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -17653,14 +21946,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -17709,14 +22006,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -17769,14 +22070,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -17822,14 +22127,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -17875,14 +22184,42 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_connector` — nom inconnu du registre */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_connector";
+                    };
+                };
+            };
+            /** @description `org_disabled` — l'org a désactivé ce connecteur : l'activer pour tous contredirait sa propre gouvernance */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "org_disabled";
+                    };
+                };
             };
         };
     };
@@ -17920,14 +22257,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -17972,14 +22313,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_org` — org inconnue */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_org";
+                    };
+                };
             };
         };
     };
@@ -18028,14 +22385,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -18116,14 +22477,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -18181,14 +22546,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -18247,14 +22616,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -18311,14 +22684,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -18353,14 +22730,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -18411,14 +22792,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `group_exists` — un groupe de ce nom existe déjà dans l'org (casse ignorée) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "group_exists";
+                    };
+                };
             };
         };
     };
@@ -18451,14 +22848,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -18524,14 +22925,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `already_member` — l'adresse est déjà celle d'un membre de l'org ; `already_invited` — l'adresse a déjà une invitation valide (non expirée, non consommée, non révoquée) — `details.invitation` = {id, created_at, expires_at}, jamais le code */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "already_member" | "already_invited";
+                    };
+                };
             };
         };
     };
@@ -18568,14 +22985,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -18628,14 +23049,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -18686,14 +23111,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -18740,14 +23169,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -18788,14 +23221,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -18834,14 +23271,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -18885,14 +23326,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -18941,14 +23386,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -18983,6 +23432,21 @@ export interface operations {
                     "application/json": {
                         /** Calls */
                         calls: components["schemas"]["CallRow"][];
+                        /**
+                         * Scope
+                         * @default null
+                         */
+                        scope: string | null;
+                        /**
+                         * Hors Scope
+                         * @default null
+                         */
+                        hors_scope: number | null;
+                        /**
+                         * Hors Scope Hint
+                         * @default null
+                         */
+                        hors_scope_hint: string | null;
                     };
                 };
             };
@@ -18991,14 +23455,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -19022,10 +23490,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Call */
-                        call: {
-                            [key: string]: unknown;
-                        };
+                        call: components["schemas"]["CallDetail"];
                     };
                 };
             };
@@ -19034,14 +23499,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -19080,14 +23549,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -19122,14 +23595,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -19164,14 +23641,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -19207,14 +23688,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -19267,14 +23752,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -19322,14 +23811,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -19364,14 +23857,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -19406,14 +23903,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -19450,14 +23951,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -19517,19 +24022,59 @@ export interface operations {
                     };
                 };
             };
+            /** @description `single_account_connector` — un `account` nommé sur un connecteur qui n'en gère qu'un — la clé écraserait l'unique */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "single_account_connector";
+                    };
+                };
+            };
             /** @description jeton absent ou invalide */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_org` — org inconnue */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_org";
+                    };
+                };
+            };
+            /** @description `account_required` — connecteur multi-compte sans `account` : il faut nommer le compte, sans quoi la pose est ambiguë */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "account_required";
+                    };
+                };
             };
         };
     };
@@ -19571,14 +24116,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -19613,14 +24162,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -19662,14 +24215,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -19707,14 +24264,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
         };
     };
@@ -19856,21 +24417,224 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ResourceList"] | (components["schemas"]["DatastoreResourceDetail"] | components["schemas"]["ProjectResourceDetail"] | components["schemas"]["GuideResourceDetail"]) | components["schemas"]["ResourceTransferred"] | components["schemas"]["ResourceShared"] | components["schemas"]["PublishedProject"] | components["schemas"]["ResourceUnshared"];
+                };
+            };
+            /** @description `email_required` — share/unshare sans principal : ni `email`, ni `org_id`, ni `group_id` ; `publication_unsupported` — audience `public`/`secret`/`private` sur autre chose qu'un projet — seul un projet se publie ; `unsupported_resource_type` — famille de ressource inconnue — surface héritée seulement, la stricte la refuse à la validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "email_required" | "publication_unsupported" | "unsupported_resource_type";
+                    };
+                };
             };
             /** @description jeton absent ou invalide */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
+            /** @description refus d'autorisation (ou hors portée du jeton) ; `forbidden` — `transfer` demandé par un gérant : la cession de propriété est réservée au propriétaire / à un admin ; `group_not_visible` — grant d'équipe visant un groupe d'une org dont tu n'es pas membre ; `not_group_member` — `transfer` vers une équipe dont tu n'es ni membre ni admin ; `not_org_member` — `transfer` vers une org dont tu n'es pas membre */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_user` — aucun utilisateur oto avec cet email ; `unknown_org` — org destinataire inconnue ; `unknown_group` — groupe destinataire inconnu */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_user" | "unknown_org" | "unknown_group";
+                    };
+                };
+            };
+            /** @description `confirm_loss_of_control` — `transfer` qui te retirerait tout moyen de récupérer la ressource — renvoyer avec `confirm_transfer=true` ; `transfer_failed` — la re-parentalisation a été refusée par le store */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "confirm_loss_of_control" | "transfer_failed";
+                    };
+                };
+            };
+        };
+    };
+    resources_govern_v2_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Op
+                     * @enum {string}
+                     */
+                    op: "list" | "get" | "transfer" | "share" | "unshare";
+                    /**
+                     * Resource Type
+                     * @enum {string}
+                     */
+                    resource_type: "datastore_namespace" | "project" | "doctrine";
+                    /**
+                     * Resource Id
+                     * @description Identifiant numérique de la ressource (clé primaire).
+                     * @default null
+                     */
+                    resource_id?: string | null;
+                    /**
+                     * New Owner Email
+                     * @default null
+                     */
+                    new_owner_email?: string | null;
+                    /**
+                     * New Owner Org
+                     * @default null
+                     */
+                    new_owner_org?: number | null;
+                    /**
+                     * New Owner Group
+                     * @default null
+                     */
+                    new_owner_group?: number | null;
+                    /**
+                     * Email
+                     * @default null
+                     */
+                    email?: string | null;
+                    /**
+                     * Org Id
+                     * @default null
+                     */
+                    org_id?: number | null;
+                    /**
+                     * Group Id
+                     * @default null
+                     */
+                    group_id?: number | null;
+                    /**
+                     * Audience
+                     * @default null
+                     */
+                    audience?: ("private" | "person" | "team" | "org" | "public" | "secret") | null;
+                    /**
+                     * Role
+                     * @default null
+                     */
+                    role?: ("viewer" | "editor" | "manager") | null;
+                    /**
+                     * Permission
+                     * @default write
+                     * @enum {string}
+                     */
+                    permission?: "read" | "write";
+                    /**
+                     * Mcp Slug
+                     * @default null
+                     */
+                    mcp_slug?: string | null;
+                    /**
+                     * Mcp Tools
+                     * @default null
+                     */
+                    mcp_tools?: string[] | null;
+                    /**
+                     * Cascade
+                     * @default false
+                     */
+                    cascade?: boolean;
+                    /**
+                     * Confirm Transfer
+                     * @default false
+                     */
+                    confirm_transfer?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceList"] | (components["schemas"]["DatastoreResourceDetail"] | components["schemas"]["ProjectResourceDetail"] | components["schemas"]["GuideResourceDetail"]) | components["schemas"]["ResourceTransferred"] | components["schemas"]["ResourceShared"] | components["schemas"]["PublishedProject"] | components["schemas"]["ResourceUnshared"];
+                };
+            };
+            /** @description `email_required` — share/unshare sans principal : ni `email`, ni `org_id`, ni `group_id` ; `publication_unsupported` — audience `public`/`secret`/`private` sur autre chose qu'un projet — seul un projet se publie */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "email_required" | "publication_unsupported";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) ; `forbidden` — `transfer` demandé par un gérant : la cession de propriété est réservée au propriétaire / à un admin ; `group_not_visible` — grant d'équipe visant un groupe d'une org dont tu n'es pas membre ; `not_group_member` — `transfer` vers une équipe dont tu n'es ni membre ni admin ; `not_org_member` — `transfer` vers une org dont tu n'es pas membre */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_user` — aucun utilisateur oto avec cet email ; `unknown_org` — org destinataire inconnue ; `unknown_group` — groupe destinataire inconnu */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_user" | "unknown_org" | "unknown_group";
+                    };
+                };
+            };
+            /** @description `confirm_loss_of_control` — `transfer` qui te retirerait tout moyen de récupérer la ressource — renvoyer avec `confirm_transfer=true` ; `transfer_failed` — la re-parentalisation a été refusée par le store */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "confirm_loss_of_control" | "transfer_failed";
+                    };
+                };
             };
         };
     };
@@ -19897,6 +24661,7 @@ export interface operations {
             query?: {
                 scope?: string;
                 account?: string;
+                reveal?: boolean;
             };
             header?: never;
             path: {
@@ -19927,8 +24692,37 @@ export interface operations {
                          * @default
                          */
                         read_account: string;
+                        /**
+                         * Read Set At
+                         * @default null
+                         */
+                        read_set_at: string | null;
+                        /**
+                         * Read Set By
+                         * @default null
+                         */
+                        read_set_by: string | null;
+                        /**
+                         * Read Fingerprints
+                         * @default {}
+                         */
+                        read_fingerprints: {
+                            [key: string]: string;
+                        };
                     } & {
                         [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description `no_org_context` — `scope=org` alors qu'aucune org n'est le contexte de l'appel ; `no_group_context` — `scope=group` alors qu'aucune équipe n'est active */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "no_org_context" | "no_group_context";
                     };
                 };
             };
@@ -19937,14 +24731,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
+            /** @description refus d'autorisation (ou hors portée du jeton) ; `forbidden` — `scope=org` ou `group` sans être admin de ce palier — un membre ne lit ni ne retire la clé partagée d'un autre ; `secret_never_revealed` — `reveal=true` — la valeur d'un credential ne se relit à aucun palier ; la réponse porte de quoi la reconnaître, jamais de quoi la lire */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_provider` — aucun connecteur de ce nom au registre ; `not_configured` — aucune clé posée à ce palier pour ce connecteur */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_provider" | "not_configured";
+                    };
+                };
             };
         };
     };
@@ -19990,19 +24800,59 @@ export interface operations {
                     };
                 };
             };
+            /** @description `no_org_context` — `scope=org` alors qu'aucune org n'est le contexte de l'appel ; `single_account_connector` — un `account` nommé sur un connecteur qui n'en gère qu'un — la clé écraserait l'unique ; `verify_failed` — la clé a été refusée par le service : elle n'est PAS enregistrée, il n'y a rien à retirer ; `invalid_field_value` — un champ à jeu fermé reçoit une valeur hors liste — refusé à la pose plutôt qu'au premier appel réel ; `missing_credentials` — aucun champ renseigné : il n'y a rien à poser */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "no_org_context" | "single_account_connector" | "verify_failed" | "invalid_field_value" | "missing_credentials";
+                    };
+                };
+            };
             /** @description jeton absent ou invalide */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
+            /** @description refus d'autorisation (ou hors portée du jeton) ; `connector_restricted` — une règle d'org ou d'équipe interdit ce connecteur à cet acteur */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_provider` — aucun connecteur de ce nom au registre */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_provider";
+                    };
+                };
+            };
+            /** @description `account_required` — connecteur multi-compte sans `account` : il faut nommer le compte, sans quoi la pose est ambiguë */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "account_required";
+                    };
+                };
             };
         };
     };
@@ -20038,19 +24888,47 @@ export interface operations {
                     };
                 };
             };
+            /** @description `no_org_context` — `scope=org` alors qu'aucune org n'est le contexte de l'appel ; `no_group_context` — `scope=group` alors qu'aucune équipe n'est active */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "no_org_context" | "no_group_context";
+                    };
+                };
+            };
             /** @description jeton absent ou invalide */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
             };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
+            /** @description refus d'autorisation (ou hors portée du jeton) ; `forbidden` — `scope=org` ou `group` sans être admin de ce palier — un membre ne lit ni ne retire la clé partagée d'un autre */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_provider` — aucun connecteur de ce nom au registre */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_provider";
+                    };
+                };
             };
         };
     };
@@ -20162,24 +25040,6 @@ export interface operations {
             };
         };
     };
-    post_api_unipile_webhook: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     get_api_upload_token: {
         parameters: {
             query?: never;
@@ -20227,6 +25087,24 @@ export interface operations {
             path: {
                 token: string;
             };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_api_version: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
