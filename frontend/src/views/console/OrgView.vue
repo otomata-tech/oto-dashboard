@@ -22,6 +22,15 @@ const { confirmAction } = usePrompt()
 
 const { activeOrgId, meSub, detail, error, loaded, isOrgAdmin, reload } = useOrgScope()
 
+// Libellés en anglais comme TOUTE cette vue (« member », « role », « promote »,
+// « remove »…) : y glisser du français ferait un mélange, et le vocabulaire des
+// niveaux est justement le §4 d'oto-dashboard#160.
+const HOME_ORG_HINT = 'this org is the member\'s HOME org (their default context)'
+  + ' — not an account state: someone who works elsewhere by default is perfectly'
+  + ' operational here.'
+const PAUSED_HINT = 'account neutralised by a platform admin: they can no longer act,'
+  + ' and stay a member. The reason is readable by the admin who paused them.'
+
 async function toggleRole(sub: string, role: string) {
   const next = role === 'org_admin' ? 'org_member' : 'org_admin'
   try { await setOrgMemberRole(activeOrgId.value!, sub, next); toast('role updated'); await reload() }
@@ -46,14 +55,30 @@ async function removeMember(sub: string, label: string) {
     <template v-else>
       <ConsoleCard title="members" flush sub="people in your active org. shared keys & connector governance live in « connectors ».">
         <table class="tbl">
-          <thead><tr><th>member</th><th>role</th><th>active</th><th v-if="isOrgAdmin" style="width: 150px"></th></tr></thead>
+          <!-- « active » était un faux ami : il dit que CETTE org est l'org MAISON du
+               membre, pas que son compte est en état — quelqu'un de parfaitement
+               opérationnel y est `false` dès qu'il travaille par défaut ailleurs. Le
+               serveur le signale dans son propre schéma. Poser le marqueur de pause à
+               côté d'une colonne qui se lit « actif » aurait rendu la ligne illisible :
+               un membre en pause dont c'est l'org maison y aurait été « actif » ET
+               « en pause ». -->
+          <thead><tr><th>member</th><th>role</th><th :title="HOME_ORG_HINT">home org</th><th v-if="isOrgAdmin" style="width: 150px"></th></tr></thead>
           <tbody>
             <tr v-for="m in detail?.members ?? []" :key="m.sub">
               <td>
                 <div style="display: flex; align-items: center; gap: 9px">
                   <Avatar :src="m.avatar_url" :name="m.name || m.email" :size="28" />
                   <div>
-                    <div style="font-weight: 600; color: var(--color-ink)">{{ m.name || m.email }}</div>
+                    <div style="font-weight: 600; color: var(--color-ink)">
+                      {{ m.name || m.email }}
+                      <!-- Compte mis en pause (oto-backend, 03/09) : la fonction se
+                           pilotait par appel, sans aucun écran. Un membre en pause
+                           RESTE dans la liste, marqué — le retirer détruirait une
+                           appartenance qu'on a justement choisi de garder, et
+                           laisserait un admin devant des documents signés par
+                           quelqu'un qui n'apparaît plus nulle part. -->
+                      <Tag v-if="m.suspended" tone="terra" :title="PAUSED_HINT">paused</Tag>
+                    </div>
                     <div style="font-size: 11px; color: var(--color-faint)">{{ m.email }}</div>
                   </div>
                 </div>
