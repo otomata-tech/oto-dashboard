@@ -433,6 +433,11 @@ export const getRunnerFleetState = (id: number) =>
     method: 'POST', ...j({ op: 'state', fleet_id: id }),
   })
 
+// ⚠️ Écrit à la main, plus STRICT que `components["schemas"]["Trigger"]` du contrat
+// généré, qui déclare `procedure`/`cron`/`tz`/`enabled` nullables (Optional côté
+// pydantic) alors que le serveur les rend toujours. Basculer sur le schéma généré
+// obligerait à traiter des `null` que la surface ne produit pas — c'est pour ça que
+// la copie existe. Le prix est celui-ci : tout champ neuf doit être recopié.
 export interface RunnerTrigger {
   id: number
   procedure: string
@@ -444,6 +449,17 @@ export interface RunnerTrigger {
   enabled: boolean
   next_due: string | null
   max_steps: number | null
+  // Ce que ce déclencheur a PERDU : des occurrences enfilées que personne n'est venu
+  // prendre dans leur cycle, et que le tick a périmées. Servi par le backend depuis
+  // le 01/09 et affiché nulle part jusqu'ici — quarante-et-une occurrences empilées
+  // sur treize jours n'ont été découvertes que par hasard. `0` est un vrai zéro
+  // (rien perdu), pas une absence de mesure.
+  expired_count: number | null
+  // Deux dates, jamais une seule : « depuis quand » et « est-ce encore en cours »
+  // sont deux questions différentes, et une perte ancienne qui a cessé n'appelle pas
+  // le même geste qu'une perte de ce matin.
+  expired_since: string | null
+  expired_last: string | null
 }
 export const listRunnerTriggers = () =>
   api<{ triggers: RunnerTrigger[] }>('/api/me/runner/triggers', {

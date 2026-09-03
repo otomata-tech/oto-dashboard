@@ -62,6 +62,23 @@ onMounted(load)
           <Tag v-if="!t.enabled" tone="ink">coupé</Tag>
           <span v-else-if="t.next_due" class="rt-next">
             prochain : {{ absDate(t.next_due) }}</span>
+          <!-- Ce que ce déclencheur a PERDU. Servi par le backend depuis le 01/09 et
+               affiché nulle part : quarante-et-une occurrences empilées sur treize
+               jours n'ont été découvertes que par hasard, le 02/09, en préparant
+               autre chose. Un déclencheur qui perd ses occurrences reste « vert » —
+               il part à l'heure, c'est au bout de la file que rien ne vient.
+               `0` est un vrai zéro : rien à dire, donc rien d'affiché. -->
+          <span v-if="t.expired_count" class="rt-lost">
+            <Tag tone="terra">{{ t.expired_count }} perdue<template
+              v-if="t.expired_count > 1">s</template></Tag>
+            <!-- Les DEUX dates, jamais une seule : « depuis quand » et « est-ce
+                 encore en cours » sont deux questions différentes, et une perte
+                 ancienne qui a cessé n'appelle pas le même geste qu'une perte de ce
+                 matin. C'est le serveur qui le souligne, on ne le résume pas. -->
+            <span v-if="t.expired_since" class="rt-next">
+              depuis {{ absDate(t.expired_since) }}<template v-if="t.expired_last">,
+              dernière {{ absDate(t.expired_last) }}</template></span>
+          </span>
         </li>
       </ul>
     </div>
@@ -74,6 +91,7 @@ onMounted(load)
 .rt-name { font-weight: 600; color: var(--color-ink); }
 .rt-cron { font-family: var(--font-mono, monospace); font-size: 11.5px; color: var(--color-mute); }
 .rt-next { font-size: 11.5px; color: var(--color-faint); }
+.rt-lost { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .rt-err { font-size: 12px; color: var(--color-terra, #a8442a); }
 .rt-empty { font-size: 13px; line-height: 1.6; }
 </style>
