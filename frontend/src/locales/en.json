@@ -185,8 +185,8 @@
     "login": {
       "titleJoin": "join oto",
       "titleConnect": "sign in to oto",
-      "envJoin": "alpha · early access",
-      "envInvite": "alpha · invitation only",
+      "envJoin": "open access",
+      "envInvite": "invitation only",
       "connecting": "signing in…",
       "redirectingSignup": "redirecting to sign-up…",
       "fallbackPrefix": "redirect not starting?",

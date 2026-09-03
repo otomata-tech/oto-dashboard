@@ -185,8 +185,8 @@
     "login": {
       "titleJoin": "rejoindre oto",
       "titleConnect": "connexion à oto",
-      "envJoin": "alpha · accès anticipé",
-      "envInvite": "alpha · sur invitation",
+      "envJoin": "accès libre",
+      "envInvite": "sur invitation",
       "connecting": "connexion en cours…",
       "redirectingSignup": "redirection vers la création de compte…",
       "fallbackPrefix": "la redirection ne se lance pas ?",
