@@ -52,11 +52,16 @@ async function accountApi<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const listMfaFactors = () => accountApi<MfaFactor[]>('/api/my-account/mfa-verifications')
 
+// L'Account API Logto self-hosted ne renvoie PAS de QR (juste { secret }, vérifié en
+// direct sur le serveur — le champ documenté pour Logto Cloud n'existe pas ici) : le QR
+// est construit et rendu côté client, à partir de ce secret + l'email du compte.
 export const generateTotpSecret = () =>
-  accountApi<{ secret: string; secretQrCode?: string }>(
+  accountApi<{ secret: string }>(
     '/api/my-account/mfa-verifications/totp-secret/generate',
     { method: 'POST' },
   )
+
+export const getMyAccount = () => accountApi<{ primaryEmail?: string }>('/api/my-account')
 
 export const bindTotp = (secret: string, code: string) =>
   accountApi<void>('/api/my-account/mfa-verifications/totp', {

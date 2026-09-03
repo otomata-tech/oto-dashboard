@@ -7,8 +7,9 @@ import FormDialog from './FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
+import QRCode from 'qrcode'
 import {
-  listMfaFactors, generateTotpSecret, bindTotp, generateBackupCodes,
+  listMfaFactors, generateTotpSecret, getMyAccount, bindTotp, generateBackupCodes,
   renameFactor, deleteFactor, AccountApiError, type MfaFactor,
 } from '@/lib/account'
 import { fmtDate } from '@/types/api'
@@ -56,7 +57,12 @@ async function reload() {
 async function startTotp() {
   busy.value = true
   try {
-    totp.value = await generateTotpSecret()
+    const { secret } = await generateTotpSecret()
+    const { primaryEmail } = await getMyAccount()
+    const label = encodeURIComponent(`oto:${primaryEmail || 'compte'}`)
+    const uri = `otpauth://totp/${label}?secret=${secret}&issuer=oto`
+    const secretQrCode = await QRCode.toDataURL(uri)
+    totp.value = { secret, secretQrCode }
     totpCode.value = ''
   } catch (e) { toast(humanize(e)) } finally { busy.value = false }
 }
