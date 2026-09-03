@@ -1,6 +1,6 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useMe, isPlatformOperator } from '@/composables/useMe'
+import { useMe, isOrgAdmin as isOrgAdminOf } from '@/composables/useMe'
 import { getGroup } from '@/api/console'
 import type { GroupDetail } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -25,8 +25,7 @@ export function useTeamScope() {
     if (typeof p === 'string' && p) return Number(p)
     return me.value?.active_group ?? null
   })
-  const isOrgAdmin = computed(() =>
-    me.value?.org_role === 'org_admin' || isPlatformOperator(me.value))
+  const isOrgAdmin = computed(() => isOrgAdminOf(me.value))
   const meSub = computed(() => me.value?.sub ?? null)
 
   const detail = ref<GroupDetail | null>(null)

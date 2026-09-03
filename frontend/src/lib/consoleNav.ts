@@ -22,6 +22,12 @@ export interface NavItem {
   warn?: boolean
   count?: string
   super?: boolean // visible au super_admin seul (action plateforme sensible)
+  // Réservé à l'admin d'org. Sans ce cran, ouvrir un chemin d'org à un membre
+  // simple (#160 : l'abonnement, dont les LECTURES lui sont servies) lui afficherait
+  // les six autres entrées du niveau, qu'il ne peut pas utiliser — on remplacerait
+  // « aucune porte » par « six portes fermées ». La sidebar ne filtrait que par
+  // niveau, jamais par droits ; c'est la décision actée en #51, jamais appliquée.
+  orgAdmin?: boolean
   plomberie?: boolean // rendu ANCRÉ EN BAS (zone plomberie de l'agent, refonte nav pt 4)
 }
 
@@ -82,14 +88,18 @@ export const NAV: NavGroup[] = [
   // logo/entitlements/danger) · sécurité (MFA) · connecteurs · équipes · abonnement.
   { group: 'nav.section.organization', level: 'org', items: [
     { path: '/org/context', label: 'nav.context', icon: 'bolt' },
-    { path: '/org', label: 'nav.members', icon: 'users' },
-    { path: '/org/settings', label: 'nav.settings', icon: 'gear' },
-    { path: '/org/security', label: 'nav.security', icon: 'shield' },
-    { path: '/org/connectors', label: 'nav.connectors', icon: 'plug' },
-    { path: '/org/teams', label: 'nav.teams', icon: 'users' },
+    { path: '/org', label: 'nav.members', icon: 'users', orgAdmin: true },
+    { path: '/org/settings', label: 'nav.settings', icon: 'gear', orgAdmin: true },
+    { path: '/org/security', label: 'nav.security', icon: 'shield', orgAdmin: true },
+    { path: '/org/connectors', label: 'nav.connectors', icon: 'plug', orgAdmin: true },
+    { path: '/org/teams', label: 'nav.teams', icon: 'users', orgAdmin: true },
     // Supervision de l'org (org_admin) : mêmes lentilles que /platform/monitoring,
     // bornées à ce qui a été émis sous cette org.
-    { path: '/org/monitoring', label: 'nav.monitoring', icon: 'chart' },
+    { path: '/org/monitoring', label: 'nav.monitoring', icon: 'chart', orgAdmin: true },
+    // PAS `orgAdmin` : les lectures de cet écran sont servies à tout membre
+    // (`billing.status`, `billing.payments`, `me.billing.invoices.list`,
+    // `me.billing.identity.get` = ORG_MEMBER ; le catalogue des offres = tout
+    // connecté). Seules les écritures exigent l'admin, et l'écran les masque déjà.
     { path: '/org/billing', label: 'nav.billing', icon: 'card' },
   ]},
   // ── Gérer la plateforme : réservé opérateur plateforme ─────────────────────

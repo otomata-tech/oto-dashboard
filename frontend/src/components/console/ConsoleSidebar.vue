@@ -9,7 +9,7 @@ import ConsoleUserMenu from './ConsoleUserMenu.vue'
 import SidebarSpaces from './SidebarSpaces.vue'
 import SearchOverlay from './SearchOverlay.vue'
 import { NAV } from '@/lib/consoleNav'
-import { useMe, isPlatformOperator, isSuperAdmin } from '@/composables/useMe'
+import { useMe, isPlatformOperator, isSuperAdmin, isOrgAdmin } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
 import { useScopedLink } from '@/composables/useScopedLink'
@@ -43,7 +43,8 @@ const visibleGroups = computed(() =>
      .filter((g) => g.level !== 'platform' || isPlatformOperator(me.value))
      .map((g) => ({
        ...g,
-       items: g.items.filter((it) => !it.super || isSuperAdmin(me.value)),
+       items: g.items.filter((it) => (!it.super || isSuperAdmin(me.value))
+                                  && (!it.orgAdmin || isOrgAdmin(me.value))),
      })))
 
 // Plomberie de l'agent (Connecteurs/Procédures) : ancrée en bas, hors de la nav

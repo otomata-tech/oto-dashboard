@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 import Avatar from './Avatar.vue'
 import Icon from './Icon.vue'
 import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
-import { useMe, isPlatformOperator } from '@/composables/useMe'
+import { useMe, isPlatformOperator, isOrgAdmin } from '@/composables/useMe'
 import { useMyOrgs } from '@/composables/useMyOrgs'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
@@ -33,8 +33,16 @@ const govEntries = computed(() => {
   // entrée, en tête, ramène au niveau « work » (la sidebar se recompose sur la route).
   if (level.value !== 'work')
     out.push({ key: 'work', label: 'Espace de travail', icon: 'home', to: '/overview', back: true })
-  if (me.value?.org_role === 'org_admin')
+  if (isOrgAdmin(me.value))
     out.push({ key: 'org', label: 'Gérer mon org', icon: 'building', to: '/org' })
+  // Abonnement : la SEULE entrée de gouvernance ouverte à tout membre (#160). Un
+  // membre simple n'avait aucun chemin vers cet écran — aucun clic ne l'y menait —
+  // alors qu'il lui est servi et conçu pour lui : ses factures, l'état de l'org, ses
+  // paiements. Il y accédait uniquement en connaissant l'URL.
+  // Elle vise `/org/billing` DIRECTEMENT, jamais `/org` : la liste des membres reste
+  // fermée. Et la sidebar d'org qui l'accueille masque désormais ce qu'il ne peut pas
+  // faire, sans quoi on aurait troqué « aucune porte » contre « six portes fermées ».
+  out.push({ key: 'billing', label: 'Abonnement', icon: 'card', to: '/org/billing' })
   if (me.value?.active_group != null)
     out.push({ key: 'group', label: 'Gérer mon équipe', icon: 'users', to: '/team/context' })
   out.push({ key: 'activity', label: 'Activité', icon: 'pulse', to: '/activity' })

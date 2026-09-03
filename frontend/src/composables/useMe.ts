@@ -63,3 +63,14 @@ export function isSuperAdmin(m: RoleHolder): boolean {
 export function isPlatformOperator(m: RoleHolder): boolean {
   return m?.role === 'admin' || m?.role === 'super_admin'
 }
+
+// ── rôle ORG (axe distinct du rôle plateforme) ────────────────────────────────
+// Même raison d'être que les deux helpers ci-dessus : le gate `org_role === …`
+// était recopié dans `useTeamScope` et dans `ConsoleIdentity`, et il allait l'être
+// une troisième fois pour filtrer la sidebar d'org (#160). Un opérateur plateforme
+// vaut org_admin, comme partout ailleurs dans l'UI.
+type OrgRoleHolder = { org_role?: string | null; role?: Role } | null | undefined
+
+export function isOrgAdmin(m: OrgRoleHolder): boolean {
+  return m?.org_role === 'org_admin' || isPlatformOperator(m)
+}
