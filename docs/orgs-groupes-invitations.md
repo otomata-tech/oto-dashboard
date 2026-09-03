@@ -15,7 +15,7 @@ description: >-
 
 ## Groupes / départements (ADR 0012)
 
-Section `/console/groups` (`GroupsView.vue` + `GroupDoctrineCard.vue`) : départements d'une org avec **chef d'équipe** (`group_admin`). Un membre bascule son **groupe actif** (`useGroup` → `PUT /api/me/active-group`) ; le chef (ou un org_admin) gère membres, **secrets partagés** (résolus avant ceux de l'org), **preset de toolset** (baseline de visibilité) et le **readme** de groupe. Hiérarchie de droits côté backend (`roles.py`, escalade descendante) — l'UI masque seulement les contrôles.
+Liste des équipes d'une org : `/org/teams` (`GroupsView.vue`) — départements avec **chef d'équipe** (`group_admin`). Le scope d'une équipe ouverte a ses propres pages : `/team` (membres et secrets, `TeamMembersView.vue`), `/team/context` et `/team/procedures` (`GroupDoctrineCard.vue`). Les anciens chemins `/console/groups`, `/org/departments` et `/group` sont des redirections (`router/index.ts`). Un membre bascule son **groupe actif** (`useGroup` → `PUT /api/me/active-group`) ; le chef (ou un org_admin) gère membres, **secrets partagés** (résolus avant ceux de l'org), **preset de toolset** (baseline de visibilité) et le **readme** de groupe. Hiérarchie de droits côté backend (`roles.py`, escalade descendante) — l'UI masque seulement les contrôles.
 
 > **Une procédure d'équipe ne suit PAS cette règle** (oto-backend#695/#719, front #144).
 > **Écrire** une procédure — et **restaurer** une version, qui n'en est que le défaire —
@@ -35,6 +35,8 @@ Section `/console/groups` (`GroupsView.vue` + `GroupDoctrineCard.vue`) : départ
 > rôle du requérant (`useTeamScope`, dérivé de `my_role`) plutôt que `can_edit`, qui
 > refermerait l'écriture à une membre ; l'écran d'org, qui n'a pas cette information,
 > retombe sur `can_edit`. Un `false` **servi** reste un refus et gagne sur tout repli.
+> Élargir `can_edit` au lieu de dédoubler les drapeaux aurait remplacé une porte fermée à
+> tort par une porte ouverte à tort (livré le 2026-09-02).
 
 `Me` porte `active_group`/`active_group_name`/`group_role` ; `ProviderStatus.mode` peut valoir `group` (libellé « team key »). Contrats : `oto-backend/docs/groups-and-roles.md`.
 

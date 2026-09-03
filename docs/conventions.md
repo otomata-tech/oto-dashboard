@@ -5,7 +5,8 @@ description: >-
   Le typecheck du CI (`vue-tsc --build`, project references) et les deux vecteurs vécus de «
    local vert / CI rouge » : le cache incrémental qui ne re-vérifie pas les fichiers non tou
   chés, et le working tree ≠ arbre commité sur un checkout partagé. Plus la règle transverse
-   « une alerte qui réclame un geste offre le moyen de l'accomplir », et son tripwire.
+   « une alerte qui réclame un geste offre le moyen de l'accomplir », et son tripwire ;
+   et « un identifiant de compte s'affiche en personne » (#143).
 ---
 
 # Conventions du front
@@ -58,3 +59,23 @@ neuve que personne n'a classée fait rougir le test.
 ne juge pas la qualité du levier — aucune analyse statique ne le peut. Il garantit seulement
 que **la question a été posée** au moment où l'alerte est apparue. C'est précisément ce qui a
 manqué pendant huit jours.
+
+## ⚠️ Un identifiant de compte s'affiche en personne (oto-dashboard#143)
+
+**Règle transverse, tous écrans.** `set_by` — l'auteur d'une clé de connecteur, d'une
+version de procédure — est un **identifiant de compte** (sub Logto), pas un nom. Il
+s'affiche via `lib/accountLabel.ts` : **nom, à défaut adresse, à défaut l'identifiant**,
+jamais l'inverse. L'annuaire vient des membres d'org/équipe déjà lisibles côté client
+(`org.get` / `group.get`, accessibles à tout membre — ADR 0023), pas d'un appel admin.
+
+**L'incident (2026-09-01).** Les fiches de clé et l'historique des versions rendaient le
+sub brut (`user_…`), lisible par personne. Le premier correctif (branche
+`fix/droits-procedure-et-auteur-lisible`) l'a fait par un composable et un module
+`people.ts` ; la version livrée sur `main` (3f52e57) tient en une fonction pure,
+`accountLabel(sub, members)`, testable sans montage. La carte a un temps cité les noms de
+la branche — corrigé le 2026-09-03.
+
+Le sens du repli n'est pas un détail : le nom est la valeur **nominale**, l'identifiant le
+cas **dégradé** — quelqu'un qui a quitté l'org, ou un geste de plateforme sans compte
+associé — et il se marque comme tel. Inverser l'ordre ferait passer le cas normal pour une
+panne, et la panne pour la normale.

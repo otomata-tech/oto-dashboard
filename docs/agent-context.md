@@ -15,7 +15,9 @@ description: >-
 
 ## Agent readme (ex-« doctrine de base ») — unbundlé des procédures (2026-07)
 
-**Deux objets, deux mots, deux surfaces** (fin du bundle historique de l'écran doctrine) :
+**Deux objets, deux mots, deux surfaces** (fin du bundle historique de l'écran doctrine).
+Seul le **vocabulaire produit** (routes, copy) a changé : les identifiants de code et d'API
+gardent « doctrine » (`Doctrine*View`, `getDoctrine`, `/api/me/instructions*`) :
 - **agent readme** = prose libre **injectée à chaque session** (bloc C backend), **cumulable
   par niveau** : plateforme (`/platform/instructions`) → org (`/org/context`) → équipe
   (`/team/context`, `GroupDoctrineCard`) → user (`/account/agent` + couche « ta note » de

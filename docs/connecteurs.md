@@ -129,8 +129,9 @@ Trois règles, toutes DÉRIVÉES du registre, aucune connaissance d'un connecteu
 2. **Pré-remplir depuis le palier.** `credentialPrefill(provider, scope)` relit les champs
    révélables du credential déjà posé — `member`, `group` ou `org`, admin du palier exigé.
    Un secret ne se relit JAMAIS ; un 404 « rien de posé » est un état, pas une erreur.
-3. **Ne pas renvoyer un secret CONSERVÉ vide.** Le serveur complète les clés ABSENTES et
-   traite une clé PRÉSENTE ET VIDE comme un effacement. Un secret déjà au coffre laissé
+3. **Ne pas renvoyer un secret CONSERVÉ vide.** Depuis le 27/08/2026, le serveur complète
+   les clés ABSENTES et traite une clé PRÉSENTE ET VIDE comme un effacement — renvoyer
+   tout, comme avant, effacerait la clé qu'on voulait garder. Un secret déjà au coffre laissé
    vide est donc OMIS du corps ; les champs non secrets, eux, partent toujours
    (l'utilisateur les voit, en vider un est délibéré). Le dialogue le dit à l'écran.
 
