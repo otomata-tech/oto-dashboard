@@ -54,26 +54,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/atlassian/oauth/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Rend l'URL de consentement à ouvrir pour fédérer atlassian sous mon identité
-         * @description Rend l'URL de consentement à ouvrir pour fédérer atlassian sous mon identité. Rien n'est connecté tant que l'utilisateur n'y est pas passé.
-         */
-        get: operations["me_federation_atlassian_start_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/atlassian/oauth/status": {
         parameters: {
             query?: never;
@@ -205,8 +185,8 @@ export interface paths {
         get: operations["me_datastore_list_namespaces_get"];
         put?: never;
         /**
-         * Crée un tableau (classeur d'org par défaut, d'équipe sur demande).
-         * @description Crée un tableau (classeur d'org par défaut, d'équipe sur demande).
+         * Crée un tableau
+         * @description Crée un tableau. Par défaut il est PERSONNEL (visible de toi seul — ni les autres membres de ton org, ni ses administrateurs) ; passe `owner: {type: "org"|"group", id: N}` pour qu'il appartienne à l'org ou à l'équipe, et soit lisible de tous ses membres.
          */
         post: operations["me_datastore_create_namespace_post"];
         delete?: never;
@@ -601,26 +581,6 @@ export interface paths {
          * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
          */
         get: operations["get_api_folkmcp_oauth_callback"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/folkmcp/oauth/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Rend l'URL de consentement à ouvrir pour fédérer folkmcp sous mon identité
-         * @description Rend l'URL de consentement à ouvrir pour fédérer folkmcp sous mon identité. Rien n'est connecté tant que l'utilisateur n'y est pas passé.
-         */
-        get: operations["me_federation_folkmcp_start_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2012,7 +1972,7 @@ export interface paths {
         post?: never;
         /**
          * Remove a connector from your workspace (back to the library)
-         * @description Remove a connector from your workspace (back to the library). Does not touch credentials, only your selection.
+         * @description Remove a connector from your workspace (back to the library). Does not touch credentials, only your selection. REFUSES (connector_not_selected, 404) if it wasn't in your active selection for this org — it never answers ok on a removal that found nothing.
          */
         delete: operations["connectors_unselect_delete"];
         options?: never;
@@ -2034,6 +1994,46 @@ export interface paths {
          * @description Démarre le flux de connexion déclaré par ce connecteur et renvoie l'URL de consentement à ouvrir. Les valeurs attendues sont décrites par `connect.params` du catalogue.
          */
         post: operations["me_connector_connect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/connectors/{name}/oauth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Révoque mon consentement OAuth pour ce connecteur (atlassian, folkmcp ou google) — chez le fournisseur quand le mécanisme le permet, et dans tous les cas retire la ligne locale
+         * @description Révoque mon consentement OAuth pour ce connecteur (atlassian, folkmcp ou google) — chez le fournisseur quand le mécanisme le permet, et dans tous les cas retire la ligne locale. UN SEUL appel, irréversible : jamais d'état intermédiaire en attente de confirmation. Idempotent : `disconnected: false` veut dire qu'il n'y avait rien à retirer, pas que le retrait a échoué.
+         */
+        delete: operations["me_connector_disconnect_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/connectors/{name}/oauth-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mon consentement OAuth pour ce connecteur (atlassian, folkmcp ou google) est-il posé, et depuis quand — dérivé de la même source que `/api/me`
+         * @description Mon consentement OAuth pour ce connecteur (atlassian, folkmcp ou google) est-il posé, et depuis quand — dérivé de la même source que `/api/me`. `connected: false` avec `set_at: null` est l'état normal d'un compte jamais connecté.
+         */
+        get: operations["me_connector_status_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2171,7 +2171,7 @@ export interface paths {
         put?: never;
         /**
          * Docs (markdown pages tree inside a project; inherit the project's access)
-         * @description Docs (markdown pages tree inside a project; inherit the project's access). **This is also the org KNOWLEDGE BASE**: resolve it with oto_kb → project_id, then read/search/write reference pages here (the dashboard « Documents » zone). Prefer it over the web for org facts (processes, context, conventions), and CAPTURE durable, sourced facts here (kind=source/note) as you learn them. op=create (project_id, title; optional parent_id/body_md/kind) / bulk_create (project_id + `pages`=[{title, body_md?, kind?, parent_index?}] → N pages in ONE call, build a tree via parent_index = an earlier page in the batch) / list (project_id → the page INDEX, build the tree via parent_id: titles and `body_md_length`, NOT the bodies — pick a page here, then op=get it. `fields=["*"]` returns whole pages, `fields=[…]` picks columns) / search (project_id + query → full-text hits {id,title,kind,snippet}: LOCATE a page, then get its content) / get (the whole page, incl. `rev`, an ETag; pass `fields=[…]` to read ONLY those columns — `fields=["id","rev"]` gets the rev for an optimistic patch without paying for the body) / update (title/body_md/kind, full body; snapshots the prior version; pass `expected_rev` from op=get for optimistic conflict detection → 409 if the page changed since) / patch (edit ONE region in place, WITHOUT re-emitting the page — this is how you edit a page too long to re-send: `mode` replace|append|prepend|delete, and ONE target, either `section`=its markdown heading + `body_md` = that section's BODY, WITHOUT repeating the heading (the server keeps it), OR `region="preamble"` = everything ABOVE the first heading (provenance banner, "Last verified" line, front-matter) — it belongs to no section, so no `section` value can ever reach it; that is a SEPARATE axis, never a reserved heading name like "__preamble__" (a page may legitimately have such a heading, and it stays reachable via `section`). Passing both, or neither, is refused. `mode=delete` removes the target INCLUDING its heading (pass no `body_md`) — the only way to drop a heading without rewriting the page; to merely empty a section and keep its heading, use mode=replace with an empty `body_md`. Two authors on different regions don't clobber; every mode honours `expected_rev` and snapshots a revision. SCOPE: a section runs to the next heading of EQUAL-OR-HIGHER level, so its NESTED sub-sections are part of it — replacing OR deleting a `###` also takes its `####` children (the response then lists `removed_subsections`). To keep them, target the sub-heading itself or use mode=append) / A SUCCESSFUL WRITE (create/update/patch/move) returns a RECEIPT, not the page: id, title, `url`, `rev`, `updated_at` and `body_md_length` — you just wrote the body, so it is not replayed back at you. Add `fields=["*"]` if you really want the stored page back, or `fields=[…]` to pick columns. / A page's `description` is a chapô you STORE: leave it out and the index DERIVES one from the first prose line of the body (marked `description_derived`), so it moves with every body edit — that is not an overwrite. Pass `description` explicitly to pin one that stops following the body. / EVERY page carries `url` — the web address to READ it, in the reader's own product. That is the answer to "where is it?": hand it over as-is, never rebuild an address from a pattern. `null` means that reader's product has no such view — then say where it lives (project + title) rather than invent a link. / revisions (doc_id → version history, newest first; each row's `id` is what op=revert takes) / revert (doc_id + `revision_id` from op=revisions → puts that past title+body back). A revert moves FORWARD: the current state is snapshotted first, so nothing is lost and a revert can itself be reverted; the response echoes `reverted_from`. It honours `expected_rev` too — pass it or you may silently overwrite a peer's edit. It restores a VERSION of a page that still exists; it does NOT undo a delete (a deleted page took its revisions with it) / backlinks (doc_id → the pages that CITE this one). LINK PAGES with `[[Exact page title]]` in body_md — that wiki-link is the ONLY thing that creates a backlink (prose mentions, [text](doc:88) and [text](/docs/88) create none). Resolved AT WRITE TIME against the current project then the org KB, case- and edge-space-insensitive; a title that doesn't exist yet is kept as a stub and links itself once the page is created or renamed. ⚠️ That scope is the WHOLE reach, so the graph is not symmetric: a page in the org KB resolves against the KB alone, so it can NEVER link to a page living in a project — while that project page links back to it fine. A page can therefore be cited from the org's top map and still read as an orphan here: do not use backlinks as a completeness or orphan check without knowing that. Every write says which of its `[[…]]` found nothing, under `citations_sans_cible` / request_change (read-only users propose a new body_md/title + message) / list_changes (owner: pending requests) / resolve_change (request_id + accept: true applies it, false rejects) / set_public (public: true → shareable public read-only link to THIS PAGE ALONE: the reader gets its title and body, and nothing else — not the project, not the sibling pages, not this page's own sub-pages, which each need their own link ; false → private ; returns public_url) / delete (removes the page AND its whole subtree, revisions included — irreversible, there is no trash and no undelete. The response says how many pages went with it (`descendants`); ask FIRST with `dry_run: true`, which deletes nothing and returns the same count, whenever a human has to confirm) / move (reparent/reorder in-project via parent_id [null=top-level] + position; OR cross-project via `to_project`=target project id → moves the page AND its subtree there, write required on both). kind ∈ doc|note|source. EMBED A LIVE DATASTORE in a page body with a fenced block ```oto-data<newline><namespace-name-or-id><newline>``` → the viewer renders that datastore's table LIVE (always up to date). Prefer this over a hand-typed summary table when the data lives in a datastore (single source of truth, no drift).
+         * @description Docs (markdown pages tree inside a project; inherit the project's access). **This is also the org KNOWLEDGE BASE**: resolve it with oto_kb → project_id, then read/search/write reference pages here (the dashboard « Documents » zone). Prefer it over the web for org facts (processes, context, conventions), and CAPTURE durable, sourced facts here (kind=source/note) as you learn them. op=create (project_id, title; optional parent_id/body_md/kind) / bulk_create (project_id + `pages`=[{title, body_md?, kind?, parent_index?}] → N pages in ONE call, build a tree via parent_index = an earlier page in the batch) / list (project_id → the page INDEX, build the tree via parent_id: titles and `body_md_length`, NOT the bodies — pick a page here, then op=get it. `fields=["*"]` returns whole pages, `fields=[…]` picks columns) / search (project_id + query → full-text hits {id,title,kind,snippet}: LOCATE a page, then get its content) / get (the whole page, incl. `rev`, an ETag; pass `fields=[…]` to read ONLY those columns — `fields=["id","rev"]` gets the rev for an optimistic patch without paying for the body) / update (title/body_md/kind, full body; snapshots the prior version; pass `expected_rev` from op=get for optimistic conflict detection → 409 if the page changed since) / patch (edit ONE region in place, WITHOUT re-emitting the page — this is how you edit a page too long to re-send: `mode` replace|append|prepend|delete, and ONE target, either `section`=its markdown heading + `body_md` = that section's BODY, WITHOUT repeating the heading (the server keeps it), OR `region="preamble"` = everything ABOVE the first heading (provenance banner, "Last verified" line, front-matter) — it belongs to no section, so no `section` value can ever reach it; that is a SEPARATE axis, never a reserved heading name like "__preamble__" (a page may legitimately have such a heading, and it stays reachable via `section`). Passing both, or neither, is refused. `mode=delete` removes the target INCLUDING its heading (pass no `body_md`) — the only way to drop a heading without rewriting the page; to merely empty a section and keep its heading, use mode=replace with an empty `body_md`. Two authors on different regions don't clobber; every mode honours `expected_rev` and snapshots a revision. SCOPE: a section runs to the next heading of EQUAL-OR-HIGHER level, so its NESTED sub-sections are part of it — replacing OR deleting a `###` also takes its `####` children (the response then lists `removed_subsections`). To keep them, target the sub-heading itself or use mode=append) / A SUCCESSFUL WRITE (create/update/patch/move) returns a RECEIPT, not the page: id, title, `url`, `rev`, `updated_at` and `body_md_length` — you just wrote the body, so it is not replayed back at you. Add `fields=["*"]` if you really want the stored page back, or `fields=[…]` to pick columns. / A page's `description` is a chapô you STORE: leave it out and the index DERIVES one from the first prose line of the body (marked `description_derived`), so it moves with every body edit — that is not an overwrite. Pass `description` explicitly to pin one that stops following the body. / EVERY page carries `url` — the web address to READ it, in the reader's own product. That is the answer to "where is it?": hand it over as-is, never rebuild an address from a pattern. `null` means that reader's product has no such view — then say where it lives (project + title) rather than invent a link. / revisions (doc_id → version history, newest first; each row's `id` is what op=revert takes) / revert (doc_id + `revision_id` from op=revisions → puts that past title+body back). A revert moves FORWARD: the current state is snapshotted first, so nothing is lost and a revert can itself be reverted; the response echoes `reverted_from`. It honours `expected_rev` too — pass it or you may silently overwrite a peer's edit. It restores a VERSION of a page that still exists; it does NOT undo a delete (a deleted page took its revisions with it) / backlinks (doc_id → the pages that CITE this one). LINK PAGES with `[[Exact page title]]` in body_md — that wiki-link is the ONLY thing that creates a backlink (prose mentions, [text](doc:88) and [text](/docs/88) create none). Resolved AT WRITE TIME against the current project then the org KB, case- and edge-space-insensitive; a title that doesn't exist yet is kept as a stub and links itself once the page is created or renamed. ⚠️ That is the reach of RESOLUTION, not of the graph, and they differ BOTH ways. (a) The graph is not symmetric: a page in the org KB resolves against the KB alone, so it can NEVER link to a page living in a project — while that project page links back to it fine (the KB is itself a project, so an ordinary backlink is already cross-project). A page can therefore be cited from the org's top map and still read as an orphan here: do not use backlinks as a completeness or orphan check without knowing that. (b) op=backlinks shows every STORED link whatever its project, including one left behind by a page MOVED between projects — no resolution would make it today, and it disappears, silently, the next time the citing page is written. So a cross-project backlink is not proof that the same `[[…]]`, written now, would resolve. (c) The list is filtered by YOUR access: citations living in projects you cannot read are removed. When that happens the response says `hidden_by_access: true` — « nobody cites this page » and « three pages cite it, you cannot see them » call for opposite moves, so the second is never reported as the first. The COUNT of hidden ones is deliberately not given: it would tell you how many pages exist in projects that are closed to you. Every write says which of its `[[…]]` found nothing, under `citations_sans_cible` / request_change (read-only users propose a new body_md/title + message) / list_changes (owner: pending requests) / resolve_change (request_id + accept: true applies it, false rejects) / set_public (public: true → shareable public read-only link to THIS PAGE ALONE: the reader gets its title and body, and nothing else — not the project, not the sibling pages, not this page's own sub-pages, which each need their own link ; false → private ; returns public_url) / delete (removes the page AND its whole subtree, revisions included — irreversible, there is no trash and no undelete. The response says how many pages went with it (`descendants`); ask FIRST with `dry_run: true`, which deletes nothing and returns the same count, whenever a human has to confirm) / move (reparent/reorder in-project via parent_id [null=top-level] + position; OR cross-project via `to_project`=target project id → moves the page AND its subtree there, write required on both. ⚠️ A move is NOT free for links: the page's own `[[…]]` are re-resolved in the TARGET project (some become stubs), while the links pointing AT it are left stored though now out of reach — they still show in op=backlinks and die on the citing page's next write. After reorganising a tree, rewrite the citing pages and read their `citations_sans_cible`). kind ∈ doc|note|source. EMBED A LIVE DATASTORE in a page body with a fenced block ```oto-data<newline><namespace-name-or-id><newline>``` → the viewer renders that datastore's table LIVE (always up to date). Prefer this over a hand-typed summary table when the data lives in a datastore (single source of truth, no drift).
          */
         post: operations["me_doc_post"];
         delete?: never;
@@ -2873,7 +2873,7 @@ export interface paths {
         put?: never;
         /**
          * Resolve the active org's KNOWLEDGE BASE — a single dedicated project, seeded as "Knowledge base" and freely renamable: it is anchored by project id, so NEVER look it up by name, ca
-         * @description Resolve the active org's KNOWLEDGE BASE — a single dedicated project, seeded as "Knowledge base" and freely renamable: it is anchored by project id, so NEVER look it up by name, call this tool. This is the org-wide Documents space; its pages are managed with oto_doc (tree, versions, public share, change requests). op="get" (default) READS the anchor and returns project_id=null when the org has no knowledge base yet — it never creates one, so opening a Documents view costs the org nothing. op="ensure" resolves it and CREATES it if missing: use it right before writing the first page, not to look.
+         * @description Resolve the active org's KNOWLEDGE BASE — a single dedicated project, seeded as "Knowledge base" and freely renamable: it is anchored by project id, so NEVER look it up by name, call this tool. This is the org-wide Documents space; its pages are managed with oto_doc (tree, versions, public share, change requests). ⚠️ It belongs to the ORG and is visible to EVERY member — « the knowledge base » is never a personal space, whatever the request sounded like. The answer says so in `visible_to`, and `created: true` tells you that YOU just brought a shared project into existence. For something only you can see, make a project instead (`oto_project op=create`, owner_type='user') — if the request said « MY knowledge base », that is the one you want. op="get" (default) READS the anchor and returns project_id=null when the org has no knowledge base yet — it never creates one, so opening a Documents view costs the org nothing. op="create" CREATES the org's shared knowledge base (and re-anchors it if a previous one was archived or moved out of the org); it is idempotent — an org that already has one gets it back with created: false, never a duplicate. Use it right before writing the first page, not to look.
          */
         post: operations["me_kb_post"];
         delete?: never;
@@ -3081,7 +3081,7 @@ export interface paths {
         put?: never;
         /**
          * Projects (organization layer, ADR 0030 owned resource)
-         * @description Projects (organization layer, ADR 0030 owned resource). EVERY project carries `url` — the web address to OPEN it, in the reader's own product; hand it over as-is when asked "where is it?", never rebuild one from a pattern (`null` = that reader's product has no such view). op=create (name, optional brief_md; owner_type user|org + owner_id for a team project) / list (ORG-SCOPED: the ACTIVE org's projects + projects shared with it or with you — pass `org=<id>` to see another org's; every response echoes the effective org in `_org`. An INDEX: names and `brief_md_length`, NOT the briefs — read one with op=get, or pass `fields=["*"]` for whole records) / list_templates (published MODEL projects you can copy) / get (project + its links + an `audit` of those links: dead_links / unbound_slots / inert_procedures — a linked entity that no longer resolves surfaces HERE, act on it) / update (name, icon = an emoji shown in the lists and headers ("" clears it), brief_md, is_template = publish/unpublish as a copyable model, excluded_url_prefixes = URL prefixes such as `linkedin.com/in/` that search tools drop and extraction tools refuse under this project — a whole host must be written `host/*`, `[]` clears) / copy (deep-copy a project you can read — its own or a model — into a NEW project in your active org: brief + doc tree + links + raw files; a tableau link stays a POINTER to the same namespace by default (config.provision absent/`shared`), but with config.provision=`empty`|`seeded` it is PROVISIONED — a FRESH namespace (same schema, rows only if `seeded`) so each copy gets its own isolated table (e.g. a campaign template's lead pool). A `shared` tableau owned by ANOTHER org is re-provisioned EMPTY (never a pointer to the source's private data), and links whose namespace no longer resolves are skipped — both surfaced in the response `warnings`. Pass project_id = source + name = target) / handoff (a copy-paste « resume in Claude » blob that pre-writes the per-call `_project=` token for this project) / archive / link & unlink (attach an entity: target_type tableau|procedure|connecteur + target_ref = its id/slug/name, optional label + optional role = why this entity belongs to the project + optional config = the entity's PRE-MADE per-project override; for a connecteur: {identity_id?, instructions_md?} = which account to act as + prose instructions to apply (e.g. 'only filter agreements by the mutuelle theme'), or `instance_ref` (a ref from oto_instance op=list, ADR 0038 B5) to bind EXACTLY that credential — calls carrying this project's token then resolve it hard, no fallback; for a tableau: {provision?: shared|empty|seeded} = how a project copy treats it (empty/seeded = each copy gets its own fresh table). Optional `slot` = the SLOT NAME this link BINDS for the project (ADR 0035): procedures declare required entities as slots and reference them <slot:name> in their prose — the project maps each name to a concrete entity via its links. Slot names are a PROJECT-wide vocabulary (unique per project → 409 slot_taken; two linked procedures sharing `sortie` share the binding). Re-linking without role/config/slot preserves the existing ones. get/link return each link's role + slot + config + a derived `cross_project` flag (the same entity is linked by another project → avoid brutal edits / ask); a tableau link also returns its resolved `namespace` — address THIS project's table by that name with the data_* tools (never hardcode a namespace). Share & transfer go through oto_resource (resource_type='project') — this includes RE-PARENTING a project in place (same id, links, runs preserved): op=transfer new_owner_group=<id> hands it to a TEAM so the project and its connector credentials sit at the SAME level (the team's secrets then resolve when you open it), new_owner_org=<id> to an org, new_owner_email to a user. (op=update only changes name/icon/brief_md/is_template — never the owner; op=copy makes a NEW id.) inventory = the project's DERIVED surface (union of the linked procedures' <tool:> refs + tools actually used by the project's runs, plus connectors from links & declared slots) — never retype a tool list: derive, then curate. runs (optional target_ref = a linked procedure's stable id) = the project's recent runs (label/guide/outcome), filtered to that procedure when given. OMIT project_id on op=runs and you get YOUR OWN still-open runs instead, each with its `run_id` — that is how you find a run you opened and lost the id of, so you can finally close it with run_finish. Across every org, since a run you cannot find is usually one you opened elsewhere. lint (optional stale_days, default 90) = KB health of this project's pages: stale (untouched since), empty (trivial body), duplicate_titles (likely merges). publish_mcp (mcp_slug + mcp_access anonymous|secret|org + mcp_tools = the fixed tool allowlist) publishes the project as a dedicated MCP endpoint `<mcp_slug>.mcp.oto.cx/mcp`, the toolset served under the OWNER ORG's credentials — `anonymous` = no login + LISTED in the public directory; `secret` = no login but UNLISTED, the slug is server-generated & unguessable (a secret URL; mcp_slug is an optional readable prefix); `org` = Logto JWT + pins the org. For anonymous/secret, tools that aren't credential-less or resolvable for the org are published anyway but FAIL cleanly at call time — they come back in `mcp_unresolvable_tools` (configure an org key or drop them). mcp_expose_datastore (SECRET only) opts the `data_*` tools in: they then act under the OWNER ORG's authority (read/write the org's namespaces) without a login — off by default (the datastore stays private); refused on anonymous/org. unpublish_mcp removes it. get returns mcp_slug/mcp_access/mcp_tools/mcp_expose_datastore/mcp_url.
+         * @description Projects (organization layer, ADR 0030 owned resource). EVERY project carries `url` — the web address to OPEN it, in the reader's own product; hand it over as-is when asked "where is it?", never rebuild one from a pattern (`null` = that reader's product has no such view). op=create (name, optional brief_md; owner_type user|org + owner_id for a team project) / list (ORG-SCOPED: the ACTIVE org's projects + projects shared with it or with you — pass `org=<id>` to see another org's; every response echoes the effective org in `_org`. An INDEX: names and `brief_md_length`, NOT the briefs — read one with op=get, or pass `fields=["*"]` for whole records) / list_templates (published MODEL projects you can copy) / get (project + its links + an `audit` of those links: dead_links / unbound_slots / inert_procedures — a linked entity that no longer resolves surfaces HERE, act on it) / update (name, icon = an emoji shown in the lists and headers ("" clears it), brief_md, is_template = publish/unpublish as a copyable model, excluded_url_prefixes = URL prefixes such as `linkedin.com/in/` that search tools drop and extraction tools refuse under this project — a whole host must be written `host/*`, `[]` clears) / copy (deep-copy a project you can read — its own or a model — into a NEW project in your active org: brief + doc tree + links + raw files; a tableau link stays a POINTER to the same namespace by default (config.provision absent/`shared`), but with config.provision=`empty`|`seeded` it is PROVISIONED — a FRESH namespace (same schema, rows only if `seeded`) so each copy gets its own isolated table (e.g. a campaign template's lead pool). A `shared` tableau owned by ANOTHER org is re-provisioned EMPTY (never a pointer to the source's private data), and links whose namespace no longer resolves are skipped — both surfaced in the response `warnings`. Pass project_id = source + name = target) / handoff (a copy-paste « resume in Claude » blob that pre-writes the per-call `_project=` token for this project) / archive / link & unlink (attach an entity: target_type tableau|procedure|connecteur + target_ref = its id/slug/name, optional label + optional role = why this entity belongs to the project + optional config = the entity's PRE-MADE per-project override; for a connecteur: {identity_id?, instructions_md?} = which account to act as + prose instructions to apply (e.g. 'only filter agreements by the mutuelle theme'), or `instance_ref` (a ref from oto_instance op=list, ADR 0038 B5) to bind EXACTLY that credential — calls carrying this project's token then resolve it hard, no fallback; for a tableau: {provision?: shared|empty|seeded} = how a project copy treats it (empty/seeded = each copy gets its own fresh table). Optional `slot` = the SLOT NAME this link BINDS for the project (ADR 0035): procedures declare required entities as slots and reference them <slot:name> in their prose — the project maps each name to a concrete entity via its links. Slot names are a PROJECT-wide vocabulary (unique per project → 409 slot_taken; two linked procedures sharing `sortie` share the binding). Re-linking without role/config/slot preserves the existing ones. unlink returns `removed` = how many bindings it actually took out, and REFUSES (`link_not_found`) when it matched none — it never answers ok on a link it did not find. Give the `target_ref` as op=get renders it: an older link may still carry the NAME of its tableau (or the SLUG of its procedure) instead of the id, and unlink takes back either spelling. get/link return each link's role + slot + config + a derived `cross_project` flag (the same entity is linked by another project → avoid brutal edits / ask); a tableau link also returns its resolved `namespace` — address THIS project's table by that name with the data_* tools (never hardcode a namespace). Share & transfer go through oto_resource (resource_type='project') — this includes RE-PARENTING a project in place (same id, links, runs preserved): op=transfer new_owner_group=<id> hands it to a TEAM so the project and its connector credentials sit at the SAME level (the team's secrets then resolve when you open it), new_owner_org=<id> to an org, new_owner_email to a user. (op=update only changes name/icon/brief_md/is_template — never the owner; op=copy makes a NEW id.) inventory = the project's DERIVED surface (union of the linked procedures' <tool:> refs + tools actually used by the project's runs, plus connectors from links & declared slots) — never retype a tool list: derive, then curate. runs (optional target_ref = a linked procedure's stable id) = the project's recent runs (label/guide/outcome), filtered to that procedure when given. OMIT project_id on op=runs and you get YOUR OWN still-open runs instead, each with its `run_id` — that is how you find a run you opened and lost the id of, so you can finally close it with run_finish. Across every org, since a run you cannot find is usually one you opened elsewhere. lint (optional stale_days, default 90) = KB health of this project's pages: stale (untouched since), empty (trivial body), duplicate_titles (likely merges). publish_mcp (mcp_slug + mcp_access anonymous|secret|org + mcp_tools = the fixed tool allowlist) publishes the project as a dedicated MCP endpoint `<mcp_slug>.mcp.oto.cx/mcp`, the toolset served under the OWNER ORG's credentials — `anonymous` = no login + LISTED in the public directory; `secret` = no login but UNLISTED, the slug is server-generated & unguessable (a secret URL; mcp_slug is an optional readable prefix); `org` = Logto JWT + pins the org. For anonymous/secret, tools that aren't credential-less or resolvable for the org are published anyway but FAIL cleanly at call time — they come back in `mcp_unresolvable_tools` (configure an org key or drop them). mcp_expose_datastore (SECRET only) opts the `data_*` tools in: they then act under the OWNER ORG's authority (read/write the org's namespaces) without a login — off by default (the datastore stays private); refused on anonymous/org. unpublish_mcp removes it. get returns mcp_slug/mcp_access/mcp_tools/mcp_expose_datastore/mcp_url.
          */
         post: operations["me_project_post"];
         delete?: never;
@@ -3303,7 +3303,7 @@ export interface paths {
         };
         /**
          * SEARCH across everything readable in the active org — one query, ranked together: project pages & briefs (passages with highlighted fragment), procedures, guides, containers by nam
-         * @description SEARCH across everything readable in the active org — one query, ranked together: project pages & briefs (passages with highlighted fragment), procedures, guides, containers by name (tableaux, files, connectors), AND datastore ROWS by content (kind=ligne — find the row where a value appears, not just the table's name). Lexical (French stemming, accent-insensitive); reformulate with the exact words if 0 hits. `scope='project'`+`project=<id>` narrows to one project. `kinds` filters (page|brief|procedure|guide|tableau|ligne|fichier|connecteur). SEARCH when you know what you're looking for; NAVIGATE (oto_project op=get include=['spine']) when the question is structural. Then open the hit: oto_doc op=get (page), data_rows (tableau/ligne), oto_procedure op=get.
+         * @description SEARCH across everything readable in the active org — one query, ranked together: project pages & briefs (passages with highlighted fragment), procedures, guides, containers by name (tableaux, files, connectors), AND datastore ROWS by content (kind=ligne — find the row where a value appears, not just the table's name). Lexical (French stemming, accent-insensitive); reformulate with the exact words if 0 hits. `scope='project'`+`project=<id>` narrows to one project. `count` is what this response holds; when the cut bit, `total` says how many were FOUND and `truncated` is true — 20 hits out of 300 must not read as « that is all there is ». `kinds` filters (page|brief|procedure|guide|tableau|ligne|fichier|connecteur). SEARCH when you know what you're looking for; NAVIGATE (oto_project op=get include=['spine']) when the question is structural. Then open the hit: oto_doc op=get (page), data_rows (tableau/ligne), oto_procedure op=get.
          */
         get: operations["me_search_get"];
         put?: never;
@@ -7983,6 +7983,8 @@ export interface components {
             owner_type: string;
             /** Owner Id */
             owner_id: string;
+            /** Visible To */
+            visible_to: string;
             /**
              * Context Org Id
              * @default null
@@ -8363,10 +8365,22 @@ export interface components {
             pending_action: string | null;
             /**
              * Rbac Restricted
-             * @description Une règle d'org ou d'équipe refuse ce connecteur à cet acteur. ⚠️ À ne pas confondre avec `mode='forbidden'`, qui dit seulement qu'aucune clé ne résout : afficher « réservé à certaines équipes » sur une simple absence de clé oppose un mur à quelqu'un que rien ne bloque. ⚠️ Fail-open : un incident de lecture rend `false`, jamais une restriction inventée — une absence de restriction annoncée ne prouve donc pas l'accès.
+             * @description Une règle d'org ou d'équipe refuse ce connecteur à cet acteur. ⚠️ À ne pas confondre avec `mode='forbidden'`, qui dit seulement qu'aucune clé ne résout : afficher « réservé à certaines équipes » sur une simple absence de clé oppose un mur à quelqu'un que rien ne bloque. ⚠️ Fail-open : un incident de lecture rend `false`, jamais une restriction inventée — une absence de restriction annoncée ne prouve donc pas l'accès. Ce cas-là n'est plus muet : il pose `rbac_restricted_measured: false` juste en dessous.
              * @default false
              */
             rbac_restricted: boolean;
+            /**
+             * Rbac Restricted Measured
+             * @description La règle ci-dessus a-t-elle été LUE ? Absent = oui. `false` = non (hoquet de base sur le palier org ou équipe) : `rbac_restricted` vaut alors `false` par DÉFAUT et non par constat — « on n'a pas su » et « rien ne te restreint » sortiraient sinon du même booléen (oto#42, règle 1). ⚠️ Jamais posé sur une entrée `rbac_restricted: true` : un refus reste établi même si l'autre palier est tombé, l'union des refus ne pouvant que croître.
+             * @default null
+             */
+            rbac_restricted_measured: boolean | null;
+            /**
+             * Rbac Restricted Hint
+             * @description Quel palier n'a pas répondu et quoi en faire, en clair — présent exactement quand `rbac_restricted_measured` est `false`. ⚠️ Il dit aussi que l'accès n'est pas ouvert pour autant : l'enforcement au moment de l'appel (`require_connector_access`) refuse indépendamment de cette fiche.
+             * @default null
+             */
+            rbac_restricted_hint: string | null;
             /**
              * Health Ko
              * @description La clé est posée mais le connecteur ne répond plus (session expirée, jeton révoqué…), constaté par la sonde de vérification et **persistant** jusqu'à une reconnexion ou un test réussi. Absent tant que rien n'a été constaté.
@@ -9249,6 +9263,12 @@ export interface components {
              */
             delegated_token: string | null;
             /**
+             * Model Key
+             * @description The MODEL PROVIDER KEY this job's organisation deposited, returned by op=claim only, when the worker named a deposit it can consume. Use it for this job's model calls instead of your own environment key, then drop it — it is the org's secret, not yours, and it is never written to a log or a thread. Absent means the org deposited none: fall back to the platform key.
+             * @default null
+             */
+            model_key: string | null;
+            /**
              * Delegation Refusee
              * @description WHY this job cannot run: the account that scheduled it no longer exists, or no longer holds a role in that organisation. The job is already marked failed with this reason — do NOT retry it, and do not silently drop it either: report the reason. An agent whose identity is no longer valid stops SAYING SO.
              * @default null
@@ -9750,47 +9770,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-        };
-    };
-    me_federation_atlassian_start_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Auth Url */
-                        auth_url: string;
-                    };
-                };
-            };
-            /** @description jeton absent ou invalide */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
             };
         };
     };
@@ -11470,7 +11449,7 @@ export interface operations {
                     email?: string;
                     /**
                      * Permission
-                     * @default write
+                     * @default read
                      */
                     permission?: string;
                 };
@@ -11717,47 +11696,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-        };
-    };
-    me_federation_folkmcp_start_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Auth Url */
-                        auth_url: string;
-                    };
-                };
-            };
-            /** @description jeton absent ou invalide */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
             };
         };
     };
@@ -15844,6 +15782,18 @@ export interface operations {
                     "application/json": components["schemas"]["Erreur"];
                 };
             };
+            /** @description `connector_not_selected` — le connecteur n'est pas dans ta sélection active pour cette org : déjà retiré, jamais installé ici, ou installé sous une autre org active */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "connector_not_selected";
+                    };
+                };
+            };
         };
     };
     me_connector_connect_post: {
@@ -15910,6 +15860,133 @@ export interface operations {
                 };
             };
             /** @description refus d'autorisation (ou hors portée du jeton) ; `connector_restricted` — une règle d'org ou d'équipe interdit ce connecteur à cet acteur */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    me_connector_disconnect_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                        /** Disconnected */
+                        disconnected: boolean;
+                    };
+                };
+            };
+            /** @description `no_oauth_status` — ce connecteur n'a pas d'état OAuth fédéré générique (hors atlassian/folkmcp/google) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "no_oauth_status";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    me_connector_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Connected */
+                        connected: boolean;
+                        /**
+                         * Set At
+                         * @default null
+                         */
+                        set_at: string | null;
+                        /**
+                         * Health Ko
+                         * @default null
+                         */
+                        health_ko: boolean | null;
+                        /**
+                         * Health Reason
+                         * @default null
+                         */
+                        health_reason: string | null;
+                    };
+                };
+            };
+            /** @description `no_oauth_status` — ce connecteur n'a pas d'état OAuth fédéré générique (hors atlassian/folkmcp/google) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "no_oauth_status";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -17155,7 +17232,7 @@ export interface operations {
             query?: {
                 slug?: string | null;
                 doctrine_id?: number | null;
-                scope?: string;
+                scope?: string | null;
                 version?: number | null;
                 with_history?: boolean;
             };
@@ -17448,6 +17525,8 @@ export interface operations {
                         invitations: components["schemas"]["InboxInvitation"][];
                         /** Recent */
                         recent: components["schemas"]["InboxRecent"][];
+                        /** Recent Total */
+                        recent_total: number;
                         /** Count */
                         count: number;
                     };
@@ -17552,6 +17631,7 @@ export interface operations {
                     slug: string;
                     /**
                      * Body Md
+                     * @description Corps markdown, au plus 131072 OCTETS UTF-8 — au-delà : 400 `body_too_large`, qui donne le poids atteint et la borne. `maxLength` compte des CARACTÈRES : nécessaire, pas suffisant — un accent pèse deux octets, un trait de schéma (`─│┌┘`) trois.
                      * @default null
                      */
                     body_md?: string | null;
@@ -17784,6 +17864,7 @@ export interface operations {
                 "application/json": {
                     /**
                      * Body Md
+                     * @description Corps markdown, au plus 131072 OCTETS UTF-8 — au-delà : 400 `body_too_large`, qui donne le poids atteint et la borne. `maxLength` compte des CARACTÈRES : nécessaire, pas suffisant — un accent pèse deux octets, un trait de schéma (`─│┌┘`) trois.
                      * @default null
                      */
                     body_md?: string | null;
@@ -18557,7 +18638,7 @@ export interface operations {
                      * @default get
                      * @enum {string}
                      */
-                    op?: "get" | "ensure";
+                    op?: "get" | "create" | "ensure";
                 };
             };
         };
@@ -18575,6 +18656,10 @@ export interface operations {
                         name: string;
                         /** Brief Md */
                         brief_md: string;
+                        /** Visible To */
+                        visible_to: string;
+                        /** Created */
+                        created: boolean;
                     };
                 };
             };
@@ -20155,6 +20240,11 @@ export interface operations {
                      */
                     fleet_id?: number | null;
                     /**
+                     * Provider
+                     * @default null
+                     */
+                    provider?: string | null;
+                    /**
                      * Lease Seconds
                      * @default 600
                      */
@@ -20578,6 +20668,21 @@ export interface operations {
                          * @default null
                          */
                         hint: string | null;
+                        /**
+                         * Total
+                         * @default null
+                         */
+                        total: number | null;
+                        /**
+                         * Truncated
+                         * @default null
+                         */
+                        truncated: boolean | null;
+                        /**
+                         * Hint Truncated
+                         * @default null
+                         */
+                        hint_truncated: string | null;
                     };
                 };
             };
@@ -20721,6 +20826,12 @@ export interface operations {
                      * @default null
                      */
                     scopes?: unknown;
+                    /**
+                     * Ttl Days
+                     * @description Nombre de jours avant échéance. Absent ou non numérique ⇒ le jeton n'expire PAS — et rien ne le rappellera ensuite.
+                     * @default null
+                     */
+                    ttl_days?: number | string | null;
                 };
             };
         };
@@ -20746,6 +20857,11 @@ export interface operations {
                         scopes: {
                             [key: string]: unknown;
                         } | null;
+                        /**
+                         * Ttl Days
+                         * @default null
+                         */
+                        ttl_days: number | null;
                     };
                 };
             };
@@ -24384,7 +24500,7 @@ export interface operations {
                     role?: ("viewer" | "editor" | "manager") | null;
                     /**
                      * Permission
-                     * @default write
+                     * @default read
                      * @enum {string}
                      */
                     permission?: "read" | "write";
@@ -24545,7 +24661,7 @@ export interface operations {
                     role?: ("viewer" | "editor" | "manager") | null;
                     /**
                      * Permission
-                     * @default write
+                     * @default read
                      * @enum {string}
                      */
                     permission?: "read" | "write";
