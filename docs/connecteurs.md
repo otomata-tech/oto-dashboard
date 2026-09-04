@@ -322,15 +322,32 @@ une carte par niveau du level-switch :
 
 ## Fédération MCP (otomata#16)
 
-`ConnectorsView.vue` porte la carte « federated mcp » (connect/disconnect d'un compte
-fédéré per-user, OAuth via `/api/<connecteur>/oauth/*` — `getFederatedStatus`/
-`startFederatedOauth`/`disconnectFederated`, variante de widget `oauth_federated`).
-Connecteurs concernés : atlassian, folkmcp.
+`ConnectorFederatedWidget.vue` porte la carte « federated mcp » (connect/disconnect d'un
+compte fédéré per-user, OAuth via `/api/<connecteur>/oauth/*` — `getFederatedStatus`/
+`disconnectFederated`, variante de widget `oauth_federated`). Connecteurs concernés :
+atlassian, folkmcp. ⚠️ `startFederatedOauth` n'existe plus (le `link()` du widget passe
+par `startConnectorFlow`, chemin fixe générique — commit `433d563`, 01/09/2026) ; la
+capacité backend correspondante a été retirée le 04/09/2026 (oto-dashboard#125, mesurée
+à 0 appel/30j).
 
 > **Connecteur memento retiré (2026-07-30).** Produit décommissionné : `MementoView.vue`,
 > les appels `/api/memento/*`, les types `Memento*` et la clé `me.memento` ont été
 > supprimés ; `MementoStatus` est devenu `FederatedStatus` (le type était déjà partagé
 > par le flux fédéré générique). La mémoire est native : zone Documents / `oto_kb`.
+
+### Retour OAuth : la fiche dit enfin l'échec (oto-backend#670, 04/09/2026)
+
+Les 5 connecteurs OAuth (salesforce, zoho, atlassian, folkmcp, google) redirigent
+désormais vers `/connectors` avec `?connector=<nom>&connect=connected|error|forbidden`
+(convention unique, un seul fabricant côté backend — avant ce lot, cinq formes
+différentes, dont deux replis cassés qui ne distinguaient jamais succès et échec).
+`ConnectorsHubView.vue` lit `connect` au montage (`lib/oauthReturn.ts::oauthReturnToast`,
+pur — testé isolément) et rend un toast : confirmation sur `connected`, message distinct
+sur `forbidden` (droits perdus entre le départ et le retour) et `error` (échec générique,
+réessayer depuis la fiche). Avant ce lot, un échec de consentement ne disait RIEN :
+le widget retombait en silence sur « not connected », indiscernable d'un abandon
+volontaire. `connect` est retiré de l'URL après lecture (`router.replace`) ; `connector`
+reste (deep-link marketplace existant, `ConnectorLibraryView`).
 
 ## Connecteurs & procédures — point d'entrée à onglets (découverte fusionnée)
 
