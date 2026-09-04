@@ -323,17 +323,32 @@ une carte par niveau du level-switch :
 ## Fédération MCP (otomata#16)
 
 `ConnectorFederatedWidget.vue` porte la carte « federated mcp » (connect/disconnect d'un
-compte fédéré per-user, OAuth via `/api/<connecteur>/oauth/*` — `getFederatedStatus`/
-`disconnectFederated`, variante de widget `oauth_federated`). Connecteurs concernés :
-atlassian, folkmcp. ⚠️ `startFederatedOauth` n'existe plus (le `link()` du widget passe
-par `startConnectorFlow`, chemin fixe générique — commit `433d563`, 01/09/2026) ; la
-capacité backend correspondante a été retirée le 04/09/2026 (oto-dashboard#125, mesurée
-à 0 appel/30j).
+compte fédéré per-user). Connecteurs concernés : atlassian, folkmcp. **Les trois verbes
+sont désormais sur un chemin fixe qui ne nomme pas le connecteur** (oto-dashboard#125,
+items 1-3, bouclés le 04/09/2026) :
+- démarrer (`startConnectorFlow`, chemin fixe générique — commit `433d563`, 01/09) ;
+- lire l'état (`getFederatedStatus` → `GET /api/me/connectors/{name}/oauth-status`,
+  type `ConnectorOAuthStatus`) — dérivé côté backend de la MÊME source que `/api/me`,
+  jamais une seconde vérité ; porte `health_ko`/`health_reason` (oto#25 lot a) : le
+  widget affiche désormais un état « connexion rejetée » distinct quand un grant est
+  mort mais que la ligne existe encore (avant, `connected` restait vrai sans rien dire) ;
+  bouton « Reconnect » dans ce cas plutôt que « Disconnect » ;
+- déconnecter (`disconnectFederated` → `DELETE /api/me/connectors/{name}/oauth`, type
+  `ConnectorOAuthDisconnected`) — révoque chez le fournisseur puis retire la ligne
+  locale en un seul appel, irréversible (décision d'Alexis).
+
+Les anciennes routes nommées (`/api/{atlassian,folkmcp}/oauth/{start,status}`,
+`DELETE /api/{atlassian,folkmcp}/oauth`) sont retirées côté backend : `start` le
+04/09 (mesuré à 0 appel/30j) ; `status`/`disconnect` restent SERVIS un temps
+(`me.federation.{atlassian,folkmcp}.status/.disconnect`, capacités `me.federation.*`
+non retirées) le temps qu'un éventuel autre consommateur bascule, mais ce dashboard ne
+les appelle plus. Google reste à part (`getGoogleStatus`/`revokeGoogle`, bespoke,
+`/api/google/oauth/*`) : multi-compte, sans équivalent générique dans ce lot.
 
 > **Connecteur memento retiré (2026-07-30).** Produit décommissionné : `MementoView.vue`,
 > les appels `/api/memento/*`, les types `Memento*` et la clé `me.memento` ont été
-> supprimés ; `MementoStatus` est devenu `FederatedStatus` (le type était déjà partagé
-> par le flux fédéré générique). La mémoire est native : zone Documents / `oto_kb`.
+> supprimés ; `MementoStatus` est devenu `FederatedStatus`, elle-même retirée le
+> 04/09/2026 au profit du type générique `ConnectorOAuthStatus` ci-dessus.
 
 ### Retour OAuth : la fiche dit enfin l'échec (oto-backend#670, 04/09/2026)
 

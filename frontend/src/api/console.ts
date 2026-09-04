@@ -12,7 +12,7 @@ import type {
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption,
   ColumnFilter, DatastoreRow, DatastoreSchema, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
-  FederatedStatus, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
+  ConnectorOAuthStatus, ConnectorOAuthDisconnected, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult,
   FieldRule, FieldFiltersBundle, OrgConnectorActivation,
   EmailSettingsBundle, EmailSender, QuietHours, ScheduledEmail,
@@ -173,14 +173,16 @@ export const setGoogleDefault = (account: string) =>
 export const revokeGoogle = (account?: string) =>
   api(`/api/google/oauth${account ? `?account=${encodeURIComponent(account)}` : ''}`, { method: 'DELETE' })
 
-// ── MCP fédéré générique, par connecteur (#40 — atlassian & co.) ──
-// `status`/`disconnect` restent sur le chemin nommé par connecteur : leur forme
-// diffère d'un connecteur à l'autre (Google est multi-compte, les fédérations MCP
-// rendent {connected, set_at}) et leur équivalent générique reste à cadrer avec le
-// backend (oto-dashboard#125, item 2). Démarrer le flux, lui, n'a plus besoin d'un
-// chemin par connecteur — `startConnectorFlow` ci-dessous le fait pour tous.
-export const getFederatedStatus = (name: string) => api<FederatedStatus>(`/api/${name}/oauth/status`)
-export const disconnectFederated = (name: string) => api(`/api/${name}/oauth`, { method: 'DELETE' })
+// ── MCP fédéré générique, par connecteur (#40 — atlassian, folkmcp) ──
+// Chemin FIXE (oto-dashboard#125 items 2/3) : le connecteur voyage en paramètre,
+// jamais dans le chemin — symétrique de `startConnectorFlow`. Statut dérivé côté
+// backend de la MÊME source que `/api/me` (jamais une seconde vérité). Google reste
+// à part (`getGoogleStatus`/`revokeGoogle` ci-dessus) : multi-compte, la richesse
+// (liste des comptes, révocation d'UN compte nommé) n'a pas d'équivalent générique.
+export const getFederatedStatus = (name: string) =>
+  api<ConnectorOAuthStatus>(`/api/me/connectors/${encodeURIComponent(name)}/oauth-status`)
+export const disconnectFederated = (name: string) =>
+  api<ConnectorOAuthDisconnected>(`/api/me/connectors/${encodeURIComponent(name)}/oauth`, { method: 'DELETE' })
 
 // ── connexion « server-based » via flux déclaré (zoho, salesforce, atlassian,
 // folkmcp, google…) ──

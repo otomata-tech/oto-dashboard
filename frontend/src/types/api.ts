@@ -763,11 +763,17 @@ export interface ApiToken {
   last_used_at: string | null
 }
 
-// MCP fédéré (otomata#16) — statut de connexion OAuth per-user (ex. atlassian).
-export interface FederatedStatus {
-  connected: boolean
-  set_at: string | null
-}
+// Statut OAuth fédéré GÉNÉRIQUE (oto-dashboard#125 items 2/3) — chemin fixe
+// `GET /api/me/connectors/{name}/oauth-status`, dérivé par le backend de la MÊME
+// source que `/api/me` (jamais un second appel qui pourrait diverger). Couvre
+// atlassian/folkmcp/google — `health_ko`/`health_reason` (oto#25 lot a) sont `null`
+// tant que rien n'a été constaté, jamais `false` : ce contrat ne sait pas confirmer
+// une santé bonne, seulement en rapporter le rejet, une fois écrit.
+export type ConnectorOAuthStatus = ApiOut<'me_connector_status_get'>
+// `DELETE /api/me/connectors/{name}/oauth` — révoque chez le fournisseur quand le
+// mécanisme le permet, retire TOUJOURS la ligne locale en un seul appel (jamais
+// d'état intermédiaire). `disconnected: false` = rien à retirer, pas un échec.
+export type ConnectorOAuthDisconnected = ApiOut<'me_connector_disconnect_delete'>
 
 // Datastore (ADR 0016 + primitive d'ownership ADR 0030) — un namespace possédé ou partagé.
 // ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`NamespaceEntry` :
