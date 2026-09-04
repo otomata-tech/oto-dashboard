@@ -37,14 +37,16 @@ vi.mock('@/composables/useMe', () => ({
 }))
 
 const DESTINATAIRES = [
+  // ⚠️ `accounts: 2` — cette adresse porte DEUX comptes, fusionnés en une ligne par
+  // le serveur. C'est l'état qui a produit le doublon vu le 2026-09-04.
   { sub: 'a', email: 'a@x.com', name: null, created_at: '2026-08-01 00:00:00',
     calls: 0, last_seen_at: null, previous_outreach: 0, locale: null,
     served_locale: 'en', locale_source: 'default', email_domain: 'x.com',
-    sent: null, reason: null },
+    accounts: 2, sent: null, reason: null },
   { sub: 'b', email: 'b@y.fr', name: null, created_at: '2026-08-02 00:00:00',
     calls: 0, last_seen_at: null, previous_outreach: 0, locale: 'fr',
     served_locale: 'fr', locale_source: 'declared', email_domain: 'y.fr',
-    sent: null, reason: null },
+    accounts: 1, sent: null, reason: null },
 ]
 const BASE = {
   op: 'audience', campaign: 'c', recipients: DESTINATAIRES, total: 2, selected: 2,
@@ -121,6 +123,53 @@ beforeEach(() => {
   api.getOutreachJournal.mockResolvedValue({ ...BASE, log: [] })
   api.getOutreachOptouts.mockResolvedValue({ ...BASE, optouts: [] })
   confirmAction.mockResolvedValue(true)
+})
+
+describe('AdminOutreachView — le message est pré-rempli, pas armé', () => {
+  it('ouvre sur un brouillon rédigé dans chaque langue servie', async () => {
+    // On n'ouvre pas cet écran sur une page blanche : le texte est là, à relire.
+    const v = await monte()
+    saisir(v.host, 'onboarding', 'onboarding-2026-09')
+    await settle()
+    bouton(v.host, 'Voir l\'audience')!.click()
+    await settle()
+    const blocs = blocsLangue(v.host)
+    expect(blocs.length).toBeGreaterThan(0)
+    for (const b of blocs) {
+      expect((b.querySelector('input') as HTMLInputElement).value.trim()).not.toBe('')
+      expect((b.querySelector('textarea') as HTMLTextAreaElement).value.trim())
+        .not.toBe('')
+    }
+    v.done()
+  })
+
+  it('un texte pré-rempli n\'arme PAS l\'envoi — l\'essai reste devant', async () => {
+    // Le risque d'un brouillon est qu'il fasse croire la campagne prête. Le verrou
+    // qui compte est l'essai REÇU, et le contenu ne l'ouvre pas.
+    const v = await monte()
+    saisir(v.host, 'onboarding', 'onboarding-2026-09')
+    await settle()
+    bouton(v.host, 'Voir l\'audience')!.click()
+    await settle()
+    expect(bouton(v.host, 'Envoyer à')!.disabled).toBe(true)
+    expect(v.host.textContent).not.toContain('Essai reçu pour ce texte')
+    v.done()
+  })
+
+  it('deux comptes sur une adresse : une seule ligne, et la fusion se DIT', async () => {
+    // Le doublon du 2026-09-04. La ligne existe une fois, et l'opérateur lit
+    // pourquoi — une fusion muette se lirait comme un filtre qui a trop mordu.
+    const v = await monte()
+    saisir(v.host, 'onboarding', 'onboarding-2026-09')
+    await settle()
+    bouton(v.host, 'Voir l\'audience')!.click()
+    await settle()
+    const lignes = [...v.host.querySelectorAll('tbody tr')]
+      .filter((tr) => tr.textContent?.includes('a@x.com'))
+    expect(lignes.length).toBe(1)
+    expect(lignes[0]!.textContent).toContain('2 comptes sur cette adresse')
+    v.done()
+  })
 })
 
 describe('AdminOutreachView — l\'écran ne saute aucun verrou', () => {

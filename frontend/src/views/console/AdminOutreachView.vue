@@ -12,6 +12,10 @@
 //   2. **Pas de doublon** — index unique `(campagne, compte)`, écrit AVANT l'envoi.
 //      L'écran affiche `previous_outreach` pour que l'opérateur sache qu'il écrit à
 //      quelqu'un une seconde fois ; c'est la base qui refuse, pas nous.
+//      ⚠️ Cet index ne voit que le COMPTE. Ce qui reçoit le message est une BOÎTE
+//      MAIL, et un humain peut s'être inscrit deux fois : c'est la LECTURE de
+//      l'audience qui regroupe par adresse, et `accounts` sur une ligne dit combien
+//      de comptes y ont fusionné.
 //   3. **Rien ne part avant un essai REÇU** pour ce contenu exact et pour CHAQUE
 //      langue servie. L'écran n'arme donc `Envoyer` qu'une fois l'essai constaté par
 //      le serveur — et **toute retouche du texte invalide l'aperçu**, donc l'essai.
@@ -43,7 +47,7 @@ import {
 } from '@/api/console'
 import { explain } from '@/lib/errors'
 import {
-  BLOCKER_MESSAGE, emptyContent, sendBlockers, servedLocales, untestedLocales,
+  BLOCKER_MESSAGE, defaultContent, sendBlockers, servedLocales, untestedLocales,
   type Locale, type SendState,
 } from '@/lib/outreach'
 import { OUTREACH_MAX_ENVOI } from '@/types/api'
@@ -75,7 +79,12 @@ const dormantDays = ref(30)
 // DÉCLARÉE d'un compte prime toujours dessus (le serveur la résout, pas nous). Ce
 // choix appartient à l'opérateur — rien ne le déduit de l'adresse.
 const defaultLocale = ref<Locale>('en')
-const content = ref(emptyContent())
+// ⚠️ **Pré-rempli, pas verrouillé.** On n'ouvre pas cet écran sur une page blanche :
+// le brouillon (`lib/outreach.ts`) est là pour être relu et réécrit dans le champ,
+// et il porte l'origine de chacune de ses phrases. Le pré-remplir ne rapproche
+// personne d'un envoi — les verrous sont derrière (aperçu, essai reçu, confirmation
+// du nombre), et toute retouche du texte les re-arme.
+const content = ref(defaultContent())
 const onlyRaw = ref('')
 
 // ── ce que le serveur a répondu ──────────────────────────────────────────────

@@ -16,7 +16,7 @@ function compte(over: Partial<OutreachRow> = {}): OutreachRow {
     sub: 'u1', email: 'a@b.com', name: null, created_at: '2026-08-01 00:00:00',
     calls: 0, last_seen_at: null, previous_outreach: 0,
     locale: null, served_locale: 'en', locale_source: 'default',
-    email_domain: 'b.com', sent: null, reason: null, ...over,
+    email_domain: 'b.com', accounts: 1, sent: null, reason: null, ...over,
   }
 }
 

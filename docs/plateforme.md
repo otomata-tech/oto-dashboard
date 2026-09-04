@@ -55,7 +55,7 @@ cinq verrous vivent au serveur** ; le travail du front est de les rendre lisible
 | verrou | où il vit | ce que l'écran en fait |
 |---|---|---|
 | tenant partenaire écarté | la requête SQL elle-même | rien — il n'y a pas de case à cocher, et c'est voulu |
-| pas de doublon | index unique `(campagne, compte)`, écrit **avant** l'envoi | affiche `previous_outreach` pour qu'on sache qu'on écrit une 2ᵉ fois |
+| pas de doublon | index unique `(campagne, compte)`, écrit **avant** l'envoi — **plus** le regroupement de l'audience par **boîte mail** à la lecture | affiche `previous_outreach` pour qu'on sache qu'on écrit une 2ᵉ fois, et `accounts` quand des comptes ont fusionné |
 | essai reçu avant tout envoi | `send` refuse sans essai de **cette empreinte**, pour **chaque** langue servie | n'arme `Envoyer` qu'après constat du serveur, et **re-verrouille dès qu'un caractère change** |
 | nombre annoncé = nombre confirmé | `send` sans `confirm` refuse en donnant N ; un N qui ne colle plus refuse | la confirmation dit N, et c'est ce même N qui part |
 | lien de désinscription | posé par le serveur dans chaque message | le dit, et signale que l'**aperçu** n'en porte pas (il n'a pas de destinataire) |
@@ -67,6 +67,25 @@ pures, et son spec fixe le SENS de chaque refus ; `AdminOutreachView.spec.ts` co
 câblage qu'aucun type ne protège (la retouche qui re-verrouille, le N confirmé,
 la confirmation refusée qui n'envoie rien, les boutons **omis** — jamais grisés — pour qui
 n'a pas le droit d'envoyer).
+
+⚠️ **Une ligne = une BOÎTE MAIL, pas un compte** (corrigé le 2026-09-04). L'audience a
+affiché deux fois la même personne : elle s'était inscrite deux fois avec la même adresse,
+deux `sub`, deux lignes — donc deux mails dans une seule boîte. **L'index unique
+`(campagne, compte)` ne pouvait rien y voir** : les comptes sont distincts, la contrainte
+n'était pas violée. Le serveur regroupe désormais l'audience par adresse et sert une ligne
+par boîte ; `accounts > 1` s'affiche sous l'adresse (« 2 comptes sur cette adresse — un seul
+message »), parce qu'une **fusion muette** ferait lire une audience rétrécie comme un filtre
+qui a trop mordu. Détail et mesures : `oto-backend/docs/relance-comptes.md`.
+
+⚠️ **Le message est PRÉ-REMPLI** : `defaultContent()` (`lib/outreach.ts`) sert un brouillon
+dans les deux langues plutôt qu'une page blanche. Deux choses à tenir :
+
+- **la copy ne s'invente pas** — chaque phrase du brouillon porte sa source dans le
+  commentaire de la fonction (site `i18n.ts`, locales de la console), et ce qui a été écrit
+  pour cette relance est marqué comme tel. La voix est celle du funnel : **vouvoiement +
+  minuscules**, pas le tutoiement de la console ;
+- **pré-rempli n'est pas armé** : le contenu ne lève aucun verrou. Sans aperçu ni essai reçu,
+  `Envoyer` reste fermé, et `AdminOutreachView.spec.ts` le fixe.
 
 **Sur la langue, on ne devine pas.** Le seul signal est `users.locale`, la préférence d'UI
 déclarée dans le dashboard ; elle prime toujours. Pour tout le reste, c'est `default_locale`,

@@ -13,6 +13,12 @@
 // confondues. Il n'empêche rien par lui-même — c'est l'index unique
 // `(campagne, compte)` du serveur qui interdit le doublon — mais il dit à
 // l'opérateur qu'il s'apprête à écrire une deuxième fois à quelqu'un.
+//
+// ⚠️ **Une ligne = une BOÎTE MAIL, pas un compte.** Un humain peut s'être inscrit
+// deux fois avec la même adresse ; le serveur fusionne alors ses comptes en une
+// ligne, faute de quoi il recevrait deux fois le même message dans la même boîte.
+// `accounts > 1` le DIT à l'écran : une fusion silencieuse ferait lire une audience
+// rétrécie comme un filtre qui a trop mordu.
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
 import Notice from '@/components/console/Notice.vue'
@@ -50,7 +56,7 @@ function parLangue(): string {
          lignes servies ne disent pas s'il en reste 3 ou 3 000, et il croirait sa
          campagne finie. On dit les deux nombres, toujours. -->
     <Notice v-if="truncated" tone="warn" class="pad">
-      L'audience compte {{ total }} comptes, cette page en porte {{ selected }}.
+      L'audience compte {{ total }} personnes, cette page en porte {{ selected }}.
       C'est {{ selected }} qui partiront, et le reste attendra un envoi suivant.
     </Notice>
 
@@ -64,7 +70,7 @@ function parLangue(): string {
     <table v-if="rows.length" class="tbl">
       <thead>
         <tr>
-          <th>Compte</th><th>Créé</th><th class="num">Appels</th>
+          <th>Personne</th><th>Créé</th><th class="num">Appels</th>
           <th>Dernier signe</th><th>Langue</th><th class="num">Relances</th>
           <th v-if="showOutcome">Envoi</th>
         </tr>
@@ -74,6 +80,8 @@ function parLangue(): string {
           <td>
             <span class="who">{{ r.name || r.email || r.sub }}</span>
             <span v-if="r.name && r.email" class="dim2">{{ r.email }}</span>
+            <span v-if="r.accounts > 1" class="dim2 merged">
+              {{ r.accounts }} comptes sur cette adresse — un seul message</span>
           </td>
           <td class="mono">{{ fmtDay(r.created_at) ?? '—' }}</td>
           <td class="num">{{ r.calls }}</td>
@@ -109,4 +117,6 @@ function parLangue(): string {
 /* Un compte déjà relancé se remarque : le serveur l'écartera peut-être, mais c'est
    l'opérateur qui doit savoir qu'il écrit une seconde fois. */
 .warnnum { color: var(--color-saffron-ink, var(--color-ink)); font-weight: 700; }
+/* La fusion se voit : deux inscriptions, une boîte, un seul mail. */
+.merged { color: var(--color-mute); }
 </style>

@@ -34,6 +34,75 @@ export function emptyContent(): OutreachContent {
     cta_label_fr: '', cta_label_en: '', cta_url: '' }
 }
 
+/** Où mène le bouton : la console, où « prochaine étape » attend déjà la personne.
+ *  Une seule adresse pour les deux langues (le champ est commun) — la console suit
+ *  la préférence de langue du compte, une page du site ne l'aurait pas suivie. */
+const CONSOLE_URL = 'https://manage.oto.cx'
+
+/** Le brouillon servi à l'ouverture de l'écran, pour ne pas partir d'une page blanche.
+ *
+ *  ⚠️ **C'est un BROUILLON, pas un texte validé.** Il est là pour être relu et
+ *  réécrit dans le champ ; les cinq verrous du serveur restent devant l'envoi
+ *  (aperçu, essai reçu, confirmation du nombre), donc un texte pré-rempli ne
+ *  rapproche personne d'un envoi accidentel.
+ *
+ *  **D'où vient chaque phrase** — la copy user-facing ne s'invente pas, elle se
+ *  reprend à sa source (et ce qui est ajouté se dit) :
+ *
+ *  | phrase | source |
+ *  |---|---|
+ *  | sujet | `h_acc_h2a` + `h_acc_h2em` de `oto-websites/web/src/i18n.ts`, verbatim |
+ *  | « aucun outil n'a encore tourné » | `overview.empty.body` des locales du dashboard, verbatim |
+ *  | « oto est un serveur mcp distant… rien à héberger. » | `h_acc_sub`, verbatim |
+ *  | « ajouter mcp.oto.cx à claude desktop… oauth. » | `overview.steps.connectClient.d`, **tutoiement → vouvoiement** |
+ *  | « une clé de connecteur (serper, hunter, …)… » | `overview.steps.firstKey.d`, **tutoiement → vouvoiement** |
+ *  | « résolues côté serveur, à l'exécution » | `h_vault_pt1_t`, verbatim |
+ *  | « le modèle voit le résultat, jamais le secret. » | `h_vault_foot_a/_em/_b`, verbatim |
+ *  | 1re et dernière phrases | **écrites pour cette relance**, sans source |
+ *
+ *  ⚠️ **Voix du funnel : vouvoiement + minuscules**, dans les deux langues — c'est
+ *  celle des emails et de l'invitation. Le tutoiement de la console (« ta console »,
+ *  « connecte un client ») ne s'exporte pas dans un mail.
+ *
+ *  ⚠️ Le pied de page est ajouté par le serveur et n'est PAS à recopier ici : il
+ *  porte déjà « vous recevez ce message car vous avez un compte oto » et le lien de
+ *  désinscription. Le redire dans le corps ferait deux fois la même phrase. */
+export function defaultContent(): OutreachContent {
+  return {
+    subject_fr: 'un seul geste : ajouter le connecteur',
+    body_fr: [
+      "vous avez créé un compte oto, et aucun outil n'a encore tourné.",
+      "oto est un serveur mcp distant. vous le branchez une fois dans votre ia — "
+      + "claude, chatgpt, mistral — et tout le catalogue est là. rien à installer, "
+      + "rien à héberger.",
+      "la prochaine étape tient en un geste : ajouter mcp.oto.cx à claude desktop, "
+      + "cursor ou n'importe quel client mcp — l'auth passe par oauth. puis une clé "
+      + "de connecteur (serper, hunter, …) pour que vos outils puissent appeler.",
+      "vos clés sont résolues côté serveur, à l'exécution : le modèle voit le "
+      + "résultat, jamais le secret.",
+      "si quelque chose vous a arrêté en chemin, répondez à ce message — savoir quoi "
+      + "nous est utile.",
+    ].join('\n\n'),
+    subject_en: 'one move: add the connector',
+    body_en: [
+      'you created an oto account, and no tools have run yet.',
+      'oto is a remote mcp server. plug it once into your ai — claude, chatgpt, '
+      + 'mistral — and the whole catalog is there. nothing to install, nothing to '
+      + 'host.',
+      'the next step is one move: add mcp.oto.cx to claude desktop, cursor or any '
+      + 'mcp client — auth runs over oauth. then a provider key (serper, hunter, …) '
+      + 'so your tools can call out.',
+      'your keys are resolved server-side, at execution: the model sees the result, '
+      + 'never the secret.',
+      'if something stopped you along the way, reply to this message — knowing what '
+      + 'it was helps us.',
+    ].join('\n\n'),
+    cta_label_fr: 'aller à la console',
+    cta_label_en: 'open the console',
+    cta_url: CONSOLE_URL,
+  }
+}
+
 /** Les langues que cette audience recevra réellement, dans l'ordre.
  *
  *  ⚠️ Dérivé des DESTINATAIRES, jamais du choix d'interface : c'est `served_locale`,

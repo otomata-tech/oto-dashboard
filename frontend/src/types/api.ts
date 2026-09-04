@@ -1233,7 +1233,9 @@ export interface TenantRow {
 // ⚠️ Cette surface FAIT PARTIR DES MAILS sous notre marque. Les cinq verrous vivent
 // au serveur, et l'écran n'en contourne aucun — il les rend visibles :
 //   1. les comptes d'un tenant PARTENAIRE sont exclus par la requête elle-même ;
-//   2. l'index unique `(campagne, compte)` interdit la seconde relance ;
+//   2. l'index unique `(campagne, compte)` interdit la seconde relance — et
+//      l'audience est regroupée par BOÎTE MAIL, parce que cet index ne voit pas
+//      deux comptes distincts qui partagent une adresse (`accounts` le dit) ;
 //   3. `send` refuse tant qu'un `test` n'a pas été REÇU pour cette empreinte de
 //      contenu et pour CHAQUE langue servie — toute retouche invalide l'essai ;
 //   4. `send` sans `confirm` refuse en annonçant N ; un `confirm` qui ne colle plus
@@ -1270,6 +1272,12 @@ export interface OutreachRow {
   /** INDICATION à l'œil seulement : le domaine n'entre dans aucune décision de
    *  langue — un `.com` peut être français, un `.fr` une filiale. */
   email_domain: string | null
+  /** ⚠️ Combien de COMPTES partagent cette boîte mail. Une relance s'adresse à la
+   *  BOÎTE, pas au compte : un humain qui s'est inscrit deux fois avec la même
+   *  adresse est UNE ligne, et `sub` est son compte le plus récent. Servi pour que
+   *  la fusion se VOIE — une audience qui rétrécit sans dire pourquoi se lit comme
+   *  un filtre qui a trop mordu. */
+  accounts: number
   /** Renseignés par `op=send` uniquement, ligne par ligne. */
   sent: boolean | null
   reason: string | null
