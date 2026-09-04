@@ -4,6 +4,7 @@
 // surveille et coupe/rouvre, elle ne fabrique pas — configurer un cron est un
 // dialogue, pas un formulaire.
 import { onMounted, ref } from 'vue'
+import { cadenceEnMots } from '@/lib/cadence'
 import ConsoleCard from './ConsoleCard.vue'
 import Tag from './Tag.vue'
 import Toggle from './Toggle.vue'
@@ -58,7 +59,19 @@ onMounted(load)
         <li v-for="t in triggers" :key="t.id" class="rt-item">
           <Toggle :on="t.enabled" :disabled="busy === t.id" @click="toggle(t)" />
           <span class="rt-name">{{ t.label || t.procedure }}</span>
-          <span class="rt-cron">{{ t.cron }} · {{ t.tz }}</span>
+          <!-- Le cadencement dans les mots de qui le lit (#860 ②) : `0 18 * * *` est
+               le vocabulaire de qui a écrit le déclencheur, pas de la personne qui
+               vient vérifier que son agent tourne bien tous les soirs.
+               ⚠️ Quand la forme ne se dit pas fidèlement (pas, listes, plages), on
+               RETOMBE sur l'expression brute plutôt que d'approximer : une phrase
+               fausse sur un horaire fait conclure « il tourne le lundi » à quelqu'un
+               qui ne rouvrira pas la page. L'expression reste alors en second, pour
+               qui sait la lire. -->
+          <span class="rt-cron">
+            <template v-if="cadenceEnMots(t.cron)">{{ cadenceEnMots(t.cron) }}</template>
+            <template v-else>{{ t.cron }}</template>
+            · {{ t.tz }}
+          </span>
           <Tag v-if="!t.enabled" tone="ink">coupé</Tag>
           <span v-else-if="t.next_due" class="rt-next">
             prochain : {{ absDate(t.next_due) }}</span>
