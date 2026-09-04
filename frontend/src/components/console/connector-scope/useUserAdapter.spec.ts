@@ -77,3 +77,23 @@ describe('useUserAdapter — ajouter un compte nommé (#121)', () => {
     expect(getMe).toHaveBeenCalled()
   })
 })
+
+// oto-backend#868 — un `unselect` refusé (rien à retirer) ne doit plus se lire
+// localement comme un retrait réussi.
+describe('useUserAdapter — un unselect refusé ne ment pas à l’écran', () => {
+  it('un DELETE refusé par le serveur laisse la ligne dans son état ET toast', async () => {
+    const { unselectConnector } = await import('@/api/console')
+    vi.mocked(unselectConnector).mockRejectedValueOnce(new Error('404 connector_not_selected'))
+    const toasted: string[] = []
+    const ctx: ScopeCtx = {
+      openForm: () => {}, openCredential: () => {}, confirmAction: async () => true,
+      toast: (m) => { toasted.push(m) },
+    }
+    const row = { ...SLACK, state: 'active' } as unknown as MyConnector
+    await useUserAdapter(ctx).availability!.set(row, 'off')
+
+    // La ligne locale n'a PAS bougé : le serveur n'a rien retiré.
+    expect(row.state).toBe('active')
+    expect(toasted).toHaveLength(1)
+  })
+})

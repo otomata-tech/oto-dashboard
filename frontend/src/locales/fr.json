@@ -222,6 +222,7 @@
     "last_org_admin": "impossible de retirer ou rétrograder le dernier admin de l'org",
     "google_not_connected": "connecte d'abord un compte google (connecteurs)",
     "invalid_provider": "connecteur inconnu",
+    "connector_not_selected": "déjà retiré de ta sélection",
     "namespace_not_controlled": "ce tableau n'est pas géré",
     "unknown_user": "utilisateur inconnu",
     "unknown_org": "organisation inconnue",

@@ -222,6 +222,7 @@
     "last_org_admin": "can't remove or demote the last admin of the org",
     "google_not_connected": "link a google account first (connectors)",
     "invalid_provider": "unknown provider",
+    "connector_not_selected": "already removed from your selection",
     "namespace_not_controlled": "that namespace isn't a controlled one",
     "unknown_user": "unknown user",
     "unknown_org": "unknown organization",
