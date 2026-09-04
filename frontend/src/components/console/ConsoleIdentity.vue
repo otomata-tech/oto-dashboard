@@ -35,14 +35,14 @@ const govEntries = computed(() => {
     out.push({ key: 'work', label: 'Espace de travail', icon: 'home', to: '/overview', back: true })
   if (isOrgAdmin(me.value))
     out.push({ key: 'org', label: 'Gérer mon org', icon: 'building', to: '/org' })
-  // Abonnement : la SEULE entrée de gouvernance ouverte à tout membre (#160). Un
-  // membre simple n'avait aucun chemin vers cet écran — aucun clic ne l'y menait —
-  // alors qu'il lui est servi et conçu pour lui : ses factures, l'état de l'org, ses
-  // paiements. Il y accédait uniquement en connaissant l'URL.
-  // Elle vise `/org/billing` DIRECTEMENT, jamais `/org` : la liste des membres reste
-  // fermée. Et la sidebar d'org qui l'accueille masque désormais ce qu'il ne peut pas
-  // faire, sans quoi on aurait troqué « aucune porte » contre « six portes fermées ».
-  out.push({ key: 'billing', label: 'Abonnement', icon: 'card', to: '/org/billing' })
+  // ⚠️ « Abonnement » a QUITTÉ ce popover le 04/09 (décision d'Alexis : « dans le
+  // menu, pas dans le sélecteur d'org »). Il est au niveau `work` de `consoleNav`,
+  // donc dans le menu principal de l'espace de travail.
+  // Le motif de #160 tient toujours et c'est pourquoi le déplacement se fait d'un
+  // bloc : un membre simple n'avait AUCUN chemin vers cet écran, alors qu'il lui est
+  // servi et conçu pour lui (ses factures, ses paiements) ; il y accédait en
+  // connaissant l'URL. Retirer cette ligne sans reposer l'entrée ailleurs
+  // refermerait exactement la porte que ce lot-là avait ouverte.
   if (me.value?.active_group != null)
     out.push({ key: 'group', label: 'Gérer mon équipe', icon: 'users', to: '/team/context' })
   out.push({ key: 'activity', label: 'Activité', icon: 'pulse', to: '/activity' })

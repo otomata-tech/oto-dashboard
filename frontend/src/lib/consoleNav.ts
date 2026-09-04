@@ -45,6 +45,17 @@ export const NAV: NavGroup[] = [
   { group: null, level: 'work', items: [
     { path: '/overview', label: 'nav.overview', icon: 'home' },
     { path: '/context', label: 'nav.context', icon: 'bolt' },
+    // Abonnement — décision d'Alexis (04/09) : « dans le menu, pas dans le sélecteur
+    // d'org ». Il vivait dans le popover d'identité (#160), seul endroit d'où un
+    // MEMBRE SIMPLE pouvait l'atteindre : la section « Gérer mon org » ci-dessous ne
+    // s'affiche qu'une fois DÉJÀ dans la zone org, où seul un admin entre.
+    // ⚠️ C'est pourquoi l'entrée est ici, au niveau `work`, et pas seulement retirée
+    // du popover : la retirer sans la reposer refermerait la porte que #160 a ouverte
+    // — un membre à qui cet écran est SERVI (ses factures, ses paiements) et qui n'y
+    // accédait qu'en connaissant l'URL.
+    // Pas de `orgAdmin` : les lectures sont servies à tout membre, l'écran masque
+    // déjà les écritures qui demandent l'admin.
+    { path: '/org/billing', label: 'nav.billing', icon: 'card' },
   ]},
   { group: 'nav.section.workspace', level: 'work', items: [
     { path: '/projects', label: 'nav.projects', icon: 'home' },
@@ -96,11 +107,10 @@ export const NAV: NavGroup[] = [
     // Supervision de l'org (org_admin) : mêmes lentilles que /platform/monitoring,
     // bornées à ce qui a été émis sous cette org.
     { path: '/org/monitoring', label: 'nav.monitoring', icon: 'chart', orgAdmin: true },
-    // PAS `orgAdmin` : les lectures de cet écran sont servies à tout membre
-    // (`billing.status`, `billing.payments`, `me.billing.invoices.list`,
-    // `me.billing.identity.get` = ORG_MEMBER ; le catalogue des offres = tout
-    // connecté). Seules les écritures exigent l'admin, et l'écran les masque déjà.
-    { path: '/org/billing', label: 'nav.billing', icon: 'card' },
+    // ⚠️ `/org/billing` n'est PLUS listé ici : il est monté au niveau `work`
+    // (04/09). Le garder aux deux endroits en ferait deux entrées du même menu
+    // pointant la même page — et la section « org » ne le servait de toute façon
+    // qu'à qui savait déjà y entrer.
   ]},
   // ── Gérer la plateforme : réservé opérateur plateforme ─────────────────────
   // Refonte 2026-07-23 : /platform/instructions absorbé par le context (B5),

@@ -86,8 +86,20 @@ describe('#160 — le cran `orgAdmin` sur les entrées du niveau org', () => {
   const orgItems = NAV.find((g) => g.level === 'org')?.items ?? []
 
   it("l'abonnement reste ouvert à tout membre", () => {
-    const billing = orgItems.find((i) => i.path === '/org/billing')
-    expect(billing, "l'entrée abonnement a disparu du niveau org").toBeTruthy()
+    // ⚠️ On cherche l'entrée dans TOUT le menu, plus seulement au niveau `org`.
+    // Ce banc figeait le MOYEN de #160 (« elle vit au niveau org sans `orgAdmin` »)
+    // alors que son objet est « un membre simple garde un chemin vers cet écran ».
+    // Le 04/09 l'entrée est montée au niveau `work` — donc VUE PLUS TÔT, sans avoir
+    // à entrer dans la zone org — et le banc tombait sur un déplacement qui va dans
+    // son sens. Il porte désormais sur ce qu'il défend.
+    const billing = NAV.flatMap((g) => g.items).find((i) => i.path === '/org/billing')
+    expect(billing, "l'entrée abonnement a disparu du menu").toBeTruthy()
+    const niveau = NAV.find((g) => g.items.some((i) => i.path === '/org/billing'))?.level
+    expect(
+      niveau,
+      "l'abonnement doit rester à un niveau qu'un membre simple VOIT : `org` ne "
+      + "s'affiche qu'une fois déjà dans la zone d'org, où seul un admin entre",
+    ).toBe('work')
     expect(
       billing?.orgAdmin,
       'abonnement remarqué `orgAdmin` : un membre simple perdrait de nouveau tout '
