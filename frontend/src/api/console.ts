@@ -2,6 +2,7 @@
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiDownload, apiUpload, apiPublic } from '@/api'
 import type {
+  ApiTokenCreated,
   AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, InitGuide, InitScope, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, CredentialState, MyConnector, ProviderStatus, SearchHit, Inbox,
   BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
   BillingIdentityView, BillingIdentityInput, BillingConfirmResult, BillingInvoice, LegalStatus,
@@ -250,8 +251,38 @@ export const releaseUnipileSeat = (accountId: string) =>
 
 // ── cli tokens ──
 export const getTokens = () => api<{ tokens: ApiToken[] }>('/api/me/tokens')
-export const createToken = (label?: string) =>
-  api<{ token: string; label: string }>('/api/me/tokens', { method: 'POST', ...j({ label }) })
+
+// Portée d'un jeton (oto-backend#514, oto-dashboard#161) : la forme que le backend
+// valide. Absente ⇒ le jeton a TOUS les droits de la personne dans l'org visée.
+export type TokenScopes = {
+  namespaces?: Record<string, 'read' | 'write'>
+  projects?: Record<string, 'read'>
+}
+
+// ⚠️ `orgId` pose `X-Oto-Org` POUR CET APPEL, sans changer d'URL. L'écran compte ne
+// vit pas sous le préfixe `/o/:orgId/…` : sans cet en-tête, le jeton naîtrait dans
+// l'org MAISON — pas dans celle que la personne vient de choisir dans le sélecteur,
+// et les tableaux qu'elle a cochés seraient refusés comme inconnus.
+export const createToken = (
+  label?: string,
+  opts: { scopes?: TokenScopes; ttl_days?: number; orgId?: number | null } = {},
+) =>
+  api<ApiTokenCreated>('/api/me/tokens', {
+    method: 'POST',
+    ...j({ label, scopes: opts.scopes, ttl_days: opts.ttl_days }),
+    ...(opts.orgId ? { headers: { 'X-Oto-Org': String(opts.orgId) } } : {}),
+  })
+
+// Les tableaux et projets de l'org VISÉE — mêmes en-têtes que la création, sinon on
+// proposerait de borner un jeton sur des tableaux d'une autre org.
+export const getNamespacesOfOrg = (orgId?: number | null) =>
+  api<{ namespaces: NamespaceEntry[] }>('/api/datastore/namespaces',
+    orgId ? { headers: { 'X-Oto-Org': String(orgId) } } : {})
+export const listProjectsOfOrg = (orgId?: number | null) =>
+  api<{ projects: Project[] }>('/api/me/projects', {
+    method: 'POST', ...j({ op: 'list' }),
+    ...(orgId ? { headers: { 'X-Oto-Org': String(orgId) } } : {}),
+  })
 export const deleteToken = (id: number) => api(`/api/me/tokens/${id}`, { method: 'DELETE' })
 
 // ── tools ──

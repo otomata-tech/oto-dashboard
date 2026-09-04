@@ -756,11 +756,31 @@ export interface GoogleOauthStatus {
 }
 // ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (POST /api/me/tokens) : sa
 //    réponse est un `200 OK` nu dans le document.
-export interface ApiToken {
-  id: number
-  label: string
-  created_at: string
+// ⚠️ DÉRIVÉ du contrat servi, plus écrit à la main (oto-dashboard#161). La version
+// manuscrite ignorait `expires_at` et `scopes` — deux champs que le backend rend
+// depuis oto-backend#514 : l'écran ne pouvait donc ni afficher l'échéance d'un jeton,
+// ni dire qu'il ouvre toute l'org. Un type recopié diverge en silence de ce qu'il
+// décrit, et c'est l'écran qui ment ensuite.
+// ⚠️ Les trois dates arrivent en `unknown` du contrat servi (le backend ne les type
+// pas plus finement). On DÉRIVE la structure — donc `scopes` et `expires_at` ne
+// peuvent plus manquer — et on n'affine que ces champs-là, sans les réécrire.
+export type ApiToken = Omit<components['schemas']['ApiToken'],
+                            'created_at' | 'last_used_at' | 'expires_at'> & {
+  created_at: string | null
   last_used_at: string | null
+  expires_at: string | null
+}
+
+// La réponse de CRÉATION n'a pas de schéma nommé côté backend (elle est déclarée
+// inline), donc rien à dériver : on l'écrit, en la gardant collée au servi.
+// ⚠️ `token` est le secret EN CLAIR, rendu une seule fois — il n'est jamais relisible.
+// `scopes: null` = jeton non porté : il a tous les droits de la personne dans l'org.
+// `ttl_days: null` = pas d'expiration, et rien ne le rappellera ensuite.
+export interface ApiTokenCreated {
+  token: string
+  label: string | null
+  scopes: Record<string, unknown> | null
+  ttl_days: number | null
 }
 
 // Statut OAuth fédéré GÉNÉRIQUE (oto-dashboard#125 items 2/3) — chemin fixe
