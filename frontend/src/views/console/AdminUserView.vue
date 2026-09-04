@@ -13,7 +13,7 @@ import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog, type FormDialogField } from '@/composables/useFormDialog'
 import { useMe, isSuperAdmin } from '@/composables/useMe'
 import {
-  getAdminUser, setUserRole, getPlatformKeys, getConnectors, getMonitoringCalls, getMonitoringCall,
+  getAdminUser, setUserRole, resetUserMfa, getPlatformKeys, getConnectors, getMonitoringCalls, getMonitoringCall,
   grantPlatformKey, revokePlatformKey,
   setAdminOrgMemberRole, setOptionComp,
 } from '@/api/console'
@@ -113,6 +113,21 @@ async function setRole(next: Role) {
   })) return
   try { await setUserRole(sub.value, next); toast(`rôle → ${next}`); await loadDetail() }
   catch (e) { toast(humanize(e)) }
+}
+
+// Récupération de compte : perte de l'appli authenticator ET des codes de secours,
+// aucun autre moyen de rentrer. Efface tout, la politique MFA de son org (si
+// mandatoire) continue de s'appliquer — il en configure un neuf à sa prochaine
+// connexion. Réservé au super admin, comme les autres gestes sensibles de cette fiche.
+async function resetMfa() {
+  if (!await confirmAction({
+    title: 'réinitialiser la double authentification', danger: true, confirmLabel: 'Réinitialiser',
+    message: 'retire tous ses facteurs (appli, codes de secours, passkey) — à utiliser seulement s\'il n\'a plus aucun moyen de se connecter. il en configurera un nouveau à la prochaine connexion.',
+  })) return
+  try {
+    const { removed } = await resetUserMfa(sub.value)
+    toast(removed.length ? `2FA réinitialisée (${removed.length} facteur(s) retiré(s))` : 'aucun facteur à retirer')
+  } catch (e) { toast(humanize(e)) }
 }
 
 // Dropdown des paliers admin (operator → super), fusionnant les deux anciens
@@ -243,6 +258,7 @@ async function toggleOrgRole(o: AdminUserOrg) {
               </div>
             </span>
             <Btn v-if="currentRole !== 'member'" kind="mini" @click="setRole('member')">Rétrograder en membre</Btn>
+            <Btn kind="danger" @click="resetMfa">Réinitialiser la 2FA</Btn>
           </template>
         </template>
         <div class="helptext">

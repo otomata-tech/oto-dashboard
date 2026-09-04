@@ -933,6 +933,8 @@ export const getAdminUser = (sub: string) =>
   api<AdminUserDetail>(`/api/admin/users/${encodeURIComponent(sub)}`)
 export const setUserRole = (sub: string, role: Role) =>
   api(`/api/admin/users/${sub}/role`, { method: 'POST', ...j({ role }) })
+export const resetUserMfa = (sub: string) =>
+  api<{ ok: boolean; sub: string; removed: string[] }>(`/api/admin/users/${sub}/reset-mfa`, { method: 'POST' })
 // ADR 0044 §F : la clé plateforme est une instance du coffre (identité = provider+label,
 // plus de surrogate id). Grants keyés par PROVIDER (le connecteur ciblé).
 export const getPlatformKeys = () => api<{ platform_keys: PlatformKey[] }>('/api/admin/platform-keys')
