@@ -29,6 +29,7 @@ npm run test            # vitest
 npm run api:check       # les types dérivés de l'OpenAPI ont-ils dérivé ? (le contrôle du CI)
 npm run api:gen         # les régénérer depuis le snapshot commité
 npm run api:refresh     # aller rechercher le document sur un backend VIVANT (prod par défaut)
+npm run schema:check    # les attributs de schéma lus ici == ceux que la plateforme déclare ?
 ```
 
 `.env` : copier `frontend/.env.example` (`VITE_LOGTO_APP_ID` via le skill `logto-client` — pas de DCR, client SPA pré-créé avec redirect `https://<domaine>/callback` + `http://localhost:5192/callback`). Tester un fix contre les **vraies données de prod** : `docs/commands.md`.
@@ -81,6 +82,7 @@ Une phrase par règle ; l'incident qui l'a produite et ses cas limites vivent da
 - API RESTful consommée sous `/api/*` (contrats : `oto-backend/docs/rest-api.md` + `oto-websites/docs/ORG_API_CONTRACT.md`).
 - **On n'écrit plus de type d'API à la main** : un champ manquant ou faux se corrige côté oto-backend (déclarer ou resserrer l'`Output`), puis `npm run api:refresh` ici. Les interfaces encore manuelles portent leur raison en commentaire ; `src/types/api.attendu.ts` est un sas temporaire pour ce qu'une PR backend ouverte sert déjà. → `docs/types-api.md`
 - Composants dans `components/`, pages dans `views/` ; pas de fichier > 500 lignes ; pas de fallback silencieux (lever une erreur).
+- **Attributs de schéma de tableau : les deux côtés se confrontent, aucun ne se recopie.** `npm run schema:check` dérive d'un côté l'interface `DatastoreField` (+ une preuve d'accès dans le code), de l'autre `GET /api/datastore/schema/keys`, et refuse les deux écarts : une clé lue ici et inconnue de la plateforme, une clé annoncée lue par le front et jamais lue ici. Ajouter un attribut au rendu sans le faire déclarer côté oto-backend le rend invisible à la validation — c'est ainsi que cinq attributs vivants ont failli être retirés comme morts. Workflow `schema-keys.yml` (hebdomadaire, hors du chemin des PR : il demande le réseau et un jeton).
 - **Avant push, le typecheck DU CI** : `npx vue-tsc --build` (pas `--noEmit`, moins strict), après `rm -f frontend/*.tsbuildinfo` ; et le CI compile l'arbre COMMITÉ, pas le working tree partagé — comparer `git show HEAD:<fichier>` avant de conclure. → `docs/conventions.md`
 
 ## Design system — règles front (DRY, non négociables)

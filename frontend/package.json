@@ -12,6 +12,7 @@
     "api:gen": "node scripts/openapi-types.mjs",
     "api:check": "node scripts/openapi-types.mjs --check",
     "api:refresh": "node scripts/openapi-refresh.mjs",
+    "schema:check": "node scripts/schema-keys-check.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

@@ -1,0 +1,120 @@
+name: Clés de schéma — lues ici vs déclarées là-bas
+
+# Confronte, dans les DEUX sens, les attributs de schéma de tableau que le dashboard lit
+# et ceux que la plateforme déclare (`GET /api/datastore/schema/keys`) :
+#
+#   ① une clé lue ici et inconnue de la plateforme = le dashboard s'appuie sur un
+#      attribut qui traverse la validation en silence ;
+#   ② une clé servie comme lue par le front et jamais lue ici = la plateforme promet un
+#      lecteur qui n'existe pas.
+#
+# C'est ② qui a coûté : un avertissement de plateforme a porté six attributs au retrait
+# comme « lus par personne ». Un seul l'était ; les cinq autres étaient rendus par un
+# écran, en production. La plateforme ne pouvait pas le savoir — elle ne connaît que ce
+# qu'elle interprète. Ce contrôle est le seul chemin qui referme cette classe : il
+# regarde les deux côtés.
+#
+# Ni liste gravée, ni instantané commité : les deux côtés sont dérivés à chaque
+# exécution (l'interface `DatastoreField` + une preuve d'accès dans le code d'un côté,
+# la route de l'autre). Une liste recopiée deviendrait une seconde source de vérité et
+# reproduirait le défaut qu'on corrige.
+#
+# Pourquoi PAS un cran de PR : le contrôle appelle un backend vivant et demande un
+# jeton. Le mettre sur le chemin d'une PR rendrait le mérite d'une contribution
+# dépendant du réseau. Même partage que `openapi-drift.yml` : le cran bloquant reste
+# hors ligne, la confrontation au servi tourne à part et devient ROUGE quand les deux
+# côtés divergent — ce qui est exactement l'information voulue.
+#
+# Rouge ⇒ lire le message : il nomme la clé, le sens de l'écart et le geste. Selon le
+# sens, la correction est ici (lire l'attribut, ou cesser de le lire) ou côté
+# oto-backend (déclarer l'attribut, ou retirer `front` de ses lecteurs).
+on:
+  schedule:
+    - cron: "41 6 * * 1" # lundi matin, après la dérive du contrat
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "Backend à interroger (défaut : la prod)"
+        required: false
+        default: https://mcp.oto.cx
+
+permissions:
+  contents: read
+
+jobs:
+  cles:
+    runs-on: ubuntu-latest
+    env:
+      HAS_TOKEN: ${{ secrets.OTO_SCHEMA_KEYS_TOKEN != '' && 'true' || 'false' }}
+    steps:
+      # Sans jeton, ce job ÉCHOUE — il ne se saute pas. Le CLA de ce dépôt est passé au
+      # vert un mois durant sans rien vérifier, secret absent, et personne ne l'a vu.
+      # Un contrôle vert qui n'a rien contrôlé vaut moins que pas de contrôle.
+      - name: Jeton absent — échec volontaire
+        if: env.HAS_TOKEN != 'true'
+        run: |
+          echo "::error title=CLES DE SCHEMA NON CONTROLEES::Le secret OTO_SCHEMA_KEYS_TOKEN est absent : la confrontation n'a PAS eu lieu. Ce job echoue expres."
+          cat >&2 <<'MSG'
+
+          ================================================================
+           CLES DE SCHEMA NON CONTROLEES — ce job echoue volontairement
+          ================================================================
+
+          Le secret OTO_SCHEMA_KEYS_TOKEN est absent. Les attributs de schema
+          que ce dashboard lit n'ont PAS ete confrontes a ce que la plateforme
+          declare.
+
+          Ce que ca coute : c'est precisement ce controle qui manquait quand un
+          avertissement de plateforme a porte six attributs au retrait comme
+          « lus par personne ». Un seul l'etait. Les cinq autres etaient rendus
+          par un ecran, en production.
+
+          Ce qu'il faut pour le reparer, et ce n'est PAS qu'un secret a poser :
+
+            GET /api/datastore/schema/keys est aujourd'hui ferme a tout jeton
+            porte (« Ce geste n'est ouvert a AUCUN jeton porte, quelle que soit
+            sa portee »). Seul un jeton NON porte passe — c'est-a-dire un jeton
+            qui peut tout. Mettre celui-la dans la CI d'un depot public est un
+            mauvais echange.
+
+            La route ne sert aucune donnee d'org : c'est une constante de
+            plateforme, identique pour tout le monde, et sa propre docstring
+            dit « il faut etre authentifie, rien de plus ». Deux sorties, cote
+            oto-backend, au choix :
+
+              a) la servir sans authentification — elle ne revele rien ;
+              b) l'ajouter a la liste des gestes ouverts a un jeton porte, et
+                 poser ici un jeton de portee minimale.
+
+          Tant que l'une des deux n'est pas faite, ce job reste rouge : il dit
+          qu'un cran manque, il ne fait pas semblant de l'avoir passe.
+
+          ================================================================
+          MSG
+          exit 1
+
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: cd frontend && npm ci
+      - name: Ce que le dashboard lit est-il ce que la plateforme declare ?
+        env:
+          OTO_MCP_BASE: ${{ github.event.inputs.base || 'https://mcp.oto.cx' }}
+          OTO_API_TOKEN: ${{ secrets.OTO_SCHEMA_KEYS_TOKEN }}
+        run: |
+          set -o pipefail
+          cd frontend && npm run --silent schema:check 2>&1 | tee "$RUNNER_TEMP/cles.txt"
+      - name: Rendre l'ecart lisible dans le resume
+        if: failure()
+        run: |
+          {
+            echo "## Les deux côtés ne disent pas la même chose"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/cles.txt" 2>/dev/null || echo "(le contrôle n'a produit aucune sortie)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
