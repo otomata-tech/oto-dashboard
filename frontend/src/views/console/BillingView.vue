@@ -1,11 +1,11 @@
 <script setup lang="ts">
 // Abonnement de l'ORG active (ADR 0043) — PSP Mollie. Scopé à l'org consultée
-// (X-Oto-Org injecté par api()). Souscrire/résilier = org_admin ; consulter = tout
-// membre. v1 = carte (« v1 CB seule ») : le paiement + le moyen de paiement
-// récurrent se font sur la page de checkout hébergée Mollie.
+// (X-Oto-Org injecté par api()). Souscrire/résilier/changer de carte = org_admin ;
+// consulter = tout membre. v1 = carte (« v1 CB seule ») : le paiement + le moyen de
+// paiement récurrent se font sur la page de checkout hébergée Mollie.
 //
-// Cette vue porte le catalogue, l'état d'abonnement et le RETOUR du paiement ; le
-// tunnel (identité → montant → consentement → paiement) vit dans
+// Cette vue porte l'état d'abonnement, ses alertes et le RETOUR du paiement ; le
+// tunnel, le catalogue, le journal et le retour d'un changement de carte vivent dans
 // `components/console/billing/`.
 //
 // ⚠️ **Au retour, un paiement réussi ne produit jamais d'échec.** Toutes les branches
@@ -14,19 +14,25 @@
 // pas encore chez le PSP » : on sonde, on n'annonce rien de négatif, et on ne
 // repropose surtout pas de payer. C'est ce bouton reproposé qui a débité deux fois
 // le premier client payant le 25/08/2026 (#127).
+//
+// ⚠️ **Une alerte qui réclame un geste porte son levier** — depuis #845, « résiliation
+// programmée » offre de l'annuler et « paiement en échec » de changer de carte. Les
+// refus du serveur s'affichent tels quels : ils sont écrits pour dire par où passer.
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
 import Notice from '@/components/console/Notice.vue'
-import Icon from '@/components/console/Icon.vue'
 import StateError from '@/components/console/StateError.vue'
 import SkeletonOverview from '@/components/console/SkeletonOverview.vue'
+import BillingCatalogue from '@/components/console/billing/BillingCatalogue.vue'
 import BillingCheckout from '@/components/console/billing/BillingCheckout.vue'
 import BillingGranted from '@/components/console/billing/BillingGranted.vue'
 import BillingIdentityForm from '@/components/console/billing/BillingIdentityForm.vue'
 import BillingInvoices from '@/components/console/billing/BillingInvoices.vue'
+import BillingMethodChange from '@/components/console/billing/BillingMethodChange.vue'
+import BillingPaymentsCard from '@/components/console/billing/BillingPaymentsCard.vue'
 import BillingPending from '@/components/console/billing/BillingPending.vue'
 import BillingUsageCard from '@/components/console/billing/BillingUsageCard.vue'
 import { useToast } from '@/composables/useToast'
@@ -34,14 +40,16 @@ import { usePrompt } from '@/composables/usePrompt'
 import { useMe, isSuperAdmin } from '@/composables/useMe'
 import {
   getBilling, getBillingIdentity, getBillingPayments, confirmBilling, cancelBilling,
+  resumeBilling, startBillingMethodChange,
 } from '@/api/console'
 import type {
   BillingStatus, BillingPlan, BillingPayment, BillingIdentityView, VatScheme,
 } from '@/types/api'
+import type { BillingMethodChangeResult } from '@/types/api.attendu'
 import { PENDING_WINDOW_MS, VAT_SCHEME_LABEL, nextProbeDelayMs } from '@/lib/billingTunnel'
 import { euros as euroCents } from '@/lib/euros'
 import { explain, humanize } from '@/lib/errors'
-import { fmtDate, fmtDateTime } from '@/types/api'
+import { fmtDate } from '@/types/api'
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
@@ -57,6 +65,9 @@ const identityError = ref<string | null>(null)
 const loading = ref(true)
 const busy = ref(false)
 const error = ref<string | null>(null)
+// Le refus d'un GESTE (annuler la résiliation, changer de carte), tel que le serveur
+// l'a écrit. Inline et non en toast : il dit par où passer, il doit rester lisible.
+const gestureError = ref<string | null>(null)
 // Palier choisi = on est dans le tunnel. Retour au catalogue en le remettant à null.
 const chosen = ref<BillingPlan | null>(null)
 
@@ -80,47 +91,42 @@ function euros(cents: number | null | undefined): string {
   return cents == null ? 'sur devis' : euroCents(cents)
 }
 
-// Le seul axe qui varie réellement entre paliers (backend : options + unmetered
-// identiques partout — cf. billing.py PLANS). Le reste = « inclus dans tous les plans ».
-function accountsLabel(p: BillingPlan): string {
-  if (p.unipile_accounts == null) return 'Comptes messagerie illimités'
-  if (p.unipile_accounts === 1) return '1 compte messagerie connecté'
-  return `${p.unipile_accounts} comptes messagerie connectés`
-}
-
 function methodLabel(m: string | null | undefined): string {
   if (m === 'comp') return 'Offert'
   if (m === 'sepa') return 'Prélèvement SEPA'
   return 'Carte bancaire'
 }
 
-function payKind(kind: string): string {
-  if (kind === 'initial') return 'Souscription'
-  if (kind === 'renewal') return 'Échéance'
-  if (kind === 'method_change') return 'Changement de moyen'
-  return kind
-}
-function payTone(s: string): 'olive' | 'terra' | 'ink' {
-  // statuts Mollie : paid = encaissé ; pending/open/authorized = en cours ;
-  // failed/canceled/expired = échec.
-  if (['paid', 'authorized'].includes(s)) return 'olive'
-  if (['failed', 'canceled', 'expired'].includes(s)) return 'terra'
-  return 'ink'
+// Les gestes d'un abonné : réservés à l'org_admin, sans objet sur un abonnement
+// offert, et fermés une fois l'abonnement clos (le serveur refuse aussi).
+const canAct = computed(() => {
+  const s = status.value
+  return !!(s?.subscribed && canManage.value && !s.comp && s.status !== 'canceled')
+})
+// La phrase, ou la phrase et qui peut agir — sous la même forme pour les trois alertes.
+function withLever(base: string, can: boolean, verb: string): string {
+  return can ? `${base}.` : `${base} — seul un administrateur de l'organisation peut ${verb}.`
 }
 
 // Bandeau d'alerte de l'état abonné (résiliation programmée / impayé / échéance que
-// le prélèvement ne pourra pas honorer).
-const alert = computed<
-  { tone: 'warn' | 'info'; text: string; fix?: boolean } | null>(() => {
+// le prélèvement ne pourra pas honorer). Chaque alerte porte son levier — ou nomme
+// qui peut agir : le serveur réserve ces gestes à l'org_admin, et un bouton qui
+// refuserait au clic serait la même impasse, une porte plus loin.
+type Fix = 'identity' | 'resume' | 'method'
+const alert = computed<{ tone: 'warn' | 'info'; text: string; fix?: Fix } | null>(() => {
   const s = status.value
   if (!s?.subscribed) return null
   if (s.canceled_at) {
-    return { tone: 'warn', text: `Résiliation programmée — l'accès reste ouvert `
-      + `jusqu'au ${fmtDate(s.current_period_end)}, puis passage au niveau gratuit.` }
+    return { tone: 'warn', fix: canAct.value ? 'resume' : undefined,
+      text: withLever(`Résiliation programmée — l'accès reste ouvert jusqu'au `
+        + `${fmtDate(s.current_period_end)}, puis passage au niveau gratuit`,
+      canAct.value, 'l\'annuler') }
   }
   if (s.status === 'past_due') {
-    return { tone: 'warn', text: `Paiement en échec — un nouvel essai est en cours, `
-      + `l'accès est maintenu jusqu'au ${fmtDate(s.grace_until)}.` }
+    // Pendant le constat d'un changement de carte, c'est le bloc dessous qui porte le levier.
+    return { tone: 'warn', fix: canAct.value && !methodInProgress.value ? 'method' : undefined,
+      text: withLever(`Paiement en échec — un nouvel essai est en cours, l'accès est maintenu `
+        + `jusqu'au ${fmtDate(s.grace_until)}`, canAct.value, 'changer de carte') }
   }
   // Un abonnement actif dont le TTC n'est pas calculable = une échéance que le
   // serveur ne pourra pas prélever. Le dire avant qu'elle tombe — et OUVRIR le
@@ -133,14 +139,9 @@ const alert = computed<
       : 'l\'identité de facturation de l\'organisation est incomplète'
     return {
       tone: 'warn',
-      // Le levier n'est proposé qu'à qui peut s'en servir : le serveur réserve
-      // l'écriture à l'org_admin, et un bouton qui refuserait au clic serait la
-      // même impasse, une porte plus loin.
-      fix: canManage.value,
-      text: canManage.value
-        ? `La prochaine échéance ne peut pas être calculée : ${cause}.`
-        : `La prochaine échéance ne peut pas être calculée : ${cause} — seul un `
-          + 'administrateur de l\'organisation peut la corriger.',
+      fix: canManage.value ? 'identity' : undefined,
+      text: withLever(`La prochaine échéance ne peut pas être calculée : ${cause}`,
+        canManage.value, 'la corriger'),
     }
   }
   return null
@@ -182,6 +183,15 @@ async function load() {
   if (showIdentity.value) await loadIdentity()
 }
 
+// Relire l'état SANS `load()` : son squelette démonterait ce qui est sous les doigts.
+async function refreshStatus() {
+  try {
+    status.value = await getBilling()
+  } catch (e) {
+    gestureError.value = explain(e)
+  }
+}
+
 // Lecture À PART, et tolérante : l'identité complète l'écran, elle n'en est pas la
 // condition. Si elle échoue, l'état d'abonnement et son alerte restent affichés —
 // blanchir la page priverait justement l'abonné en difficulté de ce qu'il vient y
@@ -198,16 +208,11 @@ async function loadIdentity() {
 
 // La fiche décide du régime de TVA, donc du TTC de la prochaine échéance et de
 // `vat_blocked` : l'état d'abonnement se RELIT après l'enregistrement, sinon
-// l'alerte resterait affichée alors qu'elle vient d'être traitée. On ne repasse pas
-// par `load()` : son squelette démonterait le formulaire sous les doigts.
+// l'alerte resterait affichée alors qu'elle vient d'être traitée.
 async function onIdentitySaved(view: BillingIdentityView) {
   identity.value = view
-  try {
-    status.value = await getBilling()
-    toast('identité de facturation enregistrée')
-  } catch (e) {
-    toast(explain(e))
-  }
+  await refreshStatus()
+  if (!gestureError.value) toast('identité de facturation enregistrée')
 }
 
 // Le lien de l'alerte mène au formulaire. Le défilement seul ne déplace pas le
@@ -261,9 +266,24 @@ async function probe(paymentRef: string | null) {
   }
 }
 
+// Retour d'un CHANGEMENT DE CARTE (`?billing=method`) : le constat vit dans
+// `BillingMethodChange`, monté sous l'alerte de l'abonné. Tant qu'il n'a pas conclu,
+// aucun second « Changer de carte » n'est armé.
+const methodReturn = ref<{ paymentRef: string | null } | null>(null)
+const methodSettled = ref(false)
+const methodInProgress = computed(() => !!methodReturn.value && !methodSettled.value)
+
+async function onMethodSettled(r: BillingMethodChangeResult | null) {
+  methodSettled.value = true
+  // La bascule a eu lieu : le moyen affiché (et un `past_due` réparé, plus tard, par
+  // le prochain encaissement) se relit côté serveur.
+  if (r && (r.status === 'changed' || r.status === 'already_current')) await refreshStatus()
+}
+
 onMounted(async () => {
   const url = new URL(window.location.href)
-  if (url.searchParams.get('billing') === 'return') {
+  const back = url.searchParams.get('billing')
+  if (back === 'return' || back === 'method') {
     // `payment_ref` est posé par le serveur sur l'URL de retour : le navigateur DIT
     // quel paiement il vient de conclure, au lieu de laisser le serveur prendre « le
     // plus récent ». Les deux paramètres sont nettoyés de la barre d'adresse.
@@ -271,19 +291,24 @@ onMounted(async () => {
     url.searchParams.delete('billing')
     url.searchParams.delete('payment_ref')
     window.history.replaceState({}, '', url.toString())
-    deadline = Date.now() + PENDING_WINDOW_MS
-    loading.value = false
-    await probe(paymentRef)
-    if (pending.value) return   // l'attente s'affiche seule, `load` viendra à la fin
+    if (back === 'method') {
+      methodReturn.value = { paymentRef }
+    } else {
+      deadline = Date.now() + PENDING_WINDOW_MS
+      loading.value = false
+      await probe(paymentRef)
+      if (pending.value) return   // l'attente s'affiche seule, `load` viendra à la fin
+    }
   }
   await load()
 })
 
 onBeforeUnmount(() => clearTimeout(timer))
 
-// ── résiliation ──────────────────────────────────────────────────────────────
+// ── les gestes de l'abonné ───────────────────────────────────────────────────
 
 const returnUrl = `${window.location.origin}/org/billing?billing=return`
+const methodReturnUrl = `${window.location.origin}/org/billing?billing=method`
 
 async function resiliate() {
   if (!await confirmAction({
@@ -292,6 +317,7 @@ async function resiliate() {
       + 'puis repasse au niveau gratuit. rien n\'est supprimé.',
   })) return
   busy.value = true
+  gestureError.value = null
   try {
     status.value = await cancelBilling()
     toast('résiliation enregistrée')
@@ -302,8 +328,43 @@ async function resiliate() {
   }
 }
 
-function contactSales() {
-  window.location.href = 'mailto:contact@otomata.tech?subject=Abonnement%20Entreprise'
+// L'inverse de la résiliation (#845 ②). Rien n'est encaissé : l'abonnement reprend
+// son cycle. Sans dialogue — le geste se défait d'un clic, comme il s'est fait. Le
+// refus d'une période échue (`already_ended`) dit de repasser par une souscription :
+// on l'affiche tel quel, avec de quoi relire l'état.
+async function resume() {
+  busy.value = true
+  gestureError.value = null
+  try {
+    status.value = await resumeBilling()
+    toast('résiliation annulée')
+  } catch (e) {
+    gestureError.value = explain(e)
+  } finally {
+    busy.value = false
+  }
+}
+
+// Changer de carte (#845 ①) : le serveur ouvre un premier paiement à 0,00 chez le
+// PSP et rend la page où le conclure. ⚠️ Sa phrase (`notice`) s'affiche AVANT la
+// redirection, dans le dialogue de confirmation : l'ancien moyen reste actif tant
+// que le nouveau n'est pas confirmé — sans elle, qui abandonne croit s'être coupé.
+async function changeMethod() {
+  busy.value = true
+  gestureError.value = null
+  try {
+    const started = await startBillingMethodChange(methodReturnUrl)
+    if (!started.checkout_url) throw new Error('checkout_url absent de la réponse')
+    if (!await confirmAction({
+      title: 'Changer de carte', message: started.notice,
+      confirmLabel: 'Continuer vers la page de paiement',
+    })) return
+    window.location.href = started.checkout_url
+  } catch (e) {
+    gestureError.value = explain(e)
+  } finally {
+    busy.value = false
+  }
 }
 </script>
 
@@ -355,13 +416,33 @@ function contactSales() {
 
         <Notice v-if="alert" :tone="alert.tone" class="mt">
           {{ alert.text }}
-          <Btn v-if="alert.fix" kind="link" icon="chev" class="notice-fix" @click="goToIdentity">
-            Compléter l'identité de facturation</Btn>
+          <Btn v-if="alert.fix === 'identity'" kind="link" icon="chev" class="notice-fix"
+            @click="goToIdentity">Compléter l'identité de facturation</Btn>
+          <Btn v-else-if="alert.fix === 'resume'" kind="link" icon="chev" class="notice-fix"
+            :disabled="busy" @click="resume">Annuler la résiliation</Btn>
+          <Btn v-else-if="alert.fix === 'method'" kind="link" icon="card" class="notice-fix"
+            :disabled="busy" @click="changeMethod">Changer de carte</Btn>
         </Notice>
 
-        <div v-if="canManage && !status.comp && status.status !== 'canceled'" class="row-actions">
-          <Btn kind="danger" icon="trash" :disabled="busy" @click="resiliate">
-            Résilier l'abonnement</Btn>
+        <!-- Le constat d'un changement de carte, au retour de la page de paiement. -->
+        <BillingMethodChange v-if="methodReturn" :key="methodReturn.paymentRef ?? ''"
+          :payment-ref="methodReturn.paymentRef" class="mt"
+          @settled="onMethodSettled" @retry="changeMethod" />
+
+        <!-- Le refus d'un geste, tel que le serveur l'a écrit — il nomme ce qui bloque
+             et par où passer ; relire l'état est le geste qui suit. -->
+        <Notice v-if="gestureError" tone="warn" class="mt">
+          {{ gestureError }}
+          <Btn kind="link" icon="chev" class="notice-fix" @click="load">Actualiser</Btn>
+        </Notice>
+
+        <div v-if="canAct" class="row-actions">
+          <!-- En impayé, c'est l'alerte qui porte « Changer de carte » ; pendant un
+               constat de retour, le bloc au-dessus le porte. -->
+          <Btn v-if="status.status !== 'past_due' && !methodInProgress" kind="ghost" icon="card"
+            :disabled="busy" @click="changeMethod">Changer de carte</Btn>
+          <Btn v-if="!status.canceled_at" kind="danger" icon="trash" :disabled="busy"
+            @click="resiliate">Résilier l'abonnement</Btn>
         </div>
         <p v-else-if="status.comp" class="hint">
           Cet abonnement est offert par Otomata — aucun paiement, aucune échéance.
@@ -369,44 +450,8 @@ function contactSales() {
       </ConsoleCard>
 
       <!-- ── Pas abonné : catalogue des plans ── -->
-      <ConsoleCard v-else title="Choisir un abonnement"
-        :sub="canManage ? 'un abonnement par organisation, sans engagement — paiement par carte bancaire.'
-          : 'seul un administrateur de l\'organisation peut souscrire.'">
-        <div class="grid3">
-          <div v-for="p in status.plans" :key="p.plan" class="plan" :class="{ custom: p.custom }">
-            <div class="plan-head">
-              <span class="plan-name">{{ p.label }}</span>
-              <Tag v-if="p.custom" tone="cobalt">sur devis</Tag>
-            </div>
-            <div class="plan-price">
-              <span class="amt">{{ euros(p.amount) }}</span>
-              <span v-if="p.amount != null" class="per">/ mois</span>
-            </div>
-            <div class="plan-accounts">{{ accountsLabel(p) }}</div>
-            <div class="plan-cta">
-              <Btn v-if="p.custom" kind="ghost" icon="ext" @click="contactSales">
-                Nous contacter</Btn>
-              <template v-else-if="canManage">
-                <!-- « Choisir » et non « S'abonner » : le clic ouvre le tunnel, il
-                     n'engage aucun paiement. -->
-                <Btn icon="card" @click="chosen = p">Choisir</Btn>
-              </template>
-            </div>
-          </div>
-        </div>
-
-        <p class="hint">Les prix sont hors taxes ; la TVA applicable est calculée à
-          l'étape suivante, à partir de votre pays de facturation.</p>
-
-        <div class="incl">
-          <div class="incl-h">Inclus dans tous les plans</div>
-          <ul class="incl-list">
-            <li><Icon name="ok" :size="15" /> Messagerie LinkedIn &amp; WhatsApp (Unipile)</li>
-            <li><Icon name="ok" :size="15" /> Connecteurs de données sans quota d'appel</li>
-            <li><Icon name="ok" :size="15" /> Données entreprises France, CRM, e-mail &amp; base de connaissance</li>
-          </ul>
-        </div>
-      </ConsoleCard>
+      <BillingCatalogue v-else :plans="status.plans ?? []" :can-manage="canManage"
+        @choose="chosen = $event" />
 
       <!-- ── Identité de facturation ──
            Le MÊME formulaire que le tunnel, monté ici pour un abonné : le tunnel
@@ -434,58 +479,12 @@ function contactSales() {
       <BillingInvoices :paying="!!status.subscribed && !status.comp" />
 
       <!-- ── Historique des paiements ── -->
-      <ConsoleCard v-if="status.subscribed && payments.length" flush title="Paiements"
-        sub="les échéances de cet abonnement.">
-        <table class="tbl">
-          <thead>
-            <tr><th>Date</th><th>Type</th><th class="num">Montant</th><th>Statut</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="p in payments" :key="p.id">
-              <td class="mono">{{ fmtDateTime(p.created_at) }}</td>
-              <td>{{ payKind(p.kind) }}</td>
-              <td class="num">{{ euros(p.amount) }}</td>
-              <td><Tag :tone="payTone(p.status)">{{ p.status }}</Tag></td>
-            </tr>
-          </tbody>
-        </table>
-      </ConsoleCard>
+      <BillingPaymentsCard v-if="status.subscribed && payments.length" :payments="payments" />
     </template>
   </div>
 </template>
 
 <style scoped>
-/* Carte d'un palier — composée sur les tokens carte (filet doux + ombre, jamais de bord noir). */
-.plan {
-  display: flex; flex-direction: column; gap: 12px; padding: 16px;
-  border: 1px solid var(--color-card-bd); border-radius: var(--radius-md);
-  background: var(--color-surface); box-shadow: var(--shadow-card);
-}
-.plan.custom { border-style: dashed; box-shadow: none; }
-.plan-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.plan-name { font-weight: 700; font-size: 14px; color: var(--color-ink); }
-.plan-price { display: flex; align-items: baseline; gap: 4px; }
-.plan-price .amt {
-  font-size: 26px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1;
-  color: var(--color-ink);
-}
-.plan-price .per { font-size: 12px; color: var(--color-mute); }
-.plan-accounts { font-size: var(--fs-small); color: var(--color-ink-soft); }
-.plan-cta { display: flex; flex-direction: column; gap: 7px; margin-top: auto; }
-
-/* Bande « inclus partout » — la vérité commune aux paliers, dite une seule fois. */
-.incl { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--color-hair-soft); }
-.incl-h {
-  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em;
-  text-transform: uppercase; color: var(--color-faint); margin-bottom: 8px;
-}
-.incl-list { display: flex; flex-direction: column; gap: 6px; }
-.incl-list li {
-  display: flex; align-items: center; gap: 8px; font-size: var(--fs-small);
-  color: var(--color-ink-soft);
-}
-.incl-list li :deep(svg) { color: var(--color-olive-ink); flex: none; }
-
 /* Le lien d'action d'une alerte prend la couleur de l'alerte : un lien saffron sur
    fond terra ferait un troisième ton dans un encadré qui n'en dit qu'un. */
 .notice-fix {
@@ -494,6 +493,6 @@ function contactSales() {
 .notice-fix:hover { color: inherit; opacity: 0.75; }
 
 .mt { margin-top: 14px; }
-.row-actions { margin-top: 16px; }
+.row-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .hint { font-size: 12px; color: var(--color-mute); margin: 14px 0 0; line-height: 1.5; }
 </style>

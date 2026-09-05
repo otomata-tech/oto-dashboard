@@ -8,7 +8,9 @@ description: >-
   comme un échec, un tunnel qui découvre ses préalables un par un, et une alerte
   qui réclame un geste que l'écran n'offre nulle part. Et le bloc « offert » : un don
   d'option n'écrivant aucune ligne d'abonnement, l'écran vendait à ses bénéficiaires
-  ce qu'ils possédaient déjà.
+  ce qu'ils possédaient déjà. Depuis #845, les deux gestes qui manquaient : changer de
+  carte (un premier paiement à 0,00, l'ancien moyen tient jusqu'à confirmation) et
+  annuler une résiliation.
 ---
 
 # Facturation — l'écran `/org/billing` (ADR 0043)
@@ -40,6 +42,9 @@ lui-même vit dans `components/console/billing/` :
 | `BillingPending.vue` | l'attente d'ouverture au retour du paiement |
 | `BillingGranted.vue` | **hors tunnel** — la carte « ce qui vous est offert », au-dessus du catalogue (voir plus bas) |
 | `BillingUsageCard.vue` | **hors tunnel** — les appels du mois et le plafond inclus, côte à côte |
+| `BillingCatalogue.vue` | **hors tunnel** — la carte « Choisir un abonnement » d'une org sans abonnement ; émet le palier choisi, n'engage rien |
+| `BillingPaymentsCard.vue` | **hors tunnel** — le journal des tentatives (souscription, échéances, changements de moyen) |
+| `BillingMethodChange.vue` | **hors tunnel** — le CONSTAT au retour d'un changement de carte : sonde `method/confirm`, recopie la phrase servie (voir plus bas) |
 | `lib/billingTunnel.ts` | la partie pure : décomposition du montant, lecture des refus, libellés, cadence de sonde |
 
 ## ⚠️ Une alerte qui réclame un geste doit porter le geste
@@ -79,12 +84,67 @@ pour éviter le « 19,00 € » d'un prix de catalogue rond ; il tronquait du m�
 réellement prélevé — 2280 centimes rendus « 22,8 € », et les lignes de l'historique avec.
 Le nombre de décimales suit désormais le montant (0 s'il tombe juste, 2 sinon).
 
-Restent, à ce jour, **deux alertes de cet écran sans levier** — parce qu'aucune surface
-serveur ne les ouvre, pas par oubli du front : `past_due` (« un nouvel essai est en cours »)
-n'a **aucun moyen de changer de carte** — il n'existe pas de route de changement de moyen de
-paiement, alors que `billing_payments.kind` connaît déjà `method_change` ; et
-`canceled_at` (« résiliation programmée ») n'a **aucun moyen de revenir en arrière** —
-`cancel` n'a pas d'inverse. Les deux sont des lots oto-backend.
+Les deux autres alertes de cet écran sont restées sans levier jusqu'au 2026-09-05, parce
+qu'aucune surface serveur ne les ouvrait : `past_due` n'avait **aucun moyen de changer de
+carte**, `canceled_at` **aucun moyen de revenir en arrière**. oto-backend#845 a ouvert les
+deux portes ; la section suivante dit ce que l'écran en fait.
+
+## ⚠️ Changer de carte, annuler une résiliation (#845)
+
+Le modèle serveur (premier paiement à 0,00, bascule puis révocation best-effort de
+l'ancien mandat, `resume` purement local) vit dans `oto-backend/docs/billing.md`. Ce que
+l'écran en fait, et pourquoi :
+
+- **« Annuler la résiliation » vit DANS l'alerte « Résiliation programmée »**, à la place
+  de « Résilier l'abonnement » — visible tant que la période court (l'abonnement est encore
+  `active`, avec un `canceled_at`). Un clic, sans dialogue : le geste se défait comme il
+  s'est fait, et rien n'est encaissé. Une fois la période échue, l'alerte n'existe plus
+  (l'abonnement est `canceled`, l'écran montre le catalogue) ; si elle s'échoit **entre
+  l'affichage et le clic**, le serveur refuse (`400 already_ended`) et son refus s'affiche
+  **tel quel** — il dit de repasser par une souscription — avec « Actualiser » pour relire
+  l'état.
+- **« Changer de carte » est offert à tout abonné payant** (`active` comme `past_due` —
+  c'est justement quand la carte est morte qu'on vient là), à côté de « Résilier ». En
+  impayé, c'est l'alerte « Paiement en échec » qui le porte, une seule fois.
+- **La phrase du serveur s'affiche AVANT de partir chez le prestataire.** `POST
+  /api/me/billing/method` rend l'URL de la page de paiement **et** une `notice` — l'ancien
+  moyen reste actif tant que le nouveau n'est pas confirmé. Elle est le corps du dialogue de
+  confirmation (« Continuer vers la page de paiement ») : sans elle, qui abandonne la page
+  du PSP croit s'être coupé. On ne la reformule pas. Le dialogue vient APRÈS l'appel parce
+  que la phrase en vient ; annuler le dialogue laisse un paiement `open` de 0,00 dans le
+  journal, ce que le serveur tolère par construction (deux changements ouverts sont
+  désignés par leur référence).
+- **Le retour porte `?billing=method&payment_ref=tr_…`** — un marqueur distinct de celui
+  de la souscription (`billing=return`), pour que la vue sonde `method/confirm` et non
+  `confirm`. `BillingMethodChange` est monté sous l'alerte de l'abonné, pas à la place de
+  l'écran : rien d'argent n'est en vol, le reste de la carte peut rester lisible. Il
+  **recopie `notice`** à chaque branche : `changed` (« Ton nouveau moyen de paiement est
+  actif. »), `failed` (« Ton moyen de paiement actuel n'a pas changé. » — la carte a refusé
+  l'autorisation à zéro, l'ancien moyen est intact, et le levier « Changer de carte » est
+  dans le même cadre), `pending` / `pending_mandate` (la même attente que la souscription :
+  spinner, la phrase servie, aucune copie d'échec, re-sonde toutes les 5 s jusqu'à la
+  fenêtre de 30 min, puis « Vérifier à nouveau » sans rien annoncer de négatif).
+  ⚠️ `already_current` (rejeu sur le mandat courant) est la seule branche **sans phrase
+  servie** : l'écran dit « Ce moyen de paiement est déjà celui de l'abonnement. » — la
+  seule copie de ce lot qui ne vient pas du serveur.
+- **Pendant le constat, aucun second « Changer de carte » n'est armé** ; après, l'abonnement
+  se relit (`GET /api/me/billing`) sans repasser par `load()`, dont le squelette
+  démonterait le bloc sous les doigts.
+- Les refus (`not_subscribed`, `already_ended`, `no_customer`, `unknown_payment`,
+  `no_pending_change`) sont des **400** dont le `detail` est écrit pour être lu — même
+  régime que `vat_number_invalid` : `explain()` le rend mot pour mot, préfixe de code
+  compris.
+
+⚠️ **Ce lot n'a pas été joué contre un vrai prestataire.** Il n'existe pas de clé Mollie de
+test (décision d'Alexis, 05/09/2026) ; côté serveur le client est simulé, côté écran les
+réponses sont figées dans les specs. Le premier vrai changement de carte se fera en
+production, sous l'œil d'Alexis. Ce que les tests garantissent, c'est le câblage : les
+routes appelées, l'URL de retour, la référence transmise, les phrases servies rendues
+telles quelles, et qu'aucune branche d'attente ne parle d'échec.
+
+Les types de `method` et `method/confirm` (`BillingMethodChangeStarted`,
+`BillingMethodChangeResult`) vivent dans `types/api.attendu.ts`, section ③ : servis par la
+préprod depuis `595a20a0`, pas par la prod, et le snapshot commité leur est antérieur.
 
 ## ⚠️ Les factures sont une PROMESSE ÉCRITE, pas une commodité
 
@@ -263,6 +323,10 @@ cas. L'écran l'annonce et n'ouvre pas de paiement.
 | `GET /api/me/legal`, `POST /api/me/legal/accept` | les documents et le reste-à-accepter du contexte `purchase` |
 | `POST /api/me/billing/subscribe` | ouvre le checkout ; 409 avec `details.blockers` tant qu'un préalable manque |
 | `POST /api/me/billing/confirm` | l'avancement au retour et en re-sonde ; accepte `payment_ref` |
+| `POST /api/me/billing/cancel` | résilier à fin de période (org_admin) |
+| `POST /api/me/billing/resume` | annuler la résiliation, tant que la période court (org_admin) ; `400 already_ended` sinon |
+| `POST /api/me/billing/method` | ouvrir un changement de carte : `{return_url}` → `checkout_url` + `notice` (org_admin) |
+| `POST /api/me/billing/method/confirm` | constater le retour (ou re-sonder) : `status` ∈ changed / pending / pending_mandate / failed / already_current, + `notice` ; accepte `payment_ref` |
 | `GET /api/me/billing/payments` | le journal des tentatives |
 | `GET /api/me/billing/invoices` | les factures ET avoirs de l'org, plus récents d'abord — lecture ouverte à **tout membre**, comme le journal des paiements |
 | `GET /api/me/billing/invoices/{id}/pdf` | le PDF, **authentifié** (jamais une URL publique) ; 409 `pdf_not_available` tant que le fichier n'est pas revenu du fournisseur |

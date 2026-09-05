@@ -145,3 +145,55 @@ export interface RunnerFleetState {
   last_finished?: string | null
   no_jobs_attached: boolean
 }
+
+
+// ── ③ Changer de moyen de paiement (#845 ①) ────────────────────────────────
+// Servi par la PRÉPRODUCTION (`POST /api/me/billing/method` et
+// `POST /api/me/billing/method/confirm`, schémas inline `MethodChangeStarted` et
+// `MethodChangeResult` — relevés sur le document OpenAPI de `mcp.oto.ninja` le
+// 2026-09-05, oto-backend `595a20a0`), PAS encore par la production. Même régime
+// que la section ② : cette section se supprime au premier tag qui emporte le lot,
+// au profit des types dérivés.
+//
+// Le geste passe par un premier paiement à 0,00 sur la page hébergée du PSP —
+// aucun mouvement d'argent — puis par `confirm` au retour du navigateur.
+/** Ce que rend l'OUVERTURE du changement. */
+export interface BillingMethodChangeStarted {
+  /** La page de paiement hébergée. `null` = le PSP n'en a pas rendu : ne pas
+   * rediriger vers rien. */
+  checkout_url: string | null
+  payment_id: string | null
+  /** ⚠️ À AFFICHER AVANT d'envoyer la personne chez le prestataire : l'ancien
+   * moyen reste actif tant que le nouveau n'est pas confirmé. Sans cette phrase,
+   * qui abandonne le checkout croit s'être coupé. Recopiée telle quelle. */
+  notice: string
+}
+
+/** Ce que rend la CONFIRMATION au retour (ou en re-sonde). Toutes les branches
+ * sont des 200 discriminées par `status`, comme pour la souscription :
+ *
+ *   `changed`          bascule faite, l'ancien moyen révoqué (ou pas — voir
+ *                      `previous_revoked`, un ménage raté ne défait pas la bascule)
+ *   `pending`          pas encore encaissé — la personne est peut-être encore
+ *                      sur la page du prestataire
+ *   `pending_mandate`  encaissé, mandat pas encore visible chez le PSP : une
+ *                      ATTENTE, jamais un échec — l'ancien moyen tient
+ *   `failed`           la carte a refusé l'autorisation à zéro : l'ancien moyen
+ *                      est INTACT, la copie servie le dit
+ *   `already_current`  rejeu : le mandat courant est déjà celui-là
+ *
+ * ⚠️ `status` est un `str` côté serveur (pas un ensemble fermé déclaré) : l'écran
+ * garde une branche pour une valeur qu'il ne connaît pas. */
+export interface BillingMethodChangeResult {
+  status: string
+  payment_status?: string | null
+  mandate_id?: string | null
+  previous_mandate_id?: string | null
+  /** `false` AVEC `status: "changed"` = la bascule est faite, seul le ménage de
+   * l'ancien mandat a raté. Rien à montrer : l'encaissement suivant prend le
+   * nouveau moyen. */
+  previous_revoked?: boolean | null
+  /** La phrase du serveur, à recopier — c'est lui qui sait si l'ancien moyen
+   * tient encore. Vide sur `already_current`. */
+  notice: string
+}

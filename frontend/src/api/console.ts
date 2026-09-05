@@ -22,8 +22,10 @@ import type {
 } from '@/types/api'
 // ⚠️ Contrat SERVI PAR UN LOT NON DÉPLOYÉ (oto-backend PR #723) — écrit à la main
 // parce qu'une régénération depuis l'OpenAPI en ligne l'effacerait. Cf. le fichier.
-import type { BailDuTravail, PostesDeGarde, RunnerFleet, RunnerFleetState }
-  from '@/types/api.attendu'
+import type {
+  BailDuTravail, PostesDeGarde, RunnerFleet, RunnerFleetState,
+  BillingMethodChangeStarted, BillingMethodChangeResult,
+} from '@/types/api.attendu'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
 
@@ -1218,6 +1220,26 @@ export const confirmBilling = (payment_ref?: string | null) =>
   api<BillingConfirmResult>('/api/me/billing/confirm',
     { method: 'POST', ...j(payment_ref ? { payment_ref } : {}) })
 export const cancelBilling = () => api<BillingStatus>('/api/me/billing/cancel', { method: 'POST' })
+// L'inverse de `cancel` (#845 ②), qui n'existait pas : purement local côté serveur —
+// résilier ne révoque pas le mandat, reprendre n'encaisse rien et n'appelle personne.
+// Refusé (400 `already_ended`) une fois la période échue : c'est alors un
+// réabonnement, par `subscribe` — et le refus le dit, on l'affiche tel quel.
+export const resumeBilling = () => api<BillingStatus>('/api/me/billing/resume', { method: 'POST' })
+// Changer de moyen de paiement (#845 ①) — la porte qui manquait à un abonné dont la
+// carte est morte. Un premier paiement à 0,00 sur la page hébergée (aucun mouvement
+// d'argent), puis `confirm` au retour. `return_url` = où revenir ; le serveur y recolle
+// `?payment_ref=` comme pour la souscription. Accepté sur `active` ET `past_due`.
+// ⚠️ `notice` s'affiche AVANT la redirection : l'ancien moyen reste actif tant que le
+// nouveau n'est pas confirmé — sans cette phrase, qui abandonne croit s'être coupé.
+export const startBillingMethodChange = (return_url: string) =>
+  api<BillingMethodChangeStarted>('/api/me/billing/method',
+    { method: 'POST', ...j({ return_url }) })
+// Constate le retour (ou re-sonde) : bascule sur le nouveau mandat puis révoque
+// l'ancien. Idempotent. `payment_ref` désigne LE changement conclu quand il y en a
+// plusieurs ouverts ; sans lui, le serveur prend le plus récent.
+export const confirmBillingMethodChange = (payment_ref?: string | null) =>
+  api<BillingMethodChangeResult>('/api/me/billing/method/confirm',
+    { method: 'POST', ...j(payment_ref ? { payment_ref } : {}) })
 
 // Identité de facturation de l'org (#486) — PRÉALABLE du cycle : le pays décide du
 // taux de TVA, donc du montant réellement débité, et `subscribe` refuse (409
