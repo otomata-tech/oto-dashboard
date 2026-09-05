@@ -1,0 +1,54 @@
+# LA DETTE CONNUE — chaque ligne est un écart RÉEL, pas une exception de confort.
+#
+# Ce fichier existe pour une seule raison : un témoin qui naît rouge n'est jamais lu.
+# Au premier passage, `npm run schema:check` trouvait DIX divergences réelles. Sur un job
+# hebdomadaire, personne n'aurait plus jamais distingué la onzième. Cette liste est donc
+# la base du témoin : le contrôle échoue sur ce qui n'y figure PAS.
+#
+# ⚠️ Elle ne doit que DÉCROÎTRE.
+#
+#   - Un écart nouveau, absent d'ici → le job échoue. C'est le but : on le règle, ou
+#     quelqu'un DÉCIDE de l'inscrire ici, en connaissance de cause et par un commit qui
+#     dit pourquoi. Rien ne s'ajoute tout seul : une base qui grossit d'elle-même serait
+#     pire que pas de témoin — elle transformerait le contrôle en registre de ce qu'on
+#     tolère.
+#   - Une ligne d'ici qui n'est PLUS un écart → le job échoue aussi, et demande de la
+#     retirer. Sans quoi une dette réglée dort ici pour toujours, et la liste ment sur ce
+#     qu'elle coûte encore. Retirer la ligne est le geste qui clôt la dette.
+#
+# Format : <sens> <clé>. Les commentaires et les lignes vides sont ignorés.
+#
+#   lue-non-servie   le dashboard lit cet attribut, la plateforme ne le connaît pas : il
+#                    traverse la validation en silence, une faute de frappe y est
+#                    invisible, et `unknown_keys_warning` le dénonce sur tous les tableaux.
+#   servie-non-lue   la plateforme sert cet attribut comme lu par le front, aucun accès
+#                    n'existe ici : elle promet un lecteur qui n'existe pas.
+#
+# ── Mesure fondatrice ────────────────────────────────────────────────────────────────
+# Relevée le 2026-09-06 contre le tronc d'oto-backend bef4037b (déclaration des attributs
+# de colonne du datastore au commit 29fa439c). La prod n'était pas interrogeable : la
+# route est fermée à tout jeton porté (cf. l'en-tête de `schema-keys-check.mjs` et le
+# workflow `schema-keys.yml`). Au premier passage RÉEL contre un backend servi, un écart
+# de plus ou de moins est donc attendu et normal — il dira ce que la prod sert vraiment,
+# et c'est à ce moment-là que cette liste devra être remesurée, pas rallongée.
+
+# ── Lues ici, inconnues de la plateforme ─────────────────────────────────────────────
+# `hidden` est le cas le plus engageant des deux : il n'est pas seulement LU, il est
+# ÉCRIT — « enregistrer la vue » le renvoie au PUT /schema. Le dashboard pose donc un
+# attribut que le validateur ne reconnaît pas.
+lue-non-servie hidden
+lue-non-servie width
+
+# ── Servies comme lues par le front, jamais lues ici ─────────────────────────────────
+# ⚠️ `readers: ["front"]` désigne LE FRONT, pas ce dashboard. Un attribut lu par un front
+# tiers et par lui seul apparaît ici à tort. Le vocabulaire servi ne les distingue pas
+# encore ; tant qu'il ne le fait pas, ces huit lignes mélangent deux causes et aucune ne
+# se règle en les supprimant du dashboard.
+servie-non-lue description
+servie-non-lue flat_alias
+servie-non-lue help
+servie-non-lue hint
+servie-non-lue max_items
+servie-non-lue max_length
+servie-non-lue placeholder
+servie-non-lue readonly

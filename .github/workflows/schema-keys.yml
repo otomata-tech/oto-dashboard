@@ -25,6 +25,12 @@ name: Clés de schéma — lues ici vs déclarées là-bas
 # hors ligne, la confrontation au servi tourne à part et devient ROUGE quand les deux
 # côtés divergent — ce qui est exactement l'information voulue.
 #
+# La base : `frontend/scripts/schema-keys-dette.txt`. Au premier passage le contrôle
+# trouvait DIX écarts réels — et un témoin qui naît rouge n'est jamais lu, personne
+# n'aurait plus jamais distingué le onzième. Ce fichier les porte comme dette ; le job
+# échoue sur tout écart qui n'y figure PAS, et échoue aussi quand une ligne n'est plus un
+# écart, pour qu'on la retire au lieu de la laisser dormir. La liste ne doit que décroître.
+#
 # Rouge ⇒ lire le message : il nomme la clé, le sens de l'écart et le geste. Selon le
 # sens, la correction est ici (lire l'attribut, ou cesser de le lire) ou côté
 # oto-backend (déclarer l'attribut, ou retirer `front` de ses lecteurs).

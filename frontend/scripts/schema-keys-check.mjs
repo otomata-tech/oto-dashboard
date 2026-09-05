@@ -35,6 +35,22 @@
  * C'est aussi pour cela que ce contrôle dépend du réseau : il ne peut pas être hors
  * ligne sans cesser d'être un contrôle.
  *
+ * ## La base : `schema-keys-dette.txt`
+ *
+ * Au premier passage, ce contrôle trouvait DIX écarts réels. Un témoin qui naît rouge
+ * n'est jamais lu — personne n'aurait plus jamais distingué le onzième. Le fichier voisin
+ * liste donc les écarts CONNUS, et le contrôle échoue sur ce qui n'y figure pas.
+ *
+ * Ce n'est pas une liste de clés recopiée — ce serait exactement ce qu'on refuse ici. Ce
+ * sont des ÉCARTS : chaque ligne dit qu'à une date donnée, les deux côtés ne disaient pas
+ * la même chose sur un attribut. Elle ne remplace ni le code ni la route ; les deux
+ * restent dérivés à chaque exécution.
+ *
+ * Elle ne doit que DÉCROÎTRE, et le contrôle échoue dans les deux sens pour cela : un
+ * écart nouveau la contourne, et un écart RÉGLÉ qui y traîne encore la fait échouer aussi
+ * — sinon une dette soldée y dort pour toujours, et le jour où elle revient, elle rentre
+ * sans un mot.
+ *
  * ## Pourquoi l'interface, et pas seulement un grep
  *
  * `vue-tsc --build` est un cran bloquant du dépôt : aucun code typé ne peut lire un
@@ -66,6 +82,13 @@ const SRC = join(ROOT, "src");
 /** Le fichier qui déclare la forme d'une colonne de schéma, et le nom de l'interface. */
 const TYPES = join(SRC, "types", "api.ts");
 const INTERFACE = "DatastoreField";
+
+/** La DETTE connue — ce que ce contrôle sait déjà, et ne redit pas. Ce n'est pas une
+ *  liste de clés recopiée : c'est une liste d'ÉCARTS constatés, chacun daté par le
+ *  fichier lui-même. Elle ne remplace aucun des deux côtés, elle les regarde diverger. */
+const DETTE = join(ROOT, "scripts", "schema-keys-dette.txt");
+const LUE_NON_SERVIE = "lue-non-servie";
+const SERVIE_NON_LUE = "servie-non-lue";
 
 /** Exclus du scan d'accès : les DÉCLARATIONS (où un nom apparaît sans être lu) et les
  *  tests (une fixture n'est pas une lecture du produit). */
@@ -149,6 +172,47 @@ function preuvesDAcces(membres) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// La dette : ce qu'on sait déjà, et qui ne doit que décroître
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Les écarts déjà connus, `"<sens> <clé>"` → numéro de ligne (pour pouvoir dire OÙ
+ *  retirer une dette réglée). Un fichier illisible ou une ligne mal formée FAIT ÉCHOUER :
+ *  une base de témoin qu'on n'arrive pas à lire n'est pas une base vide. */
+function detteConnue() {
+  let brut;
+  try {
+    brut = readFileSync(DETTE, "utf8");
+  } catch {
+    throw new Error(
+      `[schema:check] base de dette introuvable : ${relative(ROOT, DETTE)}\n` +
+        "  Ce contrôle échoue sur ce qui n'y figure PAS. Sans elle il ne sait pas ce qui est\n" +
+        "  déjà connu, et il redirait tout — un témoin qui crie tout ne se lit plus.\n" +
+        "  Un fichier vide est une réponse valable (« plus aucune dette ») : le créer vide.",
+    );
+  }
+  const connue = new Map();
+  brut.split("\n").forEach((ligne, i) => {
+    const l = ligne.trim();
+    if (!l || l.startsWith("#")) return;
+    const [sens, cle, ...reste] = l.split(/\s+/);
+    if (reste.length || !cle || (sens !== LUE_NON_SERVIE && sens !== SERVIE_NON_LUE)) {
+      throw new Error(
+        `[schema:check] ${relative(ROOT, DETTE)}:${i + 1} — ligne illisible : « ${l} »\n` +
+          `  Format attendu : \`${LUE_NON_SERVIE}|${SERVIE_NON_LUE} <clé>\`, une par ligne.`,
+      );
+    }
+    if (connue.has(`${sens} ${cle}`)) {
+      throw new Error(
+        `[schema:check] ${relative(ROOT, DETTE)}:${i + 1} — \`${sens} ${cle}\` est déjà ` +
+          `ligne ${connue.get(`${sens} ${cle}`)}. Une dette comptée deux fois se retire à moitié.`,
+      );
+    }
+    connue.set(`${sens} ${cle}`, i + 1);
+  });
+  return connue;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ② Le côté plateforme : ce que la route déclare
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -186,22 +250,40 @@ async function clesServies() {
 // La confrontation
 // ─────────────────────────────────────────────────────────────────────────────
 
-const membres = membresDeclares();
+// Une trace de pile n'apprend rien à qui lit un journal de CI ; la cause, si. Le code
+// de sortie reste 1 dans tous les cas : ne pas POUVOIR contrôler n'est pas « vert ».
+async function ou_echouer(f) {
+  try {
+    return await f();
+  } catch (e) {
+    console.error(e.message);
+    process.exit(1);
+  }
+}
+
+const membres = await ou_echouer(membresDeclares);
 const preuve = preuvesDAcces(membres);
 const lues = membres.filter((m) => preuve.get(m));
 const declareesSansAcces = membres.filter((m) => !preuve.get(m));
 
-// Une trace de pile n'apprend rien à qui lit un journal de CI ; la cause, si. Le code
-// de sortie reste 1 dans tous les cas : ne pas POUVOIR contrôler n'est pas « vert ».
-const servies = await clesServies().catch((e) => {
-  console.error(e.message);
-  process.exit(1);
-});
+const servies = await ou_echouer(clesServies);
 const connues = new Set(servies.map((k) => k.key));
 const pourLeFront = servies.filter((k) => (k.readers ?? []).includes("front"));
 
-const lueNonServie = lues.filter((k) => !connues.has(k));
-const serviePourRien = pourLeFront.filter((k) => !lues.includes(k.key));
+/** Les écarts CONSTATÉS aujourd'hui, les deux sens confondus. */
+const ecarts = [
+  ...lues
+    .filter((k) => !connues.has(k))
+    .map((k) => ({ sens: LUE_NON_SERVIE, cle: k })),
+  ...pourLeFront
+    .filter((k) => !lues.includes(k.key))
+    .map((k) => ({ sens: SERVIE_NON_LUE, cle: k.key, servie: k })),
+];
+
+const dette = await ou_echouer(detteConnue);
+const vus = new Set(ecarts.map((e) => `${e.sens} ${e.cle}`));
+const nouveaux = ecarts.filter((e) => !dette.has(`${e.sens} ${e.cle}`));
+const reglees = [...dette.entries()].filter(([id]) => !vus.has(id));
 
 console.log(`Plateforme  ${URL_}`);
 console.log(`            ${servies.length} attributs déclarés, dont ${pourLeFront.length} annoncés lus par le front`);
@@ -212,17 +294,22 @@ if (declareesSansAcces.length) {
     `            (sans accès trouvé, donc comptés NON LUS : ${declareesSansAcces.join(", ")})`,
   );
 }
+console.log(`Dette       ${relative(ROOT, DETTE)} — ${dette.size} ligne(s), ${ecarts.length} écart(s) constaté(s)`);
 console.log("");
 
-if (!lueNonServie.length && !serviePourRien.length) {
-  console.log("Les deux côtés disent la même chose.");
+if (!nouveaux.length && !reglees.length) {
+  console.log(
+    dette.size
+      ? `Aucun écart hors de la dette connue (${dette.size} ligne(s) restent à régler).`
+      : "Les deux côtés disent la même chose, et la dette est soldée.",
+  );
   process.exit(0);
 }
 
-for (const k of lueNonServie) {
-  const p = preuve.get(k);
+for (const e of nouveaux.filter((e) => e.sens === LUE_NON_SERVIE)) {
+  const p = preuve.get(e.cle);
   console.error(
-    `ÉCART  \`${k}\` — LUE ICI, INCONNUE DE LA PLATEFORME\n` +
+    `ÉCART  \`${e.cle}\` — LUE ICI, INCONNUE DE LA PLATEFORME\n` +
       `       Lue en ${p.fichier} (${p.forme}), absente de ${URL_}.\n` +
       "       Le dashboard s'appuie sur un attribut que la plateforme ne connaît pas : il\n" +
       "       traverse la validation en silence, donc une faute de frappe y est invisible et\n" +
@@ -232,10 +319,10 @@ for (const k of lueNonServie) {
   );
 }
 
-for (const k of serviePourRien) {
+for (const e of nouveaux.filter((e) => e.sens === SERVIE_NON_LUE)) {
   console.error(
-    `ÉCART  \`${k.key}\` — SERVIE COMME LUE PAR LE FRONT, JAMAIS LUE ICI\n` +
-      `       readers: [${(k.readers ?? []).join(", ")}] — « ${k.what} »\n` +
+    `ÉCART  \`${e.cle}\` — SERVIE COMME LUE PAR LE FRONT, JAMAIS LUE ICI\n` +
+      `       readers: [${(e.servie.readers ?? []).join(", ")}] — « ${e.servie.what} »\n` +
       "       Aucun accès dans le code du dashboard, et aucun membre correspondant dans\n" +
       `       ${INTERFACE}. La plateforme promet un lecteur qui n'existe pas : cet attribut\n` +
       "       est réputé vivant, donc jamais signalé, et personne ne le rend.\n" +
@@ -245,7 +332,23 @@ for (const k of serviePourRien) {
   );
 }
 
-console.error(
-  `${lueNonServie.length} lue(s) et non servie(s), ${serviePourRien.length} servie(s) au front et jamais lue(s).`,
-);
+for (const [id, ligne] of reglees) {
+  console.error(
+    `DETTE RÉGLÉE  \`${id}\` n'est plus un écart — retirer sa ligne.\n` +
+      `              ${relative(ROOT, DETTE)}:${ligne} porte encore cette dette. Les deux côtés\n` +
+      "              se sont rejoints : la laisser dormir ferait mentir la liste sur ce qu'elle\n" +
+      "              coûte encore, et le jour où l'écart revient, il rentrerait sans un mot.\n" +
+      "              Geste : supprimer la ligne, dans le commit qui a réglé l'écart.\n",
+  );
+}
+
+if (nouveaux.length) {
+  console.error(
+    `${nouveaux.length} écart(s) hors de la dette connue. Les régler, ou — si c'est une DÉCISION —\n` +
+      `les inscrire dans ${relative(ROOT, DETTE)} par un commit qui dit pourquoi.`,
+  );
+}
+if (reglees.length) {
+  console.error(`${reglees.length} ligne(s) de dette à retirer.`);
+}
 process.exit(1);
