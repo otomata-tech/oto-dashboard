@@ -13,6 +13,12 @@ import type { RunnerTrigger } from '@/api/console'
 import { humanize } from '@/lib/errors'
 import { absDate } from '@/lib/cellRender'
 
+// Montée à deux endroits (#860 ①) : la page Automatisations, qui montre l'org
+// entière, et l'écran d'UNE procédure, qui ne doit répondre qu'à « celle-ci
+// tourne-t-elle ? ». Le filtre est SERVEUR — filtrer côté client devient faux dès
+// qu'il y a plus d'une page de déclencheurs.
+const props = defineProps<{ procedure?: string }>()
+
 const triggers = ref<RunnerTrigger[]>([])
 const loaded = ref(false)
 const error = ref<string | null>(null)
@@ -20,7 +26,7 @@ const busy = ref<number | null>(null)
 
 async function load() {
   try {
-    triggers.value = (await listRunnerTriggers()).triggers
+    triggers.value = (await listRunnerTriggers(props.procedure)).triggers
   } catch (e) {
     error.value = humanize(e)
   } finally {
@@ -45,15 +51,24 @@ onMounted(load)
 
 <template>
   <ConsoleCard
-    title="Déclencheurs programmés"
-    sub="Les procédures qui partent toutes seules, à heure fixe — et leur robinet."
+    :title="props.procedure ? 'Agent programmé' : 'Déclencheurs programmés'"
+    :sub="props.procedure
+      ? 'Cette procédure tourne-t-elle toute seule, et à quel rythme ?'
+      : 'Les procédures qui partent toutes seules, à heure fixe — et leur robinet.'"
   >
     <div class="card-body">
       <p v-if="error" class="rt-err">{{ error }}</p>
       <p v-else-if="loaded && !triggers.length" class="dim rt-empty">
-        Aucun déclencheur. Demande à ton agent d'en créer un
-        (« déclenche la procédure X tous les jours à 8 h ») — il utilisera
-        <code>oto_trigger</code>.
+        <template v-if="props.procedure">
+          Cette procédure ne tourne pas toute seule. Pour qu'elle parte à heure fixe,
+          demande-le à ton agent (« fais tourner cette procédure tous les jours à
+          8 h ») — il utilisera <code>oto_trigger</code>.
+        </template>
+        <template v-else>
+          Aucun déclencheur. Demande à ton agent d'en créer un
+          (« déclenche la procédure X tous les jours à 8 h ») — il utilisera
+          <code>oto_trigger</code>.
+        </template>
       </p>
       <ul v-else class="rt-list">
         <li v-for="t in triggers" :key="t.id" class="rt-item">
@@ -94,6 +109,25 @@ onMounted(load)
           </span>
         </li>
       </ul>
+      <!-- #860 ④ — ce que l'interrupteur FAIT, sinon le comportement surprend.
+           Vérifié dans le backend, pas déduit de l'issue :
+           · couper → `update_trigger` appelle `perimer_travaux_du_declencheur` : les
+             occurrences en attente ne partiront jamais. C'est voulu — un déclencheur
+             éteint ne tique plus, donc ne périme plus ; sans ce coup de balai elles
+             resteraient éternelles, et le seul geste de réparation disponible
+             aggraverait la panne ;
+           · rallumer → `op=update enabled=true` recalcule `next_due` depuis
+             maintenant (`efa0cebc`, #826) : l'échéance figée pendant l'arrêt est
+             restée dans le passé, et sans ce recalcul le tick enfilerait à la
+             seconde du rallumage — une exécution que personne n'a demandée,
+             déclenchée par le geste de quelqu'un qui répare.
+           Les deux moitiés vont ensemble : ce qui a attendu pendant l'extinction est
+           mort, l'échéance comprise. -->
+      <p v-if="loaded && triggers.length" class="dim rt-effet">
+        Couper périme les occurrences en attente : elles ne partiront jamais.
+        Rallumer reprend le rythme à partir de maintenant — l'échéance manquée
+        pendant l'arrêt n'est pas rattrapée.
+      </p>
     </div>
   </ConsoleCard>
 </template>
@@ -107,4 +141,5 @@ onMounted(load)
 .rt-lost { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .rt-err { font-size: 12px; color: var(--color-terra, #a8442a); }
 .rt-empty { font-size: 13px; line-height: 1.6; }
+.rt-effet { font-size: 11.5px; line-height: 1.55; margin: 10px 0 0; }
 </style>

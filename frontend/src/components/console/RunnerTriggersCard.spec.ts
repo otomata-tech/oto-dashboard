@@ -21,12 +21,18 @@ const BASE: RunnerTrigger = {
   expired_count: null, expired_since: null, expired_last: null,
 }
 
-async function monter(t: Partial<RunnerTrigger>) {
+async function monter(t: Partial<RunnerTrigger>, props: Record<string, unknown> = {}) {
   listRunnerTriggers.mockResolvedValue({ triggers: [{ ...BASE, ...t }] })
+  return await monterAvec([{ ...BASE, ...t }], props)
+}
+
+async function monterAvec(triggers: RunnerTrigger[], props: Record<string, unknown> = {}) {
+  listRunnerTriggers.mockClear()
+  listRunnerTriggers.mockResolvedValue({ triggers })
   const Card = (await import('./RunnerTriggersCard.vue')).default
   const host = document.createElement('div')
   document.body.appendChild(host)
-  createApp(Card).mount(host)
+  createApp(Card, props).mount(host)
   await nextTick(); await nextTick(); await nextTick()
   return host.textContent ?? ''
 }
@@ -61,5 +67,49 @@ describe('RunnerTriggersCard — les occurrences perdues (oto#41)', () => {
     const txt = await monter({ expired_count: 1, expired_since: '2026-09-02T06:00:00Z' })
     expect(txt).toContain('1 perdue')
     expect(txt).not.toContain('perdues')
+  })
+})
+
+
+// L'écran d'une procédure demande « CELLE-CI tourne-t-elle ? », pas la liste de
+// l'org (#860 ①). Le filtre doit être SERVEUR : filtrer côté client devient faux dès
+// qu'il y a plus d'une page de déclencheurs, et le silence d'une page manquante se
+// lit « elle ne tourne pas » — la pire des réponses, puisqu'elle fait poser un
+// second agent programmé sur un objet qui en a déjà un.
+describe('RunnerTriggersCard — montée sur une procédure (#860 ①)', () => {
+  it('demande au SERVEUR les déclencheurs de cette procédure, pas ceux de l’org', async () => {
+    await monterAvec([BASE], { procedure: 'daily-brain' })
+    expect(listRunnerTriggers).toHaveBeenCalledWith('daily-brain')
+  })
+
+  it('sans procédure, demande l’org entière — la page Automatisations ne change pas', async () => {
+    await monterAvec([BASE])
+    expect(listRunnerTriggers).toHaveBeenCalledWith(undefined)
+  })
+
+  it('dit qu’elle ne tourne pas toute seule, pas « aucun déclencheur »', async () => {
+    const txt = await monterAvec([], { procedure: 'daily-brain' })
+    expect(txt).toContain('ne tourne pas toute seule')
+  })
+})
+
+// #860 ④ — ce que l'interrupteur fait doit être écrit, sinon le comportement
+// surprend : couper périme ce qui attend, et rallumer ne rattrape pas l'échéance
+// manquée (`efa0cebc`, #826). Dire l'inverse — ou ne rien dire — laisse quelqu'un
+// couper en croyant mettre en pause.
+describe('RunnerTriggersCard — ce que l’arrêt fait (#860 ④)', () => {
+  it('dit que couper périme les occurrences en attente', async () => {
+    const txt = await monterAvec([BASE], { procedure: 'daily-brain' })
+    expect(txt).toContain('périme les occurrences en attente')
+  })
+
+  it('dit que rallumer ne rattrape PAS l’échéance manquée', async () => {
+    const txt = await monterAvec([BASE])
+    expect(txt).toContain("n'est pas rattrapée")
+  })
+
+  it('ne l’écrit pas quand il n’y a aucun déclencheur — rien à expliquer', async () => {
+    const txt = await monterAvec([])
+    expect(txt).not.toContain('périme les occurrences')
   })
 })

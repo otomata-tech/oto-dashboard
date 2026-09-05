@@ -494,9 +494,12 @@ export interface RunnerTrigger {
   expired_since: string | null
   expired_last: string | null
 }
-export const listRunnerTriggers = () =>
+// `procedure` filtre SERVEUR (#860 ①). L'écran d'une procédure demande « celle-ci
+// tourne-t-elle ? », pas la liste de l'org — et filtrer côté client devient faux dès
+// qu'il y a plus d'une page. Omis = tous les déclencheurs de l'org.
+export const listRunnerTriggers = (procedure?: string) =>
   api<{ triggers: RunnerTrigger[] }>('/api/me/runner/triggers', {
-    method: 'POST', ...j({ op: 'list' }),
+    method: 'POST', ...j(procedure ? { op: 'list', procedure } : { op: 'list' }),
   })
 export const setRunnerTriggerEnabled = (id: number, enabled: boolean) =>
   api<{ trigger: RunnerTrigger }>('/api/me/runner/triggers', {

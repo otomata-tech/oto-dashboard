@@ -23,6 +23,7 @@ import DoctrineContent from '@/components/console/doctrine/DoctrineContent.vue'
 import ReferencedTools from '@/components/console/doctrine/ReferencedTools.vue'
 import DoctrineEditor from '@/components/console/doctrine/DoctrineEditor.vue'
 import UsageCard from '@/components/console/doctrine/UsageCard.vue'
+import RunnerTriggersCard from '@/components/console/RunnerTriggersCard.vue'
 import CreateSkillModal from '@/components/console/doctrine/CreateSkillModal.vue'
 import SharePrincipalDialog from '@/components/console/SharePrincipalDialog.vue'
 
@@ -440,6 +441,14 @@ async function removeSkill(slug: string, label: string) {
 
         <!-- usage -->
         <UsageCard v-if="activeDoc?.exists" :usage="usage" :loading="usageLoading" />
+
+        <!-- Agent programmé (#860 ①) — « celle-ci tourne-t-elle toute seule ? ».
+             L'agent autonome est une PROPRIÉTÉ de l'objet, pas un objet déclaré à
+             côté : il se lit donc DEPUIS l'objet, filtré côté serveur sur cette
+             procédure. Ne se monte que sur une procédure qui EXISTE — un
+             déclencheur ne peut pas pointer un slug qui n'a pas encore de corps. -->
+        <RunnerTriggersCard v-if="activeDoc?.exists" :key="activeSlug"
+                            :procedure="activeSlug" />
 
         <!-- versions -->
         <div class="card pad-sm">
