@@ -11,7 +11,7 @@ import type {
   GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption,
-  ColumnFilter, DatastoreRow, DatastoreSchema, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, SharePrincipal, ToolCall, ToolEntry,
+  ColumnFilter, DatastoreField, DatastoreRow, DatastoreSchema, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   ConnectorOAuthStatus, ConnectorOAuthDisconnected, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult,
@@ -717,10 +717,26 @@ export const getNamespaceActivity = (ns: string, limit?: number) =>
     + (limit ? `?limit=${limit}` : ''))
 // Schéma d'un tableau (ADR 0046) — miroir REST de `data_set_schema`. Sert la vue par
 // défaut : les colonnes masquées SONT le `hidden` des champs, pas un objet « vue » à part.
+// ⚠️ `PUT` REPOSE LA LISTE ENTIÈRE : tout ce que le corps ne redit pas est effacé, sans
+// erreur ni mention. Réservé à la POSE d'un schéma. Pour AMENDER, c'est `patchNamespaceSchema`.
 export const setNamespaceSchema = (ns: string, schema: DatastoreSchema) =>
   api<{ ok: boolean }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}/schema`,
     { method: 'PUT', ...j({ schema }) })
+// Amendement PAR CLÉ (oto-backend #388) : les propriétés listées écrasent, celles qu'on
+// n'écrit pas sont PRÉSERVÉES, y compris les sous-champs des composites. C'est le geste
+// qui NE PEUT PAS détruire ce qu'il ne nomme pas — le seul sûr quand on retouche le
+// schéma d'un tableau qu'on n'a pas écrit soi-même. `remove` retire un champ du SCHÉMA
+// (pas la colonne des données : c'est `data_drop_column`).
+// Un seul appel par geste : une modification de schéma reconstruit un index sur la table
+// que TOUS les tableaux partagent — c'est ce qui a produit l'interblocage du 05/09.
+export const patchNamespaceSchema = (
+  ns: string,
+  patch: { fields?: Array<Partial<DatastoreField> & { key: string }>; remove?: string[] },
+) =>
+  api<{ namespace: string; schema: DatastoreSchema | null; added: string[]; updated: string[]; removed: string[] }>(
+    `/api/datastore/namespaces/${encodeURIComponent(ns)}/schema`,
+    { method: 'PATCH', ...j(patch) })
 export const renameNamespace = (ns: string, name: string) =>
   api<{ ok: boolean; namespace: string }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}`, { method: 'PATCH', ...j({ name }) })

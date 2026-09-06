@@ -50,3 +50,43 @@ export function visibleColumns(
 ): string[] {
   return (chosen ?? defaultColumns(fields, schema)).filter((k) => fields.includes(k))
 }
+
+/**
+ * Le patch de `hidden` qu'« enregistrer comme vue par défaut » doit envoyer :
+ * UNIQUEMENT les colonnes du menu dont l'état demandé diffère de ce que le schéma
+ * déclare aujourd'hui. Rien d'autre n'est nommé — donc rien d'autre ne bouge.
+ *
+ * Le geste précédent reposait le schéma ENTIER (`PUT`) reconstruit depuis la liste
+ * connue du front : il retirait `hidden` de TOUS les champs avant de le reposer sur
+ * les seuls décochés. Un aller-retour dans ce menu rendait donc visibles, pour tout
+ * le monde, les colonnes masquées ailleurs — par un agent, ou sur une colonne absente
+ * de la page courante, donc absente du menu. Le bouton vit au milieu de gestes
+ * purement locaux (miroir d'URL) : l'effet global ne se voyait pas.
+ *
+ * - `menuFields` : les colonnes que ce menu gouverne (celles des lignes affichées).
+ *   Ce qui n'y est pas n'est jamais nommé.
+ * - `hidden` : celles que l'utilisateur laisse décochées.
+ * - Un champ que le schéma ne déclare pas est ignoré : le nommer l'AJOUTERAIT au
+ *   schéma, ce qui change ce que le tableau accepte (`strict`, `unknown_fields`) —
+ *   une décision de gouvernance, pas un réglage d'affichage.
+ * - Recocher écrit `hidden: false` plutôt que d'ôter la clé : la fusion par clé du
+ *   serveur écrase les propriétés nommées, elle n'en supprime aucune, et
+ *   `defaultColumns` lit `!== true`, donc `false` affiche exactement comme l'absence.
+ */
+export function hiddenPatch(
+  menuFields: string[],
+  hidden: string[],
+  schema: DatastoreSchema | null | undefined,
+): Array<{ key: string; hidden: boolean }> {
+  const declared: Record<string, DatastoreField> = {}
+  for (const f of schema?.fields ?? []) if (f.key) declared[f.key] = f
+  const wanted = new Set(hidden)
+  const patch: Array<{ key: string; hidden: boolean }> = []
+  for (const k of menuFields) {
+    const f = declared[k]
+    if (!f) continue
+    const next = wanted.has(k)
+    if ((f.hidden === true) !== next) patch.push({ key: k, hidden: next })
+  }
+  return patch
+}

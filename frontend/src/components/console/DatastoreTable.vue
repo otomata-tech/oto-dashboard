@@ -28,12 +28,12 @@ import {
   getNamespaces, getNamespaceRows, getNamespaceRow, getNamespaceAggregate,
   getNamespaceQueue, releaseRowClaim,
   appendNamespaceRow, updateNamespaceRow, deleteNamespaceRow,
-  deleteNamespace, renameNamespace, setNamespaceSchema,
+  deleteNamespace, renameNamespace, patchNamespaceSchema,
 } from '@/api/console'
 import type { NamespaceEntry, DatastoreRow, ColumnFilter } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { rowsToCsv, downloadCsv } from '@/lib/csv'
-import { userFields, visibleColumns } from '@/lib/datastoreColumns'
+import { hiddenPatch, userFields, visibleColumns } from '@/lib/datastoreColumns'
 import { filtersFromParam, filtersToParam } from '@/lib/datastoreFilters'
 import type { LifecycleIntent } from '@/lib/datastoreLifecycle'
 import { cleTitre } from '../../lib/datastoreTitle'
@@ -277,24 +277,29 @@ function onCols(next: string[] | null) { cols.value = next; syncTableQuery() }
 // le `hidden` du SCHÉMA — le mécanisme qui gouvernait déjà l'affichage et qu'on
 // éditait à la main. La vue vaut donc pour tout le monde et depuis n'importe où,
 // et le choix ponctuel (`?cols=`) redevient inutile → on le lève.
-async function onSaveView(hidden: string[]) {
+//
+// ⚠️ L'enregistrement AMENDE le schéma par clé (PATCH), il ne le repose pas (PUT).
+// Reposer la liste entière faisait de ce bouton — posé au milieu de gestes purement
+// locaux — un effet de bord GLOBAL et destructeur : le corps était reconstruit depuis
+// les seuls champs que le front connaissait, `hidden` retiré partout puis reposé sur
+// les décochés, donc tout `hidden` déclaré ailleurs (par un agent, sur une colonne
+// hors de la page courante) disparaissait pour tout le monde, sans un mot. Le patch
+// ne nomme que les colonnes de CE menu dont l'état change ; le reste du schéma —
+// colonnes jamais vues, sous-champs, libellés, bornes — n'est pas dans le corps,
+// donc ne peut pas être perdu. Un SEUL appel, groupé : une modification de schéma
+// reconstruit un index sur la table partagée par tous les tableaux (interblocage du
+// 05/09), en multiplier rejouerait la cause.
+async function onSaveView(view: { fields: string[]; hidden: string[] }) {
   const n = name.value
   const schema = meta.value?.schema
   if (!n || !schema?.fields?.length) return
-  const hide = new Set(hidden)
-  const next = {
-    ...schema,
-    fields: schema.fields.map((f) => {
-      const { hidden: _drop, ...rest } = f          // pas de `hidden: false` inutile
-      return hide.has(f.key) ? { ...rest, hidden: true } : rest
-    }),
-  }
+  const patch = hiddenPatch(view.fields, view.hidden, schema)
   try {
-    await setNamespaceSchema(n, next)
+    if (patch.length) await patchNamespaceSchema(n, { fields: patch })
     await resolveMeta()
     onCols(null)
-    toast(hidden.length
-      ? `vue enregistrée — ${hidden.length} colonne${hidden.length > 1 ? 's' : ''} masquée${hidden.length > 1 ? 's' : ''} par défaut`
+    toast(view.hidden.length
+      ? `vue enregistrée — ${view.hidden.length} colonne${view.hidden.length > 1 ? 's' : ''} masquée${view.hidden.length > 1 ? 's' : ''} par défaut`
       : 'vue enregistrée — toutes les colonnes sont visibles par défaut')
     emit('changed')
   } catch (e) { toast(humanize(e)) }

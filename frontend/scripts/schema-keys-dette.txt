@@ -34,8 +34,9 @@
 
 # ── Lues ici, inconnues de la plateforme ─────────────────────────────────────────────
 # `hidden` est le cas le plus engageant des deux : il n'est pas seulement LU, il est
-# ÉCRIT — « enregistrer la vue » le renvoie au PUT /schema. Le dashboard pose donc un
-# attribut que le validateur ne reconnaît pas.
+# ÉCRIT — « enregistrer la vue » l'envoie au PATCH /schema (amendement par clé ; le PUT,
+# qui reposait la liste entière, effaçait les `hidden` posés ailleurs). Le dashboard pose
+# donc un attribut que le validateur ne reconnaît pas.
 lue-non-servie hidden
 lue-non-servie width
 

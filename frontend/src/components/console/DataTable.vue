@@ -39,7 +39,12 @@ const emit = defineEmits<{
   (e: 'update:search', q: string): void
   (e: 'update:filters', filters: ColumnFilter[]): void
   (e: 'update:cols', cols: string[] | null): void
-  (e: 'save-view', hidden: string[]): void   // figer la vue = déclarer `hidden` au schéma
+  // Figer la vue = déclarer `hidden` au schéma. La charge porte AUSSI la portée du
+  // geste (`fields` : les colonnes que ce menu gouverne), sans quoi le parent devrait
+  // la recalculer de son côté — et un second calcul du « quelles colonnes » est
+  // exactement ce qui avait laissé fuiter les colonnes internes à l'export (#137).
+  // Hors de cette portée, l'enregistrement ne nomme rien, donc ne touche à rien.
+  (e: 'save-view', view: { fields: string[]; hidden: string[] }): void
 }>()
 
 const DEFAULT_SORT = '_updated_at'
@@ -244,10 +249,13 @@ watch(() => props.filters, (f) => {
             <!-- Figer la vue = écrire `hidden` dans le SCHÉMA du tableau (pas une
                  préférence locale) : la vue vaut alors pour tous ceux qui l'ouvrent,
                  depuis n'importe quel poste, et reste le mécanisme qu'on éditait déjà
-                 à la main. Réservé à qui peut gouverner le tableau. -->
+                 à la main. Réservé à qui peut gouverner le tableau. Le geste n'engage
+                 QUE les colonnes de ce menu (`fields`) : ce qu'il ne nomme pas — une
+                 colonne absente de la page, un sous-champ, tout autre attribut —
+                 reste tel quel. -->
             <button v-if="canSaveView && colsDiffer" class="dt-cols__save"
               title="Les colonnes décochées seront masquées par défaut pour tout le monde"
-              @click="emit('save-view', fields.filter((k) => !isShown(k))); colsOpen = false">
+              @click="emit('save-view', { fields, hidden: fields.filter((k) => !isShown(k)) }); colsOpen = false">
               Enregistrer comme vue par défaut
             </button>
             <button v-if="chosenCols" class="dt-cols__reset" @click="emit('update:cols', null)">
