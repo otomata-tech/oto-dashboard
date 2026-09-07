@@ -9,7 +9,7 @@ import type {
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
   GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
-  InstructionVersion, LibraryEntry, LibraryDoctrine, Locale, Me, MonitoringSummary,
+  InstructionVersion, LibraryEntry, LibraryDoctrine, LinkedProcedure, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption,
   ColumnFilter, DatastoreField, DatastoreRow, DatastoreSchema, NamespaceEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
@@ -333,6 +333,13 @@ export const getKbProject = () =>
 // Modèles (templates) copiables visibles par l'acteur — bibliothèque (ADR 0032 §7 B5a).
 export const listProjectTemplates = () => projectsApi<{ projects: Project[] }>({ op: 'list_templates' })
 export const getProject = (id: number) => projectsApi<Project>({ op: 'get', project_id: id })
+// Le CORPS des procédures liées (#313). Passe par la route PROJET, pas par
+// `/api/me/instructions/{slug}` : c'est le projet qui donne le droit de lire ce qu'il
+// lie (une procédure peut venir d'une AUTRE org, partagée par grant). Interroger la
+// doctrine de l'org du lecteur marche depuis l'intérieur et échoue pour un invité.
+export const getProjectProcedures = (id: number) =>
+  projectsApi<Project & { procedures?: LinkedProcedure[] }>(
+    { op: 'get', project_id: id, include: ['procedures'] })
 // ADR 0049 : owner = scope du projet — org (une de mes orgs), group (pôle/équipe :
 // cloisonné à ses membres + admins d'org) ou platform (bibliothèque, admin plateforme).
 // ADR 0030 amendé : sans `owner`, le backend crée un projet PERSO (owner=(user, sub))

@@ -23,12 +23,12 @@ import {
   getConnectorIdentities, linkProject, unlinkProject,
   setProjectFilePublic, deleteProjectFile,
   getToolRegistry, getConnectors, getProjectRuns, getRunThread, appendRunThread,
-  enqueueRunContinue, getInstruction,
+  enqueueRunContinue, getProjectProcedures,
   type RunThreadMessage,
 } from '@/api/console'
 import type {
   Doc, DocKind, DocRevision, DocChangeRequest, ProjectLink, ConnectorIdentity,
-  ToolRegistryEntry, ConnectorMeta, ProjectRun, ProjectFile, InstructionDetail,
+  ToolRegistryEntry, ConnectorMeta, ProjectRun, ProjectFile, LinkedProcedure,
 } from '@/types/api'
 
 // Caches module-level : le registre d'outils et le catalogue de connecteurs ne changent
@@ -92,7 +92,7 @@ const title = computed(() => {
 })
 const KIND_EYEBROW: Record<string, string> = {
   tableau: 'tableau lié · datastore', connecteur: 'connecteur · résolution par projet',
-  procedure: 'procédure · déroulé chargé à la demande', doc: 'document lié',
+  procedure: "ce qu'un agent exécute", doc: 'document lié',
   file: 'fichier importé',
 }
 const eyebrow = computed(() => {
@@ -324,9 +324,16 @@ function filTexte(m: RunThreadMessage): string {
   if (calls.length) return calls.map((t) => String(t.name ?? '?')).join(' · ')
   return '—'
 }
-// Déroulé de la procédure liée (rendu inline, comme un tableau) — #procédure-inline.
-const procDoc = ref<InstructionDetail | null>(null)
+// Le contenu de la procédure liée, rendu inline (comme un tableau montre sa grille).
+const procDoc = ref<LinkedProcedure | null>(null)
 const procLoading = ref(false)
+// Déplié par défaut : on a cliqué CETTE procédure pour la lire. La replier d'office
+// remettrait le contenu derrière un geste — le défaut qu'on corrige ici.
+const procOpen = ref(true)
+const procBody = computed(() => (procDoc.value?.body_md ?? '').trim())
+// Résumé de tête, quand la procédure en porte un. Champ facultatif : absent aujourd'hui,
+// il apparaîtra côté backend sans que cet écran change.
+const procSummary = computed(() => (procDoc.value?.description ?? '').trim())
 
 // Charge les extras de l'entité sélectionnée (identités+outils / runs) selon son type.
 watch(item, async () => {
@@ -355,11 +362,18 @@ watch(item, async () => {
       .then((r) => { runs.value = r.runs })
       .catch(() => { runs.value = [] })
       .finally(() => { runsLoading.value = false })
-    // Déroulé rendu inline (comme un tableau ouvre sa grille) : on charge le markdown
-    // de la procédure par son slug (target_ref) plutôt que de forcer un saut vers /procedures.
+    // Le corps vient de la route PROJET (`include=procedures`), PAS de la doctrine de
+    // l'org du lecteur : c'est le projet qui donne le droit de lire ce qu'il lie. La
+    // route de doctrine répondait depuis l'intérieur de l'org et échouait pour un
+    // invité — l'écran retombait alors sur un texte de repli, silencieusement.
+    // Une procédure hors de portée du jeton est absente de la réponse : on garde son
+    // titre, sans message d'erreur ni case vide.
     procLoading.value = true
-    getInstruction(l.target_ref)
-      .then((d) => { procDoc.value = d })
+    procOpen.value = true
+    getProjectProcedures(props.projectId)
+      .then((p) => {
+        procDoc.value = (p.procedures ?? []).find((x) => x.ref === l.target_ref) ?? null
+      })
       .catch(() => { procDoc.value = null })
       .finally(() => { procLoading.value = false })
   }
@@ -595,14 +609,27 @@ async function removeFile() {
         <DatastoreTable :ns-ref="link.target_ref" :govern="false" />
       </div>
 
-      <!-- ═══ PROCÉDURE (déroulé + derniers runs) ═══ -->
+      <!-- ═══ PROCÉDURE (son contenu + ses dernières exécutions) ═══ -->
       <div v-else-if="kind === 'procedure'" class="vw__block">
-        <!-- Déroulé rendu inline (comme un tableau montre sa grille) -->
-        <MarkdownView v-if="procDoc && procDoc.body_md.trim()" :source="procDoc.body_md" />
-        <p v-else-if="procLoading" class="dim" style="font-size: 12.5px">chargement du déroulé…</p>
-        <p v-else class="dim" style="font-size: 13px; line-height: 1.6">Procédure (déroulé opératoire) liée à ce projet — chargée à la demande par l'agent.</p>
+        <!-- Résumé visible en tête quand il existe, le détail dessous. -->
+        <p v-if="procSummary" class="vw__procsum">{{ procSummary }}</p>
+        <!-- Le CONTENU, montré et non remplacé par un lien. Déplié par défaut, mais dans
+             un cadre qui DÉFILE : les corps réels vont jusqu'à ~15 000 caractères et
+             étireraient la page. -->
+        <template v-if="procBody">
+          <button type="button" class="vw__procfold" :aria-expanded="procOpen"
+                  @click="procOpen = !procOpen">
+            <Icon :name="procOpen ? 'chevron-down' : 'chevron-right'" :size="12" />
+            {{ procOpen ? 'Replier le détail' : 'Afficher le détail' }}
+          </button>
+          <div v-show="procOpen" class="vw__procbody"><MarkdownView :source="procBody" /></div>
+        </template>
+        <p v-else-if="procLoading" class="dim" style="font-size: 12.5px">chargement…</p>
+        <!-- Ni contenu ni chargement : le titre de la carte porte l'information à lui
+             seul. On n'ajoute NI phrase explicative (qui ferait passer un échec de
+             lecture pour un choix de conception) NI case vide. -->
         <template v-if="runs.length">
-          <div class="vw__sub" style="margin-top: 16px">derniers runs</div>
+          <div class="vw__sub" style="margin-top: 16px">dernières exécutions</div>
           <div class="vw__runs">
             <template v-for="r in runs" :key="r.run_id">
               <button type="button" class="vw__run vw__run--btn" @click="toggleFil(r)">
@@ -615,8 +642,8 @@ async function removeFile() {
                 <p v-if="filLoading" class="dim" style="font-size: 12px">chargement du fil…</p>
                 <p v-else-if="filErreur" class="dim" style="font-size: 12px">{{ filErreur }}</p>
                 <p v-else-if="!filMessages.length" class="dim" style="font-size: 12px">
-                  Ce run n'a pas de fil — exécution tracée par un agent externe, son
-                  déroulé vit dans le journal.
+                  Cette exécution a été menée par un agent externe : son détail vit dans le
+                  journal, pas ici.
                 </p>
                 <div v-else class="vw__filmsgs">
                   <div v-for="m in filMessages" :key="m.seq" class="vw__filmsg">
@@ -641,9 +668,12 @@ async function removeFile() {
             </template>
           </div>
         </template>
-        <p v-else-if="runsLoading" class="dim" style="font-size: 12.5px; margin-top: 12px">chargement des runs…</p>
-        <p v-else class="dim" style="font-size: 12.5px; margin-top: 12px">Aucun run enregistré pour cette procédure dans ce projet.</p>
-        <RouterLink v-if="openHref" class="vw__open" :to="openHref">Ouvrir la procédure <Icon name="ext" :size="12" /></RouterLink>
+        <p v-else-if="runsLoading" class="dim" style="font-size: 12.5px; margin-top: 12px">chargement…</p>
+        <!-- Aucune exécution : on ne dit RIEN. « Aucun run enregistré » se lisait comme
+             une panne alors que la procédure est simplement en attente d'être jouée. -->
+        <!-- Le lien vers la fiche complète n'a de sens que si on a PU lire le corps :
+             sinon il mène à une page que le même jeton n'ouvrira pas davantage. -->
+        <RouterLink v-if="openHref && procBody" class="vw__open" :to="openHref">Ouvrir la fiche complète <Icon name="ext" :size="12" /></RouterLink>
       </div>
 
       <!-- ═══ DOCUMENT lié ═══ -->
@@ -722,7 +752,16 @@ async function removeFile() {
 .vw__tblhd .vw__tblc { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--color-faint); }
 .vw__tblc { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* derniers runs (procédure) */
+/* contenu d'une procédure : résumé en tête, corps replié dans un cadre qui défile */
+.vw__procsum { font-size: 13.5px; line-height: 1.6; color: var(--color-ink-soft); margin: 0 0 12px; max-width: 660px; }
+.vw__procfold { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; cursor: pointer;
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--color-faint); }
+.vw__procfold:hover { color: var(--color-ink-soft); }
+/* Le corps va jusqu'à ~15 000 caractères : il DÉFILE au lieu d'étirer la page. */
+.vw__procbody { margin-top: 10px; max-height: 460px; overflow-y: auto; padding: 12px 14px;
+  border: 1px solid var(--color-hair); border-radius: var(--radius-md); background: var(--color-paper); }
+
+/* dernières exécutions (procédure) */
 .vw__runs { display: flex; flex-direction: column; width: 100%; max-width: 560px; }
 .vw__run { display: flex; align-items: center; gap: 9px; padding: 7px 0; border-bottom: 1px solid var(--color-hair-soft); }
 .vw__run:last-child { border-bottom: 0; }

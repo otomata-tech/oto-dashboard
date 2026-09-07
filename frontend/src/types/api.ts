@@ -593,6 +593,20 @@ export interface ProjectLink {
   cross_project?: boolean        // dérivé : la même entité est liée par ≥1 autre projet
   created_at?: string | null
 }
+// Corps d'une procédure liée, servi par `oto_project(op=get, include=['procedures'])`.
+// C'est la route PROJET : elle rend ce que le projet donne le droit de lire, là où la
+// route de doctrine ne rend que ce que l'org DU LECTEUR possède.
+// `description` est FACULTATIF — la liste blanche du backend l'ajoute en ce moment, et
+// le rendu doit marcher avec comme sans. Une procédure hors de portée du jeton est
+// simplement ABSENTE de la liste (jamais une erreur) : l'écran retombe sur son titre.
+export interface LinkedProcedure {
+  ref: string
+  slug: string
+  title: string
+  version: number
+  body_md: string
+  description?: string | null
+}
 export interface Project {
   id: number
   name: string
