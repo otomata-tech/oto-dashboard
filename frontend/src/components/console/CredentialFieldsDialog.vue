@@ -261,7 +261,7 @@ const submit = handleSubmit(async (values) => {
           <hr v-if="f.name === fieldDiscriminator" class="cfd-sep" />
           <FormField v-slot="{ componentField }" :name="f.name">
             <FormItem class="cfd-row">
-              <FormLabel>{{ f.label.toLowerCase() }}<span v-if="f.required === false" class="dim"> · optionnel</span></FormLabel>
+              <FormLabel>{{ f.label.toLowerCase() }}<span v-if="f.required === false" class="cfd-opt"> · optionnel</span></FormLabel>
               <div class="cfd-ctl">
                 <!-- Jeu FERMÉ de valeurs déclaré par le connecteur : un select, pas un
                      champ libre — une faute de frappe y était acceptée puis refusée au
@@ -325,6 +325,7 @@ const submit = handleSubmit(async (values) => {
 }
 .cfd-form { display: grid; gap: 14px; }
 .cfd-ctl { display: grid; gap: 4px; min-width: 0; }
+.cfd-opt { color: var(--color-faint); font-weight: 500; }
 .cfd-hint { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--color-faint); }
 .cfd-hint--section { color: var(--color-mute); }
 .cfd-sep { border: 0; border-top: 1px solid var(--color-hair-soft); margin: 4px 0 0; }
@@ -336,7 +337,11 @@ const submit = handleSubmit(async (values) => {
   .cfd-form--wide .cfd-row {
     grid-template-columns: 150px minmax(0, 1fr); column-gap: 18px; row-gap: 0; align-items: start;
   }
-  .cfd-form--wide .cfd-row > :deep([data-slot="form-label"]) { padding-top: 11px; }
+  /* Le Label du kit est un flex : « · optionnel » y devenait une colonne à part et
+     cassait « nom affiché » sur deux lignes. En bloc, le texte coule. */
+  .cfd-form--wide .cfd-row > :deep([data-slot="form-label"]) {
+    display: block; padding-top: 11px; line-height: 1.4;
+  }
   .cfd-form--wide .cfd-hint--section { padding-left: 168px; }
 }
 </style>
