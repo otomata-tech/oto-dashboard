@@ -88,7 +88,7 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
       // corriger UNE valeur non secrète n'oblige pas à resaisir un secret illisible.
       const prefill = await credentialPrefill(r.connector, 'org')
       ctx.openCredential({
-        label: r.label, fields: m.credential_fields, single: false,
+        label: r.label, fields: m.credential_fields, single: false, scope: 'org',
         fieldDiscriminator: m.auth?.field_discriminator,
         initialValues: prefill.values, existing: prefill.existing,
         docs: m.doc_sections,

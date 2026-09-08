@@ -80,7 +80,7 @@ export function useTeamAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<GroupConnec
       ? await credentialPrefill(r.connector, 'group')
       : { existing: false, values: {} }
     ctx.openCredential({
-      label: r.label, fields, single: !multi,
+      label: r.label, fields, single: !multi, scope: 'group',
       fieldDiscriminator: m?.auth?.field_discriminator,
       initialValues: prefill.values, existing: prefill.existing,
       docs: m?.doc_sections,

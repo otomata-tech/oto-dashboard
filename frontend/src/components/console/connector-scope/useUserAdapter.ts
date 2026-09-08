@@ -8,11 +8,12 @@ import {
   getMyConnectors, getTools, getToolRegistry,
   selectConnector, pauseConnector, unselectConnector,
   setCredential, deleteApiKey, verifyConnector, enableTool, disableTool,
-  getOrgFieldFilters, credentialPrefill,
+  getOrgFieldFilters, credentialPrefill, setOrgSecret,
 } from '@/api/console'
-import { useMe } from '@/composables/useMe'
+import { useMe, isSuperAdmin } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
 import { connectorVerdict } from '@/lib/connectorVerdict'
+import { poseScope } from '@/lib/credentialScope'
 import type { ConnectorState, FieldFiltersBundle, MyConnector, ToolEntry } from '@/types/api'
 
 export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector> {
@@ -27,6 +28,12 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
   // le drawer user est le RACCOURCI (solo = org_admin de son org perso ; membre = lecture).
   const orgId = computed(() => me.value?.active_org ?? null)
   const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin')
+  // Qui peut poser la CLÉ D'ORG. ⚠️ Volontairement PAS le `isOrgAdmin` partagé de
+  // `useMe`, qui fait valoir tout opérateur plateforme pour org_admin : côté serveur,
+  // seul le **super_admin** escalade en org_admin (`roles.is_platform_admin`), et un
+  // `admin` opérationnel se ferait refuser en 403 après la saisie. On ouvre le
+  // formulaire à qui le serveur acceptera, ni plus ni moins.
+  const canPoseOrgKey = computed(() => isOrgAdmin.value || isSuperAdmin(me.value))
   const isPersonal = computed(() => !!me.value?.active_org_is_personal)
   const installed = (r: MyConnector) => r.state !== 'not_selected'
 
@@ -141,22 +148,45 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
       configureKey: async (r) => {
         const fields = r.credential_fields ?? []
         if (!fields.length) return
+        // ⚠️ **Le palier se LIT sur le connecteur** (`lib/credentialScope`), il ne se
+        // suppose pas. Un connecteur sans `byo_user` — `http`, donc tous les ponts
+        // clients — n'a pas de clé personnelle : posée au palier membre, la clé est
+        // refusée par le serveur (`404 unknown_provider`) après toute la saisie. Sa
+        // seule pose est celle de l'org, et l'org est DÉJÀ à l'écran : on ne la
+        // redemande pas.
+        const scope = poseScope(r.auth_modes)
+        if (scope === null) {
+          ctx.toast(`${r.label} : aucune clé à saisir ici — l'accès vient de la plateforme.`)
+          return
+        }
+        const atOrg = scope === 'org'
+        if (atOrg && (orgId.value == null || !canPoseOrgKey.value)) {
+          // Un formulaire qui ne s'ouvre pas sans un mot est un bug : on dit à qui
+          // le geste appartient plutôt que de laisser le serveur refuser en 403.
+          ctx.toast(`${r.label} : sa clé vaut pour toute l'org — un admin de ton org la pose.`)
+          return
+        }
         const single = fields.length === 1
         // Relire ce qui est relisible AVANT d'ouvrir : sans ça, corriger une valeur
         // non secrète oblige à tout resaisir, secret compris — et le secret, lui,
         // ne se relit pas. Un connecteur à clé unique n'a rien à pré-remplir.
-        const prefill = single
+        const prefill = single && !atOrg
           ? { existing: false, values: {} }
-          : await credentialPrefill(r.name, 'member')
+          : await credentialPrefill(r.name, atOrg ? 'org' : 'member')
         ctx.openCredential({
-          label: r.label, fields, single,
+          label: r.label, fields, single, scope,
           fieldDiscriminator: r.auth?.field_discriminator,
           initialValues: prefill.values, existing: prefill.existing,
           docs: r.doc_sections,
-          verify: r.verifiable ? () => verifyConnector(r.name) : undefined,
+          // La sonde suit le palier posé : `auto` teste le credential EFFECTIF (celui
+          // du membre en premier), donc pas celui qu'on vient d'écrire côté org.
+          verify: r.verifiable ? () => verifyConnector(r.name, atOrg ? 'org' : 'auto') : undefined,
           onConfirm: async (values, account) => {
-            await setCredential(r.name, values, account)
-            ctx.toast(`${r.label} ${fields.length === 1 ? 'clé enregistrée' : 'connecté'}`)
+            if (atOrg) await setOrgSecret(orgId.value!, r.name, '', undefined, values)
+            else await setCredential(r.name, values, account)
+            ctx.toast(atOrg
+              ? `${r.label} : clé d'org enregistrée`
+              : `${r.label} ${fields.length === 1 ? 'clé enregistrée' : 'connecté'}`)
             await reload()
           },
         })

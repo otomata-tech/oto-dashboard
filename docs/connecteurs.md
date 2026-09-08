@@ -116,6 +116,46 @@ Deux corrections du même écran, même jour :
   invisible, alors qu'elle s'affiche bien dans la pile. C'est exactement le cas où l'écran
   a menti.
 
+### Le palier de la pose — lu sur le connecteur, jamais choisi à l'écran (08/09)
+
+Le palier ne se règle pas : il est décidé par la **route**, et les trois routes sont
+disjointes — `POST /api/settings/api-keys/{provider}` écrit **au palier membre en dur**
+(son `Input` backend n'a **aucun** champ `scope` ; seuls les GET et DELETE de la même URL
+en prennent un), `PUT /api/orgs/{id}/secrets/{provider}` au palier org, `PUT
+/api/groups/{id}/secrets/{provider}` au palier équipe. « Faire envoyer le palier au
+formulaire » est donc impossible sur la première : le geste juste est de **changer de
+route**.
+
+Quel palier un connecteur peut accepter se lit sur `auth_modes` — `byo_user` ⇒ le membre
+pose la sienne (elle prime dans la cascade), sinon `byo_org` ⇒ c'est la clé de l'org.
+`lib/credentialScope.ts` (`poseScope`) porte cette règle et **est un MIROIR de
+`me_credentials._credentialable`**, qui évalue l'éligibilité PAR PALIER côté serveur.
+⚠️ `auth_modes` est `Optional` au contrat : **absent ⇒ palier membre**, jamais un
+détournement vers l'org sur une absence de donnée.
+
+**Le défaut que ça ferme.** « Mes connecteurs » offre ses leviers en les DÉRIVANT du
+catalogue : `needsKey` ne regardait que `auth.method === 'secret'`, donc l'écran proposait
+« Connecter X » pour les 4 connecteurs servis qui sont `byo_org` **sans** `byo_user` —
+`http` (donc tous les ponts clients, ADR 0003/0037), `resend`, `scaleway`, `linear`. Le
+POST partait au palier membre, le seul que cette route connaisse, et le serveur répondait
+`404 unknown_provider : « Connecteur inconnu : http »` **après toute la saisie**, quoi
+qu'on tape. Mesuré en prod sur `manage.oto.cx`, org 302. L'écran d'org, lui, n'a jamais
+été cassé : sa pose passe par la route d'org.
+
+Depuis, `useUserAdapter.configureKey` pose au palier que `poseScope` désigne, avec **l'org
+déjà à l'écran** (`me.active_org`) — l'utilisateur ne déclare pas deux fois où il est. Le
+bouton dit « Poser la clé de l'org », et il n'est offert qu'à qui le serveur acceptera.
+⚠️ Ce n'est **pas** le helper partagé `isOrgAdmin` de `useMe` : il fait valoir tout
+opérateur plateforme, alors que côté serveur seul le **super_admin** escalade en org_admin
+(`roles.is_platform_admin`). Un bouton offert à qui recevra un 403 est le défaut qu'on
+répare, un cran plus haut.
+
+**Et le dialogue DIT à qui appartient ce qu'on pose** (`scope` sur `CredentialDialogSpec`).
+Il servait jusque-là « tes identifiants X — stockés chiffrés, scopés à l'org courante,
+utilisés pour agir en ton nom », verbatim, sur les **quatre** surfaces — y compris
+`/org/connectors` et `/team/connectors`, où l'on pose une clé **partagée**. C'est la seule
+phrase lue avant de valider, et elle contredisait l'effet du bouton.
+
 ### Le formulaire de credential — sélection par mode, pré-remplissage, écriture partielle
 
 Trois règles, toutes DÉRIVÉES du registre, aucune connaissance d'un connecteur à l'écran

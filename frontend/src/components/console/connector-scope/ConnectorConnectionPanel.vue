@@ -17,10 +17,11 @@ import ConnectorFlowConnect from '@/components/console/ConnectorFlowConnect.vue'
 import ConnectorKeyAccounts from '@/components/console/ConnectorKeyAccounts.vue'
 import ConnectorKeyStack from './ConnectorKeyStack.vue'
 import ConnectorVerdictLine from './ConnectorVerdictLine.vue'
-import { useMe } from '@/composables/useMe'
+import { useMe, isSuperAdmin } from '@/composables/useMe'
 import { getOrgConnectorActivation } from '@/api/console'
 import type { ConnectionLever } from './adapter'
 import { connectWidgetKind } from '@/lib/connectorConnect'
+import { poseScope } from '@/lib/credentialScope'
 import type { ConnectorMode } from '@/lib/consoleTypes'
 import type { MyConnector, OrgConnectorActivation } from '@/types/api'
 
@@ -59,11 +60,22 @@ const authLabel = computed(() => {
     default: return 'open data'
   }
 })
+// À quel palier la clé de ce connecteur se pose (lu sur `auth_modes`, cf.
+// `lib/credentialScope`). `org` = il n'existe PAS de clé personnelle : le geste
+// d'ici pose la clé de l'org de contexte, et il appartient à un admin d'org.
+const poseAt = computed(() => poseScope(c.value.auth_modes))
+const orgKeyOnly = computed(() => poseAt.value === 'org')
+// Même borne que l'adaptateur : côté serveur, seul le super_admin escalade en
+// org_admin — un `admin` opérationnel serait refusé en 403 après la saisie.
+const canPoseKey = computed(() => poseAt.value === 'member'
+  || (orgKeyOnly.value && (isOrgAdmin.value || isSuperAdmin(me.value))))
 const authExplain = computed(() => {
   switch (c.value.auth.method) {
-    case 'secret': return nFields.value > 1
-      ? `un identifiant à ${nFields.value} champs, collé une fois — stocké chiffré et scopé à cette org.`
-      : 'une clé API unique, collée une fois — stockée chiffrée et scopée à cette org.'
+    case 'secret': return orgKeyOnly.value
+      ? `un identifiant posé POUR TON ORG — ce connecteur n'a pas de clé personnelle : la même clé sert tous tes membres.`
+      : nFields.value > 1
+        ? `un identifiant à ${nFields.value} champs, collé une fois — stocké chiffré et scopé à cette org.`
+        : 'une clé API unique, collée une fois — stockée chiffrée et scopée à cette org.'
     case 'oauth': return c.value.auth.cardinality === 'multi_account'
       ? 'autorise un ou plusieurs comptes en OAuth — aucune clé à copier.'
       : 'une autorisation OAuth ponctuelle en ton nom — aucune clé à copier.'
@@ -110,7 +122,11 @@ const otherKeys = ref(0)
 // d'équipe déjà posée se lit comme « brancher le connecteur », donc comme quelque chose
 // de déjà fait — et personne ne le prend pour « poser MA clé, qui passera avant ». Le
 // cas est arrivé jusqu'à un admin d'org devant sa propre org (oto-dashboard#126).
-const keyCta = computed(() => (otherKeys.value > 0 ? 'Poser ma clé' : `Connecter ${c.value.label}`))
+// ⚠️ « Poser ma clé » ne peut pas s'écrire là où aucune clé personnelle n'existe :
+// le geste pose celle de l'org, et le bouton doit le dire AVANT le formulaire.
+const keyCta = computed(() => (orgKeyOnly.value
+  ? "Poser la clé de l'org"
+  : otherKeys.value > 0 ? 'Poser ma clé' : `Connecter ${c.value.label}`))
 </script>
 
 <template>
@@ -153,9 +169,13 @@ const keyCta = computed(() => (otherKeys.value > 0 ? 'Poser ma clé' : `Connecte
              ligne « ta clé — aucune » rendent le geste à son propriétaire. Rien de
              tout ça quand il n'y a aucune clé : il n'y a alors rien au-dessus à
              confondre, et annoncer un vide de plus serait du bruit. -->
-        <div v-if="!keyConfigured && !flow" class="dr-mine" :class="{ split: otherKeys > 0 }">
-          <span v-if="otherKeys > 0" class="dr-mine-lbl"><Dot tone="saffron" />ta clé — aucune</span>
-          <Btn kind="mini" @click="lever.configureKey(c)">{{ keyCta }}</Btn>
+        <div v-if="!keyConfigured && !flow" class="dr-mine" :class="{ split: otherKeys > 0 && !orgKeyOnly }">
+          <span v-if="otherKeys > 0 && !orgKeyOnly" class="dr-mine-lbl"><Dot tone="saffron" />ta clé — aucune</span>
+          <!-- Clé d'org sans clé personnelle possible : le bouton n'est offert qu'à
+               qui peut réellement poser. Un membre voyait ici « Connecter HTTP », et
+               le serveur refusait la pose après toute la saisie. -->
+          <Btn v-if="canPoseKey" kind="mini" @click="lever.configureKey(c)">{{ keyCta }}</Btn>
+          <span v-else class="dr-mine-lbl"><Dot tone="faint" />clé d'org — un admin de ton org la pose</span>
         </div>
         <!-- Geste de connexion déclaré (consentement OAuth…) : il COEXISTE avec le
              formulaire de champs, il ne le remplace pas — pour ces connecteurs on pose

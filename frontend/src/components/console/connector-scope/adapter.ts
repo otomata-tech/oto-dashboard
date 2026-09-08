@@ -235,6 +235,12 @@ export interface CredentialDialogSpec {
   // La doc « how-to » du connecteur (prérequis + mise en route), rendue DANS le
   // dialogue : c'est là qu'on colle, donc là qu'il faut savoir quoi créer et où.
   docs?: DocSection[]
+  // Le PALIER que cette pose vise ('member' par défaut). Le dialogue le DIT :
+  // « tes identifiants … utilisés pour agir en ton nom » et « la clé de ton org,
+  // héritée par tous tes membres » ne se relisent pas pareil, et jusqu'ici les
+  // surfaces org et équipe servaient la première phrase pour poser la seconde clé.
+  // Ce n'est pas un réglage offert à l'utilisateur : le geste sait déjà où il pose.
+  scope?: 'member' | 'group' | 'org'
 }
 
 // Services partagés injectés par la vue (une seule instance de FormDialog / prompt /

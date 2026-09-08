@@ -51,6 +51,12 @@ const props = defineProps<{
   // fournisseur, ni avec quels droits. Seuls le prérequis et la mise en route sont
   // repris ; l'usage n'a rien à faire dans un formulaire.
   docs?: DocSection[]
+  // À QUI appartiendra ce credential. Défaut `member` (le geste historique de
+  // « mes connecteurs »). Le dialogue est partagé par les quatre surfaces : sans
+  // cette information il servait « tes identifiants … pour agir en ton nom » pour
+  // poser la clé partagée d'une org ou d'une équipe — la seule phrase que
+  // l'utilisateur lit avant de valider, et elle disait le contraire de l'effet.
+  scope?: 'member' | 'group' | 'org'
   onConfirm: (values: Record<string, string>, account: string) => Promise<void>
   // Optionnel : sonde exécutée APRÈS un enregistrement réussi (« tester la connexion »).
   // OK → ferme ; échec → reste ouvert avec le message provider pour corriger.
@@ -170,9 +176,14 @@ const howto = computed(() =>
   (props.docs ?? []).filter((d) => d.kind === 'prerequisite' || d.kind === 'setup'))
 const showHowto = ref(false)
 
+// À qui appartient ce qu'on est en train de poser. Défaut `member`.
+const scope = computed(() => props.scope ?? 'member')
+
 const title = computed(() => {
   if (props.accountMode === 'new') return `ajouter un ${noun.value} ${props.label}`
   if (props.accountMode === 'fixed') return `${props.label} · ${props.account}`
+  if (scope.value === 'org') return `clé d'org ${props.label}`
+  if (scope.value === 'group') return `clé d'équipe ${props.label}`
   return props.single ? `clé api ${props.label}` : `connecter ${props.label}`
 })
 const description = computed(() => {
@@ -180,6 +191,14 @@ const description = computed(() => {
     return `un second jeu d'identifiants ${props.label}, sous son propre nom — tu choisiras lequel sert par défaut, et ton agent peut viser l'autre à l'appel.`
   if (props.accountMode === 'fixed')
     return `remplace les identifiants de ce ${noun.value} — le reste ne bouge pas.`
+  // ⚠️ Une clé partagée n'est PAS « la tienne, scopée à l'org » : elle sert à tous
+  // les membres, dont ceux qui n'ont posé aucune clé. Le dire ici, c'est-à-dire
+  // avant de valider — l'écran ne le disait nulle part, et sur « mes connecteurs »
+  // rien ne distinguait le geste de la pose d'une clé personnelle.
+  if (scope.value === 'org')
+    return `la clé ${props.label} de ton org — stockée chiffrée, elle sert à TOUS tes membres qui n'ont pas la leur.`
+  if (scope.value === 'group')
+    return `la clé ${props.label} de ton équipe — stockée chiffrée, elle sert à tous ses membres qui n'ont pas la leur, et cède devant une clé personnelle.`
   return props.single
     ? `ta clé ${props.label} — stockée chiffrée, scopée à l'org courante ; elle y prime sur la clé d'org et de plateforme.`
     : `tes identifiants ${props.label} — stockés chiffrés, scopés à l'org courante, utilisés pour agir en ton nom.`
