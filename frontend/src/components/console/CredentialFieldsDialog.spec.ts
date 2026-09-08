@@ -124,3 +124,57 @@ describe('CredentialFieldsDialog — ajout d’un compte nommé', () => {
     d.cleanup()
   })
 })
+
+// Connecteur à DISCRIMINANT (`http`) : le mode d'auth commande les autres champs. Tant
+// qu'il n'est pas choisi, seuls les champs communs se montrent — les douze champs d'un
+// coup, c'est ce qui a rendu la modale illisible (08/09). Choisi, le formulaire ne
+// montre que ce que ce mode rend pertinent, et l'aide vit SOUS chaque champ, jamais en
+// placeholder (elle y arrivait tronquée).
+const HTTP = [
+  { name: 'base_url', label: 'URL de base', secret: false, help: 'racine de l’API (ex. https://api.acme.com)' },
+  { name: 'auth_mode', label: 'Mode d’auth', secret: false, choices: ['bearer', 'header', 'basic', 'none'], help: 'ce que l’API attend' },
+  { name: 'doc_path', label: 'Route de doc', secret: false, required: false, help: 'chemin relatif' },
+  { name: 'token', label: 'Token', secret: true, when: ['bearer', 'header'], help: 'valeur du bearer' },
+  { name: 'header_name', label: 'Nom du header', secret: false, when: ['header'], help: 'ex. x-api-key' },
+  { name: 'username', label: 'Utilisateur', secret: false, when: ['basic'] },
+  { name: 'password', label: 'Mot de passe', secret: true, when: ['basic'] },
+]
+
+describe('CredentialFieldsDialog — le discriminant révèle les champs', () => {
+  beforeEach(() => { document.body.innerHTML = '' })
+
+  it('sans mode choisi : les champs communs seulement, et la consigne', async () => {
+    const d = mountDialog({ label: 'HTTP', fields: HTTP, fieldDiscriminator: 'auth_mode', onConfirm: async () => {} })
+    await nextTick()
+    expect(d.input('base_url')).not.toBeNull()
+    expect(d.input('doc_path')).not.toBeNull()
+    expect(d.input('token')).toBeNull()
+    expect(d.input('header_name')).toBeNull()
+    expect(d.input('password')).toBeNull()
+    expect(d.text()).toContain('choisis « mode d’auth »')
+    d.cleanup()
+  })
+
+  it('mode stocké `header` : le token et le nom du header, pas le couple basic', async () => {
+    const d = mountDialog({
+      label: 'HTTP', fields: HTTP, fieldDiscriminator: 'auth_mode', existing: true,
+      initialValues: { base_url: 'https://api.acme.com', auth_mode: 'header', header_name: 'x-api-key' },
+      onConfirm: async () => {},
+    })
+    await nextTick()
+    expect(d.input('token')).not.toBeNull()
+    expect(d.input('header_name')?.value).toBe('x-api-key')
+    expect(d.input('username')).toBeNull()
+    expect(d.input('password')).toBeNull()
+    expect(d.text()).not.toContain('choisis « mode d’auth »')
+    d.cleanup()
+  })
+
+  it('l’aide vit sous le champ, pas en placeholder', async () => {
+    const d = mountDialog({ label: 'HTTP', fields: HTTP, fieldDiscriminator: 'auth_mode', onConfirm: async () => {} })
+    await nextTick()
+    expect(d.input('base_url')?.placeholder).toBe('')
+    expect(d.text()).toContain('racine de l’API (ex. https://api.acme.com)')
+    d.cleanup()
+  })
+})

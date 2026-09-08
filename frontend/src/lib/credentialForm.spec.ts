@@ -144,14 +144,16 @@ describe('secretPlaceholder — dire que le vide conserve', () => {
     expect(secretPlaceholder(password, false)).not.toContain('laisse vide')
   })
 
-  it('à la première pose, l\'aide du champ reste l\'aide du champ', () => {
+  it('à la première pose, le placeholder est VIDE : l\'aide vit sous le champ', () => {
+    // Elle y était en placeholder — tronquée à la largeur de l'input, et disparue dès
+    // la première frappe (l'URL de base d'`http` arrivait coupée, 08/09).
     const f: CredentialField = { name: 'token', label: 'Token', secret: true, help: 'colle le bearer' }
-    expect(secretPlaceholder(f, false)).toBe('colle le bearer')
+    expect(secretPlaceholder(f, false)).toBe('')
   })
 
-  it('un champ non secret garde son aide, même sur un credential existant', () => {
+  it('un champ non secret n\'a jamais de placeholder, même sur un credential existant', () => {
     const f: CredentialField = { name: 'base_url', label: 'URL', secret: false, help: 'racine de l\'API' }
-    expect(secretPlaceholder(f, true)).toBe('racine de l\'API')
+    expect(secretPlaceholder(f, true)).toBe('')
   })
 })
 

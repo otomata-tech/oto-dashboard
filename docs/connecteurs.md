@@ -124,8 +124,14 @@ Trois règles, toutes DÉRIVÉES du registre, aucune connaissance d'un connecteu
 1. **Ne montrer que ce qui sert.** Un connecteur peut déclarer un champ DISCRIMINANT
    (`auth.field_discriminator` — `auth_mode` chez `http`) ; chaque champ dit par `when=`
    les valeurs qui le rendent pertinent, et par `choices=` son jeu fermé de valeurs (rendu
-   en select, pas en champ libre). `http` passe de 12 champs affichés à 4 en `bearer`.
-   Discriminant absent (les ~90 autres connecteurs) ou pas encore choisi ⇒ tout s'affiche.
+   en select, pas en champ libre). `http` passe de 12 champs affichés à 5 en `bearer`.
+   Discriminant absent (les ~90 autres connecteurs) ⇒ tout s'affiche. Discriminant déclaré
+   mais **pas encore choisi ⇒ seuls les champs communs** (sans `when`) se montrent, le
+   discriminant ouvre sa section en bas, et une consigne dit que le reste vient avec le
+   choix. C'est le seul écart entre ce que la modale AFFICHE et `relevantFields` (miroir
+   du serveur, qui tient tout pour pertinent tant qu'on n'a pas tranché — pour valider un
+   envoi ; ici rien ne part sans le discriminant, requis). **Corrigé le 08/09** : la modale
+   ouvrait sur les douze champs, illisible.
 2. **Pré-remplir depuis le palier.** `credentialPrefill(provider, scope)` relit les champs
    révélables du credential déjà posé — `member`, `group` ou `org`, admin du palier exigé.
    Un secret ne se relit JAMAIS ; un 404 « rien de posé » est un état, pas une erreur.
@@ -148,6 +154,14 @@ Trois règles, toutes DÉRIVÉES du registre, aucune connaissance d'un connecteu
    registre. Le champ affichait « laisse vide pour conserver » ET « requis » en rouge, et
    le formulaire refusait de partir — le geste que tout ce lot devait débloquer. Un test
    d'invariant relie désormais les deux règles dans les deux sens.
+
+**Présentation (08/09).** L'aide d'un champ (`help`) vit SOUS le champ, jamais en
+placeholder — un placeholder se tronque à la largeur de l'input et disparaît à la première
+frappe ; le seul placeholder qui reste est « déjà enregistré — laisse vide pour conserver »
+sur un secret au coffre. Dès trois champs, la modale s'élargit (680 px) et passe le libellé
+à gauche du champ ; en dessous elle reste étroite (une clé seule). Le suffixe « · optionnel »
+est ajouté par la modale sur tout champ `required=False` : **un label du registre ne doit
+donc jamais contenir « (optionnel) »** (trois en portaient, retirés le 08/09 côté backend).
 
 ⚠️ **`lib/credentialForm.ts` est un MIROIR du serveur**, au même titre que `keyStack.ts`
 l'est de la cascade : `relevantFields` reproduit `Connector.fields_for` et `payloadFor`

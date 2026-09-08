@@ -78,6 +78,33 @@ const shown = computed(() => relevantFields(
   props.fields, props.fieldDiscriminator,
   props.fieldDiscriminator ? { [props.fieldDiscriminator]: picked.value } : {},
 ))
+// Ce que le formulaire AFFICHE. Diffère de `relevantFields` (miroir du serveur) sur
+// un seul point : tant que le discriminant n'est pas choisi, seuls les champs qui
+// valent quel que soit le mode sont montrés. Le serveur tient tout pour pertinent à
+// ce stade — pour VALIDER ce qu'on lui envoie. Ici rien ne part avant d'avoir
+// tranché (le discriminant est requis) : afficher les douze champs d'`http` d'un
+// coup n'informait pas, ça noyait (vu 08/09).
+const discriminatorField = computed(() =>
+  props.fields.find((f) => f.name === props.fieldDiscriminator))
+const visible = computed(() => (discriminatorField.value && !picked.value)
+  ? props.fields.filter((f) => !f.when?.length)
+  : shown.value)
+// Ordre de présentation : d'abord ce qui vaut toujours (URL, nom…), puis le
+// discriminant et, sous lui, les champs qu'il sélectionne. Le schéma du connecteur
+// place le discriminant en second ; à l'écran il ouvre la section qu'il commande.
+const ordered = computed(() => {
+  const d = discriminatorField.value
+  if (!d) return visible.value
+  return [
+    ...visible.value.filter((f) => f.name !== d.name && !f.when?.length),
+    d,
+    ...visible.value.filter((f) => f.when?.length),
+  ]
+})
+const modeFields = computed(() => visible.value.filter((f) => f.when?.length))
+// Une clé seule tient dans une modale étroite ; dès qu'il y a de quoi lire (URL,
+// aide sous chaque champ, sections), le libellé passe à gauche et la modale s'élargit.
+const wide = computed(() => props.fields.length >= 3)
 
 // Les secrets DÉJÀ au coffre : les laisser vides est un geste légitime, l'écran le dit
 // et l'envoi les omet. La validation doit dire la même chose — sans ça, le champ
@@ -88,7 +115,7 @@ const kept = computed(() => keptSecrets(
 const schema = computed(() =>
   toTypedSchema(
     z.object(Object.fromEntries([
-      ...shown.value.map((f) => [
+      ...visible.value.map((f) => [
         f.name,
         // ⚠️ La vue ne DÉCIDE pas si un champ est requis : elle le demande à
         // `credentialForm`, qui décide aussi de ce que l'envoi omet. Recalculer ici
@@ -110,8 +137,8 @@ const schema = computed(() =>
       // champs non secrets sont pré-remplis — c'est justement le geste « je ne
       // change qu'une URL ».
       (v) => props.existing
-        || shown.value.some((f) => ((v as Record<string, string>)[f.name] ?? '').length > 0),
-      { message: 'renseigne au moins un champ', path: [shown.value[0]?.name ?? ''] },
+        || visible.value.some((f) => ((v as Record<string, string>)[f.name] ?? '').length > 0),
+      { message: 'renseigne au moins un champ', path: [visible.value[0]?.name ?? ''] },
     ),
   ),
 )
@@ -162,7 +189,7 @@ const submit = handleSubmit(async (values) => {
   testRes.value = null
   const all = values as Record<string, string>
   const account = asksAccount.value ? (all[ACCOUNT_KEY] ?? '').trim() : (props.account ?? '')
-  const fieldValues = payloadFor(shown.value, all, { kept: kept.value })
+  const fieldValues = payloadFor(visible.value, all, { kept: kept.value })
   try {
     await props.onConfirm(fieldValues, account)
   } catch {
@@ -192,7 +219,7 @@ const submit = handleSubmit(async (values) => {
 
 <template>
   <Dialog :open="open" @update:open="emit('update:open', $event)">
-    <DialogContent class="sm:max-w-[440px]">
+    <DialogContent :class="[wide ? 'sm:max-w-[680px]' : 'sm:max-w-[440px]', 'max-h-[calc(100vh-2rem)] overflow-y-auto']">
       <DialogHeader>
         <DialogTitle>{{ title }}</DialogTitle>
         <DialogDescription>{{ description }}</DialogDescription>
@@ -212,48 +239,67 @@ const submit = handleSubmit(async (values) => {
         les champs non secrets sont pré-remplis. laisse un champ secret vide pour le conserver tel quel.
       </p>
 
-      <form class="grid gap-4" @submit.prevent="submit">
+      <form class="cfd-form" :class="{ 'cfd-form--wide': wide }" @submit.prevent="submit">
         <FormField v-if="asksAccount" v-slot="{ componentField }" :name="ACCOUNT_KEY">
-          <FormItem>
+          <FormItem class="cfd-row">
             <FormLabel>nom du {{ noun }}</FormLabel>
-            <FormControl>
-              <Input type="text" autocomplete="off"
-                     :placeholder="`comment tu appelles ce ${noun}`" v-bind="componentField" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        </FormField>
-
-        <!-- `shown`, pas `fields` : le mode choisi décide de ce qui sert. Un
-             formulaire `bearer` affiche 4 champs, pas les 12 du connecteur. -->
-        <FormField v-for="f in shown" :key="f.name" v-slot="{ componentField }" :name="f.name">
-          <FormItem>
-            <FormLabel>{{ f.label.toLowerCase() }}<span v-if="f.required === false" class="dim"> · optionnel</span></FormLabel>
-            <!-- Jeu FERMÉ de valeurs déclaré par le connecteur : un select, pas un
-                 champ libre — une faute de frappe y était acceptée puis refusée au
-                 premier appel réel. -->
-            <Select v-if="f.choices?.length" v-bind="componentField">
+            <div class="cfd-ctl">
               <FormControl>
-                <SelectTrigger class="w-full"><SelectValue :placeholder="f.help || 'choisir'" /></SelectTrigger>
+                <Input type="text" autocomplete="off"
+                       :placeholder="`comment tu appelles ce ${noun}`" v-bind="componentField" />
               </FormControl>
-              <SelectContent>
-                <SelectItem v-for="opt in f.choices" :key="opt" :value="opt">{{ opt }}</SelectItem>
-              </SelectContent>
-            </Select>
-            <FormControl v-else>
-              <Input
-                :type="f.secret ? 'password' : 'text'"
-                autocomplete="off"
-                :placeholder="secretPlaceholder(f, kept.has(f.name)) || (single ? `colle ta clé ${label}` : '')"
-                v-bind="componentField"
-              />
-            </FormControl>
-            <p v-if="f.choices?.length && f.help" class="cfd-hint">{{ f.help }}</p>
-            <FormMessage />
+              <FormMessage />
+            </div>
           </FormItem>
         </FormField>
 
-        <p v-if="testRes && !testRes.ok" style="margin: 0; font-size: 12px; color: var(--color-terra-ink)">✗ {{ testRes.error }}</p>
+        <!-- `ordered`, pas `fields` : le mode choisi décide de ce qui sert, et tant
+             qu'il n'est pas choisi seuls les champs communs se montrent. Un formulaire
+             `bearer` affiche 5 champs, pas les 12 du connecteur. -->
+        <template v-for="f in ordered" :key="f.name">
+          <!-- Le discriminant ouvre sa propre section : ce qui suit dépend de lui. -->
+          <hr v-if="f.name === fieldDiscriminator" class="cfd-sep" />
+          <FormField v-slot="{ componentField }" :name="f.name">
+            <FormItem class="cfd-row">
+              <FormLabel>{{ f.label.toLowerCase() }}<span v-if="f.required === false" class="dim"> · optionnel</span></FormLabel>
+              <div class="cfd-ctl">
+                <!-- Jeu FERMÉ de valeurs déclaré par le connecteur : un select, pas un
+                     champ libre — une faute de frappe y était acceptée puis refusée au
+                     premier appel réel. -->
+                <Select v-if="f.choices?.length" v-bind="componentField">
+                  <FormControl>
+                    <SelectTrigger class="w-full"><SelectValue placeholder="choisir" /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem v-for="opt in f.choices" :key="opt" :value="opt">{{ opt }}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormControl v-else>
+                  <Input
+                    :type="f.secret ? 'password' : 'text'"
+                    autocomplete="off"
+                    :placeholder="secretPlaceholder(f, kept.has(f.name)) || (single ? `colle ta clé ${label}` : '')"
+                    v-bind="componentField"
+                  />
+                </FormControl>
+                <!-- L'aide vit SOUS le champ, jamais en placeholder : un placeholder se
+                     tronque à la largeur de l'input et disparaît dès qu'on tape. -->
+                <p v-if="f.help" class="cfd-hint">{{ f.help }}</p>
+                <FormMessage />
+              </div>
+            </FormItem>
+          </FormField>
+        </template>
+
+        <!-- La section du discriminant dit ce qu'elle attend, même quand elle est vide. -->
+        <p v-if="discriminatorField && !picked" class="cfd-hint cfd-hint--section">
+          choisis « {{ discriminatorField.label.toLowerCase() }} » pour voir les champs à renseigner.
+        </p>
+        <p v-else-if="discriminatorField && !modeFields.length" class="cfd-hint cfd-hint--section">
+          rien d'autre à renseigner pour « {{ picked }} ».
+        </p>
+
+        <p v-if="testRes && !testRes.ok" class="cfd-error">✗ {{ testRes.error }}</p>
 
         <DialogFooter>
           <Button type="button" variant="ghost" :disabled="isSubmitting || testing" @click="emit('update:open', false)">annuler</Button>
@@ -277,5 +323,20 @@ const submit = handleSubmit(async (values) => {
   margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--color-mute);
   border-left: 2px solid var(--color-hair); padding-left: 9px;
 }
-.cfd-hint { margin: 2px 0 0; font-size: 11.5px; color: var(--color-faint); }
+.cfd-form { display: grid; gap: 14px; }
+.cfd-ctl { display: grid; gap: 4px; min-width: 0; }
+.cfd-hint { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--color-faint); }
+.cfd-hint--section { color: var(--color-mute); }
+.cfd-sep { border: 0; border-top: 1px solid var(--color-hair-soft); margin: 4px 0 0; }
+.cfd-error { margin: 0; font-size: 12px; color: var(--color-terra-ink); }
+
+/* Large : le libellé à gauche, aligné sur la ligne de base de son champ ; le champ
+   et son aide à droite. Douze champs deviennent une colonne lisible, pas un puits. */
+@media (min-width: 640px) {
+  .cfd-form--wide .cfd-row {
+    grid-template-columns: 150px minmax(0, 1fr); column-gap: 18px; row-gap: 0; align-items: start;
+  }
+  .cfd-form--wide .cfd-row > :deep([data-slot="form-label"]) { padding-top: 11px; }
+  .cfd-form--wide .cfd-hint--section { padding-left: 168px; }
+}
 </style>

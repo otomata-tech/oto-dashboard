@@ -116,10 +116,14 @@ export function requiredAtInput(f: CredentialField, kept: Set<string>): boolean 
  * vide le garde. Le dire à l'écran, sinon l'utilisateur croit qu'il doit le retrouver
  * ailleurs — c'est ce qui a fait renoncer à un repointage.
  *
+ * C'est le SEUL cas où un placeholder porte du sens : l'aide d'un champ (`help`) vit
+ * sous le champ, jamais en placeholder — un placeholder se tronque à la largeur de
+ * l'input et disparaît dès qu'on tape (l'URL de base d'`http` arrivait coupée, 08/09).
+ *
  * ⚠️ `kept` vient de `keptSecrets`, pas de « un credential existe ». Un secret qu'un
  * changement de mode vient de rendre nécessaire n'est PAS au coffre : lui promettre
  * qu'il sera conservé serait faux, et le formulaire le redemande. */
 export function secretPlaceholder(f: CredentialField, kept: boolean): string {
   if (f.secret && kept) return 'déjà enregistré — laisse vide pour conserver'
-  return f.help ?? ''
+  return ''
 }
