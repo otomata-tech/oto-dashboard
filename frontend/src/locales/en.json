@@ -218,6 +218,7 @@
   },
   "errors": {
     "namespace_exists": "a namespace with that name already exists",
+    "datastore_exists": "a namespace with that name already exists",
     "duplicate_label": "a key with that provider and label already exists",
     "last_org_admin": "can't remove or demote the last admin of the org",
     "google_not_connected": "link a google account first (connectors)",

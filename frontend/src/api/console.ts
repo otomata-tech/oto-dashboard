@@ -278,8 +278,8 @@ export const createToken = (
 // Les tableaux et projets de l'org VISÉE — mêmes en-têtes que la création, sinon on
 // proposerait de borner un jeton sur des tableaux d'une autre org.
 export const getNamespacesOfOrg = (orgId?: number | null) =>
-  api<{ namespaces: NamespaceEntry[] }>('/api/datastore/namespaces',
-    orgId ? { headers: { 'X-Oto-Org': String(orgId) } } : {})
+  api<{ datastores?: ServedEntry[]; namespaces?: ServedEntry[] }>('/api/datastore/namespaces',
+    orgId ? { headers: { 'X-Oto-Org': String(orgId) } } : {}).then(normaliseEntries)
 export const listProjectsOfOrg = (orgId?: number | null) =>
   api<{ projects: Project[] }>('/api/me/projects', {
     method: 'POST', ...j({ op: 'list' }),
@@ -652,7 +652,60 @@ export const unpublishDoctrine = (id: number) =>
   api(`/api/me/doctrines/library/${id}`, { method: 'DELETE' })
 
 // ── datastore ──
-export const getNamespaces = () => api<{ namespaces: NamespaceEntry[] }>('/api/datastore/namespaces')
+// ⚠️ PONT DE RENOMMAGE `namespace` → `datastore` (lot A, 08/09/2026) ──────────
+// oto renomme ses CLÉS DE RÉPONSE en bascule sèche, sans fenêtre où les deux noms
+// marchent. Une clé lue sous son ancien nom ne lève RIEN : elle rend `undefined`,
+// et un `?? []` en aval transformait ça en liste vide — écran blanc, et les gestes
+// destructifs (dont l'affordance se lit sur `can_write`/`can_govern` de cette même
+// liste) escamotés au lieu de mal tirer. Sûr, et invisible : le pire des deux.
+//
+// Les deux ponts ci-dessous acceptent les DEUX noms le temps de la bascule, et
+// LÈVENT quand aucun des deux n'est là — un renommage inattendu doit casser
+// franchement, jamais blanchir un écran.
+//
+// Ils normalisent au BORD : tout ce qui est en aval (types, composants, vues)
+// continue de lire `namespace`, le nom LOCAL. C'est ce qui confine ce lot à ce
+// fichier au lieu de le répandre dans douze composants.
+//
+// TEMPORAIRE — à retirer dès qu'oto ne sert plus l'ancien nom.
+// `src/lib/renameBridge.spec.ts` tient ce retrait : ce n'est pas une note dont
+// quelqu'un doit se souvenir.
+type ServedName = { datastore?: string | null; namespace?: string | null }
+
+export function servedName(payload: ServedName, quoi: string): string {
+  const nom = payload.datastore ?? payload.namespace
+  if (typeof nom !== 'string')
+    throw new Error(`${quoi} : réponse sans clé \`datastore\` ni \`namespace\``)
+  return nom
+}
+
+export function servedList<T>(
+  payload: { datastores?: T[] | null; namespaces?: T[] | null },
+  quoi: string,
+): T[] {
+  const liste = payload.datastores ?? payload.namespaces
+  if (!Array.isArray(liste))
+    throw new Error(`${quoi} : réponse sans clé \`datastores\` ni \`namespaces\``)
+  return liste
+}
+
+// La forme SERVIE d'une entrée : l'une ou l'autre clé. La forme rendue aux
+// appelants reste `NamespaceEntry` (clé `namespace`), toujours.
+type ServedEntry = Omit<NamespaceEntry, 'namespace'> & ServedName
+
+function normaliseEntries(
+  payload: { datastores?: ServedEntry[]; namespaces?: ServedEntry[] },
+): { namespaces: NamespaceEntry[] } {
+  return {
+    namespaces: servedList(payload, 'liste des tableaux').map((e) => ({
+      ...e,
+      namespace: servedName(e, 'entrée de la liste des tableaux'),
+    })),
+  }
+}
+export const getNamespaces = () =>
+  api<{ datastores?: ServedEntry[]; namespaces?: ServedEntry[] }>(
+    '/api/datastore/namespaces').then(normaliseEntries)
 export const getNamespaceUrl = (ns: string) => api<{ url: string }>(`/api/datastore/namespaces/${ns}/url`)
 // owner optionnel (ADR 0030) : { type:'org'|'group', id } pour un classeur d'équipe.
 export const createNamespace = (namespace: string, owner?: { type: string; id: string | number }) =>
@@ -741,17 +794,24 @@ export const patchNamespaceSchema = (
   ns: string,
   patch: { fields?: Array<Partial<DatastoreField> & { key: string }>; remove?: string[] },
 ) =>
-  api<{ namespace: string; schema: DatastoreSchema | null; added: string[]; updated: string[]; removed: string[] }>(
+  api<ServedName & { schema: DatastoreSchema | null; added: string[]; updated: string[]; removed: string[] }>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}/schema`,
     { method: 'PATCH', ...j(patch) })
+    .then((r) => ({ ...r, namespace: servedName(r, 'patchNamespaceSchema') }))
 export const renameNamespace = (ns: string, name: string) =>
-  api<{ ok: boolean; namespace: string }>(
+  api<{ ok: boolean } & ServedName>(
     `/api/datastore/namespaces/${encodeURIComponent(ns)}`, { method: 'PATCH', ...j({ name }) })
+    .then((r) => ({ ...r, namespace: servedName(r, 'renameNamespace') }))
 // ── object-browser admin : gouvernance générique des ressources (ADR 0030) ──
 // Une seule capacité `oto_resource` (POST /api/resources) op-aware.
+// `resource_type` garde sa valeur `datastore_namespace` : elle est ÉCRITE EN BASE et
+// des partages de production en dépendent — la renommer les ferait disparaître en
+// silence. Seule la clé `namespace` de chaque ressource suit le renommage.
 export const listResources = (resource_type: string) =>
-  api<{ resource_type: string; resources: ResourceEntry[] }>(
+  api<{ resource_type: string; resources: Array<ResourceEntry & ServedName> }>(
     '/api/resources', { method: 'POST', ...j({ op: 'list', resource_type }) })
+    .then((r) => ({ ...r, resources: r.resources.map(
+      (e) => ({ ...e, namespace: e.datastore ?? e.namespace })) }))
 export const transferResource = (resource_type: string, resource_id: string,
   target: { email?: string; org_id?: number; group_id?: number; confirm?: boolean }) =>
   api('/api/resources', { method: 'POST', ...j({
@@ -759,8 +819,9 @@ export const transferResource = (resource_type: string, resource_id: string,
     new_owner_email: target.email, new_owner_org: target.org_id,
     new_owner_group: target.group_id, confirm_transfer: target.confirm }) })
 export const getResource = (resource_type: string, resource_id: string) =>
-  api<ResourceEntry & { grants: NamespaceShare[] }>(
+  api<ResourceEntry & ServedName & { grants: NamespaceShare[] }>(
     '/api/resources', { method: 'POST', ...j({ op: 'get', resource_type, resource_id }) })
+    .then((r) => ({ ...r, namespace: r.datastore ?? r.namespace }))
 export const shareResource = (resource_type: string, resource_id: string, principal: SharePrincipal, role: 'viewer' | 'editor' | 'manager' = 'editor') =>
   api<{ ok: boolean }>('/api/resources', { method: 'POST', ...j({ op: 'share', resource_type, resource_id, ...principal, role }) })
 export const unshareResource = (resource_type: string, resource_id: string, principal: SharePrincipal) =>

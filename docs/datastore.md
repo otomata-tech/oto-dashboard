@@ -55,3 +55,30 @@ règle — sans quoi une ligne rendue pointerait vers un run qui ne la tient plu
 arrivent en UTC **sans fuseau** : un parse naïf les prend pour de l'heure locale, deux
 heures d'écart l'été, et des baux annoncés expirés à tort. `ProjectWorkQueues.vue` portait
 ce bug jusqu'au 2026-09-01.
+
+## Le pont de renommage `namespace` → `datastore` (TEMPORAIRE, 08/09/2026)
+
+oto renomme le concept sur sa face REST en **bascule sèche** : aucune fenêtre où les deux
+noms fonctionnent. Trois surfaces bougent, et deux d'entre elles **ne lèvent rien** — une
+clé de réponse lue sous son ancien nom rend `undefined`, un code d'erreur renommé tombe
+dans le cas par défaut. Elles **dégradent** au lieu d'échouer.
+
+`api/console.ts` porte donc un pont, `servedName()` / `servedList()`, qui accepte les deux
+noms et **lève quand aucun des deux n'est là**. C'était le point : avant, un `?? []` en
+aval rendait une liste vide sur une clé disparue — écran blanc, aucune erreur, et les
+gestes destructifs escamotés (leur affordance se lit sur les `can_write`/`can_govern` de
+cette même liste) au lieu de mal tirer. Sûr, et invisible.
+
+Le pont normalise **au bord** : en aval, types, composants et vues continuent de lire
+`namespace`, le nom local. C'est ce qui confine ce lot à un fichier au lieu de douze.
+
+⚠️ **Ce qui ne bouge PAS, et qu'il ne faut pas « corriger » par cohérence** : la valeur
+`resource_type: "datastore_namespace"` (écrite en base, des partages de production en
+dépendent), la portée `scopes.namespaces` d'un jeton (à l'émission comme à la lecture), et
+tous les `namespaces` du **catalogue d'outils** — un connecteur expose des namespaces
+d'outils, homonymes sans rapport avec un tableau. Corriger depuis la liste du renommage,
+jamais depuis le mot.
+
+**Le retrait est mécanique, pas mémoriel** : `lib/renameBridge.spec.ts` devient rouge dès
+que le contrat commité ne déclare plus `/api/datastore/namespaces`, c'est-à-dire au premier
+`npm run api:refresh` après la bascule. Il dit alors quoi retirer.
