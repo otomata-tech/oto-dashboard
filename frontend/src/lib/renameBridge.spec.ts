@@ -42,11 +42,30 @@ describe('le pont doit-il encore exister ?', () => {
     readFileSync(join(RACINE, 'openapi/oto-openapi.json'), 'utf8'),
   ) as { paths: Record<string, unknown> }
 
-  it('oto sert encore l\'ancien chemin — sinon, RETIRER LE PONT', () => {
-    // Rouge ici = la bascule a atterri. À faire, dans l'ordre : retirer `servedName`,
-    // `servedList`, `ServedEntry`, `normaliseEntries` et leurs appels dans
-    // `api/console.ts` ; retirer la clé `datastore_exists` doublée dans
-    // `locales/{fr,en}.json` ; retirer ce fichier.
-    expect(Object.keys(contrat.paths)).toContain('/api/datastore/namespaces')
+  // ⚠️ Ce témoin couvre DEUX dépôts, pas seulement celui-ci. Le front partenaire
+  // (`Tulina-team/tulina-app-front`) porte le même pont, et son intégration continue
+  // ne nous appartient pas : y poser un contrôle engagerait leur dépôt. Un témoin qui
+  // vit chez le consommateur doit être accepté par lui ; celui-ci vit chez nous, à
+  // côté du contrat servi — et c'est nous qui savons quand l'ancien nom disparaît.
+  // D'où un message d'échec qui nomme les deux ponts à retirer, pas un seul.
+  const AU_RETRAIT = [
+    'oto ne sert plus /api/datastore/namespaces : la bascule namespace → datastore a',
+    'atterri. DEUX ponts sont à retirer, et ce test est le seul endroit qui le dit :',
+    '',
+    '  1. ICI (oto-dashboard) : servedName, servedList, ServedEntry, normaliseEntries',
+    '     et leurs appels dans src/api/console.ts ; la clé datastore_exists doublée',
+    '     dans src/locales/{fr,en}.json ; la section du pont dans docs/datastore.md ;',
+    '     puis ce fichier.',
+    '  2. CHEZ LE PARTENAIRE (Tulina-team/tulina-app-front, prévenir Julien) :',
+    '     servedName/servedList dans src/lib/datastore-api.ts ; les codes doublés dans',
+    '     datastore-cell.tsx et datastore-table.tsx ; les trois case doublés dans',
+    '     components/datastore/activity-feed.tsx.',
+    '',
+    'Ne PAS retirer un seul des deux : le pont restant masquerait le renommage suivant.',
+  ].join('\n')
+
+  it('oto sert encore l\'ancien chemin — sinon, RETIRER LES DEUX PONTS', () => {
+    expect(Object.keys(contrat.paths).includes('/api/datastore/namespaces'), AU_RETRAIT)
+      .toBe(true)
   })
 })

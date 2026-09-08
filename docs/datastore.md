@@ -82,3 +82,10 @@ jamais depuis le mot.
 **Le retrait est mécanique, pas mémoriel** : `lib/renameBridge.spec.ts` devient rouge dès
 que le contrat commité ne déclare plus `/api/datastore/namespaces`, c'est-à-dire au premier
 `npm run api:refresh` après la bascule. Il dit alors quoi retirer.
+
+⚠️ **Ce témoin couvre AUSSI le front partenaire** (`Tulina-team/tulina-app-front`), qui
+porte le même pont. Son intégration continue ne nous appartient pas : un contrôle posé
+chez lui engagerait son dépôt, et un témoin qui vit chez le consommateur doit être accepté
+par lui. Celui-ci vit chez nous, à côté du contrat servi — c'est nous qui savons quand
+l'ancien nom disparaît. Son message d'échec nomme les deux ponts. **N'en retirer qu'un
+laisserait l'autre masquer le renommage suivant.**
