@@ -128,7 +128,7 @@
     "steps": {
       "connectClient": { "t": "connect a client", "d": "add mcp.oto.cx to claude desktop, cursor or any mcp client — auth runs over oauth." },
       "firstKey": { "t": "add your first api key", "d": "paste a provider key (serper, hunter, …) so your tools can call out.", "act": "add a key" },
-      "google": { "t": "link google workspace", "d": "unlock gmail, drive, sheets and the datastore.", "act": "link google" },
+      "google": { "t": "link google workspace", "d": "unlock gmail, drive and sheets.", "act": "link google" },
       "kb": { "t": "build your knowledge base", "d": "capture reference pages in Documents — shared, sourced org knowledge your agents read every session.", "act": "open documents" },
       "readme": { "t": "write your agent readme", "d": "injected at the start of every session: business context, crm rules, tone, guardrails.", "act": "open the editor" },
       "org": { "t": "join an organization", "d": "share org keys so teammates inherit your setup.", "act": "manage organization" }
