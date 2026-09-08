@@ -178,8 +178,14 @@ describe('l\'écran enregistre la vue par un amendement, jamais par une repose',
   const lire = (rel: string) => readFileSync(join(SRC, rel), 'utf8')
   const compact = (s: string) => s.replace(/\s+/g, ' ')
 
-  it('n\'appelle plus le PUT qui repose le schéma entier', () => {
-    expect(lire('components/console/DatastoreTable.vue')).not.toContain('setNamespaceSchema')
+  // ⚠️ Ce témoin cherchait le NOM `setNamespaceSchema` dans l'écran. Un nom se renomme —
+  // et le jour où il l'aurait été (la bascule `namespace` → `datastore` en cours le fera),
+  // il serait passé au VERT sans plus rien mesurer. Il vise désormais le GESTE : un `PUT`
+  // vers `…/schema`, quel que soit le nom de la fonction qui le porte, et où que ce soit
+  // dans la couche API. Le wrapper mort a été supprimé le 08/09/2026 ; ceci empêche son
+  // retour sous un autre nom.
+  it('la couche API ne porte plus AUCUN PUT qui repose le schéma entier', () => {
+    expect(compact(lire('api/console.ts'))).not.toMatch(/\/schema`,\s*\{\s*method: 'PUT'/)
   })
 
   it('amende par clé, et une seule fois par geste', () => {

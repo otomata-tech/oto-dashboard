@@ -706,7 +706,6 @@ function normaliseEntries(
 export const getNamespaces = () =>
   api<{ datastores?: ServedEntry[]; namespaces?: ServedEntry[] }>(
     '/api/datastore/namespaces').then(normaliseEntries)
-export const getNamespaceUrl = (ns: string) => api<{ url: string }>(`/api/datastore/namespaces/${ns}/url`)
 // owner optionnel (ADR 0030) : { type:'org'|'group', id } pour un classeur d'équipe.
 export const createNamespace = (namespace: string, owner?: { type: string; id: string | number }) =>
   api('/api/datastore/namespaces', { method: 'POST', ...j(owner ? { namespace, owner } : { namespace }) })
@@ -777,12 +776,9 @@ export const getNamespaceActivity = (ns: string, limit?: number) =>
     + (limit ? `?limit=${limit}` : ''))
 // Schéma d'un tableau (ADR 0046) — miroir REST de `data_set_schema`. Sert la vue par
 // défaut : les colonnes masquées SONT le `hidden` des champs, pas un objet « vue » à part.
-// ⚠️ `PUT` REPOSE LA LISTE ENTIÈRE : tout ce que le corps ne redit pas est effacé, sans
-// erreur ni mention. Réservé à la POSE d'un schéma. Pour AMENDER, c'est `patchNamespaceSchema`.
-export const setNamespaceSchema = (ns: string, schema: DatastoreSchema) =>
-  api<{ ok: boolean }>(
-    `/api/datastore/namespaces/${encodeURIComponent(ns)}/schema`,
-    { method: 'PUT', ...j({ schema }) })
+// ⚠️ Le `PUT …/schema`, qui REPOSAIT la liste entière (tout ce que le corps ne redit pas
+// effacé, sans erreur ni mention), n'a plus de wrapper ici : personne ne l'appelait, et un
+// wrapper qui existe finit par être appelé. `datastoreColumns.spec.ts` tient son absence.
 // Amendement PAR CLÉ (oto-backend #388) : les propriétés listées écrasent, celles qu'on
 // n'écrit pas sont PRÉSERVÉES, y compris les sous-champs des composites. C'est le geste
 // qui NE PEUT PAS détruire ce qu'il ne nomme pas — le seul sûr quand on retouche le
@@ -1163,10 +1159,6 @@ export const putAdminOrgSecret = (id: number, provider: string, api_key: string,
   api(`/api/admin/orgs/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url }) })
 export const deleteAdminOrgSecret = (id: number, provider: string) =>
   api(`/api/admin/orgs/${id}/secrets/${provider}`, { method: 'DELETE' })
-export const grantOrgEntitlement = (id: number, namespace: string) =>
-  api(`/api/admin/orgs/${id}/entitlements/${namespace}`, { method: 'POST' })
-export const revokeOrgEntitlement = (id: number, namespace: string) =>
-  api(`/api/admin/orgs/${id}/entitlements/${namespace}`, { method: 'DELETE' })
 
 // ── admin connectors (cran d'activation, ADR 0010) ──
 export const getAdminConnectors = () =>
