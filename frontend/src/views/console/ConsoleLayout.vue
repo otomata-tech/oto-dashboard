@@ -3,6 +3,7 @@ import { computed, watch, defineAsyncComponent, type Component } from 'vue'
 import { useRoute } from 'vue-router'
 import ConsoleSidebar from '@/components/console/ConsoleSidebar.vue'
 import ConsoleTopbar from '@/components/console/ConsoleTopbar.vue'
+import SubscribeBanner from '@/components/console/SubscribeBanner.vue'
 import PromptDialog from '@/components/console/PromptDialog.vue'
 import FormPromptHost from '@/components/console/FormPromptHost.vue'
 import StateError from '@/components/console/StateError.vue'
@@ -107,6 +108,7 @@ const viewKey = computed(() => {
       <div class="nav-backdrop" @click="closeNav" />
       <div class="main">
         <ConsoleTopbar />
+        <SubscribeBanner v-if="me" />
         <div class="content">
           <StateError v-if="error" :message="error" @retry="load(true)" />
           <component :is="current" v-else-if="me" :key="viewKey" />

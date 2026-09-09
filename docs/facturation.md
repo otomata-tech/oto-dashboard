@@ -314,6 +314,35 @@ au payeur pourquoi un numéro de TVA lui est demandé, jamais à décider du ré
 pas un bug : le guichet OSS n'est pas en place, la souscription en ligne est fermée à ce
 cas. L'écran l'annonce et n'ouvre pas de paiement.
 
+## Le bandeau d'incitation à l'abonnement (décision du 09/09/2026)
+
+Jusqu'au 09/09, **rien dans la console ne poussait vers l'abonnement** : l'entrée de
+menu et le catalogue de `/org/billing` attendaient qu'on vienne à eux, et
+oto-dashboard#160 avait conclu que le défaut était la navigation, pas l'absence de
+bandeau. Alexis a tranché l'inverse le 09/09 — un bandeau **permanent, sur toutes
+les pages, pour les admins d'org seulement**. C'est un revirement daté, pas une
+réparation : la décision du 02/09 (« cesser de vendre à qui possède déjà ») reste
+vraie, et le bandeau la respecte.
+
+`SubscribeBanner.vue`, monté dans `ConsoleLayout` entre la topbar et le contenu (en
+flux, pas en surimpression comme les bandeaux de consultation). Il lit
+`GET /api/me/billing` une fois par org active, et se **tait** dans quatre cas, chacun
+prouvé par `SubscribeBanner.spec.ts` :
+
+- **membre simple** (`org_role !== 'org_admin'`) — il n'a pas le levier, et on ne
+  demande même pas le statut ;
+- **org consultée en lecture seule** par un opérateur (`active_org_readonly`) — ce
+  n'est pas la sienne ;
+- **org abonnée**, ou **org qui possède déjà un avantage offert** (`granted` non vide)
+  — le lot du 02/09 ne se rouvre pas par ce bandeau ;
+- **page facturation** elle-même — le levier y est déjà.
+
+Le levier est un lien vers `/org/billing`, préfixé par l'org consultée (`useScopedLink`).
+Il se rafraîchit quand on **quitte** la facturation (une souscription vient peut-être
+d'aboutir) et quand l'org active change. Un refus du serveur (facturation désactivée)
+masque le bandeau et le dit en console : il n'est pas essentiel, il ne doit pas casser
+la console. Copie dans `locales/*.json` clé `subscribeBanner`.
+
 ## ⚠️ Le client Pennylane d'une org se DÉSIGNE, il ne se devine pas (oto-backend#917)
 
 Depuis le 2026-09-09 le backend ne crée plus rien chez Pennylane, et il ne

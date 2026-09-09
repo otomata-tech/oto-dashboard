@@ -51,43 +51,154 @@
     }
   },
   "pageMeta": {
-    "overview": { "title": "overview", "crumb": "app.oto.ninja" },
-    "context": { "title": "what your agent sees", "crumb": "my space" },
-    "search": { "title": "search", "crumb": "workspace" },
-    "projects": { "title": "projects", "crumb": "workspace" },
-    "connectors": { "title": "connectors", "crumb": "workspace" },
-    "procedures": { "title": "procedures", "crumb": "workspace" },
-    "automations": { "title": "automations", "crumb": "workspace" },
-    "data": { "title": "data", "crumb": "memory" },
-    "documents": { "title": "documents", "crumb": "memory" },
-    "account": { "title": "profile", "crumb": "manage my account" },
-    "accountPreferences": { "title": "preferences", "crumb": "manage my account" },
-    "accountSecurity": { "title": "security", "crumb": "manage my account" },
-    "accountAgent": { "title": "your agent", "crumb": "manage my account" },
-    "accountDevelopers": { "title": "developers", "crumb": "manage my account" },
-    "activity": { "title": "activity", "crumb": "account" },
-    "teamContext": { "title": "what the agent sees · team", "crumb": "manage my team" },
-    "team": { "title": "team members", "crumb": "manage my team" },
-    "teamConnectors": { "title": "team connectors", "crumb": "manage my team" },
-    "teamProcedures": { "title": "team procedures", "crumb": "manage my team" },
-    "orgContext": { "title": "what the agent sees · org", "crumb": "manage my org" },
-    "org": { "title": "org members", "crumb": "manage my org" },
-    "orgSettings": { "title": "org settings", "crumb": "manage my org" },
-    "orgBilling": { "title": "subscription", "crumb": "manage my org" },
-    "orgSecurity": { "title": "org security", "crumb": "manage my org" },
-    "orgConnectors": { "title": "org connectors", "crumb": "manage my org" },
-    "orgTeams": { "title": "teams", "crumb": "manage my org" },
-    "orgMonitoring": { "title": "org monitoring", "crumb": "manage my org" },
-    "platformContext": { "title": "what the agent sees · platform", "crumb": "platform" },
-    "platformMonitoring": { "title": "monitoring & usage", "crumb": "platform" },
-    "platformUsers": { "title": "users & grants", "crumb": "platform" },
-    "platformOrgs": { "title": "organizations", "crumb": "platform" },
-    "platformTenants": { "title": "tenants", "crumb": "platform" },
-    "platformObjects": { "title": "owned objects", "crumb": "platform" },
-    "platformConnectors": { "title": "platform connectors", "crumb": "platform" },
-    "platformOutreach": { "title": "inactive account outreach", "crumb": "platform" },
-    "adminUser": { "title": "user record", "crumb": "platform" },
-    "adminOrg": { "title": "organization record", "crumb": "platform" }
+    "overview": {
+      "title": "overview",
+      "crumb": "app.oto.ninja"
+    },
+    "context": {
+      "title": "what your agent sees",
+      "crumb": "my space"
+    },
+    "search": {
+      "title": "search",
+      "crumb": "workspace"
+    },
+    "projects": {
+      "title": "projects",
+      "crumb": "workspace"
+    },
+    "connectors": {
+      "title": "connectors",
+      "crumb": "workspace"
+    },
+    "procedures": {
+      "title": "procedures",
+      "crumb": "workspace"
+    },
+    "automations": {
+      "title": "automations",
+      "crumb": "workspace"
+    },
+    "data": {
+      "title": "data",
+      "crumb": "memory"
+    },
+    "documents": {
+      "title": "documents",
+      "crumb": "memory"
+    },
+    "account": {
+      "title": "profile",
+      "crumb": "manage my account"
+    },
+    "accountPreferences": {
+      "title": "preferences",
+      "crumb": "manage my account"
+    },
+    "accountSecurity": {
+      "title": "security",
+      "crumb": "manage my account"
+    },
+    "accountAgent": {
+      "title": "your agent",
+      "crumb": "manage my account"
+    },
+    "accountDevelopers": {
+      "title": "developers",
+      "crumb": "manage my account"
+    },
+    "activity": {
+      "title": "activity",
+      "crumb": "account"
+    },
+    "teamContext": {
+      "title": "what the agent sees · team",
+      "crumb": "manage my team"
+    },
+    "team": {
+      "title": "team members",
+      "crumb": "manage my team"
+    },
+    "teamConnectors": {
+      "title": "team connectors",
+      "crumb": "manage my team"
+    },
+    "teamProcedures": {
+      "title": "team procedures",
+      "crumb": "manage my team"
+    },
+    "orgContext": {
+      "title": "what the agent sees · org",
+      "crumb": "manage my org"
+    },
+    "org": {
+      "title": "org members",
+      "crumb": "manage my org"
+    },
+    "orgSettings": {
+      "title": "org settings",
+      "crumb": "manage my org"
+    },
+    "orgBilling": {
+      "title": "subscription",
+      "crumb": "manage my org"
+    },
+    "orgSecurity": {
+      "title": "org security",
+      "crumb": "manage my org"
+    },
+    "orgConnectors": {
+      "title": "org connectors",
+      "crumb": "manage my org"
+    },
+    "orgTeams": {
+      "title": "teams",
+      "crumb": "manage my org"
+    },
+    "orgMonitoring": {
+      "title": "org monitoring",
+      "crumb": "manage my org"
+    },
+    "platformContext": {
+      "title": "what the agent sees · platform",
+      "crumb": "platform"
+    },
+    "platformMonitoring": {
+      "title": "monitoring & usage",
+      "crumb": "platform"
+    },
+    "platformUsers": {
+      "title": "users & grants",
+      "crumb": "platform"
+    },
+    "platformOrgs": {
+      "title": "organizations",
+      "crumb": "platform"
+    },
+    "platformTenants": {
+      "title": "tenants",
+      "crumb": "platform"
+    },
+    "platformObjects": {
+      "title": "owned objects",
+      "crumb": "platform"
+    },
+    "platformConnectors": {
+      "title": "platform connectors",
+      "crumb": "platform"
+    },
+    "platformOutreach": {
+      "title": "inactive account outreach",
+      "crumb": "platform"
+    },
+    "adminUser": {
+      "title": "user record",
+      "crumb": "platform"
+    },
+    "adminOrg": {
+      "title": "organization record",
+      "crumb": "platform"
+    }
   },
   "topbar": {
     "openMenu": "open menu",
@@ -95,8 +206,15 @@
     "platformBannerPre": "platform administration — your actions affect",
     "platformBannerStrong": "the entire platform"
   },
+  "subscribeBanner": {
+    "text": "this organization has no subscription — paid connectors and included usage open with a subscription.",
+    "cta": "choose a subscription"
+  },
   "overview": {
-    "variant": { "status": "status", "activity": "activity" },
+    "variant": {
+      "status": "status",
+      "activity": "activity"
+    },
     "eyebrow": "studio open · all systems nominal",
     "monitoring": "monitoring",
     "empty": {
@@ -122,16 +240,50 @@
       "topTool": "top tool",
       "topToolSub": "{n} calls"
     },
-    "callsCard": { "title": "calls · last 7 days", "sub": "terra segments are failures." },
-    "quotas": { "title": "shared quotas", "sub": "platform keys you use, with today's burn.", "poolSuffix": "{label} · platform pool" },
-    "nextStep": { "title": "next step", "sub": "{done} of {total} done — finish setting up.", "review": "Review setup" },
+    "callsCard": {
+      "title": "calls · last 7 days",
+      "sub": "terra segments are failures."
+    },
+    "quotas": {
+      "title": "shared quotas",
+      "sub": "platform keys you use, with today's burn.",
+      "poolSuffix": "{label} · platform pool"
+    },
+    "nextStep": {
+      "title": "next step",
+      "sub": "{done} of {total} done — finish setting up.",
+      "review": "Review setup"
+    },
     "steps": {
-      "connectClient": { "t": "connect a client", "d": "add mcp.oto.cx to claude desktop, cursor or any mcp client — auth runs over oauth." },
-      "firstKey": { "t": "add your first api key", "d": "paste a provider key (serper, hunter, …) so your tools can call out.", "act": "add a key" },
-      "google": { "t": "link google workspace", "d": "unlock gmail, drive and sheets.", "act": "link google" },
-      "kb": { "t": "build your knowledge base", "d": "capture reference pages in Documents — shared, sourced org knowledge your agents read every session.", "act": "open documents" },
-      "readme": { "t": "write your agent readme", "d": "injected at the start of every session: business context, crm rules, tone, guardrails.", "act": "open the editor" },
-      "org": { "t": "join an organization", "d": "share org keys so teammates inherit your setup.", "act": "manage organization" }
+      "connectClient": {
+        "t": "connect a client",
+        "d": "add mcp.oto.cx to claude desktop, cursor or any mcp client — auth runs over oauth."
+      },
+      "firstKey": {
+        "t": "add your first api key",
+        "d": "paste a provider key (serper, hunter, …) so your tools can call out.",
+        "act": "add a key"
+      },
+      "google": {
+        "t": "link google workspace",
+        "d": "unlock gmail, drive and sheets.",
+        "act": "link google"
+      },
+      "kb": {
+        "t": "build your knowledge base",
+        "d": "capture reference pages in Documents — shared, sourced org knowledge your agents read every session.",
+        "act": "open documents"
+      },
+      "readme": {
+        "t": "write your agent readme",
+        "d": "injected at the start of every session: business context, crm rules, tone, guardrails.",
+        "act": "open the editor"
+      },
+      "org": {
+        "t": "join an organization",
+        "d": "share org keys so teammates inherit your setup.",
+        "act": "manage organization"
+      }
     },
     "activity": {
       "title": "activity",
@@ -179,7 +331,11 @@
       "agent": "your agent",
       "developers": "developers"
     },
-    "role": { "super": "super admin", "admin": "admin", "member": "member" }
+    "role": {
+      "super": "super admin",
+      "admin": "admin",
+      "member": "member"
+    }
   },
   "auth": {
     "login": {
