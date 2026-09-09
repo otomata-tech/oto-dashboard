@@ -25,6 +25,7 @@ import type {
 import type {
   BailDuTravail, PostesDeGarde, RunnerFleet, RunnerFleetState,
   BillingMethodChangeStarted, BillingMethodChangeResult,
+  AdminBillingIdentityView, AdminBillingIdentityInput,
 } from '@/types/api.attendu'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
@@ -1361,6 +1362,13 @@ export const acceptLegal = (context: 'access' | 'purchase') =>
 // Admin (super_admin) : forcer un plan sur une org sans paiement (plan=null retire).
 export const adminSetPlan = (orgId: number, plan: string | null) =>
   api<BillingStatus>(`/api/admin/orgs/${orgId}/plan`, { method: 'POST', ...j({ plan }) })
+// Admin plateforme (#917) : l'identité de facturation d'une org ET le client Pennylane
+// qu'elle désigne — posé à la main, jamais rapproché ni créé par le code. La fiche
+// part ENTIÈRE : le serveur remplace, il ne fusionne pas.
+export const getAdminBillingIdentity = (orgId: number) =>
+  api<AdminBillingIdentityView>(`/api/admin/orgs/${orgId}/billing-identity`)
+export const setAdminBillingIdentity = (orgId: number, body: AdminBillingIdentityInput) =>
+  api<AdminBillingIdentityView>(`/api/admin/orgs/${orgId}/billing-identity`, { method: 'PUT', ...j(body) })
 
 // Activité de l'utilisateur courant (ses propres appels) — per-user, pas admin.
 export const getMyCalls = (params: { limit?: number; tool?: string; errors?: boolean; days?: number } = {}) => {

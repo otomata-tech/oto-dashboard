@@ -197,3 +197,16 @@ export interface BillingMethodChangeResult {
    * tient encore. Vide sur `already_current`. */
   notice: string
 }
+
+// ── ③ L'identité de facturation vue de l'ADMIN PLATEFORME (oto-backend#917) ──
+// Servi par oto-backend 88f99440 (tronc, preprod) — pas encore dans le snapshot
+// OpenAPI, qui se rafraîchit depuis la PROD. Le client Pennylane d'une org se
+// DÉSIGNE à la main par un admin plateforme : `null` = aucun client désigné, donc
+// aucune facture ne partira. Le formulaire admin reposte la fiche ENTIÈRE plus
+// l'id (remplace, ne fusionne pas) ; omis ou `null` RETIRE la désignation.
+// À la mise en prod : `npm run api:refresh`, puis `AdminBillingIdentityView =
+// ApiOut<'admin_orgs_billing_identity_get_get'>` et supprimer ce bloc.
+import type { BillingIdentityInput, BillingIdentityView } from './api'
+
+export type AdminBillingIdentityView = BillingIdentityView & { pennylane_customer_id: number | null }
+export type AdminBillingIdentityInput = BillingIdentityInput & { pennylane_customer_id?: number | null }

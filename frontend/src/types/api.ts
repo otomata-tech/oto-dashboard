@@ -1812,6 +1812,8 @@ export type BillingIdentity = components['schemas']['BillingIdentity']
 export type BillingIdentityView = ApiOut<'me_billing_identity_get_get'>
 /** La fiche POSTÉE ENTIÈRE (la capacité remplace, elle ne fusionne pas). */
 export type BillingIdentityInput = ApiIn<'me_billing_identity_set_put'>
+// La vue ADMIN de la fiche (+ client Pennylane, #917) vit dans `api.attendu.ts`
+// tant que la route n'est pas dans le snapshot OpenAPI.
 /** Avancement du premier paiement — quatre branches discriminées par `status`,
  *  toutes en 200. ⚠️ `pending_mandate` = ENCAISSÉ, mandat pas encore né : une
  *  ATTENTE, jamais un échec (#127). */

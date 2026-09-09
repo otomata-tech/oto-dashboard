@@ -18,9 +18,10 @@ import { useMe, isSuperAdmin, isPlatformOperator } from '@/composables/useMe'
 import {
   getAdminOrg, archiveAdminOrg, addAdminOrgMember, setAdminOrgMemberRole,
   removeAdminOrgMember, updateOrg, uploadOrgLogo, deleteOrgLogo,
-  adminSetPlan, getPlans,
+  adminSetPlan, getPlans, getAdminBillingIdentity, setAdminBillingIdentity,
 } from '@/api/console'
 import type { BillingPlan, OrgDetail, OrgMember, OrgRole } from '@/types/api'
+import type { AdminBillingIdentityView } from '@/types/api.attendu'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { validateImage, IMAGE_ACCEPT_ATTR } from '@/lib/imageUpload'
@@ -59,6 +60,7 @@ async function loadAll() {
     const [, pk] = await Promise.all([
       refresh(),
       getPlans().catch(() => ({ plans: [] })),
+      refreshBillingIdentity(),
     ])
     plans.value = pk.plans
   } catch (e) { error.value = humanize(e) }
@@ -229,6 +231,68 @@ async function clearPlan() {
   catch (e) { toast(humanize(e)) }
 }
 
+// ── identité de facturation + client Pennylane (#917) ────────────────────────
+// Le client Pennylane d'une org n'est jamais rapproché ni créé par le code : un
+// admin plateforme le DÉSIGNE ici, à la main, sur la fiche de facturation. La fiche
+// part ENTIÈRE (le serveur remplace, il ne fusionne pas) : le formulaire est
+// prérempli et reposte tout, un id vide RETIRE la désignation. La carte n'apparaît
+// qu'à un opérateur plateforme (le backend rend 403 sinon) ; « billing » désactivé
+// = 404 sur la route, la carte se tait.
+const billingIdentity = ref<AdminBillingIdentityView | null>(null)
+const billingIdentityError = ref<string | null>(null)
+async function refreshBillingIdentity() {
+  if (!isOperator.value) return
+  billingIdentityError.value = null
+  try { billingIdentity.value = await getAdminBillingIdentity(orgId.value) }
+  catch (e) { billingIdentity.value = null; billingIdentityError.value = humanize(e) }
+}
+const identityLines = computed(() => {
+  const i = billingIdentity.value?.identity
+  if (!i) return []
+  return [i.address_line, i.address_line2, [i.postal_code, i.city].filter(Boolean).join(' ')]
+    .filter((s): s is string => !!s && s.trim() !== '')
+})
+function editBillingIdentity() {
+  const i = billingIdentity.value?.identity
+  const current = billingIdentity.value?.pennylane_customer_id
+  openForm({
+    title: 'identité de facturation',
+    description: 'la fiche part entière : un champ vidé est effacé. l\'id Pennylane est celui de l\'URL de la fiche client chez Pennylane — vide = aucun client désigné, donc aucune facture émise.',
+    submitLabel: 'enregistrer',
+    fields: [
+      { key: 'legal_name', label: 'raison sociale', required: true, initial: i?.legal_name ?? detail.value?.org.name },
+      { key: 'country_code', label: 'pays (ISO-2)', required: true, initial: i?.country_code ?? 'FR', placeholder: 'FR' },
+      { key: 'vat_number', label: 'n° TVA intracom', initial: i?.vat_number ?? '', placeholder: 'FR12345678901' },
+      { key: 'address_line', label: 'adresse', required: true, initial: i?.address_line ?? '' },
+      { key: 'address_line2', label: 'complément d\'adresse', initial: i?.address_line2 ?? '' },
+      { key: 'postal_code', label: 'code postal', required: true, initial: i?.postal_code ?? '' },
+      { key: 'city', label: 'ville', required: true, initial: i?.city ?? '' },
+      { key: 'billing_email', label: 'e-mail de facturation', initial: i?.billing_email ?? '' },
+      { key: 'pennylane_customer_id', label: 'id client Pennylane', initial: current != null ? String(current) : '',
+        hint: 'nombre entier, tel qu\'il apparaît dans l\'URL de la fiche client chez Pennylane.' },
+    ],
+    onConfirm: async (v) => {
+      const raw = (v.pennylane_customer_id ?? '').trim()
+      if (raw !== '' && !/^\d+$/.test(raw)) { toast('id client Pennylane : un nombre entier attendu'); throw new Error('invalid_pennylane_customer_id') }
+      const blank = (s?: string) => { const t = (s ?? '').trim(); return t === '' ? null : t }
+      try {
+        billingIdentity.value = await setAdminBillingIdentity(orgId.value, {
+          legal_name: (v.legal_name ?? '').trim(),
+          country_code: (v.country_code ?? '').trim(),
+          vat_number: blank(v.vat_number),
+          address_line: (v.address_line ?? '').trim(),
+          address_line2: blank(v.address_line2),
+          postal_code: (v.postal_code ?? '').trim(),
+          city: (v.city ?? '').trim(),
+          billing_email: blank(v.billing_email),
+          pennylane_customer_id: raw === '' ? null : Number(raw),
+        })
+        toast('identité de facturation enregistrée')
+      } catch (e) { toast(humanize(e)); throw e }
+    },
+  })
+}
+
 // ── accès plateforme aux connecteurs (ADR 0044 §H) — LECTURE SEULE ───────────
 // L'octroi (clé plateforme + option) est connecteur-centrique : il se gère sur la
 // carte du connecteur (/platform/connectors → « Gérer l'accès »), plus ici. On se
@@ -319,6 +383,33 @@ const orgOptions = computed(() => detail.value?.option_comps ?? [])
             <div v-else-if="isPaidPlan" class="helptext" style="border-top: 1px solid var(--color-hair); padding-top: 12px; margin: 0">
               abonnement payant — la résiliation passe par l'org (facturation), pas par l'admin.
             </div>
+          </div>
+        </ConsoleCard>
+
+        <!-- Identité de facturation + client Pennylane (#917) : posé à la main, jamais rapproché. -->
+        <ConsoleCard v-if="isOperator && !billingIdentityError" title="identité de facturation"
+          sub="qui est facturé, et sous quel client Pennylane. l'id se pose ici, à la main — le code ne rapproche ni ne crée jamais de client chez le comptable.">
+          <template #actions>
+            <Btn kind="mini" icon="pen" @click="editBillingIdentity">{{ billingIdentity?.identity ? 'modifier' : 'renseigner' }}</Btn>
+          </template>
+          <div class="rowlist">
+            <div v-if="billingIdentity?.identity" style="display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap">
+              <div style="min-width: 0; flex: 1">
+                <div style="font-weight: 600; font-size: 15px; color: var(--color-ink)">{{ billingIdentity.identity.legal_name }}</div>
+                <div class="helptext" style="margin: 2px 0 0">
+                  <span v-for="(l, idx) in identityLines" :key="idx">{{ idx ? ' · ' : '' }}{{ l }}</span>
+                  <span v-if="identityLines.length"> · </span>{{ billingIdentity.identity.country_code }}
+                  <span v-if="billingIdentity.identity.vat_number"> · TVA {{ billingIdentity.identity.vat_number }}</span>
+                  <span v-if="billingIdentity.identity.billing_email"> · {{ billingIdentity.identity.billing_email }}</span>
+                </div>
+                <div v-if="billingIdentity.missing.length" class="helptext" style="margin: 4px 0 0; color: var(--color-terra)">
+                  incomplète : {{ billingIdentity.missing.join(', ') }}
+                </div>
+              </div>
+              <Tag v-if="billingIdentity.pennylane_customer_id != null" tone="olive">pennylane #{{ billingIdentity.pennylane_customer_id }}</Tag>
+              <Tag v-else tone="terra">aucun client pennylane</Tag>
+            </div>
+            <div v-else class="helptext" style="margin: 0">aucune identité de facturation — rien ne peut être facturé à cette org tant qu'elle manque.</div>
           </div>
         </ConsoleCard>
       </div>

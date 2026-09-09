@@ -314,6 +314,32 @@ au payeur pourquoi un numéro de TVA lui est demandé, jamais à décider du ré
 pas un bug : le guichet OSS n'est pas en place, la souscription en ligne est fermée à ce
 cas. L'écran l'annonce et n'ouvre pas de paiement.
 
+## ⚠️ Le client Pennylane d'une org se DÉSIGNE, il ne se devine pas (oto-backend#917)
+
+Depuis le 2026-09-09 le backend ne crée plus rien chez Pennylane, et il ne
+rapproche plus un client par TVA ni SIREN : la facture F-2026-09-7 est née en
+doublon parce que le rapprochement se faisait sur une référence frappée par oto,
+qu'un client créé à la main chez le comptable ne porte pas. L'identifiant du client
+Pennylane est donc **posé à la main par un admin plateforme**, sur la fiche de
+facturation de l'org.
+
+Où : la **fiche org admin** (`/platform/orgs/:id`, `AdminOrgView.vue`), carte
+« identité de facturation », visible d'un opérateur plateforme. Elle montre la fiche
+(raison sociale, adresse, pays, TVA, e-mail), ce qui lui manque, et le client
+Pennylane désigné — ou un `aucun client pennylane` en terra : sans lui, aucune
+facture ne partira pour cette org. Le formulaire est **prérempli et reposte la fiche
+entière** (`PUT /api/admin/orgs/{id}/billing-identity`, `setAdminBillingIdentity`) :
+un id vide **retire** la désignation, comme côté org un champ vidé est effacé.
+
+Ce que l'écran ne fait PAS, et c'est voulu : il ne propose ni recherche ni création
+du client chez Pennylane (l'id est celui de l'URL de la fiche client, recopié), et
+le formulaire côté org (`/org/billing`, `BillingIdentityForm`) **ne montre ni ne
+poste jamais cet id** — c'est un lien vers la compta d'Otomata, pas une donnée du
+client, et le backend garantit qu'une resauvegarde côté org le laisse intact.
+
+Types : `AdminBillingIdentityView`/`AdminBillingIdentityInput` dans `api.attendu.ts`
+tant que la route n'est pas dans le snapshot OpenAPI (rafraîchi depuis la prod).
+
 ## Ce que ces écrans consomment
 
 | appel | ce qu'il sert |
