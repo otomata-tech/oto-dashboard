@@ -14,26 +14,6 @@
  */
 
 export interface paths {
-    "/api/atlassian/oauth": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Retire mon jeton atlassian du coffre
-         * @description Retire mon jeton atlassian du coffre. Idempotent : `disconnected: false` veut dire qu'il n'y avait rien à retirer, pas que le retrait a échoué.
-         */
-        delete: operations["me_federation_atlassian_disconnect_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/atlassian/oauth/callback": {
         parameters: {
             query?: never;
@@ -179,16 +159,16 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Liste les tableaux visibles dans l'org active (possédés et partagés).
-         * @description Liste les tableaux visibles dans l'org active (possédés et partagés).
+         * GET /api/datastore/namespaces
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
          */
-        get: operations["me_datastore_list_namespaces_get"];
+        get: operations["get_api_datastore_namespaces"];
         put?: never;
         /**
-         * Crée un tableau
-         * @description Crée un tableau. Par défaut il est PERSONNEL (visible de toi seul — ni les autres membres de ton org, ni ses administrateurs) ; passe `owner: {type: "org"|"group", id: N}` pour qu'il appartienne à l'org ou à l'équipe, et soit lisible de tous ses membres.
+         * POST /api/datastore/namespaces
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
          */
-        post: operations["me_datastore_create_namespace_post"];
+        post: operations["post_api_datastore_namespaces"];
         delete?: never;
         options?: never;
         head?: never;
@@ -206,20 +186,376 @@ export interface paths {
         put?: never;
         post?: never;
         /**
+         * DELETE /api/datastore/namespaces/{namespace}
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        delete: operations["delete_api_datastore_namespaces_namespace"];
+        options?: never;
+        head?: never;
+        /**
+         * PATCH /api/datastore/namespaces/{namespace}
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        patch: operations["patch_api_datastore_namespaces_namespace"];
+        trace?: never;
+    };
+    "/api/datastore/namespaces/{namespace}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /api/datastore/namespaces/{namespace}/activity
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        get: operations["get_api_datastore_namespaces_namespace_activity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datastore/namespaces/{namespace}/aggregate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /api/datastore/namespaces/{namespace}/aggregate
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        get: operations["get_api_datastore_namespaces_namespace_aggregate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datastore/namespaces/{namespace}/claim_next": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * POST /api/datastore/namespaces/{namespace}/claim_next
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        post: operations["post_api_datastore_namespaces_namespace_claim_next"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datastore/namespaces/{namespace}/drop_column": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * POST /api/datastore/namespaces/{namespace}/drop_column
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        post: operations["post_api_datastore_namespaces_namespace_drop_column"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datastore/namespaces/{namespace}/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /api/datastore/namespaces/{namespace}/queue
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        get: operations["get_api_datastore_namespaces_namespace_queue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datastore/namespaces/{namespace}/rows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /api/datastore/namespaces/{namespace}/rows
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        get: operations["get_api_datastore_namespaces_namespace_rows"];
+        put?: never;
+        /**
+         * POST /api/datastore/namespaces/{namespace}/rows
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        post: operations["post_api_datastore_namespaces_namespace_rows"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datastore/namespaces/{namespace}/rows/{row_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /api/datastore/namespaces/{namespace}/rows/{row_id}
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        get: operations["get_api_datastore_namespaces_namespace_rows_row_id"];
+        put?: never;
+        post?: never;
+        /**
+         * DELETE /api/datastore/namespaces/{namespace}/rows/{row_id}
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        delete: operations["delete_api_datastore_namespaces_namespace_rows_row_id"];
+        options?: never;
+        head?: never;
+        /**
+         * PATCH /api/datastore/namespaces/{namespace}/rows/{row_id}
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        patch: operations["patch_api_datastore_namespaces_namespace_rows_row_id"];
+        trace?: never;
+    };
+    "/api/datastore/namespaces/{namespace}/rows/{row_id}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /api/datastore/namespaces/{namespace}/rows/{row_id}/activity
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        get: operations["get_api_datastore_namespaces_namespace_rows_row_id_activity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datastore/namespaces/{namespace}/rows/{row_id}/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * POST /api/datastore/namespaces/{namespace}/rows/{row_id}/claim
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        post: operations["post_api_datastore_namespaces_namespace_rows_row_id_claim"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datastore/namespaces/{namespace}/rows/{row_id}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * POST /api/datastore/namespaces/{namespace}/rows/{row_id}/release
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        post: operations["post_api_datastore_namespaces_namespace_rows_row_id_release"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datastore/namespaces/{namespace}/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /api/datastore/namespaces/{namespace}/schema
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        get: operations["get_api_datastore_namespaces_namespace_schema"];
+        /**
+         * PUT /api/datastore/namespaces/{namespace}/schema
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        put: operations["put_api_datastore_namespaces_namespace_schema"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * PATCH /api/datastore/namespaces/{namespace}/schema
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        patch: operations["patch_api_datastore_namespaces_namespace_schema"];
+        trace?: never;
+    };
+    "/api/datastore/namespaces/{namespace}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /api/datastore/namespaces/{namespace}/share
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        get: operations["get_api_datastore_namespaces_namespace_share"];
+        put?: never;
+        /**
+         * POST /api/datastore/namespaces/{namespace}/share
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        post: operations["post_api_datastore_namespaces_namespace_share"];
+        /**
+         * DELETE /api/datastore/namespaces/{namespace}/share
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        delete: operations["delete_api_datastore_namespaces_namespace_share"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datastore/namespaces/{namespace}/url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /api/datastore/namespaces/{namespace}/url
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        get: operations["get_api_datastore_namespaces_namespace_url"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datastore/schema/keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every attribute a schema column may carry, and WHO reads each one — the validator, the front-end, or both
+         * @description Every attribute a schema column may carry, and WHO reads each one — the validator, the front-end, or both. Served so a client can check what it reads against what is declared: an attribute nobody reads is accepted silently, so a typo (`read_only` for `readonly`) disarms a guard without a word. Posting a schema returns `unknown_keys_warning` on the same basis.
+         */
+        get: operations["datastore_schema_keys_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datastores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Liste les tableaux visibles dans l'org active (possédés et partagés).
+         * @description Liste les tableaux visibles dans l'org active (possédés et partagés).
+         */
+        get: operations["me_datastore_list_datastores_get"];
+        put?: never;
+        /**
+         * Crée un tableau
+         * @description Crée un tableau. Par défaut il est PERSONNEL (visible de toi seul — ni les autres membres de ton org, ni ses administrateurs) ; passe `owner: {type: "org"|"group", id: N}` pour qu'il appartienne à l'org ou à l'équipe, et soit lisible de tous ses membres. ⚠️ L'en-tête `X-Oto-Org` NE CHANGE PAS le propriétaire : il décide sous quelle org on lit et écrit, jamais à qui appartient ce qu'on crée — seul `owner` le fait, et il ne se change pas après coup. Créé sous cet en-tête sans `owner`, le tableau naît personnel et tout continue de fonctionner pour TOI : c'est au second agent, ou au collègue qui ne le trouve pas, que ça se voit. La réponse rend le propriétaire et vous avertit dans ce cas précis.
+         */
+        post: operations["me_datastore_create_datastore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datastores/{datastore}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
          * Supprime un tableau, ses lignes et ses partages (droit de gouvernance).
          * @description Supprime un tableau, ses lignes et ses partages (droit de gouvernance).
          */
-        delete: operations["me_datastore_delete_namespace_delete"];
+        delete: operations["me_datastore_delete_datastore_delete"];
         options?: never;
         head?: never;
         /**
          * Renomme un tableau (id, URL et partages restent stables).
          * @description Renomme un tableau (id, URL et partages restent stables).
          */
-        patch: operations["me_datastore_rename_namespace_patch"];
+        patch: operations["me_datastore_rename_datastore_patch"];
         trace?: never;
     };
-    "/api/datastore/namespaces/{namespace}/activity": {
+    "/api/datastores/{datastore}/activity": {
         parameters: {
             query?: never;
             header?: never;
@@ -239,7 +575,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/datastore/namespaces/{namespace}/aggregate": {
+    "/api/datastores/{datastore}/aggregate": {
         parameters: {
             query?: never;
             header?: never;
@@ -259,7 +595,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/datastore/namespaces/{namespace}/claim_next": {
+    "/api/datastores/{datastore}/claim_next": {
         parameters: {
             query?: never;
             header?: never;
@@ -279,7 +615,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/datastore/namespaces/{namespace}/drop_column": {
+    "/api/datastores/{datastore}/drop_column": {
         parameters: {
             query?: never;
             header?: never;
@@ -289,8 +625,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * DESTRUCTIVE — erase a column from EVERY row of a namespace (`confirm=True` required)
-         * @description DESTRUCTIVE — erase a column from EVERY row of a namespace (`confirm=True` required). Removing a field from the schema takes it out of the view, but the key stays in each row: it still shows up on read, and keeps attracting writes. Writing `null` does not erase it either. Use it after RENAMING fields — the old names often describe the content better than the new ones, so an agent re-reading a row writes into them believing it aims right; purge them once instead of warning every agent forever. A key still DECLARED in the schema is refused: take it out of the schema first (`data_set_schema`). Returns `{rows}` = how many rows carried it, ALWAYS >= 1: a name that no row carries is REFUSED, never reported as a zero — so a success is always a removal you can tick off. The refusal says which of the two it is: a typo (no column of that name), or an ANNOTATION such as `site_web.comment` — served flat next to its column but stored under it, so a column purge does not reach it (write `{"site_web": {"comment": null}}` instead).
+         * DESTRUCTIVE — erase a column from EVERY row of a datastore (`confirm=True` required)
+         * @description DESTRUCTIVE — erase a column from EVERY row of a datastore (`confirm=True` required). Removing a field from the schema takes it out of the view, but the key stays in each row: it still shows up on read, and keeps attracting writes. Writing `null` does not erase it either. Use it after RENAMING fields — the old names often describe the content better than the new ones, so an agent re-reading a row writes into them believing it aims right; purge them once instead of warning every agent forever. A key still DECLARED in the schema is refused: take it out of the schema first (`data_set_schema`). Returns `{rows}` = how many rows carried it, ALWAYS >= 1: a name that no row carries is REFUSED, never reported as a zero — so a success is always a removal you can tick off. The refusal says which of the two it is: a typo (no column of that name), or an ANNOTATION such as `site_web.comment` — served flat next to its column but stored under it, so a column purge does not reach it (write `{"site_web": {"comment": null}}` instead).
          */
         post: operations["me_datastore_drop_column_post"];
         delete?: never;
@@ -299,7 +635,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/datastore/namespaces/{namespace}/queue": {
+    "/api/datastores/{datastore}/queue": {
         parameters: {
             query?: never;
             header?: never;
@@ -319,7 +655,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/datastore/namespaces/{namespace}/rows": {
+    "/api/datastores/{datastore}/rows": {
         parameters: {
             query?: never;
             header?: never;
@@ -327,14 +663,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Page de lignes d'un tableau (tri, recherche, filtres serveur).
-         * @description Page de lignes d'un tableau (tri, recherche, filtres serveur).
+         * Page de lignes d’un tableau (tri, recherche, filtres serveur)
+         * @description Page de lignes d’un tableau (tri, recherche, filtres serveur). Pagination par `offset` + `limit` avec `total` du jeu filtré, pas de curseur — la fin se calcule. Couches à plat par défaut, `layers=nested` pour la forme d’écriture ; guide `datastore-semantics`.
          */
         get: operations["me_datastore_list_rows_get"];
         put?: never;
         /**
-         * Ajoute une ligne à un tableau (le corps EST la ligne)
-         * @description Ajoute une ligne à un tableau (le corps EST la ligne). `readonly_override=true` remplace les colonnes verrouillées de cet appel — propriétaire ou gouvernant du tableau seulement, et journalisé.
+         * Ajoute UNE ligne à un tableau — le corps EST la ligne : un objet, une clé par colonne
+         * @description Ajoute UNE ligne à un tableau — le corps EST la ligne : un objet, une clé par colonne. Pas de lot ici : un corps dont l'unique clé porte une liste d'objets est refusé (`400 batch_body`) ; le lot passe par `data_write(rows=[…])` côté agent, ou par un upload signé NDJSON/CSV (`oto_upload_url` → `PUT /api/upload/{token}`) pour les volumes. `readonly_override=true` remplace les colonnes verrouillées de cet appel — propriétaire ou gouvernant du tableau seulement, et journalisé. `origine_override=true` déclare que cet appel pose la couche `origine` (la valeur du DÉPART, à l'import) en le sachant. Sans lui, une écriture d'origine est refusée à partir du 1er octobre 2026 — écrivez alors la valeur seule : la plateforme fige l'origine au premier enrichissement, mais SEULEMENT si la colonne portait déjà le cran quand la ligne est arrivée. Déclaré après coup, il ne reconstitue rien : les lignes déjà présentes reçoivent le marqueur « (origine inconnue) ». Rien à demander à personne : le paramètre suffit, et il ne vaut que pour cet appel. Il ne lève PAS le refus sur une colonne dont le schéma déclare `origine: "system"`. Couches, `readonly`, clé métier : guide `datastore-semantics`. ⚠️ Une écriture DÉTRUIT ce qui est dans la colonne : sur une colonne ouverte il n'y a ni annulation ni historique, la valeur précédente disparaît au moment où la vôtre arrive. Le filet est le format `origine: "system"`, et ce qu'il garde est précis : la valeur TELLE QU'ELLE ÉTAIT à la déclaration du format. Déclarer le format l'écrit sur toutes les lignes existantes, une fois, dans une transaction ; ensuite la couche ne bouge plus. Le nom dit QUAND, pas QUI : si des agents avaient déjà écrit avant la déclaration, c'est leur valeur qui est gardée. Une colonne sans ce format ne garde rien. La face d'appel n'y change rien : une ligne créée ici et une ligne créée par l'outil agent se comportent à l'identique.
          */
         post: operations["me_datastore_append_row_post"];
         delete?: never;
@@ -343,7 +679,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/datastore/namespaces/{namespace}/rows/{row_id}": {
+    "/api/datastores/{datastore}/rows/{row_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -366,12 +702,12 @@ export interface paths {
         head?: never;
         /**
          * Modifie une ligne (patch partiel ; le corps EST le patch)
-         * @description Modifie une ligne (patch partiel ; le corps EST le patch). `readonly_override=true` remplace les colonnes verrouillées de cet appel — propriétaire ou gouvernant du tableau seulement, et journalisé.
+         * @description Modifie une ligne (patch partiel ; le corps EST le patch). `readonly_override=true` remplace les colonnes verrouillées de cet appel — propriétaire ou gouvernant du tableau seulement, et journalisé. `origine_override=true` déclare que cet appel pose la couche `origine` (la valeur du DÉPART, à l'import) en le sachant. Sans lui, une écriture d'origine est refusée à partir du 1er octobre 2026 — écrivez alors la valeur seule : la plateforme fige l'origine au premier enrichissement, mais SEULEMENT si la colonne portait déjà le cran quand la ligne est arrivée. Déclaré après coup, il ne reconstitue rien : les lignes déjà présentes reçoivent le marqueur « (origine inconnue) ». Rien à demander à personne : le paramètre suffit, et il ne vaut que pour cet appel. Il ne lève PAS le refus sur une colonne dont le schéma déclare `origine: "system"`. ⚠️ Une écriture DÉTRUIT ce qui est dans la colonne : sur une colonne ouverte il n'y a ni annulation ni historique, la valeur précédente disparaît au moment où la vôtre arrive. Le filet est le format `origine: "system"`, et ce qu'il garde est précis : la valeur TELLE QU'ELLE ÉTAIT à la déclaration du format. Déclarer le format l'écrit sur toutes les lignes existantes, une fois, dans une transaction ; ensuite la couche ne bouge plus. Le nom dit QUAND, pas QUI : si des agents avaient déjà écrit avant la déclaration, c'est leur valeur qui est gardée. Une colonne sans ce format ne garde rien. La face d'appel n'y change rien : une ligne créée ici et une ligne créée par l'outil agent se comportent à l'identique.
          */
         patch: operations["me_datastore_update_row_patch"];
         trace?: never;
     };
-    "/api/datastore/namespaces/{namespace}/rows/{row_id}/activity": {
+    "/api/datastores/{datastore}/rows/{row_id}/activity": {
         parameters: {
             query?: never;
             header?: never;
@@ -391,7 +727,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/datastore/namespaces/{namespace}/rows/{row_id}/claim": {
+    "/api/datastores/{datastore}/rows/{row_id}/claim": {
         parameters: {
             query?: never;
             header?: never;
@@ -411,7 +747,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/datastore/namespaces/{namespace}/rows/{row_id}/release": {
+    "/api/datastores/{datastore}/rows/{row_id}/release": {
         parameters: {
             query?: never;
             header?: never;
@@ -431,7 +767,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/datastore/namespaces/{namespace}/schema": {
+    "/api/datastores/{datastore}/schema": {
         parameters: {
             query?: never;
             header?: never;
@@ -439,8 +775,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read a namespace's declared TYPED schema (the one `data_set_schema` posts)
-         * @description Read a namespace's declared TYPED schema (the one `data_set_schema` posts). Returns `{namespace, schema, enforced}` — `schema` is null when none is declared, which is a normal state, not an error. Read it BEFORE amending: `data_set_schema` posts the schema WHOLE, it does not merge, so adding one field means re-posting the existing definition plus that field. The work-queue rules live on the `role:"status"` field, under `lifecycle`: `states`/`transitions`/`terminal`, plus `max_claims` + `abandon_state` — the ceiling of claims WITHOUT a write past which a row leaves the queue. `enforced` lists the validation keys THIS deployment actually applies (required, max_length, pattern…): check what you are about to declare against it, rather than against documentation — a key posted but not enforced looks like a contract and is not one, and one enforced only after the next deploy freezes rows all at once, weeks after the cause. `warning` appears only when the stored schema carries declaration keys oto does NOT read — typically a leftover `enum` sitting beside the `options` that actually constrains the field. When it does, trust the key the warning names: the unread one is a residue, whatever it says.
+         * Read a datastore's declared TYPED schema (the one `data_set_schema` posts)
+         * @description Read a datastore's declared TYPED schema (the one `data_set_schema` posts). Returns `{datastore, ns_id, schema, enforced}` — `schema` is null when none is declared, which is a normal state, not an error. `ns_id` is the table's NUMBER (e.g. 174) and `datastore` its canonical name, whatever form you addressed it by: pass the NUMBER as `datastore` from here on — a name still resolves, it is being retired, not broken. Read it BEFORE amending: `data_set_schema` posts the schema WHOLE, it does not merge, so adding one field means re-posting the existing definition plus that field. The work-queue rules live on the `role:"status"` field, under `lifecycle`: `states`/`transitions`/`terminal`, plus `max_claims` + `abandon_state` — the ceiling of claims WITHOUT a write past which a row leaves the queue. `enforced` lists the validation keys THIS deployment actually applies (required, max_length, pattern…): check what you are about to declare against it, rather than against documentation — a key posted but not enforced looks like a contract and is not one, and one enforced only after the next deploy freezes rows all at once, weeks after the cause. ⚠️ It says what BITES, not what is USEFUL: a key absent from `enforced` is not dead — presentation keys are read by whoever renders the table, and oto cannot know who reads what downstream. Never drop a key on the strength of its absence here. `warning` appears only when the stored schema carries declaration keys oto does NOT read — typically a leftover `enum` sitting beside the `options` that actually constrains the field. When it does, trust the key the warning names: the unread one is a residue, whatever it says.
          */
         get: operations["me_datastore_get_schema_get"];
         /**
@@ -453,13 +789,13 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change a namespace's schema BY KEY, without rewriting the whole field list
-         * @description Change a namespace's schema BY KEY, without rewriting the whole field list. Prefer this over `data_set_schema` for any EDIT: `set` REPLACES, so rebuilding the list from what you know silently drops the per-field settings you did not restate (labels, help, max_length, pattern, width, options) — same call, same success, no way to tell. `fields` merges by `key`: listed properties overwrite, unlisted ones are PRESERVED, unknown keys are appended. `remove: ["key", …]` is the explicit deletion (a wrong key is refused, never silently ignored) — it takes the field out of the SCHEMA; to erase the column from the rows' DATA, that is `data_drop_column`. `strict`/`key`/`key_required`/`unknown_fields` change the head keys, untouched when omitted — `key_required: true` CLOSES the table (a write designating no existing row is refused), `false` reopens it. `unknown_fields` decides what happens to a column the schema does NOT declare: `"report"` (the default) CREATES it and names it back in `hors_schema` — `strict` alone never refused it — while `"reject"` refuses the write and stores nothing; set it on a table that has FINISHED being explored. Per field, `readonly: true` locks the value in place (layers such as `.comment` stay open) — the table's OWNER, or whoever GOVERNS it, can still replace such a value with `data_write(readonly_override=true)`, for that one call and journaled, so locking a column never means nobody can correct it again — `origine: "system"` makes the platform keep the previous value in `<field>.origine`, and `system: "run.id"|"run.started_at"|"write.at"` makes the PLATFORM write the value on every write (the caller is refused, by name) — `null` lifts any of them without touching the rows. Field ORDER is never reshuffled. Returns the resulting schema plus `{added, updated, removed}` and any `warning` the schema raises.
+         * Change a datastore's schema BY KEY, without rewriting the whole field list
+         * @description Change a datastore's schema BY KEY, without rewriting the whole field list. Prefer this over `data_set_schema` for any EDIT: `set` REPLACES, so rebuilding the list from what you know silently drops the per-field settings you did not restate (labels, help, max_length, pattern, width, options) — same call, same success, no way to tell. `fields` merges by `key`: listed properties overwrite, unlisted ones are PRESERVED, unknown keys are appended. `remove: ["key", …]` is the explicit deletion (a wrong key is refused, never silently ignored) — it takes the field out of the SCHEMA; to erase the column from the rows' DATA, that is `data_drop_column`. `remove_attrs: {"column": ["attr", …]}` takes attributes off columns that STAY — merging only completes, so this is the only way to drop one declaration without reposting the whole schema; an unknown column or attribute is refused, and `key` cannot be dropped. `strict`/`key`/`key_required`/`unknown_fields` change the head keys, untouched when omitted — `key_required: true` CLOSES the table (a write designating no existing row is refused), `false` reopens it. `unknown_fields` decides what happens to a column the schema does NOT declare: `"report"` (the default) CREATES it and names it back in `hors_schema` — `strict` alone never refused it — while `"reject"` refuses the write and stores nothing; set it on a table that has FINISHED being explored. Per field, `readonly: true` locks the value in place (layers such as `.comment` stay open) — the table's OWNER, or whoever GOVERNS it, can still replace such a value with `data_write(readonly_override=true)`, for that one call and journaled, so locking a column never means nobody can correct it again — On the `role:"status"` field, `lifecycle` merges KEY BY KEY and its `transitions` merge STATE BY STATE: naming one state leaves the others alone, so declaring a way OUT of a terminal state is one line and costs nothing else. Taking one out is explicit — `transitions: {"lost": null}` drops that state's exits, `lifecycle: {transitions: null}` drops the whole table. `origine: "system"` makes the platform keep the previous value in `<field>.origine` — `null` lifts it without touching the rows. Field ORDER is never reshuffled. Returns the resulting schema plus `{added, updated, removed}` and any `warning` the schema raises.
          */
         patch: operations["me_datastore_patch_schema_patch"];
         trace?: never;
     };
-    "/api/datastore/namespaces/{namespace}/share": {
+    "/api/datastores/{datastore}/share": {
         parameters: {
             query?: never;
             header?: never;
@@ -473,13 +809,13 @@ export interface paths {
         get: operations["me_datastore_list_shares_get"];
         put?: never;
         /**
-         * Partage un tableau avec un utilisateur oto, en lecture ou écriture.
-         * @description Partage un tableau avec un utilisateur oto, en lecture ou écriture.
+         * Partage un tableau avec un utilisateur oto, en lecture ou écriture
+         * @description Partage un tableau avec un utilisateur oto, en lecture ou écriture. Le destinataire se nomme par `email` — ou par `sub` quand une adresse désigne plusieurs comptes.
          */
         post: operations["me_datastore_share_post"];
         /**
-         * Retire le partage d'un tableau pour un utilisateur.
-         * @description Retire le partage d'un tableau pour un utilisateur.
+         * Retire le partage d'un tableau pour un utilisateur, nommé par `email` ou par `sub` si son adresse est ambiguë.
+         * @description Retire le partage d'un tableau pour un utilisateur, nommé par `email` ou par `sub` si son adresse est ambiguë.
          */
         delete: operations["me_datastore_unshare_delete"];
         options?: never;
@@ -487,7 +823,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/datastore/namespaces/{namespace}/url": {
+    "/api/datastores/{datastore}/url": {
         parameters: {
             query?: never;
             header?: never;
@@ -544,26 +880,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/folkmcp/oauth": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Retire mon jeton folkmcp du coffre
-         * @description Retire mon jeton folkmcp du coffre. Idempotent : `disconnected: false` veut dire qu'il n'y avait rien à retirer, pas que le retrait a échoué.
-         */
-        delete: operations["me_federation_folkmcp_disconnect_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1759,6 +2075,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/billing/method": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** billing.method_change */
+        post: operations["billing_method_change_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/billing/method/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** billing.method_change_confirm */
+        post: operations["billing_method_change_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/billing/payments": {
         parameters: {
             query?: never;
@@ -1770,6 +2120,23 @@ export interface paths {
         get: operations["billing_payments_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/billing/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** billing.resume */
+        post: operations["billing_resume_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2151,7 +2518,7 @@ export interface paths {
         put?: never;
         /**
          * Test whether a connector's configured credential actually authenticates (side-effect-free probe), returning {ok, error}
-         * @description Test whether a connector's configured credential actually authenticates (side-effect-free probe), returning {ok, error}. Use it to diagnose a connector that is set but not working (wrong region, expired token…) before reporting a gap. 'auto' tests the credential that resolves for you; 'org' tests the org shared key. The reply names the instance actually probed (`level` + `ref`) — under 'auto' the cascade may have fallen through to a shared key, and `ok` alone would not say so.
+         * @description Test whether a connector's configured credential actually authenticates (side-effect-free probe), returning {ok, error}. Use it to diagnose a connector that is set but not working (wrong region, expired token…) before reporting a gap. 'auto' tests the credential that resolves for you; 'org' tests the org shared key. The reply names the instance actually probed (`level` + `ref`) — under 'auto' the cascade may have fallen through to a shared key, and `ok` alone would not say so. ⚠️ READ `coverage` WITH `ok`: it says what the probe actually measured. `auth` = the key authenticates, and NOTHING about credit or quota — an `ok:true` there does not mean the account can still work. `auth+quota` = it also checked there is something left to spend. `null` = this connector declares no probe at all, which is not the same as 'nothing to check'. A preflight built on `ok` alone reports green on an exhausted account and the work fails mid-flight, after side effects.⚠️ `verdict` says WHY when it fails — `unauthorized` (replace the key or widen its scope; adding another one changes nothing), `no_quota` (the key is fine, the balance is empty: top up, do NOT reconnect), or `unknown` (the probe failed without saying why — read `error` as it stands). `next_step` spells out the move. ⚠️ `unknown` means 'I do not know', never 'nothing serious'. ⚠️ `identity` (Slack today) names WHO the key authenticates as at the provider — app_id / bot_id / team / user, one block per token posed. It exists to answer 'is this still the same app as yesterday?', because a key swapped for ANOTHER app's tokens authenticates fine and starts with none of the channel memberships the previous one had — the vault only ever sees a healthy key. **oto compares nothing and keeps no history**: record this value yourself if you want to notice the change. Its absence means this connector does not expose it, never 'unchanged'.
          */
         post: operations["connectors_verify_post"];
         delete?: never;
@@ -2953,7 +3320,7 @@ export interface paths {
         put?: never;
         /**
          * Write a node in the NEW content universe (op=create | update | move | delete)
-         * @description Write a node in the NEW content universe (op=create | update | move | delete). THREE kinds, and only three: `page`, `tableau`, `ligne` (default page). A table row is a node too: create it with kind='ligne', `parent_id` of its table, and `data` holding the cell values — `data` is where user values live, never `props`, so a column named `title` cannot overwrite the node's own title. A table's column schema is `columns`, optional (a free table is a valid table), and re-posting it REPLACES it. Nodes written here are NATIVE: they have no source in the old world, nothing refreshes them, and the old surfaces (`oto_doc`, `oto_project`) do not see them — the two universes live side by side during the transition. A page BODY is stored as ordered blocks with STABLE ids, so editing a title never re-identifies the paragraphs and citations survive. `scope` picks the owner (platform | org | group | user, default org) and follows the SAME write ladder as guides; a row has no owner of its own, it takes its table's. `move` changes parent and rank WITHOUT changing identity — that is what makes children, blocks and inbound references survive. You may only write, move or delete a node you OWN, and only file one under a parent you own: anything else answers the SAME 404 as reading it, unknown and forbidden being indistinguishable. Editing a node that is a COPY of the old world is refused (409): it is edited on its own surface. PROVISIONAL surface, like its read side.
+         * @description Write a node in the NEW content universe (op=create | update | move | delete). THREE kinds, and only three: `page`, `tableau`, `ligne` (default page). A table row is a node too: create it with kind='ligne', `parent_id` of its table, and `data` holding the cell values — `data` is where user values live, never `props`, so a column named `title` cannot overwrite the node's own title. A table's column schema is `columns`, optional (a free table is a valid table), and re-posting it REPLACES it. Nodes written here are NATIVE: they have no source in the old world, nothing refreshes them, and the old surfaces (`oto_doc`, `oto_project`) do not see them — the two universes live side by side during the transition. A page BODY is stored as ordered blocks with STABLE ids, so editing a title never re-identifies the paragraphs and citations survive. `scope` picks the owner (platform | org | group | user, default user — the node is PRIVATE, yours alone: name a scope to make it your org's or your team's) and follows the SAME write ladder as guides; a row has no owner of its own, it takes its table's. `move` changes parent and rank WITHOUT changing identity — that is what makes children, blocks and inbound references survive. You may only write, move or delete a node you OWN, and only file one under a parent you own: anything else answers the SAME 404 as reading it, unknown and forbidden being indistinguishable. Editing a node that is a COPY of the old world is refused (409): it is edited on its own surface. PROVISIONAL surface, like its read side.
          */
         post: operations["me_node_edit_post"];
         delete?: never;
@@ -3081,7 +3448,7 @@ export interface paths {
         put?: never;
         /**
          * Projects (organization layer, ADR 0030 owned resource)
-         * @description Projects (organization layer, ADR 0030 owned resource). EVERY project carries `url` — the web address to OPEN it, in the reader's own product; hand it over as-is when asked "where is it?", never rebuild one from a pattern (`null` = that reader's product has no such view). op=create (name, optional brief_md; owner_type user|org + owner_id for a team project) / list (ORG-SCOPED: the ACTIVE org's projects + projects shared with it or with you — pass `org=<id>` to see another org's; every response echoes the effective org in `_org`. An INDEX: names and `brief_md_length`, NOT the briefs — read one with op=get, or pass `fields=["*"]` for whole records) / list_templates (published MODEL projects you can copy) / get (project + its links + an `audit` of those links: dead_links / unbound_slots / inert_procedures — a linked entity that no longer resolves surfaces HERE, act on it) / update (name, icon = an emoji shown in the lists and headers ("" clears it), brief_md, is_template = publish/unpublish as a copyable model, excluded_url_prefixes = URL prefixes such as `linkedin.com/in/` that search tools drop and extraction tools refuse under this project — a whole host must be written `host/*`, `[]` clears) / copy (deep-copy a project you can read — its own or a model — into a NEW project in your active org: brief + doc tree + links + raw files; a tableau link stays a POINTER to the same namespace by default (config.provision absent/`shared`), but with config.provision=`empty`|`seeded` it is PROVISIONED — a FRESH namespace (same schema, rows only if `seeded`) so each copy gets its own isolated table (e.g. a campaign template's lead pool). A `shared` tableau owned by ANOTHER org is re-provisioned EMPTY (never a pointer to the source's private data), and links whose namespace no longer resolves are skipped — both surfaced in the response `warnings`. Pass project_id = source + name = target) / handoff (a copy-paste « resume in Claude » blob that pre-writes the per-call `_project=` token for this project) / archive / link & unlink (attach an entity: target_type tableau|procedure|connecteur + target_ref = its id/slug/name, optional label + optional role = why this entity belongs to the project + optional config = the entity's PRE-MADE per-project override; for a connecteur: {identity_id?, instructions_md?} = which account to act as + prose instructions to apply (e.g. 'only filter agreements by the mutuelle theme'), or `instance_ref` (a ref from oto_instance op=list, ADR 0038 B5) to bind EXACTLY that credential — calls carrying this project's token then resolve it hard, no fallback; for a tableau: {provision?: shared|empty|seeded} = how a project copy treats it (empty/seeded = each copy gets its own fresh table). Optional `slot` = the SLOT NAME this link BINDS for the project (ADR 0035): procedures declare required entities as slots and reference them <slot:name> in their prose — the project maps each name to a concrete entity via its links. Slot names are a PROJECT-wide vocabulary (unique per project → 409 slot_taken; two linked procedures sharing `sortie` share the binding). Re-linking without role/config/slot preserves the existing ones. unlink returns `removed` = how many bindings it actually took out, and REFUSES (`link_not_found`) when it matched none — it never answers ok on a link it did not find. Give the `target_ref` as op=get renders it: an older link may still carry the NAME of its tableau (or the SLUG of its procedure) instead of the id, and unlink takes back either spelling. get/link return each link's role + slot + config + a derived `cross_project` flag (the same entity is linked by another project → avoid brutal edits / ask); a tableau link also returns its resolved `namespace` — address THIS project's table by that name with the data_* tools (never hardcode a namespace). Share & transfer go through oto_resource (resource_type='project') — this includes RE-PARENTING a project in place (same id, links, runs preserved): op=transfer new_owner_group=<id> hands it to a TEAM so the project and its connector credentials sit at the SAME level (the team's secrets then resolve when you open it), new_owner_org=<id> to an org, new_owner_email to a user. (op=update only changes name/icon/brief_md/is_template — never the owner; op=copy makes a NEW id.) inventory = the project's DERIVED surface (union of the linked procedures' <tool:> refs + tools actually used by the project's runs, plus connectors from links & declared slots) — never retype a tool list: derive, then curate. runs (optional target_ref = a linked procedure's stable id) = the project's recent runs (label/guide/outcome), filtered to that procedure when given. OMIT project_id on op=runs and you get YOUR OWN still-open runs instead, each with its `run_id` — that is how you find a run you opened and lost the id of, so you can finally close it with run_finish. Across every org, since a run you cannot find is usually one you opened elsewhere. lint (optional stale_days, default 90) = KB health of this project's pages: stale (untouched since), empty (trivial body), duplicate_titles (likely merges). publish_mcp (mcp_slug + mcp_access anonymous|secret|org + mcp_tools = the fixed tool allowlist) publishes the project as a dedicated MCP endpoint `<mcp_slug>.mcp.oto.cx/mcp`, the toolset served under the OWNER ORG's credentials — `anonymous` = no login + LISTED in the public directory; `secret` = no login but UNLISTED, the slug is server-generated & unguessable (a secret URL; mcp_slug is an optional readable prefix); `org` = Logto JWT + pins the org. For anonymous/secret, tools that aren't credential-less or resolvable for the org are published anyway but FAIL cleanly at call time — they come back in `mcp_unresolvable_tools` (configure an org key or drop them). mcp_expose_datastore (SECRET only) opts the `data_*` tools in: they then act under the OWNER ORG's authority (read/write the org's namespaces) without a login — off by default (the datastore stays private); refused on anonymous/org. unpublish_mcp removes it. get returns mcp_slug/mcp_access/mcp_tools/mcp_expose_datastore/mcp_url.
+         * @description Projects (organization layer, ADR 0030 owned resource). EVERY project carries `url` — the web address to OPEN it, in the reader's own product; hand it over as-is when asked "where is it?", never rebuild one from a pattern (`null` = that reader's product has no such view). op=create (name, optional brief_md; owner_type user|org + owner_id for a team project) / list (ORG-SCOPED: the ACTIVE org's projects + projects shared with it or with you — pass `org=<id>` to see another org's; every response echoes the effective org in `_org`. An INDEX: names and `brief_md_length`, NOT the briefs — read one with op=get, or pass `fields=["*"]` for whole records) / list_templates (published MODEL projects you can copy) / get (project + its links + an `audit` of those links: dead_links / unbound_slots / inert_procedures — a linked entity that no longer resolves surfaces HERE, act on it) / update (name, icon = an emoji shown in the lists and headers ("" clears it), brief_md, is_template = publish/unpublish as a copyable model, excluded_url_prefixes = URL prefixes such as `linkedin.com/in/` that search tools drop and extraction tools refuse under this project — a whole host must be written `host/*`, `[]` clears) / copy (deep-copy a project you can read — its own or a model — into a NEW project in your active org: brief + doc tree + links + raw files; a tableau link stays a POINTER to the same namespace by default (config.provision absent/`shared`), but with config.provision=`empty`|`seeded` it is PROVISIONED — a FRESH namespace (same schema, rows only if `seeded`) so each copy gets its own isolated table (e.g. a campaign template's lead pool). A `shared` tableau owned by ANOTHER org is re-provisioned EMPTY (never a pointer to the source's private data), and links whose namespace no longer resolves are skipped — both surfaced in the response `warnings`. Pass project_id = source + name = target) / handoff (a copy-paste « resume in Claude » blob that pre-writes the per-call `_project=` token for this project) / archive / link & unlink (attach an entity: target_type tableau|procedure|connecteur + target_ref = its id/slug/name, optional label + optional role = why this entity belongs to the project + optional config = the entity's PRE-MADE per-project override; for a connecteur: {identity_id?, instructions_md?} = which account to act as + prose instructions to apply (e.g. 'only filter agreements by the mutuelle theme'), or `instance_ref` (a ref from oto_instance op=list, ADR 0038 B5) to bind EXACTLY that credential — calls carrying this project's token then resolve it hard, no fallback; for a tableau: {provision?: shared|empty|seeded} = how a project copy treats it (empty/seeded = each copy gets its own fresh table). Optional `slot` = the SLOT NAME this link BINDS for the project (ADR 0035): procedures declare required entities as slots and reference them <slot:name> in their prose — the project maps each name to a concrete entity via its links. Slot names are a PROJECT-wide vocabulary (unique per project → 409 slot_taken; two linked procedures sharing `sortie` share the binding). Re-linking without role/config/slot preserves the existing ones. link says WHAT IT DID in `link_status`: `created` (the binding did not exist), `unchanged` (it was already there and this call rewrote nothing) or `updated` (it existed and this call changed it — `changed_fields` then lists which of label/role/slot/config moved). Re-running a link is safe and idempotent, so a caller told to ENSURE a resource is attached must read `link_status` — not `ok` — to know whether it actually acted. unlink returns `removed` = how many bindings it actually took out, and REFUSES (`link_not_found`) when it matched none — it never answers ok on a link it did not find. Give the `target_ref` as op=get renders it: an older link may still carry the NAME of its tableau (or the SLUG of its procedure) instead of the id, and unlink takes back either spelling. get/link return each link's role + slot + config + a derived `cross_project` flag (the same entity is linked by another project → avoid brutal edits / ask); a tableau link also returns its resolved `namespace` — address THIS project's table by that name with the data_* tools (never hardcode a namespace). Share & transfer go through oto_resource (resource_type='project') — this includes RE-PARENTING a project in place (same id, links, runs preserved): op=transfer new_owner_group=<id> hands it to a TEAM so the project and its connector credentials sit at the SAME level (the team's secrets then resolve when you open it), new_owner_org=<id> to an org, new_owner_email to a user. (op=update only changes name/icon/brief_md/is_template — never the owner; op=copy makes a NEW id.) inventory = the project's DERIVED surface (union of the linked procedures' <tool:> refs + tools actually used by the project's runs, plus connectors from links & declared slots) — never retype a tool list: derive, then curate. runs (optional target_ref = a linked procedure's stable id) = the project's recent runs (label/guide/outcome), filtered to that procedure when given. OMIT project_id on op=runs and you get YOUR OWN still-open runs instead, each with its `run_id` — that is how you find a run you opened and lost the id of, so you can finally close it with run_finish. Across every org, since a run you cannot find is usually one you opened elsewhere. lint (optional stale_days, default 90) = KB health of this project's pages: stale (untouched since), empty (trivial body), duplicate_titles (likely merges). publish_mcp (mcp_slug + mcp_access anonymous|secret|org + mcp_tools = the fixed tool allowlist) publishes the project as a dedicated MCP endpoint `<mcp_slug>.mcp.oto.cx/mcp`, the toolset served under the OWNER ORG's credentials — `anonymous` = no login + LISTED in the public directory; `secret` = no login but UNLISTED, the slug is server-generated & unguessable (a secret URL; mcp_slug is an optional readable prefix); `org` = Logto JWT + pins the org. For anonymous/secret, tools that aren't credential-less or resolvable for the org are published anyway but FAIL cleanly at call time — they come back in `mcp_unresolvable_tools` (configure an org key or drop them). mcp_expose_datastore (SECRET only) opts the `data_*` tools in: they then act under the OWNER ORG's authority (read/write the org's namespaces) without a login — off by default (the datastore stays private); refused on anonymous/org. unpublish_mcp removes it. get returns mcp_slug/mcp_access/mcp_tools/mcp_expose_datastore/mcp_url.
          */
         post: operations["me_project_post"];
         delete?: never;
@@ -3100,8 +3467,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * « Add to my Oto »: FORK a PUBLISHED project (resolved by its share slug) into your ACTIVE org, or RETURN the copy you already imported (idempotent)
-         * @description « Add to my Oto »: FORK a PUBLISHED project (resolved by its share slug) into your ACTIVE org, or RETURN the copy you already imported (idempotent). Copies the STRUCTURE (brief + docs + links + files; a tableau owned by another org is re-provisioned EMPTY) — NEVER credentials. Source stays intact. Powers the public share page's acquisition CTA; the dashboard calls it after login.
+         * « Add to my Oto »: FORK a PUBLISHED project (resolved by its share slug) to YOURSELF — the copy is PRIVATE, visible to you alone, filed in your active org without being shared with
+         * @description « Add to my Oto »: FORK a PUBLISHED project (resolved by its share slug) to YOURSELF — the copy is PRIVATE, visible to you alone, filed in your active org without being shared with it (ADR 0068); share or transfer it afterwards if you want your team to see it. The reply says so in `visible_to`. Or RETURN the copy you already imported (idempotent). Copies the STRUCTURE (brief + docs + links + files; a tableau owned by another org is re-provisioned EMPTY) — NEVER credentials. Source stays intact. Powers the public share page's acquisition CTA; the dashboard calls it after login.
          */
         post: operations["me_import_project_post"];
         delete?: never;
@@ -3139,7 +3506,7 @@ export interface paths {
         };
         /**
          * Read ONE project by id (its brief, links and audit) — the same payload as oto_project op=get, on a URL that names its target
-         * @description Read ONE project by id (its brief, links and audit) — the same payload as oto_project op=get, on a URL that names its target. REST-only: agents already have oto_project. Exists so a SCOPED api token can be granted one project and nothing else ({"projects": {"12": "read"}}), which the POST form cannot express — its target sits in the body. Optional ?include=procedures adds the BODY of the linked procedures (title, version, body_md) so a reader can see the rule that produced a record; omitted, the response is byte-for-byte unchanged. Ask for several with ONE comma-separated value (?include=spine,procedures) — repeating the parameter keeps only the last one.
+         * @description Read ONE project by id (its brief, links and audit) — the same payload as oto_project op=get, on a URL that names its target. REST-only: agents already have oto_project. Exists so a SCOPED api token can be granted one project and nothing else ({"projects": {"12": "read"}}), which the POST form cannot express — its target sits in the body. Optional ?include=procedures adds the BODY of the linked procedures (title, description = the author's own short summary, version, body_md) so a reader can render the summary instead of the whole body, and see the rule that produced a record; omitted, the response is byte-for-byte unchanged. Ask for several with ONE comma-separated value (?include=spine,procedures) — repeating the parameter keeps only the last one.
          */
         get: operations["me_project_read_get"];
         put?: never;
@@ -3225,7 +3592,7 @@ export interface paths {
         put?: never;
         /**
          * Declared configuration of an agent PASS — what a fleet runs, on which table, within which perimeter, and up to which limit
-         * @description Declared configuration of an agent PASS — what a fleet runs, on which table, within which perimeter, and up to which limit. op=create (`label` + procedure slug + `tools` allowlist ; optional target `namespace` + `row_filter`, execution context `provider`/`model`, and limits `max_rows` / `max_tokens` / `max_consecutive_failures` / `max_tokens_per_row` — budgets are counted in TOKENS, never money) / list (optionally filtered by `status`) / get / state / update. ⚠️ op=launch ARMS the fleet — it does NOT start any process. The state becomes `armed`, never `running`: `running` means a scheduler has TAKEN it and is beating. A scheduler must still be running for the pass to move. Symmetrically, op=stop REQUESTS the stop (`stopping`); the fleet keeps reserving, calling and SPENDING until the scheduler reads the order and acknowledges it (`stopped`). Never report a launch on `armed`, nor a stop on `stopping` — the gap between the two is also the diagnosis: a `stopping` that never becomes `stopped`, or an `armed` nobody claims, means a dead scheduler. op=state returns the pass PROGRESS aggregated over its jobs — pending, claimed, done, failed, abandoned, tokens consumed, heaviest single row — and says `no_jobs_attached` explicitly rather than returning zeros you would read as 'nothing happened'. The TARGET is frozen at declaration: redirecting a running pass to another table is what declaring exists to prevent; the execution context (`provider`/`model`) is frozen too, since changing it mid-flight falsifies the attribution of rows already written — declare another fleet instead — duplicate, never switch. The scheduler's own three verbs are served HERE too: op=take (`armed`→`running`, refused if another scheduler already took it), op=beat (heartbeat AND reads back `stop_requested` in the same call) and op=ack_stop (`stopping`→`stopped`, the only verb that states the FACT of a stop). They exist so that op=stop is REAL: an order nobody can read is an order that never happens.
+         * @description Declared configuration of an agent PASS — what a fleet runs, on which table, within which perimeter, and up to which limit. op=create (`label` + procedure slug + `tools` allowlist ; optional target `namespace` + `row_filter`, execution context `provider`/`model`, and limits `max_rows` / `max_tokens` / `max_consecutive_failures` / `max_tokens_per_row` — budgets are counted in TOKENS, never money) / list (optionally filtered by `status`) / get / state / update. ⚠️ op=launch ARMS the fleet — it does NOT start any process. The state becomes `armed`, never `running`: `running` is a FACT, not an intent — a worker asked for work and Oto produced this pass's first job. That happens BY ITSELF, usually within seconds: workers poll continuously and Oto makes the work when they ask. **No scheduler is involved and none has to be started.** An `armed` still `armed` after a minute therefore means NO WORKER IS POLLING for this org — not 'nobody has taken it'. Symmetrically, op=stop REQUESTS the stop (`stopping`); the fleet keeps reserving, calling and SPENDING until none of its jobs is left in flight, at which point Oto states the fact (`stopped`) at the next poll. Never report a launch on `armed`, nor a stop on `stopping` — the gap between the two is also the diagnosis. op=state returns the pass PROGRESS aggregated over its jobs — pending, claimed, done, failed, abandoned, tokens consumed, heaviest single row — and says `no_jobs_attached` explicitly rather than returning zeros you would read as 'nothing happened'. The TARGET is frozen at declaration: redirecting a running pass to another table is what declaring exists to prevent; the execution context (`provider`/`model`) is frozen too, since changing it mid-flight falsifies the attribution of rows already written — declare another fleet instead — duplicate, never switch. An EXTERNAL scheduler is still served here — op=take (`armed`→`running`, refused if another scheduler already took it), op=beat (heartbeat AND reads back `stop_requested` in the same call), op=ack_stop (`stopping`→`stopped`). ⚠️ None of them is required any more, and you should not call them: polling alone moves a pass, and op=take would only claim one that was about to start on its own.
          */
         post: operations["runner_fleets_post"];
         delete?: never;
@@ -5418,6 +5785,20 @@ export interface components {
              * @default null
              */
             accepted_at: string | null;
+        };
+        /** SchemaKey */
+        SchemaKey: {
+            /** Key */
+            key: string;
+            /** Readers */
+            readers: string[];
+            /** What */
+            what: string;
+            /**
+             * Column Only
+             * @default false
+             */
+            column_only: boolean;
         };
         /**
          * Plan
@@ -7741,8 +8122,8 @@ export interface components {
              * @enum {string}
              */
             resource_type: "datastore_namespace";
-            /** Namespace */
-            namespace: string;
+            /** Datastore */
+            datastore: string;
             /** Row Count */
             row_count: number;
             /**
@@ -7775,8 +8156,8 @@ export interface components {
              * @enum {string}
              */
             resource_type: "datastore_namespace";
-            /** Namespace */
-            namespace: string;
+            /** Datastore */
+            datastore: string;
             /** Row Count */
             row_count: number;
             /**
@@ -9130,14 +9511,19 @@ export interface components {
             created_at: string | null;
         };
         /**
-         * NamespaceEntry
+         * DatastoreEntry
          * @description Une entrée du catalogue de tableaux, telle que la peint le cockpit.
          */
-        NamespaceEntry: {
+        DatastoreEntry: {
             /** Id */
             id: number;
-            /** Namespace */
-            namespace: string;
+            /**
+             * Ns Id
+             * @default 0
+             */
+            ns_id: number;
+            /** Datastore */
+            datastore: string;
             /**
              * Created At
              * @description heure locale serveur, sans offset — `YYYY-MM-DD HH:MM:SS`, à ne pas parser comme de l'ISO UTC
@@ -9183,7 +9569,7 @@ export interface components {
          *
          *     `additionalProperties` est VRAI et c'est le fond du modèle — un tableau du
          *     datastore n'a pas de schéma imposé (le schéma typé d'ADR 0046 est optionnel et se
-         *     lit sur le namespace, pas ici).
+         *     lit sur le datastore, pas ici).
          */
         Row: {
             /** Id */
@@ -9584,6 +9970,12 @@ export interface components {
              */
             workers: number | null;
             /**
+             * Rows At Launch
+             * @description Combien de lignes visaient le passage au moment de l'armement — le DÉNOMINATEUR de son avancement, relu à chaque armement. Ce n'est pas une borne (`max_rows` est le plafond déclaré) : c'est ce que la table contenait vraiment. `null` = pas de cible, ou compte illisible — « inconnu », jamais zéro.
+             * @default null
+             */
+            rows_at_launch: number | null;
+            /**
              * Max Rows
              * @default null
              */
@@ -9712,49 +10104,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    me_federation_atlassian_disconnect_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Ok */
-                        ok: boolean;
-                        /** Disconnected */
-                        disconnected: boolean;
-                    };
-                };
-            };
-            /** @description jeton absent ou invalide */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-        };
-    };
     get_api_atlassian_oauth_callback: {
         parameters: {
             query?: never;
@@ -10036,7 +10385,489 @@ export interface operations {
             };
         };
     };
-    me_datastore_list_namespaces_get: {
+    get_api_datastore_namespaces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    post_api_datastore_namespaces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_api_datastore_namespaces_namespace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    patch_api_datastore_namespaces_namespace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_api_datastore_namespaces_namespace_activity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_api_datastore_namespaces_namespace_aggregate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    post_api_datastore_namespaces_namespace_claim_next: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    post_api_datastore_namespaces_namespace_drop_column: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_api_datastore_namespaces_namespace_queue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_api_datastore_namespaces_namespace_rows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    post_api_datastore_namespaces_namespace_rows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_api_datastore_namespaces_namespace_rows_row_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+                row_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_api_datastore_namespaces_namespace_rows_row_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+                row_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    patch_api_datastore_namespaces_namespace_rows_row_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+                row_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_api_datastore_namespaces_namespace_rows_row_id_activity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+                row_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    post_api_datastore_namespaces_namespace_rows_row_id_claim: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+                row_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    post_api_datastore_namespaces_namespace_rows_row_id_release: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+                row_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_api_datastore_namespaces_namespace_schema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    put_api_datastore_namespaces_namespace_schema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    patch_api_datastore_namespaces_namespace_schema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_api_datastore_namespaces_namespace_share: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    post_api_datastore_namespaces_namespace_share: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_api_datastore_namespaces_namespace_share: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_api_datastore_namespaces_namespace_url: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    datastore_schema_keys_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -10052,8 +10883,11 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Namespaces */
-                        namespaces: components["schemas"]["NamespaceEntry"][];
+                        /**
+                         * Keys
+                         * @description Tout ce qu'une colonne de schéma a le droit de porter.
+                         */
+                        keys: components["schemas"]["SchemaKey"][];
                     };
                 };
             };
@@ -10077,7 +10911,48 @@ export interface operations {
             };
         };
     };
-    me_datastore_create_namespace_post: {
+    me_datastore_list_datastores_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Datastores */
+                        datastores: components["schemas"]["DatastoreEntry"][];
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    me_datastore_create_datastore_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -10088,10 +10963,10 @@ export interface operations {
             content: {
                 "application/json": {
                     /**
-                     * Namespace
+                     * Datastore
                      * @default
                      */
-                    namespace?: string;
+                    datastore?: string;
                     /**
                      * Owner
                      * @default null
@@ -10110,12 +10985,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Namespace */
-                        namespace: string;
+                        /** Datastore */
+                        datastore: string;
                         /** Id */
                         id: number;
                         /** Url */
                         url: string;
+                        /**
+                         * Owner Type
+                         * @default user
+                         */
+                        owner_type: string;
+                        /**
+                         * Owner Id
+                         * @default
+                         */
+                        owner_id: string;
+                        /**
+                         * Is Personal
+                         * @default true
+                         */
+                        is_personal: boolean;
+                        /**
+                         * Avertissement
+                         * @default null
+                         */
+                        avertissement: string | null;
                     };
                 };
             };
@@ -10139,12 +11034,12 @@ export interface operations {
             };
         };
     };
-    me_datastore_delete_namespace_delete: {
+    me_datastore_delete_datastore_delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
             };
             cookie?: never;
         };
@@ -10159,8 +11054,8 @@ export interface operations {
                     "application/json": {
                         /** Ok */
                         ok: boolean;
-                        /** Namespace */
-                        namespace: string;
+                        /** Datastore */
+                        datastore: string;
                     };
                 };
             };
@@ -10184,12 +11079,12 @@ export interface operations {
             };
         };
     };
-    me_datastore_rename_namespace_patch: {
+    me_datastore_rename_datastore_patch: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
             };
             cookie?: never;
         };
@@ -10214,8 +11109,8 @@ export interface operations {
                     "application/json": {
                         /** Ok */
                         ok: boolean;
-                        /** Namespace */
-                        namespace: string;
+                        /** Datastore */
+                        datastore: string;
                     };
                 };
             };
@@ -10246,7 +11141,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
             };
             cookie?: never;
         };
@@ -10297,7 +11192,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
             };
             cookie?: never;
         };
@@ -10342,13 +11237,19 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
             };
             cookie?: never;
         };
         requestBody?: {
             content: {
                 "application/json": {
+                    /**
+                     * Layers
+                     * @description Forme des cellules à couches. ⚠️ C'est une LECTURE : ne renvoyez pas la ligne lue. N'écrivez que ce que vous avez établi — et jamais `champ.origine`, qui se lit ici et que pose la plateforme, jamais un agent. On ÉCRIT imbriqué (`champ` = `{valeur, comment, link}`) et, par défaut, on relit À PLAT : ce paramètre lève cette asymétrie. `flat` (défaut) sert `champ` = la valeur et `champ.origine`/`.comment`/`.link` à plat à côté ; `nested` sert `champ` = `{valeur, origine, comment, link}` (la valeur toujours, les couches renseignées seulement), la forme dans laquelle on écrit ; une cellule sans couche est le même scalaire dans les deux. Toute autre valeur est refusée. Le défaut basculera vers `nested`, avec préavis daté : un client qui dépend d'une forme la nomme dès maintenant.
+                     * @default flat
+                     */
+                    layers?: string;
                     /**
                      * Worker
                      * @default
@@ -10361,6 +11262,11 @@ export interface operations {
                     filter?: {
                         [key: string]: unknown;
                     } | null;
+                    /**
+                     * Filters
+                     * @default null
+                     */
+                    filters?: unknown[] | null;
                     /**
                      * Lease S
                      * @default null
@@ -10382,8 +11288,14 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Namespace */
-                        namespace: string;
+                        /** Datastore */
+                        datastore: string;
+                        /**
+                         * Ns Id
+                         * @description The table's NUMBER — the form to pass as `datastore` from here on. A name still resolves (same visibility check, no retirement date set), it is being retired, not broken. `null` only when no table was resolved.
+                         * @default null
+                         */
+                        ns_id: number | null;
                         /**
                          * Row
                          * @default null
@@ -10429,7 +11341,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
             };
             cookie?: never;
         };
@@ -10458,8 +11370,8 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Namespace */
-                        namespace: string;
+                        /** Datastore */
+                        datastore: string;
                         /** Key */
                         key: string;
                         /** Rows */
@@ -10492,7 +11404,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
             };
             cookie?: never;
         };
@@ -10540,10 +11452,12 @@ export interface operations {
                 q?: string | null;
                 filter?: string | null;
                 filters?: string | null;
+                layers?: string;
+                versions?: string[] | string | null;
             };
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
             };
             cookie?: never;
         };
@@ -10558,6 +11472,12 @@ export interface operations {
                     "application/json": {
                         /** Rows */
                         rows: components["schemas"]["Row"][];
+                        /**
+                         * Ns Id
+                         * @description The table's NUMBER — the form to pass as `datastore` from here on. A name still resolves (same visibility check, no retirement date set), it is being retired, not broken. `null` only when no table was resolved.
+                         * @default null
+                         */
+                        ns_id: number | null;
                         /** Total */
                         total: number;
                         /** Offset */
@@ -10591,10 +11511,13 @@ export interface operations {
         parameters: {
             query?: {
                 readonly_override?: boolean;
+                force?: string[] | string | null;
+                origine_override?: boolean;
+                donnees_d_origine?: boolean;
             };
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
             };
             cookie?: never;
         };
@@ -10667,6 +11590,36 @@ export interface operations {
                          */
                         hors_options_hint: string | null;
                         /**
+                         * Hors Type
+                         * @default null
+                         */
+                        hors_type: {
+                            [key: string]: unknown;
+                        } | null;
+                        /**
+                         * Hors Type Hint
+                         * @default null
+                         */
+                        hors_type_hint: string | null;
+                        /**
+                         * Valeurs Ecartees
+                         * @default null
+                         */
+                        valeurs_ecartees: {
+                            [key: string]: unknown;
+                        }[] | null;
+                        /**
+                         * Valeurs Ecartees Hint
+                         * @default null
+                         */
+                        valeurs_ecartees_hint: string | null;
+                        /**
+                         * Ns Id
+                         * @description The table's NUMBER — the form to pass as `datastore` from here on. A name still resolves (same visibility check, no retirement date set), it is being retired, not broken. `null` only when no table was resolved.
+                         * @default null
+                         */
+                        ns_id: number | null;
+                        /**
                          * Notices
                          * @default null
                          */
@@ -10698,10 +11651,13 @@ export interface operations {
     };
     me_datastore_get_row_get: {
         parameters: {
-            query?: never;
+            query?: {
+                layers?: string;
+                versions?: string[] | string | null;
+            };
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
                 row_id: string;
             };
             cookie?: never;
@@ -10776,7 +11732,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
                 row_id: string;
             };
             cookie?: never;
@@ -10821,10 +11777,13 @@ export interface operations {
         parameters: {
             query?: {
                 readonly_override?: boolean;
+                force?: string[] | string | null;
+                origine_override?: boolean;
+                donnees_d_origine?: boolean;
             };
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
                 row_id: string;
             };
             cookie?: never;
@@ -10898,6 +11857,36 @@ export interface operations {
                          */
                         hors_options_hint: string | null;
                         /**
+                         * Hors Type
+                         * @default null
+                         */
+                        hors_type: {
+                            [key: string]: unknown;
+                        } | null;
+                        /**
+                         * Hors Type Hint
+                         * @default null
+                         */
+                        hors_type_hint: string | null;
+                        /**
+                         * Valeurs Ecartees
+                         * @default null
+                         */
+                        valeurs_ecartees: {
+                            [key: string]: unknown;
+                        }[] | null;
+                        /**
+                         * Valeurs Ecartees Hint
+                         * @default null
+                         */
+                        valeurs_ecartees_hint: string | null;
+                        /**
+                         * Ns Id
+                         * @description The table's NUMBER — the form to pass as `datastore` from here on. A name still resolves (same visibility check, no retirement date set), it is being retired, not broken. `null` only when no table was resolved.
+                         * @default null
+                         */
+                        ns_id: number | null;
+                        /**
                          * Notices
                          * @default null
                          */
@@ -10932,7 +11921,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
                 row_id: string;
             };
             cookie?: never;
@@ -10983,7 +11972,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
                 row_id: string;
             };
             cookie?: never;
@@ -10991,6 +11980,12 @@ export interface operations {
         requestBody?: {
             content: {
                 "application/json": {
+                    /**
+                     * Layers
+                     * @description Forme des cellules à couches. ⚠️ C'est une LECTURE : ne renvoyez pas la ligne lue. N'écrivez que ce que vous avez établi — et jamais `champ.origine`, qui se lit ici et que pose la plateforme, jamais un agent. On ÉCRIT imbriqué (`champ` = `{valeur, comment, link}`) et, par défaut, on relit À PLAT : ce paramètre lève cette asymétrie. `flat` (défaut) sert `champ` = la valeur et `champ.origine`/`.comment`/`.link` à plat à côté ; `nested` sert `champ` = `{valeur, origine, comment, link}` (la valeur toujours, les couches renseignées seulement), la forme dans laquelle on écrit ; une cellule sans couche est le même scalaire dans les deux. Toute autre valeur est refusée. Le défaut basculera vers `nested`, avec préavis daté : un client qui dépend d'une forme la nomme dès maintenant.
+                     * @default flat
+                     */
+                    layers?: string;
                     /**
                      * Worker
                      * @default
@@ -11012,8 +12007,14 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Namespace */
-                        namespace: string;
+                        /** Datastore */
+                        datastore: string;
+                        /**
+                         * Ns Id
+                         * @description The table's NUMBER — the form to pass as `datastore` from here on. A name still resolves (same visibility check, no retirement date set), it is being retired, not broken. `null` only when no table was resolved.
+                         * @default null
+                         */
+                        ns_id: number | null;
                         /**
                          * Row
                          * @default null
@@ -11059,7 +12060,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
                 row_id: string;
             };
             cookie?: never;
@@ -11089,6 +12090,12 @@ export interface operations {
                         released: boolean;
                         /** Id */
                         id: string;
+                        /**
+                         * Ns Id
+                         * @description The table's NUMBER — the form to pass as `datastore` from here on. A name still resolves (same visibility check, no retirement date set), it is being retired, not broken. `null` only when no table was resolved.
+                         * @default null
+                         */
+                        ns_id: number | null;
                         /**
                          * Reason
                          * @default null
@@ -11127,7 +12134,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
             };
             cookie?: never;
         };
@@ -11140,8 +12147,14 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Namespace */
-                        namespace: string;
+                        /** Datastore */
+                        datastore: string;
+                        /**
+                         * Ns Id
+                         * @description The table's NUMBER — the form to pass as `datastore` from here on. A name still resolves (same visibility check, no retirement date set), it is being retired, not broken. `null` only when no table was resolved.
+                         * @default null
+                         */
+                        ns_id: number | null;
                         /**
                          * Schema
                          * @default null
@@ -11187,7 +12200,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
             };
             cookie?: never;
         };
@@ -11212,8 +12225,8 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Namespace */
-                        namespace: string;
+                        /** Datastore */
+                        datastore: string;
                         /**
                          * Schema
                          * @default null
@@ -11231,6 +12244,11 @@ export interface operations {
                          * @default null
                          */
                         warning: string | null;
+                        /**
+                         * Unknown Keys Warning
+                         * @default null
+                         */
+                        unknown_keys_warning: string | null;
                         /**
                          * Declarations Effacees
                          * @default []
@@ -11269,7 +12287,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
             };
             cookie?: never;
         };
@@ -11288,6 +12306,14 @@ export interface operations {
                      * @default null
                      */
                     remove?: unknown[] | null;
+                    /**
+                     * Remove Attrs
+                     * @description Attributes to take off columns that STAY: `{"column": ["attr", …]}`. Merging only completes, and `remove` drops a whole column — without this, taking one attribute off meant reposting the entire schema, which silently drops every declaration you did not resend. An unknown column or attribute is refused, never silently ignored. `key` cannot be taken off: it is the column's identity, not one of its properties.
+                     * @default null
+                     */
+                    remove_attrs?: {
+                        [key: string]: unknown;
+                    } | null;
                     /**
                      * Strict
                      * @default null
@@ -11320,8 +12346,8 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Namespace */
-                        namespace: string;
+                        /** Datastore */
+                        datastore: string;
                         /**
                          * Schema
                          * @default null
@@ -11364,6 +12390,11 @@ export interface operations {
                          * @default null
                          */
                         warning: string | null;
+                        /**
+                         * Unknown Keys Warning
+                         * @default null
+                         */
+                        unknown_keys_warning: string | null;
                     };
                 };
             };
@@ -11392,7 +12423,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
             };
             cookie?: never;
         };
@@ -11435,7 +12466,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
             };
             cookie?: never;
         };
@@ -11447,6 +12478,12 @@ export interface operations {
                      * @default
                      */
                     email?: string;
+                    /**
+                     * Sub
+                     * @description Identifiant du compte destinataire, quand une adresse en désigne plusieurs. À passer SEUL (jamais avec `email` : deux façons de nommer la même chose, dont une pourrait mentir sur l'autre).
+                     * @default
+                     */
+                    sub?: string;
                     /**
                      * Permission
                      * @default read
@@ -11465,8 +12502,8 @@ export interface operations {
                     "application/json": {
                         /** Ok */
                         ok: boolean;
-                        /** Namespace */
-                        namespace: string;
+                        /** Datastore */
+                        datastore: string;
                         /** Shared With */
                         shared_with: string;
                         /** Permission */
@@ -11499,7 +12536,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
             };
             cookie?: never;
         };
@@ -11511,6 +12548,12 @@ export interface operations {
                      * @default
                      */
                     email?: string;
+                    /**
+                     * Sub
+                     * @description Identifiant du compte destinataire, quand une adresse en désigne plusieurs. À passer SEUL (jamais avec `email` : deux façons de nommer la même chose, dont une pourrait mentir sur l'autre).
+                     * @default
+                     */
+                    sub?: string;
                 };
             };
         };
@@ -11524,8 +12567,8 @@ export interface operations {
                     "application/json": {
                         /** Ok */
                         ok: boolean;
-                        /** Namespace */
-                        namespace: string;
+                        /** Datastore */
+                        datastore: string;
                         /** Removed */
                         removed: string;
                     };
@@ -11556,7 +12599,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                namespace: string;
+                datastore: string;
             };
             cookie?: never;
         };
@@ -11635,49 +12678,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-        };
-    };
-    me_federation_folkmcp_disconnect_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Ok */
-                        ok: boolean;
-                        /** Disconnected */
-                        disconnected: boolean;
-                    };
-                };
-            };
-            /** @description jeton absent ou invalide */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
             };
         };
     };
@@ -15027,6 +16027,146 @@ export interface operations {
             };
         };
     };
+    billing_method_change_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Return Url
+                     * @description Où ramener la personne après la page de paiement — le backend ne connaît pas l'écran d'où part le geste.
+                     */
+                    return_url: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Checkout Url
+                         * @default null
+                         */
+                        checkout_url: string | null;
+                        /**
+                         * Payment Id
+                         * @default null
+                         */
+                        payment_id: string | null;
+                        /**
+                         * Notice
+                         * @default
+                         */
+                        notice: string;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    billing_method_change_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * Payment Ref
+                     * @default null
+                     */
+                    payment_ref?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Status */
+                        status: string;
+                        /**
+                         * Payment Status
+                         * @default null
+                         */
+                        payment_status: string | null;
+                        /**
+                         * Mandate Id
+                         * @default null
+                         */
+                        mandate_id: string | null;
+                        /**
+                         * Previous Mandate Id
+                         * @default null
+                         */
+                        previous_mandate_id: string | null;
+                        /**
+                         * Previous Revoked
+                         * @default null
+                         */
+                        previous_revoked: boolean | null;
+                        /**
+                         * Notice
+                         * @default
+                         */
+                        notice: string;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
     billing_payments_get: {
         parameters: {
             query?: {
@@ -15047,6 +16187,190 @@ export interface operations {
                     "application/json": {
                         /** Payments */
                         payments: components["schemas"]["Payment"][];
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    billing_resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Subscribed
+                         * @description L'org a-t-elle un droit d'accès ouvert ? True pour un abonnement `active` MAIS AUSSI `past_due` (impayé en cours de relance : l'accès court encore). Donc subscribed=True n'implique ni « à jour de paiement », ni « payé » (cf. `comp`).
+                         */
+                        subscribed: boolean;
+                        /**
+                         * Plans
+                         * @description Le catalogue, joint UNIQUEMENT quand l'org n'a aucun abonnement — de quoi peindre la page de souscription sans second appel. Absent dès qu'un abonnement existe : son absence n'est pas une erreur.
+                         * @default null
+                         */
+                        plans: components["schemas"]["Plan"][] | null;
+                        /**
+                         * Plan
+                         * @description Palier souscrit (clé de catalogue).
+                         * @default null
+                         */
+                        plan: string | null;
+                        /**
+                         * Label
+                         * @description Libellé du palier, relu du CATALOGUE COURANT — donc `null` si le palier stocké a disparu du code depuis la souscription (idem amount/currency/interval).
+                         * @default null
+                         */
+                        label: string | null;
+                        /**
+                         * Amount
+                         * @description Prix courant du palier au catalogue, en CENTIMES **HORS TAXES**. Ce n'est PAS un montant facturé : un abonnement offert (comp) affiche le prix du palier alors que rien n'a jamais été encaissé, et depuis #486 ce qui est débité est le TTC (`amount_ttc`). Les montants réellement passés au PSP se lisent sur billing.payments.
+                         * @default null
+                         */
+                        amount: number | null;
+                        /**
+                         * Vat Rate Bps
+                         * @description Taux appliqué à la PROCHAINE échéance, en points de base (2000 = 20,00 %). `null` si aucun régime n'est calculable — `vat_blocked` dit pourquoi.
+                         * @default null
+                         */
+                        vat_rate_bps: number | null;
+                        /**
+                         * Vat Amount
+                         * @description TVA de la prochaine échéance, en centimes.
+                         * @default null
+                         */
+                        vat_amount: number | null;
+                        /**
+                         * Amount Ttc
+                         * @description Ce qui sera RÉELLEMENT prélevé à la prochaine échéance, en centimes. Dérivé de l'identité de facturation COURANTE : il bouge si l'org change de pays, ce qui est voulu — ce qui a déjà été pris ne bouge pas, lui, et se lit sur billing.payments.
+                         * @default null
+                         */
+                        amount_ttc: number | null;
+                        /**
+                         * Vat Scheme
+                         * @description 'fr_ttc' | 'reverse_charge' | 'export'. `null` si non calculable.
+                         * @default null
+                         */
+                        vat_scheme: string | null;
+                        /**
+                         * Vat Blocked
+                         * @description Pourquoi le TTC est inconnu : 'billing_identity_required' ou 'vat_consumer_unsupported'. `null` = rien ne bloque. Un abonnement ACTIF avec un `vat_blocked` posé signale une échéance que le runner ne pourra pas prélever — à réparer. ⚠️ Sur un abonnement OFFERT (comp=true), les quatre champs de TVA valent TOUJOURS `null`, `vat_blocked` compris : rien n'y sera jamais prélevé, donc il n'y a ni TTC à annoncer ni alerte à lever.
+                         * @default null
+                         */
+                        vat_blocked: string | null;
+                        /**
+                         * Currency
+                         * @description Devise du palier ('eur').
+                         * @default null
+                         */
+                        currency: string | null;
+                        /**
+                         * Interval
+                         * @description 'month' | 'year'.
+                         * @default null
+                         */
+                        interval: string | null;
+                        /**
+                         * Status
+                         * @description État du miroir local : 'incomplete' (souscription ouverte, jamais de droit), 'active', 'past_due' (impayé, droit maintenu pendant la relance), 'canceled' (fini). C'est LA source de vérité du cycle, PSP-agnostique.
+                         * @default null
+                         */
+                        status: string | null;
+                        /**
+                         * Method
+                         * @description Moyen de paiement du mandat : 'card' | 'sepa' | 'comp' (aucun — abonnement offert par un admin).
+                         * @default null
+                         */
+                        method: string | null;
+                        /**
+                         * Comp
+                         * @description Abonnement OFFERT, forcé par un admin plateforme : accès ouvert, aucun PSP derrière, aucune échéance tirée, `amount` purement indicatif. Un comp=True + subscribed=True ne signifie donc aucun encaissement (billing.payments sera vide).
+                         * @default false
+                         */
+                        comp: boolean;
+                        /**
+                         * Current Period End
+                         * @description Borne de l'accès : fin de la période couverte. Format 'YYYY-MM-DD HH:MM:SS' UTC (normalisé par la couche DB) — pas de l'ISO 8601, à la différence de billing.confirm qui rend un horodatage à offset. `null` sur un abonnement offert (aucune période).
+                         * @default null
+                         */
+                        current_period_end: string | null;
+                        /**
+                         * Next Billing At
+                         * @description Prochaine échéance à tirer. `null` = plus RIEN ne sera tiré — abonnement offert, ou résilié (canceled_at posé) — surtout pas « pas encore programmé ».
+                         * @default null
+                         */
+                        next_billing_at: string | null;
+                        /**
+                         * Grace Until
+                         * @description Fin du délai de grâce d'un impayé (`past_due`) : au-delà, la relance cesse et l'abonnement bascule. `null` hors impayé.
+                         * @default null
+                         */
+                        grace_until: string | null;
+                        /**
+                         * Canceled At
+                         * @description Horodatage de la DEMANDE de résiliation, pas de la fin d'accès : le statut reste 'active' et subscribed=True jusqu'à current_period_end. Une résiliation se lit donc ici, JAMAIS sur `status`.
+                         * @default null
+                         */
+                        canceled_at: string | null;
+                        /**
+                         * Block Code
+                         * @description Ce que le runner a CONSTATÉ à la dernière échéance qu'il n'a PAS pu tirer : 'billing_identity_required', 'vat_consumer_unsupported', 'plan_unknown' ou 'no_mandate'. `null` = rien n'a échoué. ⚠️ À ne pas confondre avec `vat_blocked`, qui est une PRÉVISION recalculée à chaque lecture : `block_code` est un fait daté, et tant qu'il est posé le service est rendu SANS être encaissé — le cycle n'avance pas et le droit ne se ferme pas.
+                         * @default null
+                         */
+                        block_code: string | null;
+                        /**
+                         * Block Detail
+                         * @description Le message de diagnostic qui accompagne `block_code`. Destiné à l'exploitation, pas au payeur.
+                         * @default null
+                         */
+                        block_detail: string | null;
+                        /**
+                         * Block Since
+                         * @description Depuis QUAND l'échéance ne passe plus — donc depuis quand le service est rendu gratuitement. Ne bouge pas d'un tick à l'autre : c'est la date du PREMIER constat, pas du dernier.
+                         * @default null
+                         */
+                        block_since: string | null;
+                        /**
+                         * Granted
+                         * @description Avantages payants OFFERTS à l'org (et, sur /api/me/billing, au compte appelant) — servis dans les DEUX branches, y compris `subscribed:false`. Liste vide = rien d'offert **ou** org hors du périmètre du dispositif (une org hébergée par un tenant tiers n'en reçoit jamais : ses clients ne sont pas les nôtres). L'absence ne prouve donc pas l'absence de don.
+                         */
+                        granted?: components["schemas"]["GrantedBenefit"][];
+                        /**
+                         * @description Consommation du mois en cours face à ce qui est inclus, servie dans les DEUX branches et à tous les comptes — c'est le seul bloc de cet écran qui vaut pour tout le monde. `null` = rien à montrer : org hors périmètre du dispositif, ou journal illisible. Un compteur qui n'a pas su lire se TAIT plutôt que d'afficher un « 0 » qu'aucun lecteur ne peut recouper.
+                         * @default null
+                         */
+                        usage: components["schemas"]["MonthlyUsage"] | null;
                     };
                 };
             };
@@ -16419,6 +17743,28 @@ export interface operations {
                          * @default null
                          */
                         pending: boolean | null;
+                        /**
+                         * Coverage
+                         * @default null
+                         */
+                        coverage: string | null;
+                        /**
+                         * Verdict
+                         * @default null
+                         */
+                        verdict: string | null;
+                        /**
+                         * Next Step
+                         * @default null
+                         */
+                        next_step: string | null;
+                        /**
+                         * Identity
+                         * @default null
+                         */
+                        identity: {
+                            [key: string]: unknown;
+                        } | null;
                     };
                 };
             };
@@ -17739,6 +19085,11 @@ export interface operations {
                          * @default null
                          */
                         digest_warning: string | null;
+                        /**
+                         * Retrait Warning
+                         * @default null
+                         */
+                        retrait_warning: string | null;
                     };
                 };
             };
@@ -17982,6 +19333,11 @@ export interface operations {
                          * @default null
                          */
                         digest_warning: string | null;
+                        /**
+                         * Retrait Warning
+                         * @default null
+                         */
+                        retrait_warning: string | null;
                     };
                 };
             };
@@ -19649,6 +21005,21 @@ export interface operations {
                          * @default null
                          */
                         warnings: unknown[] | null;
+                        /**
+                         * Owner Type
+                         * @default null
+                         */
+                        owner_type: string | null;
+                        /**
+                         * Owner Id
+                         * @default null
+                         */
+                        owner_id: string | null;
+                        /**
+                         * Visible To
+                         * @default null
+                         */
+                        visible_to: string | null;
                     };
                 };
             };
@@ -20240,6 +21611,11 @@ export interface operations {
                      */
                     fleet_id?: number | null;
                     /**
+                     * Trigger Id
+                     * @default null
+                     */
+                    trigger_id?: number | null;
+                    /**
                      * Provider
                      * @default null
                      */
@@ -20276,6 +21652,12 @@ export interface operations {
                      * @default null
                      */
                     status?: ("pending" | "claimed" | "done" | "failed") | null;
+                    /**
+                     * Source
+                     * @description D'OÙ vient le travail, sur `list` : `batch` (un passage de flotte), `scheduled` (un déclencheur programmé), `manual` (un appel direct). Servi côté serveur À DESSEIN — la file est paginée et un passage de 2 000 lignes remplit une page à lui seul : trié côté client, `scheduled` rendrait vide sur une org qui en joue un chaque matin. `total` compte sous le MÊME filtre.
+                     * @default null
+                     */
+                    source?: ("batch" | "scheduled" | "manual") | null;
                     /**
                      * Limit
                      * @default 50
@@ -20364,6 +21746,12 @@ export interface operations {
                          * @default null
                          */
                         release: ("ok" | "no_run" | "failed") | null;
+                        /**
+                         * Campaign Error
+                         * @description claim: set ONLY when `job` is null AND producing work from a running campaign FAILED. Absent means the queue is genuinely empty. Without this field the two are indistinguishable, and a campaign that cannot produce reads as a campaign with nothing left to do — measured on 2026-09-07, a broken query made every poll answer 'no work' for days while three workers polled and nothing ever ran. Log it: it names a platform fault, never something the worker can fix.
+                         * @default null
+                         */
+                        campaign_error: string | null;
                     };
                 };
             };
@@ -24449,6 +25837,12 @@ export interface operations {
                      */
                     op: "list" | "get" | "transfer" | "share" | "unshare";
                     /**
+                     * Sub
+                     * @description Identifiant du compte destinataire, quand une adresse en désigne plusieurs. À passer SEUL, jamais avec `email`.
+                     * @default
+                     */
+                    sub?: string;
+                    /**
                      * Resource Type
                      * @default datastore_namespace
                      */
@@ -24608,6 +26002,12 @@ export interface operations {
                      * @enum {string}
                      */
                     op: "list" | "get" | "transfer" | "share" | "unshare";
+                    /**
+                     * Sub
+                     * @description Identifiant du compte destinataire, quand une adresse en désigne plusieurs. À passer SEUL, jamais avec `email`.
+                     * @default
+                     */
+                    sub?: string;
                     /**
                      * Resource Type
                      * @enum {string}
@@ -24830,7 +26230,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `no_org_context` — `scope=org` alors qu'aucune org n'est le contexte de l'appel ; `no_group_context` — `scope=group` alors qu'aucune équipe n'est active */
+            /** @description `no_org_context` — `scope=org` alors qu'aucune org n'est le contexte de l'appel ; `no_group_context` — `scope=group` alors qu'aucune équipe n'est active ; `credential_delegated` — le connecteur existe mais ne porte pas de clé à lui : le refus nomme le connecteur porteur (un canal unipile → `unipile`) ; `no_credential_form` — le connecteur existe mais n'a aucun champ de credential : sa connexion passe par un flux dédié, pas par un formulaire ; `wrong_credential_scope` — le connecteur existe et prend bien une clé, mais pas au palier demandé — le refus nomme le ou les paliers qui l'acceptent */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -24838,7 +26238,7 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
-                        error?: "no_org_context" | "no_group_context";
+                        error?: "no_org_context" | "no_group_context" | "credential_delegated" | "no_credential_form" | "wrong_credential_scope";
                     };
                 };
             };
@@ -24860,7 +26260,7 @@ export interface operations {
                     "application/json": components["schemas"]["Erreur"];
                 };
             };
-            /** @description `unknown_provider` — aucun connecteur de ce nom au registre ; `not_configured` — aucune clé posée à ce palier pour ce connecteur */
+            /** @description `unknown_provider` — aucun connecteur de ce nom au registre — le seul cas où chercher un nom ailleurs a un sens ; `not_configured` — aucune clé posée à ce palier pour ce connecteur */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -24916,7 +26316,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `no_org_context` — `scope=org` alors qu'aucune org n'est le contexte de l'appel ; `single_account_connector` — un `account` nommé sur un connecteur qui n'en gère qu'un — la clé écraserait l'unique ; `verify_failed` — la clé a été refusée par le service : elle n'est PAS enregistrée, il n'y a rien à retirer ; `invalid_field_value` — un champ à jeu fermé reçoit une valeur hors liste — refusé à la pose plutôt qu'au premier appel réel ; `missing_credentials` — aucun champ renseigné : il n'y a rien à poser */
+            /** @description `credential_delegated` — le connecteur existe mais ne porte pas de clé à lui : le refus nomme le connecteur porteur (un canal unipile → `unipile`) ; `no_credential_form` — le connecteur existe mais n'a aucun champ de credential : sa connexion passe par un flux dédié, pas par un formulaire ; `wrong_credential_scope` — le connecteur existe et prend bien une clé, mais pas au palier demandé — le refus nomme le ou les paliers qui l'acceptent ; `no_org_context` — `scope=org` alors qu'aucune org n'est le contexte de l'appel ; `single_account_connector` — un `account` nommé sur un connecteur qui n'en gère qu'un — la clé écraserait l'unique ; `verify_failed` — la clé a été refusée par le service : elle n'est PAS enregistrée, il n'y a rien à retirer ; `invalid_field_value` — un champ à jeu fermé reçoit une valeur hors liste — refusé à la pose plutôt qu'au premier appel réel ; `missing_credentials` — aucun champ renseigné : il n'y a rien à poser */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -24924,7 +26324,7 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
-                        error?: "no_org_context" | "single_account_connector" | "verify_failed" | "invalid_field_value" | "missing_credentials";
+                        error?: "credential_delegated" | "no_credential_form" | "wrong_credential_scope" | "no_org_context" | "single_account_connector" | "verify_failed" | "invalid_field_value" | "missing_credentials";
                     };
                 };
             };
@@ -24946,7 +26346,7 @@ export interface operations {
                     "application/json": components["schemas"]["Erreur"];
                 };
             };
-            /** @description `unknown_provider` — aucun connecteur de ce nom au registre */
+            /** @description `unknown_provider` — aucun connecteur de ce nom au registre — le seul cas où chercher un nom ailleurs a un sens */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -25001,10 +26401,15 @@ export interface operations {
                         account: string;
                         /** Scope */
                         scope: string;
+                        /**
+                         * Warning
+                         * @default null
+                         */
+                        warning: string | null;
                     };
                 };
             };
-            /** @description `no_org_context` — `scope=org` alors qu'aucune org n'est le contexte de l'appel ; `no_group_context` — `scope=group` alors qu'aucune équipe n'est active */
+            /** @description `no_org_context` — `scope=org` alors qu'aucune org n'est le contexte de l'appel ; `no_group_context` — `scope=group` alors qu'aucune équipe n'est active ; `wrong_credential_scope` — le connecteur existe et prend bien une clé, mais pas au palier demandé — le refus nomme le ou les paliers qui l'acceptent */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -25012,7 +26417,7 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
-                        error?: "no_org_context" | "no_group_context";
+                        error?: "no_org_context" | "no_group_context" | "wrong_credential_scope";
                     };
                 };
             };
@@ -25034,7 +26439,7 @@ export interface operations {
                     "application/json": components["schemas"]["Erreur"];
                 };
             };
-            /** @description `unknown_provider` — aucun connecteur de ce nom au registre */
+            /** @description `unknown_provider` — aucun connecteur de ce nom au registre — le seul cas où chercher un nom ailleurs a un sens */
             404: {
                 headers: {
                     [name: string]: unknown;

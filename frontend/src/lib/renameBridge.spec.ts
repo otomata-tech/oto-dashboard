@@ -8,7 +8,14 @@
 //
 // Le retrait n'est donc pas une note dans un journal : c'est le dernier test de ce
 // fichier. Il devient ROUGE le jour où le contrat commité ne déclare plus l'ancien
-// chemin — c'est-à-dire au premier `npm run api:refresh` après la bascule.
+// chemin.
+//
+// ⚠️ Ce jour-là n'est PAS celui où le dashboard cesse d'APPELER l'ancien chemin (09/09,
+// les appels sont passés à `/api/datastores/…`). Le contrat épinglé est un instantané
+// VERBATIM du document servi, pas la liste de ce qu'on appelle : oto déclare l'ancien
+// chemin tant qu'il le sert — aujourd'hui sous forme de redirections 308. Le témoin
+// rougira au premier `npm run api:refresh` APRÈS le retrait de ces alias, et c'est bien
+// le moment où les deux ponts de clés de réponse doivent tomber ensemble.
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'

@@ -278,7 +278,7 @@ export const createToken = (
 // Les tableaux et projets de l'org VISÉE — mêmes en-têtes que la création, sinon on
 // proposerait de borner un jeton sur des tableaux d'une autre org.
 export const getNamespacesOfOrg = (orgId?: number | null) =>
-  api<{ datastores?: ServedEntry[]; namespaces?: ServedEntry[] }>('/api/datastore/namespaces',
+  api<{ datastores?: ServedEntry[]; namespaces?: ServedEntry[] }>('/api/datastores',
     orgId ? { headers: { 'X-Oto-Org': String(orgId) } } : {}).then(normaliseEntries)
 export const listProjectsOfOrg = (orgId?: number | null) =>
   api<{ projects: Project[] }>('/api/me/projects', {
@@ -705,12 +705,16 @@ function normaliseEntries(
 }
 export const getNamespaces = () =>
   api<{ datastores?: ServedEntry[]; namespaces?: ServedEntry[] }>(
-    '/api/datastore/namespaces').then(normaliseEntries)
+    '/api/datastores').then(normaliseEntries)
 // owner optionnel (ADR 0030) : { type:'org'|'group', id } pour un classeur d'équipe.
 export const createNamespace = (namespace: string, owner?: { type: string; id: string | number }) =>
-  api('/api/datastore/namespaces', { method: 'POST', ...j(owner ? { namespace, owner } : { namespace }) })
+  // ⚠️ La CRÉATION est la seule de ces opérations dont le corps porte le nom du tableau :
+  // il s'appelle `datastore` depuis la bascule, et un corps resté en `namespace` ne casse
+  // pas — il crée un tableau SANS NOM, refusé en 400 `missing_datastore`. Le champ suit le
+  // chemin, toujours dans le même geste.
+  api('/api/datastores', { method: 'POST', ...j(owner ? { datastore: namespace, owner } : { datastore: namespace }) })
 export const deleteNamespace = (ns: string) =>
-  api(`/api/datastore/namespaces/${encodeURIComponent(ns)}`, { method: 'DELETE' })
+  api(`/api/datastores/${encodeURIComponent(ns)}`, { method: 'DELETE' })
 export interface RowQuery {
   offset?: number; limit?: number; orderBy?: string; orderDir?: 'asc' | 'desc'; q?: string
   filters?: ColumnFilter[]
@@ -725,7 +729,7 @@ export const getNamespaceRows = (ns: string, opts: RowQuery = {}) => {
   if (opts.filters?.length) p.set('filters', JSON.stringify(opts.filters))
   const qs = p.toString()
   return api<{ rows: DatastoreRow[]; total: number; offset: number; limit: number }>(
-    `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows${qs ? `?${qs}` : ''}`)
+    `/api/datastores/${encodeURIComponent(ns)}/rows${qs ? `?${qs}` : ''}`)
 }
 // Agrégat serveur (ADR 0046 b1) — compteurs du cockpit et tuiles metric, sans
 // rapatrier les rows. `metrics` = [{op, field?}] (count/sum/avg/min/max, défaut
@@ -745,19 +749,19 @@ export const getNamespaceAggregate = (ns: string, opts: AggregateQuery = {}) => 
   if (opts.filters?.length) p.set('filters', JSON.stringify(opts.filters))
   const qs = p.toString()
   return api<{ groups: Array<Record<string, unknown>> }>(
-    `/api/datastore/namespaces/${encodeURIComponent(ns)}/aggregate${qs ? `?${qs}` : ''}`)
+    `/api/datastores/${encodeURIComponent(ns)}/aggregate${qs ? `?${qs}` : ''}`)
 }
 // Une row par _id (deep-link `…/item/<rowId>` : la fiche peut être hors page courante).
 export const getNamespaceRow = (ns: string, rowId: string) =>
   api<DatastoreRow>(
-    `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`)
+    `/api/datastores/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`)
 // File de travail (ADR 0046 D) — supervision : rows sous bail (_claimed_by/_claimed_until).
 export const getNamespaceQueue = (ns: string) =>
-  api<{ rows: DatastoreRow[] }>(`/api/datastore/namespaces/${encodeURIComponent(ns)}/queue`)
+  api<{ rows: DatastoreRow[] }>(`/api/datastores/${encodeURIComponent(ns)}/queue`)
 // Libération FORCÉE du bail d'une row (humain superviseur — pas de garde de worker).
 export const releaseRowClaim = (ns: string, rowId: string) =>
   api<{ ok: boolean; released: boolean; id: string }>(
-    `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}/release`,
+    `/api/datastores/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}/release`,
     { method: 'POST' })
 // Parcours d'une row (ADR 0046 b4) : gestes du calllog corrélés à la fiche + leur run.
 // Fenêtre = rétention calllog (~30 j), annoncée par le serveur (`retention_days`) —
@@ -767,12 +771,12 @@ export const releaseRowClaim = (ns: string, rowId: string) =>
 // touchée) — deux définitions du même contrat, dont une fausse.
 export const getRowActivity = (ns: string, rowId: string) =>
   api<{ activity: RowActivityEntry[]; key: string | null; retention_days: number }>(
-    `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}/activity`)
+    `/api/datastores/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}/activity`)
 // Même journal, au grain du TABLEAU : « qu'est-ce qui vient de changer, et sur quelle
 // ligne ». `limit` est facultatif — le serveur en fixe le défaut, on ne le duplique pas.
 export const getNamespaceActivity = (ns: string, limit?: number) =>
   api<{ activity: RowActivityEntry[]; retention_days: number }>(
-    `/api/datastore/namespaces/${encodeURIComponent(ns)}/activity`
+    `/api/datastores/${encodeURIComponent(ns)}/activity`
     + (limit ? `?limit=${limit}` : ''))
 // Schéma d'un tableau (ADR 0046) — miroir REST de `data_set_schema`. Sert la vue par
 // défaut : les colonnes masquées SONT le `hidden` des champs, pas un objet « vue » à part.
@@ -791,12 +795,12 @@ export const patchNamespaceSchema = (
   patch: { fields?: Array<Partial<DatastoreField> & { key: string }>; remove?: string[] },
 ) =>
   api<ServedName & { schema: DatastoreSchema | null; added: string[]; updated: string[]; removed: string[] }>(
-    `/api/datastore/namespaces/${encodeURIComponent(ns)}/schema`,
+    `/api/datastores/${encodeURIComponent(ns)}/schema`,
     { method: 'PATCH', ...j(patch) })
     .then((r) => ({ ...r, namespace: servedName(r, 'patchNamespaceSchema') }))
 export const renameNamespace = (ns: string, name: string) =>
   api<{ ok: boolean } & ServedName>(
-    `/api/datastore/namespaces/${encodeURIComponent(ns)}`, { method: 'PATCH', ...j({ name }) })
+    `/api/datastores/${encodeURIComponent(ns)}`, { method: 'PATCH', ...j({ name }) })
     .then((r) => ({ ...r, namespace: servedName(r, 'renameNamespace') }))
 // ── object-browser admin : gouvernance générique des ressources (ADR 0030) ──
 // Une seule capacité `oto_resource` (POST /api/resources) op-aware.
@@ -823,14 +827,14 @@ export const shareResource = (resource_type: string, resource_id: string, princi
 export const unshareResource = (resource_type: string, resource_id: string, principal: SharePrincipal) =>
   api<{ ok: boolean }>('/api/resources', { method: 'POST', ...j({ op: 'unshare', resource_type, resource_id, ...principal }) })
 export const appendNamespaceRow = (ns: string, row: Record<string, unknown>) =>
-  api<DatastoreRow>(`/api/datastore/namespaces/${encodeURIComponent(ns)}/rows`,
+  api<DatastoreRow>(`/api/datastores/${encodeURIComponent(ns)}/rows`,
     { method: 'POST', ...j(row) })
 export const updateNamespaceRow = (ns: string, rowId: string, patch: Record<string, unknown>) =>
   api<DatastoreRow>(
-    `/api/datastore/namespaces/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`,
+    `/api/datastores/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`,
     { method: 'PATCH', ...j(patch) })
 export const deleteNamespaceRow = (ns: string, rowId: string) =>
-  api(`/api/datastore/namespaces/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`,
+  api(`/api/datastores/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`,
     { method: 'DELETE' })
 
 // ── orgs (self-service) ──

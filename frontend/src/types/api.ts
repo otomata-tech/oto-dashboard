@@ -917,7 +917,7 @@ export interface ResourceEntry {
 // Une row du datastore : méta à plat (`_id`/`_created_at`/`_updated_at`) + champs
 // user arbitraires (schéma libre). Cf. datastore.py::_row_to_dict.
 // ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (POST
-//    /api/datastore/namespaces/{}/rows) : sa réponse est un `200 OK` nu dans le document.
+//    /api/datastores/{}/rows) : sa réponse est un `200 OK` nu dans le document.
 // `BailDeLaLigne` apporte `_claimed_run` — POUR QUEL RUN la ligne est réservée,
 // servi partout où `_claimed_by` l'est. Sans lui, la file de travail disait qu'un
 // agent tenait une ligne, jamais lequel tenait laquelle. ⚠️ Trois états : le run,

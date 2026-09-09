@@ -79,9 +79,21 @@ tous les `namespaces` du **catalogue d'outils** — un connecteur expose des nam
 d'outils, homonymes sans rapport avec un tableau. Corriger depuis la liste du renommage,
 jamais depuis le mot.
 
-**Le retrait est mécanique, pas mémoriel** : `lib/renameBridge.spec.ts` devient rouge dès
-que le contrat commité ne déclare plus `/api/datastore/namespaces`, c'est-à-dire au premier
-`npm run api:refresh` après la bascule. Il dit alors quoi retirer.
+**Les CHEMINS ont basculé le 09/09/2026** — `api/console.ts` appelle désormais
+`/api/datastores/{datastore}/…`, et le contrat épinglé a été regravé depuis la
+préproduction. ⚠️ **Le nom du paramètre change avec le préfixe** : c'est le point fragile.
+Sur les chemins il ne se voit pas (la valeur voyage dans l'URL), mais la **création** porte
+le nom du tableau dans son CORPS — `{ datastore: … }` et non plus `{ namespace: … }`. Un
+corps resté à l'ancien nom ne casse pas : il crée un tableau **sans nom**, refusé en 400
+`missing_datastore`. Les autres opérations gardent leurs noms de corps et de requête.
+
+**Le retrait du pont reste mécanique, pas mémoriel** : `lib/renameBridge.spec.ts` devient
+rouge dès que le contrat commité ne déclare plus `/api/datastore/namespaces`. ⚠️ **Ce n'est
+PAS le jour où le dashboard cesse d'appeler l'ancien chemin** — le contrat épinglé ici est
+un instantané VERBATIM du document servi, pas la liste de ce qu'on appelle : oto continue de
+déclarer l'ancien chemin tant qu'il le sert (aujourd'hui sous forme de redirections 308).
+Le témoin rougira donc au premier `npm run api:refresh` **après le retrait des alias côté
+oto** — le seul moment où les deux ponts doivent tomber. Il dit alors quoi retirer.
 
 ⚠️ **Ce témoin couvre AUSSI le front partenaire** (`Tulina-team/tulina-app-front`), qui
 porte le même pont. Son intégration continue ne nous appartient pas : un contrôle posé
