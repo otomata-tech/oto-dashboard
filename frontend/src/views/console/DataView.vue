@@ -67,6 +67,18 @@ async function applySelection(raw: string | null) {
 }
 watch(selParam, (v) => { void applySelection(v) })
 
+// Un `/data/:id` qui ne résout rien rendait EXACTEMENT le même écran que « rien de
+// sélectionné » : `applySelection` jette l'id (ligne ci-dessus) et on retombe sur
+// « pick a datastore ». Le destinataire d'un lien direct légitime lisait donc une
+// invitation à choisir, jamais une cause — et concluait que le tableau n'existait pas
+// (vécu en clientèle le 10/09, otomata-tech/oto#160 · #154). Le message qui l'explique
+// existe bien, mais dans `DatastoreTable`, monté seulement quand le tableau est DÉJÀ
+// résolu : inatteignable depuis ici par construction. On pose donc la branche ici.
+// `!error` : une liste qui n'a pas chargé n'est pas un tableau introuvable — sans ce
+// garde, une panne de réseau accuserait le partage.
+const introuvable = computed(
+  () => loaded.value && !error.value && !!selParam.value && !current.value)
+
 async function load() {
   try { datastores.value = (await getNamespaces()).datastores }
   catch (e) { error.value = humanize(e) }
@@ -153,6 +165,22 @@ async function onNsDeleted() {
       <!-- contenu du tableau sélectionné (composant réutilisable) -->
       <DatastoreTable v-if="current" :ns-ref="String(selectedId)" :ns-meta="current"
         @changed="load" @deleted="onNsDeleted" />
+      <!-- On nomme la cause la PLUS probable en premier, parce que c'est celle qui ne se
+           devine pas : un partage nominatif (`data_share` vers une adresse) ouvre bien la
+           lecture et l'écriture, mais n'entre dans aucune liste — atteignable et
+           introuvable. Et le remède est adressé à qui peut l'appliquer : le destinataire
+           ne peut ni se re-partager le tableau ni s'en transférer la propriété, il ne
+           peut que le demander. Lui prescrire un geste qu'il n'a pas serait le renvoyer
+           dans le même mur. -->
+      <ConsoleCard v-else-if="introuvable" title="tableau introuvable ici">
+        <div class="helptext">
+          ce tableau n'apparaît pas dans le contexte où tu es. il t'a peut-être été partagé
+          <strong>nominativement</strong> — un partage à une personne ouvre l'accès mais
+          n'entre dans aucune liste ; il peut aussi appartenir à une autre organisation, ou
+          avoir été supprimé. demande à son propriétaire de le partager à ton organisation
+          ou à ton équipe, ou de t'en transférer la propriété.
+        </div>
+      </ConsoleCard>
       <ConsoleCard v-else title="pick a datastore">
         <div class="helptext">select a datastore on the left to view its rows.</div>
       </ConsoleCard>
