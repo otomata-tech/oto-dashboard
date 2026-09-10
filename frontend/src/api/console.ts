@@ -329,7 +329,9 @@ const projectsApi = <T>(body: Record<string, unknown>) =>
 // est la ressource rare. Un navigateur n'a pas ce problème et REND le brief (extrait de
 // carte, page projet) — il demande donc explicitement le brut.
 export const listProjects = () => projectsApi<{ projects: Project[] }>({ op: 'list', fields: ['*'] })
-// Base de connaissance d'org = zone Documents — résout/crée le projet KB.
+// Zone Documents de l'org = un projet d'org ordinaire, ancré par id côté serveur.
+// Le chemin `/api/me/kb` et le nom de cette fonction sont des identifiants d'API
+// hérités (règle maison : le code garde son nom, seule la copy change).
 export const getKbProject = () =>
   api<{ project_id: number; name: string; brief_md: string }>('/api/me/kb', { method: 'POST', ...j({ op: 'get' }) })
 // Modèles (templates) copiables visibles par l'acteur — bibliothèque (ADR 0032 §7 B5a).

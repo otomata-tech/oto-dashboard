@@ -201,7 +201,7 @@ describe('lecture du résultat', () => {
 
   it('trie le relevé d’outils du plus appelé au moins', () => {
     const outils = outilsResultat(job({
-      result: { tool_counts: { data_write: 2, fr_search: 9, oto_kb: 0 } },
+      result: { tool_counts: { data_write: 2, fr_search: 9, oto_doc: 0 } },
     }))
     expect(outils.map((o) => o.outil)).toEqual(['fr_search', 'data_write'])
   })

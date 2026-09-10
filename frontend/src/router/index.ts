@@ -65,7 +65,9 @@ const router = createRouter({
     // Anciennes sections fusionnées dans /connectors (ex-my-connectors + ex-toolbox) :
     // redirections pour ne pas casser bookmarks / liens existants.
     { path: '/my-connectors', redirect: '/connectors' },
-    // base de connaissance → zone Documents (réunion 30/06) ; bookmark legacy.
+    // Ancienne adresse de la zone Documents (réunion 30/06). Elle a été distribuée :
+    // elle continue de résoudre, même si le vocabulaire qu'elle porte a disparu des
+    // écrans. Ne pas la retirer — `vocabulaire.tripwire.spec.ts` la protège.
     { path: '/knowledge', redirect: '/documents' },
     { path: '/toolbox', redirect: '/connectors' },
     // Bibliothèques fusionnées en onglet « marketplace » des pages connecteurs /

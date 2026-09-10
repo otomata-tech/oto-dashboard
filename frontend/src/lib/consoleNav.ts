@@ -69,10 +69,10 @@ export const NAV: NavGroup[] = [
   ]},
   { group: 'nav.section.memory', level: 'work', items: [
     { path: '/data', label: 'nav.data', icon: 'db' },
-    // Entrée « Documents » RETIRÉE (oto/#5.5) : c'était un raccourci vers le projet KB
-    // de l'org — redondant (la KB est un projet, atteignable via « Projets ») et source
-    // de confusion. /documents (route + DocumentsView) survit pour un
-    // lien direct éventuel, mais n'est plus dans la sidebar.
+    // Entrée « Documents » RETIRÉE (oto/#5.5) : c'était un raccourci vers le projet
+    // d'org qui porte les documents — redondant (c'est un projet, atteignable via
+    // « Projets ») et source de confusion. /documents (route + DocumentsView) survit
+    // pour un lien direct éventuel, mais n'est plus dans la sidebar.
   ]},
   // ── Gérer mon compte : niveau user-perso (non org-scopé), sa propre sidebar ────
   // Atteint par le menu profil du pied (ConsoleUserMenu) ; une PAGE par sujet au lieu

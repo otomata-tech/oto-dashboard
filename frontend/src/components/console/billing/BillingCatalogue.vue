@@ -75,7 +75,7 @@ function contactSales() {
       <ul class="incl-list">
         <li><Icon name="ok" :size="15" /> Messagerie LinkedIn &amp; WhatsApp (Unipile)</li>
         <li><Icon name="ok" :size="15" /> Connecteurs de données sans quota d'appel</li>
-        <li><Icon name="ok" :size="15" /> Données entreprises France, CRM, e-mail &amp; base de connaissance</li>
+        <li><Icon name="ok" :size="15" /> Données entreprises France, CRM, e-mail &amp; documents d'org</li>
       </ul>
     </div>
   </ConsoleCard>

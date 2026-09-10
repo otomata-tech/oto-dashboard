@@ -93,7 +93,7 @@ const steps = computed(() => [
   { done: true, t: t('overview.steps.connectClient.t'), d: t('overview.steps.connectClient.d'), act: null as [string, string] | null },
   { done: userKeysCount.value > 0, t: t('overview.steps.firstKey.t'), d: t('overview.steps.firstKey.d'), act: ['/connectors', t('overview.steps.firstKey.act')] as [string, string] },
   { done: !!google.value?.connected, t: t('overview.steps.google.t'), d: t('overview.steps.google.d'), act: ['/connectors', t('overview.steps.google.act')] as [string, string] },
-  { done: hasDocs.value, t: t('overview.steps.kb.t'), d: t('overview.steps.kb.d'), act: ['/documents', t('overview.steps.kb.act')] as [string, string] },
+  { done: hasDocs.value, t: t('overview.steps.docs.t'), d: t('overview.steps.docs.d'), act: ['/documents', t('overview.steps.docs.act')] as [string, string] },
   { done: doctrineExists.value, t: t('overview.steps.readme.t'), d: t('overview.steps.readme.d'), act: ['/org', t('overview.steps.readme.act')] as [string, string] },
   { done: me.value?.active_org != null, t: t('overview.steps.org.t'), d: t('overview.steps.org.d'), act: ['/org', t('overview.steps.org.act')] as [string, string] },
 ])
@@ -110,9 +110,10 @@ onMounted(async () => {
   catalog.value = (await soft(getConnectors(), { connectors: [] })).connectors
   google.value = await soft(getGoogleStatus(), null)
   doctrineExists.value = (await soft(getDoctrine(), null))?.doctrine.exists ?? false
-  // KB d'org (zone Documents) : « fait » dès qu'une page de référence existe.
-  const kb = await soft(getKbProject(), null)
-  if (kb) hasDocs.value = (await soft(listDocs(kb.project_id), { project_id: kb.project_id, docs: [] })).docs.length > 0
+  // Documents de l'org : « fait » dès qu'une page de référence existe dans le
+  // projet d'org qui les porte.
+  const projet = await soft(getKbProject(), null)
+  if (projet) hasDocs.value = (await soft(listDocs(projet.project_id), { project_id: projet.project_id, docs: [] })).docs.length > 0
   // Activité = MES appels dans l'org active (backend `/api/me/activity-summary`,
   // scopé self+org, explicitement SANS gate admin). L'ancien `if (isAdmin)` privait
   // les membres du seul signal d'activité réel : sans lui, `isEmpty` ne regardait que

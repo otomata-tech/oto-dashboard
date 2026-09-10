@@ -4,10 +4,10 @@ type: reference
 description: >-
   Le groupe nav « memory » : la grille server-driven du datastore (tri/recherche/filtres par
    colonne, vue fiches aux mêmes verbes que la table, deeplink par id, ownership ADR 0030) e
-  t la KB d'org devenue un projet.
+  t les documents d'org, devenus un projet comme un autre.
 ---
 
-# Mémoire — datastore + knowledge (ADR 0016)
+# Mémoire — datastore + documents (ADR 0016)
 
 > Extrait de `CLAUDE.md` le 2026-08-27 — le contenu n'a pas changé, seule sa place a bougé.
 > La carte garde le résumé + le pointeur ; le détail (inventaires d'écrans, historique
@@ -22,7 +22,28 @@ Groupe nav **« memory »** (`consoleNav.ts`) = deux surfaces de mémoire :
   > **Un champ déclaré sans rôle n'est plus muet en fiches.** Les rôles (`title`/`badge`/`metric`/`status`/`qualif`/`note`) ne le prenaient pas, et le pied de fiche ne reprenait QUE les champs **non** déclarés : déclarer un champ au schéma sans lui donner de rôle le faisait DISPARAÎTRE, alors que ne pas le déclarer du tout l'affichait. Le pied liste maintenant les déclarés-sans-rôle (ordre du schéma, sous leur libellé) puis les non déclarés (sous leur clé). `hidden: true` reste honoré — le champ vit dans la fiche détaillée (`formFields` rend tout le schéma). **Deeplink par id** (`?ns=<id>`, `NamespaceEntry.id` BIGSERIAL stable → le **renommage** ne casse pas l'URL) **+ état du tableau MIROIR dans l'URL** (`?q/sort/dir/page/ps/f`, `readTableQuery`/`syncTableQuery` — refresh et partage de lien conservent la vue filtrée ; `?f=` sérialisé par `filtersToParam`/`filtersFromParam`, param malformé ignoré). **Ownership ADR 0030** : les droits viennent du payload (`can_write`/`can_govern`/`owner_type`), plus de `isOwner` dérivé du flag `shared` ; read-only = `can_write===false`, boutons share/rename/transfer/delete gatés par `can_govern`. **org-owned activé** : la création propose un scope (perso / classeur d'org active) via `promptForm` select → `createNamespace(ns, {type:'org', id})` ; badge « org »/« team » sur la liste. **share** (`SharePrincipalDialog.vue`, dialog de partage unifié membre/équipe/org via `oto_resource` — aussi utilisé par projets et doctrines ; sélecteur de **rôle** lecteur/éditeur/**gérant** via `lib/resourceRole.ts`, ADR 0048 — le gérant a la gouvernance grantable), **rename**, **transfer** (l'ancien proprio repasse en grant write). Plus de gate Google.
   > **« Enregistrer comme vue par défaut » n'écrase plus ce qu'il ne nomme pas (06/09).** Le bouton reposait le schéma **entier** (`PUT …/schema`), reconstruit depuis les seuls champs que le front connaissait : `hidden` retiré de tous, reposé sur les décochés. Un aller-retour dans le menu « colonnes » rendait donc visibles, **pour tout le monde**, les `hidden` déclarés ailleurs — par un agent, ou sur une colonne absente de la page donc absente du menu (près de cinq cents colonnes en portaient un, surtout chez des clients). Le geste se cachait au milieu de gestes purement **locaux** : tous les autres réglages de ce menu sont un miroir d'URL. Il passe désormais par `PATCH …/schema` (`patchNamespaceSchema`, fusion par clé — oto-backend#388) et ne nomme QUE les colonnes de ce menu dont l'état change (`hiddenPatch`, `lib/datastoreColumns.ts`) : colonnes jamais vues, sous-champs, libellés et bornes ne sont pas dans le corps, donc ne peuvent plus être perdus. **Un seul appel, groupé** — une modification de schéma reconstruit un index sur la table que tous les tableaux partagent (interblocage du 05/09), en multiplier rejouerait la cause. Banc : `datastoreColumns.spec.ts` — il juge le résultat APRÈS la fusion serveur, et tient aussi les deux points d'appel (ni `PUT`, ni une portée plus large que le menu).
   > **La file de travail dit son PLAFOND et ses abandons (01/09).** Le serveur compte les réservations d'une ligne restées sans écriture (`_claims`) et, passé `lifecycle.max_claims`, la verse dans `lifecycle.abandon_state` avec un motif dans `_abandon` (oto-backend#433). Les trois surfaces l'ignoraient : la barre de statuts affichait l'état d'abandon comme un état métier ordinaire, la file de travail montrait « en cours · worker » sans dire que c'était la 3ᵉ fois, et `_abandon` n'apparaissait NULLE PART (la vue fiches écarte tout ce qui commence par `_`). Un opérateur ne voyait donc ni pourquoi une ligne était sortie de la file, ni combien de fois elle avait été tentée. Désormais : plafond annoncé par la barre de statuts (avec l'état d'abandon distingué), compteur `2/3` par ligne dans le bandeau de file + décompte des lignes **au plafond** (celles qu'une libération sans écriture sortira de la file — le seul moment où un humain peut encore agir, le serveur épargnant les baux actifs), motif rendu **tel quel** en fiche et en vue fiches, et bandeau de réparation dans le drawer. `lib/datastoreClaims.ts` est un **miroir du serveur** au même titre que `keyStack.ts` : ⚠️ le motif **cite ses chiffres** parce que le plafond a pu changer depuis — le reformuler ou le recalculer côté écran ferait mentir la fiche (le serveur ne fait même pas l'accord au singulier, on ne le corrige pas non plus). ⚠️ **Une écriture rouvre la file, pas forcément le statut** : la plateforme verse la ligne dans l'état d'abandon sans s'autoriser à l'en sortir, donc sans transition de retour déclarée un changement de statut est REFUSÉ — le bandeau le dit plutôt que d'offrir un bouton voué au 400. Les lignes abandonnées ne sont pas dans `/queue` (l'abandon annule le bail) et aucun endpoint ne les liste : on les atteint par le filtre de statut sur l'état d'abandon.
-- **Knowledge** — la base de connaissance d'org est un **projet** (zone Documents, `oto_kb`), atteignable via « Projets » ; `/console/knowledge` redirige vers `/documents`.
+- **Documents** — les documents d'une org vivent dans un **projet d'org ordinaire** (zone
+  Documents), atteignable via « Projets ». Le serveur l'ancre par id (`POST /api/me/kb`,
+  `getKbProject`) : le chemin et le nom de fonction sont des identifiants d'API **hérités**,
+  la règle maison voulant que le code garde son nom quand seule la copy change.
+  > **Le modèle « base de connaissance » n'existe plus (11/09/2026).** Le concept a été
+  > retiré côté plateforme (backend `v1.257.0`, verbe MCP `oto_kb` retiré) ; il ne restait
+  > ici que des textes — l'étape d'accueil dans les deux langues, la ligne d'attente de
+  > `DocumentsView`, une puce du catalogue de facturation. Réécrits sur le modèle courant
+  > (**projets** et **documents**). Le retour du vocabulaire est refusé par
+  > `lib/vocabulaire.tripwire.spec.ts`, qui parcourt `index.html` + tout `.vue`/`.ts`/`.json`
+  > de `src/`, commentaires retirés, et laisse délibérément passer le jeton `KB` (ambigu :
+  > `Ko`, « si KO ») comme `zero-knowledge` (ADR 0032, autre sens).
+  > **L'adresse `/knowledge` reste** et redirige vers `/documents` : elle a été distribuée,
+  > elle doit continuer de résoudre. Le même tripwire l'exige positivement.
+  > Contrôle sur le bundle **servi** (la source ne prouve pas le déployé) :
+  > ```bash
+  > # récursif sur le MOTIF de nom : les imports sont relatifs, grep '/assets/' sur
+  > # index.html seul rend un zéro faux (~10 fichiers au lieu de ~250).
+  > for a in $(curl -sS https://manage.oto.ninja/ | grep -oE '[A-Za-z0-9_.-]+-[A-Za-z0-9_-]{6,}\.js'); do curl -sS "https://manage.oto.ninja/assets/$a"; done | grep -oi 'connaissance\|knowledge'
+  > ```
+  > La seule occurrence attendue est `knowledge` dans `{path:"/knowledge"…}` — la
+  > redirection. Toute autre est un retour du vocabulaire.
 
 ## Ce que la liste de `/data` montre — deux listes, trois sections, aucune fusion
 

@@ -50,7 +50,7 @@ Un écran = une section de `lib/consoleNav.ts` ; le détail (composants, API cli
 | connecteurs (4 surfaces, hubs à onglets, fédération) | `/connectors`, `/org/connectors`, `/team/connectors`, `/platform/connectors` | `docs/connecteurs.md` |
 | orgs, équipes, invitations, fiches admin | `/org`, `/org/teams`, `/team`, `/platform/users` (+ `/:sub`), `/platform/orgs` (+ `/:id`) | `docs/orgs-groupes-invitations.md` |
 | projets (index + page dédiée, partage navigable) | `/projects`, `/projects/:id`, `/import` | `docs/projets.md` |
-| mémoire — datastore & knowledge | `/data`, `/data/:id` (+ `/item/:rowId`), `/documents` (hors sidebar) | `docs/datastore.md` |
+| mémoire — datastore & documents | `/data`, `/data/:id` (+ `/item/:rowId`), `/documents` (hors sidebar) | `docs/datastore.md` |
 | ce que voit l'agent — readme, guides, procédures | `/context`, `/org/context`, `/team/context`, `/platform/context`, `/procedures`, `/procedures/:id`, `/team/procedures` | `docs/agent-context.md` |
 | recherche transverse (⌘K + page) | `/search` | `docs/recherche.md` |
 | identité, consultation (view-as), hub compte | `/account/*`, `/activity` + sidebar/popin | `docs/identite-et-consultation.md` |
