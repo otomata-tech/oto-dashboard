@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
+import Icon from '@/components/console/Icon.vue'
 import DatastoreTable from '@/components/console/DatastoreTable.vue'
 import NamespaceCreateDialog from '@/components/console/NamespaceCreateDialog.vue'
 import { useToast } from '@/composables/useToast'
@@ -42,6 +43,47 @@ const orgSansTableau = computed(() => {
   const aLesSiens = datastores.value.some(
     (n) => !n.shared && (n.owner_type === 'org' || n.owner_type === 'group'))
   return aLesSiens ? null : nom
+})
+
+// Arbitrage d'Alexis du 10/09 (otomata-tech/oto#160) : le personnel n'est PAS filtré par
+// org — 156 appels sur 8 tableaux se font depuis une autre org que celle du propriétaire,
+// le filtrer ferait disparaître ce qu'on utilise. Il est RANGÉ À PART : les tableaux de
+// l'org (possédés par elle, par une de ses équipes, ou partagés à elles) se lisent seuls
+// en tête, le personnel suit dans sa propre section, repliée. Le contexte de l'org ne se
+// mêle plus au personnel, et le personnel reste à un clic.
+//
+// Une section repliée qui ne dirait rien recréerait l'absence qu'on répare : son en-tête
+// porte le libellé (le mot du badge, `personnel`) ET le nombre. Des données plutôt qu'un
+// second bloc de gabarit : une autre section se pose en ajoutant une entrée.
+const deLorg = computed(() => datastores.value.filter((n) => !n.is_personal))
+const personnels = computed(() => datastores.value.filter((n) => n.is_personal))
+const groupes = computed(() => [
+  { cle: 'org', libelle: null, lignes: deLorg.value },
+  { cle: 'perso', libelle: 'personnel', lignes: personnels.value },
+].filter((g) => g.lignes.length))
+const ouvert = ref<Record<string, boolean>>({})
+// Un tableau sélectionné dans une section repliée (lien direct, création « personnel »)
+// l'ouvre : sinon la ligne active serait cachée derrière le repli qu'on vient de poser.
+watch(current, (c) => {
+  const g = groupes.value.find((x) => x.libelle && x.lignes.some((n) => n.id === c?.id))
+  if (g) ouvert.value[g.cle] = true
+})
+
+// La phrase décrit la disposition qu'on VOIT. Elle disait « ceux ci-dessous sont
+// personnels ou partagés avec toi » : vrai d'une liste mêlée, faux depuis que le
+// personnel est rangé à part et replié — sous elle il n'y a plus de lignes personnelles,
+// il y a un en-tête qui les compte. Elle nomme donc ce qui est réellement là : le partagé
+// dans la liste de l'org, le personnel dans sa section. Mêmes silences qu'avant
+// (`orgSansTableau`) : org qui possède, équipe qui possède, hors org, sans nom, liste vide.
+const contexte = computed(() => {
+  const nom = orgSansTableau.value
+  if (!nom) return null
+  const suite = !deLorg.value.length
+    ? 'tes tableaux personnels sont rangés à part, ci-dessous'
+    : personnels.value.length
+      ? 'ceux ci-dessous sont partagés avec toi, pas les siens ; tes tableaux personnels sont rangés à part'
+      : 'ceux ci-dessous sont partagés avec toi, pas les siens'
+  return `aucun tableau dans ${nom} — ${suite}.`
 })
 
 // Sélection pilotée par le CHEMIN `/data/:id` (id stable au renommage, ADR 0032) —
@@ -125,37 +167,46 @@ async function onNsDeleted() {
              le disent — mais POURQUOI la liste ressemble à ça. On dit l'absence d'abord,
              puis ce qui est montré à la place. Muette dès qu'elle n'apprend rien : une org
              qui possède des tableaux n'a pas à s'entendre dire qu'elle en a. -->
-        <p v-if="orgSansTableau" class="helptext ns-context">
-          aucun tableau dans {{ orgSansTableau }} — ceux ci-dessous sont personnels ou
-          partagés avec toi, pas les siens.
-        </p>
+        <p v-if="contexte" class="helptext ns-context">{{ contexte }}</p>
         <div class="rowlist">
-          <button v-for="ns in datastores" :key="ns.id"
-            class="rowitem ns-item" :class="{ active: ns.id === selectedId }"
-            @click="open(ns.id)">
-            <code class="mono" style="font-weight: 600">{{ ns.datastore }}</code>
-            <!-- UN groupe calé à droite, et l'appartenance EN DERNIER : les badges étaient
-                 des enfants directs d'un `space-between`, donc répartis — l'appartenance
-                 se décalait vers le milieu sur les seules lignes portant aussi `typé`, et
-                 la colonne zigzaguait. On répare la liste dont on est en train de réparer
-                 la crédibilité. Dernier = bord droit stable : c'est le signal qu'on scanne.
-                 `typé` (état du schéma, olive) n'est pas sur le même axe et flotte devant.
+          <template v-for="g in groupes" :key="g.cle">
+            <!-- En-tête de section : libellé + nombre, lisibles REPLIÉS — replié n'est pas caché. -->
+            <button v-if="g.libelle" type="button" class="ns-fold"
+              :aria-expanded="!!ouvert[g.cle]" :aria-controls="`ns-groupe-${g.cle}`"
+              @click="ouvert[g.cle] = !ouvert[g.cle]">
+              <Icon :name="ouvert[g.cle] ? 'chevron-down' : 'chevron-right'" :size="12" />
+              <span class="ns-fold-label">{{ g.libelle }}</span>
+              <span class="ns-fold-count">{{ g.lignes.length }}</span>
+            </button>
+            <div v-show="!g.libelle || ouvert[g.cle]" :id="`ns-groupe-${g.cle}`" class="ns-groupe">
+              <button v-for="ns in g.lignes" :key="ns.id"
+                class="rowitem ns-item" :class="{ active: ns.id === selectedId }"
+                @click="open(ns.id)">
+                <code class="mono" style="font-weight: 600">{{ ns.datastore }}</code>
+                <!-- UN groupe calé à droite, et l'appartenance EN DERNIER : les badges étaient
+                     des enfants directs d'un `space-between`, donc répartis — l'appartenance
+                     se décalait vers le milieu sur les seules lignes portant aussi `typé`, et
+                     la colonne zigzaguait. On répare la liste dont on est en train de réparer
+                     la crédibilité. Dernier = bord droit stable : c'est le signal qu'on scanne.
+                     `typé` (état du schéma, olive) n'est pas sur le même axe et flotte devant.
 
-                 Un tableau PERSONNEL, lui, ne portait AUCUNE marque : sans badge il se
-                 lisait comme « le cas normal, celui de l'org où je suis » — l'inverse de la
-                 vérité, et la confusion du 10/09 (otomata-tech/oto#160). Le mot est celui du
-                 sélecteur de propriétaire à la création (« personnel (moi seul) »), pas un
-                 registre neuf. `is_personal` est servi ET requis par GET /api/datastores :
-                 owner_type='user' ET owner_id=mon sub — un tableau d'un AUTRE utilisateur
-                 reçu par partage reste donc sur la branche `shared`. -->
-            <span class="ns-tags">
-              <Tag v-if="ns.schema?.fields?.length" tone="olive">typé</Tag>
-              <Tag v-if="ns.owner_type === 'org'" tone="cobalt">org</Tag>
-              <Tag v-else-if="ns.owner_type === 'group'" tone="cobalt">team</Tag>
-              <Tag v-else-if="ns.shared" tone="cobalt">shared · {{ ns.permission || 'read' }}</Tag>
-              <Tag v-else-if="ns.is_personal" tone="cobalt">personnel</Tag>
-            </span>
-          </button>
+                     Un tableau PERSONNEL, lui, ne portait AUCUNE marque : sans badge il se
+                     lisait comme « le cas normal, celui de l'org où je suis » — l'inverse de la
+                     vérité, et la confusion du 10/09 (otomata-tech/oto#160). Le mot est celui du
+                     sélecteur de propriétaire à la création (« personnel (moi seul) »), pas un
+                     registre neuf. `is_personal` est servi ET requis par GET /api/datastores :
+                     owner_type='user' ET owner_id=mon sub — un tableau d'un AUTRE utilisateur
+                     reçu par partage reste donc sur la branche `shared`. -->
+                <span class="ns-tags">
+                  <Tag v-if="ns.schema?.fields?.length" tone="olive">typé</Tag>
+                  <Tag v-if="ns.owner_type === 'org'" tone="cobalt">org</Tag>
+                  <Tag v-else-if="ns.owner_type === 'group'" tone="cobalt">team</Tag>
+                  <Tag v-else-if="ns.shared" tone="cobalt">shared · {{ ns.permission || 'read' }}</Tag>
+                  <Tag v-else-if="ns.is_personal" tone="cobalt">personnel</Tag>
+                </span>
+              </button>
+            </div>
+          </template>
           <div v-if="loaded && !datastores.length" class="dim" style="text-align: center; padding: 16px">
             no datastores yet — create one to let your agents store rows.
           </div>
@@ -247,6 +298,30 @@ async function onNsDeleted() {
    le nombre de badges déplaçait celui qu'on scanne. `flex: none` pour qu'un nom long
    pousse la ligne sans écraser les badges. */
 .ns-tags { margin-left: auto; flex: none; display: flex; align-items: center; gap: 8px; }
+/* En-tête de section : il ne doit pas se lire comme une ligne (pas de nom en mono gras)
+   et reprend la micro-typo des badges — `PERSONNEL` en tête fait écho au badge des lignes
+   qu'il range. Le filet du haut le détache de la liste de l'org. */
+.ns-fold {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--row-py) var(--pad-card);
+  border: 0;
+  border-top: 1px solid var(--color-hair);
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--color-mute);
+}
+.ns-fold:hover { color: var(--color-ink-soft); background: var(--color-paper-2); }
+.ns-fold[aria-expanded="true"] { border-bottom: 1px solid var(--color-hair-soft); }
+.ns-fold-count { color: var(--color-faint); font-weight: 600; }
 .ns-item {
   width: 100%;
   display: flex;

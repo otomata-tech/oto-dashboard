@@ -10,6 +10,11 @@
 // sans dire que le principal était vide. Les deux silences se testent ici :
 // l'appartenance de chaque ligne, et la phrase qui explique la liste entière — dont
 // les cas où elle doit se TAIRE, parce qu'un avertissement permanent n'avertit plus.
+//
+// Depuis l'arbitrage du 10/09 (oto#160), un troisième point : le personnel n'est pas
+// filtré, il est RANGÉ À PART — sous la liste de l'org, dans une section repliée qui
+// annonce son libellé et son nombre. Le `plan` de la liste (ordre du DOM, lignes cachées
+// marquées) le vérifie : la simple présence des lignes ne dit rien de leur place.
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -56,7 +61,21 @@ async function settle() {
   for (let i = 0; i < 10; i++) await nextTick()
 }
 
-async function monterListe(entrees: DatastoreEntry[]) {
+// La liste telle qu'on la LIT, dans l'ordre du DOM : un nom par ligne (« (caché) » si sa
+// section est repliée), et chaque en-tête de section avec son libellé, son nombre, son état.
+function lirePlan(host: HTMLElement): string[] {
+  return [...host.querySelectorAll('.rowlist .ns-fold, .rowlist .ns-item')].map((e) => {
+    if (e.classList.contains('ns-fold')) {
+      const etat = e.getAttribute('aria-expanded') === 'true' ? 'ouvert' : 'replié'
+      const libelle = e.querySelector('.ns-fold-label')?.textContent?.trim()
+      return `[${libelle} ${e.querySelector('.ns-fold-count')?.textContent?.trim()} ${etat}]`
+    }
+    const cache = (e.closest('.ns-groupe') as HTMLElement | null)?.style.display === 'none'
+    return `${e.querySelector('code')?.textContent?.trim()}${cache ? ' (caché)' : ''}`
+  })
+}
+
+async function monterListe(entrees: DatastoreEntry[], chemin = '/data') {
   getNamespaces.mockResolvedValue({ datastores: entrees })
   const DataView = (await import('./DataView.vue')).default
   const router = createRouter({
@@ -67,7 +86,7 @@ async function monterListe(entrees: DatastoreEntry[]) {
       { path: '/data/:id/item/:rowId', component: Vide },
     ],
   })
-  await router.push('/data')
+  await router.push(chemin)
   await router.isReady()
   const host = document.createElement('div')
   host.className = 'console-root'
@@ -83,6 +102,7 @@ async function monterListe(entrees: DatastoreEntry[]) {
     lignes,
     badges: lignes.map((l) => [...l.querySelectorAll('.tag')].map((t) => t.textContent?.trim() ?? '')),
     contexte: host.querySelector('.ns-context')?.textContent?.replace(/\s+/g, ' ').trim() ?? null,
+    plan: () => lirePlan(host),
     unmount: () => { app.unmount(); host.remove() },
   }
 }
@@ -108,7 +128,8 @@ describe('DataView — chaque ligne dit à qui elle est', () => {
       entree({ id: 3, datastore: 'de-lequipe', ...DE_LEQUIPE }),
       entree({ id: 4, datastore: 'partage', ...RECU }),
     ])
-    expect(badges).toEqual([['personnel'], ['org'], ['team'], ['shared · read']])
+    // Le personnel passe SOUS l'org (arbitrage oto#160) : l'ordre change, pas les badges.
+    expect(badges).toEqual([['org'], ['team'], ['shared · read'], ['personnel']])
     unmount()
   })
 
@@ -147,8 +168,10 @@ describe('DataView — chaque ligne dit à qui elle est', () => {
 describe('DataView — la ligne de contexte dit pourquoi la liste ressemble à ça', () => {
   it('nomme l\'org quand elle n\'a aucun tableau et que la liste n\'est pas vide', async () => {
     const { contexte, unmount } = await monterListe([entree(), entree({ id: 2, datastore: 'b' })])
+    // « ceux ci-dessous sont personnels » décrivait une liste mêlée ; sous la phrase il n'y
+    // a plus qu'un en-tête replié qui les compte. Elle dit donc où ils sont rangés.
     expect(contexte).toBe(
-      'aucun tableau dans Client X — ceux ci-dessous sont personnels ou partagés avec toi, pas les siens.')
+      'aucun tableau dans Client X — tes tableaux personnels sont rangés à part, ci-dessous.')
     unmount()
   })
 
@@ -157,7 +180,15 @@ describe('DataView — la ligne de contexte dit pourquoi la liste ressemble à �
       entree({ id: 1, datastore: 'a-moi' }),
       entree({ id: 2, datastore: 'recu', ...RECU }),
     ])
-    expect(contexte).toContain('aucun tableau dans Client X')
+    expect(contexte).toBe('aucun tableau dans Client X — ceux ci-dessous sont partagés avec '
+      + 'toi, pas les siens ; tes tableaux personnels sont rangés à part.')
+    unmount()
+  })
+
+  it('sans personnel, la phrase ne promet pas une section qui n\'existe pas', async () => {
+    const { contexte, unmount } = await monterListe([entree({ id: 2, datastore: 'recu', ...RECU })])
+    expect(contexte).toBe(
+      'aucun tableau dans Client X — ceux ci-dessous sont partagés avec toi, pas les siens.')
     unmount()
   })
 
@@ -196,6 +227,75 @@ describe('DataView — la ligne de contexte dit pourquoi la liste ressemble à �
 
   it('se tait sur une liste VIDE — l\'état vide de la carte parle déjà', async () => {
     const { contexte, host, unmount } = await monterListe([])
+    expect(contexte).toBeNull()
+    expect(host.textContent).toContain('create one')
+    unmount()
+  })
+})
+
+describe('DataView — le personnel est rangé à part, replié, et s\'annonce (oto#160)', () => {
+  it('org qui a ses tableaux + du personnel : l\'org seule en tête, le personnel dessous, replié et compté', async () => {
+    const { plan, contexte, unmount } = await monterListe([
+      entree({ id: 1, datastore: 'a-moi' }),
+      entree({ id: 2, datastore: 'de-lorg', ...DE_LORG }),
+      entree({ id: 3, datastore: 'a-moi-aussi' }),
+      entree({ id: 4, datastore: 'de-lequipe', ...DE_LEQUIPE }),
+    ])
+    expect(plan()).toEqual([
+      'de-lorg', 'de-lequipe',
+      '[personnel 2 replié]', 'a-moi (caché)', 'a-moi-aussi (caché)',
+    ])
+    expect(contexte).toBeNull()
+    unmount()
+  })
+
+  it('la liste du 10/09 — l\'org n\'a rien : la phrase, puis le personnel replié qui dit combien', async () => {
+    const dix = Array.from({ length: 10 }, (_, i) =>
+      entree({ id: i + 1, datastore: `table-${i + 1}` }))
+    const { plan, contexte, unmount } = await monterListe(dix)
+    expect(contexte).toBe(
+      'aucun tableau dans Client X — tes tableaux personnels sont rangés à part, ci-dessous.')
+    expect(plan()[0]).toBe('[personnel 10 replié]')
+    // Plus une seule ligne personnelle VISIBLE : ce sont elles qui se lisaient comme
+    // « les tableaux du client ». Replié, l'en-tête les compte sans les mêler.
+    expect(plan().slice(1)).toHaveLength(10)
+    expect(plan().slice(1).every((l) => l.endsWith('(caché)'))).toBe(true)
+    unmount()
+  })
+
+  it('un clic déplie la section, un second la replie', async () => {
+    const { host, plan, unmount } = await monterListe([entree({ id: 1, datastore: 'a-moi' })])
+    const pli = host.querySelector<HTMLButtonElement>('.ns-fold')!
+    pli.click()
+    await settle()
+    expect(plan()).toEqual(['[personnel 1 ouvert]', 'a-moi'])
+    pli.click()
+    await settle()
+    expect(plan()).toEqual(['[personnel 1 replié]', 'a-moi (caché)'])
+    unmount()
+  })
+
+  it('un lien direct vers un tableau personnel ouvre sa section — la ligne active n\'est pas cachée', async () => {
+    const { plan, unmount } = await monterListe([
+      entree({ id: 1, datastore: 'de-lorg', ...DE_LORG }),
+      entree({ id: 2, datastore: 'a-moi' }),
+    ], '/data/2')
+    expect(plan()).toEqual(['de-lorg', '[personnel 1 ouvert]', 'a-moi'])
+    unmount()
+  })
+
+  it('sans tableau personnel, pas d\'en-tête — pas de section à zéro', async () => {
+    const { host, unmount } = await monterListe([entree({ id: 1, datastore: 'de-lorg', ...DE_LORG })])
+    expect(host.querySelector('.ns-fold')).toBeNull()
+    unmount()
+  })
+
+  it('aucune organisation : la liste servie est vide — ni section ni phrase, l\'état vide parle', async () => {
+    // Sans org active, `GET /api/datastores` rend [] (`active_owner(None)` → liste vide,
+    // registre.py) : le personnel n'y est pas servi du tout. On rend ce que le serveur sert.
+    me.value = { sub: 'u-alexis', active_org: null, active_org_name: null }
+    const { plan, contexte, host, unmount } = await monterListe([])
+    expect(plan()).toEqual([])
     expect(contexte).toBeNull()
     expect(host.textContent).toContain('create one')
     unmount()
