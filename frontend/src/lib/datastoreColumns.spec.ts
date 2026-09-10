@@ -179,7 +179,7 @@ describe('l\'écran enregistre la vue par un amendement, jamais par une repose',
   const compact = (s: string) => s.replace(/\s+/g, ' ')
 
   // ⚠️ Ce témoin cherchait le NOM `setNamespaceSchema` dans l'écran. Un nom se renomme —
-  // et le jour où il l'aurait été (la bascule `namespace` → `datastore` en cours le fera),
+  // et le jour où il l'aurait été (la bascule `namespace` → `datastore`, faite le 10/09/2026),
   // il serait passé au VERT sans plus rien mesurer. Il vise désormais le GESTE : un `PUT`
   // vers `…/schema`, quel que soit le nom de la fonction qui le porte, et où que ce soit
   // dans la couche API. Le wrapper mort a été supprimé le 08/09/2026 ; ceci empêche son

@@ -56,21 +56,29 @@ arrivent en UTC **sans fuseau** : un parse naïf les prend pour de l'heure local
 heures d'écart l'été, et des baux annoncés expirés à tort. `ProjectWorkQueues.vue` portait
 ce bug jusqu'au 2026-09-01.
 
-## Le pont de renommage `namespace` → `datastore` (TEMPORAIRE, 08/09/2026)
+## Le renommage `namespace` → `datastore` — le pont est RETIRÉ (10/09/2026)
 
-oto renomme le concept sur sa face REST en **bascule sèche** : aucune fenêtre où les deux
-noms fonctionnent. Trois surfaces bougent, et deux d'entre elles **ne lèvent rien** — une
-clé de réponse lue sous son ancien nom rend `undefined`, un code d'erreur renommé tombe
-dans le cas par défaut. Elles **dégradent** au lieu d'échouer.
+oto a renommé le concept sur sa face REST en **bascule sèche** : aucune fenêtre où les
+deux noms fonctionnent. Le dashboard a porté un pont deux jours (`servedName()` /
+`servedList()` dans `api/console.ts`, 08/09 → 10/09). **Il n'existe plus.** Types,
+composants et vues lisent `datastore` de bout en bout.
 
-`api/console.ts` porte donc un pont, `servedName()` / `servedList()`, qui accepte les deux
-noms et **lève quand aucun des deux n'est là**. C'était le point : avant, un `?? []` en
-aval rendait une liste vide sur une clé disparue — écran blanc, aucune erreur, et les
-gestes destructifs escamotés (leur affordance se lit sur les `can_write`/`can_govern` de
-cette même liste) au lieu de mal tirer. Sûr, et invisible.
+**Pourquoi le retirer si tôt.** Le pont normalisait au bord : en aval, tout continuait de
+lire `namespace`, le nom local. Ça confinait le lot à un fichier — c'était son mérite, et
+c'est devenu son défaut. Un pont qu'on ne retire pas devient une seconde API, et une
+seconde API masque le renommage suivant. Côté oto, le doublon a été retiré le même jour
+pour la même raison : trois surfaces y appliquaient trois politiques différentes (la liste
+basculée à sec, les réponses unitaires doublées, l'upload jamais basculé), et l'incohérence
+coûtait plus cher que la rupture.
 
-Le pont normalise **au bord** : en aval, types, composants et vues continuent de lire
-`namespace`, le nom local. C'est ce qui confine ce lot à un fichier au lieu de douze.
+⚠️ **Ce qui a survécu au retrait, et qu'il ne faut pas jeter avec le pont : la garde.**
+`listeServie()` LÈVE quand la réponse ne porte pas la clé attendue. Ce n'était pas le pont,
+c'était le point. Avant lui, un `?? []` en aval rendait une liste vide sur une clé disparue
+— écran blanc, aucune erreur, et les gestes destructifs escamotés (leur affordance se lit
+sur les `can_write`/`can_govern` de cette même liste) au lieu de mal tirer. Sûr, et
+invisible : le pire des deux. C'est la seule protection qui vaille contre le mode d'échec
+propre à ce renommage, où **rien ne lève** : une clé de réponse disparue rend `undefined`,
+sans erreur et sans journal.
 
 ⚠️ **Ce qui ne bouge PAS, et qu'il ne faut pas « corriger » par cohérence** : la valeur
 `resource_type: "datastore_namespace"` (écrite en base, des partages de production en
@@ -79,25 +87,35 @@ tous les `namespaces` du **catalogue d'outils** — un connecteur expose des nam
 d'outils, homonymes sans rapport avec un tableau. Corriger depuis la liste du renommage,
 jamais depuis le mot.
 
-**Les CHEMINS ont basculé le 09/09/2026** — `api/console.ts` appelle désormais
-`/api/datastores/{datastore}/…`, et le contrat épinglé a été regravé depuis la
-préproduction. ⚠️ **Le nom du paramètre change avec le préfixe** : c'est le point fragile.
-Sur les chemins il ne se voit pas (la valeur voyage dans l'URL), mais la **création** porte
-le nom du tableau dans son CORPS — `{ datastore: … }` et non plus `{ namespace: … }`. Un
-corps resté à l'ancien nom ne casse pas : il crée un tableau **sans nom**, refusé en 400
-`missing_datastore`. Les autres opérations gardent leurs noms de corps et de requête.
+**Les CHEMINS ont basculé le 09/09/2026** — `api/console.ts` appelle
+`/api/datastores/{datastore}/…`. ⚠️ **Le nom du paramètre change avec le préfixe** : sur les
+chemins il ne se voit pas (la valeur voyage dans l'URL), mais la **création** porte le nom
+du tableau dans son CORPS — `{ datastore: … }`. Un corps resté à l'ancien nom ne casse pas :
+il crée un tableau **sans nom**, refusé en 400 `missing_datastore`.
 
-**Le retrait du pont reste mécanique, pas mémoriel** : `lib/renameBridge.spec.ts` devient
-rouge dès que le contrat commité ne déclare plus `/api/datastore/namespaces`. ⚠️ **Ce n'est
-PAS le jour où le dashboard cesse d'appeler l'ancien chemin** — le contrat épinglé ici est
-un instantané VERBATIM du document servi, pas la liste de ce qu'on appelle : oto continue de
-déclarer l'ancien chemin tant qu'il le sert (aujourd'hui sous forme de redirections 308).
-Le témoin rougira donc au premier `npm run api:refresh` **après le retrait des alias côté
-oto** — le seul moment où les deux ponts doivent tomber. Il dit alors quoi retirer.
+### Deux calendriers désormais séparés
 
-⚠️ **Ce témoin couvre AUSSI le front partenaire** (`Tulina-team/tulina-app-front`), qui
-porte le même pont. Son intégration continue ne nous appartient pas : un contrôle posé
-chez lui engagerait son dépôt, et un témoin qui vit chez le consommateur doit être accepté
-par lui. Celui-ci vit chez nous, à côté du contrat servi — c'est nous qui savons quand
-l'ancien nom disparaît. Son message d'échec nomme les deux ponts. **N'en retirer qu'un
-laisserait l'autre masquer le renommage suivant.**
+Ils étaient liés, et c'est ce lien que la décision du 10/09 a coupé :
+
+| ce qui bascule | quand | ce qu'on voit si on se trompe |
+| --- | --- | --- |
+| les **clés de réponse** (`namespace` → `datastore`) | **fait, 10/09/2026** | rien — `undefined`, sans erreur ni journal |
+| les **alias de CHEMIN** (`/api/datastore/namespaces` → `/api/datastores`) | 08/11/2026 | un 308, puis un 404 — ça se voit |
+
+`lib/renameBridge.spec.ts` tenait le retrait du pont en surveillant la disparition des
+alias de chemin. Ce témoin est **supprimé** : son déclencheur n'était plus le bon, et un
+témoin qui ne peut plus sonner au bon moment vaut moins que rien — il rassure.
+
+### ⚠️ Le front partenaire porte encore SON pont
+
+`Tulina-team/tulina-app-front` (prévenir Julien) porte le même pont, et oto ne sert plus
+l'ancien nom : **son pont ne le protège plus, il le fait seulement échouer en silence**.
+À retirer chez lui, la liste étant celle que portait notre témoin avant sa suppression :
+
+- `servedName` / `servedList` dans `src/lib/datastore-api.ts` ;
+- les codes doublés dans `datastore-cell.tsx` et `datastore-table.tsx` ;
+- les trois `case` doublés dans `components/datastore/activity-feed.tsx`.
+
+Un contrôle posé chez lui engagerait son dépôt : ce préavis se porte donc à la main, par
+un message, pas par un test. C'est le prix de la bascule sèche, et il était connu quand
+elle a été décidée.

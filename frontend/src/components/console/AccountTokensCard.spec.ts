@@ -12,7 +12,7 @@ vi.mock('@/api/console', () => ({
   getTokens: () => Promise.resolve({ tokens: [] }),
   deleteToken: () => Promise.resolve({}),
   getMyOrgs: () => Promise.resolve({ orgs: [{ id: 7, name: 'acme' }] }),
-  getNamespacesOfOrg: (o: number) => (appels.push(['ns', o]), Promise.resolve({ namespaces: [] })),
+  getNamespacesOfOrg: (o: number) => (appels.push(['ns', o]), Promise.resolve({ datastores: [] })),
   listProjectsOfOrg: (o: number) => (appels.push(['proj', o]), Promise.resolve({ projects: [] })),
   createToken: (l: string, opts: any) => (appels.push(['create', l, opts]),
     Promise.resolve({ token: 'oto_x', label: l, scopes: null, ttl_days: null })),

@@ -14,11 +14,11 @@ import { absDate } from '@/lib/cellRender'
 import { bailLigne } from '@/lib/bailDeLigne'
 import { abandonState, claimBudget, maxClaims } from '@/lib/datastoreClaims'
 
-const props = defineProps<{ namespaces: string[]; projectId: number }>()
+const props = defineProps<{ datastores: string[]; projectId: number }>()
 
 interface QueueLine {
   nsId: number
-  namespace: string
+  datastore: string
   states: string[]                  // lifecycle d'abord, puis états observés hors déclaration
   counts: Record<string, number>
   total: number
@@ -41,14 +41,14 @@ const OUTCOME_TONE: Record<string, Tone> = { done: 'olive', failed: 'terra', blo
 
 onMounted(async () => {
   try {
-    const wanted = new Set(props.namespaces)
-    const [{ namespaces: all }, runsRes] = await Promise.all([
+    const wanted = new Set(props.datastores)
+    const [{ datastores: all }, runsRes] = await Promise.all([
       getNamespaces(),
       getProjectRuns(props.projectId).catch(() => ({ runs: [] as ProjectRun[] })),
     ])
     lastRun.value = runsRes.runs[0] ?? null
     const candidates = all.filter((n) => {
-      if (!wanted.has(n.namespace)) return false
+      if (!wanted.has(n.datastore)) return false
       const sf = (n.schema?.fields ?? []).find((f) => f.role === 'status')
       return !!sf && (sf.lifecycle?.states?.length ?? 0) > 0
     })
@@ -57,8 +57,8 @@ onMounted(async () => {
       const sf = (n.schema?.fields ?? []).find((f) => f.role === 'status')!
       try {
         const [{ groups }, queue] = await Promise.all([
-          getNamespaceAggregate(n.namespace, { groupBy: sf.key }),
-          getNamespaceQueue(n.namespace).catch(() => ({ rows: [] })),
+          getNamespaceAggregate(n.datastore, { groupBy: sf.key }),
+          getNamespaceQueue(n.datastore).catch(() => ({ rows: [] })),
         ])
         const counts: Record<string, number> = {}
         let total = 0
@@ -78,7 +78,7 @@ onMounted(async () => {
         const now = Date.now()
         const expired = queue.rows.filter((r) => bailLigne(r, now).etat === 'expire').length
         return {
-          nsId: n.id, namespace: n.namespace,
+          nsId: n.id, datastore: n.datastore,
           states: [...declared, ...observed], counts, total,
           claimed: queue.rows.length, expired,
           ceiling: maxClaims(sf.lifecycle),
@@ -107,7 +107,7 @@ const visible = computed(() => !loading.value && lines.value.length > 0)
         {{ absDate(String(lastRun.finished_at ?? lastRun.started_at)) }}</span>
     </div>
     <div v-for="l in lines" :key="l.nsId" class="pwq-line">
-      <RouterLink class="pwq-ns" :to="`/data/${l.nsId}`">{{ l.namespace }}</RouterLink>
+      <RouterLink class="pwq-ns" :to="`/data/${l.nsId}`">{{ l.datastore }}</RouterLink>
       <span class="pwq-total">{{ l.total }}</span>
       <span v-for="s in l.states" :key="s" class="pwq-chip"
         :class="{ abandon: !!l.abandonState && s === l.abandonState }"

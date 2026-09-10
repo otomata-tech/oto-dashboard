@@ -107,7 +107,7 @@ const moreCount = computed(() => Math.max(0, grants.value.length - 3))
 
 // ── rail : groupes dérivés (pages + liens + fichiers) ──
 function bindingKey(l: ProjectLink): string { return `link:${l.target_type}:${l.target_ref}|${l.identity_ref ?? ''}` }
-function linkName(l: ProjectLink): string { return l.label || l.title || l.namespace || l.target_ref }
+function linkName(l: ProjectLink): string { return l.label || l.title || l.datastore || l.target_ref }
 function linksOf(t: string): ProjectLink[] { return links.value.filter((l) => l.target_type === t) }
 
 const railGroups = computed<RailGroup[]>(() => {
@@ -205,7 +205,7 @@ const { scoped } = useScopedLink()
 function selectFromRoute() {
   const ref = route.params.nsRef
   if (typeof ref === 'string' && ref) {
-    const l = linksOf('tableau').find((x) => x.target_ref === ref || String(x.namespace ?? '') === ref)
+    const l = linksOf('tableau').find((x) => x.target_ref === ref || String(x.datastore ?? '') === ref)
     if (l) { sel.value = bindingKey(l); return }
   }
   // Deep-link PAGE `?doc=<id>` (lot 3 Ship 2) — prérequis de tout clic de résultat
@@ -389,7 +389,7 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
       <div class="pj-body">
         <ProjectViewer class="pj-body__vw" :item="selItem" :project-id="projectId" :project-name="project.name"
           :brief="project.brief_md" :read-only="readOnly" :doc-title-map="docTitleMap"
-          :table-namespaces="linksOf('tableau').map((l) => l.namespace ?? l.target_ref)"
+          :table-datastores="linksOf('tableau').map((l) => l.datastore ?? l.target_ref)"
           :excluded-url-prefixes="project.excluded_url_prefixes"
           @save-brief="saveBrief" @reload-docs="onReloadDocs" @reload-files="onReloadFiles"
           @reload-links="onReloadLinks" @reload-project="reloadProject" @changed="onChanged" @open-doc="(id) => sel = `doc:${id}`"

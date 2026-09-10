@@ -585,7 +585,7 @@ export interface ProjectLink {
   target_ref: string
   identity_ref?: string | null  // connecteur : identité (compte) du binding — clé de multiplicité (#57)
   label?: string | null
-  namespace?: string | null     // tableau : nom du namespace résolu backend (target_ref = id stable)
+  datastore?: string | null     // tableau : nom du tableau résolu backend (target_ref = id stable)
   title?: string | null         // procédure : titre de la doctrine / doc : titre de la page Documents (résolu backend, target_ref = id stable)
   doc_project_id?: number | null  // doc : projet propriétaire de la page (deep-link vers /projects/:id)
   role?: string | null          // pourquoi cette entité est dans le projet (ADR 0032 §2)
@@ -809,15 +809,15 @@ export type ConnectorOAuthStatus = ApiOut<'me_connector_status_get'>
 // d'état intermédiaire). `disconnected: false` = rien à retirer, pas un échec.
 export type ConnectorOAuthDisconnected = ApiOut<'me_connector_disconnect_delete'>
 
-// Datastore (ADR 0016 + primitive d'ownership ADR 0030) — un namespace possédé ou partagé.
+// Datastore (ADR 0016 + primitive d'ownership ADR 0030) — un tableau possédé ou partagé.
 // ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`NamespaceEntry` :
 //    owner_type: déclaré nullable ; owner_type: `str` là où l'écran a un ensemble fermé
 //    (group|org|user) ; owner_id: déclaré nullable ; owner_sub: absent du contrat ;
 //    permission: déclaré nullable). Le correctif est côté oto-backend — resserrer
 //    l'`Output` — puis `npm run api:refresh` ici.
-export interface NamespaceEntry {
+export interface DatastoreEntry {
   id: number          // BIGSERIAL stable — handle de deeplink, survit au renommage
-  namespace: string
+  datastore: string
   url: string
   shared: boolean
   created_at?: string | null
@@ -831,7 +831,7 @@ export interface NamespaceEntry {
   schema?: DatastoreSchema | null  // mode typé optionnel (ADR 0032 §6 / 0029) ; null = table libre
 }
 
-// Schéma typé d'un namespace (ADR 0032 §6 / 0029, B6) — champs + rôles de rendu.
+// Schéma typé d'un tableau (ADR 0032 §6 / 0029, B6) — champs + rôles de rendu.
 // v2 (ADR 0046) : types imbriqués (`object`+fields / `list`+of), validation
 // opt-in (required / required_when) et cycle de vie sur le field status. Le
 // front ne VALIDE pas (le backend refuse à l'écriture) — il REND ces formes.
@@ -906,7 +906,7 @@ export interface SharePrincipal {
 export interface ResourceEntry {
   resource_type: string
   resource_id: string
-  namespace?: string
+  datastore?: string
   owner_type?: string
   owner_id?: string
   owner_label?: string | null

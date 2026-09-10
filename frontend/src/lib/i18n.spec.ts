@@ -15,9 +15,9 @@ describe('i18n', () => {
   })
 
   it('humanize follows the active locale', () => {
-    expect(humanize(new Error('409 namespace_exists'))).toBe('a namespace with that name already exists')
+    expect(humanize(new Error('409 datastore_exists'))).toBe('a datastore with that name already exists')
     applyMeLocale('fr')
-    expect(humanize(new Error('409 namespace_exists'))).toBe('un tableau porte déjà ce nom')
+    expect(humanize(new Error('409 datastore_exists'))).toBe('un tableau porte déjà ce nom')
   })
 
   it('applyMeLocale ignores null / unsupported values', () => {

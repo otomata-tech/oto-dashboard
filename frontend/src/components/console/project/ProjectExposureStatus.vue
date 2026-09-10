@@ -61,7 +61,7 @@ const emit = defineEmits<{
         <Icon name="triangle-alert" :size="13" />
         <span>Fermé : le destinataire ne verra <strong>aucun</strong> des {{ tableCount }} tableau{{ tableCount > 1 ? 'x' : '' }} lié{{ tableCount > 1 ? 's' : '' }} à ce projet.</span>
       </div>
-      <p v-else class="pes__desc">Les invités branchés voient les {{ tableCount }} tableau{{ tableCount > 1 ? 'x' : '' }} <strong>liés à ce projet</strong> (data_list_namespaces, data_rows) — jamais le reste du datastore de l’org.</p>
+      <p v-else class="pes__desc">Les invités branchés voient les {{ tableCount }} tableau{{ tableCount > 1 ? 'x' : '' }} <strong>liés à ce projet</strong> (data_list_datastores, data_rows) — jamais le reste du datastore de l’org.</p>
       <div v-if="dsLegacy" class="pes__warn">
         <Icon name="triangle-alert" :size="13" />
         <span>Exposition configurée par une version antérieure (des <code>data_*</code> figurent dans la liste d’outils). Normalise pour t’appuyer sur le réglage ci-dessous.</span>

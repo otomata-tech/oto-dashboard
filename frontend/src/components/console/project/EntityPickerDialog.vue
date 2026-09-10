@@ -51,7 +51,7 @@ async function loadOptions() {
   const t = props.kind as ProjectLinkType
   loading.value = true
   try {
-    if (t === 'tableau') options.value = (await getNamespaces()).namespaces.map((n) => ({ value: String(n.id), label: n.namespace }))
+    if (t === 'tableau') options.value = (await getNamespaces()).datastores.map((n) => ({ value: String(n.id), label: n.datastore }))
     // Un projet définit SON propre toolset : on peut lier un connecteur non installé chez
     // soi (retour JB : le picker le proposait sans le dire). On l'ÉTIQUETTE au lieu de le
     // cacher — d'où getMyConnectors (porte `state`) plutôt que getConnectors.

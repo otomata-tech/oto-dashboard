@@ -1,9 +1,9 @@
 <script setup lang="ts">
-// Vue COMPLÈTE d'un tableau du datastore (un namespace) : lignes + tri/recherche/
+// Vue COMPLÈTE d'un tableau du datastore : lignes + tri/recherche/
 // filtres/pagination server-driven (état MIROIR dans l'URL), fiches typées, drawer
 // d'édition, export CSV, et gouvernance (partage / renommage / transfert / suppression).
 // Extrait de DataView pour être réutilisable : la page /data l'affiche pour le
-// namespace sélectionné, et la page projet l'affiche INLINE (/projects/:id/data/:ns).
+// tableau sélectionné, et la page projet l'affiche INLINE (/projects/:id/data/:ns).
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
@@ -30,7 +30,7 @@ import {
   appendNamespaceRow, updateNamespaceRow, deleteNamespaceRow,
   deleteNamespace, renameNamespace, patchNamespaceSchema,
 } from '@/api/console'
-import type { NamespaceEntry, DatastoreRow, ColumnFilter } from '@/types/api'
+import type { DatastoreEntry, DatastoreRow, ColumnFilter } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { rowsToCsv, downloadCsv } from '@/lib/csv'
 import { hiddenPatch, userFields, visibleColumns } from '@/lib/datastoreColumns'
@@ -39,10 +39,10 @@ import type { LifecycleIntent } from '@/lib/datastoreLifecycle'
 import { cleTitre } from '../../lib/datastoreTitle'
 
 const props = defineProps<{
-  // Réf du namespace (id BIGSERIAL en texte, ou nom) — le lien projet porte le nom.
+  // Réf du tableau (id BIGSERIAL en texte, ou nom) — le lien projet porte le nom.
   nsRef: string
   // Meta déjà connu du parent (évite un refetch ; sinon le composant le charge).
-  nsMeta?: NamespaceEntry | null
+  nsMeta?: DatastoreEntry | null
   // Actions de gouvernance (share/rename/transfer/delete). Défaut: affichées.
   govern?: boolean
 }>()
@@ -59,7 +59,7 @@ const PAGE_SIZES = [25, 50, 100]
 const META = new Set(['_id', '_created_at', '_updated_at'])
 const TABLE_QUERY_KEYS = ['q', 'sort', 'dir', 'page', 'ps', 'f', 'cols']
 
-const meta = ref<NamespaceEntry | null>(props.nsMeta ?? null)
+const meta = ref<DatastoreEntry | null>(props.nsMeta ?? null)
 const rows = ref<DatastoreRow[]>([])
 const total = ref(0)
 const rowsLoading = ref(false)
@@ -78,7 +78,7 @@ const filters = ref<ColumnFilter[]>([])
 const cols = ref<string[] | null>(null)   // null = colonnes déclarées au schéma
 const exporting = ref(false)
 
-const name = computed(() => meta.value?.namespace ?? null)
+const name = computed(() => meta.value?.datastore ?? null)
 const readOnly = computed(() => !!meta.value && meta.value.can_write === false)
 const canGovern = computed(() => (props.govern ?? true) && !!meta.value?.can_govern)
 const isTyped = computed(() => !!meta.value?.schema?.fields?.length)
@@ -218,13 +218,13 @@ function syncTableQuery() {
 
 async function resolveMeta() {
   notFound.value = false
-  if (props.nsMeta && (String(props.nsMeta.id) === props.nsRef || props.nsMeta.namespace === props.nsRef)) {
+  if (props.nsMeta && (String(props.nsMeta.id) === props.nsRef || props.nsMeta.datastore === props.nsRef)) {
     meta.value = props.nsMeta
     return
   }
   try {
-    const all = (await getNamespaces()).namespaces
-    const found = all.find((n) => String(n.id) === props.nsRef || n.namespace === props.nsRef)
+    const all = (await getNamespaces()).datastores
+    const found = all.find((n) => String(n.id) === props.nsRef || n.datastore === props.nsRef)
     if (found) { meta.value = found; return }
     // Introuvable SANS exception (tableau d'une autre org, ou renommé) : ne pas
     // laisser meta=null muet → page blanche. Poser une erreur actionnable.
@@ -331,7 +331,7 @@ function closeDrawer() {
 }
 // Ouvre la fiche portée par l'URL : dans la page courante si présente, sinon
 // fetch dédié (la row peut être hors page/filtre). Fiche introuvable (supprimée
-// depuis, autre namespace) : on le DIT et on nettoie l'URL — le journal liste par
+// depuis, autre tableau) : on le DIT et on nettoie l'URL — le journal liste par
 // construction des gestes sur des fiches disparues, et un clic muet qui laisse en
 // prime un `…/item/<id>` mort passe pour un panneau cassé.
 async function openFromRoute() {
@@ -441,8 +441,8 @@ const renameOpen = ref(false)
 async function removeNamespace() {
   const n = name.value
   if (!n) return
-  if (!await confirmAction({ title: `delete "${n}"?`, message: 'the namespace and all its rows are removed. this cannot be undone.', confirmLabel: 'delete', danger: true })) return
-  try { await deleteNamespace(n); toast(`namespace "${n}" deleted`); emit('deleted') }
+  if (!await confirmAction({ title: `delete "${n}"?`, message: 'the datastore and all its rows are removed. this cannot be undone.', confirmLabel: 'delete', danger: true })) return
+  try { await deleteNamespace(n); toast(`datastore "${n}" deleted`); emit('deleted') }
   catch (e) { toast(humanize(e)) }
 }
 async function doRename(next: string) {
@@ -454,7 +454,7 @@ async function doRename(next: string) {
 async function transfer() {
   const id = meta.value?.id
   if (id == null) return
-  // Chemin unique `oto_resource` (par id du namespace) — garde-fou anti-lockout inclus.
+  // Chemin unique `oto_resource` (par id du tableau) — garde-fou anti-lockout inclus.
   try {
     const ok = await runTransfer('datastore_namespace', id, name.value ?? `#${id}`, { allowTeams: true })
     if (ok) { toast('transféré (tu gardes l\'accès en écriture)'); await resolveMeta(); await fetchRows(); emit('changed') }
@@ -501,7 +501,7 @@ async function transfer() {
       @open="openRow" @release="onRelease" />
 
     <DatastoreActivity v-if="activityOpen && name" :key="`${name}:${activityNonce}`"
-      :namespace="name" @open="openRowById" />
+      :datastore="name" @open="openRowById" />
 
     <p v-if="rowsError" class="helptext" style="color: var(--color-terra-ink); padding: 12px 16px">{{ rowsError }}</p>
     <div v-else-if="!rowsLoading && !total && !search && !filters.length" class="dim" style="text-align: center; padding: 24px">
@@ -540,13 +540,13 @@ async function transfer() {
       @update:cols="onCols" @save-view="onSaveView" />
 
     <RowDrawer :open="drawerOpen" :row="drawerRow" :fields="fields" :is-new="drawerNew"
-      :read-only="readOnly" :schema="meta.schema ?? null" :namespace="name"
+      :read-only="readOnly" :schema="meta.schema ?? null" :datastore="name"
       @save="onSave" @delete="onDelete" @close="closeDrawer"
       @release="drawerRow && onRelease(drawerRow._id)" />
     <SharePrincipalDialog :open="shareOpen" resource-type="datastore_namespace"
       :resource-id="String(meta.id)" :resource-label="name ?? undefined"
       @close="shareOpen = false" @changed="emit('changed')" />
-    <NameDialog v-model:open="renameOpen" title="renommer le namespace" label="nouveau nom"
+    <NameDialog v-model:open="renameOpen" title="renommer le tableau" label="nouveau nom"
       :initial="name ?? ''" submit-label="renommer" :on-confirm="doRename" />
   </ConsoleCard>
 

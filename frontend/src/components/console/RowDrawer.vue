@@ -33,11 +33,11 @@ import { cleTitre } from '../../lib/datastoreTitle'
 const props = defineProps<{
   open: boolean
   row: DatastoreRow | null   // null + isNew = ajout ; sinon édition/lecture
-  fields: string[]           // colonnes connues du namespace (pour l'ajout)
+  fields: string[]           // colonnes connues du tableau (pour l'ajout)
   isNew: boolean
   readOnly: boolean
   schema?: DatastoreSchema | null  // v2 (ADR 0046) : layout typé + transitions
-  namespace?: string | null        // b4 : historique de la fiche (fetch lazy à l'ouverture)
+  datastore?: string | null        // b4 : historique de la fiche (fetch lazy à l'ouverture)
 }>()
 const emit = defineEmits<{
   // Le 2e argument n'est posé que par une transition de cycle de vie : il porte
@@ -242,9 +242,9 @@ const activityFailed = ref(false)
 watch(() => [props.open, props.row?._id], async () => {
   activity.value = null
   activityFailed.value = false
-  if (!props.open || props.isNew || !props.row?._id || !props.namespace) return
+  if (!props.open || props.isNew || !props.row?._id || !props.datastore) return
   try {
-    activity.value = (await getRowActivity(props.namespace, props.row._id)).activity
+    activity.value = (await getRowActivity(props.datastore, props.row._id)).activity
   } catch { activityFailed.value = true }
 }, { immediate: true })
 </script>
@@ -358,7 +358,7 @@ watch(() => [props.open, props.row?._id], async () => {
           <!-- les trois états sont rendus : une section qui s'évapore en cas d'échec
                laisserait croire « aucune action sur cette fiche », soit exactement
                l'angle mort que cet historique est censé fermer. -->
-          <div v-if="!isNew && namespace" class="rd-activity">
+          <div v-if="!isNew && datastore" class="rd-activity">
             <span class="rd-label">historique de la fiche</span>
             <p v-if="activityFailed" class="dim rd-activity-state">
               historique indisponible pour le moment.

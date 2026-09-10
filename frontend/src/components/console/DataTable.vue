@@ -162,7 +162,7 @@ const showFilters = ref(false)
 // État local par champ user (source de vérité des inputs). On NE reseed PAS depuis
 // props.filters à chaque refetch (éviter les sauts de curseur) — seulement les
 // champs que l'état local ne connaît pas encore (restauration deep-link, montage)
-// et le reset externe (changement de namespace → props.filters=[]) qui vide tout.
+// et le reset externe (changement de tableau → props.filters=[]) qui vide tout.
 const local = reactive<Record<string, ColFilterState>>({})
 const kindCache = new Map<string, FilterKind>()
 function colKind(field: string): FilterKind {
@@ -201,7 +201,7 @@ function removeChip(field: string) {
   emit('update:filters', buildFilters(local))
 }
 const activeFilterCount = computed(() => props.filters.length)
-watch(() => props.rows, () => kindCache.clear())  // colonnes/typage peuvent changer de namespace
+watch(() => props.rows, () => kindCache.clear())  // colonnes/typage peuvent changer de tableau
 watch(() => props.filters, (f) => {
   if (!f.length) {
     if (Object.keys(local).length) for (const k of Object.keys(local)) delete local[k]

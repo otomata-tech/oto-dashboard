@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Journal du TABLEAU (ADR 0046 b4 élargi) : les derniers gestes posés sur ce
-// namespace, d'où qu'ils viennent. Optimisé pour UNE question — « qu'est-ce qui
+// tableau, d'où qu'ils viennent. Optimisé pour UNE question — « qu'est-ce qui
 // vient de changer, et sur quelle ligne » — parce que c'est celle qu'on se pose
 // après avoir cliqué sans savoir : la fiche touchée est nommée et cliquable, et
 // le changement (état d'avant → état d'après, ou champs écrits) est lisible sans
@@ -16,7 +16,7 @@ import { absDate, relDate } from '@/lib/cellRender'
 import { actorOf, changeOf, originLabel, originTone, rowLabelOf, whenOf } from '@/lib/rowActivity'
 import { humanize } from '@/lib/errors'
 
-const props = defineProps<{ namespace: string }>()
+const props = defineProps<{ datastore: string }>()
 const emit = defineEmits<{ open: [rowId: string] }>()
 
 const entries = ref<RowActivityEntry[]>([])
@@ -28,13 +28,13 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    const r = await getNamespaceActivity(props.namespace)
+    const r = await getNamespaceActivity(props.datastore)
     entries.value = r.activity
     retention.value = r.retention_days
   } catch (e) { error.value = humanize(e); entries.value = [] }
   finally { loading.value = false }
 }
-watch(() => props.namespace, load, { immediate: true })
+watch(() => props.datastore, load, { immediate: true })
 defineExpose({ load })
 </script>
 

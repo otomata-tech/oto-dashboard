@@ -16,7 +16,7 @@ import { usePrompt } from '@/composables/usePrompt'
 import { getTokens, createToken, deleteToken, getMyOrgs,
          getNamespacesOfOrg, listProjectsOfOrg } from '@/api/console'
 import { porteeDepuis, schemaLabel } from './tokenScope'
-import type { ApiToken, Org, NamespaceEntry, Project } from '@/types/api'
+import type { ApiToken, Org, DatastoreEntry, Project } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
@@ -36,7 +36,7 @@ const createOpen = ref(false)
 // La précaution existait dans le modèle depuis le début ; aucune surface ne la posait.
 const orgs = ref<Org[]>([])
 const orgId = ref<number | null>(null)          // pose `X-Oto-Org` sur la création
-const namespaces = ref<NamespaceEntry[]>([])
+const datastores = ref<DatastoreEntry[]>([])
 const projects = ref<Project[]>([])
 const nsRights = ref<Record<string, 'read' | 'write'>>({})
 const projRead = ref<Record<string, true>>({})
@@ -53,15 +53,15 @@ const porteeChoisie = () => porteeDepuis(nsRights.value, projRead.value)
 // refuserait (`unknown_namespace`) au moment de valider.
 async function chargerPortee() {
   nsRights.value = {}; projRead.value = {}
-  namespaces.value = []; projects.value = []
+  datastores.value = []; projects.value = []
   if (!orgId.value) return
   chargePortee.value = true
   try {
     const [n, p] = await Promise.all([
-      getNamespacesOfOrg(orgId.value).catch(() => ({ namespaces: [] })),
+      getNamespacesOfOrg(orgId.value).catch(() => ({ datastores: [] })),
       listProjectsOfOrg(orgId.value).catch(() => ({ projects: [] })),
     ])
-    namespaces.value = n.namespaces
+    datastores.value = n.datastores
     projects.value = p.projects
   } finally { chargePortee.value = false }
 }
@@ -186,13 +186,13 @@ onMounted(async () => {
             <label class="lbl">portée</label>
             <p v-if="chargePortee" class="dim">chargement…</p>
             <template v-else>
-              <p v-if="!namespaces.length && !projects.length" class="dim">
+              <p v-if="!datastores.length && !projects.length" class="dim">
                 aucun tableau ni projet dans cette organisation.
               </p>
               <div v-else class="portee">
-                <div v-for="n in namespaces" :key="n.namespace" class="ligne">
-                  <span class="nom">{{ n.namespace }}</span>
-                  <select v-model="nsRights[n.namespace]" class="sel mini">
+                <div v-for="n in datastores" :key="n.datastore" class="ligne">
+                  <span class="nom">{{ n.datastore }}</span>
+                  <select v-model="nsRights[n.datastore]" class="sel mini">
                     <option :value="undefined">—</option>
                     <option value="read">lecture</option>
                     <option value="write">écriture</option>

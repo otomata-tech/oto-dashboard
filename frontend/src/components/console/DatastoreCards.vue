@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Rendu d'un namespace TYPÉ en fiches lisibles (ADR 0032 §6 / 0029, B6b). Chaque
+// Rendu d'un tableau TYPÉ en fiches lisibles (ADR 0032 §6 / 0029, B6b). Chaque
 // row devient une fiche dont la mise en page DÉRIVE des rôles de rendu du schéma
 // (title/badge/metric/status/qualif/note) — vs le tableau plat. Les champs non
 // déclarés au schéma restent affichés en pied de fiche (rien n'est masqué).

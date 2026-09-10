@@ -9,7 +9,7 @@ import NamespaceCreateDialog from '@/components/console/NamespaceCreateDialog.vu
 import { useToast } from '@/composables/useToast'
 import { useMe } from '@/composables/useMe'
 import { getNamespaces, createNamespace } from '@/api/console'
-import type { NamespaceEntry } from '@/types/api'
+import type { DatastoreEntry } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
@@ -17,13 +17,13 @@ const { me } = useMe()
 const route = useRoute()
 const router = useRouter()
 
-const namespaces = ref<NamespaceEntry[]>([])
+const datastores = ref<DatastoreEntry[]>([])
 const error = ref<string | null>(null)
 const loaded = ref(false)
 const selectedId = ref<number | null>(null)
 const createOpen = ref(false)
 
-const current = computed(() => namespaces.value.find((n) => n.id === selectedId.value) || null)
+const current = computed(() => datastores.value.find((n) => n.id === selectedId.value) || null)
 const activeOrgName = computed(() => (me.value?.active_org ? (me.value?.active_org_name || 'mon org') : null))
 
 // L'org active ne possède AUCUN tableau, et pourtant la liste n'est pas vide : elle ne
@@ -38,8 +38,8 @@ const activeOrgName = computed(() => (me.value?.active_org ? (me.value?.active_o
 // rien à qui doutait justement de quelle org il regardait.
 const orgSansTableau = computed(() => {
   const nom = me.value?.active_org ? me.value?.active_org_name : null
-  if (!nom || !namespaces.value.length) return null
-  const aLesSiens = namespaces.value.some(
+  if (!nom || !datastores.value.length) return null
+  const aLesSiens = datastores.value.some(
     (n) => !n.shared && (n.owner_type === 'org' || n.owner_type === 'group'))
   return aLesSiens ? null : nom
 })
@@ -54,7 +54,7 @@ const selParam = computed(() => {
 })
 async function applySelection(raw: string | null) {
   if (!raw) { selectedId.value = null; return }
-  const ns = namespaces.value.find((n) => String(n.id) === raw || n.namespace === raw)
+  const ns = datastores.value.find((n) => String(n.id) === raw || n.datastore === raw)
   if (!ns) { selectedId.value = null; return }
   if (String(route.params.id) !== String(ns.id)) {
     const { ns: _drop, ...rest } = route.query
@@ -68,7 +68,7 @@ async function applySelection(raw: string | null) {
 watch(selParam, (v) => { void applySelection(v) })
 
 async function load() {
-  try { namespaces.value = (await getNamespaces()).namespaces }
+  try { datastores.value = (await getNamespaces()).datastores }
   catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
@@ -84,9 +84,9 @@ async function doCreate(payload: { name: string; scope: 'user' | 'org' }) {
   const owner = payload.scope === 'org' && activeOrg ? { type: 'org', id: activeOrg } : undefined
   try {
     await createNamespace(payload.name, owner)
-    toast(`namespace "${payload.name}" created`)
+    toast(`datastore "${payload.name}" created`)
     await load()
-    const created = namespaces.value.find((n) => n.namespace === payload.name)
+    const created = datastores.value.find((n) => n.datastore === payload.name)
     if (created) open(created.id)
   } catch (e) { toast(humanize(e)); throw e }
 }
@@ -103,8 +103,8 @@ async function onNsDeleted() {
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
     <div class="data-layout">
-      <!-- liste des namespaces -->
-      <ConsoleCard title="namespaces" flush
+      <!-- liste des tableaux -->
+      <ConsoleCard title="datastores" flush
         sub="tabular storage your agents read &amp; write through data_* tools.">
         <template #actions>
           <Btn kind="mini" icon="plus" @click="createOpen = true">new</Btn>
@@ -118,10 +118,10 @@ async function onNsDeleted() {
           partagés avec toi, pas les siens.
         </p>
         <div class="rowlist">
-          <button v-for="ns in namespaces" :key="ns.id"
+          <button v-for="ns in datastores" :key="ns.id"
             class="rowitem ns-item" :class="{ active: ns.id === selectedId }"
             @click="open(ns.id)">
-            <code class="mono" style="font-weight: 600">{{ ns.namespace }}</code>
+            <code class="mono" style="font-weight: 600">{{ ns.datastore }}</code>
             <!-- UN groupe calé à droite, et l'appartenance EN DERNIER : les badges étaient
                  des enfants directs d'un `space-between`, donc répartis — l'appartenance
                  se décalait vers le milieu sur les seules lignes portant aussi `typé`, et
@@ -144,17 +144,17 @@ async function onNsDeleted() {
               <Tag v-else-if="ns.is_personal" tone="cobalt">personnel</Tag>
             </span>
           </button>
-          <div v-if="loaded && !namespaces.length" class="dim" style="text-align: center; padding: 16px">
-            no namespaces yet — create one to let your agents store rows.
+          <div v-if="loaded && !datastores.length" class="dim" style="text-align: center; padding: 16px">
+            no datastores yet — create one to let your agents store rows.
           </div>
         </div>
       </ConsoleCard>
 
-      <!-- contenu du namespace sélectionné (composant réutilisable) -->
+      <!-- contenu du tableau sélectionné (composant réutilisable) -->
       <DatastoreTable v-if="current" :ns-ref="String(selectedId)" :ns-meta="current"
         @changed="load" @deleted="onNsDeleted" />
-      <ConsoleCard v-else title="pick a namespace">
-        <div class="helptext">select a namespace on the left to view its rows.</div>
+      <ConsoleCard v-else title="pick a datastore">
+        <div class="helptext">select a datastore on the left to view its rows.</div>
       </ConsoleCard>
     </div>
 
@@ -176,13 +176,13 @@ async function onNsDeleted() {
         </div>
         <div>
           <dt>organize</dt>
-          <dd><code>data_create_namespace</code> / <code>data_list_namespaces</code> manage tables ·
+          <dd><code>data_create_datastore</code> / <code>data_list_datastores</code> manage tables ·
             <code>data_set_schema</code> turns a flat table into typed cards.</dd>
         </div>
         <div>
           <dt>share</dt>
           <dd><code>data_share(ns, email, read|write)</code> gives a teammate access under their own
-            account · <code>data_delete_row</code> / <code>data_delete_namespace</code> clean up.</dd>
+            account · <code>data_delete_row</code> / <code>data_delete_datastore</code> clean up.</dd>
         </div>
         <div>
           <dt>see it</dt>

@@ -52,13 +52,13 @@ function transfer(r: ResourceEntry) {
     title: "transférer l'ownership",
     fields: [
       { key: 'email', label: 'email du nouveau propriétaire', required: true, placeholder: 'user@email.com',
-        hint: `${r.namespace ?? r.resource_id} → nouveau propriétaire (l'ancien garde un accès write).` },
+        hint: `${r.datastore ?? r.resource_id} → nouveau propriétaire (l'ancien garde un accès write).` },
     ],
     onConfirm: async (v) => {
       const email = (v.email ?? '').trim()
       const ok = await confirmAction({
         title: "transférer l'ownership ?", danger: true, confirmLabel: 'Transférer',
-        message: `donner « ${r.namespace ?? r.resource_id} » à ${email} ? l'ancien propriétaire garde un accès write.`,
+        message: `donner « ${r.datastore ?? r.resource_id} » à ${email} ? l'ancien propriétaire garde un accès write.`,
       })
       if (!ok) throw new Error('cancelled')
       try {
@@ -90,7 +90,7 @@ function transfer(r: ResourceEntry) {
 
       <ConsoleTable :rows="resources" :busy="loading" empty="aucun objet de ce type.">
         <template #head>
-          <th>namespace</th>
+          <th>tableau</th>
           <th>propriétaire</th>
           <th class="num">lignes</th>
           <th>créé</th>
@@ -98,7 +98,7 @@ function transfer(r: ResourceEntry) {
         </template>
         <template #row="{ row: r }">
           <tr>
-            <td><code class="mono" style="font-weight: 600">{{ r.namespace ?? r.resource_id }}</code></td>
+            <td><code class="mono" style="font-weight: 600">{{ r.datastore ?? r.resource_id }}</code></td>
             <td>
               <Tag :tone="ownerTone(r.owner_type)">{{ r.owner_type }}</Tag>
               <span class="dim" style="margin-left: 6px">{{ r.owner_label ?? r.owner_id }}</span>

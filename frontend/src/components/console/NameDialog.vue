@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Dialog de nom VALIDÉ (vee-validate + zod), générique et réutilisable (création
-// de projet, renommage de namespace, etc.). Remplace le promptForm/promptText :
+// de projet, renommage de tableau, etc.). Remplace le promptForm/promptText :
 // nom requis, trimmé, borné. L'appel réseau est délégué au parent (`onConfirm`
 // async) ; le dialog garde l'ouverture + l'état d'envoi et se ferme au succès.
 import { watch } from 'vue'

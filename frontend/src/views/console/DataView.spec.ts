@@ -14,7 +14,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { i18n } from '@/lib/i18n'
-import type { NamespaceEntry } from '@/types/api'
+import type { DatastoreEntry } from '@/types/api'
 
 const api = vi.hoisted(() => ({
   getNamespaces: vi.fn(),
@@ -34,9 +34,9 @@ vi.mock('@/components/console/NamespaceCreateDialog.vue', () => ({ default: Vide
 // Une entrée telle que `GET /api/datastores` la sert (cf. registre.py `_entry`) :
 // `is_personal` = owner_type 'user' ET owner_id == mon sub. Un tableau d'un AUTRE
 // user reçu par partage a donc `shared: true` et `is_personal: false`.
-function entree(over: Partial<NamespaceEntry> = {}): NamespaceEntry {
+function entree(over: Partial<DatastoreEntry> = {}): DatastoreEntry {
   return {
-    id: 1, namespace: 'prospects', url: '/data/1', shared: false,
+    id: 1, datastore: 'prospects', url: '/data/1', shared: false,
     owner_type: 'user', owner_id: 'u-alexis', is_personal: true,
     can_write: true, can_govern: true, permission: 'write', schema: null,
     ...over,
@@ -56,8 +56,8 @@ async function settle() {
   for (let i = 0; i < 10; i++) await nextTick()
 }
 
-async function monterListe(entrees: NamespaceEntry[]) {
-  getNamespaces.mockResolvedValue({ namespaces: entrees })
+async function monterListe(entrees: DatastoreEntry[]) {
+  getNamespaces.mockResolvedValue({ datastores: entrees })
   const DataView = (await import('./DataView.vue')).default
   const router = createRouter({
     history: createMemoryHistory(),
@@ -103,10 +103,10 @@ describe('DataView — chaque ligne dit à qui elle est', () => {
 
   it('les quatre appartenances portent chacune SON badge, et une seule', async () => {
     const { badges, unmount } = await monterListe([
-      entree({ id: 1, namespace: 'a-moi' }),
-      entree({ id: 2, namespace: 'de-lorg', ...DE_LORG }),
-      entree({ id: 3, namespace: 'de-lequipe', ...DE_LEQUIPE }),
-      entree({ id: 4, namespace: 'partage', ...RECU }),
+      entree({ id: 1, datastore: 'a-moi' }),
+      entree({ id: 2, datastore: 'de-lorg', ...DE_LORG }),
+      entree({ id: 3, datastore: 'de-lequipe', ...DE_LEQUIPE }),
+      entree({ id: 4, datastore: 'partage', ...RECU }),
     ])
     expect(badges).toEqual([['personnel'], ['org'], ['team'], ['shared · read']])
     unmount()
@@ -118,8 +118,8 @@ describe('DataView — chaque ligne dit à qui elle est', () => {
     // appartenance en dernier — c'est le bord droit stable qui rend la colonne
     // scannable. La CSS ne se teste pas ici ; l'ORDRE et le groupe, si.
     const { badges, lignes, unmount } = await monterListe([
-      entree({ id: 1, namespace: 'nu' }),
-      entree({ id: 2, namespace: 'typee', ...TYPE }),
+      entree({ id: 1, datastore: 'nu' }),
+      entree({ id: 2, datastore: 'typee', ...TYPE }),
     ])
     expect(badges).toEqual([['personnel'], ['typé', 'personnel']])
     for (const l of lignes) {
@@ -132,7 +132,7 @@ describe('DataView — chaque ligne dit à qui elle est', () => {
 
   it('la liste du 10/09 — dix tableaux, tous personnels, zéro tableau de l\'org', async () => {
     const dix = Array.from({ length: 10 }, (_, i) =>
-      entree({ id: i + 1, namespace: `table-${i + 1}` }))
+      entree({ id: i + 1, datastore: `table-${i + 1}` }))
     const { badges, unmount } = await monterListe(dix)
     expect(badges).toHaveLength(10)
     // Pas un seul badge d'org, et pas une seule ligne nue. ⚠️ Assertion sur les
@@ -146,7 +146,7 @@ describe('DataView — chaque ligne dit à qui elle est', () => {
 
 describe('DataView — la ligne de contexte dit pourquoi la liste ressemble à ça', () => {
   it('nomme l\'org quand elle n\'a aucun tableau et que la liste n\'est pas vide', async () => {
-    const { contexte, unmount } = await monterListe([entree(), entree({ id: 2, namespace: 'b' })])
+    const { contexte, unmount } = await monterListe([entree(), entree({ id: 2, datastore: 'b' })])
     expect(contexte).toBe(
       'aucun tableau dans Client X — ceux ci-dessous sont personnels ou partagés avec toi, pas les siens.')
     unmount()
@@ -154,8 +154,8 @@ describe('DataView — la ligne de contexte dit pourquoi la liste ressemble à �
 
   it('un tableau REÇU en partage ne fait pas mentir la phrase — il n\'est à personne d\'ici', async () => {
     const { contexte, unmount } = await monterListe([
-      entree({ id: 1, namespace: 'a-moi' }),
-      entree({ id: 2, namespace: 'recu', ...RECU }),
+      entree({ id: 1, datastore: 'a-moi' }),
+      entree({ id: 2, datastore: 'recu', ...RECU }),
     ])
     expect(contexte).toContain('aucun tableau dans Client X')
     unmount()
@@ -163,8 +163,8 @@ describe('DataView — la ligne de contexte dit pourquoi la liste ressemble à �
 
   it('se tait dès que l\'org possède UN tableau — sinon elle parlerait tout le temps', async () => {
     const { contexte, unmount } = await monterListe([
-      entree({ id: 1, namespace: 'a-moi' }),
-      entree({ id: 2, namespace: 'de-lorg', ...DE_LORG }),
+      entree({ id: 1, datastore: 'a-moi' }),
+      entree({ id: 2, datastore: 'de-lorg', ...DE_LORG }),
     ])
     expect(contexte).toBeNull()
     unmount()
@@ -172,8 +172,8 @@ describe('DataView — la ligne de contexte dit pourquoi la liste ressemble à �
 
   it('se tait aussi quand c\'est une ÉQUIPE de l\'org qui possède — la table y vit', async () => {
     const { contexte, unmount } = await monterListe([
-      entree({ id: 1, namespace: 'a-moi' }),
-      entree({ id: 2, namespace: 'de-lequipe', ...DE_LEQUIPE }),
+      entree({ id: 1, datastore: 'a-moi' }),
+      entree({ id: 2, datastore: 'de-lequipe', ...DE_LEQUIPE }),
     ])
     expect(contexte).toBeNull()
     unmount()
