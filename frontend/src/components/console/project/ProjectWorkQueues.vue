@@ -56,9 +56,14 @@ onMounted(async () => {
     lines.value = (await Promise.all(candidates.map(async (n) => {
       const sf = (n.schema?.fields ?? []).find((f) => f.role === 'status')!
       try {
+        // ⚠️ On adresse par l'IDENTIFIANT, jamais par `n.datastore` : le lien de
+        // projet nomme le tableau, mais à nom égal la résolution serveur préfère le
+        // tableau PERSONNEL du demandeur — une file de projet aurait affiché les
+        // compteurs d'un homonyme à soi. `n` vient de la liste, il porte déjà son id.
+        const ref = String(n.id)
         const [{ groups }, queue] = await Promise.all([
-          getNamespaceAggregate(n.datastore, { groupBy: sf.key }),
-          getNamespaceQueue(n.datastore).catch(() => ({ rows: [] })),
+          getNamespaceAggregate(ref, { groupBy: sf.key }),
+          getNamespaceQueue(ref).catch(() => ({ rows: [] })),
         ])
         const counts: Record<string, number> = {}
         let total = 0

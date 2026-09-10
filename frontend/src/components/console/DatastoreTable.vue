@@ -79,6 +79,15 @@ const cols = ref<string[] | null>(null)   // null = colonnes déclarées au sch�
 const exporting = ref(false)
 
 const name = computed(() => meta.value?.datastore ?? null)
+// ⚠️ **Ce qu'on ENVOIE au serveur, et ce qu'on AFFICHE, ne sont pas la même chose.**
+// `name` est le libellé — la carte, l'export, les phrases de confirmation. `dsRef` est
+// l'ADRESSE : l'identifiant numérique, que `resolve_datastore_ns` accepte au même titre
+// qu'un nom, avec le même prédicat de visibilité (aucun IDOR : un id hors de la portée
+// de l'acteur ne résout pas). Adresser par le nom rouvrait l'HOMONYMIE : à nom égal, la
+// résolution serveur préfère le tableau PERSONNEL du demandeur, donc ouvrir un tableau
+// REÇU qui porte le nom d'un des siens peignait les lignes du sien, sous le bon libellé
+// et sans un mot. Une réponse plausible et fausse — pire qu'une erreur.
+const dsRef = computed(() => (meta.value ? String(meta.value.id) : null))
 const readOnly = computed(() => !!meta.value && meta.value.can_write === false)
 const canGovern = computed(() => (props.govern ?? true) && !!meta.value?.can_govern)
 const isTyped = computed(() => !!meta.value?.schema?.fields?.length)
@@ -100,7 +109,7 @@ const activeStatus = computed<string | null>(() => {
   return f ? String(f.value) : null
 })
 async function fetchStatusCounts() {
-  const n = name.value
+  const n = dsRef.value
   const k = statusField.value?.key
   if (!n || !k || !cockpit.value) return
   try {
@@ -131,7 +140,7 @@ const metricFields = computed(() => (meta.value?.schema?.fields ?? [])
 const metricTiles = ref<Array<{ key: string; label: string; value: string; sub?: string }>>([])
 const numFmt = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 })
 async function fetchMetricTiles() {
-  const n = name.value
+  const n = dsRef.value
   if (!n || !metricFields.value.length) { metricTiles.value = []; return }
   try {
     const metrics = metricFields.value.flatMap((f) => [
@@ -160,12 +169,12 @@ async function fetchMetricTiles() {
 const queueRows = ref<DatastoreRow[]>([])
 const titleFieldKey = computed(() => cleTitre(meta.value?.schema?.fields))
 async function fetchQueue() {
-  const n = name.value
+  const n = dsRef.value
   if (!n) { queueRows.value = []; return }
   try { queueRows.value = (await getNamespaceQueue(n)).rows } catch { queueRows.value = [] }
 }
 async function onRelease(rowId: string) {
-  const n = name.value
+  const n = dsRef.value
   if (!n) return
   try {
     await releaseRowClaim(n, rowId)
@@ -235,7 +244,7 @@ async function resolveMeta() {
 }
 
 async function fetchRows() {
-  const n = name.value
+  const n = dsRef.value
   if (!n) return
   rowsLoading.value = true
   rowsError.value = null
@@ -290,7 +299,7 @@ function onCols(next: string[] | null) { cols.value = next; syncTableQuery() }
 // reconstruit un index sur la table partagée par tous les tableaux (interblocage du
 // 05/09), en multiplier rejouerait la cause.
 async function onSaveView(view: { fields: string[]; hidden: string[] }) {
-  const n = name.value
+  const n = dsRef.value
   const schema = meta.value?.schema
   if (!n || !schema?.fields?.length) return
   const patch = hiddenPatch(view.fields, view.hidden, schema)
@@ -336,7 +345,7 @@ function closeDrawer() {
 // prime un `…/item/<id>` mort passe pour un panneau cassé.
 async function openFromRoute() {
   const id = routeRowId.value
-  const n = name.value
+  const n = dsRef.value
   if (!id || !n || (drawerOpen.value && drawerRow.value?._id === id)) return
   try {
     const row = rows.value.find((r) => r._id === id) ?? await getNamespaceRow(n, id)
@@ -374,7 +383,7 @@ const { announceTransition } = useTransitionUndo({
 })
 
 async function onSave(payload: Record<string, unknown>, transition?: LifecycleIntent) {
-  const n = name.value
+  const n = dsRef.value
   if (!n) return
   try {
     if (drawerNew.value) { await appendNamespaceRow(n, payload); toast('row added') }
@@ -390,7 +399,7 @@ async function onSave(payload: Record<string, unknown>, transition?: LifecycleIn
   } catch (e) { toast(humanize(e)) }
 }
 async function onDelete() {
-  const n = name.value
+  const n = dsRef.value
   if (!n || !drawerRow.value) return
   const id = drawerRow.value._id
   if (!await confirmAction({ title: 'delete row?', message: 'this row is permanently removed.', confirmLabel: 'delete', danger: true })) return
@@ -412,8 +421,9 @@ function openRowById(id: string) {
 // schéma décide — jamais l'union brute des clés servies. Un export qui ignore ce
 // que l'utilisateur vient de masquer contredirait son geste.
 async function exportCsv() {
-  const n = name.value
-  if (!n || exporting.value) return
+  const n = dsRef.value
+  const nom = name.value
+  if (!n || !nom || exporting.value) return
   exporting.value = true
   try {
     const all: DatastoreRow[] = []
@@ -429,7 +439,7 @@ async function exportCsv() {
       if (off + STEP >= r.total || !r.rows.length) break
     }
     const exportCols = visibleColumns(userFields(all), meta.value?.schema, cols.value)
-    downloadCsv(`${n}.csv`, rowsToCsv(all as Record<string, unknown>[], exportCols))
+    downloadCsv(`${nom}.csv`, rowsToCsv(all as Record<string, unknown>[], exportCols))
     toast(`${all.length} row${all.length === 1 ? '' : 's'} exported`)
   } catch (e) { toast(humanize(e)) }
   finally { exporting.value = false }
@@ -439,15 +449,17 @@ async function exportCsv() {
 const shareOpen = ref(false)
 const renameOpen = ref(false)
 async function removeNamespace() {
-  const n = name.value
-  if (!n) return
-  if (!await confirmAction({ title: `delete "${n}"?`, message: 'the datastore and all its rows are removed. this cannot be undone.', confirmLabel: 'delete', danger: true })) return
-  try { await deleteNamespace(n); toast(`datastore "${n}" deleted`); emit('deleted') }
+  const n = dsRef.value
+  const nom = name.value
+  if (!n || !nom) return
+  if (!await confirmAction({ title: `delete "${nom}"?`, message: 'the datastore and all its rows are removed. this cannot be undone.', confirmLabel: 'delete', danger: true })) return
+  try { await deleteNamespace(n); toast(`datastore "${nom}" deleted`); emit('deleted') }
   catch (e) { toast(humanize(e)) }
 }
 async function doRename(next: string) {
-  const n = name.value
-  if (!n || next === n) return
+  const n = dsRef.value
+  // Le doublon qu'on écarte est un doublon de NOM : c'est lui que l'utilisateur a tapé.
+  if (!n || next === name.value) return
   try { await renameNamespace(n, next); toast(`renamed to "${next}"`); await resolveMeta(); await fetchRows(); emit('changed') }
   catch (e) { toast(humanize(e)); throw e }
 }
@@ -500,8 +512,8 @@ async function transfer() {
       :title-field="titleFieldKey" :lifecycle="statusField?.lifecycle ?? null"
       @open="openRow" @release="onRelease" />
 
-    <DatastoreActivity v-if="activityOpen && name" :key="`${name}:${activityNonce}`"
-      :datastore="name" @open="openRowById" />
+    <DatastoreActivity v-if="activityOpen && dsRef" :key="`${dsRef}:${activityNonce}`"
+      :datastore="dsRef" @open="openRowById" />
 
     <p v-if="rowsError" class="helptext" style="color: var(--color-terra-ink); padding: 12px 16px">{{ rowsError }}</p>
     <div v-else-if="!rowsLoading && !total && !search && !filters.length" class="dim" style="text-align: center; padding: 24px">
@@ -540,7 +552,7 @@ async function transfer() {
       @update:cols="onCols" @save-view="onSaveView" />
 
     <RowDrawer :open="drawerOpen" :row="drawerRow" :fields="fields" :is-new="drawerNew"
-      :read-only="readOnly" :schema="meta.schema ?? null" :datastore="name"
+      :read-only="readOnly" :schema="meta.schema ?? null" :datastore="dsRef"
       @save="onSave" @delete="onDelete" @close="closeDrawer"
       @release="drawerRow && onRelease(drawerRow._id)" />
     <SharePrincipalDialog :open="shareOpen" resource-type="datastore_namespace"

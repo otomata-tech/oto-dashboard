@@ -49,11 +49,52 @@ d'org qui décide du repli, jamais la nature du contenu.
   l'arbitrage : `/data/<id d'un reçu>` jetait l'id en silence et rendait l'écran de
   « rien de sélectionné ». Corollaire : la carte « tableau introuvable ici » n'accuse plus
   le partage nominatif — ce serait envoyer le destinataire réclamer ce qu'il a déjà.
-- ⚠️ **Réserve connue, non corrigée : l'homonymie.** `DatastoreTable` désigne le tableau
-  par son **nom** (`meta.datastore`) pour toutes ses routes, et `resolve_datastore_ns`
-  préfère, à nom égal, le tableau **personnel du demandeur**. Un tableau reçu qui porte le
-  nom d'un des siens afficherait donc les lignes du sien. Le correctif est de désigner par
-  l'id (que la résolution accepte aussi) — treize sites d'appel, à mesurer avant.
+- **L'homonymie est fermée (10/09/2026) : l'écran adresse par l'IDENTIFIANT.**
+  `DatastoreTable` désignait le tableau par son **nom** (`meta.datastore`) pour toutes
+  ses routes, et `resolve_datastore_ns` préfère, à nom égal, le tableau **personnel du
+  demandeur** (`ORDER BY CASE WHEN d.namespace = %(ns)s THEN 0 ELSE 1 END, CASE WHEN
+  owner_type='user' AND owner_id=%(sub)s THEN 0 …`). Ouvrir un tableau **reçu** homonyme
+  d'un des siens peignait donc les lignes du sien, **sous le bon libellé et sans un mot** —
+  une réponse plausible et fausse, pire qu'une erreur.
+
+  La désignation est désormais `dsRef` (`String(meta.id)`), à côté de `name` resté le
+  **libellé**. Seize points de désignation basculés — quatorze dans `DatastoreTable`
+  (treize appels REST + le `ns` que `useTransitionUndo` garde pour rejouer l'annulation)
+  et les deux props `:datastore` des enfants qui appellent le serveur eux-mêmes
+  (`DatastoreActivity` → `…/activity`, `RowDrawer` → `…/rows/{id}/activity`) — plus deux
+  dans `ProjectWorkQueues`, qui portait le même défaut sur les files d'un projet.
+  ⚠️ Le prédicat de visibilité est **identique** par id et par nom (aucun IDOR : un id
+  hors de la portée de l'acteur ne résout pas) — c'est ce qui rend la bascule sûre, et
+  c'est mesuré au tag backend `v1.256.0`, route par route : les treize résolvent par
+  `_resolve` → `resolve_datastore_ns`, et **suppression comme renommage opèrent en base
+  par `id`** (`delete_datastore_by_id` / `rename_datastore_by_id`), jamais par un
+  `WHERE namespace = <segment>`. Aucune garde ne refuse un segment numérique. Le backend
+  pousse d'ailleurs l'id dans toutes ses réponses (`ns_id`, `datastore/identite.py`) en
+  annonçant le numéro comme *la* forme à passer.
+
+  ⚠️ **Ce qui garde le nom, et ne doit pas basculer** : le titre de la carte, le nom du
+  fichier exporté, la phrase de confirmation de suppression, le doublon écarté par le
+  renommage (`next === name.value` — c'est un nom que l'utilisateur tape), et l'exemple
+  `data_write("<nom>", row)` de l'état vide. **Les ROUTES du navigateur non plus ne
+  bougent pas** : `nsRef` est ce que l'appelant passe (`/data/<id>` côté Données,
+  `/projects/:id/data/:ns` côté projet, qui porte souvent le nom) — l'adresse reste
+  lisible, et le lien direct d'un tableau reçu résout comme en v1.66.0.
+
+  ⚠️ **Ce qui reste par nom, faute d'id sous la main** : `RunnerJobDetail` lit
+  `payload.namespace` d'un travail de runner — un nom, sans numéro à côté ; et le repli
+  de `resolveMeta` (quand aucun `nsMeta` n'est passé, cas des embeds de projet) cherche
+  dans `getNamespaces()`, qui ne rend pas les reçus nominatifs. Ces deux-là appellent une
+  réponse **serveur** (servir l'id à côté du nom, élargir la liste), pas un contournement
+  d'écran.
+
+  Banc : `components/console/datastoreHomonymie.spec.ts`. Il monte l'écran sur un tableau
+  reçu, avec un serveur factice qui **rejoue le tri de `resolve_datastore_ns`** — c'est la
+  reproduction, et elle peignait `MON-CLIENT-A-MOI` avant le correctif. Le montage
+  n'exerce que six routes de lecture ; le témoin de source qui l'accompagne couvre les
+  seize points, y compris ceux qu'aucun montage n'atteint (écriture, renommage,
+  suppression, export, patch de schéma). Remettre le nom à **un seul** d'entre eux rougit
+  le fichier — vérifié sur cinq d'entre eux, dont un site jamais monté et une forme sans
+  variable intermédiaire.
 - Le **snapshot OpenAPI commité ne connaît pas encore cette route** : son type est écrit à
   la main dans `types/api.ts` (pas dans `api.attendu.ts`, réservé à ce qu'une PR backend
   **ouverte** sert). `api:refresh` la ramènerait — avec toute la dérive accumulée.
