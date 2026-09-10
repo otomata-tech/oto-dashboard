@@ -21,12 +21,18 @@ const projects = ref<Project[]>([])
 const groupNames = ref<Record<string, string>>({})
 
 onMounted(async () => {
-  const org = me.value?.active_org
-  const [pj, gr] = await Promise.all([
-    listProjects().then((d) => d.projects).catch(() => []),
-    org != null ? listGroups(org).then((d) => d.groups).catch(() => []) : Promise.resolve([]),
-  ])
-  projects.value = pj
+  projects.value = await listProjects().then((d) => d.projects).catch(() => [])
+})
+
+// ⚠️ Les noms d'équipes SUIVENT `me`, ils ne se lisent pas au montage. `me` est chargé
+// de façon asynchrone (`GET /api/me`) : au `onMounted` de la sidebar, `active_org` est
+// presque toujours encore `null`. Lu une seule fois, on n'appelait donc jamais
+// `listGroups`, `groupNames` restait vide et CHAQUE espace d'équipe s'affichait
+// « Équipe » — un libellé générique à la place du nom, sans que rien ne le relance.
+// `immediate: true` couvre le cas où `me` est déjà chargé par un autre écran.
+watch(() => me.value?.active_org, async (org) => {
+  if (org == null) return
+  const gr = await listGroups(org).then((d) => d.groups).catch(() => [])
   // Indexé sur les DEUX identifiants : un projet d'équipe porte `owner_id = group_id`,
   // alors qu'on n'indexait que `id` — le nom n'était jamais trouvé et la sidebar
   // retombait sur « Équipe <n> », en exposant un identifiant technique.
@@ -36,7 +42,7 @@ onMounted(async () => {
       return [...new Set(keys)].map((k) => [k, g.name] as const)
     }),
   )
-})
+}, { immediate: true })
 
 // Les groupes n'ont pas de couleur en base → teinte déterministe par clé d'espace.
 const ACCENTS = ['saffron', 'cobalt', 'olive', 'terra'] as const
