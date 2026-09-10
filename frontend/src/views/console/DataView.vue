@@ -26,6 +26,24 @@ const createOpen = ref(false)
 const current = computed(() => namespaces.value.find((n) => n.id === selectedId.value) || null)
 const activeOrgName = computed(() => (me.value?.active_org ? (me.value?.active_org_name || 'mon org') : null))
 
+// L'org active ne possède AUCUN tableau, et pourtant la liste n'est pas vide : elle ne
+// montre alors que du personnel et du reçu-en-partage. C'est la lecture qui a trompé le
+// 10/09 (otomata-tech/oto#160) — dix lignes prises pour celles du client, parce que rien
+// ne disait que le principal était vide. Rend le NOM de l'org quand il faut le dire,
+// `null` sinon : c'est ce nom qu'on croyait lire, lui seul ferme le malentendu.
+//
+// `group` compte comme « l'org en a » — une table d'équipe vit dans l'org, la phrase
+// serait fausse. Un tableau REÇU en partage n'est possédé par personne d'ici, il ne
+// compte pas. Et sans nom servi on se tait : « aucun tableau dans mon org » n'apprend
+// rien à qui doutait justement de quelle org il regardait.
+const orgSansTableau = computed(() => {
+  const nom = me.value?.active_org ? me.value?.active_org_name : null
+  if (!nom || !namespaces.value.length) return null
+  const aLesSiens = namespaces.value.some(
+    (n) => !n.shared && (n.owner_type === 'org' || n.owner_type === 'group'))
+  return aLesSiens ? null : nom
+})
+
 // Sélection pilotée par le CHEMIN `/data/:id` (id stable au renommage, ADR 0032) —
 // résolu par id OU nom (les liens agent portent le nom) ; l'ancien `?ns=` est normalisé.
 const selParam = computed(() => {
@@ -91,23 +109,40 @@ async function onNsDeleted() {
         <template #actions>
           <Btn kind="mini" icon="plus" @click="createOpen = true">new</Btn>
         </template>
+        <!-- Ce qui manquait le 10/09 n'était pas « à qui sont ces tableaux » — les badges
+             le disent — mais POURQUOI la liste ressemble à ça. On dit l'absence d'abord,
+             puis ce qui est montré à la place. Muette dès qu'elle n'apprend rien : une org
+             qui possède des tableaux n'a pas à s'entendre dire qu'elle en a. -->
+        <p v-if="orgSansTableau" class="helptext ns-context">
+          aucun tableau dans {{ orgSansTableau }} — ceux ci-dessous sont personnels ou
+          partagés avec toi, pas les siens.
+        </p>
         <div class="rowlist">
           <button v-for="ns in namespaces" :key="ns.id"
             class="rowitem ns-item" :class="{ active: ns.id === selectedId }"
             @click="open(ns.id)">
             <code class="mono" style="font-weight: 600">{{ ns.namespace }}</code>
-            <!-- Un tableau PERSONNEL ne portait aucune marque : sans badge il se lisait comme
-                 « le cas normal, celui de l'org où je suis » — l'inverse de la vérité, et la
-                 confusion réelle du 10/09 (otomata-tech/oto#160). Le mot est celui du sélecteur
-                 de propriétaire à la création (« personnel (moi seul) »), pas un registre neuf.
-                 `is_personal` est servi (et requis) par GET /api/datastores : il vaut
-                 owner_type='user' ET owner_id=mon sub — un tableau d'un AUTRE user reçu par
-                 partage reste donc sur la branche `shared`. -->
-            <Tag v-if="ns.owner_type === 'org'" tone="cobalt">org</Tag>
-            <Tag v-else-if="ns.owner_type === 'group'" tone="cobalt">team</Tag>
-            <Tag v-else-if="ns.shared" tone="cobalt">shared · {{ ns.permission || 'read' }}</Tag>
-            <Tag v-else-if="ns.is_personal" tone="cobalt">personnel</Tag>
-            <Tag v-if="ns.schema?.fields?.length" tone="olive">typé</Tag>
+            <!-- UN groupe calé à droite, et l'appartenance EN DERNIER : les badges étaient
+                 des enfants directs d'un `space-between`, donc répartis — l'appartenance
+                 se décalait vers le milieu sur les seules lignes portant aussi `typé`, et
+                 la colonne zigzaguait. On répare la liste dont on est en train de réparer
+                 la crédibilité. Dernier = bord droit stable : c'est le signal qu'on scanne.
+                 `typé` (état du schéma, olive) n'est pas sur le même axe et flotte devant.
+
+                 Un tableau PERSONNEL, lui, ne portait AUCUNE marque : sans badge il se
+                 lisait comme « le cas normal, celui de l'org où je suis » — l'inverse de la
+                 vérité, et la confusion du 10/09 (otomata-tech/oto#160). Le mot est celui du
+                 sélecteur de propriétaire à la création (« personnel (moi seul) »), pas un
+                 registre neuf. `is_personal` est servi ET requis par GET /api/datastores :
+                 owner_type='user' ET owner_id=mon sub — un tableau d'un AUTRE utilisateur
+                 reçu par partage reste donc sur la branche `shared`. -->
+            <span class="ns-tags">
+              <Tag v-if="ns.schema?.fields?.length" tone="olive">typé</Tag>
+              <Tag v-if="ns.owner_type === 'org'" tone="cobalt">org</Tag>
+              <Tag v-else-if="ns.owner_type === 'group'" tone="cobalt">team</Tag>
+              <Tag v-else-if="ns.shared" tone="cobalt">shared · {{ ns.permission || 'read' }}</Tag>
+              <Tag v-else-if="ns.is_personal" tone="cobalt">personnel</Tag>
+            </span>
           </button>
           <div v-if="loaded && !namespaces.length" class="dim" style="text-align: center; padding: 16px">
             no namespaces yet — create one to let your agents store rows.
@@ -179,11 +214,15 @@ async function onNsDeleted() {
 @media (max-width: 720px) {
   .data-layout { grid-template-columns: 1fr; }
 }
+.ns-context { padding-inline: var(--pad-card); padding-bottom: 8px; margin: 0; }
+/* `margin-left: auto` sur le GROUPE, jamais `space-between` sur la ligne : réparti,
+   le nombre de badges déplaçait celui qu'on scanne. `flex: none` pour qu'un nom long
+   pousse la ligne sans écraser les badges. */
+.ns-tags { margin-left: auto; flex: none; display: flex; align-items: center; gap: 8px; }
 .ns-item {
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   padding-inline: var(--pad-card);
   background: none;
