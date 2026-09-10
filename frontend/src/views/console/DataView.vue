@@ -27,6 +27,17 @@ const createOpen = ref(false)
 const current = computed(() => datastores.value.find((n) => n.id === selectedId.value) || null)
 const activeOrgName = computed(() => (me.value?.active_org ? (me.value?.active_org_name || 'mon org') : null))
 
+// Hors organisation : aucune org active, OU l'espace personnel mono-membre, que le produit
+// présente déjà comme « solo » plutôt que comme une org (`active_org_is_personal`,
+// principe 9). Il n'y a alors aucun contexte d'org à protéger — le personnel est tout ce
+// qu'il y a à montrer, et un tableau créé par un agent naît personnel (ADR 0068) : replié
+// là, un utilisateur seul trouverait toutes ses tables derrière un clic. Décision d'Alexis
+// du 10/09 (oto#160) : section personnelle dépliée hors org, repliée dans une org.
+//
+// ⚠️ Sans org active, `GET /api/datastores` ne sert aujourd'hui AUCUNE ligne
+// (`active_owner(None)`) : c'est par l'espace personnel que cette règle se voit.
+const horsOrg = computed(() => !me.value?.active_org || !!me.value?.active_org_is_personal)
+
 // L'org active ne possède AUCUN tableau, et pourtant la liste n'est pas vide : elle ne
 // montre alors que du personnel et du reçu-en-partage. C'est la lecture qui a trompé le
 // 10/09 (otomata-tech/oto#160) — dix lignes prises pour celles du client, parce que rien
@@ -36,9 +47,10 @@ const activeOrgName = computed(() => (me.value?.active_org ? (me.value?.active_o
 // `group` compte comme « l'org en a » — une table d'équipe vit dans l'org, la phrase
 // serait fausse. Un tableau REÇU en partage n'est possédé par personne d'ici, il ne
 // compte pas. Et sans nom servi on se tait : « aucun tableau dans mon org » n'apprend
-// rien à qui doutait justement de quelle org il regardait.
+// rien à qui doutait justement de quelle org il regardait. Hors org — l'espace personnel
+// compris, qui a pourtant un nom servi — il n'y a pas d'org à nommer : on se tait.
 const orgSansTableau = computed(() => {
-  const nom = me.value?.active_org ? me.value?.active_org_name : null
+  const nom = horsOrg.value ? null : me.value?.active_org_name
   if (!nom || !datastores.value.length) return null
   const aLesSiens = datastores.value.some(
     (n) => !n.shared && (n.owner_type === 'org' || n.owner_type === 'group'))
@@ -49,8 +61,9 @@ const orgSansTableau = computed(() => {
 // org — 156 appels sur 8 tableaux se font depuis une autre org que celle du propriétaire,
 // le filtrer ferait disparaître ce qu'on utilise. Il est RANGÉ À PART : les tableaux de
 // l'org (possédés par elle, par une de ses équipes, ou partagés à elles) se lisent seuls
-// en tête, le personnel suit dans sa propre section, repliée. Le contexte de l'org ne se
-// mêle plus au personnel, et le personnel reste à un clic.
+// en tête, le personnel suit dans sa propre section, repliée dans une org (dépliée hors
+// org, cf. `horsOrg`). Le contexte de l'org ne se mêle plus au personnel, et le personnel
+// reste à un clic.
 //
 // Une section repliée qui ne dirait rien recréerait l'absence qu'on répare : son en-tête
 // porte le libellé (le mot du badge, `personnel`) ET le nombre. Des données plutôt qu'un
@@ -58,10 +71,13 @@ const orgSansTableau = computed(() => {
 const deLorg = computed(() => datastores.value.filter((n) => !n.is_personal))
 const personnels = computed(() => datastores.value.filter((n) => n.is_personal))
 const groupes = computed(() => [
-  { cle: 'org', libelle: null, lignes: deLorg.value },
-  { cle: 'perso', libelle: 'personnel', lignes: personnels.value },
+  { cle: 'org', libelle: null, lignes: deLorg.value, replieParDefaut: false },
+  { cle: 'perso', libelle: 'personnel', lignes: personnels.value, replieParDefaut: !horsOrg.value },
 ].filter((g) => g.lignes.length))
+// Le geste de l'utilisateur prime sur le défaut : `ouvert` ne retient que ce qu'il a fait.
 const ouvert = ref<Record<string, boolean>>({})
+const estOuvert = (g: { cle: string; replieParDefaut: boolean }) =>
+  ouvert.value[g.cle] ?? !g.replieParDefaut
 // Un tableau sélectionné dans une section repliée (lien direct, création « personnel »)
 // l'ouvre : sinon la ligne active serait cachée derrière le repli qu'on vient de poser.
 watch(current, (c) => {
@@ -74,7 +90,8 @@ watch(current, (c) => {
 // personnel est rangé à part et replié — sous elle il n'y a plus de lignes personnelles,
 // il y a un en-tête qui les compte. Elle nomme donc ce qui est réellement là : le partagé
 // dans la liste de l'org, le personnel dans sa section. Mêmes silences qu'avant
-// (`orgSansTableau`) : org qui possède, équipe qui possède, hors org, sans nom, liste vide.
+// (`orgSansTableau`) : org qui possède, équipe qui possède, hors org (espace perso
+// compris), sans nom, liste vide.
 const contexte = computed(() => {
   const nom = orgSansTableau.value
   if (!nom) return null
@@ -172,13 +189,13 @@ async function onNsDeleted() {
           <template v-for="g in groupes" :key="g.cle">
             <!-- En-tête de section : libellé + nombre, lisibles REPLIÉS — replié n'est pas caché. -->
             <button v-if="g.libelle" type="button" class="ns-fold"
-              :aria-expanded="!!ouvert[g.cle]" :aria-controls="`ns-groupe-${g.cle}`"
-              @click="ouvert[g.cle] = !ouvert[g.cle]">
-              <Icon :name="ouvert[g.cle] ? 'chevron-down' : 'chevron-right'" :size="12" />
+              :aria-expanded="estOuvert(g)" :aria-controls="`ns-groupe-${g.cle}`"
+              @click="ouvert[g.cle] = !estOuvert(g)">
+              <Icon :name="estOuvert(g) ? 'chevron-down' : 'chevron-right'" :size="12" />
               <span class="ns-fold-label">{{ g.libelle }}</span>
               <span class="ns-fold-count">{{ g.lignes.length }}</span>
             </button>
-            <div v-show="!g.libelle || ouvert[g.cle]" :id="`ns-groupe-${g.cle}`" class="ns-groupe">
+            <div v-show="estOuvert(g)" :id="`ns-groupe-${g.cle}`" class="ns-groupe">
               <button v-for="ns in g.lignes" :key="ns.id"
                 class="rowitem ns-item" :class="{ active: ns.id === selectedId }"
                 @click="open(ns.id)">

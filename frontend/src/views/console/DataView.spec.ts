@@ -15,6 +15,7 @@
 // filtré, il est RANGÉ À PART — sous la liste de l'org, dans une section repliée qui
 // annonce son libellé et son nombre. Le `plan` de la liste (ordre du DOM, lignes cachées
 // marquées) le vérifie : la simple présence des lignes ne dit rien de leur place.
+// Repliée dans une org, dépliée hors org — aucune org active, ou l'espace personnel.
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -28,7 +29,10 @@ const api = vi.hoisted(() => ({
 vi.mock('@/api/console', () => api)
 const { getNamespaces } = api
 
-type MeLite = { sub: string; active_org: number | null; active_org_name?: string | null }
+type MeLite = {
+  sub: string; active_org: number | null; active_org_name?: string | null
+  active_org_is_personal?: boolean
+}
 const me = ref<MeLite | null>(null)
 vi.mock('@/composables/useMe', () => ({ useMe: () => ({ me }) }))
 
@@ -298,6 +302,43 @@ describe('DataView — le personnel est rangé à part, replié, et s\'annonce (
     expect(plan()).toEqual([])
     expect(contexte).toBeNull()
     expect(host.textContent).toContain('create one')
+    unmount()
+  })
+
+  it('hors organisation, la section est DÉPLIÉE par défaut — il n\'y a rien d\'autre à montrer', async () => {
+    // Décision d'Alexis du 10/09. Aujourd'hui le serveur ne sert aucune ligne sans org
+    // active (test précédent) : la règle est posée pour le jour où il en servira.
+    me.value = { sub: 'u-alexis', active_org: null, active_org_name: null }
+    const { plan, contexte, unmount } = await monterListe([
+      entree({ id: 1, datastore: 'a-moi' }),
+      entree({ id: 2, datastore: 'a-moi-aussi' }),
+    ])
+    expect(plan()).toEqual(['[personnel 2 ouvert]', 'a-moi', 'a-moi-aussi'])
+    expect(contexte).toBeNull()
+    unmount()
+  })
+
+  it('dans l\'espace personnel, dépliée aussi — et la phrase se tait : ce n\'est pas une org', async () => {
+    // Le cas qui a motivé la décision : un tableau créé par un agent naît personnel
+    // (ADR 0068) ; replié ici, un utilisateur seul trouverait toutes ses tables cachées.
+    // L'espace perso a un nom d'org SERVI : sans ce silence, la phrase dirait
+    // « aucun tableau dans <son propre nom> ».
+    me.value = { sub: 'u-alexis', active_org: 7, active_org_name: 'Alexis', active_org_is_personal: true }
+    const { plan, contexte, unmount } = await monterListe([
+      entree({ id: 1, datastore: 'a-moi' }),
+      entree({ id: 2, datastore: 'a-moi-aussi' }),
+    ])
+    expect(plan()).toEqual(['[personnel 2 ouvert]', 'a-moi', 'a-moi-aussi'])
+    expect(contexte).toBeNull()
+    unmount()
+  })
+
+  it('dépliée par défaut, elle se replie quand même au clic — le geste prime sur le défaut', async () => {
+    me.value = { sub: 'u-alexis', active_org: null, active_org_name: null }
+    const { host, plan, unmount } = await monterListe([entree({ id: 1, datastore: 'a-moi' })])
+    host.querySelector<HTMLButtonElement>('.ns-fold')!.click()
+    await settle()
+    expect(plan()).toEqual(['[personnel 1 replié]', 'a-moi (caché)'])
     unmount()
   })
 })
