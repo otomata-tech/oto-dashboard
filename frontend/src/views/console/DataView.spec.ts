@@ -16,18 +16,25 @@
 // annonce son libellé et son nombre. Le `plan` de la liste (ordre du DOM, lignes cachées
 // marquées) le vérifie : la simple présence des lignes ne dit rien de leur place.
 // Repliée dans une org, dépliée hors org — aucune org active, ou l'espace personnel.
+//
+// Quatrième point depuis le 10/09 : une SECONDE section, « partagé avec moi », qui rend
+// les partages nominatifs — ceux que la liste de l'org exclut à dessein et qu'aucune
+// porte ne rendait. Trois choses s'y éprouvent : qu'aucun tableau n'y soit compté deux
+// fois, que la phrase reste juste avec elle en plus, et qu'un lien direct vers un
+// tableau reçu affiche ce tableau (c'est ce défaut-là qui a motivé l'arbitrage).
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { i18n } from '@/lib/i18n'
-import type { DatastoreEntry } from '@/types/api'
+import type { DatastoreEntry, SharedDatastoreEntry } from '@/types/api'
 
 const api = vi.hoisted(() => ({
   getNamespaces: vi.fn(),
+  getSharedWithMe: vi.fn(),
   createNamespace: vi.fn(),
 }))
 vi.mock('@/api/console', () => api)
-const { getNamespaces } = api
+const { getNamespaces, getSharedWithMe } = api
 
 type MeLite = {
   sub: string; active_org: number | null; active_org_name?: string | null
@@ -37,7 +44,16 @@ const me = ref<MeLite | null>(null)
 vi.mock('@/composables/useMe', () => ({ useMe: () => ({ me }) }))
 
 const Vide = defineComponent({ render: () => h('div') })
-vi.mock('@/components/console/DatastoreTable.vue', () => ({ default: Vide }))
+// Le panneau de droite rend ce qu'on lui PASSE : c'est la preuve qu'un lien direct a
+// résolu — quel tableau est ouvert, et sous quelle référence il ira chercher ses lignes.
+const Tableau = defineComponent({
+  props: { nsRef: { type: String, default: '' }, nsMeta: { type: Object, default: null } },
+  render() {
+    return h('div', { class: 'ds-table' },
+      `${this.nsRef}|${(this.nsMeta as { datastore?: string } | null)?.datastore ?? ''}`)
+  },
+})
+vi.mock('@/components/console/DatastoreTable.vue', () => ({ default: Tableau }))
 vi.mock('@/components/console/NamespaceCreateDialog.vue', () => ({ default: Vide }))
 
 // Une entrée telle que `GET /api/datastores` la sert (cf. registre.py `_entry`) :
@@ -79,8 +95,11 @@ function lirePlan(host: HTMLElement): string[] {
   })
 }
 
-async function monterListe(entrees: DatastoreEntry[], chemin = '/data') {
+async function monterListe(
+  entrees: DatastoreEntry[], chemin = '/data', recus: SharedDatastoreEntry[] = [],
+) {
   getNamespaces.mockResolvedValue({ datastores: entrees })
+  getSharedWithMe.mockResolvedValue({ datastores: recus })
   const DataView = (await import('./DataView.vue')).default
   const router = createRouter({
     history: createMemoryHistory(),
@@ -106,6 +125,12 @@ async function monterListe(entrees: DatastoreEntry[], chemin = '/data') {
     lignes,
     badges: lignes.map((l) => [...l.querySelectorAll('.tag')].map((t) => t.textContent?.trim() ?? '')),
     contexte: host.querySelector('.ns-context')?.textContent?.replace(/\s+/g, ' ').trim() ?? null,
+    // Ce que le panneau de droite affiche : `<nsRef>|<nom>` s'il tient un tableau, null sinon.
+    panneau: () => host.querySelector('.ds-table')?.textContent ?? null,
+    // Le titre des cartes de la colonne de droite (`ConsoleCard` rend son titre en `.t`) :
+    // « pick a datastore » et « tableau introuvable ici » sont les deux culs-de-sac.
+    titres: () => [...host.querySelectorAll('.data-layout .card-head .t')]
+      .map((t) => t.textContent?.trim()),
     plan: () => lirePlan(host),
     unmount: () => { app.unmount(); host.remove() },
   }
@@ -179,20 +204,23 @@ describe('DataView — la ligne de contexte dit pourquoi la liste ressemble à �
     unmount()
   })
 
-  it('un tableau REÇU en partage ne fait pas mentir la phrase — il n\'est à personne d\'ici', async () => {
+  it('un tableau accordé à l\'ORG est partagé à ELLE, pas à moi — la phrase ne confond plus', async () => {
+    // Elle disait « ceux ci-dessous sont partagés avec toi » de tableaux accordés à l'org
+    // ou à une de ses équipes (`list_datastores_granted_to` n'accepte pas d'autre
+    // principal). Depuis qu'une section s'appelle « partagé avec moi », ce mot doit
+    // désigner une seule chose : ce qui a été donné à MA personne.
     const { contexte, unmount } = await monterListe([
       entree({ id: 1, datastore: 'a-moi' }),
       entree({ id: 2, datastore: 'recu', ...RECU }),
     ])
-    expect(contexte).toBe('aucun tableau dans Client X — ceux ci-dessous sont partagés avec '
-      + 'toi, pas les siens ; tes tableaux personnels sont rangés à part.')
+    expect(contexte).toBe('aucun tableau dans Client X — ceux ci-dessous lui sont partagés'
+      + ' ; tes tableaux personnels sont rangés à part.')
     unmount()
   })
 
   it('sans personnel, la phrase ne promet pas une section qui n\'existe pas', async () => {
     const { contexte, unmount } = await monterListe([entree({ id: 2, datastore: 'recu', ...RECU })])
-    expect(contexte).toBe(
-      'aucun tableau dans Client X — ceux ci-dessous sont partagés avec toi, pas les siens.')
+    expect(contexte).toBe('aucun tableau dans Client X — ceux ci-dessous lui sont partagés.')
     unmount()
   })
 
@@ -339,6 +367,118 @@ describe('DataView — le personnel est rangé à part, replié, et s\'annonce (
     host.querySelector<HTMLButtonElement>('.ns-fold')!.click()
     await settle()
     expect(plan()).toEqual(['[personnel 1 replié]', 'a-moi (caché)'])
+    unmount()
+  })
+})
+
+describe('DataView — « partagé avec moi » : ce qu\'aucune liste ne rendait (oto#160)', () => {
+  // Un tableau partagé NOMINATIVEMENT : `GET /api/datastores` l'exclut à dessein, et
+  // `GET /api/me/datastores/shared` est la seule porte qui le rende. Forme d'une entrée
+  // de cette route : celle d'un tableau, plus `shared_by`.
+  function recu(over: Partial<SharedDatastoreEntry> = {}): SharedDatastoreEntry {
+    return entree({
+      id: 90, datastore: 'chantier-julien', owner_type: 'user', owner_id: 'u-julien',
+      shared: true, is_personal: false, permission: 'write', can_write: true,
+      can_govern: false, ...over,
+    } as Partial<DatastoreEntry>) as SharedDatastoreEntry
+  }
+
+  it('se range SOUS le personnel, repliée dans une org, et dit son libellé et son nombre', async () => {
+    const { plan, unmount } = await monterListe(
+      [entree({ id: 1, datastore: 'de-lorg', ...DE_LORG }), entree({ id: 2, datastore: 'a-moi' })],
+      '/data',
+      [recu(), recu({ id: 91, datastore: 'vivier-partage' })],
+    )
+    expect(plan()).toEqual([
+      'de-lorg',
+      '[personnel 1 replié]', 'a-moi (caché)',
+      '[partagé avec moi 2 replié]', 'chantier-julien (caché)', 'vivier-partage (caché)',
+    ])
+    unmount()
+  })
+
+  it('aucun doublon : un tableau que la liste de l\'org rend déjà n\'y réapparaît pas', async () => {
+    // Le serveur écarte le même jeu, mais la vue compose DEUX réponses : entre les deux,
+    // un partage nominatif peut avoir été élargi à l'org. L'invariant se tient ici.
+    const partout = { id: 5, datastore: 'commun' }
+    const { plan, unmount } = await monterListe(
+      [entree({ ...partout, ...DE_LORG })], '/data', [recu(partout)],
+    )
+    expect(plan()).toEqual(['commun'])
+    expect(plan().filter((l) => l.startsWith('commun'))).toHaveLength(1)
+    unmount()
+  })
+
+  it('un lien direct vers un tableau REÇU l\'affiche — ni page vide, ni « introuvable »', async () => {
+    // Le défaut vécu en clientèle le 10/09 : l'id était jeté en silence et l'écran rendu
+    // était celui de « rien de sélectionné ». On vérifie les trois faces du geste — la
+    // section s'ouvre, la ligne est active, et le panneau tient CE tableau.
+    const { plan, panneau, titres, host, unmount } = await monterListe(
+      [entree({ id: 1, datastore: 'de-lorg', ...DE_LORG })], '/data/90', [recu()],
+    )
+    expect(plan()).toEqual(['de-lorg', '[partagé avec moi 1 ouvert]', 'chantier-julien'])
+    expect(panneau()).toBe('90|chantier-julien')
+    expect(titres()).not.toContain('pick a datastore')
+    expect(titres()).not.toContain('tableau introuvable ici')
+    expect(host.querySelector('.ns-item.active code')?.textContent).toBe('chantier-julien')
+    unmount()
+  })
+
+  it('un id qui ne résout NULLE PART reste un cul-de-sac nommé — la carte n\'accuse plus le partage', async () => {
+    const { titres, host, unmount } = await monterListe(
+      [entree({ id: 1, datastore: 'a-moi' })], '/data/404', [],
+    )
+    expect(titres()).toContain('tableau introuvable ici')
+    // La phrase disait « un partage à une personne n'entre dans aucune liste » : depuis
+    // cette section, ce serait envoyer le destinataire réclamer ce qu'il a déjà.
+    expect(host.textContent).not.toContain('nominativement')
+    unmount()
+  })
+
+  it('la phrase de l\'org nomme les DEUX sections rangées à part', async () => {
+    const { contexte, unmount } = await monterListe(
+      [entree({ id: 1, datastore: 'a-moi' }), entree({ id: 2, datastore: 'accorde', ...RECU })],
+      '/data', [recu()],
+    )
+    expect(contexte).toBe('aucun tableau dans Client X — ceux ci-dessous lui sont partagés'
+      + ' ; tes tableaux personnels et les tableaux partagés avec toi sont rangés à part.')
+    unmount()
+  })
+
+  it('rien que des reçus : la phrase les nomme seuls, et l\'état vide se tait', async () => {
+    const { contexte, host, plan, unmount } = await monterListe([], '/data', [recu()])
+    expect(contexte).toBe(
+      'aucun tableau dans Client X — les tableaux partagés avec toi sont rangés à part, ci-dessous.')
+    expect(plan()).toEqual(['[partagé avec moi 1 replié]', 'chantier-julien (caché)'])
+    // « no datastores yet » sous une section qui en montre un serait la contradiction
+    // même qu'on retire de cet écran.
+    expect(host.textContent).not.toContain('create one')
+    unmount()
+  })
+
+  it('hors organisation, elle est DÉPLIÉE — comme la personnelle, et pour la même raison', async () => {
+    me.value = { sub: 'u-alexis', active_org: null, active_org_name: null }
+    const { plan, contexte, unmount } = await monterListe([], '/data', [recu()])
+    expect(plan()).toEqual(['[partagé avec moi 1 ouvert]', 'chantier-julien'])
+    expect(contexte).toBeNull()
+    unmount()
+  })
+
+  it('aucun partage reçu : pas d\'en-tête — pas de section à zéro', async () => {
+    const { plan, unmount } = await monterListe([entree({ id: 1, datastore: 'a-moi' })], '/data', [])
+    expect(plan()).toEqual(['[personnel 1 replié]', 'a-moi (caché)'])
+    unmount()
+  })
+
+  it('qui a partagé se lit au survol de la ligne — jamais dans une colonne de 220px', async () => {
+    const { host, unmount } = await monterListe([], '/data', [recu({ shared_by: 'Julien Tulina' })])
+    expect(host.querySelector('.ns-item')?.getAttribute('title')).toBe('partagé par Julien Tulina')
+    unmount()
+  })
+
+  it('sans `shared_by` servi, aucun survol inventé — un serveur plus ancien ne le rend pas', async () => {
+    const { host, unmount } = await monterListe([], '/data', [recu()])
+    expect(host.querySelector('.ns-item')?.getAttribute('title')).toBeNull()
     unmount()
   })
 })

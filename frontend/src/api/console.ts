@@ -11,7 +11,7 @@ import type {
   GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, LinkedProcedure, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption,
-  ColumnFilter, DatastoreField, DatastoreRow, DatastoreSchema, DatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, SharePrincipal, ToolCall, ToolEntry,
+  ColumnFilter, DatastoreField, DatastoreRow, DatastoreSchema, DatastoreEntry, SharedDatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   ConnectorOAuthStatus, ConnectorOAuthDisconnected, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult,
@@ -678,6 +678,15 @@ function listeServie<T>(payload: { datastores?: T[] | null }, quoi: string): T[]
 export const getNamespaces = () =>
   api<{ datastores?: DatastoreEntry[] }>('/api/datastores')
     .then((r) => ({ datastores: listeServie(r, 'liste des tableaux') }))
+// Les tableaux partagés NOMINATIVEMENT à l'appelant — À CÔTÉ de `getNamespaces`, jamais
+// fusionnés avec elle (arbitrage oto#160 : les faire entrer dans la liste de l'org
+// courante rouvrirait l'incident du 30/06). `SUB_ONLY` côté serveur : elle répond quelle
+// que soit l'org active, et même sans org. La liste de l'org l'exclut À DESSEIN, c'est
+// donc la SEULE porte qui les rende — même garde `listeServie` : une clé disparue lève,
+// elle ne se tait pas en liste vide.
+export const getSharedWithMe = () =>
+  api<{ datastores?: SharedDatastoreEntry[] }>('/api/me/datastores/shared')
+    .then((r) => ({ datastores: listeServie(r, 'tableaux partagés avec moi') }))
 // owner optionnel (ADR 0030) : { type:'org'|'group', id } pour un classeur d'équipe.
 export const createNamespace = (namespace: string, owner?: { type: string; id: string | number }) =>
   // ⚠️ La CRÉATION est la seule de ces opérations dont le corps porte le nom du tableau :

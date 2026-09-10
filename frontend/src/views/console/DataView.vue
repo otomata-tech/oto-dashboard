@@ -9,8 +9,8 @@ import DatastoreTable from '@/components/console/DatastoreTable.vue'
 import NamespaceCreateDialog from '@/components/console/NamespaceCreateDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { useMe } from '@/composables/useMe'
-import { getNamespaces, createNamespace } from '@/api/console'
-import type { DatastoreEntry } from '@/types/api'
+import { getNamespaces, getSharedWithMe, createNamespace } from '@/api/console'
+import type { DatastoreEntry, SharedDatastoreEntry } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const { toast } = useToast()
@@ -19,12 +19,30 @@ const route = useRoute()
 const router = useRouter()
 
 const datastores = ref<DatastoreEntry[]>([])
+// Ce que `GET /api/me/datastores/shared` sert : les tableaux partagés NOMINATIVEMENT à
+// l'appelant. Une SECONDE liste, jamais fusionnée avec celle de l'org (arbitrage oto#160
+// du 10/09 : les y faire entrer rouvrirait l'incident du 30/06 — un tableau qui
+// n'appartient à aucune org, lu comme venant de celle où l'on navigue).
+const partages = ref<SharedDatastoreEntry[]>([])
 const error = ref<string | null>(null)
 const loaded = ref(false)
 const selectedId = ref<number | null>(null)
 const createOpen = ref(false)
 
-const current = computed(() => datastores.value.find((n) => n.id === selectedId.value) || null)
+// Aucun doublon : un tableau que la liste de l'org rend DÉJÀ ne réapparaît pas ici. Le
+// serveur écarte le même jeu (il le dérive de `list_datastores()`, jamais d'une seconde
+// définition) — on le refait sur ce qui est RÉELLEMENT rendu, parce que la vue compose
+// deux réponses obtenues à deux instants : entre les deux, un partage nominatif peut
+// avoir été élargi à l'org, et le tableau entrerait alors dans les deux listes.
+const idsDeLorg = computed(() => new Set(datastores.value.map((n) => n.id)))
+const recus = computed(() => partages.value.filter((n) => !idsDeLorg.value.has(n.id)))
+
+// TOUT ce que l'écran rend, sections confondues : c'est là-dessus que se résout
+// `/data/:id`. Sans les reçus, un lien direct légitime jetait l'id en silence et rendait
+// « choisis un tableau » — le défaut qui a motivé l'arbitrage (oto#160 · #154).
+const toutes = computed<SharedDatastoreEntry[]>(() => [...datastores.value, ...recus.value])
+
+const current = computed(() => toutes.value.find((n) => n.id === selectedId.value) || null)
 const activeOrgName = computed(() => (me.value?.active_org ? (me.value?.active_org_name || 'mon org') : null))
 
 // Hors organisation : aucune org active, OU l'espace personnel mono-membre, que le produit
@@ -51,7 +69,7 @@ const horsOrg = computed(() => !me.value?.active_org || !!me.value?.active_org_i
 // compris, qui a pourtant un nom servi — il n'y a pas d'org à nommer : on se tait.
 const orgSansTableau = computed(() => {
   const nom = horsOrg.value ? null : me.value?.active_org_name
-  if (!nom || !datastores.value.length) return null
+  if (!nom || !toutes.value.length) return null
   const aLesSiens = datastores.value.some(
     (n) => !n.shared && (n.owner_type === 'org' || n.owner_type === 'group'))
   return aLesSiens ? null : nom
@@ -68,11 +86,21 @@ const orgSansTableau = computed(() => {
 // Une section repliée qui ne dirait rien recréerait l'absence qu'on répare : son en-tête
 // porte le libellé (le mot du badge, `personnel`) ET le nombre. Des données plutôt qu'un
 // second bloc de gabarit : une autre section se pose en ajoutant une entrée.
+//
+// Une TROISIÈME section depuis le 10/09 : « partagé avec moi » — les partages
+// nominatifs, que la liste de l'org exclut à dessein et qu'aucune autre porte ne rendait
+// (oto#160). Elle se range comme la personnelle, et pour la même raison : ces tableaux
+// n'appartiennent à aucune org, ils n'ont donc rien à faire DANS la liste de celle où
+// l'on navigue — à côté, nommés, comptés. Même défaut de repli qu'elle (replié dans une
+// org, déplié hors org) : le contexte d'org est ce qui décide, pas la nature du contenu.
 const deLorg = computed(() => datastores.value.filter((n) => !n.is_personal))
 const personnels = computed(() => datastores.value.filter((n) => n.is_personal))
-const groupes = computed(() => [
+const groupes = computed<{
+  cle: string; libelle: string | null; lignes: SharedDatastoreEntry[]; replieParDefaut: boolean
+}[]>(() => [
   { cle: 'org', libelle: null, lignes: deLorg.value, replieParDefaut: false },
   { cle: 'perso', libelle: 'personnel', lignes: personnels.value, replieParDefaut: !horsOrg.value },
+  { cle: 'recus', libelle: 'partagé avec moi', lignes: recus.value, replieParDefaut: !horsOrg.value },
 ].filter((g) => g.lignes.length))
 // Le geste de l'utilisateur prime sur le défaut : `ouvert` ne retient que ce qu'il a fait.
 const ouvert = ref<Record<string, boolean>>({})
@@ -92,15 +120,24 @@ watch(current, (c) => {
 // dans la liste de l'org, le personnel dans sa section. Mêmes silences qu'avant
 // (`orgSansTableau`) : org qui possède, équipe qui possède, hors org (espace perso
 // compris), sans nom, liste vide.
+//
+// ⚠️ Elle disait « ceux ci-dessous sont partagés avec TOI » des tableaux de la liste de
+// l'org — ils sont en fait partagés à l'ORG (ou à une de ses équipes : `granted_to`
+// n'accepte que ces deux principals). L'approximation était tolérable tant qu'aucune
+// autre section ne portait ce mot ; depuis « partagé avec moi », c'est le contresens
+// exact que la vue est censée fermer — deux choses différentes sous la même phrase. La
+// phrase oppose donc ce qui est partagé à ELLE de ce qui est partagé à TOI.
 const contexte = computed(() => {
   const nom = orgSansTableau.value
   if (!nom) return null
-  const suite = !deLorg.value.length
-    ? 'tes tableaux personnels sont rangés à part, ci-dessous'
-    : personnels.value.length
-      ? 'ceux ci-dessous sont partagés avec toi, pas les siens ; tes tableaux personnels sont rangés à part'
-      : 'ceux ci-dessous sont partagés avec toi, pas les siens'
-  return `aucun tableau dans ${nom} — ${suite}.`
+  const aPart = [
+    personnels.value.length ? 'tes tableaux personnels' : null,
+    recus.value.length ? 'les tableaux partagés avec toi' : null,
+  ].filter(Boolean).join(' et ')
+  if (!deLorg.value.length)
+    return aPart ? `aucun tableau dans ${nom} — ${aPart} sont rangés à part, ci-dessous.` : null
+  return `aucun tableau dans ${nom} — ceux ci-dessous lui sont partagés`
+    + `${aPart ? ` ; ${aPart} sont rangés à part` : ''}.`
 })
 
 // Sélection pilotée par le CHEMIN `/data/:id` (id stable au renommage, ADR 0032) —
@@ -113,7 +150,7 @@ const selParam = computed(() => {
 })
 async function applySelection(raw: string | null) {
   if (!raw) { selectedId.value = null; return }
-  const ns = datastores.value.find((n) => String(n.id) === raw || n.datastore === raw)
+  const ns = toutes.value.find((n) => String(n.id) === raw || n.datastore === raw)
   if (!ns) { selectedId.value = null; return }
   if (String(route.params.id) !== String(ns.id)) {
     const { ns: _drop, ...rest } = route.query
@@ -138,8 +175,16 @@ watch(selParam, (v) => { void applySelection(v) })
 const introuvable = computed(
   () => loaded.value && !error.value && !!selParam.value && !current.value)
 
+// Les deux listes en un seul temps : `current` se résout sur leur union, et un chargement
+// en deux vagues ferait clignoter « tableau introuvable ici » sur un lien direct légitime.
+// Pas de repli si l'une échoue — l'erreur est dite, et `introuvable` se tait tant qu'elle
+// est posée : une liste qui n'a pas chargé n'est pas une preuve d'absence.
 async function load() {
-  try { datastores.value = (await getNamespaces()).datastores }
+  try {
+    const [liste, recusServis] = await Promise.all([getNamespaces(), getSharedWithMe()])
+    datastores.value = liste.datastores
+    partages.value = recusServis.datastores
+  }
   catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
@@ -196,8 +241,13 @@ async function onNsDeleted() {
               <span class="ns-fold-count">{{ g.lignes.length }}</span>
             </button>
             <div v-show="estOuvert(g)" :id="`ns-groupe-${g.cle}`" class="ns-groupe">
+              <!-- `shared_by` (servi par la seule route des partages reçus) au SURVOL : la
+                   colonne fait 220-280px, un nom de plus y pousserait le badge
+                   d'appartenance hors du bord droit stable qu'on scanne. C'est la seule
+                   chose qu'un tableau reçu ne dit pas de lui-même — d'où on l'a. -->
               <button v-for="ns in g.lignes" :key="ns.id"
                 class="rowitem ns-item" :class="{ active: ns.id === selectedId }"
+                :title="ns.shared_by ? `partagé par ${ns.shared_by}` : undefined"
                 @click="open(ns.id)">
                 <code class="mono" style="font-weight: 600">{{ ns.datastore }}</code>
                 <!-- UN groupe calé à droite, et l'appartenance EN DERNIER : les badges étaient
@@ -224,7 +274,10 @@ async function onNsDeleted() {
               </button>
             </div>
           </template>
-          <div v-if="loaded && !datastores.length" class="dim" style="text-align: center; padding: 16px">
+          <!-- L'état vide compte TOUT ce qui est rendu : avec un seul tableau reçu, dire
+               « aucun tableau » sous une section qui en montre un serait la contradiction
+               qu'on vient de retirer d'ailleurs. -->
+          <div v-if="loaded && !toutes.length" class="dim" style="text-align: center; padding: 16px">
             no datastores yet — create one to let your agents store rows.
           </div>
         </div>
@@ -233,20 +286,21 @@ async function onNsDeleted() {
       <!-- contenu du tableau sélectionné (composant réutilisable) -->
       <DatastoreTable v-if="current" :ns-ref="String(selectedId)" :ns-meta="current"
         @changed="load" @deleted="onNsDeleted" />
-      <!-- On nomme la cause la PLUS probable en premier, parce que c'est celle qui ne se
-           devine pas : un partage nominatif (`data_share` vers une adresse) ouvre bien la
-           lecture et l'écriture, mais n'entre dans aucune liste — atteignable et
-           introuvable. Et le remède est adressé à qui peut l'appliquer : le destinataire
-           ne peut ni se re-partager le tableau ni s'en transférer la propriété, il ne
-           peut que le demander. Lui prescrire un geste qu'il n'a pas serait le renvoyer
-           dans le même mur. -->
+      <!-- ⚠️ Cette carte accusait le partage nominatif — « ouvre l'accès mais n'entre
+           dans aucune liste ». C'était vrai jusqu'au 10/09 ; depuis la section « partagé
+           avec moi », un tableau reçu SE RÉSOUT ici, et cette phrase enverrait le
+           destinataire réclamer ce qu'il a déjà. Restent les causes qui, elles, tiennent :
+           une autre organisation (la liste ne montre que celle où l'on navigue), une
+           suppression, ou aucun droit du tout. Le remède reste adressé à qui peut
+           l'appliquer — changer d'org, ou demander : le destinataire ne peut ni se
+           re-partager le tableau ni s'en transférer la propriété. -->
       <ConsoleCard v-else-if="introuvable" title="tableau introuvable ici">
         <div class="helptext">
-          ce tableau n'apparaît pas dans le contexte où tu es. il t'a peut-être été partagé
-          <strong>nominativement</strong> — un partage à une personne ouvre l'accès mais
-          n'entre dans aucune liste ; il peut aussi appartenir à une autre organisation, ou
-          avoir été supprimé. demande à son propriétaire de le partager à ton organisation
-          ou à ton équipe, ou de t'en transférer la propriété.
+          ce tableau n'apparaît pas dans le contexte où tu es. il appartient peut-être à une
+          <strong>autre organisation</strong> — cette liste ne montre que celle où tu
+          navigues, essaie d'en changer. sinon il a été supprimé, ou rien ne t'y donne
+          accès : demande à son propriétaire de te le partager, à toi, à ton organisation
+          ou à ton équipe.
         </div>
       </ConsoleCard>
       <ConsoleCard v-else title="pick a datastore">

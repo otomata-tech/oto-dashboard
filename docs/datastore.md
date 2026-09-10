@@ -24,6 +24,40 @@ Groupe nav **« memory »** (`consoleNav.ts`) = deux surfaces de mémoire :
   > **La file de travail dit son PLAFOND et ses abandons (01/09).** Le serveur compte les réservations d'une ligne restées sans écriture (`_claims`) et, passé `lifecycle.max_claims`, la verse dans `lifecycle.abandon_state` avec un motif dans `_abandon` (oto-backend#433). Les trois surfaces l'ignoraient : la barre de statuts affichait l'état d'abandon comme un état métier ordinaire, la file de travail montrait « en cours · worker » sans dire que c'était la 3ᵉ fois, et `_abandon` n'apparaissait NULLE PART (la vue fiches écarte tout ce qui commence par `_`). Un opérateur ne voyait donc ni pourquoi une ligne était sortie de la file, ni combien de fois elle avait été tentée. Désormais : plafond annoncé par la barre de statuts (avec l'état d'abandon distingué), compteur `2/3` par ligne dans le bandeau de file + décompte des lignes **au plafond** (celles qu'une libération sans écriture sortira de la file — le seul moment où un humain peut encore agir, le serveur épargnant les baux actifs), motif rendu **tel quel** en fiche et en vue fiches, et bandeau de réparation dans le drawer. `lib/datastoreClaims.ts` est un **miroir du serveur** au même titre que `keyStack.ts` : ⚠️ le motif **cite ses chiffres** parce que le plafond a pu changer depuis — le reformuler ou le recalculer côté écran ferait mentir la fiche (le serveur ne fait même pas l'accord au singulier, on ne le corrige pas non plus). ⚠️ **Une écriture rouvre la file, pas forcément le statut** : la plateforme verse la ligne dans l'état d'abandon sans s'autoriser à l'en sortir, donc sans transition de retour déclarée un changement de statut est REFUSÉ — le bandeau le dit plutôt que d'offrir un bouton voué au 400. Les lignes abandonnées ne sont pas dans `/queue` (l'abandon annule le bail) et aucun endpoint ne les liste : on les atteint par le filtre de statut sur l'état d'abandon.
 - **Knowledge** — la base de connaissance d'org est un **projet** (zone Documents, `oto_kb`), atteignable via « Projets » ; `/console/knowledge` redirige vers `/documents`.
 
+## Ce que la liste de `/data` montre — deux listes, trois sections, aucune fusion
+
+`GET /api/datastores` est scopée par l'**org de consultation** (en-tête `X-Oto-Org`) et
+exclut **à dessein** les droits nominatifs (`principal_type='user'`) : un partage à une
+personne n'appartient à aucune org, l'y faire entrer le ferait lire comme un tableau de
+celle où l'on navigue — c'est l'incident du 30/06/2026, et cette décision tient.
+
+Le défaut n'était donc pas là, il était qu'**aucune autre porte ne les rendait** : partage
+réussi, contenu lisible, tableau introuvable. `GET /api/me/datastores/shared` (backend
+v1.255.0, `SUB_ONLY`, arbitrage d'Alexis sur oto#160 du 10/09/2026) est cette porte — même
+forme d'entrée, plus `shared_by`, et elle répond quelle que soit l'org active.
+
+La vue en tire **trois sections** (`groupes` dans `DataView.vue`, des données, pas des
+blocs de gabarit) : la liste de l'org en tête, puis `personnel`, puis `partagé avec moi`.
+Les deux dernières sont repliées **dans** une org et dépliées hors org — c'est le contexte
+d'org qui décide du repli, jamais la nature du contenu.
+
+- **Aucun doublon**, deux fois : le serveur écarte ce que la liste de l'org rend déjà (jeu
+  dérivé de `list_datastores()`, jamais recopié), et la vue le refait sur les ids
+  réellement rendus — elle compose deux réponses obtenues à deux instants, entre lesquels
+  un partage nominatif peut avoir été élargi à l'org.
+- **Le lien direct résout sur l'UNION** des deux listes. C'est le point qui a motivé
+  l'arbitrage : `/data/<id d'un reçu>` jetait l'id en silence et rendait l'écran de
+  « rien de sélectionné ». Corollaire : la carte « tableau introuvable ici » n'accuse plus
+  le partage nominatif — ce serait envoyer le destinataire réclamer ce qu'il a déjà.
+- ⚠️ **Réserve connue, non corrigée : l'homonymie.** `DatastoreTable` désigne le tableau
+  par son **nom** (`meta.datastore`) pour toutes ses routes, et `resolve_datastore_ns`
+  préfère, à nom égal, le tableau **personnel du demandeur**. Un tableau reçu qui porte le
+  nom d'un des siens afficherait donc les lignes du sien. Le correctif est de désigner par
+  l'id (que la résolution accepte aussi) — treize sites d'appel, à mesurer avant.
+- Le **snapshot OpenAPI commité ne connaît pas encore cette route** : son type est écrit à
+  la main dans `types/api.ts` (pas dans `api.attendu.ts`, réservé à ce qu'une PR backend
+  **ouverte** sert). `api:refresh` la ramènerait — avec toute la dérive accumulée.
+
 ## La file de travail d'un tableau, et le run qui tient une ligne
 
 Le bandeau de supervision (`DatastoreQueueBar.vue`, ADR 0046 D) liste les lignes **sous

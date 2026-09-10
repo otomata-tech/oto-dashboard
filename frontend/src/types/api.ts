@@ -831,6 +831,21 @@ export interface DatastoreEntry {
   schema?: DatastoreSchema | null  // mode typé optionnel (ADR 0032 §6 / 0029) ; null = table libre
 }
 
+// Une entrée de `GET /api/me/datastores/shared` — les tableaux partagés NOMINATIVEMENT
+// à l'appelant (arbitrage oto#160 du 10/09/2026). Même forme qu'une `DatastoreEntry`
+// (le même composant les peint), plus `shared_by`.
+//
+// ⚠️ ÉCRIT À LA MAIN, et pas dans `api.attendu.ts` : cette route est DÉPLOYÉE (backend
+//    v1.255.0, servie par la prod et la preprod). C'est le SNAPSHOT commité de l'OpenAPI
+//    qui date — `api:refresh` la ramènerait, avec toute la dérive de contrat accumulée
+//    depuis, ce qui est un acte à part dont le diff est l'information. L'optionnalité de
+//    `shared_by` ne dit donc pas « pas encore servi » mais « un serveur plus ancien peut
+//    répondre » : le nom est un repli e-mail puis identifiant côté serveur, et reste
+//    `null` quand il ne se résout pas.
+export interface SharedDatastoreEntry extends DatastoreEntry {
+  shared_by?: string | null   // QUI a partagé — la seule chose qu'un reçu ne dit pas de lui-même
+}
+
 // Schéma typé d'un tableau (ADR 0032 §6 / 0029, B6) — champs + rôles de rendu.
 // v2 (ADR 0046) : types imbriqués (`object`+fields / `list`+of), validation
 // opt-in (required / required_when) et cycle de vie sur le field status. Le
