@@ -96,9 +96,17 @@ async function onNsDeleted() {
             class="rowitem ns-item" :class="{ active: ns.id === selectedId }"
             @click="open(ns.id)">
             <code class="mono" style="font-weight: 600">{{ ns.namespace }}</code>
+            <!-- Un tableau PERSONNEL ne portait aucune marque : sans badge il se lisait comme
+                 « le cas normal, celui de l'org où je suis » — l'inverse de la vérité, et la
+                 confusion réelle du 10/09 (otomata-tech/oto#160). Le mot est celui du sélecteur
+                 de propriétaire à la création (« personnel (moi seul) »), pas un registre neuf.
+                 `is_personal` est servi (et requis) par GET /api/datastores : il vaut
+                 owner_type='user' ET owner_id=mon sub — un tableau d'un AUTRE user reçu par
+                 partage reste donc sur la branche `shared`. -->
             <Tag v-if="ns.owner_type === 'org'" tone="cobalt">org</Tag>
             <Tag v-else-if="ns.owner_type === 'group'" tone="cobalt">team</Tag>
             <Tag v-else-if="ns.shared" tone="cobalt">shared · {{ ns.permission || 'read' }}</Tag>
+            <Tag v-else-if="ns.is_personal" tone="cobalt">personnel</Tag>
             <Tag v-if="ns.schema?.fields?.length" tone="olive">typé</Tag>
           </button>
           <div v-if="loaded && !namespaces.length" class="dim" style="text-align: center; padding: 16px">
