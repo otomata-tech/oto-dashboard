@@ -154,14 +154,46 @@ d'org qui décide du repli, jamais la nature du contenu.
   nom plutôt que sur l'id, l'embed de projet sur `target_ref`, le repli privé de la seconde
   liste, id et nom refondus dans une même passe — chacune rougit.
 
-  ⚠️ **Ce qui reste, et pourquoi.** Un embed de PAGE (le bloc `oto-data` d'une page) est
-  du texte libre écrit à la main : si on y tape un nom, il se résout chez le lecteur, et
-  c'est la nature d'un nom — un id tapé là résout désormais, y compris sur un reçu. Et
-  `ProjectDetailView` passe encore des NOMS à `ProjectWorkQueues`
-  (`:table-datastores="…l.datastore ?? l.target_ref"`), qui les rapproche de
-  `getNamespaces()` par nom : même défaut, sur les COMPTEURS d'une file de projet. Le
-  matériau existe (`l.datastore_id`), le geste est petit, il n'a pas été fait dans ce
-  lot — à traiter comme un lot à part plutôt qu'en passant.
+- **Les files de travail d'un projet sont fermées (11/09/2026) — la dernière surface
+  où l'écran transformait une désignation servie en nom.** `ProjectDetailView` projetait
+  les liens `tableau` en NOMS (`l.datastore ?? l.target_ref`) et `ProjectWorkQueues` les
+  rapprochait de `getNamespaces()`. Il adressait bien le serveur par un id — mais l'id
+  d'une entrée **choisie par le nom** : l'adresse était juste, le choix ne l'était pas.
+  Rejoué sur ce code, un lecteur qui possède un `clients` et ouvre un projet lié à un
+  autre `clients` voyait « clients 3 · a_faire 3 · fait 0 · 1 sous bail », avec un
+  lien vers `/data/41` (le sien). Le tableau du projet en porte 24 et deux baux.
+
+  Le bloc reçoit maintenant les liens ENTIERS (`:table-links="linksOf('tableau')"`) et
+  choisit ses tableaux par `datastore_id`, dans **les deux listes** (comme le repli de
+  `DatastoreTable` : sinon un tableau reçu lié au projet n'avait jamais de compteurs). Le
+  libellé reste le nom. **Un lien sans `datastore_id` est nommé, sans compteurs ni lien**,
+  avec la phrase de la vue du lien (« aucun tableau résolu pour ce lien — relie-le à
+  nouveau… ») ; il n'est pas résolu à l'écran, et le bloc s'affiche pour le dire même
+  quand aucune file n'est comptée. Un `datastore_id` absent des deux listes du lecteur
+  (tableau qu'il ne peut pas lire) est tu, comme avant : c'est un refus d'accès, pas un
+  défaut du lien — `DatastoreTable` dit « introuvable » sur la vue du même lien.
+
+  Banc : `components/console/filesDeProjetHomonymie.spec.ts` — il monte `ProjectViewer`
+  sur l'accueil, contre le serveur factice qui rejoue le tri de `resolve_datastore_ns`,
+  avec une population témoin (un lien vers MON tableau doit compter le mien, sinon un
+  bloc qui ne montrerait jamais 41 passerait). Trois preuves de chute, comptes prédits
+  avant de lancer et obtenus : le nom remis comme **critère de choix** rougit 5 tests
+  sur 6, le nom remis comme **adresse** 4 sur 6, la projection par nom remise dans la page
+  1 sur 6 (le témoin de source — la page n'est pas montée).
+
+  ⚠️ **Ce qui reste, et pourquoi — plus aucune désignation SERVIE ne repart en nom.**
+  Les trois endroits où un nom peut encore atteindre une résolution sont des adresses
+  qu'une PERSONNE ou un agent a écrites, pas des désignations que l'écran fabrique :
+  - l'**embed de page** (le bloc `oto-data`) est du texte libre : un nom tapé là se résout
+    chez le lecteur, c'est la nature d'un nom ; un id tapé là résout, y compris sur un reçu ;
+  - une **URL `/data/<nom>`** tapée ou collée : `DataView` la résout dans les listes du
+    lecteur puis la normalise en `/data/<id>`. Le dashboard n'en fabrique plus (la
+    recherche, les files, le runner et le `url` servi par le backend portent l'id).
+    Résidu connu : `applySelection` cherche l'id et le nom dans la même passe — un tableau
+    dont le NOM serait le numéro d'un autre pourrait gagner ;
+  - `/projects/:id/data/:nsRef` ne désigne pas un tableau mais un **lien du projet**
+    (`selectFromRoute` cherche dans les liens du projet, jamais dans les tableaux du
+    lecteur) ; ce qui part au serveur est ensuite le `datastore_id` du lien.
 
 - Le **snapshot OpenAPI commité ne connaît pas encore cette route** : son type est écrit à
   la main dans `types/api.ts` (pas dans `api.attendu.ts`, réservé à ce qu'une PR backend

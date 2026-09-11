@@ -5,16 +5,22 @@
 // config) : tout est DÉRIVÉ — un tableau lié apparaît ssi son schéma déclare un
 // field role="status" avec un lifecycle (le critère cockpit exact de
 // DatastoreTable), les compteurs viennent de l'aggregate serveur, les baux de
-// la file de travail. Zéro notion métier codée ici.
+// la file de travail. Zéro notion métier codée ici. Un lien que le serveur n'a pas
+// su rattacher à un tableau apparaît aussi, nommé, sans compteurs (cf. `nonResolus`).
 import { computed, onMounted, ref } from 'vue'
 import Tag from '../Tag.vue'
-import { getNamespaceAggregate, getNamespaceQueue, getNamespaces, getProjectRuns } from '@/api/console'
-import type { ProjectRun } from '@/types/api'
+import { getNamespaceAggregate, getNamespaceQueue, getNamespaces, getProjectRuns, getSharedWithMe } from '@/api/console'
+import type { ProjectLink, ProjectRun } from '@/types/api'
 import { absDate } from '@/lib/cellRender'
 import { bailLigne } from '@/lib/bailDeLigne'
 import { abandonState, claimBudget, maxClaims } from '@/lib/datastoreClaims'
 
-const props = defineProps<{ datastores: string[]; projectId: number }>()
+// Les liens `tableau` du projet, TELS QUE LE SERVEUR LES SERT. On en lit l'ADRESSE,
+// `datastore_id` — résolue dans la portée du PROPRIÉTAIRE du projet (backend v1.262.0),
+// donc la même pour tous les lecteurs —, jamais le nom : à nom égal, la résolution
+// préfère le tableau PERSONNEL de celui qui regarde, et ce bloc comptait alors les
+// lignes du sien sous le libellé du tableau du projet (oto#160).
+const props = defineProps<{ links: ProjectLink[]; projectId: number }>()
 
 interface QueueLine {
   nsId: number
@@ -33,6 +39,11 @@ interface QueueLine {
 }
 
 const lines = ref<QueueLine[]>([])
+// Les liens SANS identifiant servi : le serveur n'a désigné aucun tableau (supprimé, ou
+// un nom qu'il ne rattache à aucun dans la portée du projet). On ne les résout pas ici —
+// ce serait les résoudre chez le lecteur, donc refaire le défaut. On les nomme, sans
+// compteurs, et on dit le geste qui répare.
+const nonResolus = ref<string[]>([])
 const lastRun = ref<ProjectRun | null>(null)
 const loading = ref(true)
 
@@ -41,14 +52,21 @@ const OUTCOME_TONE: Record<string, Tone> = { done: 'olive', failed: 'terra', blo
 
 onMounted(async () => {
   try {
-    const wanted = new Set(props.datastores)
-    const [{ datastores: all }, runsRes] = await Promise.all([
+    const ids = new Set(props.links.flatMap((l) => (l.datastore_id != null ? [l.datastore_id] : [])))
+    nonResolus.value = props.links.filter((l) => l.datastore_id == null)
+      .map((l) => l.datastore ?? l.target_ref)
+    // LES DEUX listes, comme le repli de `DatastoreTable` : `getNamespaces()` exclut à
+    // dessein les partages NOMINATIFS, et un tableau reçu lié au projet n'aurait jamais
+    // eu de compteurs. Elles ne se recoupent pas (le serveur ôte de la seconde ce que la
+    // première rend) : aucun tableau n'y est compté deux fois.
+    const [{ datastores: propres }, { datastores: recus }, runsRes] = await Promise.all([
       getNamespaces(),
+      getSharedWithMe(),
       getProjectRuns(props.projectId).catch(() => ({ runs: [] as ProjectRun[] })),
     ])
     lastRun.value = runsRes.runs[0] ?? null
-    const candidates = all.filter((n) => {
-      if (!wanted.has(n.datastore)) return false
+    const candidates = [...propres, ...recus].filter((n) => {
+      if (!ids.has(n.id)) return false
       const sf = (n.schema?.fields ?? []).find((f) => f.role === 'status')
       return !!sf && (sf.lifecycle?.states?.length ?? 0) > 0
     })
@@ -56,10 +74,10 @@ onMounted(async () => {
     lines.value = (await Promise.all(candidates.map(async (n) => {
       const sf = (n.schema?.fields ?? []).find((f) => f.role === 'status')!
       try {
-        // ⚠️ On adresse par l'IDENTIFIANT, jamais par `n.datastore` : le lien de
-        // projet nomme le tableau, mais à nom égal la résolution serveur préfère le
-        // tableau PERSONNEL du demandeur — une file de projet aurait affiché les
-        // compteurs d'un homonyme à soi. `n` vient de la liste, il porte déjà son id.
+        // ⚠️ On adresse par l'IDENTIFIANT, jamais par `n.datastore` — et `n` a été
+        // CHOISI par l'identifiant du lien, plus haut. Les deux moitiés comptent :
+        // adresser par l'id d'une entrée choisie par le nom comptait quand même
+        // l'homonyme à soi, sous le libellé du tableau du projet.
         const ref = String(n.id)
         const [{ groups }, queue] = await Promise.all([
           getNamespaceAggregate(ref, { groupBy: sf.key }),
@@ -97,7 +115,7 @@ onMounted(async () => {
   }
 })
 
-const visible = computed(() => !loading.value && lines.value.length > 0)
+const visible = computed(() => !loading.value && (lines.value.length > 0 || nonResolus.value.length > 0))
 </script>
 
 <template>
@@ -127,6 +145,12 @@ const visible = computed(() => !loading.value && lines.value.length > 0)
         title="sortie de la file à la prochaine libération sans écriture">
         {{ l.atCeiling }} au plafond</Tag>
       <span v-if="l.ceiling" class="pwq-mute">plafond {{ l.ceiling }}</span>
+    </div>
+    <!-- Ni lien ni compteur : sans identifiant, les deux ne sauraient viser que le
+         tableau du LECTEUR. La phrase est celle de la vue du lien (ProjectViewer). -->
+    <div v-for="(nom, i) in nonResolus" :key="`sans-id:${i}`" class="pwq-line">
+      <span class="pwq-ns">{{ nom }}</span>
+      <span class="pwq-mute">aucun tableau résolu pour ce lien — relie-le à nouveau pour le fixer sur un tableau précis</span>
     </div>
   </div>
 </template>

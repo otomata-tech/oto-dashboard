@@ -52,7 +52,9 @@ const props = defineProps<{
   brief?: string | null
   readOnly?: boolean
   docTitleMap?: Record<string, number>   // casefold(titre)→id (résolution [[…]], Ship 4)
-  tableDatastores?: string[]             // tableaux des liens tableau (bloc files de travail, home)
+  // Les liens `tableau` du projet, ENTIERS (bloc files de travail, home) : c'est leur
+  // `datastore_id` qui désigne, pas un nom projeté en amont (oto#160).
+  tableLinks?: ProjectLink[]
   excludedUrlPrefixes?: string[]         // périmètre d'URL du projet (home, oto-backend#605)
 }>()
 const emit = defineEmits<{
@@ -508,9 +510,10 @@ async function removeFile() {
             <p v-else class="dim vw__novalue">{{ readOnly ? 'aucun contenu.' : (isHome ? 'aucun brief — clique « éditer » pour le rédiger.' : 'page vide — clique « éditer ».') }}</p>
 
             <!-- Files de travail (home) : supervision dérivée des tableaux liés à
-                 cycle de vie — se rend seulement s'il y en a. -->
-            <ProjectWorkQueues v-if="isHome && tableDatastores?.length"
-              :datastores="tableDatastores" :project-id="projectId" />
+                 cycle de vie — se rend seulement s'il y en a, ou pour dire qu'un lien
+                 n'est rattaché à aucun tableau. -->
+            <ProjectWorkQueues v-if="isHome && tableLinks?.length"
+              :links="tableLinks" :project-id="projectId" />
             <!-- Périmètre d'URL (home, oto-backend#605) : toujours affiché — même une
                  liste vide répond à « est-ce que quelque chose est exclu ? ». -->
             <ProjectUrlPerimeter v-if="isHome" :project-id="projectId"

@@ -188,8 +188,9 @@ describe('la désignation du tableau, site par site', () => {
   })
 
   it('les files de projet adressent aussi par l identifiant', () => {
-    // Même défaut, autre écran : le lien de projet NOMME le tableau, mais l'entrée
-    // rendue par la liste porte son id — c'est lui qui doit partir au serveur.
+    // Même défaut, autre écran. ⚠️ Ce témoin ne tient que l'ADRESSE : l'entrée était
+    // encore CHOISIE par le nom, et comptait l'homonyme à soi — le choix par l'id du
+    // lien est tenu, et rejoué au montage, par `filesDeProjetHomonymie.spec.ts`.
     expect(FILES_PROJET).not.toMatch(/getNamespace\w*\(\s*n\.datastore/)
     expect(FILES_PROJET).toContain('const ref = String(n.id)')
   })
