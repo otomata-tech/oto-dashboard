@@ -101,13 +101,6 @@ d'org qui décide du repli, jamais la nature du contenu.
   `/projects/:id/data/:ns` côté projet, qui porte souvent le nom) — l'adresse reste
   lisible, et le lien direct d'un tableau reçu résout comme en v1.66.0.
 
-  ⚠️ **Ce qui reste par nom, faute d'id sous la main** : `RunnerJobDetail` lit
-  `payload.namespace` d'un travail de runner — un nom, sans numéro à côté ; et le repli
-  de `resolveMeta` (quand aucun `nsMeta` n'est passé, cas des embeds de projet) cherche
-  dans `getNamespaces()`, qui ne rend pas les reçus nominatifs. Ces deux-là appellent une
-  réponse **serveur** (servir l'id à côté du nom, élargir la liste), pas un contournement
-  d'écran.
-
   Banc : `components/console/datastoreHomonymie.spec.ts`. Il monte l'écran sur un tableau
   reçu, avec un serveur factice qui **rejoue le tri de `resolve_datastore_ns`** — c'est la
   reproduction, et elle peignait `MON-CLIENT-A-MOI` avant le correctif. Le montage
@@ -116,6 +109,60 @@ d'org qui décide du repli, jamais la nature du contenu.
   suppression, export, patch de schéma). Remettre le nom à **un seul** d'entre eux rougit
   le fichier — vérifié sur cinq d'entre eux, dont un site jamais monté et une forme sans
   variable intermédiaire.
+
+  ⚠️ **Les deux derniers endroits sont fermés (11/09/2026), et par le SERVEUR.** Ils
+  lisaient un nom sans numéro à côté — et les corriger à l'écran, en résolvant ce nom
+  vers un id, aurait refait le bug : la résolution qu'un écran peut faire est celle de
+  SON lecteur, et c'est elle qui est ambiguë. Le backend porte donc l'identifiant
+  jusqu'à eux :
+
+  - **le détail d'un travail de runner** (`RunnerJobDetail`) lisait `payload.namespace`.
+    La charge utile emporte désormais `payload.datastore_id`, résolu à l'enfilage **au
+    nom de qui a déclaré la campagne** (backend `v1.262.0`, `capabilities/runner_jobs.py`
+    — le nom reste servi à côté, sous `namespace`). L'écran
+    sépare les deux : `tableauNom` est le LIBELLÉ, `tableauId` l'ADRESSE — file de
+    travail, lien d'ouverture et liens de ligne partent tous du second.
+    ⚠️ **Un travail est PERSISTÉ** : ceux enfilés avant ce jour n'ont pas d'identifiant
+    et n'en auront jamais. L'écran ne lit alors **aucune** file (la lire par le nom
+    lirait celle d'un autre tableau) et n'offre **aucun** lien, quel que soit le statut du
+    travail — le lien se garde sur l'identifiant, pas sur le statut : il montre le nom et dit
+    pourquoi il s'arrête là — « ce travail nomme son tableau sans l'identifier ». Un
+    quatrième état de `tenue`, `sans-adresse`, porte ce cas ; afficher le nom sans
+    prétendre l'ouvrir vaut mieux qu'ouvrir le mauvais.
+  - **le repli de `resolveMeta`** (aucun `nsMeta` passé — les embeds de projet) cherchait
+    dans `getNamespaces()` seule, qui exclut à dessein les reçus nominatifs : un tableau
+    REÇU y était introuvable et l'écran répondait « introuvable dans ce contexte » sur un
+    tableau parfaitement lisible. Il consulte maintenant **les deux listes**
+    (`getNamespaces()` + `getSharedWithMe()`, jamais fusionnées en amont), et il cherche
+    **l'identifiant d'abord, le nom ensuite** — chercher les deux clés dans la même passe
+    laissait l'ordre de la liste trancher, donc un homonyme à soi gagner sur l'id demandé.
+  - **le lien de projet** ne portait qu'un nom quand un agent l'avait posé (#117).
+    `ProjectLink.datastore_id` (backend `v1.262.0`, `db.list_project_links`, servi par
+    `oto_project op=get` tel quel — résolu dans la portée du
+    **propriétaire du projet** — donc identique pour tous les lecteurs) est ce que
+    `ProjectViewer` passe en `ns-ref`. **Sans cette clé, l'embed ne se monte pas** : le
+    serveur dit qu'il ne sait pas lequel désigner, on ne le devine pas à sa place.
+
+  Banc : `components/console/homonymieDesignationServeur.spec.ts`. Il monte les VRAIS
+  écrans — `RunnerJobDetail`, `DatastoreTable` sans méta, et `ProjectViewer` sur un lien
+  posé par nom — contre le même serveur factice qui rejoue le tri de
+  `resolve_datastore_ns`. Rejoué sur le code d'avant, il reproduit les deux défauts : le
+  lien « ouvrir la ligne qu'il tient » valait `/data/clients/item/file41`, une ligne du
+  tableau DU LECTEUR ; le lien de projet peignait `MON-CLIENT-A-MOI` sous « clients » ; un
+  reçu adressé par id tombait en « introuvable ». Six preuves de chute vérifiées : la file
+  de travail lue par le nom, le lien d'ouverture bâti sur le nom, les liens gardés sur le
+  nom plutôt que sur l'id, l'embed de projet sur `target_ref`, le repli privé de la seconde
+  liste, id et nom refondus dans une même passe — chacune rougit.
+
+  ⚠️ **Ce qui reste, et pourquoi.** Un embed de PAGE (le bloc `oto-data` d'une page) est
+  du texte libre écrit à la main : si on y tape un nom, il se résout chez le lecteur, et
+  c'est la nature d'un nom — un id tapé là résout désormais, y compris sur un reçu. Et
+  `ProjectDetailView` passe encore des NOMS à `ProjectWorkQueues`
+  (`:table-datastores="…l.datastore ?? l.target_ref"`), qui les rapproche de
+  `getNamespaces()` par nom : même défaut, sur les COMPTEURS d'une file de projet. Le
+  matériau existe (`l.datastore_id`), le geste est petit, il n'a pas été fait dans ce
+  lot — à traiter comme un lot à part plutôt qu'en passant.
+
 - Le **snapshot OpenAPI commité ne connaît pas encore cette route** : son type est écrit à
   la main dans `types/api.ts` (pas dans `api.attendu.ts`, réservé à ce qu'une PR backend
   **ouverte** sert). `api:refresh` la ramènerait — avec toute la dérive accumulée.

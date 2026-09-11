@@ -585,7 +585,14 @@ export interface ProjectLink {
   target_ref: string
   identity_ref?: string | null  // connecteur : identité (compte) du binding — clé de multiplicité (#57)
   label?: string | null
-  datastore?: string | null     // tableau : nom du tableau résolu backend (target_ref = id stable)
+  datastore?: string | null     // tableau : nom du tableau résolu backend — un LIBELLÉ
+  // tableau : l'IDENTIFIANT du tableau visé, résolu par le backend dans la portée du
+  // PROPRIÉTAIRE du projet (oto#160). `target_ref` est tantôt un id (lien posé par le
+  // dashboard), tantôt un nom (lien posé par un agent, #117) : cette clé porte toujours
+  // le même sens, ou n'est pas là. Absente ⇒ le nom ne résout pas dans cette portée, et
+  // l'écran n'a PAS le droit de le résoudre lui-même (il le résoudrait chez son lecteur,
+  // donc vers l'homonyme personnel de celui-ci).
+  datastore_id?: number | null
   title?: string | null         // procédure : titre de la doctrine / doc : titre de la page Documents (résolu backend, target_ref = id stable)
   doc_project_id?: number | null  // doc : projet propriétaire de la page (deep-link vers /projects/:id)
   role?: string | null          // pourquoi cette entité est dans le projet (ADR 0032 §2)

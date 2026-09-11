@@ -110,9 +110,24 @@ function texte(v: unknown): string {
   return String(v)
 }
 
-const tableau = computed(() => {
+// ⚠️ DEUX choses, et il ne faut pas les confondre : le NOM est un libellé, l'IDENTIFIANT
+// est l'adresse. La charge utile portait le seul nom — et à nom égal la résolution serveur
+// préfère le tableau PERSONNEL du demandeur, donc le demandeur ÉTAIT ici celui qui regarde :
+// ouvrir le travail d'un collègue, ou porter un homonyme de ce que la campagne visait,
+// peignait les lignes du SIEN sous le bon libellé, sans un mot (oto#160). Le backend résout
+// désormais au nom de qui a déclaré la campagne et emporte `datastore_id` avec le travail.
+const tableauNom = computed(() => {
   const ns = j.value?.payload?.namespace
   return typeof ns === 'string' && ns ? ns : null
+})
+// ⚠️ La charge utile est PERSISTÉE : un travail enfilé avant ce changement n'a pas
+// d'identifiant, et il n'en aura jamais. Ici on rend `null` — et l'écran montre alors le
+// nom SANS prétendre l'ouvrir. Le résoudre ici serait refaire exactement le défaut : la
+// résolution qu'on ferait est celle du lecteur, et c'est elle qui est ambiguë.
+const tableauId = computed(() => {
+  const v = j.value?.payload?.datastore_id
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v)
+  return typeof v === 'string' && /^\d+$/.test(v) ? v : null
 })
 
 // Le lien vers la ligne, quand le PAYLOAD la nomme — un travail enfilé sur une
@@ -120,7 +135,7 @@ const tableau = computed(() => {
 // la conclusion.
 const lignePayload = computed(() => {
   const p = j.value?.payload
-  if (!p || !tableau.value) return null
+  if (!p || !tableauNom.value) return null
   for (const cle of ['row_id', 'row', 'item_id']) {
     const v = p[cle]
     if (typeof v === 'string' && v) return v
@@ -145,6 +160,7 @@ type LigneTenue =
   | { etat: 'aucune' }          // le run ne tient aucune ligne de ce tableau en ce moment
   | { etat: 'illisible' }       // la file du tableau ne nous est pas lisible
   | { etat: 'liberee' }         // travail conclu : le lien n'existe pas, et c'est connu
+  | { etat: 'sans-adresse' }    // travail enfilé avant que la plateforme n'emporte l'id du tableau
 const tenue = ref<LigneTenue>({ etat: 'sans-objet' })
 
 async function resoudreLigneTenue(job: RunnerJob | null) {
@@ -155,8 +171,13 @@ async function resoudreLigneTenue(job: RunnerJob | null) {
     if (job.status === 'done' || job.status === 'failed') tenue.value = { etat: 'liberee' }
     return
   }
-  const ns = tableau.value
-  if (!ns) return
+  // ⚠️ Par IDENTIFIANT, jamais par nom : lire la file « du tableau qui porte ce nom »
+  // lirait, pour un travail ancien ou chez un lecteur qui a un homonyme, la file d'un
+  // AUTRE tableau — et le lien de ligne qui en sort pointerait vers une ligne étrangère.
+  // Sans identifiant, on ne lit rien et on le dit (`sans-adresse`).
+  const ns = tableauId.value
+  if (!tableauNom.value) return
+  if (!ns) { tenue.value = { etat: 'sans-adresse' }; return }
   tenue.value = { etat: 'chargement' }
   try {
     const { rows } = await getNamespaceQueue(ns)
@@ -172,6 +193,9 @@ const visees = computed(() => {
   const p = j.value?.payload
   if (!p) return []
   return Object.entries(p)
+    // `datastore_id` est l'ADRESSE du tableau déjà nommé juste au-dessus : l'afficher en
+    // plus donnerait deux lignes pour une seule chose, dont une illisible.
+    .filter(([cle]) => cle !== 'datastore_id')
     .filter(([, v]) => v !== null && v !== undefined && v !== '')
     .map(([cle, v]) => ({ cle, label: ETIQUETTES_PAYLOAD[cle] ?? cle, valeur: texte(v) }))
 })
@@ -308,18 +332,21 @@ watch(() => props.job?.id, async () => {
         <!-- ④ Ce qu'il visait -->
         <section v-if="visees.length" class="jd-sec">
           <h4 class="jd-sec-t">Ce qu'il visait</h4>
-          <p v-if="tableau" class="jd-liens">
-            <RouterLink :to="`/data/${encodeURIComponent(tableau)}`" class="jd-lien">
-              ouvrir le tableau {{ tableau }}
+          <!-- ⚠️ Les liens s'adressent par l'IDENTIFIANT porté par la charge utile, et
+               n'existent QUE s'il y est. Un lien bâti sur le nom ouvrait, chez un lecteur
+               qui a un homonyme, le tableau de CE lecteur — sous le bon libellé (oto#160). -->
+          <p v-if="tableauId" class="jd-liens">
+            <RouterLink :to="`/data/${encodeURIComponent(tableauId)}`" class="jd-lien">
+              ouvrir le tableau {{ tableauNom }}
             </RouterLink>
             <RouterLink
               v-if="lignePayload"
-              :to="`/data/${encodeURIComponent(tableau)}/item/${encodeURIComponent(lignePayload)}`"
+              :to="`/data/${encodeURIComponent(tableauId)}/item/${encodeURIComponent(lignePayload)}`"
               class="jd-lien"
             >ouvrir la ligne visée</RouterLink>
             <RouterLink
               v-if="tenue.etat === 'trouvee'"
-              :to="`/data/${encodeURIComponent(tableau)}/item/${encodeURIComponent(tenue.id)}`"
+              :to="`/data/${encodeURIComponent(tableauId)}/item/${encodeURIComponent(tenue.id)}`"
               class="jd-lien"
             >ouvrir la ligne qu'il tient</RouterLink>
           </p>
@@ -338,6 +365,15 @@ watch(() => props.job?.id, async () => {
           <p v-else-if="tenue.etat === 'illisible'" class="jd-vide">
             La file de travail de ce tableau ne t'est pas lisible : impossible de dire
             quelle ligne cet agent tient.
+          </p>
+          <!-- ⚠️ Le cas d'un travail ANCIEN : il nomme son tableau sans l'identifier, et
+               plusieurs tableaux peuvent porter ce nom. On montre le nom et on s'arrête
+               là — ouvrir au jugé ouvrirait peut-être celui du lecteur. -->
+          <p v-else-if="tenue.etat === 'sans-adresse'" class="jd-vide">
+            Ce travail nomme son tableau ({{ tableauNom }}) sans l’identifier : il a été
+            enfilé avant que la plateforme n’emporte l’identifiant. On ne l’ouvre pas
+            d’ici — plusieurs tableaux peuvent porter ce nom, et ce ne serait pas
+            forcément le bon. Passe par Données pour retrouver celui de cette campagne.
           </p>
           <dl class="jd-meta">
             <div v-for="v in visees" :key="v.cle">

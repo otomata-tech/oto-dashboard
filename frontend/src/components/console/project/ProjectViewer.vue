@@ -605,8 +605,18 @@ async function removeFile() {
       </div>
 
       <!-- ═══ TABLEAU : vue COMPLÈTE inline (lignes + tri/filtres/pagination + édition) ═══ -->
+      <!-- ⚠️ On adresse par l'IDENTIFIANT servi (`datastore_id`), jamais par `target_ref` :
+           un lien posé par un agent porte un NOM (#117), et à nom égal la résolution
+           préfère le tableau PERSONNEL du lecteur — le projet aurait peint les lignes
+           d'un homonyme à soi sous le bon libellé (oto#160). Sans identifiant, le
+           serveur dit qu'il ne sait pas lequel : on ne le devine pas à sa place. -->
       <div v-else-if="kind === 'tableau' && link" class="vw__block">
-        <DatastoreTable :ns-ref="link.target_ref" :govern="false" />
+        <DatastoreTable v-if="link.datastore_id != null" :ns-ref="String(link.datastore_id)" :govern="false" />
+        <p v-else class="dim vw__novalue">
+          Aucun tableau résolu pour ce lien — il a pu être supprimé, ou il désigne son
+          tableau par un nom que ce projet ne sait pas rattacher à un seul. Relie-le à
+          nouveau pour le fixer sur un tableau précis.
+        </p>
       </div>
 
       <!-- ═══ PROCÉDURE (son contenu + ses dernières exécutions) ═══ -->
