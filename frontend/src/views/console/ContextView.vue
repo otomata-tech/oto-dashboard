@@ -17,8 +17,9 @@ import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
 import GuidesCard from '@/components/console/GuidesCard.vue'
 import ContextLayerStack from '@/components/console/ContextLayerStack.vue'
 import ContextProfileCard from '@/components/console/ContextProfileCard.vue'
-import { getAgentContext, getInitGuide, setInitGuide, getTools, enableTool, disableTool, getMyOrgs, setActiveOrg, clearActiveOrg } from '@/api/console'
-import type { AgentContext, ToolEntry, Org } from '@/types/api'
+import { getAgentContext, getAgentToolbox, getInitGuide, setInitGuide, getTools, enableTool, disableTool, getMyOrgs, setActiveOrg, clearActiveOrg } from '@/api/console'
+import type { AgentContext, AgentToolbox, ToolEntry, Org } from '@/types/api'
+import { toolsSeenView, type ToolGroup } from '@/lib/agentToolbox'
 import { useToast } from '@/composables/useToast'
 import { useMe } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
@@ -41,25 +42,26 @@ const hasGroup = computed(() => !!ctx.value?.doctrine?.group)
 const loadMyNote = () => getInitGuide('user')
 const saveMyNote = (body: string) => setInitGuide('user', body)
 
-// Visibilité des outils = préférences USER (getTools), groupées par namespace.
-interface NsGroup { namespace: string; tools: ToolEntry[]; enabled: number; total: number }
-const nsGroups = computed<NsGroup[]>(() => {
-  const by: Record<string, ToolEntry[]> = {}
-  for (const t of allTools.value) {
-    const ns = t.name.split('_', 1)[0] ?? t.name
-    ;(by[ns] ??= []).push(t)
-  }
-  return Object.entries(by)
-    .map(([namespace, tools]) => ({
-      namespace,
-      tools: [...tools].sort((a, b) => a.name.localeCompare(b.name)),
-      enabled: tools.filter((t) => t.enabled).length,
-      total: tools.length,
-    }))
-    .sort((a, b) => Number(b.enabled > 0) - Number(a.enabled > 0) || a.namespace.localeCompare(b.namespace))
-})
-const totalVisible = computed(() => allTools.value.filter((t) => t.enabled).length)
-const totalHidden = computed(() => allTools.value.length - totalVisible.value)
+// « Ce qu'il peut faire » = ce que l'agent VOIT (oto#166), lu sur la vue calculée par la
+// poignée de main. L'ancienne liste groupait `getTools` — tout le catalogue et les
+// préférences — et comptait « visible » tout outil non masqué, connecteur installé ou
+// non : elle promettait des outils que l'agent n'avait pas. Les préférences restent le
+// levier (masquer / afficher) ; après chaque geste on relit les DEUX, la visibilité
+// n'étant jamais recalculée ici.
+const toolbox = ref<AgentToolbox | null>(null)
+const toolboxError = ref<string | null>(null)
+const view = computed(() => toolsSeenView(toolbox.value, allTools.value))
+
+function loadToolbox(): Promise<AgentToolbox | null> {
+  return getAgentToolbox()
+    .then((tb) => { toolboxError.value = null; return tb })
+    .catch((e) => { toolboxError.value = humanize(e); return null })
+}
+async function refreshTools() {
+  const [tl, tb] = await Promise.all([getTools(), loadToolbox()])
+  allTools.value = tl.tools
+  toolbox.value = tb
+}
 
 function toggleExpand(ns: string) {
   const s = new Set(expanded.value)
@@ -67,21 +69,27 @@ function toggleExpand(ns: string) {
   expanded.value = s
 }
 
-async function setTool(t: ToolEntry, on: boolean) {
-  if (t.protected || busy.value.has(t.name) || t.enabled === on) return
-  const b = new Set(busy.value); b.add(t.name); busy.value = b
+async function setTool(name: string, on: boolean) {
+  if (busy.value.has(name)) return
+  const b = new Set(busy.value); b.add(name); busy.value = b
   try {
-    if (on) await enableTool(t.name); else await disableTool(t.name)
-    t.enabled = on
+    if (on) await enableTool(name); else await disableTool(name)
+    await refreshTools()
   } catch (e) { toast(humanize(e)) }
-  finally { const b2 = new Set(busy.value); b2.delete(t.name); busy.value = b2 }
+  finally { const b2 = new Set(busy.value); b2.delete(name); busy.value = b2 }
 }
 
-// Bascule tout un namespace (hors protégés) : au moins un actif → tout masquer,
-// sinon tout activer. Séquentiel (endpoint per-outil).
-async function toggleNamespace(g: NsGroup) {
-  const on = g.enabled === 0
-  for (const t of g.tools) await setTool(t, on)
+// Bascule tout un préfixe (hors protégés) : au moins un visible → tout masquer, sinon
+// tout rendre. Séquentiel (endpoint per-outil), une seule relecture à la fin.
+async function toggleNamespace(g: ToolGroup) {
+  const on = g.visible === 0
+  try {
+    for (const t of g.tools) {
+      if (t.protected || t.visible === on) continue
+      if (on) await enableTool(t.name); else await disableTool(t.name)
+    }
+    await refreshTools()
+  } catch (e) { toast(humanize(e)) }
 }
 
 // Poser l'org MAISON = le SEUL geste de cette page qui touche le MCP (défaut des
@@ -95,16 +103,18 @@ async function onHomeChange(val: string) {
     else await setActiveOrg(target)
     await reloadMe()
     ctx.value = await getAgentContext()   // la pile dépend de l'org maison
+    toolbox.value = await loadToolbox()   // ce qu'il voit aussi
   } catch (err) { toast(humanize(err)) }
   finally { savingHome.value = false }
 }
 
 async function load() {
   try {
-    const [c, tl, o] = await Promise.all([getAgentContext(), getTools(), getMyOrgs()])
+    const [c, tl, o, tb] = await Promise.all([getAgentContext(), getTools(), getMyOrgs(), loadToolbox()])
     ctx.value = c
     allTools.value = tl.tools
     orgs.value = o.orgs
+    toolbox.value = tb
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
@@ -156,18 +166,21 @@ onMounted(load)
         <p class="sec-s">les outils visibles pour ton agent. déplie un namespace pour affiner outil par outil.</p>
       </div>
       <ConsoleCard flush>
-        <template #actions>
-          <Tag tone="olive">{{ totalVisible }} visibles · {{ totalHidden }} masqués</Tag>
+        <template v-if="view" #actions>
+          <Tag tone="olive">{{ view.visible }} visibles · {{ view.maskedByYou }} masqués par toi</Tag>
         </template>
-        <div class="ns-list">
-          <div v-for="g in nsGroups" :key="g.namespace" class="ns-block">
+        <!-- Vue non dérivable ≠ « aucun outil » : on le dit, sans compteur. -->
+        <p v-if="toolboxError" class="helptext" style="color: var(--color-terra-ink)">{{ toolboxError }}</p>
+        <p v-else-if="!view" class="helptext">la liste exacte des outils de ton agent n'a pas pu être calculée pour le moment.</p>
+        <div v-else class="ns-list">
+          <div v-for="g in view.groups" :key="g.namespace" class="ns-block">
             <div class="ns-head" @click="toggleExpand(g.namespace)">
               <Icon name="chevd" :size="13" class="ns-chev" :class="{ open: expanded.has(g.namespace) }" />
               <strong class="ns-name">{{ g.namespace }}_*</strong>
-              <Tag :tone="g.enabled > 0 ? 'olive' : undefined">{{ g.enabled }} / {{ g.total }}</Tag>
+              <Tag :tone="g.visible > 0 ? 'olive' : undefined">{{ g.visible }} / {{ g.tools.length }}</Tag>
               <span style="flex: 1"></span>
               <Btn kind="mini" @click.stop="toggleNamespace(g)">
-                {{ g.enabled > 0 ? 'Tout masquer' : 'Tout activer' }}
+                {{ g.visible > 0 ? 'Tout masquer' : 'Tout activer' }}
               </Btn>
             </div>
             <div v-if="expanded.has(g.namespace)" class="tool-list">
@@ -175,8 +188,8 @@ onMounted(load)
                 <code class="tool-name">{{ t.name }}</code>
                 <span class="tool-desc">{{ t.description || '—' }}</span>
                 <Tag v-if="t.protected" tone="cobalt">protégé</Tag>
-                <Btn v-else kind="mini" :disabled="busy.has(t.name)" @click="setTool(t, !t.enabled)">
-                  {{ t.enabled ? 'Masquer' : 'Afficher' }}
+                <Btn v-else kind="mini" :disabled="busy.has(t.name)" @click="setTool(t.name, !t.visible)">
+                  {{ t.visible ? 'Masquer' : 'Afficher' }}
                 </Btn>
               </div>
             </div>

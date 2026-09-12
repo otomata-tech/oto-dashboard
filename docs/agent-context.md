@@ -54,3 +54,24 @@ gardent « doctrine » (`Doctrine*View`, `getDoctrine`, `/api/me/instructions*`)
 > `me.profile` des deux côtés (ADR 0042 §Convergence des surfaces, 28/07). Sa carte avait été
 > débranchée par la refonte « anatomie en couches » (23/07) : couche en lecture seule, donc
 > aucun moyen de corriger ce que l'agent y avait écrit. Remontée dans un slot `#profile-editor`.
+
+## « Ce qu'il peut faire » — ce que l'agent VOIT, pas le catalogue (oto#166, 12/09/2026)
+
+La section outils de `/context` lit **`GET /api/me/agent-toolbox`** (`getAgentToolbox`),
+la vue calculée par la fonction de visibilité de la poignée de main — pour l'org
+consultée (en-tête `X-Oto-Org`). Dérivation pure : `lib/agentToolbox.ts` (`toolsSeenView`).
+
+- **Listé** = les noms de `tools` (ce que l'agent reçoit), plus les outils que la
+  personne a masqués elle-même (préférence `enabled: false`), seul endroit où elle peut
+  les rendre. Les autres outils du catalogue ne sont **pas** listés : leur connecteur
+  n'est pas installé, est en veille, coupé ou réservé, et aucun bouton ici ne les ferait
+  voir. Avant, la liste groupait `GET /api/me/tools` (tout le catalogue + préférences) et
+  comptait « visible » tout outil non masqué — des outils que l'agent n'avait pas.
+- **Compteurs** : `tools.length`, jamais `tools_total` (outils MONTÉS, visibles ou non).
+- **`available: false`** = la vue n'a pas pu être dérivée : ni liste ni compteur, une
+  phrase qui le dit. Jamais « 0 visibles ».
+- **Après chaque geste** (masquer / afficher), on relit la préférence ET la vue : la
+  visibilité ne se déduit jamais côté client.
+
+Le même contrat alimente la stat de l'accueil (« connecteurs que voit ton agent ») et,
+côté « mes connecteurs », la provenance et les installés invisibles → `docs/connecteurs.md`.
