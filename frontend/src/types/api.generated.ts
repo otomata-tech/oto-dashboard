@@ -14,46 +14,6 @@
  */
 
 export interface paths {
-    "/api/atlassian/oauth/callback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * GET /api/atlassian/oauth/callback
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
-         */
-        get: operations["get_api_atlassian_oauth_callback"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/atlassian/oauth/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Mon consentement atlassian est-il posé, et depuis quand
-         * @description Mon consentement atlassian est-il posé, et depuis quand. `connected: false` avec `set_at: null` est l'état normal d'un compte jamais connecté.
-         */
-        get: operations["me_federation_atlassian_status_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/billing/plans": {
         parameters: {
             query?: never;
@@ -159,14 +119,16 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/datastore/namespaces
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         get: operations["get_api_datastore_namespaces"];
         put?: never;
         /**
-         * POST /api/datastore/namespaces
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         post: operations["post_api_datastore_namespaces"];
         delete?: never;
@@ -186,15 +148,17 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * DELETE /api/datastore/namespaces/{namespace}
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore} (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         delete: operations["delete_api_datastore_namespaces_namespace"];
         options?: never;
         head?: never;
         /**
-         * PATCH /api/datastore/namespaces/{namespace}
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore} (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         patch: operations["patch_api_datastore_namespaces_namespace"];
         trace?: never;
@@ -207,8 +171,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/datastore/namespaces/{namespace}/activity
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/activity (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/activity` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         get: operations["get_api_datastore_namespaces_namespace_activity"];
         put?: never;
@@ -227,8 +192,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/datastore/namespaces/{namespace}/aggregate
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/aggregate (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/aggregate` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         get: operations["get_api_datastore_namespaces_namespace_aggregate"];
         put?: never;
@@ -249,8 +215,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * POST /api/datastore/namespaces/{namespace}/claim_next
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/claim_next (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/claim_next` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         post: operations["post_api_datastore_namespaces_namespace_claim_next"];
         delete?: never;
@@ -269,8 +236,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * POST /api/datastore/namespaces/{namespace}/drop_column
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/drop_column (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/drop_column` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         post: operations["post_api_datastore_namespaces_namespace_drop_column"];
         delete?: never;
@@ -287,8 +255,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/datastore/namespaces/{namespace}/queue
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/queue (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/queue` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         get: operations["get_api_datastore_namespaces_namespace_queue"];
         put?: never;
@@ -307,14 +276,16 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/datastore/namespaces/{namespace}/rows
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/rows (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/rows` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         get: operations["get_api_datastore_namespaces_namespace_rows"];
         put?: never;
         /**
-         * POST /api/datastore/namespaces/{namespace}/rows
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/rows (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/rows` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         post: operations["post_api_datastore_namespaces_namespace_rows"];
         delete?: never;
@@ -331,22 +302,25 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/datastore/namespaces/{namespace}/rows/{row_id}
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/rows/{row_id} (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/rows/{row_id}` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         get: operations["get_api_datastore_namespaces_namespace_rows_row_id"];
         put?: never;
         post?: never;
         /**
-         * DELETE /api/datastore/namespaces/{namespace}/rows/{row_id}
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/rows/{row_id} (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/rows/{row_id}` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         delete: operations["delete_api_datastore_namespaces_namespace_rows_row_id"];
         options?: never;
         head?: never;
         /**
-         * PATCH /api/datastore/namespaces/{namespace}/rows/{row_id}
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/rows/{row_id} (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/rows/{row_id}` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         patch: operations["patch_api_datastore_namespaces_namespace_rows_row_id"];
         trace?: never;
@@ -359,8 +333,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/datastore/namespaces/{namespace}/rows/{row_id}/activity
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/rows/{row_id}/activity (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/rows/{row_id}/activity` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         get: operations["get_api_datastore_namespaces_namespace_rows_row_id_activity"];
         put?: never;
@@ -381,8 +356,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * POST /api/datastore/namespaces/{namespace}/rows/{row_id}/claim
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/rows/{row_id}/claim (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/rows/{row_id}/claim` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         post: operations["post_api_datastore_namespaces_namespace_rows_row_id_claim"];
         delete?: never;
@@ -401,8 +377,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * POST /api/datastore/namespaces/{namespace}/rows/{row_id}/release
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/rows/{row_id}/release (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/rows/{row_id}/release` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         post: operations["post_api_datastore_namespaces_namespace_rows_row_id_release"];
         delete?: never;
@@ -419,13 +396,15 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/datastore/namespaces/{namespace}/schema
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/schema (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/schema` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         get: operations["get_api_datastore_namespaces_namespace_schema"];
         /**
-         * PUT /api/datastore/namespaces/{namespace}/schema
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/schema (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/schema` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         put: operations["put_api_datastore_namespaces_namespace_schema"];
         post?: never;
@@ -433,8 +412,9 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * PATCH /api/datastore/namespaces/{namespace}/schema
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/schema (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/schema` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         patch: operations["patch_api_datastore_namespaces_namespace_schema"];
         trace?: never;
@@ -447,19 +427,22 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/datastore/namespaces/{namespace}/share
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/share (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/share` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         get: operations["get_api_datastore_namespaces_namespace_share"];
         put?: never;
         /**
-         * POST /api/datastore/namespaces/{namespace}/share
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/share (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/share` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         post: operations["post_api_datastore_namespaces_namespace_share"];
         /**
-         * DELETE /api/datastore/namespaces/{namespace}/share
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/share (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/share` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         delete: operations["delete_api_datastore_namespaces_namespace_share"];
         options?: never;
@@ -475,8 +458,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * GET /api/datastore/namespaces/{namespace}/url
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         * Déprécié : utilisez /api/datastores/{datastore}/url (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/url` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         get: operations["get_api_datastore_namespaces_namespace_url"];
         put?: never;
@@ -670,7 +654,7 @@ export interface paths {
         put?: never;
         /**
          * Ajoute UNE ligne à un tableau — le corps EST la ligne : un objet, une clé par colonne
-         * @description Ajoute UNE ligne à un tableau — le corps EST la ligne : un objet, une clé par colonne. Pas de lot ici : un corps dont l'unique clé porte une liste d'objets est refusé (`400 batch_body`) ; le lot passe par `data_write(rows=[…])` côté agent, ou par un upload signé NDJSON/CSV (`oto_upload_url` → `PUT /api/upload/{token}`) pour les volumes. `readonly_override=true` remplace les colonnes verrouillées de cet appel — propriétaire ou gouvernant du tableau seulement, et journalisé. `origine_override=true` déclare que cet appel pose la couche `origine` (la valeur du DÉPART, à l'import) en le sachant. Sans lui, une écriture d'origine est refusée à partir du 1er octobre 2026 — écrivez alors la valeur seule : la plateforme fige l'origine au premier enrichissement, mais SEULEMENT si la colonne portait déjà le cran quand la ligne est arrivée. Déclaré après coup, il ne reconstitue rien : les lignes déjà présentes reçoivent le marqueur « (origine inconnue) ». Rien à demander à personne : le paramètre suffit, et il ne vaut que pour cet appel. Il ne lève PAS le refus sur une colonne dont le schéma déclare `origine: "system"`. Couches, `readonly`, clé métier : guide `datastore-semantics`. ⚠️ Une écriture DÉTRUIT ce qui est dans la colonne : sur une colonne ouverte il n'y a ni annulation ni historique, la valeur précédente disparaît au moment où la vôtre arrive. Le filet est le format `origine: "system"`, et ce qu'il garde est précis : la valeur TELLE QU'ELLE ÉTAIT à la déclaration du format. Déclarer le format l'écrit sur toutes les lignes existantes, une fois, dans une transaction ; ensuite la couche ne bouge plus. Le nom dit QUAND, pas QUI : si des agents avaient déjà écrit avant la déclaration, c'est leur valeur qui est gardée. Une colonne sans ce format ne garde rien. La face d'appel n'y change rien : une ligne créée ici et une ligne créée par l'outil agent se comportent à l'identique.
+         * @description Ajoute UNE ligne à un tableau — le corps EST la ligne : un objet, une clé par colonne. Pas de lot ici : un corps dont l'unique clé porte une liste d'objets est refusé (`400 batch_body`) ; le lot passe par `data_write(rows=[…])` côté agent, ou par un upload signé NDJSON/CSV (`oto_upload_url` → `PUT /api/upload/{token}`) pour les volumes. `readonly_override=true` remplace les colonnes verrouillées de cet appel — propriétaire ou gouvernant du tableau seulement, et journalisé. `origine_override=true` déclare que cet appel pose la couche `origine` (la valeur du DÉPART, à l'import) en le sachant. Sans lui, une écriture d'origine est refusée à partir du 1er octobre 2026. ⚠️ Plus rien ne capture une origine automatiquement : `origine: "system"` a été SUPPRIMÉ le 08/09/2026, donc écrire la valeur seule ne garde rien — un écrasement est définitif. Pour un vrai IMPORT, préférez `donnees_d_origine=true`, qui écrit les DEUX versions — la valeur courante et l'origine — dans le même geste, au moment où la valeur entre. Ce paramètre-ci dit seulement « je sais que je pose cette couche », et il ne vaut que pour cet appel. ⚠️ Vous pouvez encore rencontrer le marqueur « (origine inconnue) » dans une couche `origine` : il a été laissé par le mécanisme retiré sur les lignes qu'il ne pouvait pas reconstituer. C'est une PERTE, pas une capture. Couches, `readonly`, clé métier : guide `datastore-semantics`. ⚠️ Une écriture DÉTRUIT ce qui est dans la colonne : sur une colonne ouverte il n'y a ni annulation ni historique, la valeur précédente disparaît au moment où la vôtre arrive. ⚠️ **Et il n'y a AUCUN filet automatique** : le format `origine: "system"` a été SUPPRIMÉ le 08/09/2026 — il capturait la valeur précédente à la première écriture qui la changeait, ce qui exigeait d'avoir été déclaré AVANT que la ligne existe ; déclaré après coup il ne gardait rien. Ce qui le remplace est un geste DÉCLARÉ, porté par l'appel qui apporte la donnée : `donnees_d_origine=true` écrit les DEUX versions — la valeur courante et l'origine — au moment où la valeur entre. Sans lui, un écrasement est définitif et rien ne vous le dira après. La face d'appel n'y change rien : une ligne créée ici et une ligne créée par l'outil agent se comportent à l'identique.
          */
         post: operations["me_datastore_append_row_post"];
         delete?: never;
@@ -702,7 +686,7 @@ export interface paths {
         head?: never;
         /**
          * Modifie une ligne (patch partiel ; le corps EST le patch)
-         * @description Modifie une ligne (patch partiel ; le corps EST le patch). `readonly_override=true` remplace les colonnes verrouillées de cet appel — propriétaire ou gouvernant du tableau seulement, et journalisé. `origine_override=true` déclare que cet appel pose la couche `origine` (la valeur du DÉPART, à l'import) en le sachant. Sans lui, une écriture d'origine est refusée à partir du 1er octobre 2026 — écrivez alors la valeur seule : la plateforme fige l'origine au premier enrichissement, mais SEULEMENT si la colonne portait déjà le cran quand la ligne est arrivée. Déclaré après coup, il ne reconstitue rien : les lignes déjà présentes reçoivent le marqueur « (origine inconnue) ». Rien à demander à personne : le paramètre suffit, et il ne vaut que pour cet appel. Il ne lève PAS le refus sur une colonne dont le schéma déclare `origine: "system"`. ⚠️ Une écriture DÉTRUIT ce qui est dans la colonne : sur une colonne ouverte il n'y a ni annulation ni historique, la valeur précédente disparaît au moment où la vôtre arrive. Le filet est le format `origine: "system"`, et ce qu'il garde est précis : la valeur TELLE QU'ELLE ÉTAIT à la déclaration du format. Déclarer le format l'écrit sur toutes les lignes existantes, une fois, dans une transaction ; ensuite la couche ne bouge plus. Le nom dit QUAND, pas QUI : si des agents avaient déjà écrit avant la déclaration, c'est leur valeur qui est gardée. Une colonne sans ce format ne garde rien. La face d'appel n'y change rien : une ligne créée ici et une ligne créée par l'outil agent se comportent à l'identique.
+         * @description Modifie une ligne (patch partiel ; le corps EST le patch). `readonly_override=true` remplace les colonnes verrouillées de cet appel — propriétaire ou gouvernant du tableau seulement, et journalisé. `origine_override=true` déclare que cet appel pose la couche `origine` (la valeur du DÉPART, à l'import) en le sachant. Sans lui, une écriture d'origine est refusée à partir du 1er octobre 2026. ⚠️ Plus rien ne capture une origine automatiquement : `origine: "system"` a été SUPPRIMÉ le 08/09/2026, donc écrire la valeur seule ne garde rien — un écrasement est définitif. Pour un vrai IMPORT, préférez `donnees_d_origine=true`, qui écrit les DEUX versions — la valeur courante et l'origine — dans le même geste, au moment où la valeur entre. Ce paramètre-ci dit seulement « je sais que je pose cette couche », et il ne vaut que pour cet appel. ⚠️ Vous pouvez encore rencontrer le marqueur « (origine inconnue) » dans une couche `origine` : il a été laissé par le mécanisme retiré sur les lignes qu'il ne pouvait pas reconstituer. C'est une PERTE, pas une capture. ⚠️ Une écriture DÉTRUIT ce qui est dans la colonne : sur une colonne ouverte il n'y a ni annulation ni historique, la valeur précédente disparaît au moment où la vôtre arrive. ⚠️ **Et il n'y a AUCUN filet automatique** : le format `origine: "system"` a été SUPPRIMÉ le 08/09/2026 — il capturait la valeur précédente à la première écriture qui la changeait, ce qui exigeait d'avoir été déclaré AVANT que la ligne existe ; déclaré après coup il ne gardait rien. Ce qui le remplace est un geste DÉCLARÉ, porté par l'appel qui apporte la donnée : `donnees_d_origine=true` écrit les DEUX versions — la valeur courante et l'origine — au moment où la valeur entre. Sans lui, un écrasement est définitif et rien ne vous le dira après. La face d'appel n'y change rien : une ligne créée ici et une ligne créée par l'outil agent se comportent à l'identique.
          */
         patch: operations["me_datastore_update_row_patch"];
         trace?: never;
@@ -877,46 +861,6 @@ export interface paths {
          * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/guide-library/{slug}` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 29/10/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
          */
         get: operations["get_api_doctrines_library_slug"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/folkmcp/oauth/callback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * GET /api/folkmcp/oauth/callback
-         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
-         */
-        get: operations["get_api_folkmcp_oauth_callback"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/folkmcp/oauth/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Mon consentement folkmcp est-il posé, et depuis quand
-         * @description Mon consentement folkmcp est-il posé, et depuis quand. `connected: false` avec `set_at: null` est l'état normal d'un compte jamais connecté.
-         */
-        get: operations["me_federation_folkmcp_status_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1401,6 +1345,18 @@ export interface paths {
                         "application/json": components["schemas"]["Erreur"];
                     };
                 };
+                /** @description `delivery_conflict` — ce `(scope, slug)` porte déjà une couche de l'AUTRE livraison — un guide à charger ne remplace pas un readme injecté, ni l'inverse ; rien n'est écrit */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Erreur"] & {
+                            /** @enum {unknown} */
+                            error?: "delivery_conflict";
+                        };
+                    };
+                };
             };
         };
         post?: never;
@@ -1734,6 +1690,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/instagram_meta/oauth/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /api/instagram_meta/oauth/callback
+         * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
+         */
+        get: operations["get_api_instagram_meta_oauth_callback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/invitations/code/{code}": {
         parameters: {
             query?: never;
@@ -1922,6 +1898,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/agent-toolbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What this user's agent actually sees at the start of a conversation, for the consulted org (X-Oto-Org): the exact list of visible tools, grouped by connector, plus the installed co
+         * @description What this user's agent actually sees at the start of a conversation, for the consulted org (X-Oto-Org): the exact list of visible tools, grouped by connector, plus the installed connectors whose tools are hidden and why (paused / cut / restricted / no_tools). Computed by the handshake's own visibility function — read this instead of recomputing 'active connectors' client-side. available:false = could not be derived, never 'no tools'.
+         */
+        get: operations["me_agent_toolbox_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/automations/fire": {
         parameters: {
             query?: never;
@@ -2044,7 +2040,7 @@ export interface paths {
         };
         /**
          * List the org's invoices and credit notes (most recent first)
-         * @description List the org's invoices and credit notes (most recent first). Numbers come from Pennylane, which holds Otomata's continuous numbering. The PDF itself is downloaded from `pdf_path`, a separate authenticated route that returns application/pdf.
+         * @description List the org's invoices and credit notes (most recent first). Numbers come from Pennylane, which holds Otomata's continuous numbering. Since 2026-09-09 documents are NOT issued automatically: a paid period is traced as `held` until a human issues the document, so a missing number is expected, not an incident. The PDF itself is downloaded from `pdf_path`, a separate authenticated route that returns application/pdf.
          */
         get: operations["me_billing_invoices_list_get"];
         put?: never;
@@ -2378,8 +2374,8 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Révoque mon consentement OAuth pour ce connecteur (atlassian, folkmcp ou google) — chez le fournisseur quand le mécanisme le permet, et dans tous les cas retire la ligne locale
-         * @description Révoque mon consentement OAuth pour ce connecteur (atlassian, folkmcp ou google) — chez le fournisseur quand le mécanisme le permet, et dans tous les cas retire la ligne locale. UN SEUL appel, irréversible : jamais d'état intermédiaire en attente de confirmation. Idempotent : `disconnected: false` veut dire qu'il n'y avait rien à retirer, pas que le retrait a échoué.
+         * Révoque mon consentement OAuth pour ce connecteur (google) — chez le fournisseur quand le mécanisme le permet, et dans tous les cas retire la ligne locale
+         * @description Révoque mon consentement OAuth pour ce connecteur (google) — chez le fournisseur quand le mécanisme le permet, et dans tous les cas retire la ligne locale. UN SEUL appel, irréversible : jamais d'état intermédiaire en attente de confirmation. Idempotent : `disconnected: false` veut dire qu'il n'y avait rien à retirer, pas que le retrait a échoué.
          */
         delete: operations["me_connector_disconnect_delete"];
         options?: never;
@@ -2395,8 +2391,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Mon consentement OAuth pour ce connecteur (atlassian, folkmcp ou google) est-il posé, et depuis quand — dérivé de la même source que `/api/me`
-         * @description Mon consentement OAuth pour ce connecteur (atlassian, folkmcp ou google) est-il posé, et depuis quand — dérivé de la même source que `/api/me`. `connected: false` avec `set_at: null` est l'état normal d'un compte jamais connecté.
+         * Mon consentement OAuth pour ce connecteur (google) est-il posé, et depuis quand — dérivé de la même source que `/api/me`
+         * @description Mon consentement OAuth pour ce connecteur (google) est-il posé, et depuis quand — dérivé de la même source que `/api/me`. `connected: false` avec `set_at: null` est l'état normal d'un compte jamais connecté.
          */
         get: operations["me_connector_status_get"];
         put?: never;
@@ -2527,6 +2523,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/datastores/shared": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Les tableaux partagés NOMINATIVEMENT à l'appelant (partage à une personne), et à lui seul — jamais un droit d'org ou d'équipe, qui se lisent dans `GET /api/datastores`
+         * @description Les tableaux partagés NOMINATIVEMENT à l'appelant (partage à une personne), et à lui seul — jamais un droit d'org ou d'équipe, qui se lisent dans `GET /api/datastores`. Indépendant de l'org active : un partage à une personne n'appartient à aucune org. Sans doublon avec la liste de l'org active : un tableau qu'elle rend déjà n'est pas répété ici. Même forme que les entrées de `GET /api/datastores`, plus `shared_by` (le nom de qui a partagé).
+         */
+        get: operations["me_datastore_shared_with_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/docs": {
         parameters: {
             query?: never;
@@ -2538,7 +2554,7 @@ export interface paths {
         put?: never;
         /**
          * Docs (markdown pages tree inside a project; inherit the project's access)
-         * @description Docs (markdown pages tree inside a project; inherit the project's access). **This is also the org KNOWLEDGE BASE**: resolve it with oto_kb → project_id, then read/search/write reference pages here (the dashboard « Documents » zone). Prefer it over the web for org facts (processes, context, conventions), and CAPTURE durable, sourced facts here (kind=source/note) as you learn them. op=create (project_id, title; optional parent_id/body_md/kind) / bulk_create (project_id + `pages`=[{title, body_md?, kind?, parent_index?}] → N pages in ONE call, build a tree via parent_index = an earlier page in the batch) / list (project_id → the page INDEX, build the tree via parent_id: titles and `body_md_length`, NOT the bodies — pick a page here, then op=get it. `fields=["*"]` returns whole pages, `fields=[…]` picks columns) / search (project_id + query → full-text hits {id,title,kind,snippet}: LOCATE a page, then get its content) / get (the whole page, incl. `rev`, an ETag; pass `fields=[…]` to read ONLY those columns — `fields=["id","rev"]` gets the rev for an optimistic patch without paying for the body) / update (title/body_md/kind, full body; snapshots the prior version; pass `expected_rev` from op=get for optimistic conflict detection → 409 if the page changed since) / patch (edit ONE region in place, WITHOUT re-emitting the page — this is how you edit a page too long to re-send: `mode` replace|append|prepend|delete, and ONE target, either `section`=its markdown heading + `body_md` = that section's BODY, WITHOUT repeating the heading (the server keeps it), OR `region="preamble"` = everything ABOVE the first heading (provenance banner, "Last verified" line, front-matter) — it belongs to no section, so no `section` value can ever reach it; that is a SEPARATE axis, never a reserved heading name like "__preamble__" (a page may legitimately have such a heading, and it stays reachable via `section`). Passing both, or neither, is refused. `mode=delete` removes the target INCLUDING its heading (pass no `body_md`) — the only way to drop a heading without rewriting the page; to merely empty a section and keep its heading, use mode=replace with an empty `body_md`. Two authors on different regions don't clobber; every mode honours `expected_rev` and snapshots a revision. SCOPE: a section runs to the next heading of EQUAL-OR-HIGHER level, so its NESTED sub-sections are part of it — replacing OR deleting a `###` also takes its `####` children (the response then lists `removed_subsections`). To keep them, target the sub-heading itself or use mode=append) / A SUCCESSFUL WRITE (create/update/patch/move) returns a RECEIPT, not the page: id, title, `url`, `rev`, `updated_at` and `body_md_length` — you just wrote the body, so it is not replayed back at you. Add `fields=["*"]` if you really want the stored page back, or `fields=[…]` to pick columns. / A page's `description` is a chapô you STORE: leave it out and the index DERIVES one from the first prose line of the body (marked `description_derived`), so it moves with every body edit — that is not an overwrite. Pass `description` explicitly to pin one that stops following the body. / EVERY page carries `url` — the web address to READ it, in the reader's own product. That is the answer to "where is it?": hand it over as-is, never rebuild an address from a pattern. `null` means that reader's product has no such view — then say where it lives (project + title) rather than invent a link. / revisions (doc_id → version history, newest first; each row's `id` is what op=revert takes) / revert (doc_id + `revision_id` from op=revisions → puts that past title+body back). A revert moves FORWARD: the current state is snapshotted first, so nothing is lost and a revert can itself be reverted; the response echoes `reverted_from`. It honours `expected_rev` too — pass it or you may silently overwrite a peer's edit. It restores a VERSION of a page that still exists; it does NOT undo a delete (a deleted page took its revisions with it) / backlinks (doc_id → the pages that CITE this one). LINK PAGES with `[[Exact page title]]` in body_md — that wiki-link is the ONLY thing that creates a backlink (prose mentions, [text](doc:88) and [text](/docs/88) create none). Resolved AT WRITE TIME against the current project then the org KB, case- and edge-space-insensitive; a title that doesn't exist yet is kept as a stub and links itself once the page is created or renamed. ⚠️ That is the reach of RESOLUTION, not of the graph, and they differ BOTH ways. (a) The graph is not symmetric: a page in the org KB resolves against the KB alone, so it can NEVER link to a page living in a project — while that project page links back to it fine (the KB is itself a project, so an ordinary backlink is already cross-project). A page can therefore be cited from the org's top map and still read as an orphan here: do not use backlinks as a completeness or orphan check without knowing that. (b) op=backlinks shows every STORED link whatever its project, including one left behind by a page MOVED between projects — no resolution would make it today, and it disappears, silently, the next time the citing page is written. So a cross-project backlink is not proof that the same `[[…]]`, written now, would resolve. (c) The list is filtered by YOUR access: citations living in projects you cannot read are removed. When that happens the response says `hidden_by_access: true` — « nobody cites this page » and « three pages cite it, you cannot see them » call for opposite moves, so the second is never reported as the first. The COUNT of hidden ones is deliberately not given: it would tell you how many pages exist in projects that are closed to you. Every write says which of its `[[…]]` found nothing, under `citations_sans_cible` / request_change (read-only users propose a new body_md/title + message) / list_changes (owner: pending requests) / resolve_change (request_id + accept: true applies it, false rejects) / set_public (public: true → shareable public read-only link to THIS PAGE ALONE: the reader gets its title and body, and nothing else — not the project, not the sibling pages, not this page's own sub-pages, which each need their own link ; false → private ; returns public_url) / delete (removes the page AND its whole subtree, revisions included — irreversible, there is no trash and no undelete. The response says how many pages went with it (`descendants`); ask FIRST with `dry_run: true`, which deletes nothing and returns the same count, whenever a human has to confirm) / move (reparent/reorder in-project via parent_id [null=top-level] + position; OR cross-project via `to_project`=target project id → moves the page AND its subtree there, write required on both. ⚠️ A move is NOT free for links: the page's own `[[…]]` are re-resolved in the TARGET project (some become stubs), while the links pointing AT it are left stored though now out of reach — they still show in op=backlinks and die on the citing page's next write. After reorganising a tree, rewrite the citing pages and read their `citations_sans_cible`). kind ∈ doc|note|source. EMBED A LIVE DATASTORE in a page body with a fenced block ```oto-data<newline><namespace-name-or-id><newline>``` → the viewer renders that datastore's table LIVE (always up to date). Prefer this over a hand-typed summary table when the data lives in a datastore (single source of truth, no drift).
+         * @description Docs (markdown pages tree inside a project; inherit the project's access). A reference page is a DOC, in the PROJECT it belongs to (that project's « Documents » zone in the dashboard): CAPTURE the sourced facts of a piece of work there (kind=source/note) as you learn them, and search it before the web. How the org works (rules, conventions) belongs in its guide (`oto_guide`, read back by `oto_context`), and what concerns the person in their profile card (`oto_profile`) — not in a page. op=create (project_id, title; optional parent_id/body_md/kind) / bulk_create (project_id + `pages`=[{title, body_md?, kind?, parent_index?}] → N pages in ONE call, build a tree via parent_index = an earlier page in the batch) / list (project_id → the page INDEX, build the tree via parent_id: titles and `body_md_length`, NOT the bodies — pick a page here, then op=get it. `fields=["*"]` returns whole pages, `fields=[…]` picks columns) / search (project_id + query → full-text hits {id,title,kind,snippet}: LOCATE a page, then get its content) / get (the whole page, incl. `rev`, an ETag; pass `fields=[…]` to read ONLY those columns — `fields=["id","rev"]` gets the rev for an optimistic patch without paying for the body) / update (title/body_md/kind, full body; snapshots the prior version; pass `expected_rev` from op=get for optimistic conflict detection → 409 if the page changed since) / patch (edit ONE region in place, WITHOUT re-emitting the page — this is how you edit a page too long to re-send: `mode` replace|append|prepend|delete, and ONE target, either `section`=its markdown heading + `body_md` = that section's BODY, WITHOUT repeating the heading (the server keeps it) — matched on the heading TEXT, level and case ignored: when several headings match, the patch is REFUSED with their list (never applied to the first), OR `region="preamble"` = everything ABOVE the first heading (provenance banner, "Last verified" line, front-matter) — it belongs to no section, so no `section` value can ever reach it; that is a SEPARATE axis, never a reserved heading name like "__preamble__" (a page may legitimately have such a heading, and it stays reachable via `section`). Passing both, or neither, is refused. `mode=delete` removes the target INCLUDING its heading (pass no `body_md`) — the only way to drop a heading without rewriting the page; to merely empty a section and keep its heading, use mode=replace with an empty `body_md`. Two authors on different regions don't clobber; every mode honours `expected_rev` and snapshots a revision. SCOPE: a section runs to the next heading of EQUAL-OR-HIGHER level, so its NESTED sub-sections are part of it — replacing OR deleting a `###` also takes its `####` children (the response then lists `removed_subsections`). To keep them, target the sub-heading itself or use mode=append) / A SUCCESSFUL WRITE (create/update/patch/move) returns a RECEIPT, not the page: id, title, `url`, `rev`, `updated_at` and `body_md_length` — you just wrote the body, so it is not replayed back at you. Add `fields=["*"]` if you really want the stored page back, or `fields=[…]` to pick columns. / A page's `description` is a chapô you STORE: leave it out and the index DERIVES one from the first prose line of the body (marked `description_derived`), so it moves with every body edit — that is not an overwrite. Pass `description` explicitly to pin one that stops following the body. / EVERY page carries `url` — the web address to READ it, in the reader's own product. That is the answer to "where is it?": hand it over as-is, never rebuild an address from a pattern. `null` means that reader's product has no such view — then say where it lives (project + title) rather than invent a link. / revisions (doc_id → version history, newest first; each row's `id` is what op=revert takes) / revert (doc_id + `revision_id` from op=revisions → puts that past title+body back). A revert moves FORWARD: the current state is snapshotted first, so nothing is lost and a revert can itself be reverted; the response echoes `reverted_from`. It honours `expected_rev` too — pass it or you may silently overwrite a peer's edit. It restores a VERSION of a page that still exists; it does NOT undo a delete (a deleted page took its revisions with it) / backlinks (doc_id → the pages that CITE this one). LINK PAGES with `[[Exact page title]]` in body_md — that wiki-link is the ONLY thing that creates a backlink (prose mentions, [text](doc:88) and [text](/docs/88) create none). Resolved AT WRITE TIME against the page's own project first, then every project the ORGANIZATION owns — never a team project, a personal project or another organization's — case- and edge-space-insensitive. A title carried by pages of SEVERAL org projects (none in the page's own) is AMBIGUOUS: nothing is linked and the write lists the candidates under `citations_ambigues` — make the title unique rather than guessing. A title that doesn't exist yet is kept as a stub and links itself once the page is created or renamed. ⚠️ That is the reach of RESOLUTION, not of the graph, and they differ BOTH ways. (a) The graph is not symmetric: a page of a team or personal project resolves into the org's projects, but no page of an org project can ever link to it. A page can therefore be cited and still read as an orphan here: do not use backlinks as a completeness or orphan check without knowing that. (b) op=backlinks shows every STORED link whatever its project, including one left behind by a page MOVED between projects — no resolution would make it today, and it disappears, silently, the next time the citing page is written. So a cross-project backlink is not proof that the same `[[…]]`, written now, would resolve. (c) The list is filtered by YOUR access: citations living in projects you cannot read are removed. When that happens the response says `hidden_by_access: true` — « nobody cites this page » and « three pages cite it, you cannot see them » call for opposite moves, so the second is never reported as the first. The COUNT of hidden ones is deliberately not given: it would tell you how many pages exist in projects that are closed to you. Every write says which of its `[[…]]` found nothing, under `citations_sans_cible` / request_change (read-only users propose a new body_md/title + message) / list_changes (owner: pending requests) / resolve_change (request_id + accept: true applies it, false rejects) / set_public (public: true → shareable public read-only link to THIS PAGE ALONE: the reader gets its title and body, and nothing else — not the project, not the sibling pages, not this page's own sub-pages, which each need their own link ; false → private ; returns public_url) / delete (removes the page AND its whole subtree, revisions included — irreversible, there is no trash and no undelete. The response says how many pages went with it (`descendants`); ask FIRST with `dry_run: true`, which deletes nothing and returns the same count, whenever a human has to confirm) / move (reparent/reorder in-project via parent_id [null=top-level] + position; OR cross-project via `to_project`=target project id → moves the page AND its subtree there, write required on both. ⚠️ A move is NOT free for links: the page's own `[[…]]` are re-resolved in the TARGET project (some become stubs), while the links pointing AT it are left stored though now out of reach — they still show in op=backlinks and die on the citing page's next write. After reorganising a tree, rewrite the citing pages and read their `citations_sans_cible`). kind ∈ doc|note|source. EMBED A LIVE DATASTORE in a page body with a fenced block ```oto-data<newline><namespace-name-or-id><newline>``` → the viewer renders that datastore's table LIVE (always up to date). Prefer this over a hand-typed summary table when the data lives in a datastore (single source of truth, no drift).
          */
         post: operations["me_doc_post"];
         delete?: never;
@@ -3015,6 +3031,18 @@ export interface paths {
                         "application/json": components["schemas"]["Erreur"];
                     };
                 };
+                /** @description `delivery_conflict` — ce `(scope, slug)` porte déjà une couche de l'AUTRE livraison — un guide à charger ne remplace pas un readme injecté, ni l'inverse ; rien n'est écrit */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Erreur"] & {
+                            /** @enum {unknown} */
+                            error?: "delivery_conflict";
+                        };
+                    };
+                };
             };
         };
         post?: never;
@@ -3100,7 +3128,7 @@ export interface paths {
         get: operations["org_instruction_get_get"];
         /**
          * Write your org's guide (org_admin)
-         * @description Write your org's guide (org_admin). Each write bumps the version and archives a snapshot. slug omitted = base guide; given = a named skill. `from_version` restores a past version as a new one (revert). `slots` = the procedure's REQUIRED ENTITIES [{name, type: tableau|connecteur|base, description?, connector?}] — reference them BY NAME in the prose as <slot:name> (never a hardcoded instance: the project binds name→instance). EVERY procedure OPENS with `> **Self-improvement digest** — …` (what the last run taught and what was fixed, dated) and must carry a FLOWCHART (one untagged fenced block drawn in box characters, right after the « At a glance » table and before the first phase heading) — it is the DEFAULT view of the process page; read the `procedure-flowchart` guide first. Response returns cross-check warnings (unresolved/unreferenced slots, suggestions, `digest_warning`, `diagram_warning`). `org` pins the write to an EXPLICIT org id (default = your active org) — pass it to stay robust if a reconnect dropped your session org; you must be org_admin of it. ⚠️ This is an UPSERT: a slug that already exists is EDITED (new version, prior one snapshotted), never rejected. To CREATE without risking someone else's procedure, use POST /api/me/instructions, which refuses a taken slug. Pass `expected_version` (the version you read) to turn a concurrent edit into a 409 instead of an overwrite.
+         * @description Write your org's guide (org_admin). Each write bumps the version and archives a snapshot. slug omitted = base guide; given = a named skill. `from_version` restores a past version as a new one (revert). `slots` = the procedure's REQUIRED ENTITIES [{name, type: tableau|connecteur|base, description?, connector?}] — reference them BY NAME in the prose as <slot:name> (never a hardcoded instance: the project binds name→instance). EVERY procedure must carry a FLOWCHART (one untagged fenced block drawn in box characters, right after the « At a glance » table and before the first phase heading) — it is the DEFAULT view of the process page; read the `procedure-flowchart` guide first. Response returns cross-check warnings (unresolved/unreferenced slots, suggestions, `diagram_warning`). `org` pins the write to an EXPLICIT org id (default = your active org) — pass it to stay robust if a reconnect dropped your session org; you must be org_admin of it. ⚠️ This is an UPSERT: a slug that already exists is EDITED (new version, prior one snapshotted), never rejected. To CREATE without risking someone else's procedure, use POST /api/me/instructions, which refuses a taken slug. Pass `expected_version` (the version you read) to turn a concurrent edit into a 409 instead of an overwrite.
          */
         put: operations["org_instruction_set_put"];
         post?: never;
@@ -3149,6 +3177,26 @@ export interface paths {
         put?: never;
         /** org.instruction.revert */
         post: operations["org_instruction_revert_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/instructions/{slug}/unarchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Put an archived guide BACK IN SERVICE (org_admin) — the exact inverse of `archive`, on the same face, because whoever retires one from the screen must be able to restore it from th
+         * @description Put an archived guide BACK IN SERVICE (org_admin) — the exact inverse of `archive`, on the same face, because whoever retires one from the screen must be able to restore it from the screen. It reappears in every listing and is offered again. `was_archived_at` echoes the retirement date this call just cancelled, so the journal records what was undone and not merely that something was. A guide that was already in service answers `unarchived: false` and is NOT an error — an unknown slug is the 404. Pass the EXACT slug. `org` pins to an explicit org id (default = active org; must be org_admin of it).
+         */
+        post: operations["org_instruction_unarchive_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3239,8 +3287,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Resolve the active org's KNOWLEDGE BASE — a single dedicated project, seeded as "Knowledge base" and freely renamable: it is anchored by project id, so NEVER look it up by name, ca
-         * @description Resolve the active org's KNOWLEDGE BASE — a single dedicated project, seeded as "Knowledge base" and freely renamable: it is anchored by project id, so NEVER look it up by name, call this tool. This is the org-wide Documents space; its pages are managed with oto_doc (tree, versions, public share, change requests). ⚠️ It belongs to the ORG and is visible to EVERY member — « the knowledge base » is never a personal space, whatever the request sounded like. The answer says so in `visible_to`, and `created: true` tells you that YOU just brought a shared project into existence. For something only you can see, make a project instead (`oto_project op=create`, owner_type='user') — if the request said « MY knowledge base », that is the one you want. op="get" (default) READS the anchor and returns project_id=null when the org has no knowledge base yet — it never creates one, so opening a Documents view costs the org nothing. op="create" CREATES the org's shared knowledge base (and re-anchors it if a previous one was archived or moved out of the org); it is idempotent — an org that already has one gets it back with created: false, never a duplicate. Use it right before writing the first page, not to look.
+         * Resolves the org's historical documents project — what used to be called its knowledge base, an ordinary PROJECT of the org — for the dashboard's Documents zone
+         * @description Resolves the org's historical documents project — what used to be called its knowledge base, an ordinary PROJECT of the org — for the dashboard's Documents zone. REST only: the MCP verb `oto_kb` is retired, agents reach these pages like any project's (`oto_project`, then `oto_doc`). Anchored by project id (seeded as "Knowledge base", freely renamable — never look it up by name). It belongs to the ORG and is visible to EVERY member; the answer says so in `visible_to`. op="get" (default) READS the anchor and returns project_id=null when the org has none — it never creates one, so opening the Documents zone costs the org nothing. op="create" creates it and is idempotent (created: false when one already exists, never a duplicate).
          */
         post: operations["me_kb_post"];
         delete?: never;
@@ -3447,8 +3495,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Projects (organization layer, ADR 0030 owned resource)
-         * @description Projects (organization layer, ADR 0030 owned resource). EVERY project carries `url` — the web address to OPEN it, in the reader's own product; hand it over as-is when asked "where is it?", never rebuild one from a pattern (`null` = that reader's product has no such view). op=create (name, optional brief_md; owner_type user|org + owner_id for a team project) / list (ORG-SCOPED: the ACTIVE org's projects + projects shared with it or with you — pass `org=<id>` to see another org's; every response echoes the effective org in `_org`. An INDEX: names and `brief_md_length`, NOT the briefs — read one with op=get, or pass `fields=["*"]` for whole records) / list_templates (published MODEL projects you can copy) / get (project + its links + an `audit` of those links: dead_links / unbound_slots / inert_procedures — a linked entity that no longer resolves surfaces HERE, act on it) / update (name, icon = an emoji shown in the lists and headers ("" clears it), brief_md, is_template = publish/unpublish as a copyable model, excluded_url_prefixes = URL prefixes such as `linkedin.com/in/` that search tools drop and extraction tools refuse under this project — a whole host must be written `host/*`, `[]` clears) / copy (deep-copy a project you can read — its own or a model — into a NEW project in your active org: brief + doc tree + links + raw files; a tableau link stays a POINTER to the same namespace by default (config.provision absent/`shared`), but with config.provision=`empty`|`seeded` it is PROVISIONED — a FRESH namespace (same schema, rows only if `seeded`) so each copy gets its own isolated table (e.g. a campaign template's lead pool). A `shared` tableau owned by ANOTHER org is re-provisioned EMPTY (never a pointer to the source's private data), and links whose namespace no longer resolves are skipped — both surfaced in the response `warnings`. Pass project_id = source + name = target) / handoff (a copy-paste « resume in Claude » blob that pre-writes the per-call `_project=` token for this project) / archive / link & unlink (attach an entity: target_type tableau|procedure|connecteur + target_ref = its id/slug/name, optional label + optional role = why this entity belongs to the project + optional config = the entity's PRE-MADE per-project override; for a connecteur: {identity_id?, instructions_md?} = which account to act as + prose instructions to apply (e.g. 'only filter agreements by the mutuelle theme'), or `instance_ref` (a ref from oto_instance op=list, ADR 0038 B5) to bind EXACTLY that credential — calls carrying this project's token then resolve it hard, no fallback; for a tableau: {provision?: shared|empty|seeded} = how a project copy treats it (empty/seeded = each copy gets its own fresh table). Optional `slot` = the SLOT NAME this link BINDS for the project (ADR 0035): procedures declare required entities as slots and reference them <slot:name> in their prose — the project maps each name to a concrete entity via its links. Slot names are a PROJECT-wide vocabulary (unique per project → 409 slot_taken; two linked procedures sharing `sortie` share the binding). Re-linking without role/config/slot preserves the existing ones. link says WHAT IT DID in `link_status`: `created` (the binding did not exist), `unchanged` (it was already there and this call rewrote nothing) or `updated` (it existed and this call changed it — `changed_fields` then lists which of label/role/slot/config moved). Re-running a link is safe and idempotent, so a caller told to ENSURE a resource is attached must read `link_status` — not `ok` — to know whether it actually acted. unlink returns `removed` = how many bindings it actually took out, and REFUSES (`link_not_found`) when it matched none — it never answers ok on a link it did not find. Give the `target_ref` as op=get renders it: an older link may still carry the NAME of its tableau (or the SLUG of its procedure) instead of the id, and unlink takes back either spelling. get/link return each link's role + slot + config + a derived `cross_project` flag (the same entity is linked by another project → avoid brutal edits / ask); a tableau link also returns its resolved `namespace` — address THIS project's table by that name with the data_* tools (never hardcode a namespace). Share & transfer go through oto_resource (resource_type='project') — this includes RE-PARENTING a project in place (same id, links, runs preserved): op=transfer new_owner_group=<id> hands it to a TEAM so the project and its connector credentials sit at the SAME level (the team's secrets then resolve when you open it), new_owner_org=<id> to an org, new_owner_email to a user. (op=update only changes name/icon/brief_md/is_template — never the owner; op=copy makes a NEW id.) inventory = the project's DERIVED surface (union of the linked procedures' <tool:> refs + tools actually used by the project's runs, plus connectors from links & declared slots) — never retype a tool list: derive, then curate. runs (optional target_ref = a linked procedure's stable id) = the project's recent runs (label/guide/outcome), filtered to that procedure when given. OMIT project_id on op=runs and you get YOUR OWN still-open runs instead, each with its `run_id` — that is how you find a run you opened and lost the id of, so you can finally close it with run_finish. Across every org, since a run you cannot find is usually one you opened elsewhere. lint (optional stale_days, default 90) = KB health of this project's pages: stale (untouched since), empty (trivial body), duplicate_titles (likely merges). publish_mcp (mcp_slug + mcp_access anonymous|secret|org + mcp_tools = the fixed tool allowlist) publishes the project as a dedicated MCP endpoint `<mcp_slug>.mcp.oto.cx/mcp`, the toolset served under the OWNER ORG's credentials — `anonymous` = no login + LISTED in the public directory; `secret` = no login but UNLISTED, the slug is server-generated & unguessable (a secret URL; mcp_slug is an optional readable prefix); `org` = Logto JWT + pins the org. For anonymous/secret, tools that aren't credential-less or resolvable for the org are published anyway but FAIL cleanly at call time — they come back in `mcp_unresolvable_tools` (configure an org key or drop them). mcp_expose_datastore (SECRET only) opts the `data_*` tools in: they then act under the OWNER ORG's authority (read/write the org's namespaces) without a login — off by default (the datastore stays private); refused on anonymous/org. unpublish_mcp removes it. get returns mcp_slug/mcp_access/mcp_tools/mcp_expose_datastore/mcp_url.
+         * Projects (organization layer)
+         * @description Projects (organization layer). op=create (name, optional brief_md; owner_type user|org + owner_id for a team project) / list (ORG-SCOPED: the ACTIVE org's projects + projects shared with it or with you — pass `org=<id>` to see another org's; every response echoes the effective org in `_org`. An INDEX: names and `brief_md_length`, NOT the briefs — read one with op=get, or pass `fields=["*"]` for whole records) / list_templates (published MODEL projects you can copy) / get (project + its links + an `audit` of those links: dead_links / unbound_slots / inert_procedures — a linked entity that no longer resolves surfaces HERE, act on it) / update (name, icon = an emoji shown in the lists and headers ("" clears it), brief_md, is_template = publish/unpublish as a copyable model, excluded_url_prefixes = URL prefixes such as `linkedin.com/in/` that search tools drop and extraction tools refuse under this project — a whole host must be written `host/*`, `[]` clears) / copy (deep-copy a project you can read — its own or a model — into a NEW project in your active org: brief + doc tree + links + raw files; a tableau link stays a POINTER to the same namespace by default (config.provision absent/`shared`), but with config.provision=`empty`|`seeded` it is PROVISIONED — a FRESH namespace (same schema, rows only if `seeded`) so each copy gets its own isolated table (e.g. a campaign template's lead pool). A `shared` tableau owned by ANOTHER org is re-provisioned EMPTY (never a pointer to the source's private data), and links whose namespace no longer resolves are skipped — both surfaced in the response `warnings`. Pass project_id = source + name = target) / handoff (a copy-paste « resume in Claude » blob that pre-writes the per-call `_project=` token for this project) / archive / link & unlink (attach an entity: target_type tableau|procedure|connecteur + target_ref = its id/slug/name, optional label + optional role = why this entity belongs to the project + optional config = the entity's PRE-MADE per-project override; for a connecteur: {identity_id?, instructions_md?} = which account to act as + prose instructions to apply (e.g. 'only filter agreements by the mutuelle theme'), or `instance_ref` (a ref from oto_instance op=list, ADR 0038 B5) to bind EXACTLY that credential — calls carrying this project's token then resolve it hard, no fallback; for a tableau: {provision?: shared|empty|seeded} = how a project copy treats it (empty/seeded = each copy gets its own fresh table). Optional `slot` = the SLOT NAME this link BINDS for the project (ADR 0035): procedures declare required entities as slots and reference them <slot:name> in their prose — the project maps each name to a concrete entity via its links. Slot names are a PROJECT-wide vocabulary (unique per project → 409 slot_taken; two linked procedures sharing `sortie` share the binding). Re-linking preserves every field you omit — label, role, config and slot; pass a value to change one. link says WHAT IT DID in `link_status`: `created` (the binding did not exist), `unchanged` (it was already there and this call rewrote nothing) or `updated` (it existed and this call changed it — `changed_fields` then lists which of label/role/slot/config/target_ref moved). Re-running a link is safe and idempotent, so a caller told to ENSURE a resource is attached must read `link_status` — not `ok` — to know whether it actually acted. unlink returns `removed` = how many bindings it actually took out, and REFUSES (`link_not_found`) when it matched none — it never answers ok on a link it did not find. Give the `target_ref` as op=get renders it: an older link may still carry the NAME of its tableau (or the SLUG of its procedure) instead of the id. link and unlink both recognize either spelling: link rewrites that older link to the id (`rewritten_from` = the old spelling) instead of adding a second one, unlink takes back every spelling. get/link return each link's role + slot + config + a derived `cross_project` flag (the same entity is linked by another project → avoid brutal edits / ask); a tableau link also returns its resolved `datastore` (the NAME, a label) and `datastore_id` (the IDENTIFIER, resolved server-side in the PROJECT OWNER's scope) — address THIS project's table with `datastore_id` in the data_* tools, never by hardcoding a name: several tables can carry one name, and at equal name resolution prefers the CALLER's own personal table. No `datastore_id` = this link does not resolve to a single table here — say so instead of guessing. EVERY project carries `url` — the web address to OPEN it, in the reader's own product; hand it over as-is when asked "where is it?", never rebuild one from a pattern (`null` = that reader's product has no such view). Share & transfer go through oto_resource (resource_type='project', ADR 0030 owned resource) — this includes RE-PARENTING a project in place (same id, links, runs preserved): op=transfer new_owner_group=<id> hands it to a TEAM so the project and its connector credentials sit at the SAME level (the team's secrets then resolve when you open it), new_owner_org=<id> to an org, new_owner_email to a user. (op=update only changes name/icon/brief_md/is_template — never the owner; op=copy makes a NEW id.) inventory = the project's DERIVED surface (union of the linked procedures' <tool:> refs + tools actually used by the project's runs, plus connectors from links & declared slots) — never retype a tool list: derive, then curate. runs (optional target_ref = a linked procedure's stable id) = the project's recent runs (label/guide/outcome), filtered to that procedure when given. OMIT project_id on op=runs and you get YOUR OWN still-open runs instead, each with its `run_id` — that is how you find a run you opened and lost the id of, so you can finally close it with run_finish. Across every org, since a run you cannot find is usually one you opened elsewhere. lint (optional stale_days, default 90) = health of this project's pages: stale (untouched since), empty (trivial body), duplicate_titles (likely merges). publish_mcp (mcp_slug + mcp_access anonymous|secret|org + mcp_tools = the fixed tool allowlist) publishes the project as a dedicated MCP endpoint `<mcp_slug>.mcp.oto.cx/mcp`, the toolset served under the OWNER ORG's credentials — `anonymous` = no login + LISTED in the public directory; `secret` = no login but UNLISTED, the slug is server-generated & unguessable (a secret URL; mcp_slug is an optional readable prefix); `org` = Logto JWT + pins the org. For anonymous/secret, tools that aren't credential-less or resolvable for the org are published anyway but FAIL cleanly at call time — they come back in `mcp_unresolvable_tools` (configure an org key or drop them). mcp_expose_datastore (SECRET only) opts the `data_*` tools in: they then act under the OWNER ORG's authority (read/write the org's namespaces) without a login — off by default (the datastore stays private); refused on anonymous/org. unpublish_mcp removes it. get returns mcp_slug/mcp_access/mcp_tools/mcp_expose_datastore/mcp_url.
          */
         post: operations["me_project_post"];
         delete?: never;
@@ -4072,8 +4120,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * [org admin] Force a connector into a member's toolbox IN THIS ORG: sets a positive visibility override on all the connector's tools for the target member (`member` = sub or email)
-         * @description [org admin] Force a connector into a member's toolbox IN THIS ORG: sets a positive visibility override on all the connector's tools for the target member (`member` = sub or email). They see it without enabling it, and can still hide it (oto_disable_tool lifts the override). Visibility only — NOT an access grant.
+         * [org admin] Install a connector in ONE member's toolbox in this org (provenance `admin`) — it is NOT added to your org's kit
+         * @description [org admin] Install a connector in ONE member's toolbox in this org (provenance `admin`) — it is NOT added to your org's kit. Never over their own choice: if they paused it or removed it themselves, the push is REFUSED and says so, with the date. Refused too if the connector is unknown or not available for your org. Not an access grant: keys and access rules still apply at call time. Their agent sees it at their NEXT conversation. `member` = sub or email.
          */
         post: operations["connectors_force_member_post"];
         delete?: never;
@@ -4092,7 +4140,7 @@ export interface paths {
         get?: never;
         /**
          * [org admin] Force a connector ON or OFF for your whole org (hard ceiling)
-         * @description [org admin] Force a connector ON or OFF for your whole org (hard ceiling). Enabling requires the platform to expose it (the platform ceiling is never lifted); disabling always works. Takes effect for members on their next session.
+         * @description [org admin] Force a connector ON or OFF for your whole org (hard ceiling). Enabling requires the platform to expose it (the platform ceiling is never lifted); disabling always works. Takes effect for members on their next session. If the connector is in your org's kit, the response says so (`in_kit`, `kit_note`): cutting it keeps it in the kit and installed, hidden for everyone, and it comes back on its own when reopened.
          */
         put: operations["connectors_activation_set_org_put"];
         post?: never;
@@ -4116,13 +4164,13 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * [org admin] Make a connector active for the whole org, now and going forward, in one call: activates it for every CURRENT member who hasn't made an explicit choice yet (never overr
-         * @description [org admin] Make a connector active for the whole org, now and going forward, in one call: activates it for every CURRENT member who hasn't made an explicit choice yet (never overrides a member's own pause/uninstall), AND adds it to the org's default set so every member who joins LATER starts with it pre-activated too. Requires the org to already expose the connector.
+         * [org admin] Add a connector to your org's KIT: it is installed right away for every current member who doesn't have it, and for every member who joins later
+         * @description [org admin] Add a connector to your org's KIT: it is installed right away for every current member who doesn't have it, and for every member who joins later. Never over a member's own choice — a member who paused it or removed it themselves keeps it that way. If it is ALREADY in the kit, nothing is replayed: the response says why and how to apply it anyway. Requires the org to expose the connector. Returns activated (installed now), skipped, and the per-population detail in `changes`. Members' agents see it at their NEXT conversation.
          */
         post: operations["connectors_bulk_select_post"];
         /**
-         * [org admin] Remove a connector from the org's default set — members who join later stop getting it pre-activated
-         * @description [org admin] Remove a connector from the org's default set — members who join later stop getting it pre-activated. Never touches an existing member's own active/paused choice, and never hides the connector from search/the library (unlike the platform/org exposure ceiling).
+         * [org admin] Take a connector out of your org's KIT: it is uninstalled from every member the KIT installed it for (active or paused), and kept where the member installed or resumed
+         * @description [org admin] Take a connector out of your org's KIT: it is uninstalled from every member the KIT installed it for (active or paused), and kept where the member installed or resumed it themselves, where an admin pushed it to them, or where it predates tracking — `uninstalled` and `kept` (by provenance) say so. Members who join later no longer get it. It never hides the connector from search/the library: that is the availability switch, a different lever.
          */
         delete: operations["connectors_unset_default_delete"];
         options?: never;
@@ -4139,8 +4187,8 @@ export interface paths {
         };
         get?: never;
         /**
-         * [org admin] Set your org's default connector set
-         * @description [org admin] Set your org's default connector set. This is the REAL starting toolbox for every NEW member (merged with the platform baseline at their first session) — not just a library badge. Never retroactively touches an existing member; they keep whatever they've already chosen. connectors = list of connector names ([] clears back to the platform-only baseline).
+         * [org admin] Set your org's KIT as a whole list — the connectors your org installs into its members' toolboxes
+         * @description [org admin] Set your org's KIT as a whole list — the connectors your org installs into its members' toolboxes. Only the DIFFERENCE with the current kit is applied, to current members AND to members who join later: each added connector is installed for every member who doesn't have it (never over a member's own choice — a connector they paused or removed themselves stays that way); a connector taken out of the kit is uninstalled where the kit installed it, and nowhere else. Connectors already in the kit are not replayed. Returns, per changed connector, installed / already_active / paused / removed_by_member / masked_by_access. Members' agents see it at their NEXT conversation. ADDING a connector unknown to the catalog or not available for your org is REFUSED, naming why — nothing is written. A connector already in the kit that your org has since cut stays in it: installed, hidden for everyone, back on its own when reopened (listed in `cut`). connectors = connector names ([] empties the kit).
          */
         put: operations["connectors_recommend_put"];
         post?: never;
@@ -4472,6 +4520,18 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Erreur"];
+                    };
+                };
+                /** @description `delivery_conflict` — ce `(scope, slug)` porte déjà une couche de l'AUTRE livraison — un guide à charger ne remplace pas un readme injecté, ni l'inverse ; rien n'est écrit */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Erreur"] & {
+                            /** @enum {unknown} */
+                            error?: "delivery_conflict";
+                        };
                     };
                 };
             };
@@ -4895,6 +4955,40 @@ export interface paths {
          * @description [org admin] Remove your org's default-hide on a tool. Idempotent: a tool that was not hidden answers 200 hidden:false. Accepts a name the hide side would refuse (unknown or protected), so a stale row left by a renamed tool can be cleaned up.
          */
         delete: operations["tools_org_unhide_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/orgs/{id}/usage/calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** org.usage.calls */
+        get: operations["org_usage_calls_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/orgs/{id}/usage/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** org.usage.connections */
+        get: operations["org_usage_connections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -6089,12 +6183,12 @@ export interface components {
             kind: string;
             /**
              * Status
-             * @description 'issued' = document émis, numéroté, définitif. 'pending' = l'émission n'a pas encore abouti — l'encaissement, lui, a bien eu lieu et la facture est due ; elle est rejouée automatiquement. Un `pending` n'est jamais un paiement perdu.
+             * @description 'issued' = document émis, numéroté, définitif. 'held' = l'encaissement est tracé et la facture est due, mais la plateforme n'émet plus aucun document automatiquement depuis le 2026-09-09 : elle est posée à la main. 'pending' = une tentative d'émission d'AVANT cette date n'avait pas abouti. Aucun des trois n'est un paiement perdu, et aucun n'appelle d'action du client.
              */
             status: string;
             /**
              * Number
-             * @description Numéro de facture, attribué par Pennylane à la finalisation. `null` tant que `status='pending'` : un numéro n'existe pas avant le document.
+             * @description Numéro de facture, attribué par Pennylane à la finalisation. `null` tant que le document n'est pas émis (`held`, `pending`) : un numéro n'existe pas avant le document.
              * @default null
              */
             number: string | null;
@@ -6153,7 +6247,7 @@ export interface components {
             issued_at: string | null;
             /**
              * Has Pdf
-             * @description Le PDF est-il disponible au téléchargement ? `false` avec `status='issued'` signale un document bien émis dont le fichier n'a pas encore été récupéré : la reprise le fera.
+             * @description Le PDF est-il disponible au téléchargement ? `false` avec `status='issued'` signale un document bien émis dont le fichier n'a pas été récupéré ; il ne l'est plus automatiquement depuis le 2026-09-09. Toujours `false` sur un document non émis.
              */
             has_pdf: boolean;
             /**
@@ -6164,7 +6258,7 @@ export interface components {
             pdf_path: string | null;
             /**
              * Emailed At
-             * @description Envoi au contact de facturation. `null` = non envoyé (adresse absente, ou relais indisponible) — le document reste téléchargeable, l'e-mail n'en conditionne rien.
+             * @description ARCHIVE. La plateforme n'envoie plus de facture par e-mail depuis le 2026-09-09 : ce champ date les envois d'AVANT, et vaut `null` sur tout document postérieur. Un `null` ne signale donc aucun échec et n'appelle aucun renvoi — la facture se récupère par `pdf_path`.
              * @default null
              */
             emailed_at: string | null;
@@ -6654,6 +6748,16 @@ export interface components {
              * @enum {string}
              */
             state: "not_selected" | "active" | "paused";
+            /**
+             * Origin
+             * @default null
+             */
+            origin: ("socle" | "kit" | "admin" | "membre" | "inconnue") | null;
+            /**
+             * Removed At
+             * @default null
+             */
+            removed_at: string | null;
             /** Recommended */
             recommended: boolean;
             /** Guide Ref Count */
@@ -6784,6 +6888,65 @@ export interface components {
             note: string;
         };
         /**
+         * KitChange
+         * @description Ce qu'un connecteur AJOUTÉ au kit ou RETIRÉ du kit a fait chez les membres.
+         *
+         *     Un ajout (`change="added"`) porte les cinq compteurs d'installation ; un retrait
+         *     (`change="removed"`) porte `uninstalled` et `kept`. Un champ absent ne vaut pas
+         *     zéro : il n'appartient pas à ce sens de changement.
+         */
+        KitChange: {
+            /** Connector */
+            connector: string;
+            /**
+             * Change
+             * @enum {string}
+             */
+            change: "added" | "removed";
+            /**
+             * Installed
+             * @default null
+             */
+            installed: number | null;
+            /**
+             * Already Active
+             * @default null
+             */
+            already_active: number | null;
+            /**
+             * Paused
+             * @default null
+             */
+            paused: number | null;
+            /**
+             * Removed By Member
+             * @default null
+             */
+            removed_by_member: number | null;
+            /**
+             * Removed At
+             * @default null
+             */
+            removed_at: string | null;
+            /**
+             * Masked By Access
+             * @default null
+             */
+            masked_by_access: number | null;
+            /**
+             * Uninstalled
+             * @default null
+             */
+            uninstalled: number | null;
+            /**
+             * Kept
+             * @default null
+             */
+            kept: {
+                [key: string]: number;
+            } | null;
+        };
+        /**
          * Identity
          * @description Contrat commun `Identity` des trois backends (Google = comptes du coffre,
          *     Unipile = identités distantes d'une clé, keyed générique = lignes du coffre).
@@ -6852,7 +7015,7 @@ export interface components {
          *     lit sa propre carte, rejouée par un org_admin.
          *
          *     Le jeu de clés dépend de la FAMILLE du connecteur (keyed à quota, BYO à champs
-         *     déclarés, session navigateur, OAuth fédéré) : `quota_*` n'existe qu'avec un
+         *     déclarés, session navigateur, OAuth) : `quota_*` n'existe qu'avec un
          *     palier plateforme, `session_set_at`/`identity_*` seulement pour une session
          *     navigateur, etc. D'où l'ouverture aux champs additionnels — seuls `mode` et
          *     les quatre booléens de présence sont servis par toutes les familles.
@@ -7622,6 +7785,75 @@ export interface components {
              * @default []
              */
             arg_keys: string[];
+            /**
+             * Quantity
+             * @default null
+             */
+            quantity: number | null;
+            /**
+             * Key Mode
+             * @default null
+             */
+            key_mode: string | null;
+        };
+        /**
+         * BillableCallRow
+         * @description Un appel tel qu'un consommateur de FACTURATION en a besoin — et rien de plus.
+         */
+        BillableCallRow: {
+            /** Call Id */
+            call_id: number;
+            /**
+             * Tool
+             * @default null
+             */
+            tool: string | null;
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: string | null;
+            /**
+             * Quantity
+             * @default null
+             */
+            quantity: number | null;
+            /**
+             * Key Mode
+             * @default null
+             */
+            key_mode: string | null;
+            /**
+             * Job Id
+             * @default null
+             */
+            job_id: string | null;
+            /**
+             * Found
+             * @default null
+             */
+            found: {
+                [key: string]: number;
+            } | null;
+        };
+        /**
+         * OrgConnectionRow
+         * @description Une connexion (un canal d'un membre dans cette org).
+         */
+        OrgConnectionRow: {
+            /** Connection Key */
+            connection_key: string;
+            /** Provider */
+            provider: string;
+            /** Platform Seat */
+            platform_seat: boolean;
+            /** Connected At */
+            connected_at: string;
+            /**
+             * Disconnected At
+             * @default null
+             */
+            disconnected_at: string | null;
         };
         /**
          * CallDetail
@@ -8634,6 +8866,53 @@ export interface components {
             namespaces: components["schemas"]["ToolsNamespace"][] | null;
         };
         /**
+         * InstalledNotSeen
+         * @description Un connecteur INSTALLÉ dont l'agent ne voit aucun outil, et pourquoi.
+         *
+         *     `paused` = le membre l'a mis en pause ; `cut` = l'org (ou la plateforme) l'a coupé —
+         *     il revient seul à la réouverture ; `restricted` = une règle d'accès de l'org ou de
+         *     l'équipe active le réserve à d'autres ; `no_tools` = installé mais aucun outil monté
+         *     sous ce nom (module non chargé).
+         */
+        InstalledNotSeen: {
+            /** Name */
+            name: string;
+            /** Label */
+            label: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "active" | "paused";
+            /**
+             * Origin
+             * @default null
+             */
+            origin: string | null;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "paused" | "cut" | "restricted" | "no_tools";
+        };
+        /**
+         * SeenConnector
+         * @description Un connecteur dont l'agent voit au moins un outil.
+         */
+        SeenConnector: {
+            /** Name */
+            name: string;
+            /** Label */
+            label: string;
+            /** Tools */
+            tools: number;
+            /**
+             * Origin
+             * @default null
+             */
+            origin: string | null;
+        };
+        /**
          * GuideRef
          * @description Entrée de catalogue : de quoi CHOISIR un guide, sans en charger le corps.
          */
@@ -9530,8 +9809,12 @@ export interface components {
              * @default null
              */
             created_at: string | null;
-            /** Url */
-            url: string;
+            /**
+             * Url
+             * @description Adresse de la page du tableau dans le produit de ce compte. `null` quand ce produit n'a pas de page de tableau — le tableau existe quand même ; `GET …/url` dit alors pourquoi (`url_absente`).
+             * @default null
+             */
+            url: string | null;
             /** Shared */
             shared: boolean;
             /**
@@ -9562,6 +9845,66 @@ export interface components {
             schema: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** SharedDatastoreEntry */
+        SharedDatastoreEntry: {
+            /** Id */
+            id: number;
+            /**
+             * Ns Id
+             * @default 0
+             */
+            ns_id: number;
+            /** Datastore */
+            datastore: string;
+            /**
+             * Created At
+             * @description heure locale serveur, sans offset — `YYYY-MM-DD HH:MM:SS`, à ne pas parser comme de l'ISO UTC
+             * @default null
+             */
+            created_at: string | null;
+            /**
+             * Url
+             * @description Adresse de la page du tableau dans le produit de ce compte. `null` quand ce produit n'a pas de page de tableau — le tableau existe quand même ; `GET …/url` dit alors pourquoi (`url_absente`).
+             * @default null
+             */
+            url: string | null;
+            /** Shared */
+            shared: boolean;
+            /**
+             * Owner Type
+             * @default null
+             */
+            owner_type: string | null;
+            /**
+             * Owner Id
+             * @default null
+             */
+            owner_id: string | null;
+            /**
+             * Permission
+             * @default null
+             */
+            permission: string | null;
+            /** Can Write */
+            can_write: boolean;
+            /** Can Govern */
+            can_govern: boolean;
+            /** Is Personal */
+            is_personal: boolean;
+            /**
+             * Schema
+             * @default null
+             */
+            schema: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Shared By
+             * @description Nom de la personne qui a partagé ce tableau à l'appelant.
+             * @default null
+             */
+            shared_by: string | null;
         };
         /**
          * Row
@@ -10104,70 +10447,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    get_api_atlassian_oauth_callback: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    me_federation_atlassian_status_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Connected */
-                        connected: boolean;
-                        /**
-                         * Set At
-                         * @default null
-                         */
-                        set_at: string | null;
-                    };
-                };
-            };
-            /** @description jeton absent ou invalide */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-        };
-    };
     billing_plans_get: {
         parameters: {
             query?: never;
@@ -10394,9 +10673,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10412,9 +10694,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10432,9 +10717,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore} */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10452,9 +10740,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore} */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10472,9 +10763,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/activity */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10492,9 +10786,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/aggregate */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10512,9 +10809,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/claim_next */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10532,9 +10832,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/drop_column */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10552,9 +10855,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/queue */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10572,9 +10878,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/rows */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10592,9 +10901,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/rows */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10613,9 +10925,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/rows/{row_id} */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10634,9 +10949,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/rows/{row_id} */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10655,9 +10973,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/rows/{row_id} */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10676,9 +10997,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/rows/{row_id}/activity */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10697,9 +11021,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/rows/{row_id}/claim */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10718,9 +11045,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/rows/{row_id}/release */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10738,9 +11068,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/schema */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10758,9 +11091,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/schema */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10778,9 +11114,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/schema */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10798,9 +11137,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/share */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10818,9 +11160,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/share */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10838,9 +11183,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/share */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10858,9 +11206,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/url */
+            308: {
                 headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -10989,8 +11340,12 @@ export interface operations {
                         datastore: string;
                         /** Id */
                         id: number;
-                        /** Url */
-                        url: string;
+                        /**
+                         * Url
+                         * @description Adresse de la page du tableau dans le produit de ce compte. `null` quand ce produit n'a pas de page de tableau — le tableau existe quand même ; `GET …/url` dit alors pourquoi (`url_absente`).
+                         * @default null
+                         */
+                        url: string | null;
                         /**
                          * Owner Type
                          * @default user
@@ -12612,8 +12967,18 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** Url */
-                        url: string;
+                        /**
+                         * Url
+                         * @description Adresse de la page du tableau dans le produit de ce compte. `null` quand ce produit n'a pas de page de tableau — le tableau existe quand même ; `GET …/url` dit alors pourquoi (`url_absente`).
+                         * @default null
+                         */
+                        url: string | null;
+                        /**
+                         * Url Absente
+                         * @description Présent SEULEMENT quand `url` est null : pourquoi ce tableau n'a pas d'adresse dans le produit de ce compte. Ce n'est jamais un tableau introuvable — celui-ci répond 404.
+                         * @default null
+                         */
+                        url_absente: string | null;
                     };
                 };
             };
@@ -12678,70 +13043,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-        };
-    };
-    get_api_folkmcp_oauth_callback: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    me_federation_folkmcp_status_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Connected */
-                        connected: boolean;
-                        /**
-                         * Set At
-                         * @default null
-                         */
-                        set_at: string | null;
-                    };
-                };
-            };
-            /** @description jeton absent ou invalide */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
             };
         };
     };
@@ -13432,6 +13733,16 @@ export interface operations {
                         connector: string;
                         /** Enabled */
                         enabled: boolean;
+                        /**
+                         * In Kit
+                         * @default null
+                         */
+                        in_kit: boolean | null;
+                        /**
+                         * Kit Note
+                         * @default null
+                         */
+                        kit_note: string | null;
                     };
                 };
             };
@@ -13489,6 +13800,16 @@ export interface operations {
                         connector: string;
                         /** Cleared */
                         cleared: boolean;
+                        /**
+                         * In Kit
+                         * @default null
+                         */
+                        in_kit: boolean | null;
+                        /**
+                         * Kit Note
+                         * @default null
+                         */
+                        kit_note: string | null;
                     };
                 };
             };
@@ -13722,11 +14043,6 @@ export interface operations {
                          * @default null
                          */
                         diagram_warning: string | null;
-                        /**
-                         * Digest Warning
-                         * @default null
-                         */
-                        digest_warning: string | null;
                     };
                 };
             };
@@ -14624,6 +14940,24 @@ export interface operations {
             };
         };
     };
+    get_api_instagram_meta_oauth_callback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     get_api_invitations_code_code: {
         parameters: {
             query?: never;
@@ -15174,6 +15508,77 @@ export interface operations {
                             [key: string]: unknown;
                         };
                         tools: components["schemas"]["ToolsView"];
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    me_agent_toolbox_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Org Id
+                         * @default null
+                         */
+                        org_id: number | null;
+                        /** Available */
+                        available: boolean;
+                        /**
+                         * Tools
+                         * @default null
+                         */
+                        tools: string[] | null;
+                        /**
+                         * Tools Total
+                         * @default null
+                         */
+                        tools_total: number | null;
+                        /**
+                         * Spine Tools
+                         * @default null
+                         */
+                        spine_tools: number | null;
+                        /**
+                         * Connectors
+                         * @default null
+                         */
+                        connectors: components["schemas"]["SeenConnector"][] | null;
+                        /**
+                         * Installed Not Seen
+                         * @default null
+                         */
+                        installed_not_seen: components["schemas"]["InstalledNotSeen"][] | null;
                     };
                 };
             };
@@ -17219,7 +17624,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `no_oauth_status` — ce connecteur n'a pas d'état OAuth fédéré générique (hors atlassian/folkmcp/google) */
+            /** @description `no_oauth_status` — ce connecteur n'a pas d'état OAuth générique (hors google) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17289,7 +17694,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `no_oauth_status` — ce connecteur n'a pas d'état OAuth fédéré générique (hors atlassian/folkmcp/google) */
+            /** @description `no_oauth_status` — ce connecteur n'a pas d'état OAuth générique (hors google) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17800,6 +18205,47 @@ export interface operations {
             };
         };
     };
+    me_datastore_shared_with_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Datastores */
+                        datastores: components["schemas"]["SharedDatastoreEntry"][];
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
     me_doc_post: {
         parameters: {
             query?: never;
@@ -18203,12 +18649,6 @@ export interface operations {
                          * @default null
                          */
                         diagram_warning: string | null;
-                        /**
-                         * Digest Warning
-                         * @description Le DIGEST d'ouverture manquant (cf. `procedure_digest`).
-                         * @default null
-                         */
-                        digest_warning: string | null;
                     };
                 };
             };
@@ -18316,12 +18756,6 @@ export interface operations {
                          * @default null
                          */
                         diagram_warning: string | null;
-                        /**
-                         * Digest Warning
-                         * @description Le DIGEST d'ouverture manquant (cf. `procedure_digest`).
-                         * @default null
-                         */
-                        digest_warning: string | null;
                     };
                 };
             };
@@ -18581,6 +19015,7 @@ export interface operations {
                 scope?: string | null;
                 version?: number | null;
                 with_history?: boolean;
+                full?: boolean;
             };
             header?: never;
             path: {
@@ -18657,6 +19092,12 @@ export interface operations {
                          * @default null
                          */
                         referenced_tools: components["schemas"]["ReferencedTool"][] | null;
+                        /**
+                         * Archived At
+                         * @description When set, this procedure is ARCHIVED — withdrawn from service, absent from op=list, and refused on write until an org admin puts it back in service.
+                         * @default null
+                         */
+                        archived_at: string | null;
                         /**
                          * Org
                          * @default null
@@ -18790,6 +19231,18 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `delivery_conflict` — ce `(scope, slug)` porte une couche de l'AUTRE livraison — vider un readme injecté ne retire pas un guide à charger ; rien n'est écrit */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "delivery_conflict";
+                    };
                 };
             };
         };
@@ -19081,11 +19534,6 @@ export interface operations {
                          */
                         diagram_warning: string | null;
                         /**
-                         * Digest Warning
-                         * @default null
-                         */
-                        digest_warning: string | null;
-                        /**
                          * Retrait Warning
                          * @default null
                          */
@@ -19178,6 +19626,12 @@ export interface operations {
                          * @default null
                          */
                         updated_at: string | null;
+                        /**
+                         * Archived At
+                         * @description Date de RETRAIT du service, ou null si la procédure est en service. ⚠️ Renseignée = cette procédure a été RETIRÉE : elle n'apparaît dans aucune liste ni aucune recherche, et elle n'est plus censée être suivie. Ne la déroule pas — signale-la à qui te l'a demandée. Elle reste lisible ici exprès, pour qu'on puisse la relire et décider, pas pour l'exécuter. La remettre en service est un geste explicite, depuis l'écran qui l'a retirée.
+                         * @default null
+                         */
+                        archived_at: string | null;
                     };
                 };
             };
@@ -19328,11 +19782,6 @@ export interface operations {
                          * @default null
                          */
                         diagram_warning: string | null;
-                        /**
-                         * Digest Warning
-                         * @default null
-                         */
-                        digest_warning: string | null;
                         /**
                          * Retrait Warning
                          * @default null
@@ -19662,11 +20111,84 @@ export interface operations {
                          * @default null
                          */
                         diagram_warning: string | null;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    org_instruction_unarchive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * Org
+                     * @default null
+                     */
+                    org?: number | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
                         /**
-                         * Digest Warning
+                         * Org Id
                          * @default null
                          */
-                        digest_warning: string | null;
+                        org_id: number | null;
+                        /**
+                         * Group Id
+                         * @default null
+                         */
+                        group_id: number | null;
+                        /**
+                         * Scope
+                         * @default null
+                         */
+                        scope: string | null;
+                        /** Slug */
+                        slug: string;
+                        /** Unarchived */
+                        unarchived: boolean;
+                        /**
+                         * Was Archived At
+                         * @description Date de retrait que ce geste vient d'annuler, ou null si la procédure était déjà en service.
+                         * @default null
+                         */
+                        was_archived_at: string | null;
                     };
                 };
             };
@@ -20354,11 +20876,11 @@ export interface operations {
                          */
                         pinned: boolean;
                         /**
-                         * Namespace
-                         * @description Tableau : le nom de namespace à repasser aux surfaces `data_*`. `null` sur une page. ⚠️ **C'est un NOM, et un nom peut désigner deux tableaux.** Les écritures de lignes le résolvent dans le scope de l'appelant, où « vivier », « leads » ou « contacts » existent souvent en plusieurs exemplaires (perso, équipe, org) : deux homonymes atteignables suffisent à écrire dans l'autre, sans erreur. Tant que l'écriture au grain du nœud n'existe pas, un client qui enchaîne « ouvrir ce tableau » puis « y écrire » assume cette ambiguïté.
+                         * Datastore
+                         * @description Tableau : le nom du tableau à repasser aux surfaces `data_*`. `null` sur une page. ⚠️ **C'est un NOM, et un nom peut désigner deux tableaux.** Les écritures de lignes le résolvent dans le scope de l'appelant, où « vivier », « leads » ou « contacts » existent souvent en plusieurs exemplaires (perso, équipe, org) : deux homonymes atteignables suffisent à écrire dans l'autre, sans erreur. Tant que l'écriture au grain du nœud n'existe pas, un client qui enchaîne « ouvrir ce tableau » puis « y écrire » assume cette ambiguïté.
                          * @default null
                          */
-                        namespace: string | null;
+                        datastore: string | null;
                         /**
                          * Trail
                          * @default []
@@ -21462,6 +21984,11 @@ export interface operations {
                      */
                     model?: string | null;
                     /**
+                     * Temperature
+                     * @default null
+                     */
+                    temperature?: number | null;
+                    /**
                      * Workers
                      * @default null
                      */
@@ -21521,6 +22048,11 @@ export interface operations {
                         fleets: components["schemas"]["Fleet"][] | null;
                         /** @default null */
                         state: components["schemas"]["FleetState"] | null;
+                        /**
+                         * Budget Max Tokens
+                         * @default null
+                         */
+                        budget_max_tokens: number | null;
                     };
                 };
             };
@@ -23500,8 +24032,27 @@ export interface operations {
                         connector: string;
                         /** Member */
                         member: string;
+                        /**
+                         * Result
+                         * @enum {string}
+                         */
+                        result: "installed" | "already_active";
                         /** Tools Forced */
                         tools_forced: number;
+                        /** Note */
+                        note: string;
+                    };
+                };
+            };
+            /** @description `user_not_in_org` — la cible n'est pas membre de l'org */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "user_not_in_org";
                     };
                 };
             };
@@ -23521,6 +24072,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_user` — aucun compte ne porte cet email ; `unknown_connector` — nom inconnu du registre */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_user" | "unknown_connector";
+                    };
+                };
+            };
+            /** @description `org_disabled` — connecteur non disponible pour les membres de l'org ; `platform_disabled` — connecteur coupé par la plateforme ; `removed_by_member` — le membre l'a retiré lui-même — jamais défait, rien n'est écrit ; `paused_by_member` — le membre l'a mis en pause lui-même — rien n'est écrit */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "org_disabled" | "platform_disabled" | "removed_by_member" | "paused_by_member";
+                    };
                 };
             };
         };
@@ -23566,6 +24141,16 @@ export interface operations {
                         connector: string;
                         /** Enabled */
                         enabled: boolean;
+                        /**
+                         * In Kit
+                         * @default null
+                         */
+                        in_kit: boolean | null;
+                        /**
+                         * Kit Note
+                         * @default null
+                         */
+                        kit_note: string | null;
                     };
                 };
             };
@@ -23623,6 +24208,16 @@ export interface operations {
                         connector: string;
                         /** Cleared */
                         cleared: boolean;
+                        /**
+                         * In Kit
+                         * @default null
+                         */
+                        in_kit: boolean | null;
+                        /**
+                         * Kit Note
+                         * @default null
+                         */
+                        kit_note: string | null;
                     };
                 };
             };
@@ -23670,6 +24265,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** Kit */
+                        kit: string[];
+                        /** Members */
+                        members: number;
+                        /** Changes */
+                        changes: components["schemas"]["KitChange"][];
+                        /** Unchanged */
+                        unchanged: string[];
+                        /**
+                         * Cut
+                         * @default []
+                         */
+                        cut: string[];
+                        /** Note */
+                        note: string;
+                        /**
+                         * Unchanged Note
+                         * @default null
+                         */
+                        unchanged_note: string | null;
+                        /**
+                         * Cut Note
+                         * @default null
+                         */
+                        cut_note: string | null;
                         /** Org Id */
                         org_id: number;
                         /** Connector */
@@ -23713,7 +24333,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `org_disabled` — l'org a désactivé ce connecteur : l'activer pour tous contredirait sa propre gouvernance */
+            /** @description `org_disabled` — l'org a désactivé ce connecteur : l'activer pour tous contredirait sa propre gouvernance ; `platform_disabled` — la plateforme a coupé ce connecteur : l'org ne peut pas l'installer */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -23721,7 +24341,7 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
-                        error?: "org_disabled";
+                        error?: "org_disabled" | "platform_disabled";
                     };
                 };
             };
@@ -23747,6 +24367,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** Kit */
+                        kit: string[];
+                        /** Members */
+                        members: number;
+                        /** Changes */
+                        changes: components["schemas"]["KitChange"][];
+                        /** Unchanged */
+                        unchanged: string[];
+                        /**
+                         * Cut
+                         * @default []
+                         */
+                        cut: string[];
+                        /** Note */
+                        note: string;
+                        /**
+                         * Unchanged Note
+                         * @default null
+                         */
+                        unchanged_note: string | null;
+                        /**
+                         * Cut Note
+                         * @default null
+                         */
+                        cut_note: string | null;
                         /** Org Id */
                         org_id: number;
                         /** Connector */
@@ -23805,6 +24450,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** Kit */
+                        kit: string[];
+                        /** Members */
+                        members: number;
+                        /** Changes */
+                        changes: components["schemas"]["KitChange"][];
+                        /** Unchanged */
+                        unchanged: string[];
+                        /**
+                         * Cut
+                         * @default []
+                         */
+                        cut: string[];
+                        /** Note */
+                        note: string;
+                        /**
+                         * Unchanged Note
+                         * @default null
+                         */
+                        unchanged_note: string | null;
+                        /**
+                         * Cut Note
+                         * @default null
+                         */
+                        cut_note: string | null;
                         /** Org Id */
                         org_id: number;
                         /** Recommended */
@@ -23830,7 +24500,7 @@ export interface operations {
                     "application/json": components["schemas"]["Erreur"];
                 };
             };
-            /** @description `unknown_org` — org inconnue */
+            /** @description `unknown_org` — org inconnue ; `unknown_connector` — un connecteur AJOUTÉ au kit est inconnu du registre — rien n'est écrit */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -23838,7 +24508,19 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
-                        error?: "unknown_org";
+                        error?: "unknown_org" | "unknown_connector";
+                    };
+                };
+            };
+            /** @description `org_disabled` — un connecteur AJOUTÉ au kit n'est pas disponible pour les membres de l'org (l'org l'a coupé) — rien n'est écrit ; `platform_disabled` — un connecteur AJOUTÉ au kit est coupé par la plateforme — rien n'est écrit */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "org_disabled" | "platform_disabled";
                     };
                 };
             };
@@ -25760,6 +26442,117 @@ export interface operations {
                         tool: string;
                         /** Hidden */
                         hidden: boolean;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    org_usage_calls_get: {
+        parameters: {
+            query: {
+                tool: string;
+                since?: string | null;
+                until?: string | null;
+                limit?: number | null;
+                before_at?: string | null;
+                before_id?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description champ `org_id` de la requête */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Calls */
+                        calls: components["schemas"]["BillableCallRow"][];
+                        /** Total */
+                        total: number;
+                        /** Until Effectif */
+                        until_effectif: string;
+                        /**
+                         * Next At
+                         * @default null
+                         */
+                        next_at: string | null;
+                        /**
+                         * Next Id
+                         * @default null
+                         */
+                        next_id: number | null;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
+    org_usage_connections_get: {
+        parameters: {
+            query?: {
+                since?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description champ `org_id` de la requête */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Connections */
+                        connections: components["schemas"]["OrgConnectionRow"][];
                     };
                 };
             };
