@@ -208,8 +208,7 @@ onMounted(async () => {
            signalé par le bandeau en tête de page. -->
       <ConsoleCard v-if="!summary" :title="t('overview.activity.title')">
         <div class="helptext">
-          {{ t('overview.activity.unavailablePre') }}
-          <RouterLink class="linklike" to="/activity">{{ t('overview.activity.unavailableLink') }}</RouterLink>.
+          {{ t('overview.activity.unavailable') }}
         </div>
       </ConsoleCard>
       <template v-else>

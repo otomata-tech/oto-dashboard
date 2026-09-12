@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Supervision de MON org (/org/monitoring) — l'étage manquant entre « mon activité »
-// (/activity, ce que J'AI fait) et /platform/monitoring (toute la plateforme, opérateur).
+// Supervision de MON org (/org/monitoring) — l'étage entre l'activité de chacun
+// (accueil) et /platform/monitoring (toute la plateforme, opérateur).
 // Réservé à l'org_admin : c'est lui qui répond de l'adoption, des blocages et des manques
 // de son équipe.
 //
@@ -13,7 +13,7 @@
 // ⚠ L'org visée est passée EXPLICITEMENT dans l'URL (`/api/orgs/{id}/…`), jamais déduite
 // d'un header de consultation — le scope d'une lecture nominative doit se lire dans le
 // chemin.
-import { computed, defineAsyncComponent, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import SubTabs, { type SubTab } from '@/components/console/SubTabs.vue'
 import MonitoringWindowPicker from '@/components/console/monitoring/MonitoringWindowPicker.vue'
@@ -31,8 +31,6 @@ import { humanize } from '@/lib/errors'
 import { useDeepLink } from '@/composables/useDeepLink'
 import { useOrgScope } from '@/composables/useOrgScope'
 
-const OrgSignals = defineAsyncComponent(() => import('./OrgSignalsView.vue'))
-
 const { activeOrgId, loaded: orgLoaded, isOrgAdmin, error: orgError } = useOrgScope()
 
 const TABS = computed<SubTab[]>(() => [
@@ -40,7 +38,6 @@ const TABS = computed<SubTab[]>(() => [
   { key: 'mcp', label: 'outils mcp', hint: 'invocations par l’agent' },
   { key: 'connecteurs', label: 'connecteurs', hint: 'ce qui bloque tes membres' },
   { key: 'journal', label: 'journal', hint: 'appels bruts, filtrables' },
-  { key: 'signaux', label: 'signaux d’usage', hint: 'manques et qualité remontés par tes membres' },
 ])
 const VALID = computed(() => new Set(TABS.value.map((t) => t.key)))
 
@@ -138,16 +135,13 @@ watch([activeOrgId, isOrgAdmin], () => { loadStats(); loadCalls() })
     <ConsoleCard v-else-if="orgLoaded && !isOrgAdmin" title="réservé aux admins de l'org">
       <div class="helptext">
         cette page montre l'activité de tous les membres — seul un admin de l'org y accède.
-        Ta propre activité reste visible sur <RouterLink to="/activity">ton activité</RouterLink>.
       </div>
     </ConsoleCard>
 
     <template v-else-if="activeOrgId != null">
       <SubTabs :tabs="TABS" :model-value="tab" @update:model-value="select" />
 
-      <OrgSignals v-if="tab === 'signaux'" :org-id="activeOrgId" :window-days="win" />
-
-      <div v-else class="content-inner">
+      <div class="content-inner">
         <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
         <div class="mon-head">

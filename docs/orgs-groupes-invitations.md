@@ -2,9 +2,9 @@
 title: Orgs, groupes & invitations
 type: reference
 description: >-
-  L'écran des départements (chef d'équipe, secrets partagés, doctrine de groupe) et la featu
-  re cascade « inviter un user » : une carte partagée montée aux 3 niveaux (plateforme / org
-   / équipe), même triade REST, acceptation commune.
+  Le roster des équipes d'une org (le scope d'équipe dédié a quitté le dashboard, oto#192) et
+  la feature cascade « inviter un user » : une carte partagée montée aux 2 niveaux (plateforme
+  / org), même triade REST, acceptation commune.
 ---
 
 # Orgs, groupes/départements et invitations
@@ -15,43 +15,44 @@ description: >-
 
 ## Groupes / départements (ADR 0012)
 
-Liste des équipes d'une org : `/org/teams` (`GroupsView.vue`) — départements avec **chef d'équipe** (`group_admin`). Le scope d'une équipe ouverte a ses propres pages : `/team` (membres et secrets, `TeamMembersView.vue`), `/team/context` et `/team/procedures` (`GroupDoctrineCard.vue`). Les anciens chemins `/console/groups`, `/org/departments` et `/group` sont des redirections (`router/index.ts`). Un membre bascule son **groupe actif** (`useGroup` → `PUT /api/me/active-group`) ; le chef (ou un org_admin) gère membres, **secrets partagés** (résolus avant ceux de l'org), **preset de toolset** (baseline de visibilité) et le **readme** de groupe. Hiérarchie de droits côté backend (`roles.py`, escalade descendante) — l'UI masque seulement les contrôles.
+Liste des équipes d'une org : `/org/teams` (`GroupsView.vue`) — lister, créer, renommer, supprimer (org_admin). Les anciens chemins `/console/groups`, `/org/departments` et `/org/teams/:id` sont des redirections (`router/index.ts`). Un membre bascule son **groupe actif** (`useGroup` → `PUT /api/me/active-group`) ; une équipe se **consulte** par le préfixe d'URL `/o/:org/g/:group/` sur les écrans de travail (`WorkspaceSwitcher`). Hiérarchie de droits côté backend (`roles.py`, escalade descendante) — l'UI masque seulement les contrôles.
 
-> **Une procédure d'équipe ne suit PAS cette règle** (oto-backend#695/#719, front #144).
-> **Écrire** une procédure — et **restaurer** une version, qui n'en est que le défaire —
-> est ouvert à **tout membre** de l'équipe, pour qu'une opératrice puisse annoter le
-> déroulé qu'elle exécute sans qu'on ait à la faire cheffe (un rôle qui emporte les clés
-> partagées). **Supprimer** reste au chef : ça emporte l'historique et c'est irréversible.
-> Le bundle sert donc **deux droits par verbe** — `can_write_instructions` et
-> `can_delete_instructions` — sous les **mêmes noms** sur les deux surfaces
-> (`GET /api/groups/{id}/instructions` et `GET /api/me/instructions`), pour qu'un composant
-> factorisé n'ait pas à savoir sur quelle page il est.
->
-> **`can_edit` n'a pas changé de sens** : il dit toujours le droit d'ADMINISTRER, et un
-> intégrateur tiers le lit ainsi. Ici il ne gouverne plus que le readme, la publication en
-> bibliothèque et le partage — plus aucun geste d'écriture de procédure. Le câblage passe
-> par `lib/instructionRights.ts`, qui porte aussi le **repli** : champs absents = serveur
-> plus ancien, car une absence n'est pas un « non ». L'écran d'équipe lui donne alors le
-> rôle du requérant (`useTeamScope`, dérivé de `my_role`) plutôt que `can_edit`, qui
-> refermerait l'écriture à une membre ; l'écran d'org, qui n'a pas cette information,
-> retombe sur `can_edit`. Un `false` **servi** reste un refus et gagne sur tout repli.
-> Élargir `can_edit` au lieu de dédoubler les drapeaux aurait remplacé une porte fermée à
-> tort par une porte ouverte à tort (livré le 2026-09-02).
+> **Le scope d'équipe dédié a quitté le dashboard (oto#192, 12/09/2026).** Ses pages — `/team`
+> (membres, secrets partagés et invitation d'équipe, `TeamMembersView` + `GroupDetailCards`),
+> `/team/context` (readme d'équipe), `/team/connectors` (disponibilité, clé et accès d'équipe,
+> `useTeamAdapter`) et `/team/procedures` (`GroupDoctrineCard`) — comptaient un utilisateur et
+> un jour d'usage en 45 jours. Partis avec elles : l'entrée « Gérer mon équipe » et le fil
+> d'Ariane Plateforme ▸ Org ▸ Team de `ConsoleIdentity`, `useTeamScope`, `TeamScopeHeader`,
+> et les appels `/api/groups/{id}/{members,secrets,connectors,instructions,invitations}`.
+> Les routes backend restent servies (dashboard.oto.cx les appelle) ; leur retrait se décide
+> route par route, après le tag prod du front. Un ancien lien `/team/*` ou `/group` retombe
+> sur l'accueil (route attrape-tout).
+
+> **Droits par verbe sur les procédures (oto-backend#695/#719, front #144) — historique.**
+> Le serveur sert `can_write_instructions` et `can_delete_instructions` à côté de `can_edit`
+> (qui dit le droit d'ADMINISTRER) : écrire ou restaurer une procédure est ouvert à tout
+> membre de l'équipe propriétaire, supprimer reste au chef. Depuis oto#192 le dashboard
+> n'écrit plus AUCUNE procédure, ni d'org ni d'équipe : `lib/instructionRights.ts`, qui
+> câblait ces drapeaux et leur repli, est supprimé. La règle vaut toujours pour qui écrira
+> de nouveau une procédure depuis un écran : un droit d'écriture ne se déduit pas d'un droit
+> d'administration, et un `false` servi gagne sur tout repli.
 
 `Me` porte `active_group`/`active_group_name`/`group_role` ; `ProviderStatus.mode` peut valoir `group` (libellé « team key »). Contrats : `oto-backend/docs/groups-and-roles.md`.
 
-## Invitations — feature cascade (plateforme / org / équipe)
+## Invitations — feature cascade (plateforme / org)
 
-Inviter un user est une **feature cascade** (même geste aux 3 niveaux, comme la gouvernance
-connecteurs). UNE carte partagée `components/console/InvitationsCard.vue` (câblage API dans
-`composables/useInvitations.ts`) montée sur les 3 écrans, gatée sur le rôle qui gère :
+Inviter un user est une **feature cascade** (même geste aux deux niveaux). UNE carte partagée
+`components/console/InvitationsCard.vue` (câblage API dans `composables/useInvitations.ts`)
+montée sur les 2 écrans, gatée sur le rôle qui gère :
 - **org** → `OrgView.vue` (`/org`, `scope={level:'org', id}`, gate `isOrgAdmin`) — l'invité rejoint l'org.
-- **équipe** → `GroupDetailCards.vue` (`/team`, `scope={level:'team', id}`, gate `canManage`) — l'invité rejoint l'org PUIS l'équipe. (À côté du geste « ajouter un membre déjà dans l'org ».)
 - **plateforme** → `AdminUsersView.vue` (`/platform/users`, `scope={level:'platform'}`, gate admin plateforme) — onboarding pur (org perso au signup).
 
+L'invitation d'**équipe** a quitté le dashboard avec le scope d'équipe (oto#192 : aucune en
+45 jours) ; l'invitation d'org, elle, est vivante (89 acceptations depuis juin).
+
 Chaque niveau expose la même triade REST (`api/console.ts`) : `list*Invitations` / `invite*` /
-`revoke*Invitation` (org : `/api/orgs/{id}/invitations` ; équipe : `/api/groups/{id}/invitations` ;
-plateforme : `/api/admin/invitations`). **Acceptation commune** inchangée : `InviteAcceptView.vue`
-(routes `/invite`, `/invitation/:code`) → `acceptInvite({token?|code?})`, avec copy adaptée au
-scope (`InvitePreview.scope`/`group_name` → « rejoindre l'équipe X / oto »). Backend :
-`oto-backend/docs/rest-api.md` §invitations + `capabilities/{orgs,groups,platform}_invites.py`.
+`revoke*Invitation` (org : `/api/orgs/{id}/invitations` ; plateforme : `/api/admin/invitations`).
+**Acceptation commune** inchangée : `InviteAcceptView.vue` (routes `/invite`, `/invitation/:code`)
+→ `acceptInvite({token?|code?})`, avec copy adaptée au scope (`InvitePreview.scope`/`group_name`
+→ « rejoindre l'équipe X / oto » — une invitation d'équipe émise ailleurs s'accepte toujours ici).
+Backend : `oto-backend/docs/rest-api.md` §invitations + `capabilities/{orgs,groups,platform}_invites.py`.

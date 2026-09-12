@@ -1,28 +1,22 @@
 <script setup lang="ts">
-// Panneau OUTILS (scope USER) du drawer unifié — toggles de visibilité par outil.
-// Extrait verbatim de l'ex-`ConnectorDrawer`. Un outil « protected » est toujours actif ;
-// quand l'exposition est « muted », les toggles sont visibles mais l'outil reste masqué.
+// Panneau OUTILS (scope USER) du drawer unifié — les outils du connecteur et leur état.
+// LECTURE SEULE depuis oto#192 (12/09/2026) : masquer un outil a quitté le dashboard (aucun
+// usage depuis le 06/08). Un outil « protected » est toujours actif ; quand l'exposition est
+// « muted », tous restent masqués à l'agent jusqu'à ce que le connecteur repasse en actif
+// (levier d'exposition, en tête du drawer).
 import { computed } from 'vue'
-import Toggle from '@/components/console/Toggle.vue'
 import type { ToolsLever, ToolRow } from './adapter'
 import type { MyConnector } from '@/types/api'
 
 const props = defineProps<{ lever: ToolsLever<MyConnector>; row: MyConnector }>()
 const tools = computed<ToolRow[]>(() => [...props.lever.list(props.row)].sort((a, b) => a.name.localeCompare(b.name)))
 const enabledCount = computed(() => tools.value.filter((t) => t.enabled).length)
-const isLive = computed(() => props.row.state === 'active')
 const isMuted = computed(() => props.row.state === 'paused')
 </script>
 
 <template>
   <div class="dr-block">
-    <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px">
-      <div class="eyebrow">{{ enabledCount }} outils sur {{ tools.length }} activés</div>
-      <div style="display: flex; gap: 12px">
-        <button class="linklike" @click="lever.setAll(row, true)">Tout activer</button>
-        <button class="linklike" @click="lever.setAll(row, false)">Tout désactiver</button>
-      </div>
-    </div>
+    <div class="eyebrow" style="margin-bottom: 6px">{{ enabledCount }} outils sur {{ tools.length }} activés</div>
     <p v-if="isMuted" class="helptext" style="color: var(--color-saffron-ink); margin: 0 0 8px">ce connecteur est en veille — ta sélection est conservée mais masquée à ton agent jusqu'à ce que tu le repasses en actif.</p>
     <div v-for="t in tools" :key="t.name" class="trow">
       <div style="min-width: 0; flex: 1">
@@ -30,7 +24,7 @@ const isMuted = computed(() => props.row.state === 'paused')
         <div v-if="t.description" style="font-size: 11px; line-height: 1.45; color: var(--color-mute); margin-top: 2px">{{ t.description }}</div>
         <span v-if="t.protected" class="tag" style="font-size: 8.5px; padding: 1.5px 6px; margin-top: 5px">toujours actif</span>
       </div>
-      <Toggle :on="t.enabled && isLive" :disabled="t.protected" @change="lever.toggle(t)" />
+      <span v-if="!t.enabled && !t.protected" class="tag" style="font-size: 8.5px; padding: 1.5px 6px">masqué</span>
     </div>
     <p v-if="!tools.length" class="helptext">aucun outil chargé pour ce connecteur.</p>
   </div>

@@ -116,10 +116,11 @@ intersection du type généré — mais l'optionnalité n'y dit plus « pas enco
 dit **« un serveur plus ancien peut répondre »** (un retour arrière de tag). La conduite
 de repli reste obligatoire, et un `false` SERVI reste un refus : `??`, jamais `||`.
 
-Aujourd'hui : `InstructionRights` (`can_write_instructions` / `can_delete_instructions`,
+Dernier cas en date : `InstructionRights` (`can_write_instructions` / `can_delete_instructions`,
 oto-backend#695 puis #719) — servis requis sur `GET /api/me/instructions` et
 `GET /api/groups/{id}/instructions`, mesuré le 2026-09-02 sur `mcp.oto.cx` et
-`mcp.oto.ninja`. Le repli vit dans `src/lib/instructionRights.ts`.
+`mcp.oto.ninja`. Son repli vivait dans `src/lib/instructionRights.ts`, supprimé par oto#192
+(12/09/2026) : plus aucun écran n'écrit de procédure. L'alias reste, porté par `DoctrineBundle`.
 
 ## Un défaut du document qu'il faut connaître
 

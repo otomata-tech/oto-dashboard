@@ -1,9 +1,9 @@
 <script setup lang="ts">
-// VUE UNIQUE de gestion des connecteurs, paramétrée par scope (user/team/org/plateforme).
+// VUE UNIQUE de gestion des connecteurs, paramétrée par scope (user/org/plateforme).
 // Le scope est dérivé de `useScope().level` ; tout ce qui diffère vit dans l'adaptateur
 // (`pickAdapter`). Socle réutilisé tel quel : `ConnectorList` (table + recherche + chips +
 // tri) + `ConnectorScopeDrawer` (détail). FRAGMENT sans `.content-inner` : chaque vue
-// d'entrée (TeamConnectorsView, AdminConnectorsView…) fournit le wrapper + ses cartes
+// d'entrée (AdminConnectorsView…) fournit le wrapper + ses cartes
 // header/footer propres au scope.
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import ConnectorList from '@/components/console/ConnectorList.vue'

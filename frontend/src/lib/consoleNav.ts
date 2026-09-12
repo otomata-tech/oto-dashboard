@@ -2,8 +2,6 @@
 //
 //   • 'work'     (« mon espace »)      = surfaces de consommation, au niveau de
 //                                        l'utilisateur. Servies à la RACINE.
-//   • 'group'    (« gérer mon groupe ») = agir SUR le groupe actif, réservé au chef
-//                                        (group_admin) ou org_admin. Sous /group.
 //   • 'org'      (« gérer mon org »)   = agir SUR l'organisation active. Sous /org.
 //   • 'platform' (« gérer la plateforme ») = agir sur toute la plateforme, réservé
 //                                        à l'opérateur plateforme. Sous /platform.
@@ -13,7 +11,7 @@
 // synchro — « derive don't duplicate ». Le pill « profil actif » (quelle org) est
 // l'axe ORTHOGONAL : ne pas le confondre avec le niveau (quoi je fais).
 
-export type NavLevel = 'work' | 'account' | 'group' | 'org' | 'platform'
+export type NavLevel = 'work' | 'account' | 'org' | 'platform'
 
 export interface NavItem {
   path: string
@@ -77,7 +75,7 @@ export const NAV: NavGroup[] = [
   ]},
   // ── Gérer mon compte : niveau user-perso (non org-scopé), sa propre sidebar ────
   // Atteint par le menu profil du pied (ConsoleUserMenu) ; une PAGE par sujet au lieu
-  // des ex-sous-onglets `?tab=`. « activity » reste hors sidebar (route explicite).
+  // des ex-sous-onglets `?tab=`.
   { group: 'nav.section.account', level: 'account', items: [
     { path: '/account', label: 'nav.profile', icon: 'user' },
     { path: '/account/preferences', label: 'nav.preferences', icon: 'gear' },
@@ -85,16 +83,10 @@ export const NAV: NavGroup[] = [
     { path: '/account/agent', label: 'nav.agent', icon: 'agent' },
     { path: '/account/developers', label: 'nav.developers', icon: 'key' },
   ]},
-  // ── Gérer mon équipe : agir SUR l'équipe consultée (chef / org_admin) ──────
-  // Scope Team à part entière (parallèle à l'org), pages sous /team/*, pilotées par le
-  // préfixe d'URL /o/:org/g/:group/ (repli `me.active_group` si absent). L'id de code
-  // reste `group` ; « team » n'est qu'un label produit.
-  { group: 'nav.section.team', level: 'group', items: [
-    { path: '/team/context', label: 'nav.context', icon: 'bolt' },
-    { path: '/team', label: 'nav.members', icon: 'users' },
-    { path: '/team/connectors', label: 'nav.connectors', icon: 'plug' },
-    { path: '/team/procedures', label: 'nav.procedures', icon: 'doc' },
-  ]},
+  // ── Niveau équipe RETIRÉ (oto#192, 12/09/2026) : contexte, membres, connecteurs et
+  // procédures d'une équipe — un utilisateur, un jour d'usage en 45 jours. Les équipes
+  // restent listées, créées et renommées dans /org/teams, et consultables par le préfixe
+  // d'URL /o/:org/g/:group/ sur les écrans de travail.
   // ── Gérer mon org : agir SUR l'organisation active ─────────────────────────
   // Une PAGE par sujet (plus d'empilement) : contexte · membres · paramètres (profil/
   // logo/entitlements/danger) · sécurité (MFA) · connecteurs · équipes · abonnement.
@@ -163,11 +155,6 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/account/security': { title: 'pageMeta.accountSecurity.title', crumb: 'pageMeta.accountSecurity.crumb' },
   '/account/agent': { title: 'pageMeta.accountAgent.title', crumb: 'pageMeta.accountAgent.crumb' },
   '/account/developers': { title: 'pageMeta.accountDevelopers.title', crumb: 'pageMeta.accountDevelopers.crumb' },
-  '/activity': { title: 'pageMeta.activity.title', crumb: 'pageMeta.activity.crumb' },
-  '/team/context': { title: 'pageMeta.teamContext.title', crumb: 'pageMeta.teamContext.crumb' },
-  '/team': { title: 'pageMeta.team.title', crumb: 'pageMeta.team.crumb' },
-  '/team/connectors': { title: 'pageMeta.teamConnectors.title', crumb: 'pageMeta.teamConnectors.crumb' },
-  '/team/procedures': { title: 'pageMeta.teamProcedures.title', crumb: 'pageMeta.teamProcedures.crumb' },
   '/org/context': { title: 'pageMeta.orgContext.title', crumb: 'pageMeta.orgContext.crumb' },
   '/org': { title: 'pageMeta.org.title', crumb: 'pageMeta.org.crumb' },
   '/org/settings': { title: 'pageMeta.orgSettings.title', crumb: 'pageMeta.orgSettings.crumb' },

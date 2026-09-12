@@ -3,20 +3,20 @@
 import { api, apiDownload, apiUpload, apiPublic } from '@/api'
 import type {
   ApiTokenCreated,
-  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AgentToolbox, AccountProfile, InitGuide, InitScope, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, CredentialState, MyConnector, ProviderStatus, SearchHit,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AgentToolbox, AccountProfile, InitGuide, InitScope, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, CredentialState, MyConnector, SearchHit,
   BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
   BillingIdentityView, BillingIdentityInput, BillingConfirmResult, BillingInvoice, LegalStatus,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
-  GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
-  InstructionVersion, LibraryEntry, LibraryDoctrine, LinkedProcedure, Locale, Me, MonitoringSummary,
+  GoogleOauthStatus, GroupDetail, GroupListItem, InstructionDetail,
+  InstructionVersion, LinkedProcedure, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption,
-  ColumnFilter, DatastoreField, DatastoreRow, DatastoreSchema, DatastoreEntry, SharedDatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, SharePrincipal, ToolCall, ToolEntry,
-  ToolRegistryEntry, ToolDetail, ToolCallDetail, ToolCallResult, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
+  ColumnFilter, DatastoreRow, DatastoreEntry, SharedDatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, SharePrincipal, ToolCall, ToolEntry,
+  ToolRegistryEntry, ToolDetail, ToolCallDetail, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   ConnectorOAuthStatus, ConnectorOAuthDisconnected, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult,
-  FieldRule, FieldFiltersBundle, OrgConnectorActivation,
-  EmailSettingsBundle, EmailSender, QuietHours, ScheduledEmail,
+  FieldFiltersBundle, OrgConnectorActivation,
+  EmailSettingsBundle, ScheduledEmail,
   TenantRow, TenantTotals, TenantSheet,
   OutreachInput, OutreachResult,
 } from '@/types/api'
@@ -147,10 +147,6 @@ export const deleteApiKey = (
 export const verifyConnector = (provider: string, level: 'auto' | 'org' = 'auto') =>
   api<VerifyResult>(`/api/me/connectors/${encodeURIComponent(provider)}/verify`,
     { method: 'POST', ...j({ level }) })
-// M4 : rejoue le verdict d'un connecteur POUR un membre de l'org active (org admin).
-export const getConnectorEffectForMember = (provider: string, member: string) =>
-  api<{ provider: string; member: string; status: ProviderStatus | null }>(
-    `/api/me/connectors/${encodeURIComponent(provider)}/effect?member=${encodeURIComponent(member)}`)
 
 // ── sessions navigateur (brevo, crunchbase) — Live View Browserbase ──
 // Connexion DEPUIS le dashboard : `start` ouvre un navigateur distant et renvoie
@@ -172,8 +168,6 @@ export const finalizeConnectorSession = (
 
 // ── google ──
 export const getGoogleStatus = () => api<GoogleOauthStatus>('/api/google/oauth/status')
-export const setGoogleDefault = (account: string) =>
-  api('/api/google/oauth/default', { method: 'POST', ...j({ account }) })
 export const revokeGoogle = (account?: string) =>
   api(`/api/google/oauth${account ? `?account=${encodeURIComponent(account)}` : ''}`, { method: 'DELETE' })
 
@@ -291,8 +285,6 @@ export const deleteToken = (id: number) => api(`/api/me/tokens/${id}`, { method:
 
 // ── tools ──
 export const getTools = () => api<{ tools: ToolEntry[] }>('/api/me/tools')
-export const disableTool = (name: string) => api(`/api/me/tools/${name}`, { method: 'POST' })
-export const enableTool = (name: string) => api(`/api/me/tools/${name}`, { method: 'DELETE' })
 
 // ── procédures / instructions ──
 export const getDoctrine = () => api<DoctrineBundle>('/api/me/instructions')
@@ -368,12 +360,6 @@ export const updateProject = (id: number, fields: { name?: string; icon?: string
 // Copie profonde d'un projet (le sien ou un modèle) → nouveau projet dans l'org active (B5a).
 export const copyProject = (id: number, name: string) =>
   projectsApi<Project & { copied_from: number; links: ProjectLink[] }>({ op: 'copy', project_id: id, name })
-// « Ajouter à mon Oto » (canal d'acquisition) : forke un projet PUBLIÉ par son slug de
-// partage dans l'org active, ou RÉCUPÈRE la copie déjà présente (idempotent). Route dédiée
-// (≠ op-aware /api/me/projects) — le backend résout la source par slug, jamais par id possédé.
-export const importSharedProject = (slug: string) =>
-  api<{ project_id: number; imported: boolean; name?: string; reason?: string }>(
-    '/api/me/projects/import', { method: 'POST', ...j({ slug }) })
 // Publier / retirer un projet comme modèle copiable (B5a).
 export const setProjectTemplate = (id: number, is_template: boolean) =>
   projectsApi<Project>({ op: 'update', project_id: id, is_template })
@@ -589,14 +575,8 @@ export const setDocPublic = (doc_id: number, isPublic: boolean) =>
   docsApi<{ ok: boolean; public: boolean; public_url: string | null }>({ op: 'set_public', doc_id, public: isPublic })
 export const getInstruction = (slug: string, version?: number) =>
   api<InstructionDetail>(`/api/me/instructions/${slug}${version ? `?version=${version}` : ''}`)
-export const putInstruction = (slug: string, body_md: string, title?: string, description?: string) =>
-  api<{ ok: boolean; slug: string; version: number; unresolved_tools?: string[] }>(`/api/me/instructions/${slug}`, { method: 'PUT', ...j({ body_md, title, description }) })
 export const getInstructionVersions = (slug: string) =>
   api<{ slug: string; versions: InstructionVersion[] }>(`/api/me/instructions/${slug}/versions`)
-export const revertInstruction = (slug: string, version: number) =>
-  api(`/api/me/instructions/${slug}/revert`, { method: 'POST', ...j({ version }) })
-export const deleteInstruction = (slug: string) =>
-  api(`/api/me/instructions/${slug}`, { method: 'DELETE' })
 // ── guides on-demand (ADR 0042) : prose how-to chargée à la demande par l'agent
 // (oto_guide). Distinct des readmes (injectés) et des procédures (versionnées). ──
 export const getGuides = () => api<{ guides: Guide[] }>('/api/me/guides')
@@ -614,45 +594,9 @@ export const getToolRegistry = () =>
 // panneau « en savoir plus » de la fiche connecteur.
 export const getToolDetail = (name: string) =>
   api<ToolDetail>(`/api/me/tools/${encodeURIComponent(name)}/detail`)
-// Teste un outil open-data en lecture seule sous ta propre identité (le backend
-// refuse tout outil à effet de bord). Renvoie le résultat brut (ou l'erreur).
-export const callTool = (name: string, args: Record<string, unknown>) =>
-  api<ToolCallResult>(`/api/me/tools/${encodeURIComponent(name)}/call`,
-    { method: 'POST', ...j({ arguments: args }) })
 // Usage d'une doctrine, dérivé de tool_calls (chargements par l'agent).
 export const getInstructionUsage = (slug: string) =>
   api<InstructionUsage>(`/api/me/instructions/${slug}/usage`)
-
-// ── bibliothèque publique de doctrines (marketplace, capacités library.*) ──
-// Catalogue cherchable de doctrines publiées (auteur Otomata ou créateur privé).
-// Surface authentifiée ; la vitrine consomme la même donnée en anonyme via
-// /api/doctrines/library (public-only).
-export const listLibraryDoctrines = (
-  params: { q?: string; category?: string; author?: string; limit?: number } = {},
-) => {
-  const s = new URLSearchParams()
-  if (params.q) s.set('query', params.q)   // backend LibraryListInput.field = `query`
-  if (params.category) s.set('category', params.category)
-  if (params.author) s.set('author_kind', params.author)
-  if (params.limit) s.set('limit', String(params.limit))
-  const qs = s.toString()
-  return api<{ doctrines: LibraryEntry[] }>(`/api/me/doctrines/library${qs ? `?${qs}` : ''}`)
-}
-export const getLibraryDoctrine = (slug: string) =>
-  api<LibraryDoctrine>(`/api/me/doctrines/library/${encodeURIComponent(slug)}`)
-// Publie un skill nommé de l'org active dans la bibliothèque (org_admin).
-export const publishDoctrine = (payload: {
-  slug: string; public_slug?: string; title?: string; description?: string
-  category?: string; tags?: string[]; visibility?: 'public' | 'unlisted'
-}) =>
-  api<{ published: boolean; id: number; slug: string; version: number; visibility: string }>(
-    '/api/me/doctrines/publish', { method: 'POST', ...j(payload) })
-// Forke une entrée publique dans l'org active comme nouveau skill (org_admin).
-export const forkLibraryDoctrine = (slug: string, new_slug?: string) =>
-  api<{ forked: boolean; org_id: number; slug: string; version: number; forked_from: number }>(
-    '/api/me/doctrines/fork', { method: 'POST', ...j({ slug, new_slug }) })
-export const unpublishDoctrine = (id: number) =>
-  api(`/api/me/doctrines/library/${id}`, { method: 'DELETE' })
 
 // ── datastore ──
 // Le PONT DE RENOMMAGE `namespace` → `datastore` a été RETIRÉ le 10/09/2026, avec le
@@ -760,25 +704,11 @@ export const getNamespaceActivity = (ns: string, limit?: number) =>
   api<{ activity: RowActivityEntry[]; retention_days: number }>(
     `/api/datastores/${encodeURIComponent(ns)}/activity`
     + (limit ? `?limit=${limit}` : ''))
-// Schéma d'un tableau (ADR 0046) — miroir REST de `data_set_schema`. Sert la vue par
-// défaut : les colonnes masquées SONT le `hidden` des champs, pas un objet « vue » à part.
-// ⚠️ Le `PUT …/schema`, qui REPOSAIT la liste entière (tout ce que le corps ne redit pas
-// effacé, sans erreur ni mention), n'a plus de wrapper ici : personne ne l'appelait, et un
-// wrapper qui existe finit par être appelé. `datastoreColumns.spec.ts` tient son absence.
-// Amendement PAR CLÉ (oto-backend #388) : les propriétés listées écrasent, celles qu'on
-// n'écrit pas sont PRÉSERVÉES, y compris les sous-champs des composites. C'est le geste
-// qui NE PEUT PAS détruire ce qu'il ne nomme pas — le seul sûr quand on retouche le
-// schéma d'un tableau qu'on n'a pas écrit soi-même. `remove` retire un champ du SCHÉMA
-// (pas la colonne des données : c'est `data_drop_column`).
-// Un seul appel par geste : une modification de schéma reconstruit un index sur la table
-// que TOUS les tableaux partagent — c'est ce qui a produit l'interblocage du 05/09.
-export const patchNamespaceSchema = (
-  ns: string,
-  patch: { fields?: Array<Partial<DatastoreField> & { key: string }>; remove?: string[] },
-) =>
-  api<{ datastore: string; schema: DatastoreSchema | null; added: string[]; updated: string[]; removed: string[] }>(
-    `/api/datastores/${encodeURIComponent(ns)}/schema`,
-    { method: 'PATCH', ...j(patch) })
+// Schéma d'un tableau (ADR 0046). ⚠️ Aucun wrapper d'écriture du schéma ici. Le `PUT …/schema`
+// REPOSAIT la liste entière (tout ce que le corps ne redit pas, effacé sans erreur ni mention) :
+// personne ne l'appelait, et un wrapper qui existe finit par être appelé — `datastoreColumns.spec.ts`
+// tient son absence. Le `PATCH` par clé ne servait qu'« enregistrer comme vue par défaut », retiré
+// du dashboard avec son bouton (oto#192) ; la route reste servie à ses autres clients.
 export const renameNamespace = (ns: string, name: string) =>
   api<{ ok: boolean; datastore: string }>(
     `/api/datastores/${encodeURIComponent(ns)}`, { method: 'PATCH', ...j({ name }) })
@@ -859,13 +789,6 @@ export const archiveOrg = (id: number) =>
 // connecteur (toujours envoyer la liste complète). Le transport DÉRIVE du connecteur.
 export const getOrgEmailSettings = (id: number) =>
   api<EmailSettingsBundle>(`/api/orgs/${id}/email-settings`)
-export const setOrgEmailSettings = (
-  id: number,
-  connector: string,
-  patch: { senders?: EmailSender[]; quiet_hours?: QuietHours; clear_quiet_hours?: boolean },
-) =>
-  api<{ ok: boolean; org_id: number; senders?: EmailSender[]; count?: number; quiet_hours?: QuietHours | null }>(
-    `/api/orgs/${id}/email-settings/${encodeURIComponent(connector)}`, { method: 'PUT', ...j(patch) })
 export const listScheduledEmails = (id: number, status = 'pending') =>
   api<{ scheduled_emails: ScheduledEmail[] }>(
     `/api/orgs/${id}/scheduled-emails?status=${encodeURIComponent(status)}`)
@@ -876,15 +799,6 @@ export const cancelScheduledEmail = (id: number, eid: number) =>
 // ── redaction de champs par connecteur (org_admin, ADR 0015) ──
 export const getOrgFieldFilters = (id: number) =>
   api<FieldFiltersBundle>(`/api/orgs/${id}/field-filters?include_schemas=true`)
-// rules=null efface la politique du connecteur (repli sur le défaut serveur).
-export const setOrgFieldFilter = (id: number, service: string, rules: FieldRule[] | null, salt?: string) =>
-  api<{ ok: boolean; service: string; cleared: boolean; rules: number }>(
-    `/api/orgs/${id}/field-filters/${service}`, { method: 'PUT', ...j({ rules, salt }) })
-// dry-run : passe un échantillon réel dans le filtre, renvoie la version redactée.
-// rules omis = politique effective du service ; sinon teste ce brouillon.
-export const previewOrgFieldFilter = (id: number, service: string, payload: unknown, rules?: FieldRule[]) =>
-  api<{ org_id: number; service: string; redacted: unknown }>(
-    `/api/orgs/${id}/field-filters/${service}/preview`, { method: 'POST', ...j({ payload, rules }) })
 
 // ── gouvernance connecteurs au niveau org (cockpit /org/connectors, ADR 0022) ──
 // Activation : master plateforme + override d'org + effectif + recommandé, par connecteur.
@@ -907,10 +821,6 @@ export const setConnectorAccess = (id: number, connector: string, principal_type
 export const clearConnectorAccess = (id: number, connector: string, principal_type: string, principal_id: string) =>
   api(`/api/orgs/${id}/connectors/${encodeURIComponent(connector)}/access?principal_type=${principal_type}&principal_id=${encodeURIComponent(principal_id)}`,
     { method: 'DELETE' })
-// Forcer un connecteur dans la toolbox d'un membre (ADR 0031) — override positif (allow).
-export const forceConnectorForMember = (id: number, connector: string, member: string) =>
-  api<{ ok: boolean; tools_forced: number }>(
-    `/api/orgs/${id}/connectors/${encodeURIComponent(connector)}/force`, { method: 'POST', ...j({ member }) })
 // Recommandation d'org (« org propose ») — baseline consultative de connecteurs.
 export const setOrgConnectors = (id: number, connectors: string[]) =>
   api<{ org_id: number; recommended: string[] }>(
@@ -927,14 +837,6 @@ export const inviteMember = (id: number, email: string | null, role: OrgRole, se
     `/api/orgs/${id}/invitations`, { method: 'POST', ...j({ email, role, send_email: sendEmail }) })
 export const revokeInvitation = (id: number, inviteId: number) =>
   api(`/api/orgs/${id}/invitations/${inviteId}`, { method: 'DELETE' })
-// ÉQUIPE (l'invité rejoint l'org parente PUIS l'équipe à l'acceptation) :
-export const listGroupInvitations = (id: number) =>
-  api<{ invitations: OrgInvitation[] }>(`/api/groups/${id}/invitations`)
-export const inviteGroupMember = (id: number, email: string | null, role: GroupRole, sendEmail = true) =>
-  api<InviteResult & { role: string }>(
-    `/api/groups/${id}/invitations`, { method: 'POST', ...j({ email, role, send_email: sendEmail }) })
-export const revokeGroupInvitation = (id: number, inviteId: number) =>
-  api(`/api/groups/${id}/invitations/${inviteId}`, { method: 'DELETE' })
 // PLATEFORME (admin plateforme — org cible optionnelle : vide = onboarding pur) :
 export const listPlatformInvitations = () =>
   api<{ invitations: OrgInvitation[] }>(`/api/admin/invitations`)
@@ -985,42 +887,7 @@ export const getGroup = (id: number) => api<GroupDetail>(`/api/groups/${id}`)
 export const updateGroup = (id: number, patch: { name?: string; description?: string }) =>
   api(`/api/groups/${id}`, { method: 'PATCH', ...j(patch) })
 export const deleteGroup = (id: number) => api(`/api/groups/${id}`, { method: 'DELETE' })
-export const addGroupMember = (id: number, target: string, role: GroupRole) =>
-  api(`/api/groups/${id}/members`, { method: 'POST', ...j({ target, role }) })
-export const setGroupMemberRole = (id: number, sub: string, role: GroupRole) =>
-  api(`/api/groups/${id}/members/${sub}`, { method: 'POST', ...j({ role }) })
-export const removeGroupMember = (id: number, sub: string) =>
-  api(`/api/groups/${id}/members/${sub}`, { method: 'DELETE' })
-// Mono-champ (api_key) OU multi-champs (zoho/silae… → fields), même contrat que la clé d'org.
-export const setGroupSecret = (id: number, provider: string, api_key: string, base_url?: string, fields?: Record<string, string>) =>
-  api(`/api/groups/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url, fields }) })
-export const deleteGroupSecret = (id: number, provider: string) =>
-  api(`/api/groups/${id}/secrets/${provider}`, { method: 'DELETE' })
-// Disponibilité de connecteur au grain équipe (ADR 0012, restrict-only). L'équipe
-// ne peut que COUPER (set enabled=false) / ré-ouvrir (clear) ce que l'org expose.
-export const getGroupConnectorActivation = (id: number) =>
-  api<{ group_id: number; connectors: GroupConnectorActivation[] }>(`/api/groups/${id}/connectors/activation`)
-export const setGroupConnectorActivation = (id: number, name: string, enabled: boolean) =>
-  api(`/api/groups/${id}/connectors/${name}/activation`, { method: 'PUT', ...j({ enabled }) })
-export const clearGroupConnectorActivation = (id: number, name: string) =>
-  api(`/api/groups/${id}/connectors/${name}/activation`, { method: 'DELETE' })
-// ACL connecteur au grain équipe (ADR 0012 B2, restrict-only) : réserver un connecteur
-// à des membres de l'équipe (narrowing de l'ACL d'org).
-export const getGroupConnectorAcl = (id: number) =>
-  api<{ group_id: number; access: GroupAclEntry[]; restricted: string[] }>(`/api/groups/${id}/connectors/acl`)
-export const setGroupConnectorAccess = (id: number, connector: string, member: string) =>
-  api(`/api/groups/${id}/connectors/${connector}/access`, { method: 'POST', ...j({ member }) })
-export const clearGroupConnectorAccess = (id: number, connector: string, member: string) =>
-  api(`/api/groups/${id}/connectors/${connector}/access?member=${encodeURIComponent(member)}`, { method: 'DELETE' })
 // doctrine & skills du groupe (lecture = membre, écriture = chef)
-export const getGroupInstructions = (id: number) =>
-  api<GroupInstructionsBundle>(`/api/groups/${id}/instructions`)
-export const getGroupInstruction = (id: number, slug: string) =>
-  api<InstructionDetail>(`/api/groups/${id}/instructions/${slug}`)
-export const putGroupInstruction = (id: number, slug: string, body_md: string, title?: string, description?: string) =>
-  api<{ slug: string; version: number }>(`/api/groups/${id}/instructions/${slug}`, { method: 'PUT', ...j({ body_md, title, description }) })
-export const deleteGroupInstruction = (id: number, slug: string) =>
-  api(`/api/groups/${id}/instructions/${slug}`, { method: 'DELETE' })
 export const getGroupInstructionVersions = (id: number, slug: string) =>
   api<{ slug: string; versions: InstructionVersion[] }>(`/api/groups/${id}/instructions/${slug}/versions`)
 export const revertGroupInstruction = (id: number, slug: string, version: number) =>
@@ -1219,10 +1086,6 @@ export const getOrgMonitoringCalls = (orgId: number, params: {
 // donc devinable, le backend ne confirme pas son existence.
 export const getOrgMonitoringCall = (orgId: number, id: number) =>
   api<{ call: ToolCallDetail }>(`/api/orgs/${orgId}/monitoring/calls/${id}`)
-export const getOrgUsageGaps = (orgId: number, days: number) =>
-  api<{ gaps: UsageGap[] }>(`/api/orgs/${orgId}/monitoring/gaps?days=${days}`)
-export const getOrgUsageToolQuality = (orgId: number, days: number) =>
-  api<{ tools: ToolFeedbackAgg[] }>(`/api/orgs/${orgId}/monitoring/tool-quality?days=${days}`)
 
 // ── usage / déroulés (ADR 0017, admin) ──
 export const getUsageRuns = () => api<{ runs: DoctrineRun[] }>('/api/admin/usage/runs')
@@ -1345,32 +1208,3 @@ export const getAdminBillingIdentity = (orgId: number) =>
   api<AdminBillingIdentityView>(`/api/admin/orgs/${orgId}/billing-identity`)
 export const setAdminBillingIdentity = (orgId: number, body: AdminBillingIdentityInput) =>
   api<AdminBillingIdentityView>(`/api/admin/orgs/${orgId}/billing-identity`, { method: 'PUT', ...j(body) })
-
-// Activité de l'utilisateur courant (ses propres appels) — per-user, pas admin.
-export const getMyCalls = (params: { limit?: number; tool?: string; errors?: boolean; days?: number } = {}) => {
-  const q = new URLSearchParams()
-  if (params.limit) q.set('limit', String(params.limit))
-  if (params.tool) q.set('tool', params.tool)
-  if (params.errors) q.set('errors', '1')
-  if (params.days) q.set('days', String(params.days))
-  const qs = q.toString()
-  return api<{ calls: ToolCall[] }>(`/api/me/calls${qs ? `?${qs}` : ''}`)
-}
-
-// ── automatisations (routines Claude Code) ──
-// Une automatisation = une routine hébergée chez Anthropic, déclenchée par oto.
-// Le credential porte la routine (`routine_id` + jeton), donc UNE INSTANCE = UNE
-// ROUTINE : la liste des automatisations se dérive de `getConnectorInstances()`
-// filtrée sur `connector === 'routine'` — pas d'endpoint ni de type en double.
-export interface FireResult {
-  fired: boolean
-  session_id?: string | null
-  // L'URL de la session est LA supervision : le déclenchement ne rend pas le
-  // résultat du run, il rend l'endroit où le lire.
-  session_url?: string | null
-}
-
-// `text` = contexte du run. Il arrive à l'agent étiqueté DONNÉE NON FIABLE, donc on
-// y met une RÉFÉRENCE que l'agent recharge par le MCP, jamais l'enregistrement.
-export const fireAutomation = (body: { text?: string; account?: string } = {}) =>
-  api<FireResult>('/api/me/automations/fire', { method: 'POST', ...j(body) })

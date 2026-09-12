@@ -10,7 +10,6 @@ import Icon from '@/components/console/Icon.vue'
 import ConnectorBadges from '@/components/console/ConnectorBadges.vue'
 import Tag from '@/components/console/Tag.vue'
 import ConnectorTransforms from '@/components/console/ConnectorTransforms.vue'
-import ConnectorEmail from '@/components/console/ConnectorEmail.vue'
 import ConnectorAvailabilityPanel from './ConnectorAvailabilityPanel.vue'
 import ConnectorCredentialPanel from './ConnectorCredentialPanel.vue'
 import ConnectorAccessPanel from './ConnectorAccessPanel.vue'
@@ -18,7 +17,6 @@ import ConnectorPlatformAccessPanel from './ConnectorPlatformAccessPanel.vue'
 import ConnectorConnectionPanel from './ConnectorConnectionPanel.vue'
 import ConnectorToolsPanel from './ConnectorToolsPanel.vue'
 import ConnectorAboutPanel from './ConnectorAboutPanel.vue'
-import ConnectorEffectForMember from './ConnectorEffectForMember.vue'
 import type { ConnectorScopeAdapter, ConnectionLever, ToolsLever } from './adapter'
 import type { MyConnector } from '@/types/api'
 
@@ -61,21 +59,7 @@ const badge = computed(() => props.adapter.badge?.(props.row) ?? null)
         <div v-else-if="t.key === 'redaction' && adapter.redaction" class="csd-pad">
           <ConnectorTransforms v-bind="adapter.redaction.props(row)" @changed="adapter.redaction.onChanged()" />
         </div>
-        <div v-else-if="t.key === 'email' && adapter.email" class="csd-pad">
-          <ConnectorEmail v-bind="adapter.email.props(row)" @changed="adapter.email.onChanged()" />
-        </div>
         <ConnectorAboutPanel v-else-if="t.key === 'about'" :meta="meta" />
-      </div>
-    </details>
-
-    <!-- M4 : « Effet pour un membre » — rejoue la résolution du connecteur (scope org). -->
-    <details v-if="adapter.scope === 'org'" class="csd-acc">
-      <summary class="csd-acc-hd">
-        <Icon name="chevd" :size="13" class="csd-acc-chev" />
-        <span class="csd-acc-label">Effet pour un membre</span>
-      </summary>
-      <div class="csd-acc-body">
-        <ConnectorEffectForMember :connector="adapter.key(row)" />
       </div>
     </details>
   </ConnectorModal>

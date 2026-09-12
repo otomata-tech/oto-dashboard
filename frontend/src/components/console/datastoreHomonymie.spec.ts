@@ -162,7 +162,7 @@ const FILES_PROJET = readFileSync(join(ICI, 'project/ProjectWorkQueues.vue'), 'u
 const ADRESSANTES = [
   'getNamespaceRows', 'getNamespaceRow', 'getNamespaceAggregate', 'getNamespaceQueue',
   'releaseRowClaim', 'appendNamespaceRow', 'updateNamespaceRow', 'deleteNamespaceRow',
-  'deleteNamespace', 'renameNamespace', 'patchNamespaceSchema', 'announceTransition',
+  'deleteNamespace', 'renameNamespace', 'announceTransition',
 ]
 
 describe('la désignation du tableau, site par site', () => {
@@ -176,7 +176,8 @@ describe('la désignation du tableau, site par site', () => {
 
   it('le `n` de chaque site est l identifiant, jamais le nom', () => {
     const liaisons = [...SRC.matchAll(/\bconst n = ([^\n]+)/g)].map((m) => (m[1] ?? '').trim())
-    expect(liaisons.length).toBeGreaterThanOrEqual(12)
+    // 11 sites : celui d'« enregistrer comme vue par défaut » est parti avec son bouton (oto#192).
+    expect(liaisons.length).toBeGreaterThanOrEqual(11)
     for (const liaison of liaisons) expect(liaison).toBe('dsRef.value')
   })
 

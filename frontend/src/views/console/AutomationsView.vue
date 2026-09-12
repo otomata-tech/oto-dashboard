@@ -7,32 +7,22 @@
 // Anthropic à une seule routine — la liste se dérive donc des instances du connecteur
 // `routine`, sans endpoint ni type en double.
 //
-// Ce que cette page fait, et ce qu'elle ne fait PAS : elle déclenche et renvoie vers
-// la session. Le RÉSULTAT du run se lit chez Anthropic, dans la session — l'appel ne
-// l'attend pas, et prétendre l'afficher ici serait mentir.
+// Ce que cette page fait : elle LISTE les automatisations. Le bouton « déclencher » a quitté
+// le dashboard (oto#192, 12/09/2026 : aucun déclenchement en 45 jours) — une routine part
+// de son déclencheur chez Anthropic, et son résultat se lit dans la session.
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
-import Btn from '@/components/console/Btn.vue'
-import Icon from '@/components/console/Icon.vue'
 import RunnerMonitorCard from '@/components/console/RunnerMonitorCard.vue'
 import RunnerJobsCard from '@/components/console/RunnerJobsCard.vue'
 import RunnerTriggersCard from '@/components/console/RunnerTriggersCard.vue'
 import RunnerFleetsCard from '@/components/console/RunnerFleetsCard.vue'
-import { getConnectorInstances, fireAutomation, type FireResult } from '@/api/console'
+import { getConnectorInstances } from '@/api/console'
 import type { ConnectorInstance } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 const instances = ref<ConnectorInstance[]>([])
 const loaded = ref(false)
 const error = ref<string | null>(null)
-
-// Contexte de run, par automatisation. Il arrive à l'agent ÉTIQUETÉ DONNÉE NON FIABLE
-// (bloc `<routine-fire-payload>`), et le prompt de la routine doit explicitement opter
-// pour le lire — d'où le libellé « référence » plutôt que « message ».
-const text = ref<Record<string, string>>({})
-const firing = ref<string | null>(null)
-const result = ref<Record<string, FireResult>>({})
-const failed = ref<Record<string, string>>({})
 
 const automations = computed(() =>
   instances.value.filter((i) => i.connector === 'routine'))
@@ -48,22 +38,6 @@ async function load() {
     error.value = humanize(e)
   } finally {
     loaded.value = true
-  }
-}
-
-async function fire(i: ConnectorInstance) {
-  firing.value = i.ref
-  delete failed.value[i.ref]
-  delete result.value[i.ref]
-  try {
-    result.value[i.ref] = await fireAutomation({
-      text: text.value[i.ref]?.trim() || undefined,
-      account: i.account || undefined,
-    })
-  } catch (e) {
-    failed.value[i.ref] = humanize(e)
-  } finally {
-    firing.value = null
   }
 }
 
@@ -104,37 +78,8 @@ onMounted(load)
             <span class="au-lvl">{{ LEVEL_LABEL[i.level] ?? i.level }}</span>
             <span v-if="i.suspended" class="au-susp">mise de côté</span>
           </div>
-
-          <div class="au-fire">
-            <input
-              v-model="text[i.ref]"
-              class="au-in"
-              placeholder="référence à passer au run (id de ligne, projet…) — facultatif"
-            />
-            <Btn kind="mini" :disabled="firing === i.ref" @click="fire(i)">
-              {{ firing === i.ref ? '…' : 'Déclencher' }}
-            </Btn>
-          </div>
-
-          <p v-if="failed[i.ref]" class="au-err">{{ failed[i.ref] }}</p>
-          <p v-else-if="result[i.ref]" class="au-ok">
-            Session lancée.
-            <a
-              v-if="result[i.ref]!.session_url"
-              :href="result[i.ref]!.session_url!"
-              target="_blank"
-              rel="noopener"
-            >Suivre le run <Icon name="ext" :size="11" /></a>
-            <span class="dim"> — le résultat se lit dans la session, pas ici.</span>
-          </p>
         </li>
       </ul>
-
-      <p v-if="loaded && automations.length" class="dim au-note">
-        Le texte passé au run arrive à l'agent comme une <strong>donnée non fiable</strong> :
-        la routine ne l'exploite que si son propre prompt le prévoit. Passe une référence
-        que l'agent rechargera par oto, jamais l'enregistrement lui-même.
-      </p>
     </div>
   </ConsoleCard>
 </template>

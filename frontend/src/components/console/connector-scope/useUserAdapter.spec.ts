@@ -30,8 +30,6 @@ vi.mock('@/api/console', () => ({
     setOrgSecret(i, p, k, b, f),
   deleteApiKey: vi.fn(async () => ({})),
   verifyConnector: vi.fn(async () => ({ ok: true })),
-  enableTool: vi.fn(async () => ({})),
-  disableTool: vi.fn(async () => ({})),
   selectConnector: vi.fn(async () => ({})),
   pauseConnector: vi.fn(async () => ({})),
   unselectConnector: vi.fn(async () => ({})),

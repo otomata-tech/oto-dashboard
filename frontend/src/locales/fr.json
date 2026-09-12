@@ -42,7 +42,6 @@
     "section": {
       "workspace": "espace de travail",
       "account": "compte",
-      "team": "équipe",
       "organization": "organisation",
       "platformAdmin": "plateforme · admin"
     }
@@ -62,11 +61,6 @@
     "accountSecurity": { "title": "sécurité", "crumb": "gérer mon compte" },
     "accountAgent": { "title": "ton agent", "crumb": "gérer mon compte" },
     "accountDevelopers": { "title": "développeurs", "crumb": "gérer mon compte" },
-    "activity": { "title": "activité", "crumb": "compte" },
-    "teamContext": { "title": "ce que voit l'agent · équipe", "crumb": "gérer mon équipe" },
-    "team": { "title": "membres de l'équipe", "crumb": "gérer mon équipe" },
-    "teamConnectors": { "title": "connecteurs de l'équipe", "crumb": "gérer mon équipe" },
-    "teamProcedures": { "title": "procédures de l'équipe", "crumb": "gérer mon équipe" },
     "orgContext": { "title": "ce que voit l'agent · org", "crumb": "gérer mon org" },
     "org": { "title": "membres de l'org", "crumb": "gérer mon org" },
     "orgSettings": { "title": "paramètres de l'org", "crumb": "gérer mon org" },
@@ -136,8 +130,7 @@
     },
     "activity": {
       "title": "activité",
-      "unavailablePre": "l'activité n'a pas pu être chargée. vois le détail de tes appels d'outils dans",
-      "unavailableLink": "activité",
+      "unavailable": "l'activité n'a pas pu être chargée.",
       "recentTopTools": "récent · top outils",
       "callsCell": "{n} appels",
       "errCell": "{n} err"
@@ -240,8 +233,6 @@
     "missing_bearer": "non authentifié",
     "email_mismatch": "cette invitation a été envoyée à une autre adresse — connecte-toi avec le compte qui l'a reçue",
     "invalid_or_expired": "cette invitation est invalide, expirée ou déjà utilisée",
-    "bad_sender_email": "adresse d'expéditeur invalide",
-    "duplicate_sender": "cette adresse d'expéditeur est déjà dans la liste",
     "unknown_transport": "transport inconnu (utilise mailer ou resend)",
     "bad_tz": "fuseau horaire inconnu",
     "bad_quiet_hours": "les heures calmes doivent être deux heures différentes entre 0 et 23",

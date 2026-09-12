@@ -14,8 +14,6 @@ import type { ContextLayer } from '@/types/api'
 
 const props = defineProps<{
   layers: ContextLayer[]
-  /** une équipe est active → la rangée équipe (même vide) a du sens */
-  hasGroup?: boolean
 }>()
 
 const open = ref<Set<string>>(new Set())
@@ -35,7 +33,7 @@ const META: Record<string, { tone?: 'olive' | 'saffron' | 'cobalt'; nature: stri
   context: { nature: 'dérivé · résolu à chaque session', tone: 'cobalt' },
   profile: { nature: 'entretenue par ton agent' },
   org: { nature: 'écrite par un admin de ton org', tone: 'olive', edit: '/org/context' },
-  group: { nature: 'écrite par ton chef d’équipe', tone: 'saffron', edit: '/team/context' },
+  group: { nature: 'écrite par ton chef d’équipe', tone: 'saffron' },
   user: { nature: 'ta prose, injectée après le reste' },
 }
 
@@ -43,7 +41,7 @@ const total = computed(() => props.layers.reduce((n, l) => n + l.chars, 0))
 const maxChars = computed(() => Math.max(...props.layers.map((l) => l.chars), 1))
 
 // Rangées affichées = couches reçues ∪ fantômes éditables absentes (user toujours ;
-// org toujours — c'est l'affordance de création ; group si une équipe est active).
+// org toujours — c'est l'affordance de création).
 interface Row extends ContextLayer { ghost?: boolean }
 const rows = computed<Row[]>(() => {
   const out: Row[] = [...props.layers]
@@ -51,7 +49,6 @@ const rows = computed<Row[]>(() => {
   const ghost = (key: Row['key'], label: string) =>
     out.push({ key, label, body: '', chars: 0, ghost: true })
   if (!has('org')) ghost('org', 'readme de ton org')
-  if (props.hasGroup && !has('group')) ghost('group', 'readme de ton équipe')
   if (!has('profile')) ghost('profile', 'ta fiche')
   if (!has('user')) ghost('user', 'ta note')
   return out

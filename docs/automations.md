@@ -1,11 +1,13 @@
 # `/automations` — surveiller les agents hébergés
 
 L'écran de surveillance des agents qui tournent **pour** l'utilisateur, sans lui : la
-file d'exécution, les déclencheurs programmés, et les routines Claude Code
-déclenchables à la main. Route `/automations`, vue `views/console/AutomationsView.vue`.
+file d'exécution, les déclencheurs programmés, et la liste des routines Claude Code.
+Route `/automations`, vue `views/console/AutomationsView.vue`.
 
 Quatre cartes, du général au particulier — l'état de la flotte d'abord, le travail
-individuel ensuite, ce qui part tout seul, puis ce qu'on déclenche soi-même :
+individuel ensuite, ce qui part tout seul, puis les routines. Le bouton « Déclencher » d'une
+routine a quitté le dashboard (oto#192, 12/09/2026 : aucun déclenchement en 45 jours) ; la
+liste reste (9 utilisateurs), et une routine part de son déclencheur chez Anthropic :
 
 | carte | composant | ce qu'elle montre |
 |---|---|---|
@@ -214,8 +216,8 @@ tout écran de la nav a son titre, tout titre ses deux traductions.
 
 - **Le résultat métier d'un run** — il vit dans le tableau que l'agent a écrit, pas
   dans la file. Un travail « terminé » ne dit pas qu'une fiche est bonne.
-- **Le contenu des routines Claude Code** : la page déclenche et renvoie vers la
-  session. Le résultat se lit chez Anthropic ; prétendre l'afficher ici serait mentir.
+- **Le contenu des routines Claude Code** : la page les liste. Le résultat se lit chez
+  Anthropic, dans la session ; prétendre l'afficher ici serait mentir.
 - **La progression réelle d'une campagne** : le volume visé n'est pas exposé. La jauge
   porte sur les travaux vus, et la carte dit « sur les N derniers ».
 - ⚠️ **La ligne qu'un travail CONCLU a travaillée.** C'est la seule chose de cette liste
@@ -236,8 +238,8 @@ tout écran de la nav a son titre, tout titre ses deux traductions.
 ## Contrats consommés
 
 `listRunnerJobs(status?, limit)` · `getRunThread(run_id)` · `listRunnerTriggers()` ·
-`setRunnerTriggerEnabled(id, on)` · `getConnectorInstances()` · `fireAutomation()` —
-tous dans `api/console.ts`.
+`setRunnerTriggerEnabled(id, on)` · `getConnectorInstances()` — tous dans `api/console.ts`
+(`fireAutomation()` retiré avec le bouton, oto#192).
 
 ⚠️ **`RunnerJob['result']` est un contrat OUVERT, et c'est la clé de lecture de tout cet
 écran.** Le schéma servi (`JobResult`, capacité `runner.jobs` côté oto-backend) se déclare

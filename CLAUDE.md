@@ -42,18 +42,18 @@ npm run schema:check    # les attributs de schéma lus ici == ceux que la platef
 
 ## Carte des écrans
 
-Un écran = une section de `lib/consoleNav.ts` ; le détail (composants, API client, deep-links, historique) vit dans le doc du concept ; contrats backend : `oto-backend/CLAUDE.md` (carte) et `oto-backend/docs/rest-api.md` (inventaire REST). Les anciennes routes (`/doctrine`, `/toolbox`, `/knowledge`, `/library/*`, `/group`, `/org/departments`…) sont des redirections dans `router/index.ts`.
+Un écran = une section de `lib/consoleNav.ts` ; le détail (composants, API client, deep-links, historique) vit dans le doc du concept ; contrats backend : `oto-backend/CLAUDE.md` (carte) et `oto-backend/docs/rest-api.md` (inventaire REST). Les anciennes routes (`/doctrine`, `/toolbox`, `/knowledge`, `/library/*`, `/org/departments`…) sont des redirections dans `router/index.ts`. Retirés par oto#192 (12/09/2026, aucun usage sur 45 jours) : le niveau équipe (`/team/*`), `/activity`, `/import`, et une série de gestes listés dans le doc de chaque concept ; un lien vers eux retombe sur l'accueil.
 
 | domaine | routes | doc |
 |---|---|---|
 | vue d'ensemble, monitoring, réglages et sécurité d'org | `/overview`, `/org/monitoring`, `/org/settings`, `/org/security`, `/platform/monitoring` | — (pas de doc dédié) |
-| connecteurs (4 surfaces, hubs à onglets, fédération) | `/connectors`, `/org/connectors`, `/team/connectors`, `/platform/connectors` | `docs/connecteurs.md` |
-| orgs, équipes, invitations, fiches admin | `/org`, `/org/teams`, `/team`, `/platform/users` (+ `/:sub`), `/platform/orgs` (+ `/:id`) | `docs/orgs-groupes-invitations.md` |
-| projets (index + page dédiée, partage navigable) | `/projects`, `/projects/:id`, `/import` | `docs/projets.md` |
+| connecteurs (3 surfaces, hubs à onglets, fédération) | `/connectors`, `/org/connectors`, `/platform/connectors` | `docs/connecteurs.md` |
+| orgs, équipes, invitations, fiches admin | `/org`, `/org/teams`, `/platform/users` (+ `/:sub`), `/platform/orgs` (+ `/:id`) | `docs/orgs-groupes-invitations.md` |
+| projets (index + page dédiée, partage navigable) | `/projects`, `/projects/:id` | `docs/projets.md` |
 | mémoire — datastore & documents | `/data`, `/data/:id` (+ `/item/:rowId`), `/documents` (hors sidebar) | `docs/datastore.md` |
-| ce que voit l'agent — readme, guides, procédures | `/context`, `/org/context`, `/team/context`, `/platform/context`, `/procedures`, `/procedures/:id`, `/team/procedures` | `docs/agent-context.md` |
+| ce que voit l'agent — readme, guides, procédures (en lecture) | `/context`, `/org/context`, `/platform/context`, `/procedures`, `/procedures/:id` | `docs/agent-context.md` |
 | recherche transverse (⌘K + page) | `/search` | `docs/recherche.md` |
-| identité, consultation (view-as), hub compte | `/account/*`, `/activity` + sidebar/popin | `docs/identite-et-consultation.md` |
+| identité, consultation (view-as), hub compte | `/account/*` + sidebar/popin | `docs/identite-et-consultation.md` |
 | écrans plateforme — objets possédés, tenants, relance des comptes inactifs | `/platform/objects`, `/platform/tenants`, `/platform/outreach` | `docs/plateforme.md` |
 | facturation — abonnement, tunnel de souscription, factures | `/org/billing` | `docs/facturation.md` |
 | automatisations — file d'exécution, déclencheurs, routines | `/automations` | `docs/automations.md` |
@@ -74,7 +74,7 @@ Une phrase par règle ; l'incident qui l'a produite et ses cas limites vivent da
 - **Une page absente de `PAGE_META` retombe silencieusement sur l'overview** ; `lib/consoleNav.spec.ts` tient la règle (tout écran a son titre, tout titre ses deux traductions). → `docs/automations.md`
 - **Un écran n'énonce que ce qu'il sait** : un état (pastille, coche) lit un signal servi, jamais une valeur par défaut, sinon il disparaît ; un domaine affiché vient de l'environnement servi (`lib/servedEnv.ts`), jamais d'une constante. → `docs/conventions.md`
 - **Copy user-facing = verbatim** (`lib/connectorVerdict.ts` porte la copy du CDC), jamais reformulée ; i18n FR complète.
-- **Un droit d'ÉCRITURE ne se déduit pas d'un droit d'ADMINISTRATION** : chaque geste lit le drapeau de SON geste (`lib/instructionRights.ts`) ; `can_edit` n'est qu'un repli quand le serveur est plus ancien. → `docs/orgs-groupes-invitations.md`
+- **Un droit d'ÉCRITURE ne se déduit pas d'un droit d'ADMINISTRATION** : un geste d'écriture lit le drapeau de SON geste (`can_write_instructions`…), jamais `can_edit`. Aucun écran n'écrit plus de procédure depuis oto#192 ; la règle vaut pour le prochain. → `docs/orgs-groupes-invitations.md`
 - **`set_by` est un identifiant de compte, pas un nom** : il s'affiche via `lib/accountLabel.ts` — nom, à défaut adresse, à défaut l'identifiant, jamais l'inverse. → `docs/conventions.md`
 - Les identifiants de code/API gardent le mot « doctrine » (`Doctrine*View`, `getDoctrine`, `/api/me/instructions*`) ; seul le vocabulaire produit (routes, copy) dit « procédure » / « agent readme ». → `docs/agent-context.md`
 
@@ -108,8 +108,8 @@ L'identité Otomata se définit dans `oto-studio/brand/` et s'implémente pour l
 | `design-system.md` | où vit l'identité et pourquoi le dashboard ne s'y branche pas encore, direction « 2a », les deux fichiers de tokens, état d'intégration, archivage de `design-system/`. |
 | `handoff-design-system.md` | plan de portage du DS dans le front (b1→b8) — **historique**. |
 | `refonte-pages-projet.md` | cahier des charges de la refonte UX des pages Projet — **historique**. |
-| `connecteurs.md` | moteur unique `connector-scope` (4 surfaces), verdict-first, 3 projections ADR 0022, carte-shell, compte partagé, multi-compte, formulaire de credential, fédération MCP, hubs à onglets. |
-| `orgs-groupes-invitations.md` | départements (ADR 0012), droits par geste sur les procédures d'équipe, invitations en cascade aux 3 niveaux. |
+| `connecteurs.md` | moteur unique `connector-scope` (3 surfaces), les retraits d'oto#192, verdict-first, 3 projections ADR 0022, carte-shell, compte partagé, multi-compte, formulaire de credential, fédération MCP, hubs à onglets. |
+| `orgs-groupes-invitations.md` | roster des équipes (ADR 0012) et retrait du scope d'équipe (oto#192), droits par verbe sur les procédures (historique), invitations en cascade aux 2 niveaux. |
 | `projets.md` | index + page `/projects/:id`, slots & inventaire dérivé (ADR 0035), partage navigable `<slug>.share.oto.cx`. |
 | `datastore.md` | grille server-driven, vue fiches, deeplink par id, ownership ADR 0030, partage unifié, file de travail et run qui tient une ligne. |
 | `agent-context.md` | agent readme (injecté, cumulable, ADR 0042), procédures, guides, onboarding devenu projet, fiche profil. |

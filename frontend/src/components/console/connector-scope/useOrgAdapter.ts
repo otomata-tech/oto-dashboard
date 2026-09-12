@@ -1,22 +1,21 @@
 // Adaptateur ORG (scope=org, /org/connectors). Leviers : disponibilité BINAIRE (bornée
-// par la plateforme = plancher dur), clé partagée d'org, accès (RBAC ADR 0025), rédaction
-// de champs (ConnectorTransforms) et email (ConnectorEmail, connecteurs d'envoi). Réplique
-// la logique de l'ex-`OrgConnectorsView` + `OrgConnectorDrawer`.
+// par la plateforme = plancher dur), clé partagée d'org, accès (RBAC ADR 0025) et
+// rédaction de champs en lecture (ConnectorTransforms). Réplique la logique de l'ex-`OrgConnectorsView` + `OrgConnectorDrawer`.
 import { computed, ref } from 'vue'
 import type {
   AclPrincipal, CellVM, ConnectorScopeAdapter, ScopeCtx,
 } from './adapter'
 import {
   getOrgConnectorActivation, setOrgConnectorActivation, clearOrgConnectorActivation,
-  getOrgFieldFilters, getOrgEmailSettings, getConnectors, getOrg,
+  getOrgFieldFilters, getConnectors, getOrg,
   setOrgSecret, deleteOrgSecret, verifyConnector, startConnectorFlow,
-  getConnectorAcl, setConnectorAccess, clearConnectorAccess, forceConnectorForMember, listGroups,
+  getConnectorAcl, setConnectorAccess, clearConnectorAccess, listGroups,
   credentialPrefill,
 } from '@/api/console'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
 import type {
-  OrgConnectorActivation, ConnectorMeta, FieldFiltersBundle, EmailSettingsBundle,
+  OrgConnectorActivation, ConnectorMeta, FieldFiltersBundle,
   ConnectorAclEntry, GroupListItem, OrgMember,
 } from '@/types/api'
 import type { FormDialogField } from '@/composables/useFormDialog'
@@ -29,7 +28,6 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
   const rows = ref<OrgConnectorActivation[]>([])
   const metaMap = ref<Record<string, ConnectorMeta>>({})
   const filters = ref<FieldFiltersBundle | null>(null)
-  const emailBundle = ref<EmailSettingsBundle | null>(null)
   const orgSecrets = ref<Set<string>>(new Set())
   const acl = ref<ConnectorAclEntry[]>([])
   const groups = ref<GroupListItem[]>([])
@@ -48,10 +46,9 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
   async function load() {
     if (orgId.value == null) { ready.value = true; return }
     try {
-      const [act, ff, em, cat, org, aclRes, grps] = await Promise.all([
+      const [act, ff, cat, org, aclRes, grps] = await Promise.all([
         getOrgConnectorActivation(orgId.value),
         getOrgFieldFilters(orgId.value).catch(() => null),
-        getOrgEmailSettings(orgId.value).catch(() => null),
         getConnectors().catch(() => ({ connectors: [] as ConnectorMeta[] })),
         getOrg(orgId.value).catch(() => null),
         getConnectorAcl(orgId.value).catch(() => ({ access: [] as ConnectorAclEntry[] })),
@@ -59,7 +56,6 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
       ])
       rows.value = act.connectors
       filters.value = ff
-      emailBundle.value = em
       metaMap.value = Object.fromEntries(cat.connectors.map((c) => [c.name, c]))
       orgSecrets.value = new Set((org?.secrets ?? []).map((s) => s.provider))
       acl.value = aclRes.access
@@ -161,23 +157,6 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
     try { await clearConnectorAccess(orgId.value, r.connector, ptype, pid); await load() }
     catch (e) { ctx.toast(humanize(e)) }
   }
-  function forceForMember(r: OrgConnectorActivation) {
-    if (!isOrgAdmin.value) return
-    const opts = members.value.map((m) => ({ value: m.sub, label: m.name || m.email || m.sub }))
-    if (!opts.length) { ctx.toast("ajoute d'abord des membres à l'org"); return }
-    ctx.openForm({
-      title: `${r.label} — pousser à un membre`,
-      description: "le connecteur apparaît dans la toolbox du membre (sans qu'il l'active). il reste libre de le masquer.",
-      fields: [{ key: 'member', label: 'membre', type: 'select', required: true, options: opts }],
-      submitLabel: 'pousser',
-      onConfirm: async (v) => {
-        try { await forceConnectorForMember(orgId.value!, r.connector, String(v.member)); ctx.toast(`${r.label} : poussé au membre`) }
-        catch (e) { ctx.toast(humanize(e)); throw e }
-      },
-    })
-  }
-
-  const isEmail = (r: OrgConnectorActivation) => ['scaleway', 'resend'].includes(r.connector)
 
   return {
     scope: 'org',
@@ -214,13 +193,10 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
       return undefined
     },
     hasDrawer: true,
-    tabs: (r) => {
-      const t = [{ key: 'main', label: 'gouvernance' }, { key: 'access', label: 'accès' }, { key: 'redaction', label: 'rédaction' }]
-      // email seulement pour les connecteurs d'envoi ET si le bundle est chargé (props le requiert non-null).
-      if (isEmail(r) && emailBundle.value) t.push({ key: 'email', label: 'email' })
-      t.push({ key: 'about', label: 'à propos' })
-      return t
-    },
+    tabs: () => [
+      { key: 'main', label: 'gouvernance' }, { key: 'access', label: 'accès' },
+      { key: 'redaction', label: 'rédaction' }, { key: 'about', label: 'à propos' },
+    ],
     availability: {
       variant: 'binary',
       title: 'disponibilité — ce que vivent tes membres',
@@ -267,7 +243,6 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
       canEdit: () => isOrgAdmin.value,
       add: (r) => addAccess(r),
       remove: (r, type, id) => removeAccess(r, type, id),
-      force: (r) => forceForMember(r),
     },
     redaction: {
       props: (r) => {
@@ -277,28 +252,12 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
           service: name,
           fields: b?.schemas?.[name] ?? [],
           rules: b?.filters?.[name]?.rules ?? b?.defaults?.[name]?.rules ?? [],
-          defaultRules: b?.defaults?.[name]?.rules ?? [],
-          templates: b?.templates,
           actionSchema: b?.schema ?? [],
           customized: !!b?.filters?.[name],
           orgId: orgId.value,
-          isOrgAdmin: isOrgAdmin.value,
         }
       },
       onChanged: () => { if (orgId.value != null) getOrgFieldFilters(orgId.value).then((f) => { filters.value = f }).catch(() => {}) },
-    },
-    email: {
-      visible: (r) => isEmail(r),
-      props: (r) => ({
-        connector: r.connector,
-        block: emailBundle.value?.settings?.[r.connector] ?? null,
-        transport: emailBundle.value?.transports?.[r.connector] ?? r.connector,
-        quietDefault: emailBundle.value!.quiet_hours_default,
-        resendKeySet: emailBundle.value!.resend_key_set,
-        orgId: orgId.value!,
-        isOrgAdmin: isOrgAdmin.value,
-      }),
-      onChanged: () => { if (orgId.value != null) getOrgEmailSettings(orgId.value).then((e) => { emailBundle.value = e }).catch(() => {}) },
     },
   }
 }

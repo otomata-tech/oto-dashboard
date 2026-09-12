@@ -20,7 +20,7 @@ Seul le **vocabulaire produit** (routes, copy) a changé : les identifiants de c
 gardent « doctrine » (`Doctrine*View`, `getDoctrine`, `/api/me/instructions*`) :
 - **agent readme** = prose libre **injectée à chaque session** (bloc C backend), **cumulable
   par niveau** : plateforme (`/platform/instructions`) → org (`/org/context`) → équipe
-  (`/team/context`, `GroupDoctrineCard`) → user (`/account/agent` + couche « ta note » de
+  (servi par le backend ; son écran `/team/context` a quitté le dashboard, oto#192) → user (`/account/agent` + couche « ta note » de
   `/context`). Composant générique `AgentReadmeCard.vue` (props load/save). ⚠️ **UNE surface
   pour les 4 niveaux depuis le 28/07** (ADR 0042 §Convergence des surfaces) : un readme EST un
   guide dont la livraison est `init` → `getInitGuide(scope, ownerId?)` / `setInitGuide(...)`
@@ -34,7 +34,9 @@ gardent « doctrine » (`Doctrine*View`, `getDoctrine`, `/api/me/instructions*`)
   versioning (DoctrineView). Pas de compteur d'usage (l'injection n'est pas un tool
   call) — le tag dit « injecté à chaque session ».
 - **procédure** (ex-skill / doctrine nommée) = déroulé opératoire **chargé à la demande**
-  (`oto_get_doctrine(slug)`), publiable/forkable/partageable/liable à un projet.
+  (`oto_get_doctrine(slug)`), partageable et liable à un projet. Dans le dashboard, **en
+  lecture** depuis oto#192 (12/09/2026) : créer, publier une version, restaurer, supprimer et
+  la bibliothèque publique ont quitté l'écran — l'agent l'écrit (`oto_procedure`).
 - **guide** (ADR 0042, prose PLATE **chargée à la demande** via `oto_guide` — pendant du
   readme, mais pas injectée) = how-to éditable dans la console : `GuidesCard.vue` (créer/
   éditer/supprimer, éditeur + confirmation **inline**, jamais de dialog natif), montée dans
@@ -62,16 +64,17 @@ la vue calculée par la fonction de visibilité de la poignée de main — pour 
 consultée (en-tête `X-Oto-Org`). Dérivation pure : `lib/agentToolbox.ts` (`toolsSeenView`).
 
 - **Listé** = les noms de `tools` (ce que l'agent reçoit), plus les outils que la
-  personne a masqués elle-même (préférence `enabled: false`), seul endroit où elle peut
-  les rendre. Les autres outils du catalogue ne sont **pas** listés : leur connecteur
+  personne a masqués elle-même (préférence `enabled: false`), marqués « masqué par toi ».
+  Le geste masquer / afficher a quitté le dashboard (oto#192, 12/09/2026 : aucun usage
+  depuis le 06/08) : la liste se lit ici, elle ne s'y règle plus. Les autres outils du catalogue ne sont **pas** listés : leur connecteur
   n'est pas installé, est en veille, coupé ou réservé, et aucun bouton ici ne les ferait
   voir. Avant, la liste groupait `GET /api/me/tools` (tout le catalogue + préférences) et
   comptait « visible » tout outil non masqué — des outils que l'agent n'avait pas.
 - **Compteurs** : `tools.length`, jamais `tools_total` (outils MONTÉS, visibles ou non).
 - **`available: false`** = la vue n'a pas pu être dérivée : ni liste ni compteur, une
   phrase qui le dit. Jamais « 0 visibles ».
-- **Après chaque geste** (masquer / afficher), on relit la préférence ET la vue : la
-  visibilité ne se déduit jamais côté client.
+- La visibilité ne se déduit jamais côté client : elle se lit sur la vue servie. (Tant que
+  le geste masquer / afficher existait, il relisait la préférence ET la vue après coup.)
 
 Le même contrat alimente la stat de l'accueil (« connecteurs que voit ton agent ») et,
 côté « mes connecteurs », la provenance et les installés invisibles → `docs/connecteurs.md`.

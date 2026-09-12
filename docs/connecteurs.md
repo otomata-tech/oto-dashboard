@@ -2,8 +2,8 @@
 title: Connecteurs (front)
 type: reference
 description: >-
-  Le moteur unique connector-scope (4 surfaces user/team/org/plateforme sur un jeu d'adaptat
-  eurs), la présentation verdict-first, les 3 projections par audience (ADR 0022), la carte-
+  Le moteur unique connector-scope (3 surfaces user/org/plateforme sur un jeu d'adaptat
+  eurs ; la surface équipe a quitté le dashboard, oto#192), la présentation verdict-first, les 3 projections par audience (ADR 0022), la carte-
   shell partagée, le compte partagé autorisé, la fédération MCP et les points d'entrée à ong
   lets. Contient la prose historique des refontes.
 ---
@@ -13,6 +13,30 @@ description: >-
 > Extrait de `CLAUDE.md` le 2026-08-27 — le contenu n'a pas changé, seule sa place a bougé.
 > La carte garde le résumé + le pointeur ; le détail (inventaires d'écrans, historique
 > des refontes, incidents datés et leurs leçons) vit ici.
+
+## Retraits du 12/09/2026 (oto#192) — ce que l'historique ci-dessous décrit encore
+
+Gestes et écrans sans usage sur 45 jours, retirés du dashboard seul (les routes backend
+restent servies à leurs autres clients). La prose datée plus bas les cite toujours : elle
+raconte, elle ne décrit plus.
+- **Surface équipe** : `/team/connectors`, `useTeamAdapter` — le moteur tourne sur 3 scopes.
+- **« Pousser à un membre »** (levier `access.force`, `forceConnectorForMember`) et
+  **« Effet pour un membre »** (`ConnectorEffectForMember`, `getConnectorEffectForMember`).
+- **« ▶ Exécuter »** dans la fiche d'un outil (`library/ConnectorToolDialog.vue`, `callTool`) :
+  la fiche garde description et paramètres.
+- **Masquer un outil** (`enableTool`/`disableTool`) : le panneau outils du drawer et `/context`
+  listent l'état, marqué « masqué », sans geste.
+- **Réglages email** (`ConnectorEmail.vue`, `config/ConfigSection` + `EditableCollection`,
+  `lib/email.ts`, `setOrgEmailSettings`). ⚠️ L'encart « envois programmés » de
+  `/org/connectors` et son **Annuler** RESTENT (sortie de secours) : il lit toujours les
+  réglages (`getOrgEmailSettings`) pour savoir s'il s'affiche. `config/ConfigPanel.vue`
+  reste dans l'arbre, sans consommateur depuis `8f08414`, hors de ce lot.
+- **Google « compte par défaut »** (`setGoogleDefault`) — **révoquer** un compte reste.
+- **Rédaction des champs en LECTURE** : règle, modèles 1-clic, interrupteur, `FieldRuleDialog`,
+  dry-run `RedactionPreview` (`setOrgFieldFilter`, `previewOrgFieldFilter`) retirés ;
+  `ConnectorTransforms` affiche la politique effective champ par champ.
+- **Marketplace de procédures** (`DoctrineHubView`, `DoctrineLibraryView`) : `/procedures` monte
+  `DoctrineView` directement, `/library/doctrines` redirige vers `/procedures`.
 
 ## Refonte « connector-scope » (08/07/2026) — le moteur unique
 
@@ -226,7 +250,7 @@ abandonné. Le serveur a livré sa moitié (oto-backend#448/#449) ; ceci est la 
 > du `me` → « session set / disconnect ». Déconnexion = `deleteApiKey(name)`. PLUS d'extension
 > cookie ni de renvoi vers le MCP. Backend : `oto-backend/CLAUDE.md` §Browser automation.
 La carte dit en clair **quelle clé résout** (`status.mode` → « ta clé perso / la clé de ton org /
-la clé plateforme oto »). Les toggles d'outils restent `enableTool`/`disableTool`. Les **presets**
+la clé plateforme oto »). Les toggles d'outils (`enableTool`/`disableTool`) ont quitté le dashboard (oto#192). Les **presets**
 de toolbox vivent en bas de la même vue. Les **tokens CLI** ont migré vers le **hub compte**
 (`/account`, `AccountTokensCard.vue`) — user-scopés (`/api/me/tokens`).
 
@@ -423,8 +447,9 @@ reste (deep-link marketplace existant, `ConnectorLibraryView`).
 Le groupe nav « library » a **disparu** : les bibliothèques (découverte) sont fusionnées
 en **onglets** des pages de gestion `/connectors` et `/procedures`, chacune devenue un
 **point d'entrée unique** à onglets (`SubTabs.vue`, état porté par `?tab=` via `useDeepLink`).
-Onglet par défaut = `mine` (`?tab` absent = URL propre). Les ex-routes `/library/connectors`
-et `/library/doctrines` **redirigent** vers `…?tab=marketplace` (`router/index.ts`) ;
+Onglet par défaut = `mine` (`?tab` absent = URL propre). L'ex-route `/library/connectors`
+**redirige** vers `/connectors?tab=marketplace` (`router/index.ts`) ; `/library/doctrines` vers
+`/procedures` (la bibliothèque de procédures a quitté le dashboard, oto#192) ;
 `/doctrine` et `/doctrine/:id` **redirigent** vers `/procedures[…]`.
 
 - **`/connectors`** = host `ConnectorsHubView.vue`, 3 onglets :
@@ -442,16 +467,16 @@ et `/library/doctrines` **redirigent** vers `…?tab=marketplace` (`router/index
     usage→prerequisite→setup→note). La carte grille porte description + chip d'auth
     + nb d'outils ; recherche étendue à description + noms d'outils. L'onglet outils
     de `ConnectorCard` (mine) affiche aussi la description sous chaque toggle.
-- **`/procedures`** = host `DoctrineHubView.vue`, 2 onglets :
-  - `mine` — `DoctrineView.vue` (**100 % procédures** de l'org/équipe, édition/versions/usage ;
-    l'agent readme n'y apparaît plus — slug `claude_md` réservé, édité sur `/org`).
-    Route détail `/procedures/:id` (`procedure-detail`).
-  - `marketplace` — `DoctrineLibraryView.vue` : procédures publiques avec **auteur** (badge
-    « Otomata » ou org créatrice), recherche + filtres auteur/topic, preview markdown,
-    **fork** dans l'org active (org_admin), unpublish conditionnel. API `listLibraryDoctrines`/
-    `getLibraryDoctrine`/`forkLibraryDoctrine`/`unpublishDoctrine`. `DoctrineView.vue` garde
-    l'action **« publier »** d'une procédure (org_admin → `publishDoctrine`). Backend :
-    `oto-backend/CLAUDE.md` §REST (capacités `library.*`).
+- **`/procedures`** = `DoctrineView.vue` monté directement, sans onglets (oto#192, 12/09/2026) :
+  **100 % procédures** de l'org, EN LECTURE — contenu, outils référencés, versions (« Voir »),
+  usage, déclencheurs, et le partage à un tiers (org_admin). L'agent readme n'y apparaît pas
+  (slug `claude_md` réservé, édité sur `/org`). Route détail `/procedures/:id`
+  (`procedure-detail`). **Retirés** : créer (`CreateSkillModal`), éditer et publier une version
+  (`DoctrineEditor`, `putInstruction`), restaurer (`revertInstruction`), supprimer
+  (`deleteInstruction`), et la bibliothèque publique — host `DoctrineHubView`, onglet
+  `DoctrineLibraryView`, fork et publication (`listLibraryDoctrines`/`getLibraryDoctrine`/
+  `forkLibraryDoctrine`/`unpublishDoctrine`/`publishDoctrine`) : 0 écriture en 45 jours pour
+  32 lectures. Une procédure s'écrit par l'agent (`oto_procedure`).
   > NB : les identifiants de code/API gardent le mot « doctrine » (`Doctrine*View`,
   > `getDoctrine`, endpoints `/api/me/instructions*`, resource_type `doctrine`) — seul le
   > vocabulaire produit (routes, copy) est passé à « procédure » / « agent readme ».

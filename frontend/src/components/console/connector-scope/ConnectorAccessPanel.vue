@@ -1,7 +1,7 @@
 <script setup lang="ts" generic="R">
 // Panneau accès (RBAC connecteur, ADR 0025) du drawer unifié : ouvert vs réservé à des
 // principals (équipe/membre). ≥1 principal ⟹ réservé (invisible + bloqué pour les autres).
-// Org : ajouter/retirer + « pousser à un membre ». (Team : à venir, backend B2.)
+// Org : ajouter/retirer.
 import { computed } from 'vue'
 import type { AccessLever } from './adapter'
 import Btn from '@/components/console/Btn.vue'
@@ -29,10 +29,6 @@ const canEdit = computed(() => props.lever.canEdit(props.row))
         <Btn v-if="canEdit" kind="mini" @click="lever.add(row)">+ ajouter</Btn>
       </div>
     </template>
-    <template v-if="canEdit && lever.force">
-      <hr class="cacc-div" />
-      <Btn kind="link" @click="lever.force(row)">pousser à un membre…</Btn>
-    </template>
   </section>
 </template>
 
@@ -43,5 +39,4 @@ const canEdit = computed(() => props.lever.canEdit(props.row))
 .cacc-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 2px 4px 2px 9px; border-radius: var(--radius-pill); background: var(--color-saffron-soft); color: var(--color-saffron-ink); }
 .cacc-x { border: 0; background: none; cursor: pointer; color: inherit; font-size: 14px; line-height: 1; padding: 0 2px; opacity: .7; }
 .cacc-x:hover { opacity: 1; }
-.cacc-div { border: 0; border-top: 1px dotted var(--color-hair-classic); margin: 14px 0; }
 </style>

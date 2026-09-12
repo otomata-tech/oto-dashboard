@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Carte « invitations » RÉUTILISÉE aux 3 niveaux de la cascade (org / équipe / plateforme).
+// Carte « invitations » RÉUTILISÉE aux 2 niveaux de la cascade (org / plateforme).
 // Même geste partout — inviter par email (ou obtenir un lien à partager soi-même), lister
 // les invitations en attente, révoquer. Le vocabulaire (rôle, copy) s'adapte au niveau ;
 // le câblage API vit dans `useInvitations`. Le backend porte l'autz ; `canManage` masque
@@ -33,19 +33,12 @@ const canManageRef = toRef(props, 'canManage')
 const { invitations, loading, error, reload, invite, revoke } = useInvitations(scopeRef, canManageRef)
 
 const level = computed(() => props.scope.level)
-const noun = computed(() =>
-  level.value === 'team' ? 'the team' : level.value === 'org' ? 'the org' : 'oto')
-const roleOptions = computed(() =>
-  level.value === 'team'
-    ? [{ value: 'group_member', label: 'member' }, { value: 'group_admin', label: 'team lead' }]
-    : [{ value: 'org_member', label: 'member' }, { value: 'org_admin', label: 'admin' }])
-const defaultRole = computed(() => (level.value === 'team' ? 'group_member' : 'org_member'))
+const noun = computed(() => (level.value === 'org' ? 'the org' : 'oto'))
+const roleOptions = [{ value: 'org_member', label: 'member' }, { value: 'org_admin', label: 'admin' }]
+const defaultRole = 'org_member'
 
-function roleOf(iv: OrgInvitation): string {
-  return level.value === 'team' ? (iv.group_role ?? 'group_member') : iv.org_role
-}
 function isLead(iv: OrgInvitation): boolean {
-  return roleOf(iv) === 'group_admin' || roleOf(iv) === 'org_admin'
+  return iv.org_role === 'org_admin'
 }
 
 // Émet l'invitation et enchaîne l'effet de bord (mail envoyé → toast, lien à
@@ -68,13 +61,13 @@ async function doInvite(email: string | null, role: string, sendMail: boolean) {
 }
 
 function openInvite() {
-  // Le rôle n'a de sens que pour org/équipe ; au niveau plateforme = onboarding pur.
+  // Le rôle n'a de sens que pour l'org ; au niveau plateforme = onboarding pur.
   const fields = [
     { key: 'email', label: 'email (optional)', placeholder: 'name@company.com',
       hint: 'leave blank to get a link to share yourself' },
     ...(level.value === 'platform' ? [] : [{
-      key: 'role', label: 'role', type: 'select' as const, initial: defaultRole.value,
-      options: roleOptions.value }]),
+      key: 'role', label: 'role', type: 'select' as const, initial: defaultRole,
+      options: roleOptions }]),
     { key: 'delivery', label: 'how', type: 'select' as const, initial: 'mail',
       options: [{ value: 'mail', label: 'send by email' }, { value: 'code', label: 'give me a link to share' }] },
   ]
@@ -89,7 +82,7 @@ function openInvite() {
       const sendMail = v.delivery !== 'code'
       const email = (v.email || '').trim()
       if (sendMail && !email) { toast('an email is required to send by email'); throw new Error('email required') }
-      const role = (v.role as string) || defaultRole.value
+      const role = (v.role as string) || defaultRole
       try {
         await doInvite(email || null, role, sendMail)
       } catch (e) {
@@ -156,7 +149,7 @@ async function revokeInv(id: number) {
               </div>
             </div>
           </td>
-          <td><Tag v-if="isLead(iv)" tone="ink">{{ level === 'team' ? 'lead' : 'admin' }}</Tag><Tag v-else>member</Tag></td>
+          <td><Tag v-if="isLead(iv)" tone="ink">admin</Tag><Tag v-else>member</Tag></td>
           <td><Dot tone="saffron" :size="7" /></td>
           <td v-if="canManage" style="text-align: right">
             <Btn kind="danger" @click="revokeInv(iv.id)">revoke</Btn>

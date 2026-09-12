@@ -28,12 +28,12 @@ import {
   getNamespaces, getSharedWithMe, getNamespaceRows, getNamespaceRow, getNamespaceAggregate,
   getNamespaceQueue, releaseRowClaim,
   appendNamespaceRow, updateNamespaceRow, deleteNamespaceRow,
-  deleteNamespace, renameNamespace, patchNamespaceSchema,
+  deleteNamespace, renameNamespace,
 } from '@/api/console'
 import type { DatastoreEntry, DatastoreRow, ColumnFilter } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { rowsToCsv, downloadCsv } from '@/lib/csv'
-import { hiddenPatch, userFields, visibleColumns } from '@/lib/datastoreColumns'
+import { userFields, visibleColumns } from '@/lib/datastoreColumns'
 import { filtersFromParam, filtersToParam } from '@/lib/datastoreFilters'
 import type { LifecycleIntent } from '@/lib/datastoreLifecycle'
 import { cleTitre } from '../../lib/datastoreTitle'
@@ -293,37 +293,9 @@ function clearSearchAndFilters() { search.value = ''; onFilters([]) }
 // sélection est un rendu) — seulement le miroir d'URL.
 function onCols(next: string[] | null) { cols.value = next; syncTableQuery() }
 
-// « Enregistrer comme vue par défaut » : on ne crée pas un objet « vue », on écrit
-// le `hidden` du SCHÉMA — le mécanisme qui gouvernait déjà l'affichage et qu'on
-// éditait à la main. La vue vaut donc pour tout le monde et depuis n'importe où,
-// et le choix ponctuel (`?cols=`) redevient inutile → on le lève.
-//
-// ⚠️ L'enregistrement AMENDE le schéma par clé (PATCH), il ne le repose pas (PUT).
-// Reposer la liste entière faisait de ce bouton — posé au milieu de gestes purement
-// locaux — un effet de bord GLOBAL et destructeur : le corps était reconstruit depuis
-// les seuls champs que le front connaissait, `hidden` retiré partout puis reposé sur
-// les décochés, donc tout `hidden` déclaré ailleurs (par un agent, sur une colonne
-// hors de la page courante) disparaissait pour tout le monde, sans un mot. Le patch
-// ne nomme que les colonnes de CE menu dont l'état change ; le reste du schéma —
-// colonnes jamais vues, sous-champs, libellés, bornes — n'est pas dans le corps,
-// donc ne peut pas être perdu. Un SEUL appel, groupé : une modification de schéma
-// reconstruit un index sur la table partagée par tous les tableaux (interblocage du
-// 05/09), en multiplier rejouerait la cause.
-async function onSaveView(view: { fields: string[]; hidden: string[] }) {
-  const n = dsRef.value
-  const schema = meta.value?.schema
-  if (!n || !schema?.fields?.length) return
-  const patch = hiddenPatch(view.fields, view.hidden, schema)
-  try {
-    if (patch.length) await patchNamespaceSchema(n, { fields: patch })
-    await resolveMeta()
-    onCols(null)
-    toast(view.hidden.length
-      ? `vue enregistrée — ${view.hidden.length} colonne${view.hidden.length > 1 ? 's' : ''} masquée${view.hidden.length > 1 ? 's' : ''} par défaut`
-      : 'vue enregistrée — toutes les colonnes sont visibles par défaut')
-    emit('changed')
-  } catch (e) { toast(humanize(e)) }
-}
+// « Enregistrer comme vue par défaut » (écrire le `hidden` du schéma depuis le menu des
+// colonnes) a quitté le dashboard (oto#192, 12/09/2026 : aucun usage en 45 jours). Le choix
+// de colonnes reste un rendu local, porté par `?cols=`.
 
 // ── drawer (détail / édition / ajout) — la fiche ouverte est DANS l'URL
 // (`…/item/<rowId>`, deep-link partageable). Ouvrir/fermer = replace du path ;
@@ -557,10 +529,10 @@ async function transfer() {
     <DataTable v-else :rows="rows" :total="total" :page="page" :page-size="pageSize"
       :sort-field="sortField" :sort-dir="sortDir" :search="search" :filters="filters" :loading="rowsLoading"
       :schema="meta.schema ?? null"
-      :cols="cols" :can-save-view="canGovern && isTyped"
+      :cols="cols"
       @open="openRow" @update:page="onPage" @update:page-size="onPageSize" @update:sort="onSort"
       @update:search="onSearch" @update:filters="onFilters"
-      @update:cols="onCols" @save-view="onSaveView" />
+      @update:cols="onCols" />
 
     <RowDrawer :open="drawerOpen" :row="drawerRow" :fields="fields" :is-new="drawerNew"
       :read-only="readOnly" :schema="meta.schema ?? null" :datastore="dsRef"

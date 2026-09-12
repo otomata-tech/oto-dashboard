@@ -29,7 +29,6 @@ const props = defineProps<{
   loading?: boolean
   schema?: DatastoreSchema | null   // libellés + priorité des colonnes (ADR 0046)
   cols?: string[] | null            // colonnes choisies (null = celles du schéma)
-  canSaveView?: boolean             // droit de figer la vue dans le schéma du tableau
 }>()
 const emit = defineEmits<{
   (e: 'open', row: DatastoreRow): void
@@ -39,12 +38,6 @@ const emit = defineEmits<{
   (e: 'update:search', q: string): void
   (e: 'update:filters', filters: ColumnFilter[]): void
   (e: 'update:cols', cols: string[] | null): void
-  // Figer la vue = déclarer `hidden` au schéma. La charge porte AUSSI la portée du
-  // geste (`fields` : les colonnes que ce menu gouverne), sans quoi le parent devrait
-  // la recalculer de son côté — et un second calcul du « quelles colonnes » est
-  // exactement ce qui avait laissé fuiter les colonnes internes à l'export (#137).
-  // Hors de cette portée, l'enregistrement ne nomme rien, donc ne touche à rien.
-  (e: 'save-view', view: { fields: string[]; hidden: string[] }): void
 }>()
 
 const DEFAULT_SORT = '_updated_at'
@@ -81,11 +74,6 @@ const shownFields = computed<string[]>(() =>
   (chosenCols.value ?? defaultCols.value).filter((k) => fields.value.includes(k)))
 const hiddenCount = computed(() => fields.value.length - shownFields.value.length)
 const colsOpen = ref(false)
-/** La sélection courante s'écarte-t-elle de ce que le schéma déclare ? */
-const colsDiffer = computed(() => {
-  const a = shownFields.value, b = defaultCols.value
-  return a.length !== b.length || a.some((k, i) => k !== b[i])
-})
 
 function toggleCol(k: string) {
   const cur = new Set(shownFields.value)
@@ -246,18 +234,8 @@ watch(() => props.filters, (f) => {
               <input type="checkbox" :checked="isMetaShown(k)" @change="toggleMeta(k)" />
               <span>{{ metaFieldLabel(k) }}</span>
             </label>
-            <!-- Figer la vue = écrire `hidden` dans le SCHÉMA du tableau (pas une
-                 préférence locale) : la vue vaut alors pour tous ceux qui l'ouvrent,
-                 depuis n'importe quel poste, et reste le mécanisme qu'on éditait déjà
-                 à la main. Réservé à qui peut gouverner le tableau. Le geste n'engage
-                 QUE les colonnes de ce menu (`fields`) : ce qu'il ne nomme pas — une
-                 colonne absente de la page, un sous-champ, tout autre attribut —
-                 reste tel quel. -->
-            <button v-if="canSaveView && colsDiffer" class="dt-cols__save"
-              title="Les colonnes décochées seront masquées par défaut pour tout le monde"
-              @click="emit('save-view', { fields, hidden: fields.filter((k) => !isShown(k)) }); colsOpen = false">
-              Enregistrer comme vue par défaut
-            </button>
+            <!-- « Enregistrer comme vue par défaut » (écrire `hidden` au schéma) a quitté le
+                 dashboard (oto#192) : le choix de colonnes est un rendu local, dans l'URL. -->
             <button v-if="chosenCols" class="dt-cols__reset" @click="emit('update:cols', null)">
               Rétablir les colonnes du schéma
             </button>
@@ -366,11 +344,6 @@ watch(() => props.filters, (f) => {
   background: transparent; font-size: 11.5px; color: var(--color-mute); cursor: pointer; text-align: left;
 }
 .dt-cols__reset:hover { color: var(--color-ink); }
-.dt-cols__save {
-  width: 100%; margin-top: 4px; padding: 6px 8px; border: 0; border-top: 1px solid var(--color-hair-soft);
-  background: transparent; font-size: 11.5px; color: var(--color-cobalt); cursor: pointer; text-align: left;
-}
-.dt-cols__save:hover { text-decoration: underline; }
 .dt-count { font-size: 11px; white-space: nowrap; }
 .dt-filter-toggle, .dt-filter-clear {
   font: inherit; font-size: 11px; cursor: pointer; border: 1px solid var(--color-hair);

@@ -1,13 +1,13 @@
 // Adaptateur USER (scope=user/work, /connectors → onglet « mine »). Leviers propres au
 // membre : EXPOSITION 3-états (off/muted/live, connector_selection ADR 0019), CONNEXION
 // (couche d'auth ADR 0024 — widgets clé/oauth/session/hosted/fédéré, réutilisés verbatim)
-// et OUTILS (toggles). Réplique la logique de l'ex-`ConnectorsView` + `ConnectorDrawer`.
+// et OUTILS (lecture). Réplique la logique de l'ex-`ConnectorsView` + `ConnectorDrawer`.
 import { computed, ref } from 'vue'
 import type { CellVM, ConnectorScopeAdapter, ExposureState, ScopeCtx, ToolRow } from './adapter'
 import {
   getMyConnectors, getTools, getToolRegistry, getAgentToolbox,
   selectConnector, pauseConnector, unselectConnector,
-  setCredential, deleteApiKey, verifyConnector, enableTool, disableTool,
+  setCredential, deleteApiKey, verifyConnector,
   getOrgFieldFilters, credentialPrefill, setOrgSecret,
 } from '@/api/console'
 import { useMe, isSuperAdmin } from '@/composables/useMe'
@@ -245,20 +245,6 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
     },
     tools: {
       list: (r) => toolsOf(r),
-      toggle: async (t) => {
-        if (t.protected) return
-        try {
-          if (t.enabled) { await disableTool(t.name); t.enabled = false }
-          else { await enableTool(t.name); t.enabled = true }
-        } catch (e) { ctx.toast(humanize(e)) }
-      },
-      setAll: async (r, on) => {
-        const targets = toolsOf(r).filter((t) => !t.protected && t.enabled !== on)
-        try {
-          await Promise.all(targets.map((t) => (on ? enableTool(t.name) : disableTool(t.name))))
-          targets.forEach((t) => { t.enabled = on })
-        } catch (e) { ctx.toast(humanize(e)) }
-      },
     },
     redaction: {
       props: (r) => {
@@ -268,15 +254,11 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
           service: name,
           fields: b?.schemas?.[name] ?? [],
           rules: b?.filters?.[name]?.rules ?? b?.defaults?.[name]?.rules ?? [],
-          defaultRules: b?.defaults?.[name]?.rules ?? [],
-          templates: b?.templates,
           actionSchema: b?.schema ?? [],
           customized: !!b?.filters?.[name],
           orgId: orgId.value,
-          isOrgAdmin: isOrgAdmin.value,
-          // Membre non-admin = lecture seule ; note de portée adaptée à la structure
-          // (principe 9) : solo → aucun mot « org » ; admin multi → « toute ton org ».
-          readonly: !isOrgAdmin.value,
+          // Note de portée adaptée à la structure (principe 9) : solo → aucun mot « org » ;
+          // admin multi → « toute ton org » ; membre → « défini par ton org ».
           scopeNote: (isPersonal.value ? 'personal' : isOrgAdmin.value ? 'org-wide' : 'readonly') as
             'personal' | 'org-wide' | 'readonly',
         }

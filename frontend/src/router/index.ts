@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw, type RouteMeta } from 'vue-router'
 import ConsoleLayout from '../views/console/ConsoleLayout.vue'
 import InviteAcceptView from '../views/InviteAcceptView.vue'
-import ImportProjectView from '../views/ImportProjectView.vue'
 import { NAV, type NavLevel } from '@/lib/consoleNav'
 import {
   currentViewOrg, setViewOrgId, currentViewGroup, setViewGroupId, consultRedirectPath,
@@ -14,14 +13,14 @@ import {
 // `X-Oto-Org` ni `X-Oto-Group` ne sont présents) ; `ConsoleLayout` la canonicalise
 // ensuite vers `/o/<maison>[/g/<équipe maison>]/…`.
 //
-// Sont org-scopés les niveaux work/group/org (leurs vues dépendent de l'org vue) ;
-// PAS la plateforme (cross-org) ni /account /activity (niveau user). Chaque section
+// Sont org-scopés les niveaux work/org (leurs vues dépendent de l'org vue) ;
+// PAS la plateforme (cross-org) ni /account (niveau user). Chaque section
 // org-scopée est enregistrée en TROIS formes : nue (deep-links legacy + 1er load),
 // préfixée org, préfixée org+équipe. Une garde `beforeEach` réécrit tout lien nu
 // org-scopé vers `/o/<org>[/g/<équipe>]/…` (contexte courant) → les
 // `router.push('/connectors')` et `<RouterLink>` nus du code restent inchangés.
 
-const ORG_SCOPED: ReadonlySet<NavLevel> = new Set<NavLevel>(['work', 'group', 'org'])
+const ORG_SCOPED: ReadonlySet<NavLevel> = new Set<NavLevel>(['work', 'org'])
 
 // section canonique d'un chemin de détail (`/projects/:id` → `/projects`).
 function sectionOf(path: string): string {
@@ -73,7 +72,8 @@ const router = createRouter({
     // Bibliothèques fusionnées en onglet « marketplace » des pages connecteurs /
     // procédures (point d'entrée unique) : l'ex-groupe nav « library » a disparu.
     { path: '/library/connectors', redirect: '/connectors?tab=marketplace' },
-    { path: '/library/doctrines', redirect: '/procedures?tab=marketplace' },
+    // La bibliothèque de procédures a quitté le dashboard (oto#192) : l'adresse retombe sur la liste.
+    { path: '/library/doctrines', redirect: '/procedures' },
     // « doctrine » → « procédures » (unbundle 2026-07 : la doctrine de base est devenue
     // l'agent readme, éditée sur /org et /account ; l'écran ne porte que les procédures).
     { path: '/doctrine', redirect: (to) => ({ path: '/procedures', query: to.query }) },
@@ -86,11 +86,6 @@ const router = createRouter({
     { path: '/platform/instructions', redirect: '/platform/context' },
     // Usage & déroulés fusionnés dans la supervision (onglet « signaux d'usage »).
     { path: '/platform/usage', redirect: '/platform/monitoring?tab=usage' },
-    // « gérer mon groupe » (/group, ex mono-item niveau group) → scope team dédié, atterrit
-    // sur /team/context. Nue + préfixées (la garde beforeEach re-préfixe la nue au besoin).
-    { path: '/group', redirect: '/team/context' },
-    { path: '/o/:orgId(\\d+)/group', redirect: (to) => `/o/${to.params.orgId}/team/context` },
-    { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/group', redirect: (to) => `/o/${to.params.orgId}/g/${to.params.groupId}/team/context` },
     // « départements » → « teams » (renommage vocabulaire produit 2026-07-06). Le roster
     // vit en /org/teams ; l'ancien deep-link `?dept=<id>` n'est plus consommé (on retombe
     // sur la liste). Nue + préfixées pour les bookmarks legacy.
@@ -101,9 +96,6 @@ const router = createRouter({
     // /invite?token= = lien mail legacy ; /invitation/<code> = lien partageable nominatif.
     { path: '/invite', name: 'invite', component: InviteAcceptView },
     { path: '/invitation/:code', name: 'invitation', component: InviteAcceptView },
-    // « Ajouter à mon Oto » depuis un partage public (`<slug>.share.oto.cx`) — forke le
-    // projet publié dans l'org active puis l'ouvre. Hors shell console (gère sa propre auth).
-    { path: '/import', name: 'import-project', component: ImportProjectView },
     // NB : les partages publics de projet/doc ne sont PLUS des routes SPA — le partage
     // navigable d'un projet est rendu SERVER-SIDE sur `<slug>.share.oto.cx` (share_ui),
     // et `/p/d/<token>` (doc public) est rendu server-side par le backend via Caddy.
@@ -135,20 +127,11 @@ const router = createRouter({
     ...detailRoutes('/data/:id/item/:rowId', 'data'),
     ...detailRoutes('/projects/:id/data/:nsRef/item/:rowId', 'project'),
     ...detailRoutes('/procedures/:id', 'procedure'),
-    // Équipe ouverte (ex `/org/teams/:teamId`, blocs empilés) → DESCENTE dans le scope
-    // team dédié `/o/:org/g/:teamId/team/context`. Préfixées : on connaît l'org → on
-    // construit le préfixe `/g/`. Nue (sans org) : on retombe sur la liste (la garde
-    // re-préfixe /org/teams vers l'org courante).
-    { path: '/o/:orgId(\\d+)/org/teams/:teamId(\\d+)', redirect: (to) => `/o/${to.params.orgId}/g/${to.params.teamId}/team/context` },
-    { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/org/teams/:teamId(\\d+)', redirect: (to) => `/o/${to.params.orgId}/g/${to.params.teamId}/team/context` },
+    // Équipe ouverte (ex `/org/teams/:teamId`) : le scope d'équipe a quitté le dashboard
+    // (oto#192) — un ancien lien retombe sur la liste des équipes de l'org.
+    { path: '/o/:orgId(\\d+)/org/teams/:teamId(\\d+)', redirect: (to) => `/o/${to.params.orgId}/org/teams` },
+    { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/org/teams/:teamId(\\d+)', redirect: (to) => `/o/${to.params.orgId}/org/teams` },
     { path: '/org/teams/:teamId(\\d+)', redirect: '/org/teams' },
-    {
-      // /activity : niveau user, NON org-scopé, hors sidebar (footer). Les pages
-      // /account/* dérivent de NAV (niveau 'account', voir sectionRoutes).
-      path: '/activity',
-      component: ConsoleLayout,
-      meta: { section: '/activity', level: 'work', orgScoped: false },
-    },
     ...sectionRoutes,
     {
       // Le retour PKCE est traité par initAuth() avant le mount du router

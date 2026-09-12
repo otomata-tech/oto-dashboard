@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Widget credential OAuth MULTI-COMPTE (ADR 0024, B2) — rendu INLINE dans la
 // ConnectorCard (fin de la carte ancrée #google). Auto-suffisant : charge son
-// propre statut et porte link / make-default / revoke. `link` passe par le flux
+// propre statut et porte link / revoke. `link` passe par le flux
 // générique déclaré (`startConnectorFlow`, ADR 0042 §Convergence des surfaces —
 // oto-dashboard#125) ; statut et révocation restent sur les endpoints Google
 // (seul connecteur multi-compte, forme propre — leur équivalent générique reste à
@@ -10,7 +10,7 @@ import { onMounted, ref } from 'vue'
 import Tag from './Tag.vue'
 import Btn from './Btn.vue'
 import Dot from './Dot.vue'
-import { getGoogleStatus, startConnectorFlow, setGoogleDefault, revokeGoogle } from '@/api/console'
+import { getGoogleStatus, startConnectorFlow, revokeGoogle } from '@/api/console'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
@@ -29,10 +29,6 @@ async function link() {
   try { const { auth_url } = await startConnectorFlow('google', {}); window.location.href = auth_url }
   catch (e) { toast(humanize(e)) }
 }
-async function makeDefault(email: string) {
-  try { await setGoogleDefault(email); toast('default account updated'); await refresh() }
-  catch (e) { toast(humanize(e)) }
-}
 async function revoke(email: string) {
   if (!await confirmAction({ title: 'revoke google account', danger: true, confirmLabel: 'Revoke', message: `revoke ${email}? tools using it will lose access.` })) return
   try { await revokeGoogle(email); toast('grant revoked'); await refresh() }
@@ -49,7 +45,6 @@ async function revoke(email: string) {
           <div class="oa-email">{{ g.email }} <Tag v-if="g.is_default" tone="saffron">default</Tag></div>
           <div class="oa-scopes">{{ g.scopes.join(' · ') }} · granted {{ fmtDate(g.granted_at) ?? '—' }}</div>
         </div>
-        <Btn v-if="!g.is_default" kind="mini" @click="makeDefault(g.email!)">Make default</Btn>
         <Btn kind="danger" @click="revoke(g.email!)">Revoke</Btn>
       </div>
     </div>

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 // Cockpit connecteurs de l'ORG (/org/connectors, ADR 0022) — wrapper mince : garde
 // « aucune org active » + la coquille unifiée `ConnectorScopeView` (scope=org : dispo /
-// clé d'org / accès / rédaction / email) + le pied « envois programmés » (propre au scope).
+// clé d'org / accès / rédaction en lecture) + le pied « envois programmés » (propre au scope).
+// Les réglages email (expéditeurs, fenêtre calme) ont quitté le dashboard (oto#192) ; les
+// réglages restent LUS ici parce qu'ils décident si l'encart s'affiche, et annuler un envoi
+// programmé reste une sortie de secours.
 // Les leviers vivent dans `useOrgAdapter`.
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'

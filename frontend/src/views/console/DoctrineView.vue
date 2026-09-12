@@ -4,35 +4,28 @@
 // markdown à chips d'outils · manifeste « outils référencés » résolu contre le registre ·
 // gouvernance (usage + versions). L'ex-« doctrine de base » N'EST PAS une procédure :
 // c'est l'agent readme (injecté à chaque session), édité sur /org (org) et /account (user).
+// LECTURE SEULE depuis oto#192 (12/09/2026) : créer, publier une version, restaurer, supprimer
+// et publier en bibliothèque ont quitté l'écran (0 écriture en 45 jours, 32 lectures) — une
+// procédure s'écrit par l'agent (`oto_procedure`). Reste le partage, geste d'administration.
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  getDoctrine, getInstruction, putInstruction, deleteInstruction,
-  getInstructionVersions, revertInstruction, getToolRegistry, getInstructionUsage,
-  publishDoctrine, getOrg,
+  getDoctrine, getInstruction, getInstructionVersions, getToolRegistry, getInstructionUsage, getOrg,
 } from '@/api/console'
 import type { DoctrineBundle, InstructionUsage, InstructionVersion, OrgMember } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { accountLabel } from '@/lib/accountLabel'
-import { instructionRights } from '@/lib/instructionRights'
 import { useToast } from '@/composables/useToast'
-import { usePrompt } from '@/composables/usePrompt'
 import { buildReg, hasDead, refNames, type ToolReg } from '@/components/console/doctrine/tools'
 import DoctrineContent from '@/components/console/doctrine/DoctrineContent.vue'
 import ReferencedTools from '@/components/console/doctrine/ReferencedTools.vue'
-import DoctrineEditor from '@/components/console/doctrine/DoctrineEditor.vue'
 import UsageCard from '@/components/console/doctrine/UsageCard.vue'
 import RunnerTriggersCard from '@/components/console/RunnerTriggersCard.vue'
-import CreateSkillModal from '@/components/console/doctrine/CreateSkillModal.vue'
 import SharePrincipalDialog from '@/components/console/SharePrincipalDialog.vue'
 
-// Slug réservé backend : l'agent readme d'org vit sous org_instructions['claude_md'],
-// il n'apparaît pas ici (édition : /org).
-const RESERVED_SLUG = 'claude_md'
 const router = useRouter()
 const { toast } = useToast()
-const { confirmAction } = usePrompt()
 
 const bundle = ref<DoctrineBundle | null>(null)
 const reg = ref<ToolReg>(new Map())
@@ -61,15 +54,11 @@ watch(routeParam, () => {
   if (s !== activeSlug.value) void selectDoc(s)
 })
 const body = ref('')           // corps publié (lecture)
-const saved = ref('')          // miroir de body, pour le dirty
-const draft = ref('')          // brouillon (édition)
+const saved = ref('')          // corps affiché
 const summary = ref('')        // description = résumé
-const draftSummary = ref('')
 const versions = ref<InstructionVersion[]>([])
 const usage = ref<InstructionUsage | null>(null)
 const usageLoading = ref(false)
-const editing = ref(false)
-const modalOpen = ref(false)
 const shareOpen = ref(false)
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -87,17 +76,9 @@ function authorLabel(v: InstructionVersion): string {
   return accountLabel(v.set_by, orgMembers.value)
 }
 
-// Chaque geste lit le drapeau de SON geste (#144) : écrire/restaurer est ouvert au
-// membre, supprimer reste au chef. `canAdmin` (ex-`canEdit`) ne gouverne plus que les
-// gestes d'ADMINISTRATION qui ne sont pas des écritures de procédure — publier dans la
-// bibliothèque publique, partager à un tiers.
+// `canAdmin` (droit d'ADMINISTRER) gouverne le seul geste qui reste ici : partager à un tiers.
 const canAdmin = computed(() => bundle.value?.can_edit ?? false)
-const rights = computed(() => instructionRights(bundle.value))
-const canWrite = computed(() => rights.value.canWrite)
-const canDelete = computed(() => rights.value.canDelete)
 const noOrg = computed(() => bundle.value?.org_id == null)
-const isEdit = computed(() => editing.value && canWrite.value)
-const isReadonly = computed(() => !canWrite.value)
 
 // Les procédures de l'org (l'agent readme n'en fait pas partie).
 const docs = computed(() =>
@@ -107,11 +88,8 @@ const docs = computed(() =>
   })))
 const activeDoc = computed(() => docs.value.find((d) => d.slug === activeSlug.value))
 const curVersion = computed(() => activeDoc.value?.version ?? 0)
-const nextVersion = computed(() => `v${curVersion.value + 1}`)
 
-// Aperçu d'une ANCIENNE version : la liste montrait l'historique mais le seul geste
-// possible était « Restaurer » — destructif. On peut désormais LIRE une version avant
-// de décider. `viewing` = version consultée (null = la version courante).
+// Aperçu d'une ANCIENNE version : on LIT une version de l'historique. `viewing` = version consultée (null = la version courante).
 const viewing = ref<number | null>(null)
 const viewingBody = ref('')
 const viewLoading = ref(false)
@@ -127,9 +105,7 @@ async function viewVersion(v: number) {
 }
 function backToCurrent() { viewing.value = null; viewingBody.value = '' }
 
-const editorContent = computed(() => (isEdit.value ? draft.value : saved.value))
-const dirty = computed(() => isEdit.value && draft.value !== saved.value)
-const deadRefs = computed(() => refNames(editorContent.value).filter((n) => !reg.value.has(n)))
+const deadRefs = computed(() => refNames(saved.value).filter((n) => !reg.value.has(n)))
 
 // pastille de drift par procédure (depuis le corps en cache si visitée).
 function docDot(slug: string): string {
@@ -166,11 +142,9 @@ async function selectDoc(slug: string) {
   const prefix = o ? `/o/${o}${g ? `/g/${g}` : ''}` : ''
   const target = `${prefix}${d?.id ? `/procedures/${d.id}` : '/procedures'}`
   if (route.path !== target) void router.replace(target)
-  editing.value = false
   summary.value = d?.description ?? ''
   body.value = ''
   saved.value = ''
-  draft.value = ''
   versions.value = []
   viewing.value = null
   viewingBody.value = ''
@@ -195,102 +169,6 @@ async function selectDoc(slug: string) {
     usageLoading.value = false
   }
 }
-
-function onEdit() {
-  draft.value = saved.value
-  draftSummary.value = summary.value
-  editing.value = true
-}
-function onDiscard() {
-  editing.value = false
-  draft.value = saved.value
-  toast('brouillon abandonné')
-}
-
-async function onPublish() {
-  if (!dirty.value && draftSummary.value === summary.value) {
-    toast('aucune modification à publier')
-    return
-  }
-  try {
-    const r = await putInstruction(
-      activeSlug.value, draft.value, activeDoc.value?.title, draftSummary.value,
-    )
-    // Warning serveur (ADR 0014) : refs d'outils non résolues à la publication.
-    const dead = r.unresolved_tools ?? []
-    toast(dead.length
-      ? `publié v${r.version} — ${dead.length} réf. d'outil non résolue${dead.length > 1 ? 's' : ''}`
-      : `publié v${r.version}`)
-    editing.value = false
-    await loadAll()
-    await selectDoc(activeSlug.value)
-  } catch (e) {
-    toast(humanize(e))
-  }
-}
-
-async function restore(v: number) {
-  if (!await confirmAction({
-    title: 'restaurer une version', confirmLabel: 'Restaurer',
-    message: `restaurer v${v} comme nouvelle version courante ? l'historique est conservé.`,
-  })) return
-  try {
-    await revertInstruction(activeSlug.value, v)
-    toast(`restauré v${v}`)
-    await loadAll()
-    await selectDoc(activeSlug.value)
-  } catch (e) {
-    toast(humanize(e))
-  }
-}
-
-async function createSkill(p: { title: string; slug: string; summary: string }) {
-  if (p.slug === RESERVED_SLUG) {
-    toast('claude_md est réservé à l\'agent readme de l\'org (éditable sur /org)')
-    return
-  }
-  try {
-    await putInstruction(p.slug, `## résumé\n${p.summary || 'à compléter.'}\n\n## étapes\ncommence par <tool:fr_get>, puis enchaîne les outils du registre avec @.`, p.title, p.summary)
-    toast(`procédure « ${p.title} » créée`)
-    modalOpen.value = false
-    await loadAll()
-    await selectDoc(p.slug)
-  } catch (e) {
-    toast(humanize(e))
-  }
-}
-
-// Publie la procédure courante dans la bibliothèque publique (org_admin → `can_edit`,
-// un droit d'ADMINISTRATION — pas l'écriture d'une procédure, cf. #144).
-// L'auteur (Otomata vs org) est résolu côté serveur selon le rôle du publieur.
-async function publishToLibrary(slug: string, label: string) {
-  if (!await confirmAction({
-    title: 'publier dans la bibliothèque', confirmLabel: 'Publier',
-    message: `publier « ${label} » dans la bibliothèque publique de procédures ? `
-      + `tout le monde pourra la découvrir et la forker.`,
-  })) return
-  try {
-    const r = await publishDoctrine({ slug, visibility: 'public' })
-    toast(`publié dans la bibliothèque (v${r.version})`)
-  } catch (e) {
-    toast(humanize(e))
-  }
-}
-
-async function removeSkill(slug: string, label: string) {
-  if (!await confirmAction({
-    title: 'supprimer la procédure', danger: true, confirmLabel: 'Supprimer',
-    message: `supprimer « ${label} » et tout son historique ?`,
-  })) return
-  try {
-    await deleteInstruction(slug)
-    toast('procédure supprimée')
-    await loadAll()
-    await selectDoc(activeSlug.value === slug ? resolveToSlug(null) : activeSlug.value)
-  } catch (e) {
-    toast(humanize(e))
-  }
-}
 </script>
 
 <template>
@@ -302,23 +180,19 @@ async function removeSkill(slug: string, label: string) {
       <span class="o-medallion o-medallion-lg">o</span>
       <div class="empty-title">aucune procédure <span class="squiggle">encore</span>.</div>
       <div class="empty-sub">
-        les procédures sont rattachées à votre organisation active. rejoignez ou basculez sur une org pour les éditer.
+        les procédures sont rattachées à votre organisation active. rejoignez ou basculez sur une org pour les consulter.
       </div>
     </div>
 
-    <!-- org sans procédure : inviter à créer / forker -->
+    <!-- org sans procédure : dire qui l'écrit -->
     <div v-else-if="!loading && !docs.length" class="empty-state">
       <span class="o-medallion o-medallion-lg">o</span>
       <div class="empty-title">aucune procédure <span class="squiggle">encore</span>.</div>
       <div class="empty-sub">
         une procédure = un déroulé opératoire nommé que l'agent charge à la demande.
-        créez la première, ou forkez-en une depuis la bibliothèque.
+        votre agent l'écrit pour vous (<code>oto_procedure</code>).
         <br />l'agent readme (injecté à chaque session), lui, s'édite sur
         <RouterLink to="/org">/org</RouterLink> et <RouterLink to="/account">/account</RouterLink>.
-      </div>
-      <div style="display: flex; gap: 10px">
-        <button v-if="canWrite" type="button" class="btn-ink-sm" @click="modalOpen = true">Nouvelle procédure</button>
-        <button type="button" class="btn-ghost-sm" @click="router.push('/procedures?tab=marketplace')">Bibliothèque</button>
       </div>
     </div>
 
@@ -332,7 +206,7 @@ async function removeSkill(slug: string, label: string) {
           <div class="warn__t">
             <strong>{{ deadRefs.length }} référence{{ deadRefs.length > 1 ? 's' : '' }} d'outil non résolue{{ deadRefs.length > 1 ? 's' : '' }}</strong>
             — <code>{{ deadRefs[0] }}</code> n'existe plus dans le registre. l'agent garde le contexte, mais l'appel
-            échouera en silence. corrigez la référence avant de republier.
+            échouera en silence. corrigez la référence depuis votre agent (<code>oto_procedure</code>).
           </div>
         </div>
 
@@ -342,17 +216,7 @@ async function removeSkill(slug: string, label: string) {
             <span class="tag tag--skill">procédure</span>
             <span v-if="curVersion" class="tag tag--ver">v{{ curVersion }}</span>
             <span class="slug">{{ activeDoc?.slug }}</span>
-            <span v-if="isReadonly" class="tag tag--ro">lecture seule</span>
-            <button v-if="!isEdit && canWrite" type="button" class="btn-edit" @click="onEdit">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-                stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10a2 2 0 0 0-3-3L5 17v3z" /></svg>
-              éditer
-            </button>
-            <button v-if="!isEdit && canAdmin && activeDoc?.exists" type="button"
-              class="btn-edit" @click="publishToLibrary(activeSlug, activeDoc?.title || activeSlug)">
-              Publier
-            </button>
-            <button v-if="!isEdit && canAdmin && activeDoc?.exists && activeDoc.id > 0"
+<button v-if="canAdmin && activeDoc?.exists && activeDoc.id > 0"
               type="button" class="btn-edit" @click="shareOpen = true">
               Partager
             </button>
@@ -364,9 +228,7 @@ async function removeSkill(slug: string, label: string) {
             <span class="squiggle-sm">résumé</span>
             <span class="hdr__hint">— ce que fait ce process, et quand le charger</span>
           </div>
-          <textarea v-if="isEdit" v-model="draftSummary" rows="2" class="summary-edit"
-            placeholder="quand la charger, ce qu'elle fait." />
-          <div v-else class="hdr__summary">{{ summary || '—' }}</div>
+          <div class="hdr__summary">{{ summary || '—' }}</div>
 
           <div v-if="activeDoc?.exists" class="hdr__meta">
             <span>chargée {{ usage?.count ?? 0 }}×</span>
@@ -377,29 +239,18 @@ async function removeSkill(slug: string, label: string) {
         <div class="card">
           <div class="card__head">
             <span class="eyebrow">content</span>
-            <span class="dim">markdown · @ pour citer un outil</span>
-            <div v-if="isEdit" class="card__actions">
-              <button type="button" class="btn-ghost-sm" @click="onDiscard">Abandonner</button>
-              <button type="button" class="btn-ink-sm" @click="onPublish">publier {{ nextVersion }}</button>
-            </div>
-          </div>
-
-          <div v-if="dirty" class="draft">
-            <span class="draft__dot" />
-            modifications non publiées — publier crée la version <strong>{{ nextVersion }}</strong>.
+            <span class="dim">markdown</span>
           </div>
 
           <div v-if="viewing !== null" class="vbanner">
             <span>Tu consultes la version <strong>v{{ viewing }}</strong> — lecture seule.</span>
             <button type="button" class="btn-ghost-xs" @click="backToCurrent">Revenir à l'actuelle</button>
-            <button v-if="canWrite" type="button" class="btn-ghost-xs" @click="restore(viewing!)">Restaurer cette version</button>
           </div>
-          <DoctrineEditor v-if="isEdit" v-model="draft" :reg="reg" />
-          <DoctrineContent v-else :text="viewing !== null ? viewingBody : saved" :reg="reg" />
+          <DoctrineContent :text="viewing !== null ? viewingBody : saved" :reg="reg" />
         </div>
 
         <!-- ZONE 3 · outils référencés -->
-        <ReferencedTools :text="editorContent" :reg="reg" />
+        <ReferencedTools :text="saved" :reg="reg" />
       </div>
 
       <!-- ─────── colonne droite ─────── -->
@@ -408,19 +259,6 @@ async function removeSkill(slug: string, label: string) {
         <div class="card pad-sm">
           <div class="card__head">
             <span class="eyebrow">procédures</span>
-            <div class="doc-actions">
-              <button type="button" class="btn-ghost-sm" title="parcourir la bibliothèque de procédures"
-                @click="router.push('/procedures?tab=marketplace')">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
-                bibliothèque
-              </button>
-              <button v-if="canWrite" type="button" class="btn-ghost-sm" @click="modalOpen = true">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                  stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                procédure
-              </button>
-            </div>
           </div>
           <div class="doclist">
             <button v-for="d in docs" :key="d.slug" type="button" class="docrow"
@@ -432,8 +270,6 @@ async function removeSkill(slug: string, label: string) {
               </div>
               <div class="docrow__bot">
                 <span class="docrow__slug">{{ d.slug }}</span>
-                <span v-if="canDelete" class="docrow__del" title="supprimer"
-                  @click.stop="removeSkill(d.slug, d.title)">supprimer</span>
               </div>
             </button>
           </div>
@@ -462,7 +298,6 @@ async function removeSkill(slug: string, label: string) {
               <template v-else>
                 <button type="button" class="btn-ghost-xs" :disabled="viewLoading"
                   @click="viewVersion(v.version)">Voir</button>
-                <button v-if="canWrite" type="button" class="btn-ghost-xs" @click="restore(v.version)">Restaurer</button>
               </template>
             </div>
             <div v-if="!versions.length" class="dim">aucun historique.</div>
@@ -471,7 +306,6 @@ async function removeSkill(slug: string, label: string) {
       </div>
     </div>
 
-    <CreateSkillModal :open="modalOpen" @close="modalOpen = false" @create="createSkill" />
     <!-- Partage ciblé d'une procédure (oto_resource, modèle licence → lecture seule).
          Le destinataire lit cross-org par id (oto_get_doctrine doctrine_id). -->
     <SharePrincipalDialog v-if="activeDoc && activeDoc.id > 0" :open="shareOpen"
@@ -490,8 +324,6 @@ async function removeSkill(slug: string, label: string) {
 .card.hdr { padding: 20px 22px; }
 .card.pad-sm { padding: 16px 17px; }
 .card__head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.card__actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-.doc-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .eyebrow { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-mute); }
 .dim { font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); }
 
@@ -501,11 +333,6 @@ async function removeSkill(slug: string, label: string) {
 .hdr__eyebrow { display: flex; align-items: center; gap: 8px; margin-top: 14px; margin-bottom: 7px; }
 .hdr__hint { font-family: var(--font-mono); font-size: 9.5px; color: var(--color-faint); }
 .hdr__summary { font-size: 16.5px; font-style: italic; font-weight: 500; line-height: 1.5; color: var(--color-ink-soft); text-wrap: pretty; max-width: 60ch; }
-.summary-edit {
-  width: 100%; box-sizing: border-box; font-family: var(--font-sans); font-size: 15px; font-style: italic;
-  line-height: 1.5; color: var(--color-ink-soft); background: var(--color-bg); border: 1px solid var(--color-hair);
-  border-radius: 9px; padding: 8px 11px; outline: none; resize: vertical;
-}
 .hdr__meta {
   display: flex; align-items: center; gap: 8px; margin-top: 15px; padding-top: 13px;
   border-top: 1px solid var(--color-hair-soft); font-family: var(--font-mono); font-size: 10.5px; color: var(--color-faint);
@@ -515,23 +342,17 @@ async function removeSkill(slug: string, label: string) {
 .tag { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 2.5px 9px; border-radius: 999px; }
 .tag--skill { background: var(--color-cobalt-soft); color: var(--color-cobalt-ink); }
 .tag--ver { background: var(--color-saffron-soft); color: var(--color-saffron-ink); }
-.tag--ro { border: 1px solid var(--color-hair); color: var(--color-mute); }
 .slug { font-family: var(--font-mono); font-size: 11px; color: var(--color-faint); }
 
 .btn-edit { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; background: var(--color-surface); color: var(--color-ink-soft); border: 1px solid var(--color-hair); border-radius: 999px; padding: 5px 13px; font-size: 12px; font-weight: 600; cursor: pointer; }
-.btn-ink-sm { display: inline-flex; align-items: center; gap: 6px; background: var(--color-ink); color: var(--color-bg); border: 1px solid var(--color-ink); border-radius: 999px; padding: 5px 14px; font-size: 12px; font-weight: 600; cursor: pointer; }
-.btn-ghost-sm { display: inline-flex; align-items: center; gap: 5px; background: var(--color-surface); color: var(--color-ink-soft); border: 1px solid var(--color-hair); border-radius: 999px; padding: 4px 11px; font-size: 11.5px; font-weight: 600; cursor: pointer; }
 .btn-ghost-xs { font-size: 11px; font-weight: 600; color: var(--color-ink-soft); background: var(--color-surface); border: 1px solid var(--color-hair); border-radius: 999px; padding: 3px 11px; cursor: pointer; }
 
-/* draft indicator */
+/* version consultée */
 .vbanner {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;
   padding: 8px 12px; border-radius: var(--radius-md);
   background: var(--color-saffron-soft); color: var(--color-saffron-ink); font-size: 12px;
 }
-.draft { display: flex; align-items: center; gap: 9px; background: var(--color-saffron-soft); border: 1px solid #ecd28a; border-radius: 9px; padding: 8px 12px; margin-bottom: 13px; font-size: 12px; color: var(--color-saffron-ink); }
-.draft__dot { width: 7px; height: 7px; border-radius: 999px; background: var(--color-saffron); display: inline-block; animation: oto-pulse 1.4s ease-in-out infinite; flex: none; }
-.draft strong { font-family: var(--font-mono); color: var(--color-saffron-ink); }
 
 /* warning */
 .warn { display: flex; align-items: flex-start; gap: 11px; background: var(--color-terra-soft); border: 1px solid #eeb39c; border-radius: 12px; padding: 12px 14px; }
@@ -551,8 +372,6 @@ async function removeSkill(slug: string, label: string) {
 .docrow__v { font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); flex: none; }
 .docrow__bot { display: flex; align-items: center; gap: 7px; width: 100%; padding-left: 15px; margin-top: 3px; }
 .docrow__slug { font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.docrow__del { margin-left: auto; font-family: var(--font-mono); font-size: 9px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-terra); opacity: 0; transition: opacity 0.12s; }
-.docrow:hover .docrow__del { opacity: 1; }
 
 /* versions */
 .vlist { display: flex; flex-direction: column; margin-top: 9px; }

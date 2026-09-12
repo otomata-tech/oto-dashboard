@@ -1,8 +1,7 @@
 <script setup lang="ts">
 // Équipes (« teams ») d'une org — surface ORG (org_admin) : le ROSTER des équipes.
 // Lister, créer, renommer, supprimer. La GESTION d'UNE équipe (contexte, membres,
-// connecteurs, procédures) n'est plus empilée ici : ouvrir une équipe = DESCENDRE dans
-// son scope dédié (/o:org/g:team/team/*, menu Team parallèle à Org/Plateforme). Le
+// connecteurs, procédures) a quitté le dashboard avec son scope dédié (oto#192). Le
 // vocabulaire produit « département/groupe » est passé à « team » le 2026-07-06 ; les
 // identifiants de code restent `group`/`getGroup`. Le backend porte l'autz (roles.py) ;
 // l'UI masque les gestes org-admin.
@@ -39,18 +38,10 @@ async function load() {
 }
 onMounted(load)
 
-// Ouvrir une équipe = DESCENDRE dans son scope (menu Team). Nav DURE : `me` est re-fetché
-// avec le header X-Oto-Group, la sidebar bascule sur le menu Team, l'identité montre
-// Org ▸ Team. Un router.push SPA laisserait `me`/la sidebar sur le niveau org.
-function open(id: number) {
-  if (activeOrgId.value == null) return
-  window.location.assign(`/o/${activeOrgId.value}/g/${id}/team/context`)
-}
-
 function create() {
   openForm({
     title: 'new team',
-    description: 'a team inside your org, with its own team lead, agent readme, procedures, toolset and shared keys.',
+    description: 'a team inside your org.',
     fields: [
       { key: 'name', label: 'name', placeholder: 'sales, ops, finance…', required: true },
       { key: 'description', label: 'description', type: 'textarea', placeholder: 'what this team does (optional)' },
@@ -60,7 +51,7 @@ function create() {
       try {
         const g = await createGroup(activeOrgId.value!, (v.name ?? ''), v.description || '')
         toast(`team "${g.name}" created`)
-        open(g.group_id)   // descend directement dans la nouvelle équipe
+        await load()   // plus de scope d'équipe où descendre (oto#192) : la liste suffit
       } catch (e) { toast(humanize(e)); throw e }
     },
   })
@@ -96,7 +87,7 @@ async function removeGroup(g: GroupListItem) {
     </ConsoleCard>
 
     <ConsoleCard v-else title="teams" flush
-      sub="teams inside your org. open one to enter its dedicated scope — context, members, connectors and procedures.">
+      sub="teams inside your org.">
       <template #actions>
         <Btn v-if="isOrgAdmin" kind="mini" icon="plus" @click="create">New</Btn>
       </template>
@@ -105,7 +96,7 @@ async function removeGroup(g: GroupListItem) {
         <tbody>
           <tr v-for="g in groups" :key="g.id">
             <td>
-              <div style="font-weight: 600; color: var(--color-ink); cursor: pointer" @click="open(g.id)">{{ g.name }}</div>
+              <div style="font-weight: 600; color: var(--color-ink)">{{ g.name }}</div>
               <div style="font-size: 11px; color: var(--color-faint)">{{ g.member_count }} members<span v-if="g.description"> · {{ g.description }}</span></div>
             </td>
             <td>
@@ -114,7 +105,6 @@ async function removeGroup(g: GroupListItem) {
               <span v-else class="dim" style="font-size: 11px">—</span>
             </td>
             <td style="text-align: right; white-space: nowrap">
-              <Btn kind="mini" @click="open(g.id)">Open</Btn>
               <template v-if="isOrgAdmin">
                 <Btn kind="mini" @click="rename(g)">Edit</Btn>
                 <Btn kind="danger" @click="removeGroup(g)">Delete</Btn>

@@ -44,6 +44,10 @@ dans `api/console.ts` (POST op-aware `/api/me/{projects,docs}`). Backend : `oto-
 > les procédures/tableaux/docs en **lecture seule**, rendus **server-side** par le backend
 > (`share_ui`) — rien à faire côté front (pas de viewer SPA). Le backend expose aussi `share_url`/
 > `mcp_url` (per-mode) sur `oto_project(op=get)`.
+> **`/import` RETIRÉ (12/09/2026, oto#192 : aucun usage en 45 jours)** — `ImportProjectView.vue`
+> et `importSharedProject` sont partis du dashboard ; un lien `/import?slug=` retombe sur l'accueil
+> (route attrape-tout). ⚠️ Le CTA de la page publique vit côté backend (`share_ui`) et pointe
+> toujours vers cette route : c'est à retirer là-bas. Historique :
 > **« Ajouter à mon Oto » (canal d'acquisition).** La page publique porte un CTA qui deep-linke
 > `dashboard.oto.ninja/import?slug=<slug>` → route `/import` (`ImportProjectView.vue`, hors shell
 > console, gère sa propre auth comme `InviteAcceptView`) : au login, appelle

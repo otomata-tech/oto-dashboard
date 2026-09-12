@@ -4,7 +4,7 @@
 // liste en annonçait donc cinq « visibles », y compris ceux d'un connecteur coupé
 // (`hunter_find`) et d'un connecteur jamais installé (`apollo_search`). La poignée de
 // main n'en montre que trois. Un outil masqué par la personne elle-même (`serper_lens`)
-// reste listé : c'est le seul endroit où elle peut le rendre.
+// reste listé, marqué comme tel — le geste pour le rendre a quitté le dashboard (oto#192).
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -12,7 +12,7 @@ import type { AgentToolbox } from '@/types/api'
 
 const api = vi.hoisted(() => ({
   getAgentContext: vi.fn(), getAgentToolbox: vi.fn(), getInitGuide: vi.fn(), setInitGuide: vi.fn(),
-  getTools: vi.fn(), enableTool: vi.fn(), disableTool: vi.fn(), getMyOrgs: vi.fn(),
+  getTools: vi.fn(), getMyOrgs: vi.fn(),
   setActiveOrg: vi.fn(), clearActiveOrg: vi.fn(),
 }))
 vi.mock('@/api/console', () => api)
@@ -90,8 +90,6 @@ beforeEach(() => {
   api.getMyOrgs.mockResolvedValue({ orgs: [{ id: 42, name: 'Acme' }] })
   api.getTools.mockResolvedValue({ tools: PREFS.map((p) => ({ ...p })) })
   api.getAgentToolbox.mockResolvedValue(VUE)
-  api.disableTool.mockResolvedValue({})
-  api.enableTool.mockResolvedValue({})
 })
 
 describe('contexte — « ce qu\'il peut faire » liste ce que voit l\'agent', () => {
@@ -102,13 +100,14 @@ describe('contexte — « ce qu\'il peut faire » liste ce que voit l\'agent', (
     unmount()
   })
 
-  it('un outil masqué par la personne reste listé, avec de quoi le rendre', async () => {
+  it('un outil masqué par la personne reste listé et le dit, sans geste pour le masquer ou le rendre', async () => {
     const { host, unmount } = await monter()
     expect(texte(bloc(host, 'serper')?.querySelector('.tag'))).toBe('2 / 3')
     ;(bloc(host, 'serper')!.querySelector('.ns-head') as HTMLElement).click()
     await settle()
-    expect(texte(ligne(host, 'serper_lens')?.querySelector('button'))).toBe('Afficher')
-    expect(texte(ligne(host, 'serper_search')?.querySelector('button'))).toBe('Masquer')
+    expect(texte(ligne(host, 'serper_lens')?.querySelector('.tag'))).toBe('masqué par toi')
+    expect(ligne(host, 'serper_search')?.querySelector('.tag')).toBeNull()
+    expect(host.textContent).not.toMatch(/Masquer|Afficher|Tout masquer|Tout activer/)
     unmount()
   })
 
@@ -121,17 +120,4 @@ describe('contexte — « ce qu\'il peut faire » liste ce que voit l\'agent', (
     unmount()
   })
 
-  it('masquer un outil relit ce que voit l\'agent, au lieu de le déduire', async () => {
-    const { host, unmount } = await monter()
-    ;(bloc(host, 'serper')!.querySelector('.ns-head') as HTMLElement).click()
-    await settle()
-    api.getAgentToolbox.mockResolvedValue({ ...VUE, tools: ['oto_whoami', 'serper_scrape'] })
-    api.getTools.mockResolvedValue({ tools: PREFS.map((p) => (p.name === 'serper_search' ? { ...p, enabled: false } : { ...p })) })
-    ;(ligne(host, 'serper_search')!.querySelector('button') as HTMLElement).click()
-    await settle()
-    expect(api.disableTool).toHaveBeenCalledWith('serper_search')
-    expect(api.getAgentToolbox).toHaveBeenCalledTimes(2)
-    expect(tags(host)).toContain('2 visibles · 2 masqués par toi')
-    unmount()
-  })
 })

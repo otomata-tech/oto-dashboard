@@ -31,9 +31,9 @@ describe('PAGE_META', () => {
   })
 
   // ⚠️ PAS de test « entrée de titre orpheline ». Il a été écrit puis retiré :
-  // `/search`, `/documents` et `/activity` ont légitimement un titre sans entrée
-  // de menu — on y arrive par un lien, une redirection ou un raccourci. Le test
-  // criait donc sur trois cas sains, et une garde qui crie à tort cesse d'être
+  // `/search` et `/documents` (et `/activity`, retirée depuis par oto#192) ont
+  // légitimement un titre sans entrée de menu — on y arrive par un lien, une redirection
+  // ou un raccourci. Le test criait donc sur trois cas sains, et une garde qui crie à tort cesse d'être
   // lue. Une entrée en trop n'a d'ailleurs aucun effet visible ; c'est l'absence
   // qui fait mentir le titre, et c'est elle qu'on garde ci-dessus.
 

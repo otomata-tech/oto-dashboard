@@ -49,7 +49,7 @@ async function monter() {
   const View = (await import('./OverviewView.vue')).default
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: ['/overview', '/connectors', '/projects', '/activity', '/platform/monitoring', '/documents', '/org']
+    routes: ['/overview', '/connectors', '/projects', '/platform/monitoring', '/documents', '/org']
       .map((path) => ({ path, component: Vide })),
   })
   await router.push('/overview')

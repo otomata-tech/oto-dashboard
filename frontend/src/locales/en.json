@@ -42,7 +42,6 @@
     "section": {
       "workspace": "workspace",
       "account": "account",
-      "team": "team",
       "organization": "organization",
       "platformAdmin": "platform · admin"
     }
@@ -62,11 +61,6 @@
     "accountSecurity": { "title": "security", "crumb": "manage my account" },
     "accountAgent": { "title": "your agent", "crumb": "manage my account" },
     "accountDevelopers": { "title": "developers", "crumb": "manage my account" },
-    "activity": { "title": "activity", "crumb": "account" },
-    "teamContext": { "title": "what the agent sees · team", "crumb": "manage my team" },
-    "team": { "title": "team members", "crumb": "manage my team" },
-    "teamConnectors": { "title": "team connectors", "crumb": "manage my team" },
-    "teamProcedures": { "title": "team procedures", "crumb": "manage my team" },
     "orgContext": { "title": "what the agent sees · org", "crumb": "manage my org" },
     "org": { "title": "org members", "crumb": "manage my org" },
     "orgSettings": { "title": "org settings", "crumb": "manage my org" },
@@ -136,8 +130,7 @@
     },
     "activity": {
       "title": "activity",
-      "unavailablePre": "activity could not be loaded. see the detail of your tool calls under",
-      "unavailableLink": "activity",
+      "unavailable": "activity could not be loaded.",
       "recentTopTools": "recent · top tools",
       "callsCell": "{n} calls",
       "errCell": "{n} err"
@@ -240,8 +233,6 @@
     "missing_bearer": "not authenticated",
     "email_mismatch": "this invitation was sent to a different email — sign in with the account that received it",
     "invalid_or_expired": "this invitation is invalid, expired, or already used",
-    "bad_sender_email": "invalid sender address",
-    "duplicate_sender": "that sender address is already in the list",
     "unknown_transport": "unknown transport (use mailer or resend)",
     "bad_tz": "unknown timezone",
     "bad_quiet_hours": "quiet hours must be two different hours between 0 and 23",

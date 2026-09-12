@@ -10,16 +10,15 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
-import Btn from '@/components/console/Btn.vue'
 import Icon from '@/components/console/Icon.vue'
 import OtoSelect from '@/components/console/OtoSelect.vue'
 import AgentReadmeCard from '@/components/console/AgentReadmeCard.vue'
 import GuidesCard from '@/components/console/GuidesCard.vue'
 import ContextLayerStack from '@/components/console/ContextLayerStack.vue'
 import ContextProfileCard from '@/components/console/ContextProfileCard.vue'
-import { getAgentContext, getAgentToolbox, getInitGuide, setInitGuide, getTools, enableTool, disableTool, getMyOrgs, setActiveOrg, clearActiveOrg } from '@/api/console'
+import { getAgentContext, getAgentToolbox, getInitGuide, setInitGuide, getTools, getMyOrgs, setActiveOrg, clearActiveOrg } from '@/api/console'
 import type { AgentContext, AgentToolbox, ToolEntry, Org } from '@/types/api'
-import { toolsSeenView, type ToolGroup } from '@/lib/agentToolbox'
+import { toolsSeenView } from '@/lib/agentToolbox'
 import { useToast } from '@/composables/useToast'
 import { useMe } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
@@ -34,9 +33,6 @@ const savingHome = ref(false)
 const loaded = ref(false)
 const error = ref<string | null>(null)
 const expanded = ref<Set<string>>(new Set())
-const busy = ref<Set<string>>(new Set())
-
-const hasGroup = computed(() => !!ctx.value?.doctrine?.group)
 
 // Ma note = un guide `delivery=init` au scope user (ADR 0042).
 const loadMyNote = () => getInitGuide('user')
@@ -45,9 +41,8 @@ const saveMyNote = (body: string) => setInitGuide('user', body)
 // « Ce qu'il peut faire » = ce que l'agent VOIT (oto#166), lu sur la vue calculée par la
 // poignée de main. L'ancienne liste groupait `getTools` — tout le catalogue et les
 // préférences — et comptait « visible » tout outil non masqué, connecteur installé ou
-// non : elle promettait des outils que l'agent n'avait pas. Les préférences restent le
-// levier (masquer / afficher) ; après chaque geste on relit les DEUX, la visibilité
-// n'étant jamais recalculée ici.
+// non : elle promettait des outils que l'agent n'avait pas. Masquer un outil a quitté le
+// dashboard (oto#192) : la liste se lit ici, elle ne s'y règle plus.
 const toolbox = ref<AgentToolbox | null>(null)
 const toolboxError = ref<string | null>(null)
 const view = computed(() => toolsSeenView(toolbox.value, allTools.value))
@@ -57,39 +52,10 @@ function loadToolbox(): Promise<AgentToolbox | null> {
     .then((tb) => { toolboxError.value = null; return tb })
     .catch((e) => { toolboxError.value = humanize(e); return null })
 }
-async function refreshTools() {
-  const [tl, tb] = await Promise.all([getTools(), loadToolbox()])
-  allTools.value = tl.tools
-  toolbox.value = tb
-}
-
 function toggleExpand(ns: string) {
   const s = new Set(expanded.value)
   s.has(ns) ? s.delete(ns) : s.add(ns)
   expanded.value = s
-}
-
-async function setTool(name: string, on: boolean) {
-  if (busy.value.has(name)) return
-  const b = new Set(busy.value); b.add(name); busy.value = b
-  try {
-    if (on) await enableTool(name); else await disableTool(name)
-    await refreshTools()
-  } catch (e) { toast(humanize(e)) }
-  finally { const b2 = new Set(busy.value); b2.delete(name); busy.value = b2 }
-}
-
-// Bascule tout un préfixe (hors protégés) : au moins un visible → tout masquer, sinon
-// tout rendre. Séquentiel (endpoint per-outil), une seule relecture à la fin.
-async function toggleNamespace(g: ToolGroup) {
-  const on = g.visible === 0
-  try {
-    for (const t of g.tools) {
-      if (t.protected || t.visible === on) continue
-      if (on) await enableTool(t.name); else await disableTool(t.name)
-    }
-    await refreshTools()
-  } catch (e) { toast(humanize(e)) }
 }
 
 // Poser l'org MAISON = le SEUL geste de cette page qui touche le MCP (défaut des
@@ -136,7 +102,7 @@ onMounted(load)
 
     <template v-else-if="ctx">
       <!-- ══ HERO : la pile des couches injectées ══ -->
-      <ContextLayerStack :layers="ctx.layers ?? []" :has-group="hasGroup">
+      <ContextLayerStack :layers="ctx.layers ?? []">
         <template #profile-editor>
           <ContextProfileCard title="ta fiche"
             sub="ce que ton agent sait de toi (métier, objectifs, CRM, ton). il la remplit au fil des conversations ; tu peux la corriger ici." />
@@ -163,7 +129,7 @@ onMounted(load)
       <!-- ══ CE QU'IL PEUT FAIRE ══ -->
       <div class="sec">
         <h3 class="sec-t">ce qu'il peut faire</h3>
-        <p class="sec-s">les outils visibles pour ton agent. déplie un namespace pour affiner outil par outil.</p>
+        <p class="sec-s">les outils visibles pour ton agent. déplie un namespace pour voir ses outils.</p>
       </div>
       <ConsoleCard flush>
         <template v-if="view" #actions>
@@ -178,19 +144,13 @@ onMounted(load)
               <Icon name="chevd" :size="13" class="ns-chev" :class="{ open: expanded.has(g.namespace) }" />
               <strong class="ns-name">{{ g.namespace }}_*</strong>
               <Tag :tone="g.visible > 0 ? 'olive' : undefined">{{ g.visible }} / {{ g.tools.length }}</Tag>
-              <span style="flex: 1"></span>
-              <Btn kind="mini" @click.stop="toggleNamespace(g)">
-                {{ g.visible > 0 ? 'Tout masquer' : 'Tout activer' }}
-              </Btn>
             </div>
             <div v-if="expanded.has(g.namespace)" class="tool-list">
               <div v-for="t in g.tools" :key="t.name" class="tool-row">
                 <code class="tool-name">{{ t.name }}</code>
                 <span class="tool-desc">{{ t.description || '—' }}</span>
                 <Tag v-if="t.protected" tone="cobalt">protégé</Tag>
-                <Btn v-else kind="mini" :disabled="busy.has(t.name)" @click="setTool(t.name, !t.visible)">
-                  {{ t.visible ? 'Masquer' : 'Afficher' }}
-                </Btn>
+                <Tag v-else-if="!t.visible">masqué par toi</Tag>
               </div>
             </div>
           </div>

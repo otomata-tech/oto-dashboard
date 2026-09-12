@@ -1,6 +1,6 @@
 // Contrat d'UNIFICATION de la gestion des connecteurs (ADR 0022/0038/0044).
 //
-// Une seule vue `ConnectorScopeView` rend les QUATRE surfaces (user/team/org/
+// Une seule vue `ConnectorScopeView` rend les TROIS surfaces (user/org/
 // plateforme) ; ce qui change d'un scope à l'autre est encapsulé dans un
 // ADAPTATEUR. Le socle (liste `ConnectorList` + drawer `ConnectorModal`) est
 // réutilisé tel quel. Les leviers sont OPTIONNELS : un levier absent ⇒ colonne/
@@ -10,14 +10,13 @@
 import type { Ref } from 'vue'
 import type {
   ConnectorMeta, CredentialField, DocSection, VerifyResult,
-  ConnectorFieldSchema, FieldRule, FieldFilterTemplate, FieldActionSchema,
-  EmailBlock, QuietHours,
+  ConnectorFieldSchema, FieldRule, FieldActionSchema,
 } from '@/types/api'
 import type { DotTone } from '@/lib/consoleTypes'
 import type { FormDialogConfig } from '@/composables/useFormDialog'
 import type { ConfirmConfig } from '@/composables/usePrompt'
 
-export type ConnectorScope = 'user' | 'team' | 'org' | 'platform'
+export type ConnectorScope = 'user' | 'org' | 'platform'
 export type TagTone = 'olive' | 'saffron' | 'terra' | 'cobalt' | 'ink'
 
 // View-model d'une cellule de colonne (une surface décide dot/tag/label/sub, le
@@ -89,7 +88,7 @@ export interface ConnectCta<R> {
   start(r: R): Promise<void>
 }
 
-// Accès (RBAC connecteur, ADR 0025 — org : réserver à des principals ; team B2 à venir).
+// Accès (RBAC connecteur, ADR 0025 — org : réserver à des principals).
 export interface AclPrincipal { type: string; id: string; label: string }
 export interface AccessLever<R> {
   restricted(r: R): boolean
@@ -97,7 +96,6 @@ export interface AccessLever<R> {
   canEdit(r: R): boolean
   add(r: R): void
   remove(r: R, type: string, id: string): void
-  force?(r: R): void          // pousser le connecteur à un membre (org)
 }
 
 // Accès PLATEFORME (ADR 0044 §H, scope plateforme) : « qui, au niveau plateforme, a
@@ -109,33 +107,18 @@ export interface PlatformAccessLever<R> {
   isSuperAdmin: boolean
 }
 
-// Rédaction de champs (org) : props typées pour `ConnectorTransforms`, montées par le drawer.
+// Rédaction de champs : props typées pour `ConnectorTransforms`, montées par le drawer.
+// Lecture seule depuis oto#192 : la règle et le banc de test ont quitté le dashboard.
 export interface RedactionPanel {
   service: string
   fields: ConnectorFieldSchema[]
   rules: FieldRule[]
-  defaultRules: FieldRule[]
-  templates?: Record<string, FieldFilterTemplate>
   actionSchema: FieldActionSchema[]
   customized: boolean
   orgId: number | null
-  isOrgAdmin: boolean
-  readonly?: boolean
   scopeNote?: 'personal' | 'org-wide' | 'readonly'
 }
 export interface RedactionLever<R> { props(r: R): RedactionPanel; onChanged(): void }
-
-// Email par connecteur (org, connecteurs d'envoi) : props typées pour `ConnectorEmail`.
-export interface EmailPanel {
-  connector: string
-  block: EmailBlock | null
-  transport: string
-  quietDefault: QuietHours
-  resendKeySet: boolean
-  orgId: number
-  isOrgAdmin: boolean
-}
-export interface EmailLever<R> { visible(r: R): boolean; props(r: R): EmailPanel; onChanged(): void }
 
 // Connexion (USER) : la couche d'authentification (ADR 0024) — widgets dérivés de la
 // méthode d'auth (clé/oauth/session/hosted/fédéré). Le panneau lit lui-même l'état résolu
@@ -153,11 +136,10 @@ export interface ConnectionLever<R> {
   verify?(r: R): Promise<VerifyResult>
 }
 
-// Outils (USER) : toggles de visibilité par outil (connector_selection + user tools).
+// Outils (USER) : la liste des outils d'un connecteur et leur état, en lecture — masquer un
+// outil a quitté le dashboard (oto#192).
 export interface ToolsLever<R> {
   list(r: R): ToolRow[]
-  toggle(t: ToolRow): void
-  setAll(r: R, on: boolean): void
 }
 export interface ToolRow { name: string; enabled: boolean; protected?: boolean; description?: string }
 
@@ -196,7 +178,6 @@ export interface ConnectorScopeAdapter<R = unknown> {
   access?: AccessLever<R>
   platformAccess?: PlatformAccessLever<R>
   redaction?: RedactionLever<R>
-  email?: EmailLever<R>
   connection?: ConnectionLever<R>
   tools?: ToolsLever<R>
 }

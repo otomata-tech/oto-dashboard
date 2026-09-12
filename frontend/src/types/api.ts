@@ -240,12 +240,6 @@ export interface ConnectorInstance {
   suspended?: boolean          // clé membre mise de côté (lot 2) — sautée par la cascade
 }
 
-// ── bibliothèque publique de doctrines (marketplace, library.*) ──
-// Métadonnées d'une entrée publiée (sans body ; `snippet` présent si recherche).
-export type LibraryEntry = components['schemas']['LibraryEntrySummary']
-// Entrée complète (avec le markdown), pour la preview.
-export type LibraryDoctrine = ApiOut<'library_get_get'>
-
 // Cran d'activation des connecteurs (ADR 0010, admin). `enabled` null = jamais
 // posé → OFF (deny-by-default). `overrides` = exceptions par org.
 // ÉCRIT À LA MAIN — `/api/admin/*` est HORS du document OpenAPI servi (POST
@@ -265,15 +259,6 @@ export interface ConnectorActivation {
 // org_enabled = override de l'org (null = pas d'override) ; effective = ce que voient
 // les membres (override > master > OFF) ; recommended = baseline default_connectors.
 export type OrgConnectorActivation = components['schemas']['OrgActivationRow']
-
-// Activation de connecteur au grain ÉQUIPE (ADR 0012, restrict-only). L'équipe ne peut
-// que COUPER ce que l'org expose (jamais exposer au-delà). `effective` = org_available
-// ET pas coupé par l'équipe.
-export type GroupConnectorActivation = components['schemas']['GroupActivationRow']
-
-// ACL connecteur au grain ÉQUIPE (ADR 0012 B2, restrict-only) : réserver un connecteur
-// à des MEMBRES de l'équipe. Intersection avec l'ACL d'org (narrowing pur).
-export type GroupAclEntry = components['schemas']['GroupAclEntry']
 
 // RBAC connecteur interne à l'org (ADR 0025) : une entrée = un principal (département
 // ou membre) autorisé sur un connecteur. ≥1 entrée pour un connecteur ⟹ il est réservé.
@@ -426,17 +411,6 @@ export interface ToolDetail {
   // Testable depuis le dashboard = open-data en lecture seule (FOD & co). Un test
   // n'envoie jamais d'email / n'écrit jamais de donnée (backend `is_testable`).
   testable: boolean
-}
-// Résultat d'un test d'outil (`POST /api/me/tools/{name}/call`). L'erreur de
-// l'outil est renvoyée EN DONNÉE (`ok:false`) — la voir EST le but du test.
-// ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (POST /api/me/tools/{}/call) :
-//    sa réponse est un `200 OK` nu dans le document.
-export interface ToolCallResult {
-  ok: boolean
-  name: string
-  result?: unknown
-  error?: string
-  elapsed_ms?: number
 }
 // Usage d'une doctrine : nb de chargements par l'agent, appelants, série 30j.
 export type InstructionUsage = ApiOut<'org_instruction_usage_get'>
@@ -1176,7 +1150,6 @@ export interface GroupDetail {
   members: GroupMember[]
   secrets: GroupSecret[]
 }
-export type GroupInstructionsBundle = ApiOut<'group_instruction_list_get'> & InstructionRights
 
 // ── admin ──
 export interface AdminGrant {
