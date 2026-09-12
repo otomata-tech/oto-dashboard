@@ -57,6 +57,12 @@ logo **« O ouvert »**.
 > `ContextProfileCard`/`DataView`/`OrgView` (exclus le 04/07, WIP parallèle) · revue visuelle des
 > écrans authentifiés (seul LoginGate vérifié au rendu). Plan : `handoff-design-system.md`.
 
+**Favicons = copies à l'octet de `oto-studio/brand/logos/oto/`** (le README de brand tient la
+table des consommateurs). `public/apple-touch-icon.png` ← `oto-mark-apple-touch-180.png` depuis le
+2026-09-13 (oto#193) : l'ancienne était sur fond transparent, qu'iOS remplit en noir ; celle de
+brand est sur fond crème `#fefcf5` opaque. Contrôle : `sha256sum` des deux fichiers, et celui
+servi par `https://manage.oto.ninja/apple-touch-icon.png`.
+
 ## 2026-08-27 — `design-system/` archivé
 
 **Ce doc a désigné `design-system/` comme source de vérité visuelle jusqu'au 2026-08-27.** C'était
