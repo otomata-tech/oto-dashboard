@@ -46,7 +46,7 @@ Un écran = une section de `lib/consoleNav.ts` ; le détail (composants, API cli
 
 | domaine | routes | doc |
 |---|---|---|
-| vue d'ensemble, monitoring, réglages et sécurité d'org | `/overview`, `/org/monitoring`, `/org/settings`, `/org/security`, `/platform/monitoring` | — (pas de doc dédié) |
+| vue d'ensemble (dont l'îlot « Dernières modifications », `RecentChangesCard` + `lib/recentChanges.ts`, oto#191), monitoring, réglages et sécurité d'org | `/overview`, `/org/monitoring`, `/org/settings`, `/org/security`, `/platform/monitoring` | — (pas de doc dédié) |
 | connecteurs (3 surfaces, hubs à onglets, fédération) | `/connectors`, `/org/connectors`, `/platform/connectors` | `docs/connecteurs.md` |
 | orgs, équipes, invitations, fiches admin | `/org`, `/org/teams`, `/platform/users` (+ `/:sub`), `/platform/orgs` (+ `/:id`) | `docs/orgs-groupes-invitations.md` |
 | projets (index + page dédiée, partage navigable) | `/projects`, `/projects/:id` | `docs/projets.md` |

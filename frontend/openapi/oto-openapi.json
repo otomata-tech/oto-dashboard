@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Oto REST API",
-    "version": "v1.274.0+2f46fbf9",
+    "version": "origin/main+e4b173c7",
     "description": "API REST de la plateforme Oto. Deux faces servent le même métier (ADR 0009) : le\nMCP (`/mcp`, JWT Logto) et ce REST. Ce document est **dérivé du serveur** à chaque\nrequête — il décrit ce qui tourne, pas une intention.\n\n**Authentification** — `Authorization: Bearer <jeton>`, sous deux formes :\n\n- **JWT Logto** (session interactive : dashboard, connecteur MCP) ;\n- **jeton API** `oto_…` (intégration programmatique), émis depuis une session\n  interactive — un jeton ne peut ni lister, ni créer, ni révoquer de jeton.\n\n**Portée d'un jeton** — un jeton API peut être **porté** à sa création\n(`POST /api/me/tokens` avec `scopes`) : il n'ouvre alors QUE les tableaux nommés,\nen lecture ou écriture, et rien d'autre de l'organisation. C'est la forme à confier\nà une intégration tierce. Hors portée : `403 token_scope_forbidden`.\n\n**Verbe dans le corps** — les surfaces consolidées (projets, pages, procédures,\nressources…) exposent un seul chemin dont le corps porte le verbe : `{\"op\": \"list\"}`.\nLes valeurs possibles sont dans l'énuméré `op` du schéma de la requête.\n\n**Contexte d'organisation** — en-tête optionnel `X-Oto-Org` (et `X-Oto-Group`) pour\ntravailler dans une organisation précise ; par défaut, l'organisation maison.\n\n**Erreurs** — une seule enveloppe, le composant `Erreur` : `error` (jeton machine\nstable, la clé sur laquelle un client décide), `detail` (la phrase, actionnable) et\nparfois `details` (forme structurée). Les 4xx listés sur une opération sont ceux\nqu'elle DÉCLARE, chacun rejoué par un test ; la liste n'est pas exhaustive : tout\nappel peut rendre `400 invalid_input` / `unknown_fields` / `invalid_json` /\n`invalid_body` (validation de la requête par l'adaptateur), `401` et `403`.\n"
   },
   "paths": {
@@ -22506,11 +22506,91 @@
         }
       }
     },
+    "/api/me/recent-changes": {
+      "get": {
+        "operationId": "me_recent_changes_get",
+        "summary": "Les dernières pages et procédures modifiées dans ce que je peux lire (projets de l'org active, procédures de mes paliers), les plus récentes d'abord, fusionnées par date de modific",
+        "description": "Les dernières pages et procédures modifiées dans ce que je peux lire (projets de l'org active, procédures de mes paliers), les plus récentes d'abord, fusionnées par date de modification. `limit` : 20 par défaut, 50 au plus. L'auteur est rendu quand la donnée existe, `null` sinon — jamais déduit. Sans org active : liste vide.",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/RecentChange"
+                      },
+                      "title": "Items",
+                      "type": "array"
+                    },
+                    "limit": {
+                      "title": "Limit",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "limit"
+                  ],
+                  "title": "RecentChangesView",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "jeton absent ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "refus d'autorisation (ou hors portée du jeton)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Nombre maximal d'éléments rendus, 20 par défaut, 50 au plus.",
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
     "/api/me/runner/fleets": {
       "post": {
         "operationId": "runner_fleets_post",
         "summary": "Declared configuration of an agent PASS — what a fleet runs, on which table, within which perimeter, and up to which limit",
-        "description": "Declared configuration of an agent PASS — what a fleet runs, on which table, within which perimeter, and up to which limit. op=create (`label` + procedure slug + `tools` allowlist ; optional target `namespace` + `row_filter`, execution context `provider`/`model`, and limits `max_rows` / `max_tokens` / `max_consecutive_failures` / `max_tokens_per_row` — budgets are counted in TOKENS, never money) / list (optionally filtered by `status`) / get / state / update. ⚠️ op=launch ARMS the fleet — it does NOT start any process. The state becomes `armed`, never `running`: `running` is a FACT, not an intent — a worker asked for work and Oto produced this pass's first job. That happens BY ITSELF, usually within seconds: workers poll continuously and Oto makes the work when they ask. **No scheduler is involved and none has to be started.** An `armed` still `armed` after a minute therefore means NO WORKER IS POLLING for this org — not 'nobody has taken it'. Symmetrically, op=stop REQUESTS the stop (`stopping`); the fleet keeps reserving, calling and SPENDING until none of its jobs is left in flight, at which point Oto states the fact (`stopped`) at the next poll. Never report a launch on `armed`, nor a stop on `stopping` — the gap between the two is also the diagnosis. op=state returns the pass PROGRESS aggregated over its jobs — pending, claimed, done, failed, abandoned, tokens consumed, heaviest single row — and says `no_jobs_attached` explicitly rather than returning zeros you would read as 'nothing happened'. The TARGET is frozen at declaration: redirecting a running pass to another table is what declaring exists to prevent; the execution context (`provider`/`model`) is frozen too, since changing it mid-flight falsifies the attribution of rows already written — declare another fleet instead — duplicate, never switch. An EXTERNAL scheduler is still served here — op=take (`armed`→`running`, refused if another scheduler already took it), op=beat (heartbeat AND reads back `stop_requested` in the same call), op=ack_stop (`stopping`→`stopped`). ⚠️ None of them is required any more, and you should not call them: polling alone moves a pass, and op=take would only claim one that was about to start on its own.",
+        "description": "Declared configuration of an agent PASS — what a fleet runs, on which table, within which perimeter, and up to which limit. op=create (`label` + procedure slug + `tools` allowlist ; optional target `namespace` + `row_filter`, execution context `model` — one of the catalogue served as `runner.models` by oto_trigger; `provider` is deduced from it; omitted, the worker runs its own —, and limits `max_rows` / `max_tokens` / `max_consecutive_failures` / `max_tokens_per_row` — budgets are counted in TOKENS, never money) / list (optionally filtered by `status`) / get / state / update. ⚠️ op=launch ARMS the fleet — it does NOT start any process. The state becomes `armed`, never `running`: `running` is a FACT, not an intent — a worker asked for work and Oto produced this pass's first job. That happens BY ITSELF, usually within seconds: workers poll continuously and Oto makes the work when they ask. **No scheduler is involved and none has to be started.** An `armed` still `armed` after a minute therefore means NO WORKER IS POLLING for this org — not 'nobody has taken it'. Symmetrically, op=stop REQUESTS the stop (`stopping`); the fleet keeps reserving, calling and SPENDING until none of its jobs is left in flight, at which point Oto states the fact (`stopped`) at the next poll. Never report a launch on `armed`, nor a stop on `stopping` — the gap between the two is also the diagnosis. op=launch is REFUSED (`model_not_served`) when the fleet declares a model no live worker serves: its jobs would wait forever. op=state returns the pass PROGRESS aggregated over its jobs — pending, claimed, done, failed, abandoned, tokens consumed, heaviest single row — and says `no_jobs_attached` explicitly rather than returning zeros you would read as 'nothing happened'. The TARGET is frozen at declaration: redirecting a running pass to another table is what declaring exists to prevent; the execution context (`provider`/`model`) is frozen too, since changing it mid-flight falsifies the attribution of rows already written — declare another fleet instead — duplicate, never switch. An EXTERNAL scheduler is still served here — op=take (`armed`→`running`, refused if another scheduler already took it), op=beat (heartbeat AND reads back `stop_requested` in the same call), op=ack_stop (`stopping`→`stopped`). ⚠️ None of them is required any more, and you should not call them: polling alone moves a pass, and op=take would only claim one that was about to start on its own.",
         "tags": [
           "runner"
         ],
@@ -22607,7 +22687,7 @@
             }
           },
           "400": {
-            "description": "`missing_fields` — `create` sans `label`/`procedure`/`tools`, ou opération sur une flotte sans `fleet_id` ; `target_incomplete` — `row_filter` sans `namespace` — un périmètre suppose un tableau ; `target_is_frozen` — `namespace`/`row_filter` après la déclaration : la cible d'un passage ne se déplace pas ; `context_is_frozen` — `provider`/`model` après la déclaration : les changer falsifierait l'attribution des lignes déjà écrites ; `status_not_settable` — `update status=` — l'état ne se pose pas par une retouche de configuration ; `field_not_settable` — `update` sur un champ déclaré à la création (`procedure`, `project_id`…) ; `invalid_bound` — une borne (`workers`, `max_rows`, `max_tokens`…) inférieure à 1",
+            "description": "`missing_fields` — `create` sans `label`/`procedure`/`tools`, ou opération sur une flotte sans `fleet_id` ; `target_incomplete` — `row_filter` sans `namespace` — un périmètre suppose un tableau ; `target_is_frozen` — `namespace`/`row_filter` après la déclaration : la cible d'un passage ne se déplace pas ; `context_is_frozen` — `provider`/`model` après la déclaration : les changer falsifierait l'attribution des lignes déjà écrites ; `status_not_settable` — `update status=` — l'état ne se pose pas par une retouche de configuration ; `field_not_settable` — `update` sur un champ déclaré à la création (`procedure`, `project_id`…) ; `invalid_bound` — une borne (`workers`, `max_rows`, `max_tokens`…) inférieure à 1 ; `invalid_model` — `create` avec un `model` hors catalogue, un `provider` qui le contredit, ou un `provider` sans `model` ; `model_not_served` — `launch` d'un passage dont aucun worker vivant ne sert la famille du modèle",
             "content": {
               "application/json": {
                 "schema": {
@@ -22625,7 +22705,9 @@
                             "context_is_frozen",
                             "status_not_settable",
                             "field_not_settable",
-                            "invalid_bound"
+                            "invalid_bound",
+                            "invalid_model",
+                            "model_not_served"
                           ]
                         }
                       }
@@ -23421,7 +23503,7 @@
       "post": {
         "operationId": "runner_triggers_post",
         "summary": "Scheduled triggers for hosted runs — the product's /schedule",
-        "description": "Scheduled triggers for hosted runs — the product's /schedule. op=create (procedure slug + `cron` + `tools` allowlist ; `tz` defaults to Europe/Paris and the cron evaluates IN that timezone — say WHICH 8am you mean) / list / get / update (editing cron or tz revalidates and recomputes the next due) / delete. The tick only ENQUEUES a job at each due time; execution belongs to the worker. Floor between two occurrences: 5 minutes — a run is not a ping. `create` (and `update enabled=true`) is REFUSED when no worker polls this org's queue — a trigger nothing executes would enqueue forever without an error; `list`/`get` carry `runner` (armed, workers, last_seen) so an existing trigger can be told apart from a live one. ⚠️ An occurrence nobody claimed BEFORE the next one is due is EXPIRED, not silently kept: a daily watch run thirteen days late does not return a late result, it returns a WRONG one — and a backlog released all at once would run with the procedure and context of its era. Expiry never deletes: `list`/`get` carry `expired_count` (a real 0, not a missing measure) plus `expired_since` and `expired_last` — since when, and whether it is STILL happening, are two different questions. A rising count on an enabled trigger means nobody is executing this org.",
+        "description": "Scheduled triggers for hosted runs — the product's /schedule. op=create (procedure slug + `cron` + `tools` allowlist ; `tz` defaults to Europe/Paris and the cron evaluates IN that timezone — say WHICH 8am you mean) / list / get / update (editing cron or tz revalidates and recomputes the next due) / delete. The tick only ENQUEUES a job at each due time; execution belongs to the worker. Floor between two occurrences: 5 minutes — a run is not a ping. `create` (and `update enabled=true`) is REFUSED when no worker polls this org's queue — a trigger nothing executes would enqueue forever without an error; `list`/`get` carry `runner` (armed, workers, last_seen) so an existing trigger can be told apart from a live one. `model` (optional) is the model the agent runs on, one of `runner.models` — each flagged `served`; omitted, the worker that takes the job runs its own. The model flagged `default` is the one to propose: the first served model in catalogue order. No model is flagged when no live worker declares a family (`runner.families` is `[]`) — then omit `model`. A model no live worker serves is REFUSED (`model_not_served`) on create, on enable, and when changed on an enabled trigger: its job would wait for a worker of that family and expire. ⚠️ An occurrence nobody claimed BEFORE the next one is due is EXPIRED, not silently kept: a daily watch run thirteen days late does not return a late result, it returns a WRONG one — and a backlog released all at once would run with the procedure and context of its era. Expiry never deletes: `list`/`get` carry `expired_count` (a real 0, not a missing measure) plus `expired_since` and `expired_last` — since when, and whether it is STILL happening, are two different questions. A rising count on an enabled trigger means nobody is executing this org.",
         "tags": [
           "runner"
         ],
@@ -23494,7 +23576,7 @@
             }
           },
           "400": {
-            "description": "`missing_fields` — `create` sans `procedure`/`cron`/`tools`, ou une opération sur un déclencheur sans `trigger_id` ; `invalid_schedule` — cron malformé, fuseau inconnu, ou deux occurrences espacées de moins de 5 minutes ; `no_runner_armed` — aucun worker ne sonde la file de cette org : `create`, et `update enabled=true`, sont refusés plutôt que de promettre une exécution qui n'aurait pas lieu",
+            "description": "`missing_fields` — `create` sans `procedure`/`cron`/`tools`, ou une opération sur un déclencheur sans `trigger_id` ; `invalid_schedule` — cron malformé, fuseau inconnu, ou deux occurrences espacées de moins de 5 minutes ; `no_runner_armed` — aucun worker ne sonde la file de cette org : `create`, et `update enabled=true`, sont refusés plutôt que de promettre une exécution qui n'aurait pas lieu ; `invalid_model` — `model` hors du catalogue servi (`runner.models` sur `list`/`get`) ; `model_not_served` — `model` d'une famille qu'aucun worker vivant ne sert : `create`, `update enabled=true` et le changement de modèle d'un déclencheur allumé sont refusés",
             "content": {
               "application/json": {
                 "schema": {
@@ -23508,7 +23590,9 @@
                           "enum": [
                             "missing_fields",
                             "invalid_schedule",
-                            "no_runner_armed"
+                            "no_runner_armed",
+                            "invalid_model",
+                            "model_not_served"
                           ]
                         }
                       }
@@ -23691,6 +23775,18 @@
                     ],
                     "default": null,
                     "title": "Max Steps"
+                  },
+                  "model": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Model"
                   },
                   "enabled": {
                     "anyOf": [
@@ -27672,7 +27768,7 @@
       "get": {
         "operationId": "org_email_settings_get_get",
         "summary": "Read the org's email config keyed by connector (scaleway = Otomata-hosted, resend = BYOK): per-connector senders + quiet hours, the known email connectors, connector→transport map,",
-        "description": "Read the org's email config keyed by connector (scaleway = Otomata-hosted, resend = BYOK): per-connector senders + quiet hours, the known email connectors, connector→transport map, and whether the org's Resend key is set.",
+        "description": "Read the org's email config keyed by connector (scaleway = Otomata-hosted, resend = BYOK): per-connector senders + quiet hours, the known email connectors, connector→transport map, and whether the org's Resend key is set. `settings.<connector>.footer` = the org's own unsubscribe on that connector (present = its sends carry the org's footer instead of the platform's).",
         "tags": [
           "email_settings"
         ],
@@ -27687,7 +27783,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "description": "Config d'envoi d'email de l'org, keyée PAR CONNECTEUR.\n\n⚠️ **Un connecteur sans `quiet_hours` n'est pas « sans fenêtre calme »** : le\ndéfaut plateforme (`quiet_hours_default`, 20h→8h Europe/Paris) s'applique quand\nmême. Une org qui n'a jamais rien réglé voit donc ses mails composés la nuit\nDIFFÉRÉS au matin — silence de config ≠ envoi immédiat.\n\n⚠️ `settings: {}` = aucun expéditeur déclaré ⟹ `email_send` sans `from_email` n'a\nrien à utiliser et échoue. Ce n'est pas « on prendra un défaut ».\n\n`connectors` et `transports` portent la même information (les clés de l'un sont\nla liste de l'autre) — redondance de compat front, pas deux catalogues.\n`resend_key_set` dit qu'une clé Resend est POSÉE au coffre, jamais qu'elle est\nvalide (aucun appel n'est fait ici).",
+                  "description": "Config d'envoi d'email de l'org, keyée PAR CONNECTEUR.\n\n⚠️ **Un connecteur sans `quiet_hours` n'est pas « sans fenêtre calme »** : le\ndéfaut plateforme (`quiet_hours_default`, 20h→8h Europe/Paris) s'applique quand\nmême. Une org qui n'a jamais rien réglé voit donc ses mails composés la nuit\nDIFFÉRÉS au matin — silence de config ≠ envoi immédiat.\n\n⚠️ `settings: {}` = aucun expéditeur déclaré ⟹ `email_send` sans `from_email` n'a\nrien à utiliser et échoue. Ce n'est pas « on prendra un défaut ».\n\n`connectors` et `transports` portent la même information (les clés de l'un sont\nla liste de l'autre) — redondance de compat front, pas deux catalogues.\n`resend_key_set` dit qu'une clé Resend est POSÉE au coffre, jamais qu'elle est\nvalide (aucun appel n'est fait ici).\n\n`settings.<connector>.footer` = le désabonnement PROPRE de l'org sur ce connecteur\n(`{unsubscribe_url?, unsubscribe_email?}`). Présent, les envois de ce connecteur\nportent le pied de l'org à la place de celui de la plateforme ; absent, le nôtre\nreste. Il ne vaut que pour CE connecteur.",
                   "properties": {
                     "org_id": {
                       "title": "Org Id",
@@ -27773,7 +27869,7 @@
       "put": {
         "operationId": "org_email_settings_set_put",
         "summary": "Set ONE email connector's config for `email_send`",
-        "description": "Set ONE email connector's config for `email_send`. `connector` ∈ {scaleway (Otomata-hosted via Scaleway TEM — domain verified + in the service allowlist), resend (BYOK — set the org's Resend key via oto_set_org_secret provider=resend; domain verified on Resend)}; the transport is DERIVED from the connector. `senders` = [{email, name?, reply_to?}] (no transport) — replaces this connector's list; the first sender across connectors is the default when `email_send` omits `from_email`. `quiet_hours` = {tz, start, end} (hours 0..23, wrap-around midnight ok): emails composed inside the window are auto-deferred to the next `end`. `clear_quiet_hours=true` removes this connector's window. Pass any field (merge).",
+        "description": "Set ONE email connector's config for `email_send`. `connector` ∈ {scaleway (Otomata-hosted via Scaleway TEM — domain verified + in the service allowlist), resend (BYOK — set the org's Resend key via oto_set_org_secret provider=resend; domain verified on Resend)}; the transport is DERIVED from the connector. `senders` = [{email, name?, reply_to?}] (no transport) — replaces this connector's list; the first sender across connectors is the default when `email_send` omits `from_email`. `quiet_hours` = {tz, start, end} (hours 0..23, wrap-around midnight ok): emails composed inside the window are auto-deferred to the next `end`. `clear_quiet_hours=true` removes this connector's window. `footer` = {unsubscribe_url? (https), unsubscribe_email?} — the org's OWN unsubscribe: once declared, sends through this connector (the org's own key) carry the org's footer INSTEAD of the platform's; asking for it without either field is refused, and the platform footer stays. `clear_footer=true` brings the platform footer back. Sends under the platform brand always keep the platform footer. Pass any field (merge).",
         "tags": [
           "email_settings"
         ],
@@ -27842,6 +27938,19 @@
                       ],
                       "default": null,
                       "title": "Quiet Hours"
+                    },
+                    "footer": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": true,
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Footer"
                     }
                   },
                   "required": [
@@ -27936,6 +28045,24 @@
                   "clear_quiet_hours": {
                     "default": false,
                     "title": "Clear Quiet Hours",
+                    "type": "boolean"
+                  },
+                  "footer": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Footer"
+                  },
+                  "clear_footer": {
+                    "default": false,
+                    "title": "Clear Footer",
                     "type": "boolean"
                   }
                 }
@@ -41600,6 +41727,125 @@
         "title": "ByUser",
         "type": "object"
       },
+      "RecentChange": {
+        "properties": {
+          "type": {
+            "enum": [
+              "doc",
+              "procedure"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecentChangeProject"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Slug"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "enum": [
+                  "user",
+                  "org",
+                  "group"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scope"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecentChangeAuthor"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "title",
+          "updated_at"
+        ],
+        "title": "RecentChange",
+        "type": "object"
+      },
+      "RecentChangeAuthor": {
+        "properties": {
+          "sub": {
+            "title": "Sub",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sub",
+          "name"
+        ],
+        "title": "RecentChangeAuthor",
+        "type": "object"
+      },
+      "RecentChangeProject": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "RecentChangeProject",
+        "type": "object"
+      },
       "ProfileField": {
         "description": "Une entrée de `PROFILE_FIELDS` — le schéma SUGGÉRÉ, pas une contrainte : la\nfiche accepte des clés libres hors de cette liste.",
         "properties": {
@@ -43616,6 +43862,22 @@
             ],
             "default": null,
             "title": "Last Seen"
+          },
+          "families": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Families",
+            "type": "array"
+          },
+          "models": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RunnerModel"
+            },
+            "title": "Models",
+            "type": "array"
           }
         },
         "required": [
@@ -43623,6 +43885,40 @@
           "workers"
         ],
         "title": "RunnerArme",
+        "type": "object"
+      },
+      "RunnerModel": {
+        "description": "Un modèle du catalogue (`runner_models`), et s'il est servi en ce moment.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "default": {
+            "type": "boolean",
+            "default": false,
+            "title": "Default"
+          },
+          "served": {
+            "default": false,
+            "title": "Served",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "family"
+        ],
+        "title": "RunnerModel",
         "type": "object"
       },
       "Trigger": {
@@ -43730,6 +44026,18 @@
             ],
             "default": null,
             "title": "Max Steps"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Model"
           },
           "cron": {
             "anyOf": [
@@ -44306,7 +44614,7 @@
   ],
   "servers": [
     {
-      "url": "https://mcp.oto.cx"
+      "url": "https://mcp.oto.ninja"
     }
   ]
 }

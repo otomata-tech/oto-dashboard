@@ -3629,6 +3629,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/recent-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Les dernières pages et procédures modifiées dans ce que je peux lire (projets de l'org active, procédures de mes paliers), les plus récentes d'abord, fusionnées par date de modific
+         * @description Les dernières pages et procédures modifiées dans ce que je peux lire (projets de l'org active, procédures de mes paliers), les plus récentes d'abord, fusionnées par date de modification. `limit` : 20 par défaut, 50 au plus. L'auteur est rendu quand la donnée existe, `null` sinon — jamais déduit. Sans org active : liste vide.
+         */
+        get: operations["me_recent_changes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/runner/fleets": {
         parameters: {
             query?: never;
@@ -3640,7 +3660,7 @@ export interface paths {
         put?: never;
         /**
          * Declared configuration of an agent PASS — what a fleet runs, on which table, within which perimeter, and up to which limit
-         * @description Declared configuration of an agent PASS — what a fleet runs, on which table, within which perimeter, and up to which limit. op=create (`label` + procedure slug + `tools` allowlist ; optional target `namespace` + `row_filter`, execution context `provider`/`model`, and limits `max_rows` / `max_tokens` / `max_consecutive_failures` / `max_tokens_per_row` — budgets are counted in TOKENS, never money) / list (optionally filtered by `status`) / get / state / update. ⚠️ op=launch ARMS the fleet — it does NOT start any process. The state becomes `armed`, never `running`: `running` is a FACT, not an intent — a worker asked for work and Oto produced this pass's first job. That happens BY ITSELF, usually within seconds: workers poll continuously and Oto makes the work when they ask. **No scheduler is involved and none has to be started.** An `armed` still `armed` after a minute therefore means NO WORKER IS POLLING for this org — not 'nobody has taken it'. Symmetrically, op=stop REQUESTS the stop (`stopping`); the fleet keeps reserving, calling and SPENDING until none of its jobs is left in flight, at which point Oto states the fact (`stopped`) at the next poll. Never report a launch on `armed`, nor a stop on `stopping` — the gap between the two is also the diagnosis. op=state returns the pass PROGRESS aggregated over its jobs — pending, claimed, done, failed, abandoned, tokens consumed, heaviest single row — and says `no_jobs_attached` explicitly rather than returning zeros you would read as 'nothing happened'. The TARGET is frozen at declaration: redirecting a running pass to another table is what declaring exists to prevent; the execution context (`provider`/`model`) is frozen too, since changing it mid-flight falsifies the attribution of rows already written — declare another fleet instead — duplicate, never switch. An EXTERNAL scheduler is still served here — op=take (`armed`→`running`, refused if another scheduler already took it), op=beat (heartbeat AND reads back `stop_requested` in the same call), op=ack_stop (`stopping`→`stopped`). ⚠️ None of them is required any more, and you should not call them: polling alone moves a pass, and op=take would only claim one that was about to start on its own.
+         * @description Declared configuration of an agent PASS — what a fleet runs, on which table, within which perimeter, and up to which limit. op=create (`label` + procedure slug + `tools` allowlist ; optional target `namespace` + `row_filter`, execution context `model` — one of the catalogue served as `runner.models` by oto_trigger; `provider` is deduced from it; omitted, the worker runs its own —, and limits `max_rows` / `max_tokens` / `max_consecutive_failures` / `max_tokens_per_row` — budgets are counted in TOKENS, never money) / list (optionally filtered by `status`) / get / state / update. ⚠️ op=launch ARMS the fleet — it does NOT start any process. The state becomes `armed`, never `running`: `running` is a FACT, not an intent — a worker asked for work and Oto produced this pass's first job. That happens BY ITSELF, usually within seconds: workers poll continuously and Oto makes the work when they ask. **No scheduler is involved and none has to be started.** An `armed` still `armed` after a minute therefore means NO WORKER IS POLLING for this org — not 'nobody has taken it'. Symmetrically, op=stop REQUESTS the stop (`stopping`); the fleet keeps reserving, calling and SPENDING until none of its jobs is left in flight, at which point Oto states the fact (`stopped`) at the next poll. Never report a launch on `armed`, nor a stop on `stopping` — the gap between the two is also the diagnosis. op=launch is REFUSED (`model_not_served`) when the fleet declares a model no live worker serves: its jobs would wait forever. op=state returns the pass PROGRESS aggregated over its jobs — pending, claimed, done, failed, abandoned, tokens consumed, heaviest single row — and says `no_jobs_attached` explicitly rather than returning zeros you would read as 'nothing happened'. The TARGET is frozen at declaration: redirecting a running pass to another table is what declaring exists to prevent; the execution context (`provider`/`model`) is frozen too, since changing it mid-flight falsifies the attribution of rows already written — declare another fleet instead — duplicate, never switch. An EXTERNAL scheduler is still served here — op=take (`armed`→`running`, refused if another scheduler already took it), op=beat (heartbeat AND reads back `stop_requested` in the same call), op=ack_stop (`stopping`→`stopped`). ⚠️ None of them is required any more, and you should not call them: polling alone moves a pass, and op=take would only claim one that was about to start on its own.
          */
         post: operations["runner_fleets_post"];
         delete?: never;
@@ -3680,7 +3700,7 @@ export interface paths {
         put?: never;
         /**
          * Scheduled triggers for hosted runs — the product's /schedule
-         * @description Scheduled triggers for hosted runs — the product's /schedule. op=create (procedure slug + `cron` + `tools` allowlist ; `tz` defaults to Europe/Paris and the cron evaluates IN that timezone — say WHICH 8am you mean) / list / get / update (editing cron or tz revalidates and recomputes the next due) / delete. The tick only ENQUEUES a job at each due time; execution belongs to the worker. Floor between two occurrences: 5 minutes — a run is not a ping. `create` (and `update enabled=true`) is REFUSED when no worker polls this org's queue — a trigger nothing executes would enqueue forever without an error; `list`/`get` carry `runner` (armed, workers, last_seen) so an existing trigger can be told apart from a live one. ⚠️ An occurrence nobody claimed BEFORE the next one is due is EXPIRED, not silently kept: a daily watch run thirteen days late does not return a late result, it returns a WRONG one — and a backlog released all at once would run with the procedure and context of its era. Expiry never deletes: `list`/`get` carry `expired_count` (a real 0, not a missing measure) plus `expired_since` and `expired_last` — since when, and whether it is STILL happening, are two different questions. A rising count on an enabled trigger means nobody is executing this org.
+         * @description Scheduled triggers for hosted runs — the product's /schedule. op=create (procedure slug + `cron` + `tools` allowlist ; `tz` defaults to Europe/Paris and the cron evaluates IN that timezone — say WHICH 8am you mean) / list / get / update (editing cron or tz revalidates and recomputes the next due) / delete. The tick only ENQUEUES a job at each due time; execution belongs to the worker. Floor between two occurrences: 5 minutes — a run is not a ping. `create` (and `update enabled=true`) is REFUSED when no worker polls this org's queue — a trigger nothing executes would enqueue forever without an error; `list`/`get` carry `runner` (armed, workers, last_seen) so an existing trigger can be told apart from a live one. `model` (optional) is the model the agent runs on, one of `runner.models` — each flagged `served`; omitted, the worker that takes the job runs its own. The model flagged `default` is the one to propose: the first served model in catalogue order. No model is flagged when no live worker declares a family (`runner.families` is `[]`) — then omit `model`. A model no live worker serves is REFUSED (`model_not_served`) on create, on enable, and when changed on an enabled trigger: its job would wait for a worker of that family and expire. ⚠️ An occurrence nobody claimed BEFORE the next one is due is EXPIRED, not silently kept: a daily watch run thirteen days late does not return a late result, it returns a WRONG one — and a backlog released all at once would run with the procedure and context of its era. Expiry never deletes: `list`/`get` carry `expired_count` (a real 0, not a missing measure) plus `expired_since` and `expired_last` — since when, and whether it is STILL happening, are two different questions. A rising count on an enabled trigger means nobody is executing this org.
          */
         post: operations["runner_triggers_post"];
         delete?: never;
@@ -4207,7 +4227,7 @@ export interface paths {
         };
         /**
          * Read the org's email config keyed by connector (scaleway = Otomata-hosted, resend = BYOK): per-connector senders + quiet hours, the known email connectors, connector→transport map,
-         * @description Read the org's email config keyed by connector (scaleway = Otomata-hosted, resend = BYOK): per-connector senders + quiet hours, the known email connectors, connector→transport map, and whether the org's Resend key is set.
+         * @description Read the org's email config keyed by connector (scaleway = Otomata-hosted, resend = BYOK): per-connector senders + quiet hours, the known email connectors, connector→transport map, and whether the org's Resend key is set. `settings.<connector>.footer` = the org's own unsubscribe on that connector (present = its sends carry the org's footer instead of the platform's).
          */
         get: operations["org_email_settings_get_get"];
         put?: never;
@@ -4228,7 +4248,7 @@ export interface paths {
         get?: never;
         /**
          * Set ONE email connector's config for `email_send`
-         * @description Set ONE email connector's config for `email_send`. `connector` ∈ {scaleway (Otomata-hosted via Scaleway TEM — domain verified + in the service allowlist), resend (BYOK — set the org's Resend key via oto_set_org_secret provider=resend; domain verified on Resend)}; the transport is DERIVED from the connector. `senders` = [{email, name?, reply_to?}] (no transport) — replaces this connector's list; the first sender across connectors is the default when `email_send` omits `from_email`. `quiet_hours` = {tz, start, end} (hours 0..23, wrap-around midnight ok): emails composed inside the window are auto-deferred to the next `end`. `clear_quiet_hours=true` removes this connector's window. Pass any field (merge).
+         * @description Set ONE email connector's config for `email_send`. `connector` ∈ {scaleway (Otomata-hosted via Scaleway TEM — domain verified + in the service allowlist), resend (BYOK — set the org's Resend key via oto_set_org_secret provider=resend; domain verified on Resend)}; the transport is DERIVED from the connector. `senders` = [{email, name?, reply_to?}] (no transport) — replaces this connector's list; the first sender across connectors is the default when `email_send` omits `from_email`. `quiet_hours` = {tz, start, end} (hours 0..23, wrap-around midnight ok): emails composed inside the window are auto-deferred to the next `end`. `clear_quiet_hours=true` removes this connector's window. `footer` = {unsubscribe_url? (https), unsubscribe_email?} — the org's OWN unsubscribe: once declared, sends through this connector (the org's own key) carry the org's footer INSTEAD of the platform's; asking for it without either field is refused, and the platform footer stays. `clear_footer=true` brings the platform footer back. Sends under the platform brand always keep the platform footer. Pass any field (merge).
          */
         put: operations["org_email_settings_set_put"];
         post?: never;
@@ -9176,6 +9196,48 @@ export interface components {
             /** Errors */
             errors: number;
         };
+        /** RecentChange */
+        RecentChange: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "doc" | "procedure";
+            /** Id */
+            id: number;
+            /** Title */
+            title: string;
+            /** @default null */
+            project: components["schemas"]["RecentChangeProject"] | null;
+            /**
+             * Slug
+             * @default null
+             */
+            slug: string | null;
+            /**
+             * Scope
+             * @default null
+             */
+            scope: ("user" | "org" | "group") | null;
+            /** @default null */
+            author: components["schemas"]["RecentChangeAuthor"] | null;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** RecentChangeAuthor */
+        RecentChangeAuthor: {
+            /** Sub */
+            sub: string;
+            /** Name */
+            name: string;
+        };
+        /** RecentChangeProject */
+        RecentChangeProject: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
         /**
          * ProfileField
          * @description Une entrée de `PROFILE_FIELDS` — le schéma SUGGÉRÉ, pas une contrainte : la
@@ -10142,6 +10204,38 @@ export interface components {
              * @default null
              */
             last_seen: string | null;
+            /**
+             * Families
+             * @default []
+             */
+            families: string[];
+            /**
+             * Models
+             * @default []
+             */
+            models: components["schemas"]["RunnerModel"][];
+        };
+        /**
+         * RunnerModel
+         * @description Un modèle du catalogue (`runner_models`), et s'il est servi en ce moment.
+         */
+        RunnerModel: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Family */
+            family: string;
+            /**
+             * Default
+             * @default false
+             */
+            default: boolean;
+            /**
+             * Served
+             * @default false
+             */
+            served: boolean;
         };
         /**
          * Trigger
@@ -10192,6 +10286,11 @@ export interface components {
              * @default null
              */
             max_steps: number | null;
+            /**
+             * Model
+             * @default null
+             */
+            model: string | null;
             /**
              * Cron
              * @default null
@@ -21906,6 +22005,51 @@ export interface operations {
             };
         };
     };
+    me_recent_changes_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Items */
+                        items: components["schemas"]["RecentChange"][];
+                        /** Limit */
+                        limit: number;
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+        };
+    };
     runner_fleets_post: {
         parameters: {
             query?: never;
@@ -22056,7 +22200,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `missing_fields` — `create` sans `label`/`procedure`/`tools`, ou opération sur une flotte sans `fleet_id` ; `target_incomplete` — `row_filter` sans `namespace` — un périmètre suppose un tableau ; `target_is_frozen` — `namespace`/`row_filter` après la déclaration : la cible d'un passage ne se déplace pas ; `context_is_frozen` — `provider`/`model` après la déclaration : les changer falsifierait l'attribution des lignes déjà écrites ; `status_not_settable` — `update status=` — l'état ne se pose pas par une retouche de configuration ; `field_not_settable` — `update` sur un champ déclaré à la création (`procedure`, `project_id`…) ; `invalid_bound` — une borne (`workers`, `max_rows`, `max_tokens`…) inférieure à 1 */
+            /** @description `missing_fields` — `create` sans `label`/`procedure`/`tools`, ou opération sur une flotte sans `fleet_id` ; `target_incomplete` — `row_filter` sans `namespace` — un périmètre suppose un tableau ; `target_is_frozen` — `namespace`/`row_filter` après la déclaration : la cible d'un passage ne se déplace pas ; `context_is_frozen` — `provider`/`model` après la déclaration : les changer falsifierait l'attribution des lignes déjà écrites ; `status_not_settable` — `update status=` — l'état ne se pose pas par une retouche de configuration ; `field_not_settable` — `update` sur un champ déclaré à la création (`procedure`, `project_id`…) ; `invalid_bound` — une borne (`workers`, `max_rows`, `max_tokens`…) inférieure à 1 ; `invalid_model` — `create` avec un `model` hors catalogue, un `provider` qui le contredit, ou un `provider` sans `model` ; `model_not_served` — `launch` d'un passage dont aucun worker vivant ne sert la famille du modèle */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -22064,7 +22208,7 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
-                        error?: "missing_fields" | "target_incomplete" | "target_is_frozen" | "context_is_frozen" | "status_not_settable" | "field_not_settable" | "invalid_bound";
+                        error?: "missing_fields" | "target_incomplete" | "target_is_frozen" | "context_is_frozen" | "status_not_settable" | "field_not_settable" | "invalid_bound" | "invalid_model" | "model_not_served";
                     };
                 };
             };
@@ -22380,6 +22524,11 @@ export interface operations {
                      */
                     max_steps?: number | null;
                     /**
+                     * Model
+                     * @default null
+                     */
+                    model?: string | null;
+                    /**
                      * Enabled
                      * @default null
                      */
@@ -22412,7 +22561,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `missing_fields` — `create` sans `procedure`/`cron`/`tools`, ou une opération sur un déclencheur sans `trigger_id` ; `invalid_schedule` — cron malformé, fuseau inconnu, ou deux occurrences espacées de moins de 5 minutes ; `no_runner_armed` — aucun worker ne sonde la file de cette org : `create`, et `update enabled=true`, sont refusés plutôt que de promettre une exécution qui n'aurait pas lieu */
+            /** @description `missing_fields` — `create` sans `procedure`/`cron`/`tools`, ou une opération sur un déclencheur sans `trigger_id` ; `invalid_schedule` — cron malformé, fuseau inconnu, ou deux occurrences espacées de moins de 5 minutes ; `no_runner_armed` — aucun worker ne sonde la file de cette org : `create`, et `update enabled=true`, sont refusés plutôt que de promettre une exécution qui n'aurait pas lieu ; `invalid_model` — `model` hors du catalogue servi (`runner.models` sur `list`/`get`) ; `model_not_served` — `model` d'une famille qu'aucun worker vivant ne sert : `create`, `update enabled=true` et le changement de modèle d'un déclencheur allumé sont refusés */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -22420,7 +22569,7 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
-                        error?: "missing_fields" | "invalid_schedule" | "no_runner_armed";
+                        error?: "missing_fields" | "invalid_schedule" | "no_runner_armed" | "invalid_model" | "model_not_served";
                     };
                 };
             };
@@ -24619,6 +24768,18 @@ export interface operations {
                      * @default false
                      */
                     clear_quiet_hours?: boolean;
+                    /**
+                     * Footer
+                     * @default null
+                     */
+                    footer?: {
+                        [key: string]: unknown;
+                    } | null;
+                    /**
+                     * Clear Footer
+                     * @default false
+                     */
+                    clear_footer?: boolean;
                 };
             };
         };
@@ -24653,6 +24814,13 @@ export interface operations {
                          * @default null
                          */
                         quiet_hours: {
+                            [key: string]: unknown;
+                        } | null;
+                        /**
+                         * Footer
+                         * @default null
+                         */
+                        footer: {
                             [key: string]: unknown;
                         } | null;
                     };

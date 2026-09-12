@@ -32,6 +32,7 @@ vi.mock('@/components/console/ConnectorHealthGrid.vue', bouchon)
 vi.mock('@/components/console/McpEndpointCard.vue', bouchon)
 vi.mock('@/components/console/ContextPreviewCard.vue', bouchon)
 vi.mock('@/components/console/CallsBarChart.vue', bouchon)
+vi.mock('@/components/console/RecentChangesCard.vue', bouchon)
 
 const LIBELLE = 'connecteurs que voit ton agent'
 const CATALOGUE = ['serper', 'hunter', 'apollo'].map((name) =>

@@ -1810,6 +1810,13 @@ export type LegalDocument = components['schemas']['LegalDocument']
 export type LegalContext = components['schemas']['LegalContext']
 export type LegalStatus = ApiOut<'me_legal_get_get'>
 
+// ── accueil : « Dernières modifications » (oto#191, `GET /api/me/recent-changes`) ──
+// Une page (`type: 'doc'`, `id` = son `doc_id`, `project` renseigné) ou une procédure
+// (`id` = l'id stable que `/procedures/:id` ouvre, `project: null`, `scope` = son palier).
+// `author: null` = inconnu, jamais deviné ; `updated_at` sans fuseau, en UTC → `instant()`.
+export type RecentChangesView = ApiOut<'me_recent_changes_get'>
+export type RecentChange = components['schemas']['RecentChange']
+
 // Accepte les timestamps PG ("YYYY-MM-DD HH:MM:SS", UTC implicite) ET les ISO
 // portant déjà un offset/Z (ex. granted_at = datetime.isoformat() → "…+00:00").
 // On n'ajoute "Z" que si la chaîne n'a pas déjà de zone, sinon "…+00:00Z" = invalide.

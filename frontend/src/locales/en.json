@@ -128,6 +128,14 @@
       "readme": { "t": "write your agent readme", "d": "injected at the start of every session: business context, crm rules, tone, guardrails.", "act": "open the editor" },
       "org": { "t": "join an organization", "d": "share org keys so teammates inherit your setup.", "act": "manage organization" }
     },
+    "recent": {
+      "title": "Latest changes",
+      "sub": "pages and procedures changed in what you can read, most recent first.",
+      "empty": "no page or procedure changed in what you can read.",
+      "error": "latest changes could not be loaded: {reason}",
+      "type": { "doc": "page", "procedure": "procedure" },
+      "scope": { "user": "personal", "org": "org", "group": "team" }
+    },
     "activity": {
       "title": "activity",
       "unavailable": "activity could not be loaded.",

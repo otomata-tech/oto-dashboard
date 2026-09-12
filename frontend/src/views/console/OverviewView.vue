@@ -15,6 +15,7 @@ import McpEndpointCard from '@/components/console/McpEndpointCard.vue'
 import StateEmpty from '@/components/console/StateEmpty.vue'
 import Squiggle from '@/components/console/Squiggle.vue'
 import ContextPreviewCard from '@/components/console/ContextPreviewCard.vue'
+import RecentChangesCard from '@/components/console/RecentChangesCard.vue'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
 import { getConnectors, getDoctrine, getGoogleStatus, getActivitySummary, getKbProject, listDocs, getAgentToolbox } from '@/api/console'
 import type { AgentToolbox, ConnectorMeta, GoogleOauthStatus, MonitoringSummary } from '@/types/api'
@@ -128,6 +129,9 @@ onMounted(async () => {
 
 <template>
   <div class="content-inner fadein">
+    <!-- « Dernières modifications » (oto#191) — à la place de l'ancienne carte inbox, au-dessus
+         de tout. L'îlot porte ses propres états (chargement, vide, erreur). -->
+    <RecentChangesCard />
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
     <div class="eyebrow-row" style="justify-content: space-between">
       <div style="display: flex; align-items: center; gap: 9px">

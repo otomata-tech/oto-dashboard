@@ -19,6 +19,7 @@ import type {
   EmailSettingsBundle, ScheduledEmail,
   TenantRow, TenantTotals, TenantSheet,
   OutreachInput, OutreachResult,
+  RecentChangesView,
 } from '@/types/api'
 // ⚠️ Contrat SERVI PAR UN LOT NON DÉPLOYÉ (oto-backend PR #723) — écrit à la main
 // parce qu'une régénération depuis l'OpenAPI en ligne l'effacerait. Cf. le fichier.
@@ -1023,6 +1024,11 @@ export const getMonitoringSummary = (days: number) =>
 // trafic plateforme-wide ni celui des autres membres/orgs (oto/#5.2).
 export const getActivitySummary = (days: number) =>
   api<MonitoringSummary>(`/api/me/activity-summary?days=${days}`)
+// Accueil « Dernières modifications » (oto#191) : pages et procédures modifiées dans ce que
+// je peux lire, les plus récentes d'abord. `limit` 1..50 — hors bornes = 400, jamais un
+// plafond appliqué en silence. Sans org active : 200 et une liste vide.
+export const getRecentChanges = (limit: number) =>
+  api<RecentChangesView>(`/api/me/recent-changes?limit=${limit}`)
 export const getMonitoringRest = (days: number) =>
   api<MonitoringRestStats>(`/api/admin/monitoring/rest?days=${days}`)
 export const getMonitoringConnectors = (days: number) =>

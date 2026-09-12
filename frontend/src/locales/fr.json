@@ -128,6 +128,14 @@
       "readme": { "t": "écrire ton agent readme", "d": "injecté au début de chaque session : contexte métier, règles crm, ton, garde-fous.", "act": "ouvrir l'éditeur" },
       "org": { "t": "rejoindre une organisation", "d": "partage les clés d'org pour que tes coéquipiers héritent de ta config.", "act": "gérer l'organisation" }
     },
+    "recent": {
+      "title": "Dernières modifications",
+      "sub": "les pages et procédures modifiées dans ce que tu peux lire, les plus récentes d'abord.",
+      "empty": "aucune page ni procédure modifiée dans ce que tu peux lire.",
+      "error": "les dernières modifications n'ont pas pu être chargées : {reason}",
+      "type": { "doc": "page", "procedure": "procédure" },
+      "scope": { "user": "perso", "org": "org", "group": "équipe" }
+    },
     "activity": {
       "title": "activité",
       "unavailable": "l'activité n'a pas pu être chargée.",
