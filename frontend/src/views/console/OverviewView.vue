@@ -17,8 +17,9 @@ import StateEmpty from '@/components/console/StateEmpty.vue'
 import Squiggle from '@/components/console/Squiggle.vue'
 import ContextPreviewCard from '@/components/console/ContextPreviewCard.vue'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
-import { getConnectors, getDoctrine, getGoogleStatus, getActivitySummary, getKbProject, listDocs } from '@/api/console'
-import type { ConnectorMeta, GoogleOauthStatus, MonitoringSummary } from '@/types/api'
+import { getConnectors, getDoctrine, getGoogleStatus, getActivitySummary, getKbProject, listDocs, getAgentToolbox } from '@/api/console'
+import type { AgentToolbox, ConnectorMeta, GoogleOauthStatus, MonitoringSummary } from '@/types/api'
+import { seenCounts } from '@/lib/agentToolbox'
 import { toDayBars } from '@/lib/monitoring'
 import { humanize } from '@/lib/errors'
 
@@ -43,12 +44,13 @@ const isAdmin = computed(() => isPlatformOperator(me.value))
 
 // ── signaux dérivés de me.providers ──
 const keyProviders = computed(() => catalog.value.filter((c) => !c.personal_session && c.secret_kind !== 'none'))
-const configuredCount = computed(() =>
-  keyProviders.value.filter((c) => {
-    const p = me.value?.providers?.[c.name]
-    return p && p.mode !== 'forbidden'
-  }).length,
-)
+// Ce que l'agent voit VRAIMENT (oto#166), lu sur la vue calculée par la poignée de main.
+// L'ancien compteur prenait les connecteurs du CATALOGUE dont une clé résout, sans
+// regarder l'installation : il promettait des connecteurs « actifs » que l'agent ne
+// voyait pas. `null` (vue non dérivable, ou chargement en échec — signalé en bandeau)
+// ⇒ la stat n'est pas rendue : jamais un zéro qui ment.
+const toolbox = ref<AgentToolbox | null>(null)
+const seen = computed(() => seenCounts(toolbox.value))
 // L'onboarding « ajoute ta 1ʳᵉ clé » ne compte QUE les clés posées par l'user :
 // un provider en pool plateforme (mode 'platform') n'est pas une action de sa part.
 const userKeysCount = computed(() =>
@@ -108,6 +110,7 @@ function soft<T>(p: Promise<T>, fallback: T): Promise<T> {
 }
 onMounted(async () => {
   catalog.value = (await soft(getConnectors(), { connectors: [] })).connectors
+  toolbox.value = await soft(getAgentToolbox(), null)
   google.value = await soft(getGoogleStatus(), null)
   doctrineExists.value = (await soft(getDoctrine(), null))?.doctrine.exists ?? false
   // Documents de l'org : « fait » dès qu'une page de référence existe dans le
@@ -158,7 +161,7 @@ onMounted(async () => {
       </template>
       <template v-else>
         <div :class="summary ? 'grid4' : 'grid3'">
-          <Stat :label="t('overview.stat.connectorsLive')" :value="configuredCount" :unit="'/ ' + keyProviders.length" :sub="t('overview.stat.connectorsLiveSub')" />
+          <Stat v-if="seen" :label="t('overview.stat.connectorsSeen')" :value="seen.connectors" :sub="t('overview.stat.connectorsSeenSub', { n: seen.tools })" />
           <Stat :label="t('overview.stat.sessions')" :value="sessionsActive" unit="/ 2" :sub="t('overview.stat.sessionsSub')" />
           <Stat v-if="summary" :label="t('overview.stat.calls7d')" :value="summary.total_calls.toLocaleString('en-US')" :spark="callsSpark" :sub="t('overview.stat.callsSub', { errors: summary.error_count, rate: errRate })" />
           <Stat :label="t('overview.stat.activeOrg')" :value="me?.active_org_name ?? '—'" :sub="me?.active_org ? t('overview.stat.activeOrgYou', { role: me.org_role }) : t('overview.stat.activeOrgNone')" />

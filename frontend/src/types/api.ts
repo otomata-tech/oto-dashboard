@@ -545,6 +545,24 @@ export interface AgentContext {
   tools: AgentToolsView
 }
 
+// Ce que l'agent voit VRAIMENT au démarrage d'une conversation, pour l'org consultée
+// (`GET /api/me/agent-toolbox`, oto#166) — calculé par la fonction de visibilité de la
+// poignée de main elle-même, à lire au lieu de recompter côté client.
+// ⚠️ `available: false` = la vue n'a PAS PU être dérivée, jamais « aucun outil » : les
+//    autres champs sont alors absents, et les replier sur 0 fait mentir l'écran.
+// ⚠️ `tools_total` = outils MONTÉS sur l'instance, visibles ou non — pas ce que voit
+//    l'agent (`tools`). Dérivations : `lib/agentToolbox.ts`.
+// Le générateur rend REQUIS tout champ déclaré avec un défaut (`= None` côté Pydantic) ;
+// le contrat, lui, les dit absents quand `available: false`. Seul `available` est sûr.
+type AgentToolboxServi = ApiOut<'me_agent_toolbox_get'>
+export type AgentToolbox =
+  Pick<AgentToolboxServi, 'available'> & Partial<Omit<AgentToolboxServi, 'available'>>
+export type SeenConnector = components['schemas']['SeenConnector']
+export type InstalledNotSeen = components['schemas']['InstalledNotSeen']
+// Provenance d'une installation (ADR 0050 §E7) : enum fermé sur `MyConnectorRow`,
+// chaîne libre sur les deux lignes de la boîte à outils.
+export type InstallOrigin = NonNullable<components['schemas']['MyConnectorRow']['origin']>
+
 // Fiche profil « situation avec oto » (GET/PUT /api/me/profile). Data model libre :
 // `profile` = clés/valeurs, `fields` = schéma suggéré (question/why) pour guider l'UI.
 export type ProfileField = components['schemas']['ProfileField']

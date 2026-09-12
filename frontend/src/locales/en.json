@@ -111,8 +111,8 @@
       "openProjects": "Open your projects"
     },
     "stat": {
-      "connectorsLive": "connectors live",
-      "connectorsLiveSub": "api keys resolvable for your tools",
+      "connectorsSeen": "connectors your agent sees",
+      "connectorsSeenSub": "{n} tools visible to your agent",
       "sessions": "sessions",
       "sessionsSub": "crunchbase · google",
       "calls7d": "calls · 7 days",

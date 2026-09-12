@@ -3,7 +3,7 @@
 import { api, apiDownload, apiUpload, apiPublic } from '@/api'
 import type {
   ApiTokenCreated,
-  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AccountProfile, InitGuide, InitScope, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, CredentialState, MyConnector, ProviderStatus, SearchHit, Inbox,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AgentToolbox, AccountProfile, InitGuide, InitScope, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, CredentialState, MyConnector, ProviderStatus, SearchHit, Inbox,
   BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
   BillingIdentityView, BillingIdentityInput, BillingConfirmResult, BillingInvoice, LegalStatus,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
@@ -298,6 +298,17 @@ export const enableTool = (name: string) => api(`/api/me/tools/${name}`, { metho
 export const getDoctrine = () => api<DoctrineBundle>('/api/me/instructions')
 // Contexte agent (otomata-private#49) : instructions serveur + readme/procédures + outils visibles.
 export const getAgentContext = () => api<AgentContext>('/api/me/agent-context')
+// Ce que l'agent voit VRAIMENT au démarrage d'une conversation (oto#166). L'org consultée
+// passe par l'en-tête `X-Oto-Org` que pose `api()` : la route n'a aucun paramètre.
+// `available: false` est une réponse légitime (vue non dérivable) ; `available: true`
+// sans ses listes est un contrat rompu — on LÈVE, sans quoi un écran compterait zéro
+// outil là où personne n'a rien mesuré.
+export const getAgentToolbox = () =>
+  api<AgentToolbox>('/api/me/agent-toolbox').then((tb) => {
+    if (tb.available && !(Array.isArray(tb.tools) && Array.isArray(tb.connectors) && Array.isArray(tb.installed_not_seen)))
+      throw new Error('vue de ce que voit ton agent : réponse sans ses listes')
+    return tb
+  })
 
 // ── readmes INJECTÉS (delivery='init') — la prose que l'agent reçoit au démarrage de
 // chaque session, cumulée plateforme → org → équipe → user. UNE surface pour les quatre
