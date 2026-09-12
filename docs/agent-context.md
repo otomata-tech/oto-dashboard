@@ -37,6 +37,18 @@ gardent « doctrine » (`Doctrine*View`, `getDoctrine`, `/api/me/instructions*`)
   (`oto_get_doctrine(slug)`), partageable et liable à un projet. Dans le dashboard, **en
   lecture** depuis oto#192 (12/09/2026) : créer, publier une version, restaurer, supprimer et
   la bibliothèque publique ont quitté l'écran — l'agent l'écrit (`oto_procedure`).
+  **`/procedures/:id` ouvre la procédure demandée, jamais une autre** (oto#201, 13/09/2026).
+  La liste de l'écran ne porte que le palier ACTIF (perso, org, équipe active) ; un lien
+  (« Dernières modifications », lien de projet) peut viser une procédure hors liste. Avant,
+  un id absent retombait EN SILENCE sur la première procédure. Résolution
+  (`lib/procedureTarget.ts`) : id ou slug **dans la liste** → la liste sert de cache, lecture
+  par le palier actif ; **id hors liste** → `GET /api/me/guides/{guide_id}` (garde serveur
+  `can_access`), sans versions, usage, déclencheurs ni partage — ces lectures sont indexées
+  par slug dans le palier actif et y désigneraient un homonyme ; **refus** (404, 403, autre)
+  ou slug hors liste → l'écran le dit avec le code, rien à la place. Seule l'entrée du menu,
+  sans id, ouvre la première procédure. ⚠️ Un id listé ne passe PAS par `guides/{guide_id}` :
+  un opérateur plateforme qui consulte une org sans en être membre y prendrait 403
+  (`can_access` n'a pas d'escalade plateforme). Tests : `DoctrineView.spec.ts`.
 - **guide** (ADR 0042, prose PLATE **chargée à la demande** via `oto_guide` — pendant du
   readme, mais pas injectée) = how-to éditable dans la console : `GuidesCard.vue` (créer/
   éditer/supprimer, éditeur + confirmation **inline**, jamais de dialog natif), montée dans

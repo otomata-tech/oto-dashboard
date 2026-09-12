@@ -439,6 +439,8 @@ export interface Guide {
   description: string
   body_md?: string   // présent seulement sur la lecture d'un guide précis (getGuide)
 }
+// Une procédure lue par son id stable (`GET /api/me/guides/{guide_id}`, oto#201) — dérivé.
+export type GuideById = ApiOut<'org_guide_get_get'>
 
 // ── procédures / instructions ──
 // ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran

@@ -7,7 +7,7 @@ import type {
   BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
   BillingIdentityView, BillingIdentityInput, BillingConfirmResult, BillingInvoice, LegalStatus,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, ProjectActivity, ProjectRun,
-  DoctrineBundle, Guide, GuideScope,
+  DoctrineBundle, Guide, GuideById, GuideScope,
   GoogleOauthStatus, GroupDetail, GroupListItem, InstructionDetail,
   InstructionVersion, LinkedProcedure, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption,
@@ -578,6 +578,10 @@ export const getInstruction = (slug: string, version?: number) =>
   api<InstructionDetail>(`/api/me/instructions/${slug}${version ? `?version=${version}` : ''}`)
 export const getInstructionVersions = (slug: string) =>
   api<{ slug: string; versions: InstructionVersion[] }>(`/api/me/instructions/${slug}/versions`)
+// Une procédure par son id STABLE (oto#201) : le seul chemin qui ignore le palier actif —
+// garde `can_access` (propriétaire, membre de l'org/équipe propriétaire, ou partage).
+// `/procedures/:id` s'en sert pour un id absent de sa liste.
+export const getGuideById = (id: number) => api<GuideById>(`/api/me/guides/${id}`)
 // ── guides on-demand (ADR 0042) : prose how-to chargée à la demande par l'agent
 // (oto_guide). Distinct des readmes (injectés) et des procédures (versionnées). ──
 export const getGuides = () => api<{ guides: Guide[] }>('/api/me/guides')

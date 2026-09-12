@@ -10,13 +10,15 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  getDoctrine, getInstruction, getInstructionVersions, getToolRegistry, getInstructionUsage, getOrg,
+  getDoctrine, getGuideById, getInstruction, getInstructionVersions, getToolRegistry, getInstructionUsage, getOrg,
 } from '@/api/console'
-import type { DoctrineBundle, InstructionUsage, InstructionVersion, OrgMember } from '@/types/api'
+import type { DoctrineBundle, GuideById, InstructionUsage, InstructionVersion, OrgMember } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { accountLabel } from '@/lib/accountLabel'
-import { useToast } from '@/composables/useToast'
+import {
+  procedureRefusal, procedureTarget, targetKey, type ProcedureRefusal, type ProcedureTarget,
+} from '@/lib/procedureTarget'
 import { buildReg, hasDead, refNames, type ToolReg } from '@/components/console/doctrine/tools'
 import DoctrineContent from '@/components/console/doctrine/DoctrineContent.vue'
 import ReferencedTools from '@/components/console/doctrine/ReferencedTools.vue'
@@ -25,15 +27,14 @@ import RunnerTriggersCard from '@/components/console/RunnerTriggersCard.vue'
 import SharePrincipalDialog from '@/components/console/SharePrincipalDialog.vue'
 
 const router = useRouter()
-const { toast } = useToast()
 
 const bundle = ref<DoctrineBundle | null>(null)
 const reg = ref<ToolReg>(new Map())
 // Procédure active portée par le CHEMIN `/procedures/:id` (URL = source de vérité,
-// ADR 0032 — « stop using slug »). Le param est résolu par id OU slug (back-compat des
-// liens/bookmarks slug + `?doc=`), puis l'URL est normalisée vers l'id. En interne on
-// garde le slug (l'API instruction reste slug-keyée ; la migration profonde = barreaux
-// suivants). Sans param : la première procédure.
+// ADR 0032 — « stop using slug »). Le paramètre est un id OU un slug (back-compat des
+// liens/bookmarks slug + `?doc=`). Sa résolution — liste, lecture par id, ou refus dit —
+// vit dans `lib/procedureTarget.ts` et ne substitue JAMAIS une autre procédure (oto#201).
+// Sans paramètre : la première procédure, puis l'URL normalisée vers son id.
 const route = useRoute()
 const routeParam = computed<string | null>(() => {
   const p = route.params.id
@@ -41,17 +42,17 @@ const routeParam = computed<string | null>(() => {
   const q = route.query.doc
   return typeof q === 'string' && q ? q : null
 })
-function resolveToSlug(raw: string | null): string {
-  if (raw) {
-    const d = docs.value.find((x) => String(x.id) === raw || x.slug === raw)
-    return d ? d.slug : raw
-  }
-  return docs.value[0]?.slug ?? ''
-}
-const activeSlug = ref('')
+const target = ref<ProcedureTarget>({ kind: 'first' })
+const listed = computed(() => target.value.kind === 'listed')
+// La procédure lue par son id quand elle n'est pas dans la liste (autre équipe, partage).
+const outside = ref<GuideById | null>(null)
+const opening = ref(false)
+// Ce qui a empêché d'ouvrir la procédure DEMANDÉE — rien ne s'affiche à sa place.
+const refus = ref<ProcedureRefusal | null>(null)
 watch(routeParam, () => {
-  const s = resolveToSlug(routeParam.value)
-  if (s !== activeSlug.value) void selectDoc(s)
+  if (!bundle.value) return   // `loadAll` lira le paramètre courant quand la liste arrive
+  const t = procedureTarget(routeParam.value, docs.value)
+  if (targetKey(t) !== targetKey(target.value)) void open(t)
 })
 const body = ref('')           // corps publié (lecture)
 const saved = ref('')          // corps affiché
@@ -86,7 +87,15 @@ const docs = computed(() =>
     id: i.id, slug: i.slug, title: i.title,
     description: i.description, version: i.version, exists: true,
   })))
-const activeDoc = computed(() => docs.value.find((d) => d.slug === activeSlug.value))
+// La procédure affichée : prise dans la liste (cache), ou lue par son id — jamais une autre.
+const activeDoc = computed(() => {
+  const t = target.value
+  if (t.kind === 'listed') return docs.value.find((d) => d.id === t.id)
+  const g = outside.value
+  if (t.kind !== 'by-id' || !g) return undefined
+  return { id: t.id, slug: g.slug ?? '', title: g.title ?? '', description: g.description ?? '', version: g.version ?? 0, exists: true }
+})
+const activeSlug = computed(() => activeDoc.value?.slug ?? '')
 const curVersion = computed(() => activeDoc.value?.version ?? 0)
 
 // Aperçu d'une ANCIENNE version : on LIT une version de l'historique. `viewing` = version consultée (null = la version courante).
@@ -100,7 +109,7 @@ async function viewVersion(v: number) {
     const doc = await getInstruction(activeSlug.value, v)
     viewingBody.value = doc.body_md
     viewing.value = v
-  } catch (e) { toast(humanize(e)) }
+  } catch (e) { refus.value = procedureRefusal(`« ${activeSlug.value} » v${v}`, e) }
   finally { viewLoading.value = false }
 }
 function backToCurrent() { viewing.value = null; viewingBody.value = '' }
@@ -120,10 +129,8 @@ async function loadAll() {
     const [b, r] = await Promise.all([getDoctrine(), getToolRegistry().catch(() => ({ tools: [] }))])
     bundle.value = b
     reg.value = buildReg(r.tools)
-    if (b.org_id != null) {
-      void loadOrgMembers(b.org_id)
-      await selectDoc(resolveToSlug(routeParam.value))
-    }
+    if (b.org_id != null) void loadOrgMembers(b.org_id)
+    await open(procedureTarget(routeParam.value, docs.value))
   } catch (e) {
     error.value = humanize(e)
   } finally {
@@ -132,41 +139,83 @@ async function loadAll() {
 }
 onMounted(loadAll)
 
-async function selectDoc(slug: string) {
-  activeSlug.value = slug
-  const d = docs.value.find((x) => x.slug === slug)
-  // Préfixe de consultation de l'URL courante (`/o/:orgId[/g/:groupId]/…`) conservé —
-  // sinon la garde routeur re-préfixe à chaque sélection (navigation dupliquée) ou
-  // l'équipe consultée tombe de l'URL.
+// Choisir dans la liste = changer d'adresse ; le `watch` ouvre ce que l'adresse demande.
+// Préfixe de consultation de l'URL courante (`/o/:orgId[/g/:groupId]/…`) conservé —
+// sinon la garde routeur re-préfixe à chaque sélection (navigation dupliquée) ou
+// l'équipe consultée tombe de l'URL.
+function pick(id: number) {
   const o = route.params.orgId, g = route.params.groupId
-  const prefix = o ? `/o/${o}${g ? `/g/${g}` : ''}` : ''
-  const target = `${prefix}${d?.id ? `/procedures/${d.id}` : '/procedures'}`
-  if (route.path !== target) void router.replace(target)
-  summary.value = d?.description ?? ''
+  const to = `${o ? `/o/${o}${g ? `/g/${g}` : ''}` : ''}/procedures/${id}`
+  if (route.path !== to) void router.replace(to)
+}
+
+// Jeton de la dernière ouverture : une réponse arrivée après un changement d'adresse
+// n'écrase pas la procédure que l'adresse demande désormais.
+let seq = 0
+async function open(requested: ProcedureTarget) {
+  const mine = ++seq
+  const first = docs.value[0]
+  const t: ProcedureTarget = requested.kind === 'first' && first
+    ? { kind: 'listed', id: first.id, slug: first.slug }   // l'entrée du menu, par choix
+    : requested
+  target.value = t
+  outside.value = null
+  refus.value = null
+  summary.value = activeDoc.value?.description ?? ''
   body.value = ''
   saved.value = ''
   versions.value = []
   viewing.value = null
   viewingBody.value = ''
   usage.value = null
-  if (!d?.exists) return
+  if (t.kind === 'listed') {
+    pick(t.id)   // un slug ou l'absence de paramètre se normalisent vers l'id
+    await openListed(t.slug, mine)
+  } else if (t.kind === 'by-id') {
+    await openById(t.id, mine)
+  } else if (t.kind === 'unknown') {
+    refus.value = { what: `« ${t.raw} »`, code: null, detail: 'aucune procédure de ce nom parmi celles listées ici.' }
+  }
+}
+
+async function openListed(slug: string, mine: number) {
   usageLoading.value = true
   try {
     const doc = await getInstruction(slug)
+    if (mine !== seq) return
     body.value = doc.body_md
     saved.value = doc.body_md
     summary.value = doc.description ?? ''
     bodyCache[slug] = doc.body_md
-    versions.value = (await getInstructionVersions(slug).catch(() => ({ versions: [] }))).versions
+    const v = (await getInstructionVersions(slug).catch(() => ({ versions: [] }))).versions
+    if (mine === seq) versions.value = v
   } catch (e) {
-    toast(humanize(e))
+    if (mine === seq) refus.value = procedureRefusal(`« ${slug} »`, e)
   }
   try {
-    usage.value = await getInstructionUsage(slug)
+    const u = await getInstructionUsage(slug)
+    if (mine === seq) usage.value = u
   } catch {
-    usage.value = null
+    if (mine === seq) usage.value = null
   } finally {
-    usageLoading.value = false
+    if (mine === seq) usageLoading.value = false
+  }
+}
+
+async function openById(id: number, mine: number) {
+  opening.value = true
+  try {
+    const g = await getGuideById(id)
+    if (g.guide_id !== id) throw new Error(`le serveur a rendu la procédure #${g.guide_id}`)
+    if (mine !== seq) return
+    outside.value = g
+    body.value = g.body_md ?? ''
+    saved.value = g.body_md ?? ''
+    summary.value = g.description ?? ''
+  } catch (e) {
+    if (mine === seq) refus.value = procedureRefusal(`#${id}`, e)
+  } finally {
+    if (mine === seq) opening.value = false
   }
 }
 </script>
@@ -175,8 +224,8 @@ async function selectDoc(slug: string) {
   <div class="content-inner fadein">
     <p v-if="error" class="err">{{ error }}</p>
 
-    <!-- vide / pas d'org -->
-    <div v-if="noOrg && !loading" class="empty-state">
+    <!-- vide / pas d'org (sans procédure demandée : un lien, lui, s'ouvre quand même) -->
+    <div v-if="noOrg && !loading && target.kind === 'first'" class="empty-state">
       <span class="o-medallion o-medallion-lg">o</span>
       <div class="empty-title">aucune procédure <span class="squiggle">encore</span>.</div>
       <div class="empty-sub">
@@ -185,7 +234,7 @@ async function selectDoc(slug: string) {
     </div>
 
     <!-- org sans procédure : dire qui l'écrit -->
-    <div v-else-if="!loading && !docs.length" class="empty-state">
+    <div v-else-if="!loading && target.kind === 'first' && !docs.length" class="empty-state">
       <span class="o-medallion o-medallion-lg">o</span>
       <div class="empty-title">aucune procédure <span class="squiggle">encore</span>.</div>
       <div class="empty-sub">
@@ -199,6 +248,14 @@ async function selectDoc(slug: string) {
     <div v-else-if="!loading" class="doc-grid">
       <!-- ─────── colonne gauche ─────── -->
       <div class="col">
+        <!-- la procédure demandée ne s'ouvre pas : le dire, avec le code, et rien à sa place (oto#201) -->
+        <div v-if="refus" class="card proc-refus" role="alert">
+          <div class="proc-refus__t">impossible d'ouvrir la procédure {{ refus.what }}</div>
+          <code v-if="refus.code" class="proc-refus__code">{{ refus.code }}</code>
+          <div v-if="refus.detail" class="proc-refus__d">{{ refus.detail }}</div>
+        </div>
+        <p v-else-if="opening" class="dim">chargement de la procédure…</p>
+
         <!-- bandeau dead-ref -->
         <div v-if="deadRefs.length" class="warn">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--color-terra)" stroke-width="1.9"
@@ -210,59 +267,62 @@ async function selectDoc(slug: string) {
           </div>
         </div>
 
-        <!-- ZONE 1 · en-tête -->
-        <div class="card hdr">
-          <div class="hdr__tags">
-            <span class="tag tag--skill">procédure</span>
-            <span v-if="curVersion" class="tag tag--ver">v{{ curVersion }}</span>
-            <span class="slug">{{ activeDoc?.slug }}</span>
-<button v-if="canAdmin && activeDoc?.exists && activeDoc.id > 0"
-              type="button" class="btn-edit" @click="shareOpen = true">
-              Partager
-            </button>
+        <template v-if="activeDoc">
+          <!-- ZONE 1 · en-tête -->
+          <div class="card hdr">
+            <div class="hdr__tags">
+              <span class="tag tag--skill">procédure</span>
+              <span v-if="curVersion" class="tag tag--ver">v{{ curVersion }}</span>
+              <span class="slug">{{ activeDoc.slug }}</span>
+              <button v-if="canAdmin && listed && activeDoc.id > 0"
+                type="button" class="btn-edit" @click="shareOpen = true">
+                Partager
+              </button>
+            </div>
+
+            <div class="hdr__title">{{ activeDoc.title }}</div>
+
+            <div class="hdr__eyebrow">
+              <span class="squiggle-sm">résumé</span>
+              <span class="hdr__hint">— ce que fait ce process, et quand le charger</span>
+            </div>
+            <div class="hdr__summary">{{ summary || '—' }}</div>
+
+            <div class="hdr__meta">
+              <span v-if="listed">chargée {{ usage?.count ?? 0 }}×</span>
+              <span v-else>hors de ta liste de procédures — versions et usage non affichés ici</span>
+            </div>
           </div>
 
-          <div class="hdr__title">{{ activeDoc?.title }}</div>
+          <!-- ZONE 2 · content -->
+          <div v-if="!refus" class="card">
+            <div class="card__head">
+              <span class="eyebrow">content</span>
+              <span class="dim">markdown</span>
+            </div>
 
-          <div class="hdr__eyebrow">
-            <span class="squiggle-sm">résumé</span>
-            <span class="hdr__hint">— ce que fait ce process, et quand le charger</span>
-          </div>
-          <div class="hdr__summary">{{ summary || '—' }}</div>
-
-          <div v-if="activeDoc?.exists" class="hdr__meta">
-            <span>chargée {{ usage?.count ?? 0 }}×</span>
-          </div>
-        </div>
-
-        <!-- ZONE 2 · content -->
-        <div class="card">
-          <div class="card__head">
-            <span class="eyebrow">content</span>
-            <span class="dim">markdown</span>
+            <div v-if="viewing !== null" class="vbanner">
+              <span>Tu consultes la version <strong>v{{ viewing }}</strong> — lecture seule.</span>
+              <button type="button" class="btn-ghost-xs" @click="backToCurrent">Revenir à l'actuelle</button>
+            </div>
+            <DoctrineContent :text="viewing !== null ? viewingBody : saved" :reg="reg" />
           </div>
 
-          <div v-if="viewing !== null" class="vbanner">
-            <span>Tu consultes la version <strong>v{{ viewing }}</strong> — lecture seule.</span>
-            <button type="button" class="btn-ghost-xs" @click="backToCurrent">Revenir à l'actuelle</button>
-          </div>
-          <DoctrineContent :text="viewing !== null ? viewingBody : saved" :reg="reg" />
-        </div>
-
-        <!-- ZONE 3 · outils référencés -->
-        <ReferencedTools :text="saved" :reg="reg" />
+          <!-- ZONE 3 · outils référencés -->
+          <ReferencedTools v-if="!refus" :text="saved" :reg="reg" />
+        </template>
       </div>
 
       <!-- ─────── colonne droite ─────── -->
       <div class="col">
         <!-- procédures -->
-        <div class="card pad-sm">
+        <div v-if="docs.length" class="card pad-sm">
           <div class="card__head">
             <span class="eyebrow">procédures</span>
           </div>
           <div class="doclist">
             <button v-for="d in docs" :key="d.slug" type="button" class="docrow"
-              :class="{ on: d.slug === activeSlug }" @click="selectDoc(d.slug)">
+              :class="{ on: listed && d.id === activeDoc?.id }" @click="pick(d.id)">
               <div class="docrow__top">
                 <span class="docrow__dot" :style="{ background: docDot(d.slug) }" />
                 <span class="docrow__title">{{ d.title }}</span>
@@ -275,19 +335,20 @@ async function selectDoc(slug: string) {
           </div>
         </div>
 
-        <!-- usage -->
-        <UsageCard v-if="activeDoc?.exists" :usage="usage" :loading="usageLoading" />
+        <!-- usage, déclencheurs et versions se lisent par slug DANS le palier actif : pour une
+             procédure hors liste, ce slug désignerait un homonyme, ou rien — ils sont omis. -->
+        <UsageCard v-if="listed" :usage="usage" :loading="usageLoading" />
 
         <!-- Agent programmé (#860 ①) — « celle-ci tourne-t-elle toute seule ? ».
              L'agent autonome est une PROPRIÉTÉ de l'objet, pas un objet déclaré à
              côté : il se lit donc DEPUIS l'objet, filtré côté serveur sur cette
              procédure. Ne se monte que sur une procédure qui EXISTE — un
              déclencheur ne peut pas pointer un slug qui n'a pas encore de corps. -->
-        <RunnerTriggersCard v-if="activeDoc?.exists" :key="activeSlug"
+        <RunnerTriggersCard v-if="listed && activeDoc" :key="activeSlug"
                             :procedure="activeSlug" />
 
         <!-- versions -->
-        <div class="card pad-sm">
+        <div v-if="listed" class="card pad-sm">
           <span class="eyebrow">versions</span>
           <div class="vlist">
             <div v-for="v in versions" :key="v.version" class="vrow">
@@ -308,7 +369,7 @@ async function selectDoc(slug: string) {
 
     <!-- Partage ciblé d'une procédure (oto_resource, modèle licence → lecture seule).
          Le destinataire lit cross-org par id (oto_get_doctrine doctrine_id). -->
-    <SharePrincipalDialog v-if="activeDoc && activeDoc.id > 0" :open="shareOpen"
+    <SharePrincipalDialog v-if="listed && activeDoc && activeDoc.id > 0" :open="shareOpen"
       resource-type="doctrine" :resource-id="String(activeDoc.id)"
       :resource-label="activeDoc.title" :roles="['viewer']" @close="shareOpen = false" />
   </div>
@@ -326,6 +387,12 @@ async function selectDoc(slug: string) {
 .card__head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .eyebrow { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-mute); }
 .dim { font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); }
+
+/* refus d'ouverture (oto#201) */
+.proc-refus { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; background: var(--color-terra-soft); border-color: var(--color-terra); }
+.proc-refus__t { font-size: 14px; font-weight: 700; color: var(--color-terra-ink); }
+.proc-refus__code { font-family: var(--font-mono); font-size: 11.5px; color: var(--color-terra-ink); }
+.proc-refus__d { font-size: 12.5px; line-height: 1.55; color: var(--color-terra-ink); }
 
 /* en-tête */
 .hdr__tags { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
