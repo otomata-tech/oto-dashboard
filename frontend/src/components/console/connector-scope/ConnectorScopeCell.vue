@@ -19,6 +19,7 @@ defineProps<{ vm?: CellVM }>()
         <Dot v-if="vm.dot" :tone="vm.dot" />
         <Tag v-if="vm.tag" :tone="vm.tag.tone">{{ vm.tag.text }}</Tag>
         <span v-if="vm.label">{{ vm.label }}</span>
+        <Tag v-if="vm.badge" :tone="vm.badge.tone">{{ vm.badge.text }}</Tag>
       </span>
       <div v-if="vm.sub" class="csc-sub">{{ vm.sub }}</div>
     </template>

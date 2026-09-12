@@ -13,6 +13,7 @@ import {
 import { useMe, isSuperAdmin } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
 import { connectorVerdict } from '@/lib/connectorVerdict'
+import { originBadge } from '@/lib/installOrigin'
 import { poseScope } from '@/lib/credentialScope'
 import type { ConnectorState, FieldFiltersBundle, MyConnector, ToolEntry } from '@/types/api'
 
@@ -107,7 +108,8 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
         // encode la cause (installation × résolution × option) sans nommer les couches.
         const v = connectorVerdict(r, me.value?.providers?.[r.name],
           { isPersonal: me.value?.active_org_is_personal })
-        return { dot: v.dot, label: v.list }
+        const badge = originBadge(r.origin, r.state)
+        return { dot: v.dot, label: v.list, ...(badge ? { badge } : {}) }
       }
       if (col === 'tools') {
         const ts = toolsOf(r)
@@ -117,6 +119,7 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
       }
       return undefined
     },
+    badge: (r) => originBadge(r.origin, r.state),
     hasDrawer: true,
     tabs: (r) => [
       { key: 'connection', label: 'connexion' },

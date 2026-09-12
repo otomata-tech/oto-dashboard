@@ -174,6 +174,9 @@ export interface MyConnector extends ConnectorMeta {
   doctrine_ref_count?: number  // nb de doctrines de l'org qui le référencent (posture doctrine-only, ADR 0024)
   paid_option?: string | null  // option payante requise (couche 3, ADR 0043/0044) ou null
   option_ok?: boolean          // l'option est-elle accordée pour moi (true si aucune requise)
+  // Qui a posé l'installation dans ma boîte à outils (ADR 0050 §E7, oto#166) — libellés :
+  // `lib/installOrigin.ts`. Optionnel : un serveur plus ancien (retour de tag) ne la sert pas.
+  origin?: InstallOrigin | null
 }
 
 // Modes de connexion d'un connecteur Zoho (self client + server-based).

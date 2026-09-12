@@ -458,3 +458,20 @@ et `/library/doctrines` **redirigent** vers `…?tab=marketplace` (`router/index
 
 Les hosts montent leurs panneaux en `v-if` (lazy `defineAsyncComponent`, chunks préservés) ;
 chaque panneau garde son propre deep-link (`?doc=`, `?preview=`) qui coexiste avec `?tab=`.
+
+## Provenance d'une installation — qui l'a posée (oto#166, 12/09/2026)
+
+`GET /api/me/connectors` sert **`origin`** (ADR 0050 §E7 : `socle` · `kit` · `admin` ·
+`membre` · `inconnue`). Jusqu'ici, installé-par-moi, poussé-par-un-admin et posé-par-le-kit
+rendaient tous le même « Actif ». L'écran du membre dit désormais la provenance par un
+**badge**, sur la ligne (après le verdict, `CellVM.badge`) et dans l'en-tête de la fiche
+(levier optionnel `adapter.badge`) — libellés dans `lib/installOrigin.ts` :
+
+- `kit` → « installé par ton organisation » — le membre peut le retirer (segment
+  « Non installé » de l'exposition) ;
+- `admin` → « ouvert par un administrateur ».
+
+`membre` est le cas ordinaire : aucun badge. `socle` (population résiduelle) et `inconnue`
+(ligne antérieure à la trace) n'ont pas de libellé arrêté : aucun badge plutôt qu'un mot
+inventé. Un connecteur **non installé** n'en porte aucun. Ton **neutre** : dans l'en-tête
+de la fiche, chaque ton porte déjà un axe (`ConnectorBadges` : cobalt = méthode d'auth).

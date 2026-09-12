@@ -235,3 +235,30 @@ describe("qui peut poser la clé d'org depuis l'écran du membre", () => {
     expect((await ouvre('member', 'org_admin')).opened).not.toBeNull()
   })
 })
+
+// oto#166 — la provenance de l'installation, dite au membre. « Posé par le kit de ton
+// organisation » n'est pas « installé par toi » : la ligne ET la fiche le disent.
+describe('useUserAdapter — provenance de l\'installation', () => {
+  const ctx: ScopeCtx = {
+    openForm: () => {}, openCredential: () => {}, confirmAction: async () => true, toast: () => {},
+  }
+  const avec = (origin: string | null, state = 'active') =>
+    ({ ...SLACK, origin, state }) as unknown as MyConnector
+  beforeEach(() => { useMe().me.value = null })
+
+  it('posé par le kit : badge sur la ligne et dans la fiche', () => {
+    const a = useUserAdapter(ctx)
+    expect(a.cell(avec('kit'), 'etat')?.badge?.text).toBe('installé par ton organisation')
+    expect(a.badge?.(avec('kit'))?.text).toBe('installé par ton organisation')
+  })
+
+  it('ouvert par un administrateur : badge sur la ligne', () => {
+    expect(useUserAdapter(ctx).cell(avec('admin'), 'etat')?.badge?.text).toBe('ouvert par un administrateur')
+  })
+
+  it('installé par soi : aucun badge, le verdict reste seul', () => {
+    const c = useUserAdapter(ctx).cell(avec('membre'), 'etat')
+    expect(c?.badge).toBeUndefined()
+    expect(c?.label).toBeTruthy()
+  })
+})

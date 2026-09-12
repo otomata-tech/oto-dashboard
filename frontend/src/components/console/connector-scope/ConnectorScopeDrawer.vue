@@ -8,6 +8,7 @@ import { computed } from 'vue'
 import ConnectorModal from '@/components/console/ConnectorModal.vue'
 import Icon from '@/components/console/Icon.vue'
 import ConnectorBadges from '@/components/console/ConnectorBadges.vue'
+import Tag from '@/components/console/Tag.vue'
 import ConnectorTransforms from '@/components/console/ConnectorTransforms.vue'
 import ConnectorEmail from '@/components/console/ConnectorEmail.vue'
 import ConnectorAvailabilityPanel from './ConnectorAvailabilityPanel.vue'
@@ -26,12 +27,16 @@ const emit = defineEmits<{ close: [] }>()
 
 const tabs = computed(() => props.adapter.tabs(props.row))
 const meta = computed(() => props.adapter.meta(props.row))
+const badge = computed(() => props.adapter.badge?.(props.row) ?? null)
 </script>
 
 <template>
   <ConnectorModal :label="adapter.label(row)" :logo-url="meta?.logo_url" :publisher="meta?.publisher"
     @close="emit('close')">
-    <template #tags><ConnectorBadges :meta="meta" /></template>
+    <template #tags>
+      <ConnectorBadges :meta="meta" />
+      <Tag v-if="badge" :tone="badge.tone">{{ badge.text }}</Tag>
+    </template>
 
     <!-- disponibilité : levier primaire, toujours visible en tête (hors accordéon) -->
     <ConnectorAvailabilityPanel v-if="adapter.availability" :lever="adapter.availability" :row="row" />

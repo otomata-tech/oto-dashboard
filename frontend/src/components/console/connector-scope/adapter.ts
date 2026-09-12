@@ -29,6 +29,7 @@ export interface CellVM {
   sub?: string
   muted?: boolean
   bar?: { pct: number }   // barre de progression (ex. outils actifs/total, scope user)
+  badge?: { tone?: TagTone; text: string }   // badge APRÈS le libellé (provenance, scope user)
 }
 
 export interface Column { key: string; label: string; width?: string; num?: boolean }
@@ -184,6 +185,8 @@ export interface ConnectorScopeAdapter<R = unknown> {
   lenses?: Lens<R>[]        // pré-filtres segmentés (USER) ; absent ⇒ pas de segmented
   columns: Column[]
   cell(r: R, colKey: string): CellVM | undefined
+  // badge de la fiche, dans son en-tête (ex. provenance de l'installation) ; absent ⇒ rien
+  badge?(r: R): { tone?: TagTone; text: string } | null
   // drawer
   hasDrawer: boolean
   tabs(r: R): DrawerTab[]
