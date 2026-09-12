@@ -213,7 +213,6 @@
 .sb-item .warn-dot { margin-left: auto; }
 
 .sb-foot { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
-.sb-mcp { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sidebar-fg-mute); }
 /* Le bloc utilisateur du pied est porté par ConsoleUserMenu.vue (menu profil). */
 
 /* chip de grant révocable (admin users) */

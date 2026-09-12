@@ -2,8 +2,9 @@
 // Section « Context » — projection ORG (ADR 0022). Le SOCLE garanti à tout membre de
 // l'org active : readme org (éditable), readme d'équipe (par groupe), connecteurs
 // activés, baseline de toolset. PAS l'artefact d'un membre précis (il dépend de son
-// équipe) — « voir en tant que membre » viendra quand le backend autorisera un
-// org_admin à consulter le contexte composé d'un membre (view-as est opérateur-only).
+// équipe). Pas de « voir en tant que membre » : la fonction n'existe pas (le backend
+// réserve le view-as à l'opérateur plateforme) ; une carte « à venir » l'annonçait,
+// retirée par oto#193 — une promesse n'est pas un écran.
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
@@ -103,15 +104,6 @@ onMounted(load)
         <div v-else style="display: flex; flex-wrap: wrap; gap: 8px">
           <Tag v-for="c in activeConnectors" :key="c.connector" tone="olive">{{ c.label || c.connector }}</Tag>
         </div>
-      </ConsoleCard>
-
-      <!-- view-as membre : déféré (authz backend) -->
-      <ConsoleCard title="voir en tant que membre" flush
-        sub="prévisualiser l'artefact composé exact d'un membre (org + son équipe + ses préférences).">
-        <p class="helptext">
-          à venir — nécessite d'autoriser un admin d'org à consulter le contexte composé d'un membre
-          (le « view-as » actuel est réservé à l'opérateur plateforme).
-        </p>
       </ConsoleCard>
     </template>
   </div>

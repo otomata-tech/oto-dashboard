@@ -59,6 +59,14 @@ export const NAV: NavGroup[] = [
   ]},
   { group: 'nav.section.workspace', level: 'work', items: [
     { path: '/projects', label: 'nav.projects', icon: 'home' },
+    // Données : le groupe « mémoire » ne contenait plus qu'elles (oto#193) — un titre
+    // de section au-dessus d'une seule entrée, qui promettait une mémoire plus large
+    // que ce qu'il montrait. Aplati ici, à côté des projets.
+    // Entrée « Documents » RETIRÉE (oto/#5.5) : c'était un raccourci vers le projet
+    // d'org qui porte les documents — redondant (c'est un projet, atteignable via
+    // « Projets ») et source de confusion. /documents (route + DocumentsView) survit
+    // pour un lien direct éventuel, mais n'est plus dans la sidebar.
+    { path: '/data', label: 'nav.data', icon: 'db' },
     // Plomberie de l'agent : subordonnée aux projets, ancrée en bas (refonte nav pt 4).
     { path: '/connectors', label: 'nav.connectors', icon: 'plug', plomberie: true },
     { path: '/procedures', label: 'nav.procedures', icon: 'doc', plomberie: true },
@@ -66,13 +74,6 @@ export const NAV: NavGroup[] = [
     // qu'il fait. Même étage de plomberie, juste après, parce qu'une automatisation
     // déroule une procédure.
     { path: '/automations', label: 'nav.automations', icon: 'bolt', plomberie: true },
-  ]},
-  { group: 'nav.section.memory', level: 'work', items: [
-    { path: '/data', label: 'nav.data', icon: 'db' },
-    // Entrée « Documents » RETIRÉE (oto/#5.5) : c'était un raccourci vers le projet
-    // d'org qui porte les documents — redondant (c'est un projet, atteignable via
-    // « Projets ») et source de confusion. /documents (route + DocumentsView) survit
-    // pour un lien direct éventuel, mais n'est plus dans la sidebar.
   ]},
   // ── Gérer mon compte : niveau user-perso (non org-scopé), sa propre sidebar ────
   // Atteint par le menu profil du pied (ConsoleUserMenu) ; une PAGE par sujet au lieu
@@ -90,7 +91,7 @@ export const NAV: NavGroup[] = [
   // reste `group` ; « team » n'est qu'un label produit.
   { group: 'nav.section.team', level: 'group', items: [
     { path: '/team/context', label: 'nav.context', icon: 'bolt' },
-    { path: '/team', label: 'nav.membersSecrets', icon: 'users' },
+    { path: '/team', label: 'nav.members', icon: 'users' },
     { path: '/team/connectors', label: 'nav.connectors', icon: 'plug' },
     { path: '/team/procedures', label: 'nav.procedures', icon: 'doc' },
   ]},

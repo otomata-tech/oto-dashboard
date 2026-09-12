@@ -2,6 +2,7 @@
 import ConsoleCard from './ConsoleCard.vue'
 import CopyField from './CopyField.vue'
 import { MCP_URL } from '@/types/api'
+import { authHost } from '@/lib/servedEnv'
 </script>
 
 <template>
@@ -9,7 +10,7 @@ import { MCP_URL } from '@/types/api'
     <CopyField :value="MCP_URL" />
     <div class="helptext" style="margin-top: 10px">
       add it as a remote mcp server — your client opens the oauth flow against
-      <code>auth.oto.ninja</code> and inherits the tools enabled on your account.
+      <code>{{ authHost() }}</code> and inherits the tools enabled on your account.
     </div>
   </ConsoleCard>
 </template>

@@ -11,6 +11,7 @@ import { useNav } from '@/composables/useNav'
 import { useTopbar } from '@/composables/useTopbar'
 import { useScope } from '@/composables/useScope'
 import { useScopedLink } from '@/composables/useScopedLink'
+import { consoleHost } from '@/lib/servedEnv'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -47,7 +48,7 @@ const meta = computed(() =>
     </RouterLink>
     <div v-show="!claimed" class="topbar-title">
       <h1>{{ t(meta.title) }}</h1>
-      <span class="crumb">{{ t(meta.crumb) }}</span>
+      <span class="crumb">{{ t(meta.crumb, { host: consoleHost() }) }}</span>
     </div>
     <!-- Cible de téléportation : une page y injecte son en-tête via TopbarPage. -->
     <div id="topbar-page" class="topbar-page"></div>

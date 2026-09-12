@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuth } from '@/composables/useAuth'
+import { consoleHost } from '@/lib/servedEnv'
 
 const { t } = useI18n()
 const { login } = useAuth()
@@ -50,7 +51,7 @@ onMounted(() => {
         <template v-else>
           <div>
             <div style="font-size: 18px; font-weight: 700; letter-spacing: -0.02em">{{ t('auth.login.consoleTitle') }}</div>
-            <div class="env" style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-faint); margin-top: 3px">{{ t('auth.login.consoleEnv') }}</div>
+            <div class="env" style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-faint); margin-top: 3px">{{ consoleHost() }}</div>
           </div>
           <p class="helptext" style="margin: 4px 0 6px">
             {{ t('auth.login.consoleHelp') }}

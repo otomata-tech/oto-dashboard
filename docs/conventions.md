@@ -79,3 +79,30 @@ Le sens du repli n'est pas un détail : le nom est la valeur **nominale**, l'ide
 cas **dégradé** — quelqu'un qui a quitté l'org, ou un geste de plateforme sans compte
 associé — et il se marque comme tel. Inverser l'ordre ferait passer le cas normal pour une
 panne, et la panne pour la normale.
+
+## ⚠️ Un écran n'énonce que ce qu'il sait (oto#193)
+
+Relevé pendant la mesure d'usage d'oto#191 (12/09/2026) : quatre éléments de manage.oto.cx
+affichaient un fait faux, sans que rien ne casse.
+
+- **La pastille « mcp connecté »** du pied de sidebar était verte en dur. Le backend ne sert
+  aucun signal de connexion MCP pour l'utilisateur : `/api/me` n'en porte pas, et
+  `/api/me/calls` est un journal d'appels qui compte aussi les appels REST du dashboard
+  lui-même — en déduire « connecté » aurait produit un vert par défaut sous un autre nom.
+  Elle est retirée. Si un signal est servi un jour, elle revient branchée dessus.
+- **Les domaines** : la carte MCP écrivait `auth.oto.ninja`, le fil d'Ariane de l'aperçu et
+  l'écran de connexion « app.oto.ninja », en prod comme en préprod. Ils viennent désormais de
+  `lib/servedEnv.ts` : le domaine d'authentification est `VITE_LOGTO_ENDPOINT` (injecté par
+  `deploy-canari.yml` pour la préprod, lu dans `.env.production` au tag — le même que
+  `useAuth` utilise), le domaine de la console est l'origine servie. Un alias qui redirige
+  (`app.oto.ninja` → `manage.oto.cx`) n'est jamais celui où la page s'exécute. Aucun repli :
+  une variable absente lève.
+- **Un libellé dit ce que montre l'écran** : « membres & secrets » ne montrait que des membres
+  (« membres ») ; le groupe « mémoire » ne contenait plus que « données », aplati dans
+  l'espace de travail.
+- **Une fonction qui n'existe pas n'a pas de carte** : « voir en tant que membre », marquée
+  « à venir » dans le contexte d'org, est retirée.
+
+⚠️ **Resté en l'état, hors du périmètre d'oto#193** : l'étape d'accueil « connecter un
+client » de l'aperçu (`OverviewView.vue`) est cochée en dur (`done: true`) — même défaut que
+la pastille, sur un autre élément.

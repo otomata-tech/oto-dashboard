@@ -100,7 +100,6 @@ const plomberieItems = computed(() =>
           <span v-if="it.warn" class="warn-dot"><Dot tone="saffron" :size="7" /></span>
         </RouterLink>
       </nav>
-      <div class="sb-mcp"><Dot tone="olive" :size="7" /> {{ t('nav.mcpConnected') }}</div>
       <ConsoleUserMenu />
     </div>
   </aside>

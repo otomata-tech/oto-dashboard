@@ -72,6 +72,7 @@ Une phrase par règle ; l'incident qui l'a produite et ses cas limites vivent da
 - **Un paiement RÉUSSI ne produit jamais de copie négative** : les branches de `confirm` sont des 200 discriminées par `status`, `pending_mandate` est une attente, et aucun bouton de paiement n'est atteignable pendant l'attente. → `docs/facturation.md`
 - **Les horodatages du backend arrivent en UTC sans fuseau** : toute lecture de date passe par `instant()` (`lib/runnerJobs.ts`), jamais par `Date.parse` nu. → `docs/automations.md`
 - **Une page absente de `PAGE_META` retombe silencieusement sur l'overview** ; `lib/consoleNav.spec.ts` tient la règle (tout écran a son titre, tout titre ses deux traductions). → `docs/automations.md`
+- **Un écran n'énonce que ce qu'il sait** : un état (pastille, coche) lit un signal servi, jamais une valeur par défaut, sinon il disparaît ; un domaine affiché vient de l'environnement servi (`lib/servedEnv.ts`), jamais d'une constante. → `docs/conventions.md`
 - **Copy user-facing = verbatim** (`lib/connectorVerdict.ts` porte la copy du CDC), jamais reformulée ; i18n FR complète.
 - **Un droit d'ÉCRITURE ne se déduit pas d'un droit d'ADMINISTRATION** : chaque geste lit le drapeau de SON geste (`lib/instructionRights.ts`) ; `can_edit` n'est qu'un repli quand le serveur est plus ancien. → `docs/orgs-groupes-invitations.md`
 - **`set_by` est un identifiant de compte, pas un nom** : il s'affiche via `lib/accountLabel.ts` — nom, à défaut adresse, à défaut l'identifiant, jamais l'inverse. → `docs/conventions.md`
