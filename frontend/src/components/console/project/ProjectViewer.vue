@@ -19,7 +19,6 @@ import ProjectUrlPerimeter from './ProjectUrlPerimeter.vue'
 import { parseDocSegments } from '@/lib/docEmbeds'
 import {
   updateDoc, deleteDoc, setDocPublic, getDocRevisions, getBacklinks,
-  requestDocChange, listDocChanges, resolveDocChange,
   getConnectorIdentities, linkProject, unlinkProject,
   setProjectFilePublic, deleteProjectFile,
   getToolRegistry, getConnectors, getProjectRuns, getRunThread, appendRunThread,
@@ -27,7 +26,7 @@ import {
   type RunThreadMessage,
 } from '@/api/console'
 import type {
-  Doc, DocKind, DocRevision, DocChangeRequest, ProjectLink, ConnectorIdentity,
+  Doc, DocKind, DocRevision, ProjectLink, ConnectorIdentity,
   ToolRegistryEntry, ConnectorMeta, ProjectRun, ProjectFile, LinkedProcedure,
 } from '@/types/api'
 
@@ -110,7 +109,6 @@ const briefDraft = ref(props.brief ?? '')
 const draft = ref<{ title: string; body_md: string; kind: DocKind; description: string } | null>(null)
 const revisions = ref<DocRevision[]>([])
 const showHistory = ref(false)
-const changeRequests = ref<DocChangeRequest[]>([])
 const backlinks = ref<{ id: number; project_id: number; title: string }[]>([])
 const KIND_LABEL: Record<DocKind, string> = { doc: 'doc', note: 'note agent', source: 'source' }
 const KIND_OPTIONS = (Object.keys(KIND_LABEL) as DocKind[]).map((value) => ({ value, label: KIND_LABEL[value] }))
@@ -123,12 +121,11 @@ watch(() => props.brief, (v) => { if (!editing.value || !isHome.value) briefDraf
 
 function resetPage() {
   editing.value = false
-  showHistory.value = false; revisions.value = []; changeRequests.value = []
+  showHistory.value = false; revisions.value = []
   briefDraft.value = props.brief ?? ''
   const d = doc.value
   draft.value = d ? { title: d.title, body_md: d.body_md, kind: d.kind, description: d.description ?? '' } : null
   backlinks.value = []
-  if (d && !props.readOnly) void loadRequests(d.id)
   if (d) void loadBacklinks(d.id)
 }
 async function loadBacklinks(id: number) {
@@ -149,7 +146,7 @@ function saveBrief() {
 // doc page
 function editDoc() { const d = doc.value; if (d) { draft.value = { title: d.title, body_md: d.body_md, kind: d.kind, description: d.description ?? '' }; editing.value = true } }
 function cancelDoc() { const d = doc.value; if (d) draft.value = { title: d.title, body_md: d.body_md, kind: d.kind, description: d.description ?? '' }; editing.value = false }
-// `saving` garde les écritures ASYNCHRONES (saveDoc / proposeChange) : entre le clic et
+// `saving` garde les écritures ASYNCHRONES (saveDoc) : entre le clic et
 // la fin de l'appel, `editing` est encore vrai et le bouton encore cliquable.
 const saving = ref(false)
 async function saveDoc() {
@@ -176,26 +173,6 @@ async function toggleDocPublic() {
     else toast('partage public retiré')
     emit('reload-docs')
   } catch (e) { toast(humanize(e)) }
-}
-function proposeChange() {
-  const d = doc.value
-  if (!d || !draft.value || saving.value) return
-  const dr = draft.value
-  saving.value = true
-  void requestDocChange(d.id, { title: dr.title, body_md: dr.body_md, message: '' })
-    .then(() => { editing.value = false; toast('demande de modification envoyée') })
-    .catch((e) => toast(humanize(e)))
-    .finally(() => { saving.value = false })
-}
-async function loadRequests(id: number) {
-  try { changeRequests.value = (await listDocChanges(id)).requests } catch { /* pas le droit */ }
-}
-async function resolveRequest(req: DocChangeRequest, accept: boolean) {
-  const d = doc.value
-  if (!d) return
-  if (accept && !await confirmAction({ title: 'Accepter cette modification', message: "Le contenu proposé remplacera la version actuelle (conservée dans l'historique)." })) return
-  try { await resolveDocChange(req.id, accept); emit('reload-docs'); emit('changed'); await loadRequests(d.id); toast(accept ? 'modification appliquée' : 'demande refusée') }
-  catch (e) { toast(humanize(e)) }
 }
 async function toggleHistory() {
   const d = doc.value
@@ -224,13 +201,12 @@ const isDirty = computed(() => {
     || dr.description !== (d.description ?? '')
 })
 
-// Ctrl/Cmd+S — le réflexe d'enregistrement. Ne vaut que pour une ÉCRITURE : en mode
-// « proposer une modif » (lecture seule), le geste enverrait une demande à un tiers,
-// ce qui n'est pas un enregistrement — il reste explicite.
+// Ctrl/Cmd+S — le réflexe d'enregistrement. L'édition n'est ouverte qu'en écriture
+// (aucun bouton n'y mène en lecture seule) ; la garde `readOnly` tient si ça change.
 useHotkey('s', () => {
-  if (!editing.value) return
+  if (!editing.value || props.readOnly) return
   if (isHome.value) saveBrief()
-  else if (!props.readOnly) void saveDoc()
+  else void saveDoc()
 })
 
 // Fermeture d'onglet / rechargement : seul le dialogue natif du navigateur peut retenir
@@ -467,15 +443,13 @@ async function removeFile() {
           <template v-if="!editing">
             <button v-if="!isHome && !readOnly" class="vw__x" @click="emit('add-subpage', doc!.id)"><Icon name="plus" :size="12" /> sous-page</button>
             <button v-if="!readOnly" class="vw__x" @click="isHome ? editBrief() : editDoc()"><Icon name="pencil" :size="12" /> éditer</button>
-            <button v-else-if="!isHome" class="vw__x" @click="editDoc"><Icon name="pencil" :size="12" /> proposer une modif</button>
           </template>
           <template v-else>
             <template v-if="isHome"><Btn kind="mini" @click="saveBrief">Enregistrer</Btn><button class="vw__x" @click="cancelBrief">Annuler</button></template>
-            <template v-else-if="!readOnly">
+            <template v-else>
               <OtoSelect v-if="draft" v-model="draft.kind" :options="KIND_OPTIONS" size="sm" aria-label="type de page" />
               <Btn kind="mini" :disabled="saving" @click="saveDoc">Enregistrer</Btn><button class="vw__x" @click="cancelDoc">Annuler</button>
             </template>
-            <template v-else><Btn kind="mini" :disabled="saving" @click="proposeChange">Proposer une modif</Btn><button class="vw__x" @click="cancelDoc">Annuler</button></template>
           </template>
         </div>
       </header>
@@ -535,19 +509,6 @@ async function removeFile() {
               @click="emit('open-doc', b.id)">
               <Icon name="book" :size="12" /> {{ b.title }}
             </button>
-          </div>
-
-          <!-- demandes de modif (propriétaire) -->
-          <div v-if="!readOnly && changeRequests.length" class="vw__panel">
-            <div class="card-eb" style="margin-bottom: 6px">demandes de modification · {{ changeRequests.length }}</div>
-            <div v-for="req in changeRequests" :key="req.id" class="vw__rev">
-              <div style="flex: 1; min-width: 0">
-                <span class="dim" style="font-size: 11px">{{ req.requested_by || '—' }} · {{ fmtDate(req.created_at) }}</span>
-                <div v-if="req.message" style="font-size: 12px; color: var(--color-ink-soft)">{{ req.message }}</div>
-              </div>
-              <button class="vw__x" @click="resolveRequest(req, true)">Accepter</button>
-              <button class="vw__x" @click="resolveRequest(req, false)">Refuser</button>
-            </div>
           </div>
 
           <!-- historique -->

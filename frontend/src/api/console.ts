@@ -3,10 +3,10 @@
 import { api, apiDownload, apiUpload, apiPublic } from '@/api'
 import type {
   ApiTokenCreated,
-  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AgentToolbox, AccountProfile, InitGuide, InitScope, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, CredentialState, MyConnector, ProviderStatus, SearchHit, Inbox,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AgentToolbox, AccountProfile, InitGuide, InitScope, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, CredentialState, MyConnector, ProviderStatus, SearchHit,
   BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
   BillingIdentityView, BillingIdentityInput, BillingConfirmResult, BillingInvoice, LegalStatus,
-  Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, DocChangeRequest, ProjectActivity, ProjectRun,
+  Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideScope,
   GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupInstructionsBundle, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LibraryEntry, LibraryDoctrine, LinkedProcedure, Locale, Me, MonitoringSummary,
@@ -584,18 +584,6 @@ export const getDocRevisions = (doc_id: number) =>
 // Backlinks « Cité par » (lot 3 Ship 4) : pages qui mentionnent celle-ci via [[…]].
 export const getBacklinks = (doc_id: number) =>
   docsApi<{ doc_id: number; backlinks: { id: number; project_id: number; title: string }[]; count: number }>({ op: 'backlinks', doc_id })
-// Demandes de modif (gap #4b) — propose (lecture seule) / liste / tranche (owner).
-export const requestDocChange = (doc_id: number, fields: { body_md?: string; title?: string; message?: string }) =>
-  docsApi<{ ok: boolean; request: DocChangeRequest }>({ op: 'request_change', doc_id, ...fields })
-export const listDocChanges = (doc_id: number) =>
-  docsApi<{ doc_id: number; requests: DocChangeRequest[] }>({ op: 'list_changes', doc_id })
-export const resolveDocChange = (request_id: number, accept: boolean) =>
-  docsApi<{ ok: boolean; accepted: boolean; reason?: string }>({ op: 'resolve_change', request_id, accept })
-// Propositions en attente d'un PROJET (drawer « Propositions », Ship 3).
-export const listProjectProposals = (project_id: number) =>
-  docsApi<{ project_id: number; requests: DocChangeRequest[] }>({ op: 'list_changes', project_id })
-// Inbox d'accueil (Ship 3) : À traiter (propositions + invitations) / Récent.
-export const getInbox = () => api<Inbox>('/api/me/inbox')
 // Partage public d'un doc (#4a) — renvoie public + public_url (lien de lecture).
 export const setDocPublic = (doc_id: number, isPublic: boolean) =>
   docsApi<{ ok: boolean; public: boolean; public_url: string | null }>({ op: 'set_public', doc_id, public: isPublic })

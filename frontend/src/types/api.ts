@@ -708,23 +708,6 @@ export interface SearchHit {
   matched_by: string
 }
 
-// Inbox d'accueil (lot 3 Ship 3) — deux voies : À traiter (décision de moi) / Récent.
-export type InboxReviewItem = components['schemas']['InboxProposal']
-// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`InboxInvitation` :
-//    code: déclaré nullable ; org_id: déclaré nullable). Le correctif est côté oto-backend
-//    — resserrer l'`Output` — puis `npm run api:refresh` ici.
-export interface InboxInvite { code?: string; org_id?: number; org_name?: string | null; invited_by?: string | null; created_at?: string | null }
-export type InboxRecent = components['schemas']['InboxRecent']
-// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`InboxView` : ). Le
-//    correctif est côté oto-backend — resserrer l'`Output` — puis `npm run api:refresh`
-//    ici.
-export interface Inbox {
-  to_review: InboxReviewItem[]
-  invitations: InboxInvite[]
-  recent: InboxRecent[]
-  count: number
-}
-
 export interface Doc {
   id: number
   project_id: number
@@ -745,17 +728,6 @@ export interface DocRevision {
   title: string
   body_md: string
   edited_by?: string | null
-  created_at?: string | null
-}
-// Demande de modif d'un Doc (gap #4b) — proposée par un utilisateur en lecture seule.
-export interface DocChangeRequest {
-  id: number
-  doc_id: number
-  requested_by?: string | null
-  proposed_title?: string | null
-  proposed_body_md: string
-  message?: string | null
-  status: 'pending' | 'accepted' | 'rejected'
   created_at?: string | null
 }
 export interface ProjectActivity {

@@ -3,8 +3,7 @@ title: Recherche transverse
 type: reference
 description: >-
   Le geste « retrouver » côté front : popup ⌘K et page deep-linkable, un seul chemin de rend
-  u, deep-link `?doc=`, chapôs, tokens d'overlay, drag&drop du rail, backlinks et la boîte «
-   À traiter ».
+  u, deep-link `?doc=`, chapôs, tokens d'overlay, drag&drop du rail, backlinks.
 ---
 
 # Recherche transverse (⌘K + page `/search`)
@@ -28,4 +27,4 @@ de toute modale — plus jamais de `blur(Npx)` magique. Rail **drag&drop** natif
 
 ## Backlinks & collaboration (Ship 3-4)
 
-**Backlinks & collaboration (Ship 3-4, LIVE preprod)** : `MarkdownView` gagne un resolver OPTIONNEL (`resolveLink`) qui pré-transforme les `[[Titre]]` en liens `data-doc` (navigate) / `data-stub` (create) avant marked — sans le prop, context-free (usages publics intacts) ; `ProjectViewer` résout contre `docTitleMap` du parent + panneau **« Cité par »** (`getBacklinks`). **Accueil « À traiter »** : `InboxCard` (voies À traiter/Récent, `useInbox` singleton) + **`ProposalReview`** (reka Dialog, diff LCS avant/après, `resolveDocChange(request_id)`) + badge sur l'entrée Accueil (special-case `/overview`, NAV intouché). Recherche sémantique = backend (embeddings) ; le front `oto_search`/`searchAll` est inchangé (fusion RRF transparente).
+**Backlinks & collaboration (Ship 3-4, LIVE preprod)** : `MarkdownView` gagne un resolver OPTIONNEL (`resolveLink`) qui pré-transforme les `[[Titre]]` en liens `data-doc` (navigate) / `data-stub` (create) avant marked — sans le prop, context-free (usages publics intacts) ; `ProjectViewer` résout contre `docTitleMap` du parent + panneau **« Cité par »** (`getBacklinks`). L'accueil « À traiter » (inbox + revue de propositions de modif, Ship 3) a été **retiré le 12/09/2026** (oto#191 : boucle « lecteurs proposent / auteurs valident » morte à l'usage) ; les invitations d'org passent par `/invitation/:code`. Recherche sémantique = backend (embeddings) ; le front `oto_search`/`searchAll` est inchangé (fusion RRF transparente).

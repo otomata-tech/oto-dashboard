@@ -112,7 +112,7 @@ L'identité Otomata se définit dans `oto-studio/brand/` et s'implémente pour l
 | `projets.md` | index + page `/projects/:id`, slots & inventaire dérivé (ADR 0035), partage navigable `<slug>.share.oto.cx`. |
 | `datastore.md` | grille server-driven, vue fiches, deeplink par id, ownership ADR 0030, partage unifié, file de travail et run qui tient une ligne. |
 | `agent-context.md` | agent readme (injecté, cumulable, ADR 0042), procédures, guides, onboarding devenu projet, fiche profil. |
-| `recherche.md` | popup ⌘K + page `/search`, un seul chemin de rendu, deep-link `?doc=`, backlinks, boîte « À traiter ». |
+| `recherche.md` | popup ⌘K + page `/search`, un seul chemin de rendu, deep-link `?doc=`, backlinks. |
 | `identite-et-consultation.md` | affichage (sidebar) vs switch (popin), consultation vs maison (ADR 0023), « voir en tant que », hub `/account`. |
 | `plateforme.md` | `/platform/objects` (ADR 0030), `/platform/tenants` (ADR 0052, lecture seule), `/platform/outreach` (les cinq verrous vivent au serveur). |
 | `facturation.md` | `/org/billing` et son tunnel, `pending_mandate` = attente, l'alerte qui porte son levier, factures, préalables peints d'un coup, miroir de TVA. |

@@ -28,7 +28,6 @@ const bouchon = vi.hoisted(() => async () => {
   // ne prend `default` que sur un module reconnu comme tel.
   return { __esModule: true, default: dc({ render: () => hh('div') }) }
 })
-vi.mock('@/components/console/InboxCard.vue', bouchon)
 vi.mock('@/components/console/ConnectorHealthGrid.vue', bouchon)
 vi.mock('@/components/console/McpEndpointCard.vue', bouchon)
 vi.mock('@/components/console/ContextPreviewCard.vue', bouchon)
