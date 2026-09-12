@@ -475,3 +475,23 @@ rendaient tous le même « Actif ». L'écran du membre dit désormais la proven
 (ligne antérieure à la trace) n'ont pas de libellé arrêté : aucun badge plutôt qu'un mot
 inventé. Un connecteur **non installé** n'en porte aucun. Ton **neutre** : dans l'en-tête
 de la fiche, chaque ton porte déjà un axe (`ConnectorBadges` : cobalt = méthode d'auth).
+
+### Installé, mais ton agent ne le voit pas — et pourquoi
+
+`useUserAdapter` charge aussi **`GET /api/me/agent-toolbox`** : `installed_not_seen[]` porte
+les connecteurs INSTALLÉS dont l'agent ne voit aucun outil, avec leur `reason`. Un
+connecteur peut être **Actif ET invisible** — c'est la question que l'écran ne savait pas
+répondre (« je l'ai installé, pourquoi mon agent ne l'a pas ? »). La ligne le dit en
+sous-titre (« ton agent ne le voit pas — <raison> »), la fiche en phrase dans le bloc
+exposition (« installé, mais ton agent ne le voit pas — … ») ; copy dans
+`lib/agentToolbox.ts` (`unseenReason`) :
+
+| `reason` | ce que lit le membre |
+|---|---|
+| `cut` | coupé pour ton organisation (solo : coupé) ; il reviendra seul à sa réouverture |
+| `restricted` | réservé à certaines équipes — demande à un admin (reprise du verdict « Réservé ») |
+| `no_tools` | aucun outil chargé |
+| `paused` | rien d'ajouté : le verdict dit déjà « En veille — outils masqués de tes agents » |
+
+Vue non dérivable (`available: false`) ⇒ aucune ligne ne se dit invisible. Chargement en
+échec ⇒ la liste reste, et l'échec s'affiche en tête de l'écran.

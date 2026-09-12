@@ -5,7 +5,7 @@
 import { computed, ref } from 'vue'
 import type { CellVM, ConnectorScopeAdapter, ExposureState, ScopeCtx, ToolRow } from './adapter'
 import {
-  getMyConnectors, getTools, getToolRegistry,
+  getMyConnectors, getTools, getToolRegistry, getAgentToolbox,
   selectConnector, pauseConnector, unselectConnector,
   setCredential, deleteApiKey, verifyConnector, enableTool, disableTool,
   getOrgFieldFilters, credentialPrefill, setOrgSecret,
@@ -14,14 +14,17 @@ import { useMe, isSuperAdmin } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
 import { connectorVerdict } from '@/lib/connectorVerdict'
 import { originBadge } from '@/lib/installOrigin'
+import { notSeenByName, unseenReason } from '@/lib/agentToolbox'
 import { poseScope } from '@/lib/credentialScope'
-import type { ConnectorState, FieldFiltersBundle, MyConnector, ToolEntry } from '@/types/api'
+import type { ConnectorState, FieldFiltersBundle, InstalledNotSeen, MyConnector, ToolEntry } from '@/types/api'
 
 export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector> {
   const { me, reload: reloadMe } = useMe()
   const rows = ref<MyConnector[]>([])
   const tools = ref<(ToolEntry & { description?: string })[]>([])
   const filters = ref<FieldFiltersBundle | null>(null)
+  // Les installés que l'agent ne voit pas, et pourquoi (oto#166) — vue de la poignée de main.
+  const notSeen = ref<Map<string, InstalledNotSeen>>(new Map())
   const ready = ref(false)
   const error = ref<string | null>(null)
 
@@ -37,6 +40,14 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
   const canPoseOrgKey = computed(() => isOrgAdmin.value || isSuperAdmin(me.value))
   const isPersonal = computed(() => !!me.value?.active_org_is_personal)
   const installed = (r: MyConnector) => r.state !== 'not_selected'
+  const unseenWhy = (r: MyConnector) => {
+    const x = installed(r) ? notSeen.value.get(r.name) : undefined
+    return x ? unseenReason(x.reason, { isPersonal: isPersonal.value }) : null
+  }
+  const unseenNote = (r: MyConnector) => {
+    const why = unseenWhy(r)
+    return why ? `installé, mais ton agent ne le voit pas — ${why.phrase}.` : undefined
+  }
 
   const nsOf = (name: string) => name.split('_')[0] ?? name
   const toolsOf = (r: MyConnector): ToolRow[] => {
@@ -47,12 +58,16 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
 
   async function load() {
     try {
-      const [mc, tl, reg, ff] = await Promise.all([
+      const [mc, tl, reg, ff, tb] = await Promise.all([
         getMyConnectors(), getTools(),
         getToolRegistry().catch(() => ({ tools: [], count: 0 })),
         orgId.value != null ? getOrgFieldFilters(orgId.value).catch(() => null) : Promise.resolve(null),
+        // Un échec ne masque pas la liste, mais se DIT : sans la vue, aucune ligne ne peut
+        // porter « ton agent ne le voit pas », et l'écran ne doit pas laisser croire le contraire.
+        getAgentToolbox().catch((e) => { error.value = humanize(e); return null }),
       ])
       rows.value = mc.connectors
+      notSeen.value = notSeenByName(tb)
       const desc = new Map(reg.tools.map((t) => [t.name, t.description]))
       tools.value = tl.tools.map((t) => ({ ...t, description: desc.get(t.name) }))
       filters.value = ff
@@ -109,7 +124,12 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
         const v = connectorVerdict(r, me.value?.providers?.[r.name],
           { isPersonal: me.value?.active_org_is_personal })
         const badge = originBadge(r.origin, r.state)
-        return { dot: v.dot, label: v.list, ...(badge ? { badge } : {}) }
+        // Actif ET invisible (coupé, réservé, sans outil) : la raison servie, en clair.
+        const why = unseenWhy(r)
+        return {
+          dot: v.dot, label: v.list, ...(badge ? { badge } : {}),
+          ...(why ? { sub: `ton agent ne le voit pas — ${why.list}` } : {}),
+        }
       }
       if (col === 'tools') {
         const ts = toolsOf(r)
@@ -139,7 +159,7 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
         label: EXP_CELL[r.state].label,
         tone: EXP_CELL[r.state].tone ?? 'faint',
         note: r.state === 'active'
-          ? undefined
+          ? unseenNote(r)
           : r.state === 'paused'
             ? 'connecté, mais tous ses outils sont masqués à ton agent pour l\'instant. ta sélection est conservée.'
             : "pas installé — passe-le en actif pour exposer ses outils.",

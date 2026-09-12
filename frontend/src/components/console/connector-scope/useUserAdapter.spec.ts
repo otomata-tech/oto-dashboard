@@ -22,6 +22,7 @@ vi.mock('@/api/console', () => ({
   getMyConnectors: vi.fn(async () => ({ connectors: [] })),
   getTools: vi.fn(async () => ({ tools: [] })),
   getToolRegistry: vi.fn(async () => ({ tools: [], count: 0 })),
+  getAgentToolbox: vi.fn(async () => ({ available: false })),
   getOrgFieldFilters: vi.fn(async () => null),
   credentialPrefill: vi.fn(async () => ({ existing: false, values: {} })),
   setCredential: (p: string, f: Record<string, string>, a?: string) => setCredential(p, f, a),
@@ -260,5 +261,57 @@ describe('useUserAdapter — provenance de l\'installation', () => {
     const c = useUserAdapter(ctx).cell(avec('membre'), 'etat')
     expect(c?.badge).toBeUndefined()
     expect(c?.label).toBeTruthy()
+  })
+})
+
+// oto#166 — « je l'ai installé, pourquoi mon agent ne l'a pas ? » : la ligne porte la
+// raison servie par la poignée de main, et la fiche la dit en phrase.
+describe('useUserAdapter — installé, mais invisible pour l\'agent', () => {
+  const ctx: ScopeCtx = {
+    openForm: () => {}, openCredential: () => {}, confirmAction: async () => true, toast: () => {},
+  }
+  const HUNTER = { ...SLACK, name: 'hunter', label: 'Hunter', namespaces: ['hunter'], state: 'active', origin: 'kit' } as unknown as MyConnector
+  const SERPER = { ...SLACK, name: 'serper', label: 'Serper', namespaces: ['serper'], state: 'active', origin: 'membre' } as unknown as MyConnector
+  const VUE = {
+    org_id: 42, available: true, tools: ['serper_search'], tools_total: 9, spine_tools: 0,
+    connectors: [{ name: 'serper', label: 'Serper', tools: 1, origin: 'membre' }],
+    installed_not_seen: [{ name: 'hunter', label: 'Hunter', state: 'active', origin: 'kit', reason: 'cut' }],
+  }
+
+  async function charger(vue: unknown, echec = false) {
+    const api = await import('@/api/console')
+    vi.mocked(api.getMyConnectors).mockResolvedValueOnce({ connectors: [HUNTER, SERPER] } as never)
+    if (echec) vi.mocked(api.getAgentToolbox).mockRejectedValueOnce(new Error('500 internal'))
+    else vi.mocked(api.getAgentToolbox).mockResolvedValueOnce(vue as never)
+    const a = useUserAdapter(ctx)
+    await a.load()
+    return a
+  }
+  beforeEach(() => { useMe().me.value = null })
+
+  it('la ligne coupée porte sa raison, la ligne vue n\'en porte aucune', async () => {
+    const a = await charger(VUE)
+    const [hunter, serper] = a.rows.value
+    expect(a.cell(hunter!, 'etat')?.sub).toBe('ton agent ne le voit pas — coupé pour ton organisation')
+    expect(a.cell(serper!, 'etat')?.sub).toBeUndefined()
+  })
+
+  it('la fiche le dit en phrase', async () => {
+    const a = await charger(VUE)
+    expect(a.availability!.state(a.rows.value[0]!).note)
+      .toBe('installé, mais ton agent ne le voit pas — coupé pour ton organisation ; il reviendra seul à sa réouverture.')
+  })
+
+  it('available:false — aucune ligne ne se dit invisible', async () => {
+    const a = await charger({ org_id: 42, available: false })
+    expect(a.cell(a.rows.value[0]!, 'etat')?.sub).toBeUndefined()
+    expect(a.error.value).toBeNull()
+  })
+
+  it('la vue en échec : la liste reste, et l\'échec se dit', async () => {
+    const a = await charger(null, true)
+    expect(a.rows.value).toHaveLength(2)
+    expect(a.error.value).toBeTruthy()
+    expect(a.cell(a.rows.value[0]!, 'etat')?.sub).toBeUndefined()
   })
 })
