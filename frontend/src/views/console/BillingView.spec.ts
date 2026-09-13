@@ -73,7 +73,9 @@ vi.mock('@/api/console', () => api)
 const { getBilling, getBillingIdentity, setBillingIdentity, getBillingPayments,
   getBillingInvoices, resumeBilling, startBillingMethodChange, confirmBillingMethodChange } = api
 
-const me = ref<{ org_role: string; role: string; active_org_name: string } | null>(null)
+const me = ref<{
+  org_role: string | null; role: string; active_org_name: string; active_org_readonly?: boolean
+} | null>(null)
 // Les helpers de rôle sont les VRAIS (oto#210) : seul le profil est un bouchon.
 vi.mock('@/composables/useMe', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/composables/useMe')>()),
@@ -403,4 +405,45 @@ describe('BillingView — changer de carte (#845 ①)', () => {
       expect(boutonsNommes(host, 'Changer de carte').length).toBeGreaterThan(0)
       unmount()
     })
+})
+
+// ── oto#211 : en consultation, le serveur refuse toute écriture ─────────────────
+//
+// `ViewAsMiddleware` refuse en `403 view_as_read_only` toute requête non-GET d'un opérateur
+// plateforme qui consulte l'org : souscrire, résilier, reprendre, changer de carte, écrire
+// l'identité — super_admin compris. L'écran reste lisible, les gestes partent.
+const PLAN = { plan: 'standard', label: 'Standard', amount: 1900, custom: false, unipile_accounts: 1 }
+const GESTES_FACTURATION = ['Choisir', 'Changer de carte', 'Résilier l\'abonnement',
+  'Annuler la résiliation', 'Compléter l\'identité de facturation', 'Enregistrer']
+
+describe('BillingView — en consultation, aucun geste (oto#211)', () => {
+  beforeEach(() => {
+    fakeLocation()
+    getBillingIdentity.mockResolvedValue(FICHE_VIDE)
+  })
+
+  // [état servi, gestes offerts à un admin hors consultation — dans l'ordre de la liste]
+  const ETATS: [string, unknown, string[]][] = [
+    ['non abonné', { subscribed: false, plans: [PLAN] }, ['Choisir']],
+    ['abonné actif', ACTIF, ['Changer de carte', 'Résilier l\'abonnement', 'Enregistrer']],
+    ['échéance bloquée', BLOQUE,
+      ['Changer de carte', 'Résilier l\'abonnement', 'Compléter l\'identité de facturation', 'Enregistrer']],
+    ['résiliation programmée', RESILIE, ['Changer de carte', 'Annuler la résiliation', 'Enregistrer']],
+  ]
+
+  it.each([
+    ['org_admin', { org_role: 'org_admin', role: 'member' }],
+    ['super_admin', { org_role: null, role: 'super_admin' }],
+  ])('%s : gestes présents hors consultation, absents en consultation', async (_nom, porteur) => {
+    for (const [nomEtat, etat, attendus] of ETATS) {
+      for (const lectureSeule of [false, true]) {
+        me.value = { ...porteur, active_org_name: 'ACME', active_org_readonly: lectureSeule }
+        getBilling.mockResolvedValue(etat)
+        const { host, unmount } = await mountView()
+        const presents = GESTES_FACTURATION.filter((g) => boutonNomme(host, g))
+        expect(presents, `${nomEtat}, consultation : ${lectureSeule}`).toEqual(lectureSeule ? [] : attendus)
+        unmount()
+      }
+    }
+  })
 })

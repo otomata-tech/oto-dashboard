@@ -1,5 +1,5 @@
 import { computed, ref, watch } from 'vue'
-import { useMe, isSuperAdmin } from '@/composables/useMe'
+import { useMe, isSuperAdmin, canAdministerOrg, canWriteInOrg } from '@/composables/useMe'
 import { getOrg } from '@/api/console'
 import type { OrgDetail } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -24,6 +24,13 @@ export function useOrgScope() {
     detail.value?.org.my_role === 'org_admin'
     || me.value?.org_role === 'org_admin'
     || isSuperAdmin(me.value))
+  // Les GESTES suivent la règle commune de `useMe` (oto#211), qui ajoute au rôle l'absence de
+  // consultation : en `active_org_readonly`, le serveur refuse toute écriture. `isOrgAdmin`
+  // ci-dessus reste un rôle et ne garde que des LECTURES (la supervision). Le `my_role` du
+  // détail et `me.org_role` sont la même valeur (`org_store.get_org_role`, même org, même
+  // compte) : la règle commune n'a pas besoin du détail.
+  const canWrite = computed(() => canWriteInOrg(me.value))
+  const canAdminister = computed(() => canAdministerOrg(me.value))
 
   async function reload() {
     const id = activeOrgId.value
@@ -35,5 +42,5 @@ export function useOrgScope() {
   }
   watch(activeOrgId, reload, { immediate: true })
 
-  return { activeOrgId, meSub, detail, error, loaded, isOrgAdmin, reload }
+  return { activeOrgId, meSub, detail, error, loaded, isOrgAdmin, canWrite, canAdminister, reload }
 }

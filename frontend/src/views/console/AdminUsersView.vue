@@ -72,6 +72,6 @@ onMounted(async () => {
       </ConsoleTable>
     </ConsoleCard>
 
-    <InvitationsCard v-if="canInvite" :scope="{ level: 'platform' }" :can-manage="canInvite" />
+    <InvitationsCard v-if="canInvite" :scope="{ level: 'platform' }" :can-read="canInvite" :can-manage="canInvite" />
   </div>
 </template>

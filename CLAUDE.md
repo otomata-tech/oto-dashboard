@@ -76,6 +76,7 @@ Une phrase par règle ; l'incident qui l'a produite et ses cas limites vivent da
 - **Un écran n'énonce que ce qu'il sait** : un état (pastille, coche) lit un signal servi, jamais une valeur par défaut, sinon il disparaît ; un domaine affiché vient de l'environnement servi (`lib/servedEnv.ts`), jamais d'une constante. → `docs/conventions.md`
 - **Copy user-facing = verbatim** (`lib/connectorVerdict.ts` porte la copy du CDC), jamais reformulée ; i18n FR complète.
 - **Un geste d'admin d'org suit la règle du serveur** : `isOrgAdmin` = org_admin ou super_admin, jamais l'`admin` plateforme (403) ; l'opérateur plateforme VOIT les écrans d'administration d'org en lecture (`seesOrgAdministration`), sauf ceux dont les lectures mêmes exigent l'admin (`orgAdminReads`). → `docs/orgs-groupes-invitations.md`
+- **Un rôle ne vaut pas droit d'écrire** : un geste d'écriture lit `canAdministerOrg` ou `canWriteInOrg` (`useMe`), jamais le rôle seul — en consultation (`active_org_readonly`) le serveur refuse tout, super_admin compris ; la coque le dit une fois (`ConsultOrgBanner`), l'écran omet ses gestes (oto#211). → `docs/conventions.md`, `docs/orgs-groupes-invitations.md`
 - **Un droit d'ÉCRITURE ne se déduit pas d'un droit d'ADMINISTRATION** : un geste d'écriture lit le drapeau de SON geste (`can_write_instructions`…), jamais `can_edit`. Aucun écran n'écrit plus de procédure depuis oto#192 ; la règle vaut pour le prochain. → `docs/orgs-groupes-invitations.md`
 - **`set_by` est un identifiant de compte, pas un nom** : il s'affiche via `lib/accountLabel.ts` — nom, à défaut adresse, à défaut l'identifiant, jamais l'inverse. → `docs/conventions.md`
 - Les identifiants de code/API gardent le mot « doctrine » (`Doctrine*View`, `getDoctrine`, `/api/me/instructions*`) ; seul le vocabulaire produit (routes, copy) dit « procédure » / « agent readme ». → `docs/agent-context.md`
@@ -106,12 +107,12 @@ L'identité Otomata se définit dans `oto-studio/brand/` et s'implémente pour l
 |---|---|
 | `commands.md` | lancer le dashboard, tester un fix en local contre les vraies données de prod. |
 | `deploiement.md` | tronc unique (`main` = preprod, tag = prod), artefact-only, cutover ADR 0040. |
-| `conventions.md` | le typecheck du CI et ses deux vecteurs de « local vert / CI rouge » ; les règles transverses « alerte sans levier » (avec son tripwire), « un identifiant de compte s'affiche en personne » et « une adresse n'affiche que l'objet qu'elle désigne », avec leurs incidents. |
+| `conventions.md` | le typecheck du CI et ses deux vecteurs de « local vert / CI rouge » ; les règles transverses « alerte sans levier » (avec son tripwire), « un identifiant de compte s'affiche en personne », « une adresse n'affiche que l'objet qu'elle désigne » et « un rôle ne vaut pas droit d'écrire », avec leurs incidents. |
 | `design-system.md` | où vit l'identité et pourquoi le dashboard ne s'y branche pas encore, direction « 2a », les deux fichiers de tokens, état d'intégration, archivage de `design-system/`. |
 | `handoff-design-system.md` | plan de portage du DS dans le front (b1→b8) — **historique**. |
 | `refonte-pages-projet.md` | cahier des charges de la refonte UX des pages Projet — **historique**. |
 | `connecteurs.md` | moteur unique `connector-scope` (3 surfaces), les retraits d'oto#192, verdict-first, 3 projections ADR 0022, carte-shell, compte partagé, multi-compte, formulaire de credential, fédération MCP, hubs à onglets. |
-| `orgs-groupes-invitations.md` | qui est admin d'org pour l'écran, garde serveur par écran (oto#210), roster des équipes (ADR 0012) et retrait du scope d'équipe (oto#192), droits par verbe sur les procédures (historique), invitations en cascade aux 2 niveaux. |
+| `orgs-groupes-invitations.md` | qui est admin d'org pour l'écran, garde serveur par écran (oto#210), écrire en consultation — recensement des gestes et mesure contre le middleware (oto#211), roster des équipes (ADR 0012) et retrait du scope d'équipe (oto#192), droits par verbe sur les procédures (historique), invitations en cascade aux 2 niveaux. |
 | `projets.md` | index + page `/projects/:id`, slots & inventaire dérivé (ADR 0035), partage navigable `<slug>.share.oto.cx`. |
 | `datastore.md` | grille server-driven, vue fiches, deeplink par id, ownership ADR 0030, partage unifié, file de travail et run qui tient une ligne. |
 | `agent-context.md` | agent readme (injecté, cumulable, ADR 0042), procédures, guides, onboarding devenu projet, fiche profil. |

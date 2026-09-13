@@ -89,6 +89,8 @@ Fixées par la session flotte dans oto#205.
 - **Admin d'org = `org_role === 'org_admin'` ou super_admin**, la parité de `roles.is_org_admin` :
   `isOrgAdmin` de `useMe` depuis oto#210, qui comptait jusque-là l'`admin` plateforme, que
   `launch` refuse. Un membre ne voit pas de bouton grisé : le geste est omis.
+- **`droits` projette la règle commune des écrans d'org** (`canWriteInOrg`, `canAdministerOrg` de
+  `useMe`, oto#211) : la colonne « lecture seule » est celle de tous les écrans `/org/*`.
 - **R1** — `campagne_a_servir` compare `max_rows` à **tous** les travaux de la campagne
   (`jobs_total`) : relancée, elle resterait `armed` pour toujours.
 - **R2** — `arreter_campagnes_epuisees` lit la série d'échecs sans borne d'armement : relancée,

@@ -28,8 +28,11 @@ async function connect() {
   finally { connecting.value = false }
 }
 
-// Sonde « tester la connexion » (read-only, résultat éphémère) quand le levier l'expose
-// et qu'une clé est posée.
+// Sonde « tester la connexion » (résultat éphémère) quand le levier l'expose, qu'une clé est
+// posée, et que le levier ne la retient pas (`canVerify`) : c'est un POST sans `op`, que le
+// serveur refuse en consultation (oto#211).
+const canTest = computed(() =>
+  !!props.lever.verify && s.value.present && (props.lever.canVerify?.(props.row) ?? true))
 const testing = ref(false)
 const testRes = ref<VerifyResult | null>(null)
 async function test() {
@@ -60,10 +63,10 @@ async function test() {
     <template v-else>
       <div v-if="s.present" class="ccp-state"><Dot tone="olive" /> {{ s.label }}<span v-if="s.sub" class="ccp-sub"> · {{ s.sub }}</span></div>
       <div v-else class="ccp-state dim">{{ s.label }}</div>
-      <div v-if="canEdit || (s.present && lever.verify)" class="ccp-actions">
+      <div v-if="canEdit || canTest" class="ccp-actions">
         <Btn v-if="canEdit" kind="mini" :icon="s.present ? undefined : 'plus'" @click="lever.edit(row)">{{ s.present ? 'Renouveler' : 'Ajouter une clé' }}</Btn>
         <Btn v-if="canEdit && s.present && lever.remove" kind="danger" @click="lever.remove(row)">Retirer</Btn>
-        <Btn v-if="s.present && lever.verify" kind="mini" :disabled="testing" @click="test">{{ testing ? 'test…' : 'tester' }}</Btn>
+        <Btn v-if="canTest" kind="mini" :disabled="testing" @click="test">{{ testing ? 'test…' : 'tester' }}</Btn>
         <Btn v-if="canEdit && connectCta?.available(row)" kind="mini" :disabled="connecting"
              @click="connect">{{ connecting ? 'ouverture…' : connectCta.label(row) }}</Btn>
       </div>
@@ -77,7 +80,7 @@ async function test() {
         service à un compte personnel : les actions lui seront attribuées, et la connexion
         survivra au départ de son titulaire. La redonner permet d'en changer.
       </p>
-      <div v-if="!canEdit && !(s.present && lever.verify)" class="helptext" style="margin-top: 8px">lecture seule.</div>
+      <div v-if="!canEdit && !canTest" class="helptext" style="margin-top: 8px">lecture seule.</div>
     </template>
   </section>
 </template>

@@ -32,12 +32,16 @@ type Leviers = {
   rows: Ref<typeof LIGNE[]>
   load: () => Promise<void>
   availability: { canEdit: (r: unknown) => boolean; set: (r: unknown, next: boolean) => Promise<void> }
-  credential: { canEdit: (r: unknown) => boolean; connect: { available: (r: unknown) => boolean } }
+  credential: {
+    canEdit: (r: unknown) => boolean
+    canVerify: (r: unknown) => boolean
+    connect: { available: (r: unknown) => boolean }
+  }
   access: { canEdit: () => boolean }
 }
 
-async function leviers(role: string, org_role: string | null) {
-  me.value = { sub: 'u-test', role, org_role, active_org: 42 }
+async function leviers(role: string, org_role: string | null, active_org_readonly = false) {
+  me.value = { sub: 'u-test', role, org_role, active_org: 42, active_org_readonly }
   const a = useOrgAdapter(ctx as never) as unknown as Leviers
   await a.load()
   const row = a.rows.value[0]!
@@ -83,5 +87,31 @@ describe("useOrgAdapter — les leviers d'org suivent la règle du serveur (oto#
     const a = useOrgAdapter(ctx as never) as unknown as Leviers
     await a.load()
     expect(a.rows.value).toHaveLength(1)
+  })
+})
+
+// En consultation (`active_org_readonly`), `ViewAsMiddleware` refuse toute requête non-GET
+// dont l'`op` n'est pas une lecture — super_admin compris. « Tester » est un POST sans `op` :
+// le serveur le compte comme une écriture, il suit donc la même règle.
+describe('useOrgAdapter — en consultation, aucun levier (oto#211)', () => {
+  it.each([
+    ['org_admin', 'member', 'org_admin'],
+    ['super_admin', 'super_admin', null],
+  ])('%s : leviers hors consultation, aucun en consultation', async (_nom, role, orgRole) => {
+    expect(await leviers(role, orgRole, false)).toEqual(TOUS)
+    vi.clearAllMocks()
+    expect(await leviers(role, orgRole, true)).toEqual(AUCUN)
+  })
+
+  it.each([
+    ['org_admin', 'member', 'org_admin'],
+    ['membre simple', 'member', 'org_member'],
+    ['super_admin', 'super_admin', null],
+  ])('%s : « tester » est offert hors consultation seulement', (_nom, role, orgRole) => {
+    for (const lectureSeule of [false, true]) {
+      me.value = { sub: 'u-test', role, org_role: orgRole, active_org: 42, active_org_readonly: lectureSeule }
+      const a = useOrgAdapter(ctx as never) as unknown as Leviers
+      expect(a.credential.canVerify(LIGNE)).toBe(!lectureSeule)
+    }
   })
 })

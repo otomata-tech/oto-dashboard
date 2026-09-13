@@ -13,7 +13,7 @@ import Btn from '@/components/console/Btn.vue'
 import ConnectorScopeView from '@/components/console/connector-scope/ConnectorScopeView.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
-import { useMe } from '@/composables/useMe'
+import { useMe, canWriteInOrg } from '@/composables/useMe'
 import { getOrgEmailSettings, listScheduledEmails, cancelScheduledEmail } from '@/api/console'
 import type { EmailSettingsBundle, ScheduledEmail } from '@/types/api'
 import { fmtDateTime } from '@/types/api'
@@ -23,6 +23,9 @@ const { toast } = useToast()
 const { confirmAction } = usePrompt()
 const { me } = useMe()
 const activeOrgId = computed(() => me.value?.active_org ?? null)
+// Annuler un envoi programmé est ouvert à tout membre (`ORG_MEMBER_OF`), mais refusé en
+// consultation comme toute écriture (oto#211).
+const canWrite = computed(() => canWriteInOrg(me.value))
 
 // Encart « envois programmés » : n'a de sens que si ≥1 connecteur email a des expéditeurs.
 const emailBundle = ref<EmailSettingsBundle | null>(null)
@@ -84,7 +87,7 @@ onMounted(async () => {
             </div>
             <span class="oc-spacer" />
             <Tag :tone="m.status === 'failed' ? 'terra' : m.status === 'sent' ? 'olive' : 'saffron'">{{ m.status }}</Tag>
-            <Btn v-if="m.status === 'pending'" kind="danger" @click="cancelScheduled(m.id)">Annuler</Btn>
+            <Btn v-if="canWrite && m.status === 'pending'" kind="danger" @click="cancelScheduled(m.id)">Annuler</Btn>
           </div>
         </div>
         <p v-else-if="schedLoaded" class="helptext" style="padding: 6px 0">

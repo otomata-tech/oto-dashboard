@@ -2,7 +2,8 @@
 // « Membres » de l'org active (/org, racine du scope org). UNE page = UN sujet : ici les
 // gens (membres + invitations en attente). Profil/logo/entitlements/danger vivent sur
 // « paramètres », la MFA sur « sécurité », le readme sur « contexte », les clés partagées
-// sur « connecteurs ». Le backend porte l'autz ; `isOrgAdmin` masque les contrôles.
+// sur « connecteurs ». Le backend porte l'autz ; les gestes suivent `canAdminister` (le rôle,
+// hors consultation — oto#211) ; l'admin qui consulte l'org lit membres et invitations.
 // Les invitations vivent dans la carte partagée `InvitationsCard` (feature cascade — même
 // carte au niveau org / équipe / plateforme).
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
@@ -20,7 +21,7 @@ import { humanize } from '@/lib/errors'
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
 
-const { activeOrgId, meSub, detail, error, loaded, isOrgAdmin, reload } = useOrgScope()
+const { activeOrgId, meSub, detail, error, loaded, isOrgAdmin, canAdminister, reload } = useOrgScope()
 
 // Libellés en anglais comme TOUTE cette vue (« member », « role », « promote »,
 // « remove »…) : y glisser du français ferait un mélange, et le vocabulaire des
@@ -62,7 +63,7 @@ async function removeMember(sub: string, label: string) {
                côté d'une colonne qui se lit « actif » aurait rendu la ligne illisible :
                un membre en pause dont c'est l'org maison y aurait été « actif » ET
                « en pause ». -->
-          <thead><tr><th>member</th><th>role</th><th :title="HOME_ORG_HINT">home org</th><th v-if="isOrgAdmin" style="width: 150px"></th></tr></thead>
+          <thead><tr><th>member</th><th>role</th><th :title="HOME_ORG_HINT">home org</th><th v-if="canAdminister" style="width: 150px"></th></tr></thead>
           <tbody>
             <tr v-for="m in detail?.members ?? []" :key="m.sub">
               <td>
@@ -85,7 +86,7 @@ async function removeMember(sub: string, label: string) {
               </td>
               <td><Tag v-if="m.role === 'org_admin'" tone="ink">admin</Tag><Tag v-else>member</Tag></td>
               <td><Dot :tone="m.active ? 'olive' : 'faint'" :size="7" /></td>
-              <td v-if="isOrgAdmin" style="text-align: right">
+              <td v-if="canAdminister" style="text-align: right">
                 <div v-if="m.sub !== meSub" style="display: flex; gap: 6px; justify-content: flex-end">
                   <Btn kind="mini" @click="toggleRole(m.sub, m.role)">{{ m.role === 'org_admin' ? 'demote' : 'promote' }}</Btn>
                   <Btn kind="danger" @click="removeMember(m.sub, m.name || m.email || 'this member')">remove</Btn>
@@ -98,7 +99,7 @@ async function removeMember(sub: string, label: string) {
       </ConsoleCard>
 
       <InvitationsCard v-if="activeOrgId != null && isOrgAdmin"
-        :scope="{ level: 'org', id: activeOrgId }" :can-manage="isOrgAdmin" />
+        :scope="{ level: 'org', id: activeOrgId }" :can-read="isOrgAdmin" :can-manage="canAdminister" />
     </template>
   </div>
 </template>

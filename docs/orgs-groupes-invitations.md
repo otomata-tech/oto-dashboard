@@ -2,7 +2,8 @@
 title: Orgs, groupes & invitations
 type: reference
 description: >-
-  Qui est admin d'org pour l'écran, et la garde serveur de chaque usage (oto#210). Le roster
+  Qui est admin d'org pour l'écran, et la garde serveur de chaque usage (oto#210). Écrire dans
+  l'org : le rôle ET hors consultation, une seule règle pour tous les gestes (oto#211). Le roster
   des équipes d'une org (le scope d'équipe dédié a quitté le dashboard, oto#192) et
   la feature cascade « inviter un user » : une carte partagée montée aux 2 niveaux (plateforme
   / org), même triade REST, acceptation commune.
@@ -30,19 +31,75 @@ comptait aussi l'`admin` plateforme, que chaque op d'admin d'org refuse en 403 :
 | campagnes (`runnerGestes.droits`) : armer, relancer | gestes | `is_org_admin` dans le corps → `403 org_admin_required` | déjà refusé (oto#205), s'appuie sur `isOrgAdmin` |
 | abonnement (`BillingView`), clé d'org depuis une fiche connecteur (`useUserAdapter`, `ConnectorConnectionPanel`) | gestes | non relue dans ce lot | règle déjà juste, recopiée : s'appuie sur `isOrgAdmin` |
 
+Depuis oto#211, les gestes de ce tableau lisent `canAdministerOrg`, qui ajoute au rôle l'absence
+de consultation (section suivante).
+
 `useOrgScope` (`/org`, `/org/settings`, `/org/security`, `/org/monitoring`) portait déjà la règle
-juste, plus le rôle lu dans le détail de l'org : inchangé. Restent sur `org_role === 'org_admin'`
+juste, plus le rôle lu dans le détail de l'org. Son `isOrgAdmin` ne garde plus que des lectures (la
+supervision) ; ses gestes passent par `canWrite` et `canAdminister` (oto#211). Restent sur `org_role === 'org_admin'`
 seul : l'écriture du contexte d'org (`ContextOrgView`), la note de portée de la rédaction
 (`useUserAdapter`) et le bandeau côté org de la fiche connecteur. Ils n'offrent rien à l'admin
 plateforme ; ils taisent un geste au super_admin — le défaut inverse, hors de ce lot.
 
-⚠️ **Non traité** : en consultation (`active_org_readonly`), le serveur refuse TOUTE écriture
-(`403 view_as_read_only`), super_admin compris. `isOrgAdmin` est un rôle, pas un droit d'écrire :
-seuls les gestes de campagne composent la lecture seule ; les écrans `/org/*` montrent encore
-leurs gestes au super_admin qui consulte une org.
-
 Tests : `composables/useMe.spec.ts` (règle, menu, gestes de campagne), `views/console/GroupsView.spec.ts`,
 `components/console/connector-scope/useOrgAdapter.spec.ts`.
+
+## Écrire dans l'org : le rôle ET hors consultation (oto#211)
+
+En consultation (`active_org_readonly` : un opérateur plateforme ouvre une org où il n'a aucun rôle
+réel), `ViewAsMiddleware` refuse toute requête non-GET dont l'`op` n'est pas une lecture
+(`_READ_OPS`, liste blanche), en `403 view_as_read_only` — super_admin compris. Jusqu'au 13/09/2026,
+seuls les gestes de campagne en tenaient compte : les écrans `/org/*` offraient au super_admin qui
+consulte l'org d'un client des gestes dont chaque clic échouait.
+
+La règle vit à un seul endroit, `composables/useMe.ts` :
+- `canWriteInOrg` — un geste ouvert à tout membre : un profil chargé, hors consultation ;
+- `canAdministerOrg` — un geste d'admin d'org : `canWriteInOrg` ET `isOrgAdmin`.
+
+`useOrgScope` les expose (`canWrite`, `canAdminister`) ; `runnerGestes.droits` en est la projection
+(`ouverts`, `armer`), à comportement strictement égal. Aucun écran ne relit `active_org_readonly`.
+La lecture seule se dit **une fois**, dans la coque : `ConsultOrgBanner` (monté dans `App.vue`).
+L'écran omet ses gestes, jamais grisés, et ne la répète pas ; ses lectures restent.
+
+| écran | geste | appel | règle |
+|---|---|---|---|
+| `/org` | promote/demote, remove | `POST`/`DELETE /api/orgs/{id}/members/{sub}` | `canAdminister` |
+| `/org` | invite, revoke (`InvitationsCard`) | `POST /api/orgs/{id}/invitations`, `DELETE …/invitations/{iid}` | `canManage` = `canAdminister` ; la liste reste lue (`canRead` = `isOrgAdmin`) |
+| `/org/settings` | modifier, déposer ou retirer le logo, supprimer | `PATCH /api/orgs/{id}`, `POST`/`DELETE …/logo`, `DELETE /api/orgs/{id}` | `canAdminister` |
+| `/org/settings` | quitter | `DELETE /api/me/orgs/{id}/membership` | `canWrite` ; sans geste, la « zone danger » disparaît |
+| `/org/security` | activer ou désactiver le MFA | `PUT /api/orgs/{id}/mfa` | `canAdminister` |
+| `/org/connectors` | disponibilité, clé d'org, autoriser, accès réservé | `PUT`/`DELETE …/connectors/{p}/activation`, `PUT`/`DELETE …/secrets/{p}`, `POST /api/me/connectors/{p}/connect`, `POST`/`DELETE …/connectors/{p}/access` | `canAdministerOrg` (`useOrgAdapter`) |
+| `/org/connectors` | tester | `POST /api/me/connectors/{p}/verify`, sans `op` | `canWriteInOrg` (`canVerify` du levier) |
+| `/org/connectors` | annuler un envoi programmé | `DELETE /api/orgs/{id}/scheduled-emails/{eid}` (`ORG_MEMBER_OF`) | `canWriteInOrg` |
+| `/org/teams` | new, edit, delete | `POST /api/orgs/{id}/groups`, `PATCH`/`DELETE /api/groups/{id}` | `canAdministerOrg` |
+| `/org/billing` | choisir, payer, changer de carte, résilier, annuler la résiliation, identité | `POST /api/me/billing/{subscribe,method,cancel,resume}`, `PUT /api/me/billing/identity` | `canAdministerOrg` (`canManage`) |
+| `/automations` | armer, relancer, arrêter, régler un déclencheur | `docs/automations.md` | `droits` |
+
+**Mesuré, pas seulement lu** : les 27 appels des dix premières lignes ont été rejoués le 13/09/2026
+contre le `ViewAsMiddleware` d'oto-backend `origin/main` (`f4124f22`), avec la méthode, le chemin et
+le corps que le front envoie. En consultation, tous prennent `403 view_as_read_only` ; pour un membre
+réel, tous traversent ; les lectures (`GET`) passent.
+
+Hors du tableau, sans changement :
+- `/org/context` (`ContextOrgView`) lit `org_role === 'org_admin'`, que le serveur sert `null` en
+  consultation : ses gestes y sont déjà absents. Le défaut inverse (super_admin) reste hors lot.
+- `/org/monitoring` n'écrit rien ; ses lectures (`ORG_ADMIN_OF`) restent gardées par `isOrgAdmin`.
+- `ConsoleIdentity` n'affiche que l'identité.
+
+⚠️ **Deux cas où l'écran et le serveur divergent, non traités** :
+- **consultation par l'équipe** (`/o/<org>/g/<équipe>/…`, en-tête `X-Oto-Group`) : `/api/me` sert
+  `active_org_readonly`, l'écran masque donc ses gestes ; mais le middleware ne pose la lecture
+  seule que sur la branche org, et une écriture y traverse (mesuré le 13/09, `roles.can_read_group`
+  acceptant). À trancher côté serveur.
+- **« voir en tant que »** (`X-Oto-View-As`) : le middleware refuse aussi toute écriture, mais
+  `active_org_readonly` n'en dit rien ; les gestes du compte vu restent affichés (lu dans le code,
+  non rejoué). Hors oto#211.
+
+Tests : `views/console/orgConsultation.spec.ts` (`/org`, `/org/settings`, `/org/security`, pied de
+`/org/connectors`), `views/console/GroupsView.spec.ts`, `views/console/BillingView.spec.ts`,
+`components/console/connector-scope/useOrgAdapter.spec.ts` et `ConnectorCredentialPanel.spec.ts`,
+`composables/useMe.spec.ts` (la règle, et `droits` égal à sa projection) — chaque écran, pour
+l'org_admin et le super_admin, gestes présents hors consultation et absents en consultation.
 
 ## Groupes / départements (ADR 0012)
 

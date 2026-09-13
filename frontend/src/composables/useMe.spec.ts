@@ -6,7 +6,7 @@
 // `effective_org_role` le tient pour membre) — sauf la supervision d'org, dont les lectures
 // sont elles-mêmes `ORG_ADMIN_OF`.
 import { describe, expect, it } from 'vitest'
-import { isOrgAdmin, isSuperAdmin, seesOrgAdministration } from './useMe'
+import { canAdministerOrg, canWriteInOrg, isOrgAdmin, isSuperAdmin, seesOrgAdministration } from './useMe'
 import { NAV, navItemVisible } from '@/lib/consoleNav'
 import { droits } from '@/lib/runnerGestes'
 
@@ -82,5 +82,37 @@ describe("les gestes d'une campagne s'appuient sur la même règle", () => {
       const porteur = { ...m, active_org_readonly: lectureSeule }
       expect(droits(porteur).armer).toBe(!lectureSeule && isOrgAdmin(porteur))
     }
+  })
+
+  it.each(ROLES)('%s : `droits` est la source commune, en consultation comme hors', (_nom, m) => {
+    for (const lectureSeule of [false, true]) {
+      const porteur = { ...m, active_org_readonly: lectureSeule }
+      expect(droits(porteur)).toEqual({ ouverts: canWriteInOrg(porteur), armer: canAdministerOrg(porteur) })
+    }
+  })
+})
+
+// oto#211 — en consultation (`active_org_readonly`), `ViewAsMiddleware` refuse toute écriture
+// en `403 view_as_read_only`, super_admin compris : un rôle ne vaut pas droit d'écrire.
+describe("écrire dans l'org active : le rôle ET hors consultation (oto#211)", () => {
+  it.each([
+    ['org_admin', true, true, ORG_ADMIN],
+    ['membre simple', true, false, MEMBRE],
+    ["admin plateforme, membre de l'org", true, false, ADMIN_MEMBRE],
+    ['super_admin', true, true, SUPER_ADMIN],
+  ])('%s, hors consultation : écrire → %s, administrer → %s', (_nom, ecrire, administrer, m) => {
+    expect(canWriteInOrg(m)).toBe(ecrire)
+    expect(canAdministerOrg(m)).toBe(administrer)
+  })
+
+  it.each(ROLES)('%s, en consultation : aucune écriture', (_nom, m) => {
+    const consultant = { ...m, active_org_readonly: true }
+    expect(canWriteInOrg(consultant)).toBe(false)
+    expect(canAdministerOrg(consultant)).toBe(false)
+  })
+
+  it('sans profil chargé, aucune écriture', () => {
+    expect(canWriteInOrg(null)).toBe(false)
+    expect(canAdministerOrg(undefined)).toBe(false)
   })
 })

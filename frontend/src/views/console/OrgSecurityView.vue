@@ -5,7 +5,8 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import OrgMfaCard from '@/components/console/OrgMfaCard.vue'
 import { useOrgScope } from '@/composables/useOrgScope'
 
-const { activeOrgId, error, loaded, isOrgAdmin } = useOrgScope()
+// La bascule suit `canAdminister` : le rôle, hors consultation (oto#211).
+const { activeOrgId, error, loaded, canAdminister } = useOrgScope()
 </script>
 
 <template>
@@ -16,6 +17,6 @@ const { activeOrgId, error, loaded, isOrgAdmin } = useOrgScope()
       <div class="helptext">you're not in an organization yet.</div>
     </ConsoleCard>
 
-    <OrgMfaCard v-else-if="activeOrgId != null" :org-id="activeOrgId" :can-manage="isOrgAdmin" />
+    <OrgMfaCard v-else-if="activeOrgId != null" :org-id="activeOrgId" :can-manage="canAdminister" />
   </div>
 </template>

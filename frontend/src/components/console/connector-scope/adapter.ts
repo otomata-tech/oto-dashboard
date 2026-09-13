@@ -71,6 +71,9 @@ export interface CredentialLever<R> {
   edit(r: R): void            // ajoute/rotate (ouvre FormDialog ou CredentialFieldsDialog)
   remove?(r: R): void         // retrait single-instance
   verify?(r: R): Promise<VerifyResult>
+  // « tester » est un POST sans `op` : en consultation, le serveur le refuse comme une écriture
+  // (oto#211). Le levier dit s'il l'offre ; absent, il est offert dès qu'une clé est posée.
+  canVerify?(r: R): boolean
   // multi-instance (plateforme). Si `items` présent, le panneau liste ces items
   // (chacun retirable via `removeItem`) + un bouton « ajouter » (edit). Sinon single.
   items?(r: R): CredentialItem[]

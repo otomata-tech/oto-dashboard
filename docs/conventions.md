@@ -7,7 +7,8 @@ description: >-
   chés, et le working tree ≠ arbre commité sur un checkout partagé. Plus la règle transverse
    « une alerte qui réclame un geste offre le moyen de l'accomplir », et son tripwire ;
    « un identifiant de compte s'affiche en personne » (#143) ; « une adresse n'affiche que
-   l'objet qu'elle désigne » (oto#201, oto#203).
+   l'objet qu'elle désigne » (oto#201, oto#203) ; « un rôle ne vaut pas droit d'écrire »
+   (oto#211).
 ---
 
 # Conventions du front
@@ -127,3 +128,27 @@ La règle, portée par `lib/routeTarget.ts` (`resolveTarget`, `targetRefusal`) :
 
 Seule une adresse SANS paramètre choisit par défaut (l'entrée du menu `/procedures`, l'accueil
 d'un projet). Tests : `DoctrineView.spec.ts`, `ProjectDetailView.spec.ts`, `DataView.spec.ts`.
+
+## ⚠️ Un rôle ne vaut pas droit d'écrire (oto#211)
+
+**Règle transverse, tous écrans d'org.** En consultation (`active_org_readonly`), le serveur refuse
+toute écriture en `403 view_as_read_only`, super_admin compris. Un geste d'écriture ne lit donc
+jamais un rôle seul : il lit `canAdministerOrg` (geste d'admin d'org) ou `canWriteInOrg` (geste de
+membre), dans `composables/useMe.ts`, la seule source. `useOrgScope` les expose, et
+`runnerGestes.droits` en est la projection. La lecture seule se dit une fois, dans la coque
+(`ConsultOrgBanner`) ; l'écran omet ses gestes, jamais grisés, et garde ses lectures.
+
+**L'incident (13/09/2026).** Relevé pendant oto#210 : seuls les gestes de campagne composaient la
+lecture seule. Membres, paramètres, sécurité, connecteurs, équipes et facturation offraient au
+super_admin qui consulte l'org d'un client des gestes dont chaque clic prenait 403. Le rôle était
+juste ; l'état de la session était ignoré.
+
+Deux pièges que la règle a fait sortir :
+- **une sonde qui se dit lecture peut être une écriture pour le serveur** : « tester » un
+  connecteur est un POST sans `op`, et la liste des lectures du middleware est une liste blanche.
+  Le levier la retient (`canVerify`) ;
+- **un geste de membre n'est gardé par aucun rôle** : « quitter l'org » et « annuler un envoi
+  programmé » étaient offerts même à l'admin plateforme qui consulte une org dont il n'est pas
+  membre. Ils lisent `canWriteInOrg`.
+
+Recensement écran par écran, et sa mesure contre le middleware : `docs/orgs-groupes-invitations.md`.

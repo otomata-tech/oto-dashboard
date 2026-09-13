@@ -72,10 +72,30 @@ type OrgRoleHolder = { org_role?: string | null; role?: Role } | null | undefine
 
 // L'admin d'org TEL QUE LE SERVEUR LE TIENT (`roles.is_org_admin`) : l'org_admin de l'org
 // active, ou le super_admin. JAMAIS l'`admin` plateforme : chaque op d'admin d'org le refuse
-// en 403 (oto#210). ⚠️ Un rôle, pas un droit d'écrire : en consultation
-// (`active_org_readonly`), le serveur refuse toute écriture, super_admin compris.
+// en 403 (oto#210). ⚠️ Un rôle, pas un droit d'écrire : un geste passe par
+// `canAdministerOrg` ci-dessous (oto#211).
 export function isOrgAdmin(m: OrgRoleHolder): boolean {
   return m?.org_role === 'org_admin' || isSuperAdmin(m)
+}
+
+// ── écrire dans l'org active (oto#211) ────────────────────────────────────────
+// En consultation (`active_org_readonly` : un opérateur plateforme ouvre une org où il n'a
+// aucun rôle réel), `ViewAsMiddleware` refuse toute requête non-GET dont l'`op` n'est pas une
+// lecture, en `403 view_as_read_only` — super_admin compris. Tout geste d'écriture d'un écran
+// d'org ou d'automatisation passe donc par l'une de ces deux fonctions, jamais par le rôle
+// seul. La lecture seule se dit une fois, dans la coque (`ConsultOrgBanner`) : un écran omet
+// ses gestes, il ne la répète pas.
+type OrgWriter = { org_role?: string | null; role?: Role; active_org_readonly?: boolean } | null | undefined
+
+/** Un geste ouvert à tout membre (quitter l'org, annuler un envoi programmé, arrêter une
+ * campagne) : un profil chargé, hors consultation. */
+export function canWriteInOrg(m: OrgWriter): boolean {
+  return !!m && m.active_org_readonly !== true
+}
+
+/** Un geste d'admin d'org : le rôle que le serveur tient (`isOrgAdmin`), hors consultation. */
+export function canAdministerOrg(m: OrgWriter): boolean {
+  return canWriteInOrg(m) && isOrgAdmin(m)
 }
 
 // Qui VOIT les écrans d'administration d'org (menu, « gérer mon org ») : l'admin d'org, et

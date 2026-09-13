@@ -13,7 +13,7 @@ import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
-import { useMe, isOrgAdmin } from '@/composables/useMe'
+import { useMe, canAdministerOrg } from '@/composables/useMe'
 import { listGroups, createGroup, updateGroup, deleteGroup } from '@/api/console'
 import type { GroupListItem } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -28,9 +28,10 @@ const error = ref<string | null>(null)
 const loaded = ref(false)
 
 const activeOrgId = computed(() => me.value?.active_org ?? null)
-// Les gestes du roster, tels que le serveur les accepte (`isOrgAdmin`, oto#210) : l'admin
-// plateforme LIT la liste, il ne crée, ne renomme ni ne supprime.
-const orgAdmin = computed(() => isOrgAdmin(me.value))
+// Les gestes du roster, tels que le serveur les accepte (`canAdministerOrg`) : l'admin
+// plateforme LIT la liste, il ne crée, ne renomme ni ne supprime (oto#210) ; en consultation,
+// personne (oto#211).
+const orgAdmin = computed(() => canAdministerOrg(me.value))
 
 async function load() {
   if (activeOrgId.value == null) { loaded.value = true; return }

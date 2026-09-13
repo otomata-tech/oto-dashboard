@@ -20,7 +20,9 @@ import { fmtDate } from '@/types/api'
 import { humanize, explain } from '@/lib/errors'
 import { ApiError } from '@/api'
 
-const props = defineProps<{ scope: InviteScope; canManage: boolean }>()
+// `canRead` charge la liste, `canManage` arme les gestes : un admin qui CONSULTE une org en lit
+// les invitations sans pouvoir en émettre ni en révoquer — le serveur refuse (oto#211).
+const props = defineProps<{ scope: InviteScope; canRead: boolean; canManage: boolean }>()
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
@@ -29,8 +31,8 @@ const { formDialog, formDialogOpen, openForm } = useFormDialog()
 const { formDialog: revealDialog, formDialogOpen: revealOpen, openForm: openReveal } = useFormDialog()
 
 const scopeRef = toRef(props, 'scope')
-const canManageRef = toRef(props, 'canManage')
-const { invitations, loading, error, reload, invite, revoke } = useInvitations(scopeRef, canManageRef)
+const canReadRef = toRef(props, 'canRead')
+const { invitations, loading, error, reload, invite, revoke } = useInvitations(scopeRef, canReadRef)
 
 const level = computed(() => props.scope.level)
 const noun = computed(() => (level.value === 'org' ? 'the org' : 'oto'))

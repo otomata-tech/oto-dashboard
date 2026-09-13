@@ -23,7 +23,9 @@ const { toast } = useToast()
 const { confirmAction } = usePrompt()
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
 const { reload: reloadMe } = useMe()
-const { activeOrgId, detail, error, loaded, isOrgAdmin, reload } = useOrgScope()
+// Gestes : `canAdminister` (profil, logo, supprimer) et `canWrite` (quitter) — le rôle, hors
+// consultation, où le serveur refuse toute écriture (oto#211).
+const { activeOrgId, detail, error, loaded, canWrite, canAdminister, reload } = useOrgScope()
 
 const logoBusy = ref(false)
 const isPersonalOrg = computed(() => detail.value?.org.personal === true)
@@ -127,7 +129,7 @@ async function deleteOrg() {
 
     <template v-else>
       <ConsoleCard title="général" sub="nom, logo, description et profil d'entreprise de ton org active.">
-        <template v-if="isOrgAdmin" #actions>
+        <template v-if="canAdminister" #actions>
           <Btn kind="mini" icon="pen" @click="editOrg">modifier</Btn>
         </template>
         <div class="rowlist">
@@ -147,12 +149,12 @@ async function deleteOrg() {
             </div>
             <div v-if="detail?.org.description" style="font-size: 12.5px; color: var(--color-mute); margin-top: 8px; white-space: pre-wrap">{{ detail.org.description }}</div>
             <div v-else class="helptext" style="margin-top: 8px">
-              {{ isOrgAdmin ? 'no description yet — add one to tell teammates what this org is for.' : 'no description.' }}
+              {{ canAdminister ? 'no description yet — add one to tell teammates what this org is for.' : 'no description.' }}
             </div>
           </div>
 
           <!-- Logo : dérivé du domaine (logo.dev) par défaut, upload = override. -->
-          <div v-if="isOrgAdmin" style="border-top: 1px solid var(--color-hair); padding-top: 12px">
+          <div v-if="canAdminister" style="border-top: 1px solid var(--color-hair); padding-top: 12px">
             <div v-if="!detail?.org.logo_custom && detail?.org.domain && detail?.org.logo_url" class="helptext" style="margin-bottom: 8px">
               logo dérivé de <strong>{{ detail.org.domain }}</strong> (logo.dev) — dépose-en un pour le remplacer.
             </div>
@@ -180,8 +182,9 @@ async function deleteOrg() {
       </ConsoleCard>
 
       <!-- Zone danger : gestes irréversibles/destructifs regroupés (jamais sur l'espace perso).
-           quitter = self-service tout membre · supprimer (archivage réversible) = org_admin. -->
-      <ConsoleCard v-if="detail && !isPersonalOrg" class="danger-zone" title="zone danger"
+           quitter = self-service tout membre · supprimer (archivage réversible) = org_admin.
+           En consultation, aucun des deux : la carte part avec eux (oto#211). -->
+      <ConsoleCard v-if="detail && !isPersonalOrg && canWrite" class="danger-zone" title="zone danger"
         sub="actions sensibles sur cette organisation.">
         <div class="dz-list">
           <!-- Quitter : tout membre, refusé si dernier admin (409 backend). -->
@@ -196,7 +199,7 @@ async function deleteOrg() {
             <Btn kind="danger" @click="leave">quitter</Btn>
           </div>
           <!-- Supprimer (= archivage réversible) : réservé aux admins de l'org. -->
-          <div v-if="isOrgAdmin" class="dz-row">
+          <div v-if="canAdminister" class="dz-row">
             <div class="dz-txt">
               <div class="dz-t">supprimer l'organisation</div>
               <div class="helptext" style="margin: 0">

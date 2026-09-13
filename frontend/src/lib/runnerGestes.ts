@@ -14,7 +14,7 @@
 //     nouvelle campagne », jamais « augmenter la borne ».
 import { ApiError } from '@/api'
 import type { RunnerTrigger } from '@/api/console'
-import { isOrgAdmin } from '@/composables/useMe'
+import { canAdministerOrg, canWriteInOrg } from '@/composables/useMe'
 import type { Me, RunnerFleet, RunnerFleetState, RunnerModel } from '@/types/api'
 import { explain } from './errors'
 
@@ -46,12 +46,12 @@ export interface Droits {
 
 type Porteur = Pick<Me, 'role' | 'org_role' | 'active_org_readonly'> | null | undefined
 
-/** Armer et relancer : l'admin d'org tel que le serveur le tient (`roles.is_org_admin` :
- * l'org_admin de l'org et le seul super_admin), soit `isOrgAdmin` de `useMe` depuis oto#210 —
- * il comptait l'`admin` plateforme, que `launch` refuse. */
+/** La règle commune des écrans d'org (`useMe`, oto#211), projetée sur une campagne : arrêter
+ * s'ouvre à tout membre hors consultation (`canWriteInOrg`) ; armer et relancer à l'admin
+ * d'org tel que le serveur le tient — l'org_admin de l'org et le seul super_admin, jamais
+ * l'`admin` plateforme que `launch` refuse (oto#210) —, hors consultation (`canAdministerOrg`). */
 export function droits(me: Porteur): Droits {
-  const ouverts = !!me && me.active_org_readonly !== true
-  return { ouverts, armer: ouverts && isOrgAdmin(me) }
+  return { ouverts: canWriteInOrg(me), armer: canAdministerOrg(me) }
 }
 
 export interface GestesPermis {

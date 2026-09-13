@@ -29,8 +29,8 @@ async function settle() {
   for (let i = 0; i < 6; i++) await nextTick()
 }
 
-async function boutons(role: string, org_role: string | null): Promise<string[]> {
-  me.value = { sub: 'u-test', role, org_role, active_org: 42 }
+async function boutons(role: string, org_role: string | null, active_org_readonly = false): Promise<string[]> {
+  me.value = { sub: 'u-test', role, org_role, active_org: 42, active_org_readonly }
   const View = (await import('./GroupsView.vue')).default
   const host = document.createElement('div')
   document.body.appendChild(host)
@@ -71,5 +71,17 @@ describe('GroupsView — les gestes suivent la règle du serveur (oto#210)', () 
     expect(api.listGroups).toHaveBeenCalledWith(42)
     expect(host.textContent).toContain('ventes')
     app.unmount()
+  })
+})
+
+// En consultation (`active_org_readonly`), le serveur refuse toute écriture en
+// `403 view_as_read_only`, super_admin compris (`ViewAsMiddleware`) : le rôle ne suffit plus.
+describe('GroupsView — en consultation, aucun geste (oto#211)', () => {
+  it.each([
+    ['org_admin', 'member', 'org_admin'],
+    ['super_admin', 'super_admin', null],
+  ])('%s : gestes présents hors consultation, absents en consultation', async (_nom, role, orgRole) => {
+    expect(await boutons(role, orgRole, false)).toEqual(['New', 'Edit', 'Delete'])
+    expect(await boutons(role, orgRole, true)).toEqual([])
   })
 })

@@ -12,7 +12,7 @@ import {
   getConnectorAcl, setConnectorAccess, clearConnectorAccess, listGroups,
   credentialPrefill,
 } from '@/api/console'
-import { useMe, isOrgAdmin } from '@/composables/useMe'
+import { useMe, canAdministerOrg, canWriteInOrg } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
 import type {
   OrgConnectorActivation, ConnectorMeta, FieldFiltersBundle,
@@ -24,8 +24,11 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
   const { me } = useMe()
   const orgId = computed(() => me.value?.active_org ?? null)
   // Leviers d'écriture (`ORG_ADMIN_OF` côté serveur) : l'admin d'org tel que le serveur le
-  // tient (`isOrgAdmin`, oto#210). L'admin plateforme lit, il ne règle rien.
-  const orgAdmin = computed(() => isOrgAdmin(me.value))
+  // tient, hors consultation (`canAdministerOrg`). L'admin plateforme lit, il ne règle rien
+  // (oto#210) ; en consultation, personne ne règle rien (oto#211).
+  const orgAdmin = computed(() => canAdministerOrg(me.value))
+  // « Tester » est un POST sans `op` : en consultation, le serveur le refuse comme une écriture.
+  const canWrite = computed(() => canWriteInOrg(me.value))
 
   const rows = ref<OrgConnectorActivation[]>([])
   const metaMap = ref<Record<string, ConnectorMeta>>({})
@@ -217,6 +220,7 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
       edit: (r) => editKey(r),
       remove: (r) => removeKey(r),
       verify: (r) => verifyConnector(r.connector, 'org'),
+      canVerify: () => canWrite.value,
       // Consentement AU SCOPE ORG. Sans lui, cette surface laissait POSER l'application
       // OAuth de l'org sans aucun moyen de l'activer : l'org_admin enregistrait
       // client_id/secret/login_url, et devait deviner qu'il fallait aller sur sa fiche

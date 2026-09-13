@@ -37,7 +37,7 @@ import BillingPending from '@/components/console/billing/BillingPending.vue'
 import BillingUsageCard from '@/components/console/billing/BillingUsageCard.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
-import { useMe, isOrgAdmin } from '@/composables/useMe'
+import { useMe, canAdministerOrg } from '@/composables/useMe'
 import {
   getBilling, getBillingIdentity, getBillingPayments, confirmBilling, cancelBilling,
   resumeBilling, startBillingMethodChange,
@@ -71,9 +71,9 @@ const gestureError = ref<string | null>(null)
 // Palier choisi = on est dans le tunnel. Retour au catalogue en le remettant à null.
 const chosen = ref<BillingPlan | null>(null)
 
-// Souscrire/résilier réservé à l'org_admin (le backend le garde aussi — l'UI ne
-// fait que masquer les leviers).
-const canManage = computed(() => isOrgAdmin(me.value))
+// Souscrire/résilier réservé à l'org_admin, et refusé à tous en consultation (oto#211) — le
+// backend le garde aussi, l'UI ne fait que masquer les leviers.
+const canManage = computed(() => canAdministerOrg(me.value))
 
 const STATUS_TONE: Record<string, 'olive' | 'saffron' | 'terra' | 'ink'> = {
   active: 'olive', past_due: 'terra', incomplete: 'saffron', canceled: 'ink',
