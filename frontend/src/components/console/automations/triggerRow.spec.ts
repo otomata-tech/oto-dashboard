@@ -164,7 +164,7 @@ describe('supprimer un déclencheur', () => {
     const autre: RunnerTrigger = { ...BASE, id: 2, label: 'Relance du soir' }
     const hote = await monter([BASE, autre])
     await cliquer(hote.querySelectorAll('[data-test="supprimer"]')[0])
-    expect(hote.textContent).toContain('Supprimer ce déclencheur ? Ses occurrences en attente ne partiront jamais.')
+    expect(hote.textContent).toContain('Supprimer cette programmation ? Ses occurrences en attente ne partiront jamais.')
     expect(api.deleteRunnerTrigger).not.toHaveBeenCalled()
 
     api.deleteRunnerTrigger.mockResolvedValueOnce({})

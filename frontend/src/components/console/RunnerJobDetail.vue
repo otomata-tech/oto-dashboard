@@ -76,7 +76,7 @@ const bailDit = computed(() => {
 // On nomme ce qu'on reconnaît, on rend le reste tel quel.
 const ETIQUETTES_PAYLOAD: Record<string, string> = {
   procedure: 'procédure',
-  fleet: 'flotte',
+  fleet: 'campagne',
   namespace: 'tableau',
   project_id: 'projet',
   tools: 'outils autorisés',
@@ -231,16 +231,16 @@ watch(() => props.job?.id, async () => {
 </script>
 
 <template>
-    <section v-if="j" class="card jd" aria-label="fiche d'un agent">
+    <section v-if="j" class="card jd" aria-label="fiche d'une exécution">
       <header class="jd-head">
         <div class="jd-head-txt">
           <h3 class="jd-title">
-            Travail <span class="jd-id">#{{ j.id }}</span>
+            Exécution <span class="jd-id">#{{ j.id }}</span>
             <Tag v-if="statut" :tone="statut.ton">{{ t(statut.cle, statut.params) }}</Tag>
           </h3>
           <p class="jd-desc">
             {{ procOf(j) ?? '—' }}
-            <span v-if="j.kind === 'continue'"> · reprise de fil</span>
+            <span v-if="j.kind === 'continue'"> · suite d'un run</span>
             <span v-if="sejour(j, maintenant)"> · {{ sejour(j, maintenant) }}</span>
           </p>
         </div>
@@ -267,11 +267,11 @@ watch(() => props.job?.id, async () => {
         <!-- ③ L'identité -->
         <dl class="jd-meta">
           <div>
-            <dt>créé</dt>
+            <dt>créée</dt>
             <dd>{{ j.created_at ? absDate(String(j.created_at)) : '—' }}</dd>
           </div>
           <div>
-            <dt>conclu</dt>
+            <dt>conclue</dt>
             <dd>{{ j.finished_at ? absDate(String(j.finished_at)) : 'pas encore' }}</dd>
           </div>
           <div>
@@ -298,7 +298,7 @@ watch(() => props.job?.id, async () => {
           </div>
           <div>
             <dt>worker</dt>
-            <dd :title="j.claimed_by ?? ''">{{ worker ?? 'pas encore pris' }}</dd>
+            <dd :title="j.claimed_by ?? ''">{{ worker ?? 'pas encore prise' }}</dd>
           </div>
           <div>
             <dt>run</dt>
@@ -308,7 +308,7 @@ watch(() => props.job?.id, async () => {
 
         <!-- ④ Ce qu'il visait -->
         <section v-if="visees.length" class="jd-sec">
-          <h4 class="jd-sec-t">Ce qu'il visait</h4>
+          <h4 class="jd-sec-t">Ce qu'elle visait</h4>
           <!-- ⚠️ Les liens s'adressent par l'IDENTIFIANT porté par la charge utile, et
                n'existent QUE s'il y est. Un lien bâti sur le nom ouvrait, chez un lecteur
                qui a un homonyme, le tableau de CE lecteur — sous le bon libellé (oto#160). -->
@@ -325,13 +325,13 @@ watch(() => props.job?.id, async () => {
               v-if="tenue.etat === 'trouvee'"
               :to="`/data/${encodeURIComponent(tableauId)}/item/${encodeURIComponent(tenue.id)}`"
               class="jd-lien"
-            >ouvrir la ligne qu'il tient</RouterLink>
+            >ouvrir la ligne qu'elle tient</RouterLink>
           </p>
           <!-- ⚠️ On dit ce qu'on ne peut PAS montrer. Le tableau n'enregistre que la
                ligne qu'un run tient EN CE MOMENT ; elle est libérée à la conclusion.
                Laisser un silence ici se lirait « ce travail n'a touché aucune ligne ». -->
           <p v-if="tenue.etat === 'liberee'" class="jd-vide">
-            La ligne qu'il a travaillée n'est plus retrouvable : le tableau ne retient
+            La ligne qu'elle a travaillée n'est plus retrouvable : le tableau ne retient
             que la ligne qu'un agent tient sur le moment, et elle est relâchée à la
             conclusion. Le journal du tableau, lui, garde la trace de l'écriture.
           </p>
@@ -347,8 +347,8 @@ watch(() => props.job?.id, async () => {
                plusieurs tableaux peuvent porter ce nom. On montre le nom et on s'arrête
                là — ouvrir au jugé ouvrirait peut-être celui du lecteur. -->
           <p v-else-if="tenue.etat === 'sans-adresse'" class="jd-vide">
-            Ce travail nomme son tableau ({{ tableauNom }}) sans l’identifier : il a été
-            enfilé avant que la plateforme n’emporte l’identifiant. On ne l’ouvre pas
+            Cette exécution nomme son tableau ({{ tableauNom }}) sans l’identifier : elle a été
+            enfilée avant que la plateforme n’emporte l’identifiant. On ne l’ouvre pas
             d’ici — plusieurs tableaux peuvent porter ce nom, et ce ne serait pas
             forcément le bon. Passe par Données pour retrouver celui de cette campagne.
           </p>
@@ -362,10 +362,10 @@ watch(() => props.job?.id, async () => {
 
         <!-- ⑤ Ce qu'il a produit -->
         <section class="jd-sec">
-          <h4 class="jd-sec-t">Ce qu'il a produit</h4>
+          <h4 class="jd-sec-t">Ce qu'elle a produit</h4>
           <p v-if="!postes.length && !outils.length && !autres.length" class="jd-vide">
-            Ce travail n'a rien déclaré à sa conclusion — soit il n'est pas encore
-            conclu, soit le worker n'a rendu aucun relevé.
+            Cette exécution n'a rien déclaré à sa conclusion : soit elle n'est pas encore
+            conclue, soit le worker n'a rendu aucun relevé.
           </p>
           <dl v-if="postes.length" class="jd-meta">
             <div v-for="p in postes" :key="p.cle">
@@ -395,13 +395,13 @@ watch(() => props.job?.id, async () => {
 
         <!-- ⑥ Le fil -->
         <section class="jd-sec">
-          <h4 class="jd-sec-t">Son fil</h4>
+          <h4 class="jd-sec-t">Journal</h4>
           <p v-if="!j.run_id" class="jd-vide">
-            Ce travail n'a pas ouvert de run — il n'a pas de fil à lire.
+            Cette exécution n'a pas ouvert de run : elle n'a pas de journal à lire.
           </p>
           <p v-else-if="fil === 'chargement'" class="jd-vide">chargement…</p>
           <p v-else-if="fil === 'erreur'" class="jd-vide">
-            Fil illisible — il est réservé au propriétaire du run.
+            Journal illisible : il est réservé au propriétaire du run.
           </p>
           <!-- Un fil vide n'est pas une panne : quand la boucle d'outils tourne
                chez le fournisseur, le verbatim des tours ne nous revient pas. -->

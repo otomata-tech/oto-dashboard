@@ -76,11 +76,11 @@ describe('une campagne : les compteurs de TOUTE la campagne', () => {
     expect(api.listRunnerJobs).not.toHaveBeenCalled()
     const paires = [...hote.querySelectorAll('[data-test="compteurs"] > div')]
       .map((d) => `${d.querySelector('dt')!.textContent!.trim()} ${d.querySelector('dd')!.textContent!.trim()}`)
-    expect(paires).toEqual(['faits 1790', 'en file 12', 'en vol 3', 'en échec 35', 'dont abandonnés 4', 'total 1840'])
+    expect(paires).toEqual(['terminées 1790', 'en file 12', 'en vol 3', 'en échec 35', 'dont abandonnées 4', 'total 1840'])
     expect(hote.textContent).toContain('5.4 M')
     expect(hote.textContent).toContain('21 k')
     // `heaviest_row_tokens` est le maximum PAR TRAVAIL, malgré son nom : jamais « ligne ».
-    expect(hote.textContent).toContain('travail le plus lourd')
+    expect(hote.textContent).toContain('exécution la plus lourde')
     expect(hote.textContent).not.toContain('ligne la plus lourde')
     expect(hote.textContent).toContain('en cours')
   })

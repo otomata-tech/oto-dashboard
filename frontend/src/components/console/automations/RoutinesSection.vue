@@ -51,7 +51,7 @@ onMounted(load)
       <p v-else-if="loaded && !routines.length" class="au-empty">
         Aucune automatisation configurée. Crée une routine sur
         <a href="https://claude.ai/code/routines" target="_blank" rel="noopener">claude.ai/code/routines</a>
-        (prompt + connecteur Oto), ajoute-lui un déclencheur <strong>API</strong>, génère
+        (prompt + connecteur Oto), active son lancement par <strong>API</strong>, génère
         son jeton — il n'est affiché qu'une fois — puis pose-le ici comme credential du
         connecteur <RouterLink to="/connectors">Routine Claude Code</RouterLink>.
         Une routine par automatisation : le jeton ne déclenche que la sienne.

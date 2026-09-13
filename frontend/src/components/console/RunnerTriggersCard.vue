@@ -38,24 +38,15 @@ function retirer(id: number) {
 
 <template>
   <ConsoleCard
-    :title="props.procedure ? 'Agent programmé' : 'Déclencheurs programmés'"
-    :sub="props.procedure
-      ? 'Cette procédure tourne-t-elle toute seule, et à quel rythme ?'
-      : 'Les procédures qui partent toutes seules, à heure fixe — et leur robinet.'"
+    :title="props.procedure ? t('automations.triggers.procedureTitle') : t('automations.triggers.title')"
+    :sub="props.procedure ? t('automations.triggers.procedureSub') : t('automations.triggers.sub')"
   >
     <div class="card-body">
       <p v-if="error" class="rt-err" role="alert">{{ error }}</p>
+      <!-- `oto_trigger` est le nom de l'outil de l'agent : un identifiant, pas un mot produit. -->
       <p v-if="loaded && !triggers.length && !error" class="dim rt-empty">
-        <template v-if="props.procedure">
-          Cette procédure ne tourne pas toute seule. Pour qu'elle parte à heure fixe,
-          demande-le à ton agent (« fais tourner cette procédure tous les jours à
-          8 h ») — il utilisera <code>oto_trigger</code>.
-        </template>
-        <template v-else>
-          Aucun déclencheur. Demande à ton agent d'en créer un
-          (« déclenche la procédure X tous les jours à 8 h ») — il utilisera
-          <code>oto_trigger</code>.
-        </template>
+        {{ props.procedure ? t('automations.triggers.procedureEmpty') : t('automations.triggers.empty') }}
+        <code>oto_trigger</code>.
       </p>
       <ul v-if="triggers.length" class="rt-list">
         <TriggerRow v-for="tr in triggers" :key="tr.id" :trigger="tr" :models="models" :gestes="gestes"

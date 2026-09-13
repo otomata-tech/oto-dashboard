@@ -17,6 +17,10 @@ import type {
 } from '@/api/console'
 import { detailEspace, PAGES_ESPACE, SECTION } from '@/lib/automationsEspace'
 import { i18n } from '@/lib/i18n'
+// Import STATIQUE : le graphe de l'espace se charge à la collecte du fichier, pas dans le
+// premier test — sous charge, un import à froid dans un test dépassait ses 5 s (13/09/2026).
+// Les `vi.mock` des specs sont hissés avant les imports : ils s'appliquent quand même.
+import Espace from '@/views/console/AutomationsView.vue'
 
 export type Bouchons = Record<
   | 'listRunnerFleets' | 'getRunnerFleet' | 'getRunnerFleetState' | 'launchRunnerFleet' | 'stopRunnerFleet'
@@ -164,7 +168,6 @@ export interface Monte { hote: HTMLElement; router: Router; demonter: () => void
 export async function monterEspace(url: string): Promise<Monte> {
   const router = routeurEspace()
   await router.push(url)
-  const { default: Espace } = await import('@/views/console/AutomationsView.vue')
   const hote = document.createElement('div')
   document.body.appendChild(hote)
   const app = createApp({ render: () => h(Espace) })

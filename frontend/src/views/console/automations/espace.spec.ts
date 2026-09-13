@@ -220,7 +220,7 @@ describe('une erreur reste dans sa section', () => {
     const m = await ouvrir('/automations')
     expect(m.hote.querySelectorAll('[role="alert"]')).toHaveLength(1)
     expect(texte(m, '[data-test="vivantes"]')).toContain('Campagnes illisibles')
-    expect(m.hote.textContent).toContain('Un worker prend les travaux de cette organisation.')
+    expect(m.hote.textContent).toContain('Un worker prend les exécutions de cette organisation.')
     expect(texte(m, '[data-test="en-perte"]')).toContain('Veille du matin')
     expect(texte(m, '[data-test="en-perte"]')).toContain('2 occurrences non prises')
     expect(texte(m, '[data-test="echecs"]')).toContain('#301')

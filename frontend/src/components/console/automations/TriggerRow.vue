@@ -63,7 +63,7 @@ function surEnregistre(rendu: Partial<RunnerTrigger>) {
     </span>
     <span class="rt-model">{{ modele.label ?? t('automations.triggers.form.workerModel') }}</span>
     <Tag v-if="modele.nonServi" tone="terra">{{ t('automations.triggers.form.notServed') }}</Tag>
-    <Tag v-if="!trigger.enabled" tone="ink">coupé</Tag>
+    <Tag v-if="!trigger.enabled" tone="ink">{{ t('automations.schedulePage.disabled') }}</Tag>
     <span v-else-if="trigger.next_due" class="rt-next">
       {{ t('automations.triggers.next', { date: absDate(trigger.next_due) }) }}</span>
     <!-- Les occurrences que personne n'est venu prendre avant la suivante : le serveur les
@@ -74,8 +74,8 @@ function surEnregistre(rendu: Partial<RunnerTrigger>) {
       <!-- Les DEUX dates : « depuis quand » et « est-ce encore en cours » sont deux
            questions différentes. -->
       <span v-if="trigger.expired_since" class="rt-next">
-        depuis {{ absDate(trigger.expired_since) }}<template v-if="trigger.expired_last">,
-        dernière {{ absDate(trigger.expired_last) }}</template></span>
+        {{ t('automations.schedulePage.lostSince', { date: absDate(trigger.expired_since) }) }}<template
+          v-if="trigger.expired_last">, {{ t('automations.schedulePage.lostLast', { date: absDate(trigger.expired_last) }) }}</template></span>
     </span>
     <span v-if="gestes && !reglage && !enSuppression" class="rt-actions">
       <Btn kind="link" data-test="regler" @click="reglage = true">{{ t('automations.triggers.form.open') }}</Btn>

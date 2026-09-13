@@ -9,6 +9,28 @@ lancer, régler ce qui est réglable, comprendre ce qui a eu lieu. Aucune écrit
 
 Usages, par priorité (Alexis, 13/09) : **suivre une campagne**, **piloter**, **vue d'ensemble**.
 
+## Le lexique (tranché par le plan le 13/09/2026, oto#214)
+
+Seuls les **textes produit** suivent ce lexique, en français et en anglais : les identifiants de
+code, les noms d'API, les routes et les clés i18n existantes ne changent pas.
+
+| mot produit (en) | ce que c'est | entité, identifiant technique |
+|---|---|---|
+| **procédure** (procedure) | les instructions réutilisables ; jamais un agent ; lien vers la page Procédures | `/api/me/instructions*`, `Doctrine*View`, `/procedures/:id` |
+| **campagne** (campaign) | un lot de travail : une procédure, une cible, des bornes ; jamais « flotte » | `runner.fleets` (`/api/me/runner/fleets`), `RunnerFleet`, `fleet_id` |
+| **programmation** (schedule) | ce qui lance des exécutions à l'horaire servi, sans promettre d'autre événement ; jamais « déclencheur » | `runner.triggers` (`/api/me/runner/triggers`), `RunnerTrigger`, `trigger_id` |
+| **exécution** (execution) | un travail lancé, son état, son résultat ; terminée ne veut pas dire réussie ; jamais « travail » ni « job » | `runner.jobs` (table `runner_jobs`), `RunnerJob`, `job_id` |
+| **tentative** (attempt) | un essai du même travail : seulement le compte servi, aucun historique inventé | `runner_jobs.attempts` / `max_attempts` |
+| **journal** (log) | les échanges disponibles pour une exécution : le fil de son run | `runs.thread` (`/api/me/runs/thread`), `run_id` — un run et une exécution sont deux identités, sans correspondance un pour un |
+| **agent** | l'exécutant logiciel qui lit une procédure et appelle des outils ; jamais une procédure ni une campagne | — |
+| **worker** | la capacité technique qui prend les exécutions ; le bandeau runner, un diagnostic, le nomme ainsi | `RunnerArme.workers`, `claimed_by` |
+| **routine Claude Code** | nom conservé tel quel, jamais « programmation » | connecteur `routine`, `/api/me/automations/fire` |
+
+« travail » garde ses autres sens : l'espace de travail, la file de travail d'un tableau. Garde :
+`lib/lexiqueAutomations.tripwire.spec.ts` (copie `automations.*` en fr et en, gabarits et
+littéraux des pages et composants de l'espace), avec sa contre-épreuve. Les phrases du serveur
+affichées mot pour mot (un refus) ne sont pas les nôtres et n'y passent pas.
+
 ## L'espace et ses pages (oto#214)
 
 Le routeur n'a pas de routes enfants : chaque page est une route **plate** de section

@@ -235,22 +235,22 @@
       },
       "runner": {
         "title": "Runner",
-        "sub": "Le worker qui prend les travaux de cette organisation.",
+        "sub": "Le worker qui prend les exécutions de cette organisation.",
         "armedTag": "armé",
-        "armed": "Un worker prend les travaux de cette organisation.",
-        "notArmed": "Aucun runner ne prend les travaux de cette organisation.",
+        "armed": "Un worker prend les exécutions de cette organisation.",
+        "notArmed": "Aucun runner ne prend les exécutions de cette organisation.",
         "lastSeen": "dernier contact",
         "neverSeen": "jamais",
         "workers": "identités de worker actives",
         "workersHint": "Une identité de worker est un secret déclaré, pas un processus : une seule peut faire tourner plusieurs agents.",
         "models": "modèles servis",
-        "noModel": "aucun modèle déclaré, seuls les travaux sans modèle sont pris",
+        "noModel": "aucun modèle déclaré, seules les exécutions sans modèle sont prises",
         "notServed": "La présence du runner n'est pas servie.",
         "error": "Présence du runner illisible : {reason}"
       },
       "campaigns": {
         "title": "Campagnes",
-        "sub": "Chaque campagne, comptée sur l'ensemble de ses travaux.",
+        "sub": "Chaque campagne, comptée sur l'ensemble de ses exécutions.",
         "empty": "Aucune campagne déclarée.",
         "betaOff": "Campagnes non activées pour cette organisation.",
         "error": "Campagnes illisibles : {reason}",
@@ -271,8 +271,8 @@
           "draftUnread": "non armée",
           "draft": "brouillon",
           "historical": "historique",
-          "historicalHint": "Campagne de l'ancien ordonnanceur : son statut n'a pas suivi, elle se lit d'après ses travaux.",
-          "armed": "armée, en attente du premier travail",
+          "historicalHint": "Campagne de l'ancien ordonnanceur : son statut n'a pas suivi, elle se lit d'après ses exécutions.",
+          "armed": "armée, en attente de la première exécution",
           "running": "en cours",
           "stopping": "arrêt demandé",
           "stoppingInFlight": "arrêt demandé, {n} en vol",
@@ -283,45 +283,45 @@
           "unknown": "statut inconnu : {status}"
         },
         "counters": {
-          "done": "faits",
+          "done": "terminées",
           "pending": "en file",
           "claimed": "en vol",
           "failed": "en échec",
-          "abandoned": "dont abandonnés",
+          "abandoned": "dont abandonnées",
           "total": "total"
         },
         "tokens": "jetons, entrée hors cache + sortie",
-        "heaviest": "travail le plus lourd",
-        "lastFinished": "dernier travail terminé",
+        "heaviest": "exécution la plus lourde",
+        "lastFinished": "dernière exécution terminée",
         "unknown": "inconnu",
         "none": "aucun",
         "noModel": "modèle non déclaré",
-        "noJobs": "Aucun travail rattaché à cette campagne.",
+        "noJobs": "Aucune exécution rattachée à cette campagne.",
         "loading": "Lecture des compteurs…",
         "error": "Compteurs illisibles : {reason}",
-        "armedIdle": "Armée depuis {duration} sans premier travail : aucun worker ne sonde la file de cette organisation.",
-        "showJobs": "voir les travaux",
-        "hideJobs": "masquer les travaux"
+        "armedIdle": "Armée depuis {duration} sans première exécution : aucun worker ne sonde la file de cette organisation.",
+        "showJobs": "voir les exécutions",
+        "hideJobs": "masquer les exécutions"
       },
       "jobs": {
         "status": {
           "pending": "en file",
           "claimed": "en vol",
-          "done": "fait",
+          "done": "terminée",
           "failed": "en échec",
-          "abandoned": "abandonné",
-          "expired": "expiré",
+          "abandoned": "abandonnée",
+          "expired": "expirée",
           "unknown": "statut inconnu : {status}"
         },
         "shown": "{shown} affichés sur {total}",
         "more": "Afficher la suite",
-        "empty": "Aucun travail.",
-        "error": "Travaux illisibles : {reason}",
+        "empty": "Aucune exécution.",
+        "error": "Exécutions illisibles : {reason}",
         "open": "ouvrir",
         "costUnknown": "coût inconnu",
         "tokens": "{n} jetons",
         "leaseExpired": "bail dépassé",
-        "expiredHint": "personne ne l'a pris, ce n'est pas un échec"
+        "expiredHint": "personne ne l'a prise, ce n'est pas un échec"
       },
       "space": {
         "root": "Automatisations",
@@ -425,13 +425,13 @@
         "stop": "Arrêter",
         "confirmArm": "Armer « {label} » ? Procédure, tableau et modèle ne se changent plus.",
         "confirmRelaunch": "Relancer « {label} » ? Procédure, tableau et modèle ne se changent plus.",
-        "confirmStop": "Demander l'arrêt ? Les travaux en vol continuent, et dépensent, jusqu'à leur fin.",
-        "stoppingSince": "Arrêt demandé depuis {duration} : il sera constaté au prochain passage d'un worker. Les travaux en vol continuent de dépenser jusqu'à leur fin.",
-        "stoppingNoDate": "Arrêt demandé : il sera constaté au prochain passage d'un worker. Les travaux en vol continuent de dépenser jusqu'à leur fin.",
+        "confirmStop": "Demander l'arrêt ? Les exécutions en vol continuent, et dépensent, jusqu'à leur fin.",
+        "stoppingSince": "Arrêt demandé depuis {duration} : il sera constaté au prochain passage d'un worker. Les exécutions en vol continuent de dépenser jusqu'à leur fin.",
+        "stoppingNoDate": "Arrêt demandé : il sera constaté au prochain passage d'un worker. Les exécutions en vol continuent de dépenser jusqu'à leur fin.",
         "refused": "Refusé : {reason}",
         "blocked": {
           "historical": "Aucun geste sur une campagne historique. Pour la rejouer, demande à ton agent de déclarer une nouvelle campagne.",
-          "boundReached": "Pas de relance : borne atteinte, travaux produits : {n} sur {max}. Une relance n'en produirait aucun. Pour continuer, demande à ton agent de déclarer une nouvelle campagne.",
+          "boundReached": "Pas de relance : borne atteinte, exécutions produites : {n} sur {max}. Une relance n'en produirait aucun. Pour continuer, demande à ton agent de déclarer une nouvelle campagne.",
           "consecutiveFailures": "Pas de relance : arrêtée pour échecs consécutifs, elle serait arrêtée de nouveau sans rien produire. Pour continuer, demande à ton agent de déclarer une nouvelle campagne."
         }
       },
@@ -439,6 +439,12 @@
         "next": "prochaine exécution : {date}",
         "notTaken": "{n} occurrence non prise | {n} occurrences non prises",
         "effect": "Couper périme les occurrences en attente : elles ne partiront jamais. Rallumer reprend le rythme à partir de maintenant — l'échéance manquée pendant l'arrêt n'est pas rattrapée.",
+        "title": "Programmations",
+        "sub": "Les procédures qui partent toutes seules, à heure fixe, et leur robinet.",
+        "procedureTitle": "Programmation",
+        "procedureSub": "Cette procédure tourne-t-elle toute seule, et à quel rythme ?",
+        "empty": "Aucune programmation. Demande à ton agent d'en créer une (« lance la procédure X tous les jours à 8 h ») ; il utilisera",
+        "procedureEmpty": "Cette procédure ne tourne pas toute seule. Pour qu'elle parte à heure fixe, demande-le à ton agent (« fais tourner cette procédure tous les jours à 8 h ») ; il utilisera",
         "form": {
           "open": "Régler",
           "schedule": "Horaire (cron)",
@@ -446,8 +452,8 @@
           "model": "Modèle",
           "workerModel": "modèle du worker",
           "notServed": "non servi",
-          "deleteConfirm": "Supprimer ce déclencheur ? Ses occurrences en attente ne partiront jamais.",
-          "deleteNotConfirmed": "suppression non confirmée par le serveur, le déclencheur reste listé"
+          "deleteConfirm": "Supprimer cette programmation ? Ses occurrences en attente ne partiront jamais.",
+          "deleteNotConfirmed": "suppression non confirmée par le serveur, la programmation reste listée"
         }
       },
       "routines": {
@@ -455,9 +461,9 @@
         "sub": "Un agent autonome qui tourne chez Anthropic, avec tes outils oto branchés."
       },
       "run": {
-        "absent": "Aucun travail en vol ne porte le run {run} : il n'est plus en cours.",
-        "horsPage": "Le run {run} n'est pas parmi les {n} travaux en vol lus.",
-        "erreur": "Le travail du run {run} n'a pas pu être lu : {reason}"
+        "absent": "Aucune exécution en vol ne porte le run {run} : il n'est plus en cours.",
+        "horsPage": "Le run {run} n'est pas parmi les {n} exécutions en vol lues.",
+        "erreur": "L'exécution qui porte le run {run} n'a pas pu être lue : {reason}"
       }
     },
   "errors": {

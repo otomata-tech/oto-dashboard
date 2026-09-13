@@ -235,22 +235,22 @@
       },
       "runner": {
         "title": "Runner",
-        "sub": "The worker that takes this organization's jobs.",
+        "sub": "The worker that takes this organization's executions.",
         "armedTag": "armed",
-        "armed": "A worker is taking this organization's jobs.",
-        "notArmed": "No runner is taking this organization's jobs.",
+        "armed": "A worker is taking this organization's executions.",
+        "notArmed": "No runner is taking this organization's executions.",
         "lastSeen": "last contact",
         "neverSeen": "never",
         "workers": "active worker identities",
         "workersHint": "A worker identity is a declared secret, not a process: one identity can run several agents.",
         "models": "models served",
-        "noModel": "no model declared, only jobs without a model are taken",
+        "noModel": "no model declared, only executions without a model are taken",
         "notServed": "Runner presence is not served.",
         "error": "Runner presence unreadable: {reason}"
       },
       "campaigns": {
         "title": "Campaigns",
-        "sub": "Each campaign, counted over all of its jobs.",
+        "sub": "Each campaign, counted over all of its executions.",
         "empty": "No campaign declared.",
         "betaOff": "Campaigns are not enabled for this organization.",
         "error": "Campaigns unreadable: {reason}",
@@ -271,8 +271,8 @@
           "draftUnread": "not armed",
           "draft": "draft",
           "historical": "historical",
-          "historicalHint": "Campaign from the former scheduler: its status never followed, it is read from its jobs.",
-          "armed": "armed, waiting for its first job",
+          "historicalHint": "Campaign from the former scheduler: its status never followed, it is read from its executions.",
+          "armed": "armed, waiting for its first execution",
           "running": "running",
           "stopping": "stop requested",
           "stoppingInFlight": "stop requested, {n} in flight",
@@ -291,17 +291,17 @@
           "total": "total"
         },
         "tokens": "tokens, uncached input + output",
-        "heaviest": "heaviest job",
-        "lastFinished": "last job finished",
+        "heaviest": "heaviest execution",
+        "lastFinished": "last execution finished",
         "unknown": "unknown",
         "none": "none",
         "noModel": "model not declared",
-        "noJobs": "No job attached to this campaign.",
+        "noJobs": "No execution attached to this campaign.",
         "loading": "Reading counters…",
         "error": "Counters unreadable: {reason}",
-        "armedIdle": "Armed for {duration} without a first job: no worker is polling this organization's queue.",
-        "showJobs": "show jobs",
-        "hideJobs": "hide jobs"
+        "armedIdle": "Armed for {duration} without a first execution: no worker is polling this organization's queue.",
+        "showJobs": "show executions",
+        "hideJobs": "hide executions"
       },
       "jobs": {
         "status": {
@@ -315,8 +315,8 @@
         },
         "shown": "{shown} shown of {total}",
         "more": "Show more",
-        "empty": "No job.",
-        "error": "Jobs unreadable: {reason}",
+        "empty": "No execution.",
+        "error": "Executions unreadable: {reason}",
         "open": "open",
         "costUnknown": "cost unknown",
         "tokens": "{n} tokens",
@@ -425,20 +425,26 @@
         "stop": "Stop",
         "confirmArm": "Arm “{label}”? Procedure, table and model can no longer change.",
         "confirmRelaunch": "Relaunch “{label}”? Procedure, table and model can no longer change.",
-        "confirmStop": "Request the stop? Jobs in flight carry on, and keep spending, until they finish.",
-        "stoppingSince": "Stop requested {duration} ago: it will be recorded at a worker's next pass. Jobs in flight keep spending until they finish.",
-        "stoppingNoDate": "Stop requested: it will be recorded at a worker's next pass. Jobs in flight keep spending until they finish.",
+        "confirmStop": "Request the stop? Executions in flight carry on, and keep spending, until they finish.",
+        "stoppingSince": "Stop requested {duration} ago: it will be recorded at a worker's next pass. Executions in flight keep spending until they finish.",
+        "stoppingNoDate": "Stop requested: it will be recorded at a worker's next pass. Executions in flight keep spending until they finish.",
         "refused": "Refused: {reason}",
         "blocked": {
           "historical": "No action on a historical campaign. To run it again, ask your agent to declare a new campaign.",
-          "boundReached": "No relaunch: bound reached, jobs produced: {n} of {max}. A relaunch would produce none. To continue, ask your agent to declare a new campaign.",
+          "boundReached": "No relaunch: bound reached, executions produced: {n} of {max}. A relaunch would produce none. To continue, ask your agent to declare a new campaign.",
           "consecutiveFailures": "No relaunch: stopped after consecutive failures, it would be stopped again without producing anything. To continue, ask your agent to declare a new campaign."
         }
       },
       "triggers": {
-        "next": "next run: {date}",
+        "next": "next execution: {date}",
         "notTaken": "{n} occurrence not taken | {n} occurrences not taken",
         "effect": "Turning off expires the pending occurrences: they will never run. Turning back on resumes the rhythm from now — the due time missed while off is not caught up.",
+        "title": "Schedules",
+        "sub": "The procedures that start on their own, at a fixed time, and their tap.",
+        "procedureTitle": "Schedule",
+        "procedureSub": "Does this procedure run on its own, and how often?",
+        "empty": "No schedule. Ask your agent to create one (“run procedure X every day at 8am”); it will use",
+        "procedureEmpty": "This procedure does not run on its own. To start it at a fixed time, ask your agent (“run this procedure every day at 8am”); it will use",
         "form": {
           "open": "Settings",
           "schedule": "Schedule (cron)",
@@ -446,8 +452,8 @@
           "model": "Model",
           "workerModel": "worker's model",
           "notServed": "not served",
-          "deleteConfirm": "Delete this trigger? Its pending occurrences will never run.",
-          "deleteNotConfirmed": "deletion not confirmed by the server, the trigger stays listed"
+          "deleteConfirm": "Delete this schedule? Its pending occurrences will never run.",
+          "deleteNotConfirmed": "deletion not confirmed by the server, the schedule stays listed"
         }
       },
       "routines": {
@@ -455,9 +461,9 @@
         "sub": "An autonomous agent running at Anthropic, with your oto tools plugged in."
       },
       "run": {
-        "absent": "No in-flight job carries run {run}: it is no longer running.",
-        "horsPage": "Run {run} is not among the {n} in-flight jobs read.",
-        "erreur": "The job of run {run} could not be read: {reason}"
+        "absent": "No in-flight execution carries run {run}: it is no longer running.",
+        "horsPage": "Run {run} is not among the {n} in-flight executions read.",
+        "erreur": "The execution carrying run {run} could not be read: {reason}"
       }
     },
   "errors": {

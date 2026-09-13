@@ -47,10 +47,10 @@ describe('horodatages du runner', () => {
 
 describe('statut d’un travail → libellé', () => {
   it.each([
-    ['pending', 'en file'], ['claimed', 'en vol'], ['done', 'fait'], ['failed', 'en échec'],
-    ['abandoned', 'abandonné'],
+    ['pending', 'en file'], ['claimed', 'en vol'], ['done', 'terminée'], ['failed', 'en échec'],
+    ['abandoned', 'abandonnée'],
     // ⚠️ `expired` a son libellé : personne n'est venu le prendre, ce n'est pas un échec.
-    ['expired', 'expiré'],
+    ['expired', 'expirée'],
   ])('%s → %s', (status, attendu) => {
     const l = libelleTravail(status)
     expect(i18n.global.t(l.cle, l.params)).toBe(attendu)

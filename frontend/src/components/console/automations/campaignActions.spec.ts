@@ -199,7 +199,7 @@ describe('témoin = relecture observée', () => {
     const texte = hote.textContent ?? ''
     expect(texte).toContain('arrêt demandé, 3 en vol')
     expect(texte).toContain("Arrêt demandé depuis 30 s : il sera constaté au prochain passage d'un worker.")
-    expect(texte).toContain("Les travaux en vol continuent de dépenser jusqu'à leur fin.")
+    expect(texte).toContain("Les exécutions en vol continuent de dépenser jusqu'à leur fin.")
     expect(gestes(hote)).toEqual([])
   })
 
@@ -209,7 +209,7 @@ describe('témoin = relecture observée', () => {
     const hote = await monterSection()
     await cliquer(hote, '[data-test="geste-armer"]')
     await cliquer(hote, '[data-test="confirmer"]')
-    expect(hote.textContent).toContain('armée, en attente du premier travail')
+    expect(hote.textContent).toContain('armée, en attente de la première exécution')
     // Le plafond n'est pas appliqué : le pire cas servi ne s'affiche pas.
     expect(hote.textContent).not.toContain('900')
   })
@@ -360,7 +360,7 @@ describe('pas de relance qui ne produirait rien : le levier est nommé', () => {
 
   it.each([
     ['historique', BROUILLON, ETAT, 'Aucun geste sur une campagne historique.'],
-    ['R1 borne atteinte', flotte({ ...ARRETEE, max_rows: 40 }), ETAT, 'Pas de relance : borne atteinte, travaux produits : 40 sur 40.'],
+    ['R1 borne atteinte', flotte({ ...ARRETEE, max_rows: 40 }), ETAT, 'Pas de relance : borne atteinte, exécutions produites : 40 sur 40.'],
     ['R2 échecs consécutifs', flotte({ ...ARRETEE, stop_reason: 'max_consecutive_failures' }), ETAT, 'Pas de relance : arrêtée pour échecs consécutifs'],
   ])('%s', async (_nom, fl, etat, phrase) => {
     servir([fl], () => etat)
@@ -395,7 +395,7 @@ describe('la confirmation sur place', () => {
     servir([flotte()])
     const hote = await monterSection()
     await cliquer(hote, '[data-test="geste-arreter"]')
-    expect(hote.textContent).toContain("Demander l'arrêt ? Les travaux en vol continuent, et dépensent, jusqu'à leur fin.")
+    expect(hote.textContent).toContain("Demander l'arrêt ? Les exécutions en vol continuent, et dépensent, jusqu'à leur fin.")
     expect(api.stopRunnerFleet).not.toHaveBeenCalled()
   })
 })

@@ -40,7 +40,7 @@ describe('statut d’une campagne → libellé', () => {
     ['draft sans travail', { status: 'draft' }, SANS, 'brouillon'],
     ['draft AVEC travaux — jamais « brouillon »', { status: 'draft' }, AVEC, 'historique'],
     ['draft dont l’état n’est pas encore lu', { status: 'draft' }, null, 'non armée'],
-    ['armed sans travail — jamais « en cours »', { status: 'armed' }, SANS, 'armée, en attente du premier travail'],
+    ['armed sans travail — jamais « en cours »', { status: 'armed' }, SANS, 'armée, en attente de la première exécution'],
     ['running', { status: 'running' }, AVEC, 'en cours'],
     ['stopping — jamais « arrêtée », avec les travaux en vol', { status: 'stopping' }, AVEC, 'arrêt demandé, 2 en vol'],
     ['stopping dont l’état n’est pas lu', { status: 'stopping' }, null, 'arrêt demandé'],
@@ -135,7 +135,7 @@ describe('compteurs de toute la campagne', () => {
     expect(c.map((x) => [x.cle, x.n])).toEqual([
       ['done', 1790], ['pending', 12], ['claimed', 3], ['failed', 35], ['abandoned', 4],
     ])
-    expect(i18n.global.t('automations.campaign.counters.abandoned')).toBe('dont abandonnés')
+    expect(i18n.global.t('automations.campaign.counters.abandoned')).toBe('dont abandonnées')
   })
 })
 
