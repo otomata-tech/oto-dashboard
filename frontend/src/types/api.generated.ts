@@ -589,8 +589,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Réserve atomiquement la prochaine ligne libre d'un tableau (file de travail).
-         * @description Réserve atomiquement la prochaine ligne libre d'un tableau (file de travail).
+         * Réserve atomiquement la prochaine ligne libre d'un tableau (file de travail)
+         * @description Réserve atomiquement la prochaine ligne libre d'un tableau (file de travail). Toute colonne déclarée est servie, `null` sans valeur.
          */
         post: operations["me_datastore_claim_next_post"];
         delete?: never;
@@ -648,7 +648,7 @@ export interface paths {
         };
         /**
          * Page de lignes d’un tableau (tri, recherche, filtres serveur)
-         * @description Page de lignes d’un tableau (tri, recherche, filtres serveur). Pagination par `offset` + `limit` avec `total` du jeu filtré, pas de curseur — la fin se calcule. Couches à plat par défaut, `layers=nested` pour la forme d’écriture ; guide `datastore-semantics`.
+         * @description Page de lignes d’un tableau (tri, recherche, filtres serveur). Pagination par `offset` + `limit` avec `total` du jeu filtré, pas de curseur — la fin se calcule. Toute colonne déclarée est servie, `null` sans valeur. Couches à plat par défaut, `layers=nested` pour la forme d’écriture ; guide `datastore-semantics`.
          */
         get: operations["me_datastore_list_rows_get"];
         put?: never;
@@ -686,7 +686,7 @@ export interface paths {
         head?: never;
         /**
          * Modifie une ligne (patch partiel ; le corps EST le patch)
-         * @description Modifie une ligne (patch partiel ; le corps EST le patch). `readonly_override=true` remplace les colonnes verrouillées de cet appel — propriétaire ou gouvernant du tableau seulement, et journalisé. `origine_override=true` déclare que cet appel pose la couche `origine` (la valeur du DÉPART, à l'import) en le sachant. Sans lui, une écriture d'origine est refusée à partir du 1er octobre 2026. ⚠️ Plus rien ne capture une origine automatiquement : `origine: "system"` a été SUPPRIMÉ le 08/09/2026, donc écrire la valeur seule ne garde rien — un écrasement est définitif. Pour un vrai IMPORT, préférez `donnees_d_origine=true`, qui écrit les DEUX versions — la valeur courante et l'origine — dans le même geste, au moment où la valeur entre. Ce paramètre-ci dit seulement « je sais que je pose cette couche », et il ne vaut que pour cet appel. ⚠️ Vous pouvez encore rencontrer le marqueur « (origine inconnue) » dans une couche `origine` : il a été laissé par le mécanisme retiré sur les lignes qu'il ne pouvait pas reconstituer. C'est une PERTE, pas une capture. ⚠️ Une écriture DÉTRUIT ce qui est dans la colonne : sur une colonne ouverte il n'y a ni annulation ni historique, la valeur précédente disparaît au moment où la vôtre arrive. ⚠️ **Et il n'y a AUCUN filet automatique** : le format `origine: "system"` a été SUPPRIMÉ le 08/09/2026 — il capturait la valeur précédente à la première écriture qui la changeait, ce qui exigeait d'avoir été déclaré AVANT que la ligne existe ; déclaré après coup il ne gardait rien. Ce qui le remplace est un geste DÉCLARÉ, porté par l'appel qui apporte la donnée : `donnees_d_origine=true` écrit les DEUX versions — la valeur courante et l'origine — au moment où la valeur entre. Sans lui, un écrasement est définitif et rien ne vous le dira après. La face d'appel n'y change rien : une ligne créée ici et une ligne créée par l'outil agent se comportent à l'identique.
+         * @description Modifie une ligne (patch partiel ; le corps EST le patch). `?expected_revision=` (query, jamais le corps) = la `_revision` lue, quand ce qu'on écrit a été calculé d'après elle : si la ligne a changé depuis, rien n'est écrit (`409 revision_conflict`). Deux écritures sur des colonnes différentes ne s'écrasent jamais. `readonly_override=true` remplace les colonnes verrouillées de cet appel — propriétaire ou gouvernant du tableau seulement, et journalisé. `origine_override=true` déclare que cet appel pose la couche `origine` (la valeur du DÉPART, à l'import) en le sachant. Sans lui, une écriture d'origine est refusée à partir du 1er octobre 2026. ⚠️ Plus rien ne capture une origine automatiquement : `origine: "system"` a été SUPPRIMÉ le 08/09/2026, donc écrire la valeur seule ne garde rien — un écrasement est définitif. Pour un vrai IMPORT, préférez `donnees_d_origine=true`, qui écrit les DEUX versions — la valeur courante et l'origine — dans le même geste, au moment où la valeur entre. Ce paramètre-ci dit seulement « je sais que je pose cette couche », et il ne vaut que pour cet appel. ⚠️ Vous pouvez encore rencontrer le marqueur « (origine inconnue) » dans une couche `origine` : il a été laissé par le mécanisme retiré sur les lignes qu'il ne pouvait pas reconstituer. C'est une PERTE, pas une capture. ⚠️ Une écriture DÉTRUIT ce qui est dans la colonne : sur une colonne ouverte il n'y a ni annulation ni historique, la valeur précédente disparaît au moment où la vôtre arrive. ⚠️ **Et il n'y a AUCUN filet automatique** : le format `origine: "system"` a été SUPPRIMÉ le 08/09/2026 — il capturait la valeur précédente à la première écriture qui la changeait, ce qui exigeait d'avoir été déclaré AVANT que la ligne existe ; déclaré après coup il ne gardait rien. Ce qui le remplace est un geste DÉCLARÉ, porté par l'appel qui apporte la donnée : `donnees_d_origine=true` écrit les DEUX versions — la valeur courante et l'origine — au moment où la valeur entre. Sans lui, un écrasement est définitif et rien ne vous le dira après. La face d'appel n'y change rien : une ligne créée ici et une ligne créée par l'outil agent se comportent à l'identique.
          */
         patch: operations["me_datastore_update_row_patch"];
         trace?: never;
@@ -3368,7 +3368,7 @@ export interface paths {
         put?: never;
         /**
          * Write a node in the NEW content universe (op=create | update | move | delete)
-         * @description Write a node in the NEW content universe (op=create | update | move | delete). THREE kinds, and only three: `page`, `tableau`, `ligne` (default page). A table row is a node too: create it with kind='ligne', `parent_id` of its table, and `data` holding the cell values — `data` is where user values live, never `props`, so a column named `title` cannot overwrite the node's own title. A table's column schema is `columns`, optional (a free table is a valid table), and re-posting it REPLACES it. Nodes written here are NATIVE: they have no source in the old world, nothing refreshes them, and the old surfaces (`oto_doc`, `oto_project`) do not see them — the two universes live side by side during the transition. A page BODY is stored as ordered blocks with STABLE ids, so editing a title never re-identifies the paragraphs and citations survive. `scope` picks the owner (platform | org | group | user, default user — the node is PRIVATE, yours alone: name a scope to make it your org's or your team's) and follows the SAME write ladder as guides; a row has no owner of its own, it takes its table's. `move` changes parent and rank WITHOUT changing identity — that is what makes children, blocks and inbound references survive. You may only write, move or delete a node you OWN, and only file one under a parent you own: anything else answers the SAME 404 as reading it, unknown and forbidden being indistinguishable. Editing a node that is a COPY of the old world is refused (409): it is edited on its own surface. PROVISIONAL surface, like its read side.
+         * @description Write a node in the NEW content universe (op=create | update | move | delete). THREE kinds, and only three: `page`, `tableau`, `ligne` (default page). A table row is a node too: create it with kind='ligne', `parent_id` of its table, and `data` holding the cell values — `data` is where user values live, never `props`, so a column named `title` cannot overwrite the node's own title. A table's column schema is `columns`, optional (a free table is a valid table), and re-posting it REPLACES it. Nodes written here are NATIVE: they have no source in the old world, nothing refreshes them, and the old surfaces (`oto_doc`, `oto_project`) do not see them — the two universes live side by side during the transition. A page BODY is stored as ordered blocks with STABLE ids, so editing a title never re-identifies the paragraphs and citations survive. `scope` picks the owner (platform | org | group | user, default user — the node is PRIVATE, yours alone: name a scope to make it your org's or your team's) and follows the SAME write ladder as guides; a row has no owner of its own, it takes its table's. `move` changes parent and rank WITHOUT changing identity — that is what makes children, blocks and inbound references survive. You may only write, move or delete a node you OWN, and only file one under a parent you own: anything else answers the SAME 404 as reading it, unknown and forbidden being indistinguishable. Editing a node that is a COPY of the old world is refused (409): it is edited on its own surface. So is a context layer (a guide, 409), the refusal naming the `oto_guide` call that writes it. On update, an empty or blank `title` is refused (400): omit `title` to keep it. PROVISIONAL surface, like its read side.
          */
         post: operations["me_node_edit_post"];
         delete?: never;
@@ -3386,7 +3386,7 @@ export interface paths {
         };
         /**
          * Open ONE node by its opaque id: name, type, the TRAIL from the root (each crumb carrying its siblings, so a breadcrumb popover needs no extra call), and — for a page — its BODY as
-         * @description Open ONE node by its opaque id: name, type, the TRAIL from the root (each crumb carrying its siblings, so a breadcrumb popover needs no extra call), and — for a page — its BODY as ordered blocks with STABLE ids you can cite. Opening a TABLE returns its column schema, never its rows (rows have their own cursor-paginated surface). Unknown id and forbidden id answer the SAME 404 on purpose: a 403 would reveal that the node exists. Pass `rev` for a conditional read (304 / `{not_modified}`). `non_servi` lists what this version cannot answer yet — read it before concluding that a node has no sharing or no dependants. PROVISIONAL surface: shape contracted, not frozen.
+         * @description Open ONE node by its opaque id: name, type, the TRAIL from the root (each crumb carrying its siblings, so a breadcrumb popover needs no extra call), and — for a page — its BODY as ordered blocks with STABLE ids you can cite. Opening a TABLE returns its column schema, never its rows (rows have their own cursor-paginated surface). Unknown id and forbidden id answer the SAME 404 on purpose: a 403 would reveal that the node exists. Pass `rev` for a conditional read (304 / `{not_modified}`). `non_servi` lists what this version cannot answer yet — read it before concluding that a node has no sharing or no dependants. `edit_surface` names the canonical surface that writes this node (node | doc | project | procedure | datastore | guide): it says WHERE to write, not WHETHER you may, and only `node` is written through `oto_node_edit`. PROVISIONAL surface: shape contracted, not frozen.
          */
         get: operations["me_node_get"];
         put?: never;
@@ -3499,26 +3499,6 @@ export interface paths {
          * @description Projects (organization layer). op=create (name, optional brief_md; owner_type user|org + owner_id for a team project) / list (ORG-SCOPED: the ACTIVE org's projects + projects shared with it or with you — pass `org=<id>` to see another org's; every response echoes the effective org in `_org`. An INDEX: names and `brief_md_length`, NOT the briefs — read one with op=get, or pass `fields=["*"]` for whole records) / list_templates (published MODEL projects you can copy) / get (project + its links + an `audit` of those links: dead_links / unbound_slots / inert_procedures — a linked entity that no longer resolves surfaces HERE, act on it) / update (name, icon = an emoji shown in the lists and headers ("" clears it), brief_md, is_template = publish/unpublish as a copyable model, excluded_url_prefixes = URL prefixes such as `linkedin.com/in/` that search tools drop and extraction tools refuse under this project — a whole host must be written `host/*`, `[]` clears) / copy (deep-copy a project you can read — its own or a model — into a NEW project in your active org: brief + doc tree + links + raw files; a tableau link stays a POINTER to the same namespace by default (config.provision absent/`shared`), but with config.provision=`empty`|`seeded` it is PROVISIONED — a FRESH namespace (same schema, rows only if `seeded`) so each copy gets its own isolated table (e.g. a campaign template's lead pool). A `shared` tableau owned by ANOTHER org is re-provisioned EMPTY (never a pointer to the source's private data), and links whose namespace no longer resolves are skipped — both surfaced in the response `warnings`. Pass project_id = source + name = target) / handoff (a copy-paste « resume in Claude » blob that pre-writes the per-call `_project=` token for this project) / archive / link & unlink (attach an entity: target_type tableau|procedure|connecteur + target_ref = its id/slug/name, optional label + optional role = why this entity belongs to the project + optional config = the entity's PRE-MADE per-project override; for a connecteur: {identity_id?, instructions_md?} = which account to act as + prose instructions to apply (e.g. 'only filter agreements by the mutuelle theme'), or `instance_ref` (a ref from oto_instance op=list, ADR 0038 B5) to bind EXACTLY that credential — calls carrying this project's token then resolve it hard, no fallback; for a tableau: {provision?: shared|empty|seeded} = how a project copy treats it (empty/seeded = each copy gets its own fresh table). Optional `slot` = the SLOT NAME this link BINDS for the project (ADR 0035): procedures declare required entities as slots and reference them <slot:name> in their prose — the project maps each name to a concrete entity via its links. Slot names are a PROJECT-wide vocabulary (unique per project → 409 slot_taken; two linked procedures sharing `sortie` share the binding). Re-linking preserves every field you omit — label, role, config and slot; pass a value to change one. link says WHAT IT DID in `link_status`: `created` (the binding did not exist), `unchanged` (it was already there and this call rewrote nothing) or `updated` (it existed and this call changed it — `changed_fields` then lists which of label/role/slot/config/target_ref moved). Re-running a link is safe and idempotent, so a caller told to ENSURE a resource is attached must read `link_status` — not `ok` — to know whether it actually acted. unlink returns `removed` = how many bindings it actually took out, and REFUSES (`link_not_found`) when it matched none — it never answers ok on a link it did not find. Give the `target_ref` as op=get renders it: an older link may still carry the NAME of its tableau (or the SLUG of its procedure) instead of the id. link and unlink both recognize either spelling: link rewrites that older link to the id (`rewritten_from` = the old spelling) instead of adding a second one, unlink takes back every spelling. get/link return each link's role + slot + config + a derived `cross_project` flag (the same entity is linked by another project → avoid brutal edits / ask); a tableau link also returns its resolved `datastore` (the NAME, a label) and `datastore_id` (the IDENTIFIER, resolved server-side in the PROJECT OWNER's scope) — address THIS project's table with `datastore_id` in the data_* tools, never by hardcoding a name: several tables can carry one name, and at equal name resolution prefers the CALLER's own personal table. No `datastore_id` = this link does not resolve to a single table here — say so instead of guessing. EVERY project carries `url` — the web address to OPEN it, in the reader's own product; hand it over as-is when asked "where is it?", never rebuild one from a pattern (`null` = that reader's product has no such view). Share & transfer go through oto_resource (resource_type='project', ADR 0030 owned resource) — this includes RE-PARENTING a project in place (same id, links, runs preserved): op=transfer new_owner_group=<id> hands it to a TEAM so the project and its connector credentials sit at the SAME level (the team's secrets then resolve when you open it), new_owner_org=<id> to an org, new_owner_email to a user. (op=update only changes name/icon/brief_md/is_template — never the owner; op=copy makes a NEW id.) inventory = the project's DERIVED surface (union of the linked procedures' <tool:> refs + tools actually used by the project's runs, plus connectors from links & declared slots) — never retype a tool list: derive, then curate. runs (optional target_ref = a linked procedure's stable id) = the project's recent runs (label/guide/outcome), filtered to that procedure when given. OMIT project_id on op=runs and you get YOUR OWN still-open runs instead, each with its `run_id` — that is how you find a run you opened and lost the id of, so you can finally close it with run_finish. Across every org, since a run you cannot find is usually one you opened elsewhere. lint (optional stale_days, default 90) = health of this project's pages: stale (untouched since), empty (trivial body), duplicate_titles (likely merges). publish_mcp (mcp_slug + mcp_access anonymous|secret|org + mcp_tools = the fixed tool allowlist) publishes the project as a dedicated MCP endpoint `<mcp_slug>.mcp.oto.cx/mcp`, the toolset served under the OWNER ORG's credentials — `anonymous` = no login + LISTED in the public directory; `secret` = no login but UNLISTED, the slug is server-generated & unguessable (a secret URL; mcp_slug is an optional readable prefix); `org` = Logto JWT + pins the org. For anonymous/secret, tools that aren't credential-less or resolvable for the org are published anyway but FAIL cleanly at call time — they come back in `mcp_unresolvable_tools` (configure an org key or drop them). mcp_expose_datastore (SECRET only) opts the `data_*` tools in: they then act under the OWNER ORG's authority (read/write the org's namespaces) without a login — off by default (the datastore stays private); refused on anonymous/org. unpublish_mcp removes it. get returns mcp_slug/mcp_access/mcp_tools/mcp_expose_datastore/mcp_url.
          */
         post: operations["me_project_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/me/projects/import": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * « Add to my Oto »: FORK a PUBLISHED project (resolved by its share slug) to YOURSELF — the copy is PRIVATE, visible to you alone, filed in your active org without being shared with
-         * @description « Add to my Oto »: FORK a PUBLISHED project (resolved by its share slug) to YOURSELF — the copy is PRIVATE, visible to you alone, filed in your active org without being shared with it (ADR 0068); share or transfer it afterwards if you want your team to see it. The reply says so in `visible_to`. Or RETURN the copy you already imported (idempotent). Copies the STRUCTURE (brief + docs + links + files; a tableau owned by another org is re-provisioned EMPTY) — NEVER credentials. Source stays intact. Powers the public share page's acquisition CTA; the dashboard calls it after login.
-         */
-        post: operations["me_import_project_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9992,6 +9972,12 @@ export interface components {
              */
             _updated_at: string | null;
             /**
+             * Revision
+             * @description The row's revision, as a string. It changes whenever the row's data or its reservation changes. Pass it back as `expected_revision` when what you write was computed from this read.
+             * @default null
+             */
+            _revision: string | null;
+            /**
              * Claimed By
              * @default null
              */
@@ -10061,7 +10047,7 @@ export interface components {
             model_key: string | null;
             /**
              * Delegation Refusee
-             * @description WHY this job cannot run: the account that scheduled it no longer exists, or no longer holds a role in that organisation. The job is already marked failed with this reason — do NOT retry it, and do not silently drop it either: report the reason. An agent whose identity is no longer valid stops SAYING SO.
+             * @description WHY this job cannot run: the account that scheduled it no longer exists, or no longer holds a role in that organisation — or the organisation must run its agents on its OWN model key and has not deposited it (or this worker names no key provider). The job is already marked failed with this reason — do NOT retry it, and do not silently drop it either: report the reason. An agent whose identity is no longer valid stops SAYING SO.
              * @default null
              */
             delegation_refusee: string | null;
@@ -11705,6 +11691,12 @@ export interface operations {
                      */
                     layers?: string;
                     /**
+                     * Empties
+                     * @description Forme d'une case vidée DÉLIBÉRÉMENT (écrite `@empty`). `plain` (défaut) la sert `""`, comme un vide ordinaire ; `sentinel` la sert `"@empty"`, le mot qui l'écrit — un `""` ordinaire reste `""`. Lisez en `sentinel` une ligne dont vous renverrez une liste : réémis tel quel, `@empty` repose le vide délibéré, là où `""` sur un champ requis est refusé. Ce n'est pas une valeur : ne recopiez jamais `@empty` dans un livrable. Toute autre valeur est refusée.
+                     * @default plain
+                     */
+                    empties?: string;
+                    /**
                      * Worker
                      * @default
                      */
@@ -11767,6 +11759,18 @@ export interface operations {
                          * @default null
                          */
                         hint: string | null;
+                    };
+                };
+            };
+            /** @description `invalid_layers` — `layers` ne vaut ni `flat` ni `nested` : le message nomme les deux formes admises ; `invalid_empties` — `empties` ne vaut ni `plain` ni `sentinel` : le message nomme les deux formes admises */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "invalid_layers" | "invalid_empties";
                     };
                 };
             };
@@ -11908,6 +11912,7 @@ export interface operations {
                 filters?: string | null;
                 layers?: string;
                 versions?: string[] | string | null;
+                empties?: string;
             };
             header?: never;
             path: {
@@ -11938,6 +11943,18 @@ export interface operations {
                         offset: number;
                         /** Limit */
                         limit: number;
+                    };
+                };
+            };
+            /** @description `invalid_layers` — `layers` ne vaut ni `flat` ni `nested` : le message nomme les deux formes admises ; `invalid_empties` — `empties` ne vaut ni `plain` ni `sentinel` : le message nomme les deux formes admises */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "invalid_layers" | "invalid_empties";
                     };
                 };
             };
@@ -12004,6 +12021,12 @@ export interface operations {
                          * @default null
                          */
                         _updated_at: string | null;
+                        /**
+                         * Revision
+                         * @description The row's revision, as a string. It changes whenever the row's data or its reservation changes. Pass it back as `expected_revision` when what you write was computed from this read.
+                         * @default null
+                         */
+                        _revision: string | null;
                         /**
                          * Claimed By
                          * @default null
@@ -12108,6 +12131,7 @@ export interface operations {
             query?: {
                 layers?: string;
                 versions?: string[] | string | null;
+                empties?: string;
             };
             header?: never;
             path: {
@@ -12140,6 +12164,12 @@ export interface operations {
                          */
                         _updated_at: string | null;
                         /**
+                         * Revision
+                         * @description The row's revision, as a string. It changes whenever the row's data or its reservation changes. Pass it back as `expected_revision` when what you write was computed from this read.
+                         * @default null
+                         */
+                        _revision: string | null;
+                        /**
                          * Claimed By
                          * @default null
                          */
@@ -12158,6 +12188,18 @@ export interface operations {
                         _claimed_run: string | null;
                     } & {
                         [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description `invalid_layers` — `layers` ne vaut ni `flat` ni `nested` : le message nomme les deux formes admises ; `invalid_empties` — `empties` ne vaut ni `plain` ni `sentinel` : le message nomme les deux formes admises */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "invalid_layers" | "invalid_empties";
                     };
                 };
             };
@@ -12234,6 +12276,7 @@ export interface operations {
                 force?: string[] | string | null;
                 origine_override?: boolean;
                 donnees_d_origine?: boolean;
+                expected_revision?: string | null;
             };
             header?: never;
             path: {
@@ -12271,6 +12314,12 @@ export interface operations {
                          * @default null
                          */
                         _updated_at: string | null;
+                        /**
+                         * Revision
+                         * @description The row's revision, as a string. It changes whenever the row's data or its reservation changes. Pass it back as `expected_revision` when what you write was computed from this read.
+                         * @default null
+                         */
+                        _revision: string | null;
                         /**
                          * Claimed By
                          * @default null
@@ -12368,6 +12417,18 @@ export interface operations {
                     "application/json": components["schemas"]["Erreur"];
                 };
             };
+            /** @description `revision_conflict` — `?expected_revision=` ne vaut plus la révision en place : rien n'est écrit, `details.current_revision` porte la révision actuelle — relire, recalculer, réécrire */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "revision_conflict";
+                    };
+                };
+            };
         };
     };
     me_datastore_row_activity_get: {
@@ -12441,6 +12502,12 @@ export interface operations {
                      */
                     layers?: string;
                     /**
+                     * Empties
+                     * @description Forme d'une case vidée DÉLIBÉRÉMENT (écrite `@empty`). `plain` (défaut) la sert `""`, comme un vide ordinaire ; `sentinel` la sert `"@empty"`, le mot qui l'écrit — un `""` ordinaire reste `""`. Lisez en `sentinel` une ligne dont vous renverrez une liste : réémis tel quel, `@empty` repose le vide délibéré, là où `""` sur un champ requis est refusé. Ce n'est pas une valeur : ne recopiez jamais `@empty` dans un livrable. Toute autre valeur est refusée.
+                     * @default plain
+                     */
+                    empties?: string;
+                    /**
                      * Worker
                      * @default
                      */
@@ -12486,6 +12553,18 @@ export interface operations {
                          * @default null
                          */
                         hint: string | null;
+                    };
+                };
+            };
+            /** @description `invalid_layers` — `layers` ne vaut ni `flat` ni `nested` : le message nomme les deux formes admises ; `invalid_empties` — `empties` ne vaut ni `plain` ni `sentinel` : le message nomme les deux formes admises */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "invalid_layers" | "invalid_empties";
                     };
                 };
             };
@@ -20975,6 +21054,12 @@ export interface operations {
                          */
                         pinned: boolean;
                         /**
+                         * Edit Surface
+                         * @description La surface CANONIQUE qui écrit ce nœud : node | doc | project | procedure | datastore | guide. Pas une permission : écrire reste jugé par la garde de propriété. `guide` n'a aucune poignée sur cette fiche.
+                         * @enum {string}
+                         */
+                        edit_surface: "node" | "doc" | "project" | "procedure" | "datastore" | "guide";
+                        /**
                          * Datastore
                          * @description Tableau : le nom du tableau à repasser aux surfaces `data_*`. `null` sur une page. ⚠️ **C'est un NOM, et un nom peut désigner deux tableaux.** Les écritures de lignes le résolvent dans le scope de l'appelant, où « vivier », « leads » ou « contacts » existent souvent en plusieurs exemplaires (perso, équipe, org) : deux homonymes atteignables suffisent à écrire dans l'autre, sans erreur. Tant que l'écriture au grain du nœud n'existe pas, un client qui enchaîne « ouvrir ce tableau » puis « y écrire » assume cette ambiguïté.
                          * @default null
@@ -21579,91 +21664,6 @@ export interface operations {
             };
         };
     };
-    me_import_project_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Slug */
-                    slug: string;
-                };
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Project Id */
-                        project_id: number;
-                        /** Imported */
-                        imported: boolean;
-                        /**
-                         * Name
-                         * @default null
-                         */
-                        name: string | null;
-                        /**
-                         * Reason
-                         * @default null
-                         */
-                        reason: string | null;
-                        /**
-                         * Copied From
-                         * @default null
-                         */
-                        copied_from: number | null;
-                        /**
-                         * Warnings
-                         * @default null
-                         */
-                        warnings: unknown[] | null;
-                        /**
-                         * Owner Type
-                         * @default null
-                         */
-                        owner_type: string | null;
-                        /**
-                         * Owner Id
-                         * @default null
-                         */
-                        owner_id: string | null;
-                        /**
-                         * Visible To
-                         * @default null
-                         */
-                        visible_to: string | null;
-                    };
-                };
-            };
-            /** @description jeton absent ou invalide */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-        };
-    };
     get_api_me_projects_id_export: {
         parameters: {
             query?: never;
@@ -22200,7 +22200,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `missing_fields` — `create` sans `label`/`procedure`/`tools`, ou opération sur une flotte sans `fleet_id` ; `target_incomplete` — `row_filter` sans `namespace` — un périmètre suppose un tableau ; `target_is_frozen` — `namespace`/`row_filter` après la déclaration : la cible d'un passage ne se déplace pas ; `context_is_frozen` — `provider`/`model` après la déclaration : les changer falsifierait l'attribution des lignes déjà écrites ; `status_not_settable` — `update status=` — l'état ne se pose pas par une retouche de configuration ; `field_not_settable` — `update` sur un champ déclaré à la création (`procedure`, `project_id`…) ; `invalid_bound` — une borne (`workers`, `max_rows`, `max_tokens`…) inférieure à 1 ; `invalid_model` — `create` avec un `model` hors catalogue, un `provider` qui le contredit, ou un `provider` sans `model` ; `model_not_served` — `launch` d'un passage dont aucun worker vivant ne sert la famille du modèle */
+            /** @description `missing_fields` — `create` sans `label`/`procedure`/`tools`, ou opération sur une flotte sans `fleet_id` ; `target_incomplete` — `row_filter` sans `namespace` — un périmètre suppose un tableau ; `target_is_frozen` — `namespace`/`row_filter` après la déclaration : la cible d'un passage ne se déplace pas ; `context_is_frozen` — `provider`/`model` après la déclaration : les changer falsifierait l'attribution des lignes déjà écrites ; `status_not_settable` — `update status=` — l'état ne se pose pas par une retouche de configuration ; `field_not_settable` — `update` sur un champ déclaré à la création (`procedure`, `project_id`…) ; `invalid_bound` — une borne (`workers`, `max_rows`, `max_tokens`…) inférieure à 1 ; `invalid_model` — `create` avec un `model` hors catalogue, un `provider` qui le contredit, ou un `provider` sans `model` ; `model_not_served` — `launch` d'un passage dont aucun worker vivant ne sert la famille du modèle ; `model_key_required` — `launch` d'un passage dans une org qui doit tourner sur SA clé de modèle et ne l'a pas déposée */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -22208,7 +22208,7 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
-                        error?: "missing_fields" | "target_incomplete" | "target_is_frozen" | "context_is_frozen" | "status_not_settable" | "field_not_settable" | "invalid_bound" | "invalid_model" | "model_not_served";
+                        error?: "missing_fields" | "target_incomplete" | "target_is_frozen" | "context_is_frozen" | "status_not_settable" | "field_not_settable" | "invalid_bound" | "invalid_model" | "model_not_served" | "model_key_required";
                     };
                 };
             };
@@ -22561,7 +22561,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `missing_fields` — `create` sans `procedure`/`cron`/`tools`, ou une opération sur un déclencheur sans `trigger_id` ; `invalid_schedule` — cron malformé, fuseau inconnu, ou deux occurrences espacées de moins de 5 minutes ; `no_runner_armed` — aucun worker ne sonde la file de cette org : `create`, et `update enabled=true`, sont refusés plutôt que de promettre une exécution qui n'aurait pas lieu ; `invalid_model` — `model` hors du catalogue servi (`runner.models` sur `list`/`get`) ; `model_not_served` — `model` d'une famille qu'aucun worker vivant ne sert : `create`, `update enabled=true` et le changement de modèle d'un déclencheur allumé sont refusés */
+            /** @description `missing_fields` — `create` sans `procedure`/`cron`/`tools`, ou une opération sur un déclencheur sans `trigger_id` ; `invalid_schedule` — cron malformé, fuseau inconnu, ou deux occurrences espacées de moins de 5 minutes ; `no_runner_armed` — aucun worker ne sonde la file de cette org : `create`, et `update enabled=true`, sont refusés plutôt que de promettre une exécution qui n'aurait pas lieu ; `invalid_model` — `model` hors du catalogue servi (`runner.models` sur `list`/`get`) ; `model_not_served` — `model` d'une famille qu'aucun worker vivant ne sert : `create`, `update enabled=true` et le changement de modèle d'un déclencheur allumé sont refusés ; `model_key_required` — l'org doit faire tourner ses agents sur SA clé de modèle et ne l'a pas déposée : `create` et `update enabled=true` sont refusés */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -22569,7 +22569,7 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
-                        error?: "missing_fields" | "invalid_schedule" | "no_runner_armed" | "invalid_model" | "model_not_served";
+                        error?: "missing_fields" | "invalid_schedule" | "no_runner_armed" | "invalid_model" | "model_not_served" | "model_key_required";
                     };
                 };
             };

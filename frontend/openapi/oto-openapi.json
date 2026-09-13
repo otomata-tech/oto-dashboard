@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Oto REST API",
-    "version": "origin/main+e4b173c7",
+    "version": "origin/main+5b3a2f9f",
     "description": "API REST de la plateforme Oto. Deux faces servent le même métier (ADR 0009) : le\nMCP (`/mcp`, JWT Logto) et ce REST. Ce document est **dérivé du serveur** à chaque\nrequête — il décrit ce qui tourne, pas une intention.\n\n**Authentification** — `Authorization: Bearer <jeton>`, sous deux formes :\n\n- **JWT Logto** (session interactive : dashboard, connecteur MCP) ;\n- **jeton API** `oto_…` (intégration programmatique), émis depuis une session\n  interactive — un jeton ne peut ni lister, ni créer, ni révoquer de jeton.\n\n**Portée d'un jeton** — un jeton API peut être **porté** à sa création\n(`POST /api/me/tokens` avec `scopes`) : il n'ouvre alors QUE les tableaux nommés,\nen lecture ou écriture, et rien d'autre de l'organisation. C'est la forme à confier\nà une intégration tierce. Hors portée : `403 token_scope_forbidden`.\n\n**Verbe dans le corps** — les surfaces consolidées (projets, pages, procédures,\nressources…) exposent un seul chemin dont le corps porte le verbe : `{\"op\": \"list\"}`.\nLes valeurs possibles sont dans l'énuméré `op` du schéma de la requête.\n\n**Contexte d'organisation** — en-tête optionnel `X-Oto-Org` (et `X-Oto-Group`) pour\ntravailler dans une organisation précise ; par défaut, l'organisation maison.\n\n**Erreurs** — une seule enveloppe, le composant `Erreur` : `error` (jeton machine\nstable, la clé sur laquelle un client décide), `detail` (la phrase, actionnable) et\nparfois `details` (forme structurée). Les 4xx listés sur une opération sont ceux\nqu'elle DÉCLARE, chacun rejoué par un test ; la liste n'est pas exhaustive : tout\nappel peut rendre `400 invalid_input` / `unknown_fields` / `invalid_json` /\n`invalid_body` (validation de la requête par l'adaptateur), `401` et `403`.\n"
   },
   "paths": {
@@ -2100,8 +2100,8 @@
     "/api/datastores/{datastore}/claim_next": {
       "post": {
         "operationId": "me_datastore_claim_next_post",
-        "summary": "Réserve atomiquement la prochaine ligne libre d'un tableau (file de travail).",
-        "description": "Réserve atomiquement la prochaine ligne libre d'un tableau (file de travail).",
+        "summary": "Réserve atomiquement la prochaine ligne libre d'un tableau (file de travail)",
+        "description": "Réserve atomiquement la prochaine ligne libre d'un tableau (file de travail). Toute colonne déclarée est servie, `null` sans valeur.",
         "tags": [
           "datastore"
         ],
@@ -2181,6 +2181,30 @@
               }
             }
           },
+          "400": {
+            "description": "`invalid_layers` — `layers` ne vaut ni `flat` ni `nested` : le message nomme les deux formes admises ; `invalid_empties` — `empties` ne vaut ni `plain` ni `sentinel` : le message nomme les deux formes admises",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "invalid_layers",
+                            "invalid_empties"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
           "401": {
             "description": "jeton absent ou invalide",
             "content": {
@@ -2224,6 +2248,12 @@
                     "default": "flat",
                     "description": "Forme des cellules à couches. ⚠️ C'est une LECTURE : ne renvoyez pas la ligne lue. N'écrivez que ce que vous avez établi — et jamais `champ.origine`, qui se lit ici et que pose la plateforme, jamais un agent. On ÉCRIT imbriqué (`champ` = `{valeur, comment, link}`) et, par défaut, on relit À PLAT : ce paramètre lève cette asymétrie. `flat` (défaut) sert `champ` = la valeur et `champ.origine`/`.comment`/`.link` à plat à côté ; `nested` sert `champ` = `{valeur, origine, comment, link}` (la valeur toujours, les couches renseignées seulement), la forme dans laquelle on écrit ; une cellule sans couche est le même scalaire dans les deux. Toute autre valeur est refusée. Le défaut basculera vers `nested`, avec préavis daté : un client qui dépend d'une forme la nomme dès maintenant.",
                     "title": "Layers",
+                    "type": "string"
+                  },
+                  "empties": {
+                    "default": "plain",
+                    "description": "Forme d'une case vidée DÉLIBÉRÉMENT (écrite `@empty`). `plain` (défaut) la sert `\"\"`, comme un vide ordinaire ; `sentinel` la sert `\"@empty\"`, le mot qui l'écrit — un `\"\"` ordinaire reste `\"\"`. Lisez en `sentinel` une ligne dont vous renverrez une liste : réémis tel quel, `@empty` repose le vide délibéré, là où `\"\"` sur un champ requis est refusé. Ce n'est pas une valeur : ne recopiez jamais `@empty` dans un livrable. Toute autre valeur est refusée.",
+                    "title": "Empties",
                     "type": "string"
                   },
                   "worker": {
@@ -2467,7 +2497,7 @@
       "get": {
         "operationId": "me_datastore_list_rows_get",
         "summary": "Page de lignes d’un tableau (tri, recherche, filtres serveur)",
-        "description": "Page de lignes d’un tableau (tri, recherche, filtres serveur). Pagination par `offset` + `limit` avec `total` du jeu filtré, pas de curseur — la fin se calcule. Couches à plat par défaut, `layers=nested` pour la forme d’écriture ; guide `datastore-semantics`.",
+        "description": "Page de lignes d’un tableau (tri, recherche, filtres serveur). Pagination par `offset` + `limit` avec `total` du jeu filtré, pas de curseur — la fin se calcule. Toute colonne déclarée est servie, `null` sans valeur. Couches à plat par défaut, `layers=nested` pour la forme d’écriture ; guide `datastore-semantics`.",
         "tags": [
           "datastore"
         ],
@@ -2524,6 +2554,30 @@
                   ],
                   "title": "RowPage",
                   "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`invalid_layers` — `layers` ne vaut ni `flat` ni `nested` : le message nomme les deux formes admises ; `invalid_empties` — `empties` ne vaut ni `plain` ni `sentinel` : le message nomme les deux formes admises",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "invalid_layers",
+                            "invalid_empties"
+                          ]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -2705,6 +2759,17 @@
               "description": "Quelles VERSIONS de chaque case servir. `current` = ce qu'on a établi, `origine` = ce que la cliente a remis à l'import. ⚠️ Demandez les DEUX dans le MÊME appel quand vous les comparez : deux appels ne sont pas atomiques, et une écriture entre les deux ferait comparer l'avant d'un état à l'après d'un autre — un écran annoncerait « corrigé » sur une ligne que personne n'a touchée. Le nom NU porte TOUJOURS la version courante ; ce paramètre décide seulement de ce qui s'ajoute à côté (`champ.origine` et ses sous-champs). La réponse déclare ce qu'elle a servi dans `versions_servies`, pour que « je ne l'ai pas demandée » ne ressemble jamais à « cette case n'en a pas ». Le défaut sert encore les deux ; il basculera vers `current` seul, avec préavis daté.",
               "title": "Versions"
             }
+          },
+          {
+            "name": "empties",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "plain",
+              "description": "Forme d'une case vidée DÉLIBÉRÉMENT (écrite `@empty`). `plain` (défaut) la sert `\"\"`, comme un vide ordinaire ; `sentinel` la sert `\"@empty\"`, le mot qui l'écrit — un `\"\"` ordinaire reste `\"\"`. Lisez en `sentinel` une ligne dont vous renverrez une liste : réémis tel quel, `@empty` repose le vide délibéré, là où `\"\"` sur un champ requis est refusé. Ce n'est pas une valeur : ne recopiez jamais `@empty` dans un livrable. Toute autre valeur est refusée.",
+              "title": "Empties",
+              "type": "string"
+            }
           }
         ]
       },
@@ -2758,6 +2823,19 @@
                       "default": null,
                       "description": "heure locale serveur, sans offset — `YYYY-MM-DD HH:MM:SS`, à ne pas parser comme de l'ISO UTC",
                       "title": "Updated At"
+                    },
+                    "_revision": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "The row's revision, as a string. It changes whenever the row's data or its reservation changes. Pass it back as `expected_revision` when what you write was computed from this read.",
+                      "title": "Revision"
                     },
                     "_claimed_by": {
                       "anyOf": [
@@ -3095,6 +3173,19 @@
                       "description": "heure locale serveur, sans offset — `YYYY-MM-DD HH:MM:SS`, à ne pas parser comme de l'ISO UTC",
                       "title": "Updated At"
                     },
+                    "_revision": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "The row's revision, as a string. It changes whenever the row's data or its reservation changes. Pass it back as `expected_revision` when what you write was computed from this read.",
+                      "title": "Revision"
+                    },
                     "_claimed_by": {
                       "anyOf": [
                         {
@@ -3139,6 +3230,30 @@
                   ],
                   "title": "Row",
                   "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`invalid_layers` — `layers` ne vaut ni `flat` ni `nested` : le message nomme les deux formes admises ; `invalid_empties` — `empties` ne vaut ni `plain` ni `sentinel` : le message nomme les deux formes admises",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "invalid_layers",
+                            "invalid_empties"
+                          ]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -3217,13 +3332,24 @@
               "description": "Quelles VERSIONS de chaque case servir. `current` = ce qu'on a établi, `origine` = ce que la cliente a remis à l'import. ⚠️ Demandez les DEUX dans le MÊME appel quand vous les comparez : deux appels ne sont pas atomiques, et une écriture entre les deux ferait comparer l'avant d'un état à l'après d'un autre — un écran annoncerait « corrigé » sur une ligne que personne n'a touchée. Le nom NU porte TOUJOURS la version courante ; ce paramètre décide seulement de ce qui s'ajoute à côté (`champ.origine` et ses sous-champs). La réponse déclare ce qu'elle a servi dans `versions_servies`, pour que « je ne l'ai pas demandée » ne ressemble jamais à « cette case n'en a pas ». Le défaut sert encore les deux ; il basculera vers `current` seul, avec préavis daté.",
               "title": "Versions"
             }
+          },
+          {
+            "name": "empties",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "plain",
+              "description": "Forme d'une case vidée DÉLIBÉRÉMENT (écrite `@empty`). `plain` (défaut) la sert `\"\"`, comme un vide ordinaire ; `sentinel` la sert `\"@empty\"`, le mot qui l'écrit — un `\"\"` ordinaire reste `\"\"`. Lisez en `sentinel` une ligne dont vous renverrez une liste : réémis tel quel, `@empty` repose le vide délibéré, là où `\"\"` sur un champ requis est refusé. Ce n'est pas une valeur : ne recopiez jamais `@empty` dans un livrable. Toute autre valeur est refusée.",
+              "title": "Empties",
+              "type": "string"
+            }
           }
         ]
       },
       "patch": {
         "operationId": "me_datastore_update_row_patch",
         "summary": "Modifie une ligne (patch partiel ; le corps EST le patch)",
-        "description": "Modifie une ligne (patch partiel ; le corps EST le patch). `readonly_override=true` remplace les colonnes verrouillées de cet appel — propriétaire ou gouvernant du tableau seulement, et journalisé. `origine_override=true` déclare que cet appel pose la couche `origine` (la valeur du DÉPART, à l'import) en le sachant. Sans lui, une écriture d'origine est refusée à partir du 1er octobre 2026. ⚠️ Plus rien ne capture une origine automatiquement : `origine: \"system\"` a été SUPPRIMÉ le 08/09/2026, donc écrire la valeur seule ne garde rien — un écrasement est définitif. Pour un vrai IMPORT, préférez `donnees_d_origine=true`, qui écrit les DEUX versions — la valeur courante et l'origine — dans le même geste, au moment où la valeur entre. Ce paramètre-ci dit seulement « je sais que je pose cette couche », et il ne vaut que pour cet appel. ⚠️ Vous pouvez encore rencontrer le marqueur « (origine inconnue) » dans une couche `origine` : il a été laissé par le mécanisme retiré sur les lignes qu'il ne pouvait pas reconstituer. C'est une PERTE, pas une capture. ⚠️ Une écriture DÉTRUIT ce qui est dans la colonne : sur une colonne ouverte il n'y a ni annulation ni historique, la valeur précédente disparaît au moment où la vôtre arrive. ⚠️ **Et il n'y a AUCUN filet automatique** : le format `origine: \"system\"` a été SUPPRIMÉ le 08/09/2026 — il capturait la valeur précédente à la première écriture qui la changeait, ce qui exigeait d'avoir été déclaré AVANT que la ligne existe ; déclaré après coup il ne gardait rien. Ce qui le remplace est un geste DÉCLARÉ, porté par l'appel qui apporte la donnée : `donnees_d_origine=true` écrit les DEUX versions — la valeur courante et l'origine — au moment où la valeur entre. Sans lui, un écrasement est définitif et rien ne vous le dira après. La face d'appel n'y change rien : une ligne créée ici et une ligne créée par l'outil agent se comportent à l'identique.",
+        "description": "Modifie une ligne (patch partiel ; le corps EST le patch). `?expected_revision=` (query, jamais le corps) = la `_revision` lue, quand ce qu'on écrit a été calculé d'après elle : si la ligne a changé depuis, rien n'est écrit (`409 revision_conflict`). Deux écritures sur des colonnes différentes ne s'écrasent jamais. `readonly_override=true` remplace les colonnes verrouillées de cet appel — propriétaire ou gouvernant du tableau seulement, et journalisé. `origine_override=true` déclare que cet appel pose la couche `origine` (la valeur du DÉPART, à l'import) en le sachant. Sans lui, une écriture d'origine est refusée à partir du 1er octobre 2026. ⚠️ Plus rien ne capture une origine automatiquement : `origine: \"system\"` a été SUPPRIMÉ le 08/09/2026, donc écrire la valeur seule ne garde rien — un écrasement est définitif. Pour un vrai IMPORT, préférez `donnees_d_origine=true`, qui écrit les DEUX versions — la valeur courante et l'origine — dans le même geste, au moment où la valeur entre. Ce paramètre-ci dit seulement « je sais que je pose cette couche », et il ne vaut que pour cet appel. ⚠️ Vous pouvez encore rencontrer le marqueur « (origine inconnue) » dans une couche `origine` : il a été laissé par le mécanisme retiré sur les lignes qu'il ne pouvait pas reconstituer. C'est une PERTE, pas une capture. ⚠️ Une écriture DÉTRUIT ce qui est dans la colonne : sur une colonne ouverte il n'y a ni annulation ni historique, la valeur précédente disparaît au moment où la vôtre arrive. ⚠️ **Et il n'y a AUCUN filet automatique** : le format `origine: \"system\"` a été SUPPRIMÉ le 08/09/2026 — il capturait la valeur précédente à la première écriture qui la changeait, ce qui exigeait d'avoir été déclaré AVANT que la ligne existe ; déclaré après coup il ne gardait rien. Ce qui le remplace est un geste DÉCLARÉ, porté par l'appel qui apporte la donnée : `donnees_d_origine=true` écrit les DEUX versions — la valeur courante et l'origine — au moment où la valeur entre. Sans lui, un écrasement est définitif et rien ne vous le dira après. La face d'appel n'y change rien : une ligne créée ici et une ligne créée par l'outil agent se comportent à l'identique.",
         "tags": [
           "datastore"
         ],
@@ -3270,6 +3396,19 @@
                       "default": null,
                       "description": "heure locale serveur, sans offset — `YYYY-MM-DD HH:MM:SS`, à ne pas parser comme de l'ISO UTC",
                       "title": "Updated At"
+                    },
+                    "_revision": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "The row's revision, as a string. It changes whenever the row's data or its reservation changes. Pass it back as `expected_revision` when what you write was computed from this read.",
+                      "title": "Revision"
                     },
                     "_claimed_by": {
                       "anyOf": [
@@ -3471,6 +3610,29 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "`revision_conflict` — `?expected_revision=` ne vaut plus la révision en place : rien n'est écrit, `details.current_revision` porte la révision actuelle — relire, recalculer, réécrire",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "revision_conflict"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -3547,6 +3709,24 @@
               "description": "`donnees_d_origine=true` déclare que cet appel apporte la donnée TELLE QUE LA CLIENTE L'A REMISE — un import. Chaque case reçoit sa version `origine`, figée en même temps que sa valeur courante et portant les mêmes couches : mets donc la provenance dans `<champ>.comment`, elle sera dans les deux. À réserver à l'IMPORT, pas à l'enrichissement — ce qu'un agent établit est la version courante. Une origine déjà posée n'est jamais réécrite (un ré-import met à jour le courant et laisse l'origine), et une case vide ne reçoit rien : la cliente n'y a rien remis, ce qui n'est pas la même chose que remettre du vide.",
               "title": "Donnees D Origine",
               "type": "boolean"
+            }
+          },
+          {
+            "name": "expected_revision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "The `_revision` of the row as you read it, when what you write was computed from that read. If the row changed since (any column, or its reservation), nothing is written: `409 revision_conflict`, `details.current_revision`. Omit it otherwise.",
+              "title": "Expected Revision"
             }
           }
         ],
@@ -3823,6 +4003,30 @@
               }
             }
           },
+          "400": {
+            "description": "`invalid_layers` — `layers` ne vaut ni `flat` ni `nested` : le message nomme les deux formes admises ; `invalid_empties` — `empties` ne vaut ni `plain` ni `sentinel` : le message nomme les deux formes admises",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "invalid_layers",
+                            "invalid_empties"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
           "401": {
             "description": "jeton absent ou invalide",
             "content": {
@@ -3875,6 +4079,12 @@
                     "default": "flat",
                     "description": "Forme des cellules à couches. ⚠️ C'est une LECTURE : ne renvoyez pas la ligne lue. N'écrivez que ce que vous avez établi — et jamais `champ.origine`, qui se lit ici et que pose la plateforme, jamais un agent. On ÉCRIT imbriqué (`champ` = `{valeur, comment, link}`) et, par défaut, on relit À PLAT : ce paramètre lève cette asymétrie. `flat` (défaut) sert `champ` = la valeur et `champ.origine`/`.comment`/`.link` à plat à côté ; `nested` sert `champ` = `{valeur, origine, comment, link}` (la valeur toujours, les couches renseignées seulement), la forme dans laquelle on écrit ; une cellule sans couche est le même scalaire dans les deux. Toute autre valeur est refusée. Le défaut basculera vers `nested`, avec préavis daté : un client qui dépend d'une forme la nomme dès maintenant.",
                     "title": "Layers",
+                    "type": "string"
+                  },
+                  "empties": {
+                    "default": "plain",
+                    "description": "Forme d'une case vidée DÉLIBÉRÉMENT (écrite `@empty`). `plain` (défaut) la sert `\"\"`, comme un vide ordinaire ; `sentinel` la sert `\"@empty\"`, le mot qui l'écrit — un `\"\"` ordinaire reste `\"\"`. Lisez en `sentinel` une ligne dont vous renverrez une liste : réémis tel quel, `@empty` repose le vide délibéré, là où `\"\"` sur un champ requis est refusé. Ce n'est pas une valeur : ne recopiez jamais `@empty` dans un livrable. Toute autre valeur est refusée.",
+                    "title": "Empties",
                     "type": "string"
                   },
                   "worker": {
@@ -20110,7 +20320,7 @@
       "post": {
         "operationId": "me_node_edit_post",
         "summary": "Write a node in the NEW content universe (op=create | update | move | delete)",
-        "description": "Write a node in the NEW content universe (op=create | update | move | delete). THREE kinds, and only three: `page`, `tableau`, `ligne` (default page). A table row is a node too: create it with kind='ligne', `parent_id` of its table, and `data` holding the cell values — `data` is where user values live, never `props`, so a column named `title` cannot overwrite the node's own title. A table's column schema is `columns`, optional (a free table is a valid table), and re-posting it REPLACES it. Nodes written here are NATIVE: they have no source in the old world, nothing refreshes them, and the old surfaces (`oto_doc`, `oto_project`) do not see them — the two universes live side by side during the transition. A page BODY is stored as ordered blocks with STABLE ids, so editing a title never re-identifies the paragraphs and citations survive. `scope` picks the owner (platform | org | group | user, default user — the node is PRIVATE, yours alone: name a scope to make it your org's or your team's) and follows the SAME write ladder as guides; a row has no owner of its own, it takes its table's. `move` changes parent and rank WITHOUT changing identity — that is what makes children, blocks and inbound references survive. You may only write, move or delete a node you OWN, and only file one under a parent you own: anything else answers the SAME 404 as reading it, unknown and forbidden being indistinguishable. Editing a node that is a COPY of the old world is refused (409): it is edited on its own surface. PROVISIONAL surface, like its read side.",
+        "description": "Write a node in the NEW content universe (op=create | update | move | delete). THREE kinds, and only three: `page`, `tableau`, `ligne` (default page). A table row is a node too: create it with kind='ligne', `parent_id` of its table, and `data` holding the cell values — `data` is where user values live, never `props`, so a column named `title` cannot overwrite the node's own title. A table's column schema is `columns`, optional (a free table is a valid table), and re-posting it REPLACES it. Nodes written here are NATIVE: they have no source in the old world, nothing refreshes them, and the old surfaces (`oto_doc`, `oto_project`) do not see them — the two universes live side by side during the transition. A page BODY is stored as ordered blocks with STABLE ids, so editing a title never re-identifies the paragraphs and citations survive. `scope` picks the owner (platform | org | group | user, default user — the node is PRIVATE, yours alone: name a scope to make it your org's or your team's) and follows the SAME write ladder as guides; a row has no owner of its own, it takes its table's. `move` changes parent and rank WITHOUT changing identity — that is what makes children, blocks and inbound references survive. You may only write, move or delete a node you OWN, and only file one under a parent you own: anything else answers the SAME 404 as reading it, unknown and forbidden being indistinguishable. Editing a node that is a COPY of the old world is refused (409): it is edited on its own surface. So is a context layer (a guide, 409), the refusal naming the `oto_guide` call that writes it. On update, an empty or blank `title` is refused (400): omit `title` to keep it. PROVISIONAL surface, like its read side.",
         "tags": [
           "node"
         ],
@@ -20353,7 +20563,7 @@
       "get": {
         "operationId": "me_node_get",
         "summary": "Open ONE node by its opaque id: name, type, the TRAIL from the root (each crumb carrying its siblings, so a breadcrumb popover needs no extra call), and — for a page — its BODY as ",
-        "description": "Open ONE node by its opaque id: name, type, the TRAIL from the root (each crumb carrying its siblings, so a breadcrumb popover needs no extra call), and — for a page — its BODY as ordered blocks with STABLE ids you can cite. Opening a TABLE returns its column schema, never its rows (rows have their own cursor-paginated surface). Unknown id and forbidden id answer the SAME 404 on purpose: a 403 would reveal that the node exists. Pass `rev` for a conditional read (304 / `{not_modified}`). `non_servi` lists what this version cannot answer yet — read it before concluding that a node has no sharing or no dependants. PROVISIONAL surface: shape contracted, not frozen.",
+        "description": "Open ONE node by its opaque id: name, type, the TRAIL from the root (each crumb carrying its siblings, so a breadcrumb popover needs no extra call), and — for a page — its BODY as ordered blocks with STABLE ids you can cite. Opening a TABLE returns its column schema, never its rows (rows have their own cursor-paginated surface). Unknown id and forbidden id answer the SAME 404 on purpose: a 403 would reveal that the node exists. Pass `rev` for a conditional read (304 / `{not_modified}`). `non_servi` lists what this version cannot answer yet — read it before concluding that a node has no sharing or no dependants. `edit_surface` names the canonical surface that writes this node (node | doc | project | procedure | datastore | guide): it says WHERE to write, not WHETHER you may, and only `node` is written through `oto_node_edit`. PROVISIONAL surface: shape contracted, not frozen.",
         "tags": [
           "me"
         ],
@@ -20368,7 +20578,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "description": "Un nœud ouvert : sa fiche, son fil, son corps en blocs (page) ou le schéma de\nses colonnes (tableau).\n\n`doc_id` / `project_id` sont les POIGNÉES vers les autres surfaces — les entiers\nque `POST /api/me/docs` (op=backlinks, op=update) et `POST /api/resources` (op=get,\n`resource_type: \"project\"`, `resource_id: str(project_id)`) attendent. Une page\nporte les deux, un projet son `project_id` seul, un tableau ou une procédure le\nprojet qui les range (s'il y en a un) ; un nœud sans source legacy rend `null`.\nAjoutés le 29/08/2026 à la demande d'un front tiers : sans eux la fiche se lisait\nmais ne s'éditait ni ne se partageait.\n\n`rev` est l'empreinte du corps servi : elle a changé une fois pour tous les nœuds\nà l'ajout de ces champs (un cache client se rafraîchit, puis retrouve ses 304).\n**Même effet à l'ajout de `pinned` et `datastore` (01/09/2026, alors `namespace`)** — une seule vague\nd'invalidation, connue et bornée. C'est le prix d'une empreinte calculée sur le\ncontenu servi, et c'est le bon prix : une empreinte qui ignorerait les champs neufs\nlaisserait un client sur une version qu'il croit à jour.",
+                  "description": "Un nœud ouvert : sa fiche, son fil, son corps en blocs (page) ou le schéma de\nses colonnes (tableau).\n\n`doc_id` / `project_id` sont les POIGNÉES vers les autres surfaces — les entiers\nque `POST /api/me/docs` (op=backlinks, op=update) et `POST /api/resources` (op=get,\n`resource_type: \"project\"`, `resource_id: str(project_id)`) attendent. Une page\nporte les deux, un projet son `project_id` seul, un tableau ou une procédure le\nprojet qui les range (s'il y en a un) ; un nœud sans source legacy rend `null`.\nAjoutés le 29/08/2026 à la demande d'un front tiers : sans eux la fiche se lisait\nmais ne s'éditait ni ne se partageait.\n\n`rev` est l'empreinte du corps servi : elle a changé une fois pour tous les nœuds\nà l'ajout de ces champs (un cache client se rafraîchit, puis retrouve ses 304).\n**Même effet à l'ajout de `pinned` et `datastore` (01/09/2026, alors `namespace`)** — une seule vague\nd'invalidation, connue et bornée. **Et encore une fois à l'ajout d'`edit_surface`\n(13/09/2026, oto#198)** : même geste que `doc_id` et `pinned`, une rotation unique\npour tous les nœuds. C'est le prix d'une empreinte calculée sur le\ncontenu servi, et c'est le bon prix : une empreinte qui ignorerait les champs neufs\nlaisserait un client sur une version qu'il croit à jour.",
                   "properties": {
                     "id": {
                       "title": "Id",
@@ -20427,6 +20637,19 @@
                       "default": false,
                       "title": "Pinned",
                       "type": "boolean"
+                    },
+                    "edit_surface": {
+                      "description": "La surface CANONIQUE qui écrit ce nœud : node | doc | project | procedure | datastore | guide. Pas une permission : écrire reste jugé par la garde de propriété. `guide` n'a aucune poignée sur cette fiche.",
+                      "enum": [
+                        "node",
+                        "doc",
+                        "project",
+                        "procedure",
+                        "datastore",
+                        "guide"
+                      ],
+                      "title": "Edit Surface",
+                      "type": "string"
                     },
                     "datastore": {
                       "anyOf": [
@@ -20494,6 +20717,7 @@
                     "id",
                     "name",
                     "type",
+                    "edit_surface",
                     "modified",
                     "rev"
                   ],
@@ -21719,174 +21943,6 @@
         }
       }
     },
-    "/api/me/projects/import": {
-      "post": {
-        "operationId": "me_import_project_post",
-        "summary": "« Add to my Oto »: FORK a PUBLISHED project (resolved by its share slug) to YOURSELF — the copy is PRIVATE, visible to you alone, filed in your active org without being shared with",
-        "description": "« Add to my Oto »: FORK a PUBLISHED project (resolved by its share slug) to YOURSELF — the copy is PRIVATE, visible to you alone, filed in your active org without being shared with it (ADR 0068); share or transfer it afterwards if you want your team to see it. The reply says so in `visible_to`. Or RETURN the copy you already imported (idempotent). Copies the STRUCTURE (brief + docs + links + files; a tableau owned by another org is re-provisioned EMPTY) — NEVER credentials. Source stays intact. Powers the public share page's acquisition CTA; the dashboard calls it after login.",
-        "tags": [
-          "me"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "description": "Résultat d'un « Ajouter à mon Oto ». **`imported: false` n'est pas un échec** —\nl'opération est idempotente : re-forker un projet déjà importé, ou forker le sien,\nrenvoie 200 en désignant l'existant. `reason` dit lequel des deux cas.",
-                  "properties": {
-                    "project_id": {
-                      "title": "Project Id",
-                      "type": "integer"
-                    },
-                    "imported": {
-                      "title": "Imported",
-                      "type": "boolean"
-                    },
-                    "name": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "default": null,
-                      "title": "Name"
-                    },
-                    "reason": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "default": null,
-                      "title": "Reason"
-                    },
-                    "copied_from": {
-                      "anyOf": [
-                        {
-                          "type": "integer"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "default": null,
-                      "title": "Copied From"
-                    },
-                    "warnings": {
-                      "anyOf": [
-                        {
-                          "items": {},
-                          "type": "array"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "default": null,
-                      "title": "Warnings"
-                    },
-                    "owner_type": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "default": null,
-                      "title": "Owner Type"
-                    },
-                    "owner_id": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "default": null,
-                      "title": "Owner Id"
-                    },
-                    "visible_to": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "default": null,
-                      "title": "Visible To"
-                    }
-                  },
-                  "required": [
-                    "project_id",
-                    "imported"
-                  ],
-                  "title": "ImportedProject",
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "jeton absent ou invalide",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Erreur"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "refus d'autorisation (ou hors portée du jeton)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Erreur"
-                }
-              }
-            }
-          }
-        },
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "slug": {
-                    "title": "Slug",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "slug"
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/me/projects/{id}/export": {
       "get": {
         "operationId": "get_api_me_projects_id_export",
@@ -22687,7 +22743,7 @@
             }
           },
           "400": {
-            "description": "`missing_fields` — `create` sans `label`/`procedure`/`tools`, ou opération sur une flotte sans `fleet_id` ; `target_incomplete` — `row_filter` sans `namespace` — un périmètre suppose un tableau ; `target_is_frozen` — `namespace`/`row_filter` après la déclaration : la cible d'un passage ne se déplace pas ; `context_is_frozen` — `provider`/`model` après la déclaration : les changer falsifierait l'attribution des lignes déjà écrites ; `status_not_settable` — `update status=` — l'état ne se pose pas par une retouche de configuration ; `field_not_settable` — `update` sur un champ déclaré à la création (`procedure`, `project_id`…) ; `invalid_bound` — une borne (`workers`, `max_rows`, `max_tokens`…) inférieure à 1 ; `invalid_model` — `create` avec un `model` hors catalogue, un `provider` qui le contredit, ou un `provider` sans `model` ; `model_not_served` — `launch` d'un passage dont aucun worker vivant ne sert la famille du modèle",
+            "description": "`missing_fields` — `create` sans `label`/`procedure`/`tools`, ou opération sur une flotte sans `fleet_id` ; `target_incomplete` — `row_filter` sans `namespace` — un périmètre suppose un tableau ; `target_is_frozen` — `namespace`/`row_filter` après la déclaration : la cible d'un passage ne se déplace pas ; `context_is_frozen` — `provider`/`model` après la déclaration : les changer falsifierait l'attribution des lignes déjà écrites ; `status_not_settable` — `update status=` — l'état ne se pose pas par une retouche de configuration ; `field_not_settable` — `update` sur un champ déclaré à la création (`procedure`, `project_id`…) ; `invalid_bound` — une borne (`workers`, `max_rows`, `max_tokens`…) inférieure à 1 ; `invalid_model` — `create` avec un `model` hors catalogue, un `provider` qui le contredit, ou un `provider` sans `model` ; `model_not_served` — `launch` d'un passage dont aucun worker vivant ne sert la famille du modèle ; `model_key_required` — `launch` d'un passage dans une org qui doit tourner sur SA clé de modèle et ne l'a pas déposée",
             "content": {
               "application/json": {
                 "schema": {
@@ -22707,7 +22763,8 @@
                             "field_not_settable",
                             "invalid_bound",
                             "invalid_model",
-                            "model_not_served"
+                            "model_not_served",
+                            "model_key_required"
                           ]
                         }
                       }
@@ -23576,7 +23633,7 @@
             }
           },
           "400": {
-            "description": "`missing_fields` — `create` sans `procedure`/`cron`/`tools`, ou une opération sur un déclencheur sans `trigger_id` ; `invalid_schedule` — cron malformé, fuseau inconnu, ou deux occurrences espacées de moins de 5 minutes ; `no_runner_armed` — aucun worker ne sonde la file de cette org : `create`, et `update enabled=true`, sont refusés plutôt que de promettre une exécution qui n'aurait pas lieu ; `invalid_model` — `model` hors du catalogue servi (`runner.models` sur `list`/`get`) ; `model_not_served` — `model` d'une famille qu'aucun worker vivant ne sert : `create`, `update enabled=true` et le changement de modèle d'un déclencheur allumé sont refusés",
+            "description": "`missing_fields` — `create` sans `procedure`/`cron`/`tools`, ou une opération sur un déclencheur sans `trigger_id` ; `invalid_schedule` — cron malformé, fuseau inconnu, ou deux occurrences espacées de moins de 5 minutes ; `no_runner_armed` — aucun worker ne sonde la file de cette org : `create`, et `update enabled=true`, sont refusés plutôt que de promettre une exécution qui n'aurait pas lieu ; `invalid_model` — `model` hors du catalogue servi (`runner.models` sur `list`/`get`) ; `model_not_served` — `model` d'une famille qu'aucun worker vivant ne sert : `create`, `update enabled=true` et le changement de modèle d'un déclencheur allumé sont refusés ; `model_key_required` — l'org doit faire tourner ses agents sur SA clé de modèle et ne l'a pas déposée : `create` et `update enabled=true` sont refusés",
             "content": {
               "application/json": {
                 "schema": {
@@ -23592,7 +23649,8 @@
                             "invalid_schedule",
                             "no_runner_armed",
                             "invalid_model",
-                            "model_not_served"
+                            "model_not_served",
+                            "model_key_required"
                           ]
                         }
                       }
@@ -33867,9 +33925,9 @@
       }
     },
     "/api/upload/{token}": {
-      "post": {
-        "operationId": "post_api_upload_token",
-        "summary": "POST /api/upload/{token}",
+      "put": {
+        "operationId": "put_api_upload_token",
+        "summary": "PUT /api/upload/{token}",
         "description": "Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).",
         "tags": [
           "_legacy"
@@ -33895,9 +33953,9 @@
           }
         }
       },
-      "put": {
-        "operationId": "put_api_upload_token",
-        "summary": "PUT /api/upload/{token}",
+      "post": {
+        "operationId": "post_api_upload_token",
+        "summary": "POST /api/upload/{token}",
         "description": "Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).",
         "tags": [
           "_legacy"
@@ -43440,6 +43498,19 @@
             "description": "heure locale serveur, sans offset — `YYYY-MM-DD HH:MM:SS`, à ne pas parser comme de l'ISO UTC",
             "title": "Updated At"
           },
+          "_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The row's revision, as a string. It changes whenever the row's data or its reservation changes. Pass it back as `expected_revision` when what you write was computed from this read.",
+            "title": "Revision"
+          },
           "_claimed_by": {
             "anyOf": [
               {
@@ -43590,7 +43661,7 @@
               }
             ],
             "default": null,
-            "description": "WHY this job cannot run: the account that scheduled it no longer exists, or no longer holds a role in that organisation. The job is already marked failed with this reason — do NOT retry it, and do not silently drop it either: report the reason. An agent whose identity is no longer valid stops SAYING SO.",
+            "description": "WHY this job cannot run: the account that scheduled it no longer exists, or no longer holds a role in that organisation — or the organisation must run its agents on its OWN model key and has not deposited it (or this worker names no key provider). The job is already marked failed with this reason — do NOT retry it, and do not silently drop it either: report the reason. An agent whose identity is no longer valid stops SAYING SO.",
             "title": "Delegation Refusee"
           },
           "payload": {
