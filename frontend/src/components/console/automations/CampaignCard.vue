@@ -11,6 +11,7 @@ import { useI18n } from 'vue-i18n'
 import Btn from '../Btn.vue'
 import Notice from '../Notice.vue'
 import Tag from '../Tag.vue'
+import CampaignActions from './CampaignActions.vue'
 import RunnerJobList from './RunnerJobList.vue'
 import { getRunnerFleetState, type RunnerFleet, type RunnerFleetState, type RunnerJob } from '@/api/console'
 import { inscrireRafraichissement, useMaintenant } from '@/composables/useRafraichissement'
@@ -19,8 +20,11 @@ import { humanize } from '@/lib/errors'
 import { armeeSansTravail, compteurs, jetons, libelleCampagne } from '@/lib/runnerFleets'
 import { duree } from '@/lib/runnerJobs'
 
+// La campagne affichée est celle de la LISTE (prop) : la carte ne garde pas sa propre
+// copie. Ce qu'elle apprend du serveur — la flotte rendue par `op=state`, ou par un
+// geste — remonte par `flotte`, et la liste la remplace. Un seul endroit tient le statut.
 const props = defineProps<{ fleet: RunnerFleet; ouverteParDefaut: boolean }>()
-const emit = defineEmits<{ ouvrir: [job: RunnerJob] }>()
+const emit = defineEmits<{ ouvrir: [job: RunnerJob]; flotte: [fleet: RunnerFleet] }>()
 const { t } = useI18n()
 const maintenant = useMaintenant()
 
@@ -36,13 +40,21 @@ async function lireEtat() {
   if (!ouverte.value) return
   const n = ++demande
   try {
-    const { state } = await getRunnerFleetState(props.fleet.id)
+    const { fleet, state } = await getRunnerFleetState(props.fleet.id)
     if (n !== demande) return
     etat.value = state
     erreur.value = null
+    if (fleet) emit('flotte', fleet)
   } catch (e) {
     if (n === demande) erreur.value = humanize(e)
   }
+}
+
+/** La réponse d'un geste est plus récente que toute relecture partie avant lui : elle
+ * l'invalide, sinon un `stopped` d'avant la relance écraserait le `armed` qu'elle sert. */
+function surGeste(f: RunnerFleet) {
+  ++demande
+  emit('flotte', f)
 }
 
 function basculer() {
@@ -80,6 +92,7 @@ inscrireRafraichissement(lireEtat)
     <p v-if="historique" class="cc-mute">{{ t('automations.campaign.status.historicalHint') }}</p>
 
     <div v-if="ouverte" class="cc-body">
+      <CampaignActions :fleet="fleet" :etat="etat" @flotte="surGeste" @relire="lireEtat" />
       <Notice v-if="sansTravailDepuis !== null" tone="warn">
         {{ t('automations.campaign.armedIdle', { duration: duree(sansTravailDepuis) }) }}
       </Notice>

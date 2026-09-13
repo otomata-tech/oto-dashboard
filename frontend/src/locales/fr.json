@@ -336,6 +336,22 @@
           "stop_sequence": "séquence d'arrêt"
         }
       },
+      "actions": {
+        "arm": "Armer",
+        "relaunch": "Relancer",
+        "stop": "Arrêter",
+        "confirmArm": "Armer « {label} » ? Procédure, tableau et modèle ne se changent plus.",
+        "confirmRelaunch": "Relancer « {label} » ? Procédure, tableau et modèle ne se changent plus.",
+        "confirmStop": "Demander l'arrêt ? Les travaux en vol continuent, et dépensent, jusqu'à leur fin.",
+        "stoppingSince": "Arrêt demandé depuis {duration} : il sera constaté au prochain passage d'un worker. Les travaux en vol continuent de dépenser jusqu'à leur fin.",
+        "stoppingNoDate": "Arrêt demandé : il sera constaté au prochain passage d'un worker. Les travaux en vol continuent de dépenser jusqu'à leur fin.",
+        "refused": "Refusé : {reason}",
+        "blocked": {
+          "historical": "Aucun geste sur une campagne historique. Pour la rejouer, demande à ton agent de déclarer une nouvelle campagne.",
+          "boundReached": "Pas de relance : borne atteinte, travaux produits : {n} sur {max}. Une relance n'en produirait aucun. Pour continuer, demande à ton agent de déclarer une nouvelle campagne.",
+          "consecutiveFailures": "Pas de relance : arrêtée pour échecs consécutifs, elle serait arrêtée de nouveau sans rien produire. Pour continuer, demande à ton agent de déclarer une nouvelle campagne."
+        }
+      },
       "triggers": {
         "next": "prochaine exécution : {date}",
         "notTaken": "{n} occurrence non prise | {n} occurrences non prises"

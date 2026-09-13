@@ -6,6 +6,15 @@
 // cartes vivantes et récentes s'ouvrent seules ; les anciennes ne lisent leur état
 // qu'à l'ouverture.
 //
+// ⚠️ UNE seule liste à clés pour les trois groupes (lot 2). Un geste fait changer une
+// campagne de groupe — une ancienne relancée devient vivante : rangée dans deux listes
+// séparées, sa carte serait démontée puis remontée, et son observation perdue en plein
+// témoin.
+//
+// ⚠️ Une campagne ÉCRITE par une carte (réponse d'un geste, relecture `op=state`) n'est
+// pas écrasée par une lecture de la liste partie AVANT elle : cette lecture rendrait un
+// état plus ancien que celui qu'on affiche (`fusionnerLecture`).
+//
 // ⚠️ Sans l'option bêta de l'org, toute opération sur les flottes répond 403
 // `beta_required`. Ce n'est pas une panne : l'écran le dit comme un fait, sans rouge.
 import { computed, onMounted, ref, watch } from 'vue'
@@ -17,6 +26,7 @@ import { listRunnerFleets, type RunnerFleet, type RunnerJob } from '@/api/consol
 import { inscrireRafraichissement, useMaintenant } from '@/composables/useRafraichissement'
 import { humanize } from '@/lib/errors'
 import { RECENTE_JOURS, repartir } from '@/lib/runnerFleets'
+import { fusionnerLecture } from '@/lib/runnerGestes'
 
 const emit = defineEmits<{ ouvrir: [job: RunnerJob]; vivante: [oui: boolean] }>()
 const { t } = useI18n()
@@ -28,12 +38,22 @@ const error = ref<string | null>(null)
 const betaAbsente = ref(false)
 const anciennesOuvertes = ref(false)
 
+// Un seul compteur ordonne les lectures de la liste ET les écritures des cartes.
+let sequence = 0
+let appliquee = 0
+const ecriteA = new Map<number, number>()
+
 async function charger() {
+  const n = ++sequence
   try {
-    fleets.value = (await listRunnerFleets()).fleets
+    const { fleets: lues } = await listRunnerFleets()
+    if (n < appliquee) return
+    appliquee = n
+    fleets.value = fusionnerLecture(fleets.value, lues, (id) => (ecriteA.get(id) ?? 0) > n)
     error.value = null
     betaAbsente.value = false
   } catch (e) {
+    if (n < appliquee) return
     if (e instanceof ApiError && e.status === 403 && e.code === 'beta_required') {
       betaAbsente.value = true
       fleets.value = []
@@ -46,8 +66,24 @@ async function charger() {
   }
 }
 
+function remplacer(f: RunnerFleet) {
+  ecriteA.set(f.id, ++sequence)
+  fleets.value = fleets.value.map((x) => (x.id === f.id ? f : x))
+}
+
 const groupes = computed(() => repartir(fleets.value, maintenant.value))
-const enTete = computed(() => [...groupes.value.vivantes, ...groupes.value.recentes])
+
+interface Entree { cle: string; fleet: RunnerFleet | null; ouverte: boolean }
+const entrees = computed<Entree[]>(() => {
+  const g = groupes.value
+  const carte = (ouverte: boolean) => (f: RunnerFleet): Entree => ({ cle: `f${f.id}`, fleet: f, ouverte })
+  const out = [...g.vivantes, ...g.recentes].map(carte(true))
+  if (g.anciennes.length) {
+    out.push({ cle: 'pli', fleet: null, ouverte: false })
+    if (anciennesOuvertes.value) out.push(...g.anciennes.map(carte(false)))
+  }
+  return out
+})
 
 watch(() => groupes.value.vivantes.length > 0, (oui) => emit('vivante', oui), { immediate: true })
 
@@ -65,22 +101,19 @@ inscrireRafraichissement(charger)
         <p v-if="!loaded" class="cs-mute">{{ t('common.loading') }}</p>
         <p v-else-if="!fleets.length && !error" class="cs-mute">{{ t('automations.campaigns.empty') }}</p>
 
-        <ul v-if="enTete.length" class="cs-list">
-          <CampaignCard v-for="f in enTete" :key="f.id" :fleet="f" :ouverte-par-defaut="true"
-            @ouvrir="(j) => emit('ouvrir', j)" />
+        <ul v-if="entrees.length" class="cs-list">
+          <template v-for="e in entrees" :key="e.cle">
+            <CampaignCard v-if="e.fleet" :fleet="e.fleet" :ouverte-par-defaut="e.ouverte"
+              @ouvrir="(j) => emit('ouvrir', j)" @flotte="remplacer" />
+            <li v-else class="cs-fold">
+              <button type="button" class="cs-fold-btn" :aria-expanded="anciennesOuvertes"
+                @click="anciennesOuvertes = !anciennesOuvertes">
+                {{ t('automations.campaigns.older', groupes.anciennes.length) }}
+                <span class="cs-mute">· {{ t('automations.campaigns.olderHint', { days: RECENTE_JOURS }) }}</span>
+              </button>
+            </li>
+          </template>
         </ul>
-
-        <div v-if="groupes.anciennes.length" class="cs-fold">
-          <button type="button" class="cs-fold-btn" :aria-expanded="anciennesOuvertes"
-            @click="anciennesOuvertes = !anciennesOuvertes">
-            {{ t('automations.campaigns.older', groupes.anciennes.length) }}
-            <span class="cs-mute">· {{ t('automations.campaigns.olderHint', { days: RECENTE_JOURS }) }}</span>
-          </button>
-          <ul v-if="anciennesOuvertes" class="cs-list">
-            <CampaignCard v-for="f in groupes.anciennes" :key="f.id" :fleet="f" :ouverte-par-defaut="false"
-              @ouvrir="(j) => emit('ouvrir', j)" />
-          </ul>
-        </div>
       </template>
     </div>
   </ConsoleCard>
@@ -88,10 +121,10 @@ inscrireRafraichissement(charger)
 
 <style scoped>
 .cs-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.cs-fold { margin-top: 14px; border-top: 1px solid var(--color-hair); padding-top: 10px; }
+.cs-fold { padding-top: 4px; }
 .cs-fold-btn {
   font: inherit; font-size: 12.5px; font-weight: 600; color: var(--color-ink);
-  background: none; border: 0; padding: 0; cursor: pointer; text-align: left; margin-bottom: 10px;
+  background: none; border: 0; padding: 0; cursor: pointer; text-align: left;
 }
 .cs-mute { margin: 0; font-size: 12.5px; font-weight: 400; color: var(--color-mute); }
 .cs-err { margin: 0 0 8px; font-size: 12.5px; color: var(--color-terra-ink); }

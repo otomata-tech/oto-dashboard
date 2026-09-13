@@ -49,6 +49,10 @@ const CLASSEES: Record<string, string> = {
   // Audience tronquée : un CONSTAT sur ce qui partira. Restreindre l'audience se fait
   // dans la carte « Campagne », au-dessus, et n'est pas ce qui est demandé ici.
   'components/console/automations/CampaignCard.vue#0': 'informatif',
+  // « Arrêt demandé depuis N : il sera constaté au prochain passage d'un worker ; les
+  // travaux en vol continuent de dépenser. » Rien n'est demandé : l'arrêt est déjà
+  // demandé, et aucun geste ne le hâte (`stopped` est un fait que seul le serveur pose).
+  'components/console/automations/CampaignActions.vue#0': 'informatif',
   'components/console/automations/RunnerPresenceBanner.vue#0': 'informatif',
   'components/console/outreach/OutreachRecipients.vue#0': 'informatif',
   // Le premier obstacle à l'envoi, écrit pour dire QUOI FAIRE — et les boutons qui

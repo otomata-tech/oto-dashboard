@@ -336,6 +336,22 @@
           "stop_sequence": "stop sequence"
         }
       },
+      "actions": {
+        "arm": "Arm",
+        "relaunch": "Relaunch",
+        "stop": "Stop",
+        "confirmArm": "Arm “{label}”? Procedure, table and model can no longer change.",
+        "confirmRelaunch": "Relaunch “{label}”? Procedure, table and model can no longer change.",
+        "confirmStop": "Request the stop? Jobs in flight carry on, and keep spending, until they finish.",
+        "stoppingSince": "Stop requested {duration} ago: it will be recorded at a worker's next pass. Jobs in flight keep spending until they finish.",
+        "stoppingNoDate": "Stop requested: it will be recorded at a worker's next pass. Jobs in flight keep spending until they finish.",
+        "refused": "Refused: {reason}",
+        "blocked": {
+          "historical": "No action on a historical campaign. To run it again, ask your agent to declare a new campaign.",
+          "boundReached": "No relaunch: bound reached, jobs produced: {n} of {max}. A relaunch would produce none. To continue, ask your agent to declare a new campaign.",
+          "consecutiveFailures": "No relaunch: stopped after consecutive failures, it would be stopped again without producing anything. To continue, ask your agent to declare a new campaign."
+        }
+      },
       "triggers": {
         "next": "next run: {date}",
         "notTaken": "{n} occurrence not taken | {n} occurrences not taken"

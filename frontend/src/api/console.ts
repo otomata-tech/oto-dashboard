@@ -485,6 +485,22 @@ export const getRunnerFleetState = (id: number) =>
   api<{ fleet: RunnerFleet; state: RunnerFleetState }>('/api/me/runner/fleets', {
     method: 'POST', ...j({ op: 'state', fleet_id: id }),
   })
+// Les GESTES sur une campagne (oto#205, lot 2).
+// ⚠️ `launch` ARME, il ne démarre rien : la réponse sert `armed`, et `running` ne se lit
+// que sur une relecture. `stop` DEMANDE : la réponse sert `stopping`, et les travaux en
+// vol continuent de dépenser. Plusieurs refus (`org_admin_required`, `not_launchable`,
+// `model_key_required`…) ne figurent dans aucun OpenAPI : ils se lisent par l'enveloppe
+// d'erreur générique (`ApiError`), jamais typés comme servis.
+// `budget_max_tokens` n'est pas affiché : le plafond n'est pas appliqué.
+export const launchRunnerFleet = (id: number) =>
+  api<{ fleet: RunnerFleet; budget_max_tokens: number | null }>('/api/me/runner/fleets', {
+    method: 'POST', ...j({ op: 'launch', fleet_id: id }),
+  })
+// Sans `reason` : le défaut du serveur s'applique.
+export const stopRunnerFleet = (id: number) =>
+  api<{ fleet: RunnerFleet }>('/api/me/runner/fleets', {
+    method: 'POST', ...j({ op: 'stop', fleet_id: id }),
+  })
 
 // ⚠️ Écrit à la main, plus STRICT que `components["schemas"]["Trigger"]` du contrat
 // généré, qui déclare `procedure`/`cron`/`tz`/`enabled` nullables (Optional côté

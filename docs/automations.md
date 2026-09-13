@@ -2,8 +2,8 @@
 
 L'écran des agents qui tournent **pour** l'org, sans elle. Route `/automations`, vue
 `views/console/AutomationsView.vue`. Refondu par **oto#205** : le lot 1 (13/09/2026) porte la
-**lecture juste** ; les gestes (armer, arrêter, relancer, régler un déclencheur) sont le lot 2,
-la vue d'ensemble du coût le lot 3.
+**lecture juste** ; le lot 2 les **gestes** (armer, relancer, arrêter une campagne) ; la vue
+d'ensemble du coût est le lot 3.
 
 Usages, par priorité (Alexis, 13/09) : **suivre une campagne**, **piloter**, **vue d'ensemble**.
 
@@ -12,7 +12,7 @@ Usages, par priorité (Alexis, 13/09) : **suivre une campagne**, **piloter**, **
 | section | composant | ce qu'elle lit |
 |---|---|---|
 | Runner | `components/console/automations/RunnerPresenceBanner.vue` | le bloc `runner` de `runner.triggers op=list`, remonté par la carte des déclencheurs (événement `runner`) — la présence est une propriété de l'org, servie là |
-| Campagnes | `automations/CampaignsSection.vue` + `CampaignCard.vue` | `runner.fleets op=list`, puis `op=state` par carte **ouverte** |
+| Campagnes | `automations/CampaignsSection.vue` + `CampaignCard.vue` + `CampaignActions.vue` | `runner.fleets op=list`, puis `op=state` par carte **ouverte** ; gestes `op=launch` / `op=stop` |
 | Travaux d'une campagne | `automations/RunnerJobList.vue` | `runner.jobs op=list` paginé, filtre `fleet_id` |
 | Travaux hors campagne | `automations/OffCampaignSection.vue` (repliée) | deux `RunnerJobList`, filtres `source=scheduled` et `source=manual` |
 | Déclencheurs | `components/console/RunnerTriggersCard.vue` | `runner.triggers op=list` ; aussi montée sur la fiche d'une procédure |
@@ -27,6 +27,12 @@ qu'ouvrent toutes les listes.
   `repartir` (vivantes / récentes / anciennes), `armeeSansTravail`, `compteurs`.
 - **`lib/runnerJobs.ts`** — un travail : `libelleTravail`, `coutTravail` (connu / inconnu),
   `modeleTravail`, `jetons`, `instant` (dates UTC), `bail`, la lecture du `result`.
+- **`lib/runnerGestes.ts`** — les gestes : `droits`, `gestesCampagne` (statut × état × droits),
+  `borneAtteinte` (R1), `MOTIF_ECHECS_CONSECUTIFS` (R2), `fusionnerLecture`, `refusServi`.
+- **`composables/useGesteObserve.ts`** — un geste en quatre temps : confirmation, envoi,
+  observation, refus.
+- **`automations/ConfirmerSurPlace.vue`** et **`automations/RefusServi.vue`** — la confirmation
+  sur place, et un refus du serveur tel qu'il l'a écrit.
 - **`composables/useRafraichissement.ts`** — le rafraîchissement de la page (voir plus bas).
 - **`composables/useCibleRun.ts`** — l'arrivée par `?run=` depuis une ligne de tableau.
 
@@ -64,6 +70,50 @@ Fixées par la session flotte dans oto#205.
 
 `lib/runnerFleets.spec.ts` et `lib/runnerJobs.spec.ts` tiennent la table statut → libellé ;
 `components/console/automations/automations.spec.ts` tient ce que l'écran affiche d'une réponse.
+
+## Les gestes sur une campagne (lot 2)
+
+`automations/CampaignActions.vue`, en tête du corps d'une carte ouverte. Qui voit quoi :
+
+| statut servi | admin d'org | membre | lecture seule |
+|---|---|---|---|
+| `draft`, `op=state` pas encore lu | rien | rien | rien |
+| `draft` sans travail (`no_jobs_attached`) | Armer | rien | rien |
+| `draft` avec travaux (historique) | levier nommé | rien | rien |
+| `armed`, `running` | Arrêter | Arrêter | rien |
+| `stopping` | message d'arrêt demandé | idem | idem |
+| `stopped`, `done`, `failed` | Relancer, sauf R1 et R2 | rien | rien |
+
+- **Admin d'org = `org_role === 'org_admin'` ou super_admin**, la parité de `roles.is_org_admin`.
+  ⚠️ Jamais `isOrgAdmin` de `useMe` : il compte l'`admin` plateforme, que `launch` refuse
+  (oto#210). Un membre ne voit pas de bouton grisé : le geste est omis.
+- **R1** — `campagne_a_servir` compare `max_rows` à **tous** les travaux de la campagne
+  (`jobs_total`) : relancée, elle resterait `armed` pour toujours.
+- **R2** — `arreter_campagnes_epuisees` lit la série d'échecs sans borne d'armement : relancée,
+  elle serait ré-arrêtée sans rien produire. Détecté par la **constante** que le serveur écrit,
+  `stop_reason = 'max_consecutive_failures'`, jamais par une lecture du texte.
+- Sur R1, R2 et un historique, le message nomme le levier : demander à l'agent de **déclarer
+  une nouvelle campagne**. Jamais « augmenter la borne ». R1 et R2 disparaîtront quand le
+  backend comptera depuis `armed_at`.
+- **Témoin = relecture observée.** La réponse d'un geste (`armed`, `stopping`) est un fait écrit
+  par le serveur : elle remonte à la section et s'affiche. `running` et `stopped` ne s'affichent
+  que sur une relecture `op=state` qui les sert. Après le geste, relecture toutes les 5 s pendant
+  60 s (armer, relancer) ou 2 min (arrêter), rien onglet caché, arrêt au démontage ; ensuite, le
+  rythme de la page.
+- **`stopping` peut durer** tant qu'aucun worker ne sonde : le message le dit, sans rouge, et
+  dit que les travaux en vol continuent de dépenser.
+- **Refus** : le `detail` du serveur mot pour mot, avec son code ; un 409 relit. Les codes ne sont
+  pas typés : plusieurs manquent à tout OpenAPI (`model_key_required`, `org_admin_required`,
+  `not_launchable`).
+- **Rien d'autre ne se règle** : ni cible, ni modèle, ni `workers`, ni plafond ;
+  `budget_max_tokens` n'est pas affiché ; le motif d'arrêt n'est pas saisi.
+- ⚠️ **Une seule liste à clés** dans `CampaignsSection.vue` : une campagne relancée change de
+  groupe, et deux listes démonteraient sa carte en pleine observation. ⚠️ Une campagne écrite
+  par une carte n'est pas écrasée par une lecture de la liste partie avant (`fusionnerLecture`).
+
+`lib/runnerGestes.spec.ts` tient la table. `automations/campaignActions.spec.ts` tient la garde
+(ni « arrêtée » ni « en cours », en fr comme en en, avant la relecture qui les sert), sa
+contre-épreuve par un mutant simulé en mémoire, la fenêtre d'observation, les refus et les droits.
 
 ## Ordre et repli des campagnes
 
@@ -116,8 +166,9 @@ compris** — 89 % des appels de la route. Désormais (`useRafraichissement`) :
   c'est « déclaré, non appliqué », jamais « parallélisme ».
 - ⚠️ **`max_rows` borne des TRAVAUX produits**, quel que soit leur statut, pas des lignes écrites :
   un travail qui trouve la file vide en consomme un, une reprise n'en crée pas. L'écran ne
-  l'affiche pas ; toute mention future s'écrit « N travaux sur max_rows ».
-  `automations.spec.ts` tient ces deux silences.
+  l'affiche que dans le refus de relance R1 : « travaux produits : N sur M ».
+  `automations.spec.ts` tient les deux silences sur une campagne en cours ;
+  `campaignActions.spec.ts` tient le libellé de R1.
 - **Pas de lecture d'un travail par run.** `?run=` cherche parmi les travaux `claimed` (une page,
   200 au plus) : les liens ne partent que d'une ligne qu'un run tient, donc d'un travail en vol.
   Hors de cette page, ou déjà conclu, l'écran le dit.
@@ -183,7 +234,8 @@ le fournisseur, seul l'ordre et une synthèse reviennent.
 
 ## Contrats consommés
 
-`listRunnerFleets()` · `getRunnerFleetState(id)` · `listRunnerJobs(filtre, page)` ·
+`listRunnerFleets()` · `getRunnerFleetState(id)` · `launchRunnerFleet(id)` · `stopRunnerFleet(id)` ·
+`listRunnerJobs(filtre, page)` ·
 `getRunThread(run_id)` · `getNamespaceQueue(id)` · `listRunnerTriggers(procedure?)` ·
 `setRunnerTriggerEnabled(id, on)` · `getConnectorInstances()` — tous dans `api/console.ts`.
 `RunnerFleet`, `RunnerFleetState` et `RunnerArme` sont **dérivés** du document OpenAPI

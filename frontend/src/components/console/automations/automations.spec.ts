@@ -10,11 +10,15 @@ import type { RunnerFleet, RunnerFleetState, RunnerJob } from '@/api/console'
 
 const api = vi.hoisted(() => ({
   listRunnerFleets: vi.fn(), getRunnerFleetState: vi.fn(), listRunnerJobs: vi.fn(),
+  launchRunnerFleet: vi.fn(), stopRunnerFleet: vi.fn(),
   listRunnerTriggers: vi.fn(), setRunnerTriggerEnabled: vi.fn(), getConnectorInstances: vi.fn(),
   getRunThread: vi.fn(), getNamespaceQueue: vi.fn(),
 }))
 vi.mock('@/api/console', () => api)
-vi.mock('@/composables/useMe', () => ({ useMe: () => ({ me: { value: { sub: 'moi' } } }) }))
+vi.mock('@/composables/useMe', () => ({
+  useMe: () => ({ me: { value: { sub: 'moi' } } }),
+  isSuperAdmin: () => false,
+}))
 
 const vider = async () => {
   for (let i = 0; i < 10; i++) { await new Promise((r) => setTimeout(r, 0)); await nextTick() }
@@ -99,9 +103,10 @@ describe('une campagne : les compteurs de TOUTE la campagne', () => {
 //   • `workers` est stocké mais NON APPLIQUÉ en hébergé — `campagne_a_servir` ne le lit
 //     pas. Le parallélisme réel est le nombre de travaux `claimed` ;
 //   • `max_rows` borne des TRAVAUX produits, quel que soit leur statut, pas des lignes.
-// L'écran n'affiche aujourd'hui ni l'un ni l'autre. Si un lot les affiche : `workers`
-// s'écrit « déclaré, non appliqué », `max_rows` « N travaux sur max_rows » — et ces tests
-// se réécrivent pour tenir CE libellé, pas pour disparaître.
+// L'écran n'affiche pas `workers` ; s'il l'affiche un jour, c'est « déclaré, non appliqué ».
+// `max_rows` ne s'affiche que dans le refus de relance R1 (lot 2), « travaux produits : N
+// sur M » — tenu par `campaignActions.spec.ts`. Sur une campagne en cours, ces tests tiennent
+// le silence.
 describe('une campagne : ce que les champs déclarés ne disent pas', () => {
   it('le parallélisme se lit sur les travaux en vol, jamais sur `workers` déclaré', async () => {
     api.getRunnerFleetState.mockResolvedValue({ fleet: flotte({}), state: ETAT })
@@ -148,12 +153,13 @@ describe('la section des campagnes', () => {
   })
 
   it('l’erreur d’une carte reste dans la carte, et s’efface à la lecture suivante', async () => {
-    api.listRunnerFleets.mockResolvedValue({
-      fleets: [flotte({ id: 1, label: 'en-panne' }), flotte({ id: 2, label: 'saine' })],
-    })
+    // `op=state` rend la MÊME flotte que la liste : la carte la remonte à la section, qui la
+    // remplace (lot 2) — une doublure qui rendrait une autre flotte renommerait la carte.
+    const liste = [flotte({ id: 1, label: 'en-panne' }), flotte({ id: 2, label: 'saine' })]
+    api.listRunnerFleets.mockResolvedValue({ fleets: liste })
     api.getRunnerFleetState.mockImplementation(async (id: number) => {
       if (id === 1) throw new ApiError(500, 'boom')
-      return { fleet: flotte({ id }), state: ETAT }
+      return { fleet: liste.find((f) => f.id === id), state: ETAT }
     })
     const C = (await import('./CampaignsSection.vue')).default
     const hote = await monter(C)
@@ -165,7 +171,7 @@ describe('la section des campagnes', () => {
     expect(carte('saine').textContent).not.toContain('Compteurs illisibles')
     expect(carte('saine').textContent).toContain('1790')
 
-    api.getRunnerFleetState.mockResolvedValue({ fleet: flotte({ id: 1 }), state: ETAT })
+    api.getRunnerFleetState.mockResolvedValue({ fleet: liste[0], state: ETAT })
     const tete = carte('en-panne').querySelector('button') as HTMLButtonElement
     tete.click(); await vider()
     tete.click(); await vider()
