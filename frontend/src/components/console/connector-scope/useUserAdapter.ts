@@ -10,7 +10,7 @@ import {
   setCredential, deleteApiKey, verifyConnector,
   getOrgFieldFilters, credentialPrefill, setOrgSecret,
 } from '@/api/console'
-import { useMe, isSuperAdmin } from '@/composables/useMe'
+import { useMe, isOrgAdmin } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
 import { connectorVerdict } from '@/lib/connectorVerdict'
 import { originBadge } from '@/lib/installOrigin'
@@ -31,13 +31,12 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
   // Confidentialité / rédaction (CDC M2d) : même policy d'org que /org/connectors —
   // le drawer user est le RACCOURCI (solo = org_admin de son org perso ; membre = lecture).
   const orgId = computed(() => me.value?.active_org ?? null)
-  const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin')
-  // Qui peut poser la CLÉ D'ORG. ⚠️ Volontairement PAS le `isOrgAdmin` partagé de
-  // `useMe`, qui fait valoir tout opérateur plateforme pour org_admin : côté serveur,
-  // seul le **super_admin** escalade en org_admin (`roles.is_platform_admin`), et un
-  // `admin` opérationnel se ferait refuser en 403 après la saisie. On ouvre le
-  // formulaire à qui le serveur acceptera, ni plus ni moins.
-  const canPoseOrgKey = computed(() => isOrgAdmin.value || isSuperAdmin(me.value))
+  // org_admin NOMINAL de l'org active : la note de portée de la rédaction (« toute ton org »).
+  const nominalOrgAdmin = computed(() => me.value?.org_role === 'org_admin')
+  // Qui peut poser la CLÉ D'ORG : l'admin d'org tel que le serveur le tient — org_admin ou
+  // super_admin, jamais l'`admin` plateforme, qui se ferait refuser en 403 après la saisie
+  // (`isOrgAdmin`, oto#210). On ouvre le formulaire à qui le serveur acceptera, ni plus ni moins.
+  const canPoseOrgKey = computed(() => isOrgAdmin(me.value))
   const isPersonal = computed(() => !!me.value?.active_org_is_personal)
   const installed = (r: MyConnector) => r.state !== 'not_selected'
   const unseenWhy = (r: MyConnector) => {
@@ -259,7 +258,7 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
           orgId: orgId.value,
           // Note de portée adaptée à la structure (principe 9) : solo → aucun mot « org » ;
           // admin multi → « toute ton org » ; membre → « défini par ton org ».
-          scopeNote: (isPersonal.value ? 'personal' : isOrgAdmin.value ? 'org-wide' : 'readonly') as
+          scopeNote: (isPersonal.value ? 'personal' : nominalOrgAdmin.value ? 'org-wide' : 'readonly') as
             'personal' | 'org-wide' | 'readonly',
         }
       },

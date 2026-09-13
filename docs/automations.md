@@ -86,9 +86,9 @@ Fixées par la session flotte dans oto#205.
 | `stopping` | message d'arrêt demandé | idem | idem |
 | `stopped`, `done`, `failed` | Relancer, sauf R1 et R2 | rien | rien |
 
-- **Admin d'org = `org_role === 'org_admin'` ou super_admin**, la parité de `roles.is_org_admin`.
-  ⚠️ Jamais `isOrgAdmin` de `useMe` : il compte l'`admin` plateforme, que `launch` refuse
-  (oto#210). Un membre ne voit pas de bouton grisé : le geste est omis.
+- **Admin d'org = `org_role === 'org_admin'` ou super_admin**, la parité de `roles.is_org_admin` :
+  `isOrgAdmin` de `useMe` depuis oto#210, qui comptait jusque-là l'`admin` plateforme, que
+  `launch` refuse. Un membre ne voit pas de bouton grisé : le geste est omis.
 - **R1** — `campagne_a_servir` compare `max_rows` à **tous** les travaux de la campagne
   (`jobs_total`) : relancée, elle resterait `armed` pour toujours.
 - **R2** — `arreter_campagnes_epuisees` lit la série d'échecs sans borne d'armement : relancée,

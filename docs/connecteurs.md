@@ -169,10 +169,11 @@ qu'on tape. Mesuré en prod sur `manage.oto.cx`, org 302. L'écran d'org, lui, n
 Depuis, `useUserAdapter.configureKey` pose au palier que `poseScope` désigne, avec **l'org
 déjà à l'écran** (`me.active_org`) — l'utilisateur ne déclare pas deux fois où il est. Le
 bouton dit « Poser la clé de l'org », et il n'est offert qu'à qui le serveur acceptera.
-⚠️ Ce n'est **pas** le helper partagé `isOrgAdmin` de `useMe` : il fait valoir tout
+C'est le helper partagé `isOrgAdmin` de `useMe` **depuis oto#210** : il faisait valoir tout
 opérateur plateforme, alors que côté serveur seul le **super_admin** escalade en org_admin
 (`roles.is_platform_admin`). Un bouton offert à qui recevra un 403 est le défaut qu'on
-répare, un cran plus haut.
+répare, un cran plus haut. Les leviers d'org de `/org/connectors` (`useOrgAdapter`) suivent la
+même règle depuis le même lot.
 
 **Et le dialogue DIT à qui appartient ce qu'on pose** (`scope` sur `CredentialDialogSpec`).
 Il servait jusque-là « tes identifiants X — stockés chiffrés, scopés à l'org courante,

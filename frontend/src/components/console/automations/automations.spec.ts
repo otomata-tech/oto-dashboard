@@ -16,9 +16,10 @@ const api = vi.hoisted(() => ({
   getRunThread: vi.fn(), getNamespaceQueue: vi.fn(),
 }))
 vi.mock('@/api/console', () => api)
-vi.mock('@/composables/useMe', () => ({
+// Les helpers de rôle sont les VRAIS (oto#210) : seul le profil est un bouchon.
+vi.mock('@/composables/useMe', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/composables/useMe')>()),
   useMe: () => ({ me: { value: { sub: 'moi' } } }),
-  isSuperAdmin: () => false,
 }))
 
 const vider = async () => {

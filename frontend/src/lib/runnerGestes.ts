@@ -14,7 +14,7 @@
 //     nouvelle campagne », jamais « augmenter la borne ».
 import { ApiError } from '@/api'
 import type { RunnerTrigger } from '@/api/console'
-import { isSuperAdmin } from '@/composables/useMe'
+import { isOrgAdmin } from '@/composables/useMe'
 import type { Me, RunnerFleet, RunnerFleetState, RunnerModel } from '@/types/api'
 import { explain } from './errors'
 
@@ -46,12 +46,12 @@ export interface Droits {
 
 type Porteur = Pick<Me, 'role' | 'org_role' | 'active_org_readonly'> | null | undefined
 
-/** ⚠️ PAS `isOrgAdmin` (useMe) : il compte l'`admin` plateforme, que `launch` refuse. Le
- * serveur (`roles.is_org_admin`) tient pour admin d'org l'org_admin de l'org et le seul
- * super_admin (défaut voisin : oto#210). */
+/** Armer et relancer : l'admin d'org tel que le serveur le tient (`roles.is_org_admin` :
+ * l'org_admin de l'org et le seul super_admin), soit `isOrgAdmin` de `useMe` depuis oto#210 —
+ * il comptait l'`admin` plateforme, que `launch` refuse. */
 export function droits(me: Porteur): Droits {
   const ouverts = !!me && me.active_org_readonly !== true
-  return { ouverts, armer: ouverts && (me?.org_role === 'org_admin' || isSuperAdmin(me)) }
+  return { ouverts, armer: ouverts && isOrgAdmin(me) }
 }
 
 export interface GestesPermis {

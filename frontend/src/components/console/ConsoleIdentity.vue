@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 import Avatar from './Avatar.vue'
 import Icon from './Icon.vue'
 import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
-import { useMe, isPlatformOperator, isOrgAdmin } from '@/composables/useMe'
+import { useMe, isPlatformOperator, seesOrgAdministration } from '@/composables/useMe'
 import { useMyOrgs } from '@/composables/useMyOrgs'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
@@ -33,7 +33,8 @@ const govEntries = computed(() => {
   // entrée, en tête, ramène au niveau « work » (la sidebar se recompose sur la route).
   if (level.value !== 'work')
     out.push({ key: 'work', label: 'Espace de travail', icon: 'home', to: '/overview', back: true })
-  if (isOrgAdmin(me.value))
+  // Mène aux écrans d'administration, que l'opérateur plateforme LIT aussi (oto#210).
+  if (seesOrgAdministration(me.value))
     out.push({ key: 'org', label: 'Gérer mon org', icon: 'building', to: '/org' })
   // ⚠️ « Abonnement » a QUITTÉ ce popover le 04/09 (décision d'Alexis : « dans le
   // menu, pas dans le sélecteur d'org »). Il est au niveau `work` de `consoleNav`,

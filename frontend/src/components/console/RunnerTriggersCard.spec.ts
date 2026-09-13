@@ -16,7 +16,11 @@ const updateRunnerTrigger = vi.fn()
 const deleteRunnerTrigger = vi.fn()
 vi.mock('@/api/console', () => ({ listRunnerTriggers, updateRunnerTrigger, deleteRunnerTrigger }))
 const me = { value: { sub: 'moi', role: 'member', org_role: 'org_member' } }
-vi.mock('@/composables/useMe', () => ({ useMe: () => ({ me }), isSuperAdmin: () => false }))
+// Les helpers de rôle sont les VRAIS (oto#210) : seul le profil est un bouchon.
+vi.mock('@/composables/useMe', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/composables/useMe')>()),
+  useMe: () => ({ me }),
+}))
 
 const BASE: RunnerTrigger = {
   id: 1, procedure: 'daily-brain', cron: '0 8 * * *', tz: 'Europe/Paris',

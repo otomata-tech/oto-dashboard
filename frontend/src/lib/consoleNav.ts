@@ -25,7 +25,12 @@ export interface NavItem {
   // les six autres entrées du niveau, qu'il ne peut pas utiliser — on remplacerait
   // « aucune porte » par « six portes fermées ». La sidebar ne filtrait que par
   // niveau, jamais par droits ; c'est la décision actée en #51, jamais appliquée.
+  // Visible de qui voit l'administration d'org (`seesOrgAdministration` : l'admin d'org, et
+  // l'opérateur plateforme, à qui le serveur en sert les lectures).
   orgAdmin?: boolean
+  // Écran dont les LECTURES mêmes exigent l'admin d'org (`ORG_ADMIN_OF` côté serveur) :
+  // l'opérateur plateforme n'y lirait qu'un refus, même en consultation (oto#210).
+  orgAdminReads?: boolean
   plomberie?: boolean // rendu ANCRÉ EN BAS (zone plomberie de l'agent, refonte nav pt 4)
 }
 
@@ -33,6 +38,19 @@ export interface NavGroup {
   group: string | null
   level: NavLevel
   items: NavItem[]
+}
+
+/** Les droits du lecteur qui filtrent le menu — calculés par `useMe`, lus ici sans lui. */
+export interface NavRights {
+  superAdmin: boolean
+  seesOrgAdministration: boolean
+  orgAdmin: boolean
+}
+
+export function navItemVisible(it: NavItem, r: NavRights): boolean {
+  return (!it.super || r.superAdmin)
+    && (!it.orgAdmin || r.seesOrgAdministration)
+    && (!it.orgAdminReads || r.orgAdmin)
 }
 
 // NB : `label`/`group`/`title`/`crumb` portent des **clés i18n** (résolues via `t()`
@@ -98,8 +116,9 @@ export const NAV: NavGroup[] = [
     { path: '/org/connectors', label: 'nav.connectors', icon: 'plug', orgAdmin: true },
     { path: '/org/teams', label: 'nav.teams', icon: 'users', orgAdmin: true },
     // Supervision de l'org (org_admin) : mêmes lentilles que /platform/monitoring,
-    // bornées à ce qui a été émis sous cette org.
-    { path: '/org/monitoring', label: 'nav.monitoring', icon: 'chart', orgAdmin: true },
+    // bornées à ce qui a été émis sous cette org. Ses lectures sont `ORG_ADMIN_OF` :
+    // l'opérateur plateforme n'y lirait qu'un refus (oto#210).
+    { path: '/org/monitoring', label: 'nav.monitoring', icon: 'chart', orgAdmin: true, orgAdminReads: true },
     // ⚠️ `/org/billing` n'est PLUS listé ici : il est monté au niveau `work`
     // (04/09). Le garder aux deux endroits en ferait deux entrées du même menu
     // pointant la même page — et la section « org » ne le servait de toute façon

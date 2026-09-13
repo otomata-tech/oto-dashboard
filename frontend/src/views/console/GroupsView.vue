@@ -13,7 +13,7 @@ import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
-import { useMe, isPlatformOperator } from '@/composables/useMe'
+import { useMe, isOrgAdmin } from '@/composables/useMe'
 import { listGroups, createGroup, updateGroup, deleteGroup } from '@/api/console'
 import type { GroupListItem } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -28,7 +28,9 @@ const error = ref<string | null>(null)
 const loaded = ref(false)
 
 const activeOrgId = computed(() => me.value?.active_org ?? null)
-const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin' || isPlatformOperator(me.value))
+// Les gestes du roster, tels que le serveur les accepte (`isOrgAdmin`, oto#210) : l'admin
+// plateforme LIT la liste, il ne crée, ne renomme ni ne supprime.
+const orgAdmin = computed(() => isOrgAdmin(me.value))
 
 async function load() {
   if (activeOrgId.value == null) { loaded.value = true; return }
@@ -89,7 +91,7 @@ async function removeGroup(g: GroupListItem) {
     <ConsoleCard v-else title="teams" flush
       sub="teams inside your org.">
       <template #actions>
-        <Btn v-if="isOrgAdmin" kind="mini" icon="plus" @click="create">New</Btn>
+        <Btn v-if="orgAdmin" kind="mini" icon="plus" @click="create">New</Btn>
       </template>
       <table class="tbl">
         <thead><tr><th>team</th><th>you</th><th style="width: 190px"></th></tr></thead>
@@ -105,13 +107,13 @@ async function removeGroup(g: GroupListItem) {
               <span v-else class="dim" style="font-size: 11px">—</span>
             </td>
             <td style="text-align: right; white-space: nowrap">
-              <template v-if="isOrgAdmin">
+              <template v-if="orgAdmin">
                 <Btn kind="mini" @click="rename(g)">Edit</Btn>
                 <Btn kind="danger" @click="removeGroup(g)">Delete</Btn>
               </template>
             </td>
           </tr>
-          <tr v-if="!groups.length"><td colspan="3" class="dim" style="text-align: center; padding: 16px">no teams yet<span v-if="isOrgAdmin"> — create one</span>.</td></tr>
+          <tr v-if="!groups.length"><td colspan="3" class="dim" style="text-align: center; padding: 16px">no teams yet<span v-if="orgAdmin"> — create one</span>.</td></tr>
         </tbody>
       </table>
     </ConsoleCard>

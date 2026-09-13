@@ -8,8 +8,8 @@ import ConsoleIdentity from './ConsoleIdentity.vue'
 import ConsoleUserMenu from './ConsoleUserMenu.vue'
 import SidebarSpaces from './SidebarSpaces.vue'
 import SearchOverlay from './SearchOverlay.vue'
-import { NAV } from '@/lib/consoleNav'
-import { useMe, isPlatformOperator, isSuperAdmin, isOrgAdmin } from '@/composables/useMe'
+import { NAV, navItemVisible } from '@/lib/consoleNav'
+import { useMe, isPlatformOperator, isSuperAdmin, isOrgAdmin, seesOrgAdministration } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
 import { useScopedLink } from '@/composables/useScopedLink'
@@ -34,14 +34,17 @@ const { level } = useScope()
 // le rôle plateforme (opérateur admin OU super_admin ; l'API l'impose aussi côté
 // serveur, l'UI ne fait que masquer). Les items marqués `super` (ex. platform
 // keys) ne sortent qu'au super_admin — les autres restent visibles à l'opérateur.
-const visibleGroups = computed(() =>
-  NAV.filter((g) => g.level === level.value)
+// Les écrans d'administration d'org : `orgAdmin` / `orgAdminReads` (lib/consoleNav, oto#210).
+const visibleGroups = computed(() => {
+  const rights = {
+    superAdmin: isSuperAdmin(me.value),
+    seesOrgAdministration: seesOrgAdministration(me.value),
+    orgAdmin: isOrgAdmin(me.value),
+  }
+  return NAV.filter((g) => g.level === level.value)
      .filter((g) => g.level !== 'platform' || isPlatformOperator(me.value))
-     .map((g) => ({
-       ...g,
-       items: g.items.filter((it) => (!it.super || isSuperAdmin(me.value))
-                                  && (!it.orgAdmin || isOrgAdmin(me.value))),
-     })))
+     .map((g) => ({ ...g, items: g.items.filter((it) => navItemVisible(it, rights)) }))
+})
 
 // Plomberie de l'agent (Connecteurs/Procédures) : ancrée en bas, hors de la nav
 // principale — subordonnée aux projets (refonte nav JB, pt 4).

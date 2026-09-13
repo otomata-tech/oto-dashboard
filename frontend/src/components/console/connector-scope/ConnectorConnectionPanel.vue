@@ -17,7 +17,7 @@ import ConnectorFlowConnect from '@/components/console/ConnectorFlowConnect.vue'
 import ConnectorKeyAccounts from '@/components/console/ConnectorKeyAccounts.vue'
 import ConnectorKeyStack from './ConnectorKeyStack.vue'
 import ConnectorVerdictLine from './ConnectorVerdictLine.vue'
-import { useMe, isSuperAdmin } from '@/composables/useMe'
+import { useMe, isOrgAdmin } from '@/composables/useMe'
 import { getOrgConnectorActivation } from '@/api/console'
 import type { ConnectionLever } from './adapter'
 import { connectWidgetKind } from '@/lib/connectorConnect'
@@ -30,10 +30,10 @@ const { me } = useMe()
 const c = computed(() => props.connector)
 
 // Bandeau côté-org (ADR 0044 B4) — résumé lecture seule pour un org_admin.
-const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin')
+const nominalOrgAdmin = computed(() => me.value?.org_role === 'org_admin')
 const orgAct = ref<OrgConnectorActivation | null>(null)
 onMounted(async () => {
-  if (!isOrgAdmin.value || me.value?.active_org == null) return
+  if (!nominalOrgAdmin.value || me.value?.active_org == null) return
   try {
     const list = (await getOrgConnectorActivation(me.value.active_org)).connectors
     orgAct.value = list.find((a) => a.connector === c.value.name) ?? null
@@ -65,10 +65,10 @@ const authLabel = computed(() => {
 // d'ici pose la clé de l'org de contexte, et il appartient à un admin d'org.
 const poseAt = computed(() => poseScope(c.value.auth_modes))
 const orgKeyOnly = computed(() => poseAt.value === 'org')
-// Même borne que l'adaptateur : côté serveur, seul le super_admin escalade en
-// org_admin — un `admin` opérationnel serait refusé en 403 après la saisie.
+// Même borne que l'adaptateur : l'admin d'org tel que le serveur le tient (`isOrgAdmin`,
+// oto#210) — un `admin` opérationnel serait refusé en 403 après la saisie.
 const canPoseKey = computed(() => poseAt.value === 'member'
-  || (orgKeyOnly.value && (isOrgAdmin.value || isSuperAdmin(me.value))))
+  || (orgKeyOnly.value && isOrgAdmin(me.value)))
 const authExplain = computed(() => {
   switch (c.value.auth.method) {
     case 'secret': return orgKeyOnly.value
@@ -138,7 +138,7 @@ const keyCta = computed(() => (orgKeyOnly.value
     </div>
 
     <!-- côté org (org_admin) -->
-    <div v-if="isOrgAdmin && orgAct" class="dr-block">
+    <div v-if="nominalOrgAdmin && orgAct" class="dr-block">
       <div class="eyebrow" style="margin-bottom: 9px">côté org · {{ me?.active_org_name || 'ton org' }}</div>
       <div class="statrow">
         <span class="spill"><Dot :tone="orgAct.effective ? 'olive' : 'faint'" />{{ orgAct.effective ? 'disponible pour tes membres' : 'coupé pour tes membres' }}</span>

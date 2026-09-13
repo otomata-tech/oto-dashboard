@@ -12,7 +12,7 @@ import {
   getConnectorAcl, setConnectorAccess, clearConnectorAccess, listGroups,
   credentialPrefill,
 } from '@/api/console'
-import { useMe, isPlatformOperator } from '@/composables/useMe'
+import { useMe, isOrgAdmin } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
 import type {
   OrgConnectorActivation, ConnectorMeta, FieldFiltersBundle,
@@ -23,7 +23,9 @@ import type { FormDialogField } from '@/composables/useFormDialog'
 export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnectorActivation> {
   const { me } = useMe()
   const orgId = computed(() => me.value?.active_org ?? null)
-  const isOrgAdmin = computed(() => me.value?.org_role === 'org_admin' || isPlatformOperator(me.value))
+  // Leviers d'écriture (`ORG_ADMIN_OF` côté serveur) : l'admin d'org tel que le serveur le
+  // tient (`isOrgAdmin`, oto#210). L'admin plateforme lit, il ne règle rien.
+  const orgAdmin = computed(() => isOrgAdmin(me.value))
 
   const rows = ref<OrgConnectorActivation[]>([])
   const metaMap = ref<Record<string, ConnectorMeta>>({})
@@ -66,7 +68,7 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
 
   // ── disponibilité (binaire, bornée par le master plateforme) ──
   async function setAvailable(r: OrgConnectorActivation, on: boolean) {
-    if (!isOrgAdmin.value || r.master_enabled !== true || orgId.value == null) return
+    if (!orgAdmin.value || r.master_enabled !== true || orgId.value == null) return
     try {
       if (on) await clearOrgConnectorActivation(orgId.value, r.connector)
       else await setOrgConnectorActivation(orgId.value, r.connector, false)
@@ -77,7 +79,7 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
 
   // ── clé partagée d'org (simple / multi-champs) ──
   async function editKey(r: OrgConnectorActivation) {
-    if (!isOrgAdmin.value || orgId.value == null) return
+    if (!orgAdmin.value || orgId.value == null) return
     const m = metaMap.value[r.connector]
     if (m?.secret_kind === 'fields' && (m.credential_fields?.length ?? 0) > 0) {
       // Même geste qu'au palier équipe : on relit ce qui est relisible pour que
@@ -112,7 +114,7 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
     })
   }
   async function removeKey(r: OrgConnectorActivation) {
-    if (!isOrgAdmin.value || orgId.value == null) return
+    if (!orgAdmin.value || orgId.value == null) return
     if (!await ctx.confirmAction({
       title: "retirer la clé d'org", danger: true, confirmLabel: 'Retirer',
       message: `retirer la clé partagée ${r.label} ? les membres sans clé perso perdent l'accès.`,
@@ -131,7 +133,7 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
     return m?.name || m?.email || e.principal_id
   }
   function addAccess(r: OrgConnectorActivation) {
-    if (!isOrgAdmin.value) return
+    if (!orgAdmin.value) return
     const opts = [
       ...groups.value.map((g) => ({ value: `group:${g.id}`, label: `équipe · ${g.name}` })),
       ...members.value.map((m) => ({ value: `user:${m.sub}`, label: `membre · ${m.name || m.email || m.sub}` })),
@@ -153,7 +155,7 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
     })
   }
   async function removeAccess(r: OrgConnectorActivation, ptype: string, pid: string) {
-    if (!isOrgAdmin.value || orgId.value == null) return
+    if (!orgAdmin.value || orgId.value == null) return
     try { await clearConnectorAccess(orgId.value, r.connector, ptype, pid); await load() }
     catch (e) { ctx.toast(humanize(e)) }
   }
@@ -203,7 +205,7 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
       state: (r) => r.effective
         ? { on: true, label: 'disponible pour tes membres', tone: 'olive', note: 'la plateforme borne — tu ne peux pas exposer un connecteur qu\'elle a coupé, seulement le restreindre.' }
         : { on: false, label: 'coupé pour tes membres', tone: 'faint', note: 'la plateforme borne — tu ne peux pas exposer un connecteur qu\'elle a coupé, seulement le restreindre.' },
-      canEdit: (r) => isOrgAdmin.value && r.master_enabled === true,
+      canEdit: (r) => orgAdmin.value && r.master_enabled === true,
       set: (r, next) => setAvailable(r, next as boolean),
     },
     credential: {
@@ -211,7 +213,7 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
       state: (r) => canHaveKey(r)
         ? (hasOrgKey(r.connector) ? { present: true, label: 'posée' } : { present: false, label: 'aucune clé' })
         : { present: false, label: 'pas de clé pour ce connecteur' },
-      canEdit: (r) => isOrgAdmin.value && canHaveKey(r),
+      canEdit: (r) => orgAdmin.value && canHaveKey(r),
       edit: (r) => editKey(r),
       remove: (r) => removeKey(r),
       verify: (r) => verifyConnector(r.connector, 'org'),
@@ -228,7 +230,7 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
         // est posée. On ne gate PAS sur « déjà connecté » : redonner l'autorisation est
         // un geste légitime — c'est ainsi qu'on change le compte qui porte les actions.
         available: (r) => Boolean(meta(r)?.connect) && hasOrgKey(r.connector)
-          && isOrgAdmin.value,
+          && orgAdmin.value,
         start: async (r) => {
           try {
             const { auth_url } = await startConnectorFlow(r.connector, { scope: 'org' })
@@ -240,7 +242,7 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
     access: {
       restricted: (r) => aclFor(r.connector).length > 0,
       principals: (r): AclPrincipal[] => aclFor(r.connector).map((e) => ({ type: e.principal_type, id: e.principal_id, label: principalLabel(e) })),
-      canEdit: () => isOrgAdmin.value,
+      canEdit: () => orgAdmin.value,
       add: (r) => addAccess(r),
       remove: (r, type, id) => removeAccess(r, type, id),
     },

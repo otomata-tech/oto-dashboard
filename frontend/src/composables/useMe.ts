@@ -67,10 +67,22 @@ export function isPlatformOperator(m: RoleHolder): boolean {
 // ── rôle ORG (axe distinct du rôle plateforme) ────────────────────────────────
 // Même raison d'être que les deux helpers ci-dessus : le gate `org_role === …`
 // était recopié dans `useTeamScope` et dans `ConsoleIdentity`, et il allait l'être
-// une troisième fois pour filtrer la sidebar d'org (#160). Un opérateur plateforme
-// vaut org_admin, comme partout ailleurs dans l'UI.
+// une troisième fois pour filtrer la sidebar d'org (#160).
 type OrgRoleHolder = { org_role?: string | null; role?: Role } | null | undefined
 
+// L'admin d'org TEL QUE LE SERVEUR LE TIENT (`roles.is_org_admin`) : l'org_admin de l'org
+// active, ou le super_admin. JAMAIS l'`admin` plateforme : chaque op d'admin d'org le refuse
+// en 403 (oto#210). ⚠️ Un rôle, pas un droit d'écrire : en consultation
+// (`active_org_readonly`), le serveur refuse toute écriture, super_admin compris.
 export function isOrgAdmin(m: OrgRoleHolder): boolean {
-  return m?.org_role === 'org_admin' || isPlatformOperator(m)
+  return m?.org_role === 'org_admin' || isSuperAdmin(m)
+}
+
+// Qui VOIT les écrans d'administration d'org (menu, « gérer mon org ») : l'admin d'org, et
+// l'opérateur plateforme, à qui le serveur en SERT les lectures (en consultation, il le tient
+// pour membre : `roles.effective_org_role`). Ne décide jamais d'un geste — c'est
+// `isOrgAdmin` ; un écran dont les lectures mêmes exigent l'admin d'org (la supervision) se
+// garde aussi par `isOrgAdmin` (oto#210).
+export function seesOrgAdministration(m: OrgRoleHolder): boolean {
+  return isOrgAdmin(m) || isPlatformOperator(m)
 }

@@ -13,9 +13,10 @@ const api = vi.hoisted(() => ({
 }))
 vi.mock('@/api/console', () => api)
 const me = vi.hoisted(() => ({ value: null as Record<string, unknown> | null }))
-vi.mock('@/composables/useMe', () => ({
+// Les helpers de rôle sont les VRAIS (oto#210) : seul le profil est un bouchon.
+vi.mock('@/composables/useMe', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/composables/useMe')>()),
   useMe: () => ({ me }),
-  isSuperAdmin: (m: { role?: string } | null) => m?.role === 'super_admin',
 }))
 
 const BASE: RunnerTrigger = {

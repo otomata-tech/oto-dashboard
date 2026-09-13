@@ -74,9 +74,10 @@ const { getBilling, getBillingIdentity, setBillingIdentity, getBillingPayments,
   getBillingInvoices, resumeBilling, startBillingMethodChange, confirmBillingMethodChange } = api
 
 const me = ref<{ org_role: string; role: string; active_org_name: string } | null>(null)
-vi.mock('@/composables/useMe', () => ({
+// Les helpers de rôle sont les VRAIS (oto#210) : seul le profil est un bouchon.
+vi.mock('@/composables/useMe', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/composables/useMe')>()),
   useMe: () => ({ me }),
-  isSuperAdmin: (m: { role?: string } | null) => m?.role === 'super_admin',
 }))
 
 async function mountView() {

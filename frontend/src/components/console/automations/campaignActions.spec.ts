@@ -19,9 +19,10 @@ vi.mock('@/api/console', () => api)
 
 type MeLite = { sub: string; role: string; org_role: string | null; active_org_readonly?: boolean }
 const me = ref<MeLite | null>(null)
-vi.mock('@/composables/useMe', () => ({
+// Les helpers de rôle sont les VRAIS (oto#210) : seul le profil est un bouchon.
+vi.mock('@/composables/useMe', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/composables/useMe')>()),
   useMe: () => ({ me }),
-  isSuperAdmin: (m: MeLite | null) => m?.role === 'super_admin',
 }))
 
 // Le MUTANT « affiche l'intention » : un arrêt demandé se dit arrêté, un armement se dit

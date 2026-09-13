@@ -2,7 +2,8 @@
 title: Orgs, groupes & invitations
 type: reference
 description: >-
-  Le roster des équipes d'une org (le scope d'équipe dédié a quitté le dashboard, oto#192) et
+  Qui est admin d'org pour l'écran, et la garde serveur de chaque usage (oto#210). Le roster
+  des équipes d'une org (le scope d'équipe dédié a quitté le dashboard, oto#192) et
   la feature cascade « inviter un user » : une carte partagée montée aux 2 niveaux (plateforme
   / org), même triade REST, acceptation commune.
 ---
@@ -12,6 +13,36 @@ description: >-
 > Extrait de `CLAUDE.md` le 2026-08-27 — le contenu n'a pas changé, seule sa place a bougé.
 > La carte garde le résumé + le pointeur ; le détail (inventaires d'écrans, historique
 > des refontes, incidents datés et leurs leçons) vit ici.
+
+## Qui est admin d'org pour l'écran (oto#210)
+
+`isOrgAdmin` (`composables/useMe.ts`) = l'admin d'org **tel que le serveur le tient**
+(`roles.is_org_admin`) : l'org_admin de l'org active, ou le super_admin. Jusqu'au 13/09/2026 il
+comptait aussi l'`admin` plateforme, que chaque op d'admin d'org refuse en 403 : des gestes lui
+étaient montrés, qui échouaient. Gardes relues sur oto-backend `origin/main` (`f4124f22`) :
+
+| usage | ce qu'il conditionne | garde serveur | admin plateforme |
+|---|---|---|---|
+| menu d'org (`orgAdmin`) : membres, paramètres, sécurité, connecteurs, équipes ; « Gérer mon org » | voir l'écran | lectures `ORG_MEMBER_OF` — en consultation, `effective_org_role` le tient pour membre | les lit : **non restreint** (`seesOrgAdministration`) |
+| menu d'org : supervision (`orgAdminReads`) | voir l'écran | lectures `ORG_ADMIN_OF`, même en consultation | refusé : entrée retirée |
+| `/org/connectors` (`useOrgAdapter`) : disponibilité, clé d'org, accès réservé, autoriser au scope org | gestes | `ORG_ADMIN_OF` ; `is_org_admin` dans le corps pour l'autorisation qui lit le scope | refusé : gestes retirés |
+| `/org/teams` (`GroupsView`) : créer, renommer, supprimer | gestes | `ORG_ADMIN_OF` ; `GROUP_ADMIN_OF` | refusé : gestes retirés |
+| campagnes (`runnerGestes.droits`) : armer, relancer | gestes | `is_org_admin` dans le corps → `403 org_admin_required` | déjà refusé (oto#205), s'appuie sur `isOrgAdmin` |
+| abonnement (`BillingView`), clé d'org depuis une fiche connecteur (`useUserAdapter`, `ConnectorConnectionPanel`) | gestes | non relue dans ce lot | règle déjà juste, recopiée : s'appuie sur `isOrgAdmin` |
+
+`useOrgScope` (`/org`, `/org/settings`, `/org/security`, `/org/monitoring`) portait déjà la règle
+juste, plus le rôle lu dans le détail de l'org : inchangé. Restent sur `org_role === 'org_admin'`
+seul : l'écriture du contexte d'org (`ContextOrgView`), la note de portée de la rédaction
+(`useUserAdapter`) et le bandeau côté org de la fiche connecteur. Ils n'offrent rien à l'admin
+plateforme ; ils taisent un geste au super_admin — le défaut inverse, hors de ce lot.
+
+⚠️ **Non traité** : en consultation (`active_org_readonly`), le serveur refuse TOUTE écriture
+(`403 view_as_read_only`), super_admin compris. `isOrgAdmin` est un rôle, pas un droit d'écrire :
+seuls les gestes de campagne composent la lecture seule ; les écrans `/org/*` montrent encore
+leurs gestes au super_admin qui consulte une org.
+
+Tests : `composables/useMe.spec.ts` (règle, menu, gestes de campagne), `views/console/GroupsView.spec.ts`,
+`components/console/connector-scope/useOrgAdapter.spec.ts`.
 
 ## Groupes / départements (ADR 0012)
 

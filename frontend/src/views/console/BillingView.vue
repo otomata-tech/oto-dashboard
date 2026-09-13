@@ -37,7 +37,7 @@ import BillingPending from '@/components/console/billing/BillingPending.vue'
 import BillingUsageCard from '@/components/console/billing/BillingUsageCard.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
-import { useMe, isSuperAdmin } from '@/composables/useMe'
+import { useMe, isOrgAdmin } from '@/composables/useMe'
 import {
   getBilling, getBillingIdentity, getBillingPayments, confirmBilling, cancelBilling,
   resumeBilling, startBillingMethodChange,
@@ -73,8 +73,7 @@ const chosen = ref<BillingPlan | null>(null)
 
 // Souscrire/résilier réservé à l'org_admin (le backend le garde aussi — l'UI ne
 // fait que masquer les leviers).
-const canManage = computed(() =>
-  me.value?.org_role === 'org_admin' || isSuperAdmin(me.value))
+const canManage = computed(() => isOrgAdmin(me.value))
 
 const STATUS_TONE: Record<string, 'olive' | 'saffron' | 'terra' | 'ink'> = {
   active: 'olive', past_due: 'terra', incomplete: 'saffron', canceled: 'ink',
