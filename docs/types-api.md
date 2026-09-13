@@ -97,11 +97,11 @@ survivraient à leur raison d'être. Les interfaces qui les consomment les prenn
 **À la fusion de la PR** : `npm run api:refresh`, vérifier que le document régénéré porte
 bien ces champs, basculer les usages sur les types générés, supprimer le fichier.
 
-État au 2026-09-01 : il porte `_claimed_run` (le run qui tient une ligne), `lease_until`
-(le bail d'un travail) et les trois postes de garde de `JobResult` — oto-backend PR #723.
-⚠️ Les postes de garde y sont des **`string[]`**, et `valeurs_cliente_detruites` vaut
-`null` quand la garde **n'a pas tourné** : les typer autrement a déjà rendu un écran de
-surveillance muet (cf. `docs/automations.md`).
+État au 2026-09-13 : il porte `_claimed_run` (le run qui tient une ligne) et `lease_until` (le
+bail d'un travail) — oto-backend PR #723 —, plus deux sections de facturation. Les flottes
+(`Fleet`, `FleetState`) en sont sorties avec oto#205 : la prod les sert, elles sont dérivées
+(`RunnerFleet`, `RunnerFleetState` dans `types/api.ts`). Les trois postes de garde aussi : le
+runner ne les écrit plus depuis le 01/09 et plus aucun écran ne les lit (cf. `docs/automations.md`).
 
 ### L'autre cas de retard : le serveur sert, le SNAPSHOT date
 

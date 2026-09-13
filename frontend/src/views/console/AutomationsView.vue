@@ -1,108 +1,79 @@
 <script setup lang="ts">
-// Automatisations — les routines Claude Code déclenchables depuis oto.
+// /automations — suivre les agents qui tournent pour l'org, sans elle (oto#205, lot 1 :
+// la lecture juste ; les gestes viennent au lot 2).
 //
-// Une automatisation = une routine hébergée chez Anthropic (prompt figé + connecteur
-// oto branché), et son credential porte sa cible : `routine_id` + jeton de
-// déclenchement. UNE INSTANCE = UNE ROUTINE, parce que le jeton `/fire` est scopé par
-// Anthropic à une seule routine — la liste se dérive donc des instances du connecteur
-// `routine`, sans endpoint ni type en double.
-//
-// Ce que cette page fait : elle LISTE les automatisations. Le bouton « déclencher » a quitté
-// le dashboard (oto#192, 12/09/2026 : aucun déclenchement en 45 jours) — une routine part
-// de son déclencheur chez Anthropic, et son résultat se lit dans la session.
-import { computed, onMounted, ref } from 'vue'
-import ConsoleCard from '@/components/console/ConsoleCard.vue'
-import RunnerMonitorCard from '@/components/console/RunnerMonitorCard.vue'
-import RunnerJobsCard from '@/components/console/RunnerJobsCard.vue'
+// Une section par responsabilité, dans l'ordre où on lit l'écran :
+//   1. le RUNNER — un worker prend-il les travaux ? (bandeau)
+//   2. les CAMPAGNES — le centre : statut vrai, compteurs de toute la campagne, travaux
+//   3. les travaux HORS CAMPAGNE — repliés
+//   4. les DÉCLENCHEURS programmés
+//   5. les ROUTINES Claude Code
+// La page tient le rafraîchissement (un seul bouton ; onglet visible seulement ; à
+// intervalle seulement avec une campagne vivante) et la fiche d'un travail, qu'ouvrent
+// toutes les listes.
+import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import Btn from '@/components/console/Btn.vue'
+import Notice from '@/components/console/Notice.vue'
+import RunnerJobDetail from '@/components/console/RunnerJobDetail.vue'
 import RunnerTriggersCard from '@/components/console/RunnerTriggersCard.vue'
-import RunnerFleetsCard from '@/components/console/RunnerFleetsCard.vue'
-import { getConnectorInstances } from '@/api/console'
-import type { ConnectorInstance } from '@/types/api'
-import { humanize } from '@/lib/errors'
+import CampaignsSection from '@/components/console/automations/CampaignsSection.vue'
+import OffCampaignSection from '@/components/console/automations/OffCampaignSection.vue'
+import RoutinesSection from '@/components/console/automations/RoutinesSection.vue'
+import RunnerPresenceBanner from '@/components/console/automations/RunnerPresenceBanner.vue'
+import type { RunnerArme, RunnerJob } from '@/api/console'
+import { useCibleRun } from '@/composables/useCibleRun'
+import { fournirRafraichissement } from '@/composables/useRafraichissement'
 
-const instances = ref<ConnectorInstance[]>([])
-const loaded = ref(false)
-const error = ref<string | null>(null)
+const { t } = useI18n()
 
-const automations = computed(() =>
-  instances.value.filter((i) => i.connector === 'routine'))
+const vivante = ref(false)
+const { toutCharger, enCours } = fournirRafraichissement({ actif: () => vivante.value })
 
-const LEVEL_LABEL: Record<string, string> = {
-  member: 'à moi', group: 'équipe', org: 'organisation', platform: 'plateforme',
+// La présence du runner arrive avec la liste des déclencheurs (même route) : la carte
+// des déclencheurs la remonte, le bandeau l'affiche. Une erreur de cette lecture reste
+// dans le bandeau et dans la carte, jamais ailleurs.
+const runner = ref<RunnerArme | null>(null)
+const runnerLu = ref(false)
+const runnerErreur = ref<string | null>(null)
+function surRunner(r: RunnerArme | null) {
+  runner.value = r
+  runnerErreur.value = null
+  runnerLu.value = true
+}
+function surRunnerErreur(raison: string) {
+  runnerErreur.value = raison
+  runnerLu.value = true
 }
 
-async function load() {
-  try {
-    instances.value = (await getConnectorInstances()).instances
-  } catch (e) {
-    error.value = humanize(e)
-  } finally {
-    loaded.value = true
-  }
-}
-
-onMounted(load)
+const ouvert = ref<RunnerJob | null>(null)
+const ouvrir = (job: RunnerJob) => { ouvert.value = job }
+const { cible } = useCibleRun(ouvrir)
 </script>
 
 <template>
-  <!-- Le poste de surveillance des agents, du général au particulier : l'état de
-       la flotte d'abord (les gardes, l'avancement, le coût, qui est bloqué), la
-       file ensuite (quel travail, dans quel état), puis les déclencheurs et les
-       routines. On ouvre cette page pour savoir si la campagne va bien, pas pour
-       lire le travail n° 47 — la file seule obligeait à reconstituer la réponse
-       de tête, ligne par ligne. -->
-  <RunnerMonitorCard />
-  <RunnerFleetsCard />
-  <RunnerJobsCard />
-  <RunnerTriggersCard />
-  <ConsoleCard
-    title="Automatisations"
-    sub="Des routines Claude Code — un agent autonome qui tourne chez Anthropic avec tes outils oto branchés."
-  >
-    <div class="card-body">
-      <p v-if="error" class="au-err">{{ error }}</p>
+  <RunnerPresenceBanner :runner="runner" :loaded="runnerLu" :error="runnerErreur">
+    <template #actions>
+      <Btn kind="mini" :disabled="enCours" :aria-busy="enCours" @click="toutCharger">
+        {{ enCours ? t('automations.refreshing') : t('automations.refresh') }}</Btn>
+    </template>
+  </RunnerPresenceBanner>
 
-      <p v-else-if="loaded && !automations.length" class="dim au-empty">
-        Aucune automatisation configurée. Crée une routine sur
-        <a href="https://claude.ai/code/routines" target="_blank" rel="noopener">claude.ai/code/routines</a>
-        (prompt + connecteur Oto), ajoute-lui un déclencheur <strong>API</strong>, génère
-        son jeton — il n'est affiché qu'une fois — puis pose-le ici comme credential du
-        connecteur <RouterLink to="/connectors">Routine Claude Code</RouterLink>.
-        Une routine par automatisation : le jeton ne déclenche que la sienne.
-      </p>
+  <Notice v-if="cible" tone="info" class="av-cible">
+    <template v-if="cible.etat === 'absent'">{{ t('automations.run.absent', { run: cible.run }) }}</template>
+    <template v-else-if="cible.etat === 'hors-page'">
+      {{ t('automations.run.horsPage', { run: cible.run, n: cible.lus }) }}</template>
+    <template v-else>{{ t('automations.run.erreur', { run: cible.run, reason: cible.raison }) }}</template>
+  </Notice>
 
-      <ul v-else class="au-list">
-        <li v-for="i in automations" :key="i.ref" class="au-item">
-          <div class="au-head">
-            <span class="au-name">{{ i.name || i.account || 'routine' }}</span>
-            <span class="au-lvl">{{ LEVEL_LABEL[i.level] ?? i.level }}</span>
-            <span v-if="i.suspended" class="au-susp">mise de côté</span>
-          </div>
-        </li>
-      </ul>
-    </div>
-  </ConsoleCard>
+  <CampaignsSection @vivante="(oui) => (vivante = oui)" @ouvrir="ouvrir" />
+  <OffCampaignSection @ouvrir="ouvrir" />
+  <RunnerTriggersCard @runner="surRunner" @runner-error="surRunnerErreur" />
+  <RoutinesSection />
+
+  <RunnerJobDetail :job="ouvert" @close="ouvert = null" />
 </template>
 
 <style scoped>
-.au-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.au-item { border: 1px solid var(--color-hair); border-radius: 8px; padding: 10px 12px; }
-.au-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.au-name { font-weight: 600; font-size: 13.5px; color: var(--color-ink); }
-.au-lvl {
-  font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
-  color: var(--color-ink-soft); border: 1px solid var(--color-hair);
-  border-radius: 999px; padding: 1px 7px;
-}
-.au-susp { font-size: 11px; color: var(--color-terra, #a8442a); }
-.au-fire { display: flex; gap: 8px; align-items: center; }
-.au-in {
-  flex: 1; min-width: 0; font-size: 12.5px; padding: 5px 8px;
-  border: 1px solid var(--color-hair); border-radius: 6px; background: transparent;
-  color: var(--color-ink);
-}
-.au-ok { margin: 8px 0 0; font-size: 12.5px; }
-.au-err { margin: 8px 0 0; font-size: 12.5px; color: var(--color-terra, #a8442a); }
-.au-empty { font-size: 13px; line-height: 1.6; }
-.au-note { margin: 14px 0 0; font-size: 12px; line-height: 1.55; }
+.av-cible { margin-bottom: 16px; }
 </style>

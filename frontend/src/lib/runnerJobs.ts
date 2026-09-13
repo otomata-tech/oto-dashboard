@@ -1,16 +1,20 @@
 // Lecture d'un travail du runner — l'arithmétique et le vocabulaire, hors des vues.
 //
-// Deux cartes (surveillance + file) et une fiche lisent le MÊME job : sans ce
-// module, chacune réinventait sa conversion de date et son libellé, et deux
-// écrans finissaient par ne plus dire la même chose du même travail.
+// Les listes de travaux (d'une campagne, hors campagne) et la fiche lisent le MÊME
+// job : sans ce module, chacune réinventait sa conversion de date et son libellé, et
+// deux écrans finissaient par ne plus dire la même chose du même travail.
 //
 // ⚠️ Ce que le backend garantit, et ce qu'il ne garantit pas. Le schéma servi
-// (`JobResult`, capacité `runner.jobs`) NE NOMME que quatre champs —
-// `usage_tokens`, `stopped`, `steps`, `tool_counts` — et se déclare `extra=allow` :
-// tout le reste (`writes`, `claims`, `model`, les postes de garde…) est DÉCLARÉ
-// PAR LE WORKER et traverse le schéma sans y être décrit. Conséquences tenues ici :
-// rien n'est jamais supposé présent, et un champ inconnu n'est pas jeté — il tombe
-// dans « autres », sous sa clé brute, plutôt que de disparaître de l'écran.
+// (`JobResult`, capacité `runner.jobs`) nomme un socle — `usage_tokens`, `stopped`,
+// `steps`, `tool_counts` — et se déclare `extra=allow` : tout le reste (`model`,
+// `usage_cache_*`…) est DÉCLARÉ PAR LE WORKER et traverse le schéma sans y être
+// décrit. Conséquences tenues ici : rien n'est jamais supposé présent, et un champ
+// inconnu n'est pas jeté — il tombe dans « autres », sous sa clé brute.
+//
+// Retiré le 13/09/2026 (oto#205) : la lecture des postes de garde et des compteurs
+// de réservation (`claims`, `writes`, `faux_depart`…). Le runner ne les écrit plus
+// depuis le 01/09 ; les lire fabriquait un zéro qui avait l'air d'un succès. Sur un
+// travail ancien qui les porte encore, ils retombent dans « autres », sous leur clé.
 import type { RunnerJob } from '@/api/console'
 
 // ── Temps ───────────────────────────────────────────────────────────────────
@@ -33,6 +37,17 @@ export function duree(ms: number): string {
   return `${Math.floor(min / 60)} h ${min % 60} min`
 }
 
+/** Un écart dans le passé, dit par une clé i18n (`automations.time.*`) et son nombre.
+ * Un instant FUTUR (horloges décalées) se dit « à l'instant » plutôt qu'en négatif. */
+export function ecart(depuisMs: number): { cle: 'now' | 'minutes' | 'hours' | 'days'; n: number } {
+  const min = Math.floor(Math.max(0, depuisMs) / 60_000)
+  if (min < 1) return { cle: 'now', n: 0 }
+  if (min < 60) return { cle: 'minutes', n: min }
+  const h = Math.floor(min / 60)
+  if (h < 24) return { cle: 'hours', n: h }
+  return { cle: 'days', n: Math.floor(h / 24) }
+}
+
 /** Le séjour du travail : depuis combien de temps il tourne, ou combien il a duré.
  * Un job non conclu se mesure jusqu'à `maintenant` — c'est ce qui fait voir un
  * agent bloqué, là où une durée figée au chargement le masquerait. */
@@ -48,9 +63,70 @@ export function sejour(j: RunnerJob, maintenant: number): string | null {
   return ms === null ? null : duree(ms)
 }
 
-export function jetons(n: number | undefined | null): string | null {
-  if (!n) return null
-  return n >= 1000 ? `${Math.round(n / 1000)}k` : String(n)
+/** Des jetons, lisibles, et JAMAIS convertis en monnaie. L'absence rend `null`, pas
+ * `"0"` : on n'écrit pas un zéro là où on ne sait pas. Un vrai zéro, lui, s'écrit. */
+export function jetons(n: number | null | undefined): string | null {
+  if (n === null || n === undefined || !Number.isFinite(n)) return null
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)} M`
+  if (n >= 1_000) return `${Math.round(n / 1_000)} k`
+  return String(n)
+}
+
+// ── Le statut d'un travail ──────────────────────────────────────────────────
+export type Ton = 'olive' | 'saffron' | 'terra' | 'cobalt' | 'ink'
+
+const STATUTS_TRAVAIL: Record<string, Ton> = {
+  pending: 'saffron', claimed: 'cobalt', done: 'olive', failed: 'terra',
+  abandoned: 'terra',
+  // ⚠️ `expired` n'est pas `failed` : personne n'est venu le prendre, il n'a jamais
+  // tourné. Le peindre en échec enverrait chercher une erreur d'exécution qui
+  // n'existe pas.
+  expired: 'ink',
+}
+
+export interface LibelleStatut {
+  /** Clé i18n complète. */
+  cle: string
+  params: Record<string, string | number>
+  ton: Ton
+}
+
+/** Le libellé d'un statut de travail. Un statut que cet écran ne connaît pas se
+ * montre TEL QUEL, sous une clé qui le dit inconnu — jamais rangé sous un voisin. */
+export function libelleTravail(status: string | null | undefined): LibelleStatut {
+  const s = status ?? ''
+  if (s in STATUTS_TRAVAIL) {
+    return { cle: `automations.jobs.status.${s}`, params: {}, ton: STATUTS_TRAVAIL[s]! }
+  }
+  return { cle: 'automations.jobs.status.unknown', params: { status: s || '—' }, ton: 'saffron' }
+}
+
+/** Conclu : plus rien ne changera ce travail. C'est seulement là qu'un coût absent
+ * mérite d'être dit « inconnu » dans une liste — sur un travail en file ou en vol,
+ * il est inconnu par nature. */
+export function estConclu(j: RunnerJob): boolean {
+  return j.status === 'done' || j.status === 'failed' || j.status === 'expired'
+    || j.status === 'abandoned'
+}
+
+// ── Le coût ─────────────────────────────────────────────────────────────────
+/** `usage_tokens` = entrée hors cache + sortie, déclaré par le worker.
+ * ⚠️ Un travail SANS résultat, ou dont le résultat ne déclare pas de jetons, a un
+ * coût INCONNU — jamais 0 : un zéro se lirait « gratuit ». */
+export type Cout = { etat: 'connu'; jetons: number } | { etat: 'inconnu' }
+
+export function coutTravail(j: RunnerJob): Cout {
+  const n = (j.result as Record<string, unknown> | null)?.usage_tokens
+  return typeof n === 'number' && Number.isFinite(n) && n >= 0
+    ? { etat: 'connu', jetons: n }
+    : { etat: 'inconnu' }
+}
+
+/** Le modèle que le worker DÉCLARE avoir fait tourner. `null` = non déclaré, ce que
+ * l'écran dit en toutes lettres plutôt que de laisser une case vide. */
+export function modeleTravail(j: RunnerJob): string | null {
+  const m = (j.result as Record<string, unknown> | null)?.model
+  return typeof m === 'string' && m ? m : null
 }
 
 // ── Ce que le job vise (payload) ─────────────────────────────────────────────
@@ -60,15 +136,9 @@ function chaine(v: unknown): string | null {
   return typeof v === 'string' && v ? v : null
 }
 
-export function procOf(j: RunnerJob): string {
+/** La procédure, ou `null` quand le payload ne la nomme pas (reprise de fil…). */
+export function procOf(j: RunnerJob): string | null {
   return chaine(j.payload?.procedure)
-    ?? (j.kind === 'continue' ? 'reprise de fil' : '—')
-}
-export function flotteOf(j: RunnerJob): string | null {
-  return chaine(j.payload?.fleet)
-}
-export function tableauOf(j: RunnerJob): string | null {
-  return chaine(j.payload?.namespace)
 }
 
 // ── Renvois du harnais ──────────────────────────────────────────────────────
@@ -91,9 +161,7 @@ function entier(v: unknown): number {
 }
 
 // ── Le bail du travail ──────────────────────────────────────────────────────
-// `lease_until` (oto-backend #723) dit quand expire la prise EN COURS. On l'avait
-// remplacé par un seuil dérivé de la campagne — 3 × le séjour médian — faute de
-// date ; ce seuil rangeait dans la même case un travail lent et un travail mort.
+// `lease_until` dit quand expire la prise EN COURS.
 //
 // ⚠️ IL NE SE LIT JAMAIS SEUL. C'est le croisement avec `status` qui lui donne son
 // sens, et le lire seul produit le contresens que ce module existe pour éviter :
@@ -110,219 +178,78 @@ export interface Bail {
   /** L'instant de fin, quand il y en a un. */
   fin: number | null
   /** Signé : positif = il reste du bail, négatif = il est dépassé de tant.
-   * `null` hors d'un bail en cours — un « dépassement » n'a de sens que sur une
-   * prise vivante. */
+   * `null` hors d'un bail en cours. */
   resteMs: number | null
 }
 
 export function bail(j: RunnerJob, maintenant: number): Bail {
   const fin = instant(j.lease_until)
   if (fin === null) return { etat: 'aucun', fin: null, resteMs: null }
-  // Hors d'une prise en cours, la date est un fait du passé, pas un verdict.
   if (j.status !== 'claimed') return { etat: 'tenu', fin, resteMs: null }
   const reste = fin - maintenant
   return { etat: reste >= 0 ? 'en-cours' : 'expire', fin, resteMs: reste }
 }
 
-/** Le seul cas où « expiré » se dit : une prise en cours dont le bail est dépassé.
- * C'est un FAIT servi, là où le seuil dérivé n'était qu'une présomption. */
+/** Le seul cas où « expiré » se dit : une prise en cours dont le bail est dépassé. */
 export function bailExpire(j: RunnerJob, maintenant: number): boolean {
   return bail(j, maintenant).etat === 'expire'
-}
-
-// ── Postes de garde ─────────────────────────────────────────────────────────
-// Le signal qui ne doit jamais être noyé : un travail peut se conclure « terminé »
-// alors que la garde a dû rattraper ce qu'il a écrit. Aucune erreur n'est levée
-// dans ce cas — sans ces postes, la campagne paraît propre.
-//
-// ⚠️ CE SONT DES LISTES DE NOMS, PAS DES COMPTEURS. On les avait lus comme des
-// entiers : une liste lue par un lecteur d'entier vaut zéro, et le bandeau ne
-// s'affichait donc JAMAIS, sur aucun travail. Le défaut se déguisait en bonne
-// nouvelle — la forme exacte du piège que ces postes existent pour empêcher.
-//
-// ⚠️ ET IL Y A TROIS ÉTATS, PAS DEUX. `null` ne veut pas dire « rien » : il veut
-// dire QUE PERSONNE N'A REGARDÉ (le harnais n'a pas pu identifier la ligne
-// travaillée, la garde n'a pas tourné). Le confondre avec `[]` afficherait
-// « aucune destruction » là où rien n'a été mesuré. `[]`, lui, est une mesure :
-// la garde a tourné et n'a rien trouvé.
-export interface Garde {
-  cle: string
-  label: string
-  /** Une valeur perdue ne se rattrape pas : elle ne se range pas avec ce que la
-   * garde a su corriger. */
-  severe?: boolean
-}
-export const GARDES: Garde[] = [
-  { cle: 'valeurs_cliente_reparees', label: 'valeurs client réparées' },
-  { cle: 'contacts_fabriques_retires', label: 'contacts inventés retirés' },
-  { cle: 'valeurs_cliente_detruites', label: 'valeurs client détruites', severe: true },
-]
-
-/**
- *  `garni`       la garde a dû intervenir — les noms sont là
- *  `neant`       elle a tourné et n'a rien trouvé (`[]`)
- *  `non-mesure`  ⚠️ elle n'a PAS tourné (`null`) — ni succès ni échec, un angle mort
- *  `absent`      le travail ne déclare pas ce poste (worker ancien, job non conclu)
- *  `illisible`   une forme qu'on ne sait pas lire. On la RESSORT plutôt que de la
- *                compter zéro : c'est le contresens précédent qu'on refuse de refaire.
- */
-export type EtatGarde = 'garni' | 'neant' | 'non-mesure' | 'absent' | 'illisible'
-
-export interface ReleveGarde extends Garde {
-  etat: EtatGarde
-  /** Les noms de colonnes ou de contacts, sur un poste garni. Vide ailleurs. */
-  noms: string[]
-  /** ⚠️ `noms.length`, et rien d'autre. À NE JAMAIS LIRE SEUL : il vaut 0 aussi
-   * bien sur un poste mesuré à vide que sur un poste jamais mesuré. */
-  n: number
-  /** La valeur telle quelle, sur un poste illisible — pour la montrer à l'écran. */
-  brut?: string
-}
-
-export function releveGarde(j: RunnerJob, g: Garde): ReleveGarde {
-  const r = j.result as Record<string, unknown> | null
-  const socle = { ...g, noms: [] as string[], n: 0 }
-  if (!r || !(g.cle in r)) return { ...socle, etat: 'absent' }
-  const v = r[g.cle]
-  if (v === null) return { ...socle, etat: 'non-mesure' }
-  if (Array.isArray(v)) {
-    const noms = v.map((x) => String(x)).filter(Boolean)
-    return { ...g, etat: noms.length ? 'garni' : 'neant', noms, n: noms.length }
-  }
-  return { ...socle, etat: 'illisible', brut: typeof v === 'object' ? JSON.stringify(v) : String(v) }
-}
-
-export function relevesGardes(j: RunnerJob): ReleveGarde[] {
-  return GARDES.map((g) => releveGarde(j, g))
-}
-
-/** Total des interventions de garde sur ce travail. ⚠️ 0 ne veut PAS dire
- * « propre » : il faut aussi que rien ne soit resté non mesuré, d'où `angleMort`. */
-export function totalGardes(j: RunnerJob): number {
-  return relevesGardes(j).reduce((s, g) => s + g.n, 0)
-}
-/** La garde a dû rattraper quelque chose. */
-export function aUneGarde(j: RunnerJob): boolean {
-  return relevesGardes(j).some((g) => g.etat === 'garni')
-}
-/** Personne n'a regardé — la garde n'a pas tourné, ou son relevé est illisible.
- * Ni succès ni échec : un travail qui ne dit rien de ses données ne se range pas
- * avec ceux qui ont été vérifiés. */
-export function angleMort(j: RunnerJob): boolean {
-  return relevesGardes(j).some((g) => g.etat === 'non-mesure' || g.etat === 'illisible')
-}
-
-export interface BilanGarde extends Garde {
-  /** Noms cumulés sur la fenêtre. */
-  n: number
-  /** Travaux où ce poste a dû intervenir. */
-  travaux: number
-  /** Travaux où le poste a été MESURÉ — qu'il ait trouvé quelque chose ou non.
-   * C'est lui qui autorise à dire « vérifié, rien trouvé » : sans mesure, un
-   * total à zéro ne veut rien dire. */
-  mesures: number
-  /** ⚠️ Travaux où ce poste n'a PAS été mesuré. Se dit à côté de `n`, jamais
-   * fondu dedans : « 0 détruite sur 40 travaux » et « 0 détruite sur 12 travaux,
-   * 28 non mesurés » ne s'entendent pas pareil. */
-  nonMesure: number
-  /** Travaux dont le relevé a une forme qu'on ne sait pas lire. */
-  illisible: number
-}
-
-/** Le bilan des gardes sur une fenêtre de travaux, poste par poste. */
-export function bilanGardes(jobs: RunnerJob[]): BilanGarde[] {
-  return GARDES.map((g) => {
-    const b: BilanGarde = { ...g, n: 0, travaux: 0, mesures: 0, nonMesure: 0, illisible: 0 }
-    for (const j of jobs) {
-      const r = releveGarde(j, g)
-      if (r.etat === 'garni') { b.n += r.n; b.travaux += 1; b.mesures += 1 }
-      else if (r.etat === 'neant') b.mesures += 1
-      else if (r.etat === 'non-mesure') b.nonMesure += 1
-      else if (r.etat === 'illisible') b.illisible += 1
-    }
-    return b
-  })
 }
 
 // ── Le `result`, rendu lisible ──────────────────────────────────────────────
 // Le contrat étant ouvert, on le lit en trois temps : les postes qu'on sait
 // nommer, le relevé d'outils, puis TOUT LE RESTE sous sa clé brute. Le troisième
-// temps n'est pas un filet de sécurité décoratif : c'est ce qui empêche un champ
-// neuf déclaré par le worker de rester invisible en attendant qu'on y pense.
-export type TonPoste = 'neutre' | 'attention' | 'alerte'
+// temps empêche un champ neuf déclaré par le worker de rester invisible.
+export type TonPoste = 'neutre' | 'attention'
 
 export interface PosteResultat {
   cle: string
+  /** Clé i18n du libellé. */
   label: string
+  /** La valeur brute à afficher ; `valeurCle` la remplace quand elle se traduit. */
   valeur: string
+  valeurCle?: string
   ton: TonPoste
 }
 
-/** Les clés lues à part : soit portées par un poste nommé, soit rendues ailleurs
- * (gardes, relevé d'outils) — elles ne doivent pas retomber dans « autres ». */
+/** Les clés lues à part : portées par un poste nommé, ou rendues ailleurs (modèle et
+ * coût dans l'identité du travail, relevé d'outils) — elles ne retombent pas dans
+ * « autres ». */
 const NOMMEES = new Set<string>([
-  'model', 'steps', 'stopped', 'claims', 'writes',
-  'usage_tokens', 'usage_input', 'usage_output',
-  'usage_cache_read', 'usage_cache_write',
-  'faux_depart', 'claim_vide', 'hors_schema',
-  'tool_counts',
-  ...GARDES.map((g) => g.cle),
+  'model', 'steps', 'stopped', 'usage_tokens', 'usage_input', 'usage_output',
+  'usage_cache_read', 'usage_cache_write', 'tool_counts',
 ])
 
-// Motifs d'arrêt de la boucle, dits en clair. Une valeur inconnue se rend telle
+// Motifs d'arrêt de la boucle qu'on sait dire. Une valeur inconnue se rend telle
 // quelle : mieux vaut un mot anglais lisible qu'un mot français inventé.
-const ARRETS: Record<string, string> = {
-  end_turn: 'fin de tour',
-  max_steps: 'plafond d’étapes atteint',
-  max_tokens: 'plafond de jetons atteint',
-  error: 'erreur',
-  stop_sequence: 'séquence d’arrêt',
-}
+const ARRETS = new Set(['end_turn', 'max_steps', 'max_tokens', 'error', 'stop_sequence'])
 
-function liste(v: unknown): string[] {
-  return Array.isArray(v) ? v.map((x) => String(x)).filter(Boolean) : []
-}
-
-/** Les postes nommés du résultat, dans l'ordre où on les lit devant un travail :
- * ce qu'il a fait, puis comment il s'est arrêté, puis ce qu'il a coûté. */
+/** Les postes nommés du résultat : comment il s'est arrêté, puis le détail du coût
+ * (le total `usage_tokens` et le modèle vivent dans l'identité du travail). */
 export function postesResultat(j: RunnerJob): PosteResultat[] {
   const r = j.result as Record<string, unknown> | null
   if (!r) return []
   const out: PosteResultat[] = []
-  const pousse = (cle: string, label: string, valeur: string | null, ton: TonPoste = 'neutre') => {
-    if (valeur !== null) out.push({ cle, label, valeur, ton })
-  }
+  const P = 'automations.job.result.'
 
-  const claims = entier(r.claims)
-  const writes = entier(r.writes)
-  pousse('claims', 'lignes réservées', claims ? String(claims) : null)
-  pousse('writes', 'écritures', writes ? String(writes) : null)
-  // Réservé puis conclu sans rien écrire : aucune erreur n'est levée, c'est le
-  // seul endroit où le tour perdu se voit.
-  if (r.faux_depart === true) {
-    pousse('faux_depart', 'issue', 'réservé, rien écrit', 'attention')
-  } else if (r.claim_vide === true) {
-    pousse('claim_vide', 'issue', 'réservation à vide', 'attention')
-  }
-
-  const horsSchema = liste(r.hors_schema)
-  pousse('hors_schema', 'colonnes hors schéma',
-    horsSchema.length ? horsSchema.join(', ') : null, 'attention')
-
-  pousse('steps', 'étapes', entier(r.steps) ? String(r.steps) : null)
+  if (entier(r.steps)) out.push({ cle: 'steps', label: `${P}steps`, valeur: String(r.steps), ton: 'neutre' })
   const stop = chaine(r.stopped)
-  pousse('stopped', 'arrêt', stop ? (ARRETS[stop] ?? stop) : null,
-    stop && stop !== 'end_turn' ? 'attention' : 'neutre')
-  pousse('model', 'modèle', chaine(r.model))
-
-  pousse('usage_tokens', 'jetons facturés', jetons(entier(r.usage_tokens)))
-  // Entrée et sortie séparées : avec un cache, « facturés » seul ne dit plus d'où
-  // vient le coût — un tour cher en sortie et un tour cher en entrée ne se
-  // corrigent pas de la même façon.
-  pousse('usage_input', 'jetons en entrée', jetons(entier(r.usage_input)))
-  pousse('usage_output', 'jetons en sortie', jetons(entier(r.usage_output)))
-  pousse('usage_cache_read', 'jetons lus en cache', jetons(entier(r.usage_cache_read)))
-  pousse('usage_cache_write', 'jetons écrits en cache', jetons(entier(r.usage_cache_write)))
+  if (stop) {
+    out.push({
+      cle: 'stopped', label: `${P}stopped`, valeur: stop,
+      valeurCle: ARRETS.has(stop) ? `automations.job.stop.${stop}` : undefined,
+      ton: stop !== 'end_turn' ? 'attention' : 'neutre',
+    })
+  }
+  // Entrée et sortie séparées, cache à part : un tour cher en sortie et un tour cher
+  // en entrée ne se corrigent pas de la même façon, et le cache lu n'est pas facturé
+  // comme le reste.
+  for (const [cle, label] of [
+    ['usage_input', 'input'], ['usage_output', 'output'],
+    ['usage_cache_read', 'cacheRead'], ['usage_cache_write', 'cacheWrite'],
+  ] as const) {
+    const v = jetons(entier(r[cle]) || null)
+    if (v !== null) out.push({ cle, label: `${P}${label}`, valeur: v, ton: 'neutre' })
+  }
   return out
 }
 
@@ -337,8 +264,7 @@ export function outilsResultat(j: RunnerJob): Array<{ outil: string; n: number }
 }
 
 /** Ce que le worker a déclaré et qu'on ne sait pas nommer — rendu sous sa clé
- * brute plutôt que masqué. Le contrat est ouvert : un champ inconnu aujourd'hui
- * est un champ neuf, pas une anomalie. */
+ * brute plutôt que masqué. */
 export function autresResultat(j: RunnerJob): Array<{ cle: string; valeur: string }> {
   const r = j.result as Record<string, unknown> | null
   if (!r) return []

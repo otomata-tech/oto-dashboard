@@ -217,6 +217,139 @@
     "spaceOrg": "Company space",
     "spaceAccount": "Manage my account"
   },
+    "automations": {
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…",
+      "time": {
+        "now": "just now",
+        "minutes": "{n} min ago",
+        "hours": "{n} h ago",
+        "days": "{n} d ago"
+      },
+      "runner": {
+        "title": "Runner",
+        "sub": "The worker that takes this organization's jobs.",
+        "armedTag": "armed",
+        "armed": "A worker is taking this organization's jobs.",
+        "notArmed": "No runner is taking this organization's jobs.",
+        "lastSeen": "last contact",
+        "neverSeen": "never",
+        "workers": "active worker identities",
+        "workersHint": "A worker identity is a declared secret, not a process: one identity can run several agents.",
+        "models": "models served",
+        "noModel": "no model declared, only jobs without a model are taken",
+        "notServed": "Runner presence is not served.",
+        "error": "Runner presence unreadable: {reason}"
+      },
+      "campaigns": {
+        "title": "Campaigns",
+        "sub": "Each campaign, counted over all of its jobs.",
+        "empty": "No campaign declared.",
+        "betaOff": "Campaigns are not enabled for this organization.",
+        "error": "Campaigns unreadable: {reason}",
+        "older": "{n} older campaign | {n} older campaigns",
+        "olderHint": "no state change in {days} days"
+      },
+      "campaign": {
+        "status": {
+          "draftUnread": "not armed",
+          "draft": "draft",
+          "historical": "historical",
+          "historicalHint": "Campaign from the former scheduler: its status never followed, it is read from its jobs.",
+          "armed": "armed, waiting for its first job",
+          "running": "running",
+          "stopping": "stop requested",
+          "stoppingInFlight": "stop requested, {n} in flight",
+          "stopped": "stopped: {reason}",
+          "stoppedNoReason": "stopped, no reason written",
+          "done": "done",
+          "failed": "failed",
+          "unknown": "unknown status: {status}"
+        },
+        "counters": {
+          "done": "done",
+          "pending": "queued",
+          "claimed": "in flight",
+          "failed": "failed",
+          "abandoned": "of which abandoned",
+          "total": "total"
+        },
+        "tokens": "tokens, uncached input + output",
+        "heaviest": "heaviest job",
+        "lastFinished": "last job finished",
+        "unknown": "unknown",
+        "none": "none",
+        "noModel": "model not declared",
+        "noJobs": "No job attached to this campaign.",
+        "loading": "Reading counters…",
+        "error": "Counters unreadable: {reason}",
+        "armedIdle": "Armed for {duration} without a first job: no worker is polling this organization's queue.",
+        "showJobs": "show jobs",
+        "hideJobs": "hide jobs"
+      },
+      "jobs": {
+        "status": {
+          "pending": "queued",
+          "claimed": "in flight",
+          "done": "done",
+          "failed": "failed",
+          "abandoned": "abandoned",
+          "expired": "expired",
+          "unknown": "unknown status: {status}"
+        },
+        "shown": "{shown} shown of {total}",
+        "more": "Show more",
+        "empty": "No job.",
+        "error": "Jobs unreadable: {reason}",
+        "open": "open",
+        "costUnknown": "cost unknown",
+        "tokens": "{n} tokens",
+        "leaseExpired": "lease overrun",
+        "expiredHint": "nobody took it, this is not a failure"
+      },
+      "offCampaign": {
+        "title": "Jobs outside campaigns",
+        "sub": "Started by a trigger or a direct call.",
+        "show": "Show",
+        "hide": "Hide",
+        "scheduled": "Triggers",
+        "manual": "Direct calls"
+      },
+      "job": {
+        "model": "model",
+        "noModel": "model not declared",
+        "tokens": "tokens, uncached input + output",
+        "costUnknown": "unknown",
+        "result": {
+          "steps": "steps",
+          "stopped": "stop",
+          "input": "input tokens",
+          "output": "output tokens",
+          "cacheRead": "cache read tokens",
+          "cacheWrite": "cache write tokens"
+        },
+        "stop": {
+          "end_turn": "end of turn",
+          "max_steps": "step limit reached",
+          "max_tokens": "token limit reached",
+          "error": "error",
+          "stop_sequence": "stop sequence"
+        }
+      },
+      "triggers": {
+        "next": "next run: {date}",
+        "notTaken": "{n} occurrence not taken | {n} occurrences not taken"
+      },
+      "routines": {
+        "title": "Claude Code routines",
+        "sub": "An autonomous agent running at Anthropic, with your oto tools plugged in."
+      },
+      "run": {
+        "absent": "No in-flight job carries run {run}: it is no longer running.",
+        "horsPage": "Run {run} is not among the {n} in-flight jobs read.",
+        "erreur": "The job of run {run} could not be read: {reason}"
+      }
+    },
   "errors": {
     "datastore_exists": "a datastore with that name already exists",
     "duplicate_label": "a key with that provider and label already exists",

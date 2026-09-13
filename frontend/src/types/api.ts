@@ -1849,3 +1849,13 @@ export function fmtDay(iso: string | null | undefined): string | null {
   // période d'usage tombe TOUJOURS un 1er, donc la faute se lirait tous les mois.
   return d.getDate() === 1 ? s.replace(/^1\b/, '1er') : s
 }
+
+// ── Runner : campagnes et présence (oto#205) ────────────────────────────────
+// Dérivés du document servi (prod v1.276.0). Les flottes vivaient dans
+// `api.attendu.ts` tant que seule la préprod les servait ; `armed_at`, `stopping_at`
+// et `rows_at_launch` n'y figuraient pas.
+export type RunnerFleet = components['schemas']['Fleet']
+export type RunnerFleetState = components['schemas']['FleetState']
+/** La présence d'un runner pour l'org. ⚠️ `workers` compte des identités de worker
+ * (secrets déclarés) vues récemment, pas des processus. */
+export type RunnerArme = components['schemas']['RunnerArme']

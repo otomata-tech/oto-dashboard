@@ -1,29 +1,20 @@
 <script setup lang="ts">
 // La fiche d'UN agent : ce qu'il a fait, et ce qu'il a laissé derrière lui.
 //
-// Jusqu'ici la file d'exécution ne permettait pas d'ouvrir un travail — on voyait
-// qu'il avait tourné, pas ce qu'il avait produit. Le `result` était réduit à deux
-// pastilles (« N écritures », « réservé, rien écrit ») ; le modèle, les étapes, le
-// motif d'arrêt, les colonnes hors schéma et les postes de garde n'étaient nulle
-// part, alors qu'ils sont servis.
+// Le `result` est rendu en TROIS temps, parce que son contrat est ouvert
+// (`extra=allow` côté backend) : les postes qu'on sait nommer, le relevé d'outils,
+// puis tout le reste sous sa clé brute. Le troisième temps n'est pas de la
+// complaisance — sans lui, un champ que le worker vient d'ajouter reste invisible, et
+// « l'écran ne le montre pas » se lit « le worker ne le produit pas ».
 //
-// Deux partis pris :
-//
-// ① Les gardes en tête, avant l'identité même du travail. Un agent dont la garde
-//    a réparé les écritures se conclut « terminé » ; si sa fiche ouvre sur son id
-//    et ses horodatages, on referme avant d'arriver au seul fait qui comptait.
-//
-// ② Le `result` est rendu en TROIS temps, parce que son contrat est ouvert
-//    (`extra=allow` côté backend) : les postes qu'on sait nommer, le relevé
-//    d'outils, puis tout le reste sous sa clé brute. Le troisième temps n'est pas
-//    de la complaisance — sans lui, un champ que le worker vient d'ajouter reste
-//    invisible jusqu'à ce qu'on pense à le déclarer, et « l'écran ne le montre
-//    pas » se lit « le worker ne le produit pas ».
+// Retiré le 13/09/2026 (oto#205) : le bandeau des postes de garde et « réservé, rien
+// écrit ». Le runner n'écrit plus ces champs depuis le 01/09 : ils peignaient un zéro
+// qui avait l'air d'un succès. Sur un travail ancien, ils restent lisibles sous leur clé.
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import ModalOverlay from './ModalOverlay.vue'
 import Tag from './Tag.vue'
 import Icon from './Icon.vue'
-import RunnerGardes from './RunnerGardes.vue'
 import {
   getNamespaceQueue, getRunThread, type RunnerJob, type RunThreadMessage,
 } from '@/api/console'
@@ -31,8 +22,8 @@ import { useMe } from '@/composables/useMe'
 import { absDate } from '@/lib/cellRender'
 import { bailLigne } from '@/lib/bailDeLigne'
 import {
-  autresResultat, bail, duree, outilsResultat, postesResultat,
-  procOf, relevesGardes, renvois, sejour, sejourMs, totalGardes,
+  autresResultat, bail, coutTravail, duree, jetons, libelleTravail, modeleTravail,
+  outilsResultat, postesResultat, procOf, renvois, sejour, sejourMs,
 } from '@/lib/runnerJobs'
 
 const props = defineProps<{ job: RunnerJob | null }>()
@@ -41,31 +32,23 @@ const emit = defineEmits<{ close: [] }>()
 const { me } = useMe()
 const maintenant = ref(Date.now())
 
-type Ton = 'olive' | 'terra' | 'saffron' | 'cobalt' | 'ink'
-const TONE: Record<string, Ton> = {
-  pending: 'saffron', claimed: 'cobalt', done: 'olive', failed: 'terra',
-}
-const LIBELLE: Record<string, string> = {
-  pending: 'en attente', claimed: 'en cours', done: 'terminé', failed: 'en échec',
-}
+const { t } = useI18n()
 
 const j = computed(() => props.job)
 const ouvert = computed(() => props.job !== null)
 
-// ── Les gardes ──────────────────────────────────────────────────────────────
-// Ici on montre les NOMS, pas des comptes : sur une seule fiche, « 2 valeurs
-// réparées » n'aide pas — « ville, telephone » dit quelle colonne aller relire.
-const releves = computed(() => (j.value ? relevesGardes(j.value) : []))
-const garnies = computed(() =>
-  releves.value.filter((g) => g.etat === 'garni')
-    .map((g) => ({ ...g, texte: g.noms.join(', ') })))
-// ⚠️ Ni succès ni échec : la garde n'a PAS tourné (`null`), ou son relevé est
-// d'une forme qu'on ne sait pas lire. Sans ce bloc, la fiche d'un travail non
-// vérifié serait indiscernable de celle d'un travail vérifié propre.
-const aveugles = computed(() =>
-  releves.value.filter((g) => g.etat === 'non-mesure' || g.etat === 'illisible')
-    .map((g) => ({ ...g, texte: g.etat === 'illisible' ? `relevé illisible : ${g.brut}` : '' })))
-const verifiees = computed(() => releves.value.filter((g) => g.etat === 'neant'))
+// ── Le statut, le modèle, le coût ───────────────────────────────────────────
+// Le libellé d'un statut est celui des listes (`libelleTravail`) : la fiche et la ligne
+// qui l'ouvre disent la même chose du même travail.
+const statut = computed(() => (j.value ? libelleTravail(j.value.status) : null))
+// ⚠️ Un travail sans résultat a un coût INCONNU, jamais 0 ; un modèle absent se dit
+// « non déclaré » plutôt que de laisser une case vide.
+const cout = computed(() => {
+  if (!j.value) return null
+  const c = coutTravail(j.value)
+  return c.etat === 'connu' ? (jetons(c.jetons) ?? '0') : t('automations.job.costUnknown')
+})
+const modele = computed(() => (j.value ? modeleTravail(j.value) ?? t('automations.job.noModel') : null))
 
 // ── Le bail de la prise ─────────────────────────────────────────────────────
 // ⚠️ Se lit CONTRE le statut : sur un travail conclu, une date passée est le bail
@@ -255,10 +238,10 @@ watch(() => props.job?.id, async () => {
         <div class="jd-head-txt">
           <h3 class="jd-title">
             Travail <span class="jd-id">#{{ j.id }}</span>
-            <Tag :tone="TONE[j.status] ?? 'ink'">{{ LIBELLE[j.status] ?? j.status }}</Tag>
+            <Tag v-if="statut" :tone="statut.ton">{{ t(statut.cle, statut.params) }}</Tag>
           </h3>
           <p class="jd-desc">
-            {{ procOf(j) }}
+            {{ procOf(j) ?? '—' }}
             <span v-if="j.kind === 'continue'"> · reprise de fil</span>
             <span v-if="sejour(j, maintenant)"> · {{ sejour(j, maintenant) }}</span>
           </p>
@@ -269,17 +252,8 @@ watch(() => props.job?.id, async () => {
       </header>
 
       <div class="jd-body">
-        <!-- ① Les gardes, avant tout le reste -->
-        <RunnerGardes
-          titre="La garde est intervenue sur ce que cet agent a écrit"
-          sous="Ce travail s'est conclu sans erreur : la garde a rattrapé ce qu'il avait
-                écrit. Les colonnes nommées ci-dessous sont à relire avant de se fier au tableau."
-          :garnies="garnies" :aveugles="aveugles" :verifiees="verifiees"
-        >
-          <template #compteur>
-            <span class="jd-garde-n">{{ totalGardes(j) }}</span>
-          </template>
-        </RunnerGardes>
+        <!-- `expired` n'est pas un échec : personne n'est venu le prendre. -->
+        <p v-if="j.status === 'expired'" class="jd-mute">{{ t('automations.jobs.expiredHint') }}</p>
 
         <!-- ② L'échec, en toutes lettres -->
         <div v-if="j.last_error" class="jd-err">
@@ -308,6 +282,14 @@ watch(() => props.job?.id, async () => {
           <div>
             <dt>séjour</dt>
             <dd>{{ sejourMs(j, maintenant) !== null ? duree(sejourMs(j, maintenant)!) : '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('automations.job.model') }}</dt>
+            <dd>{{ modele }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('automations.job.tokens') }}</dt>
+            <dd>{{ cout }}</dd>
           </div>
           <div>
             <dt>tentatives</dt>
@@ -392,9 +374,9 @@ watch(() => props.job?.id, async () => {
           </p>
           <dl v-if="postes.length" class="jd-meta">
             <div v-for="p in postes" :key="p.cle">
-              <dt>{{ p.label }}</dt>
-              <dd :class="{ attention: p.ton === 'attention', alerte: p.ton === 'alerte' }">
-                {{ p.valeur }}
+              <dt>{{ t(p.label) }}</dt>
+              <dd :class="{ attention: p.ton === 'attention' }">
+                {{ p.valeurCle ? t(p.valeurCle) : p.valeur }}
               </dd>
             </div>
           </dl>
@@ -466,11 +448,6 @@ watch(() => props.job?.id, async () => {
 .jd-body {
   overflow-y: auto; padding: 0 18px 18px;
   display: flex; flex-direction: column; gap: 15px;
-}
-
-.jd-garde-n {
-  font-family: var(--font-mono, monospace); font-size: 11px; font-weight: 600;
-  background: var(--color-surface); border-radius: var(--radius-pill); padding: 1px 8px;
 }
 
 .jd-err {

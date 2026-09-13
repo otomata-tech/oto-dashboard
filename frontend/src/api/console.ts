@@ -20,11 +20,12 @@ import type {
   TenantRow, TenantTotals, TenantSheet,
   OutreachInput, OutreachResult,
   RecentChangesView,
+  RunnerFleet, RunnerFleetState, RunnerArme,
 } from '@/types/api'
 // ⚠️ Contrat SERVI PAR UN LOT NON DÉPLOYÉ (oto-backend PR #723) — écrit à la main
 // parce qu'une régénération depuis l'OpenAPI en ligne l'effacerait. Cf. le fichier.
 import type {
-  BailDuTravail, PostesDeGarde, RunnerFleet, RunnerFleetState,
+  BailDuTravail,
   BillingMethodChangeStarted, BillingMethodChangeResult,
   AdminBillingIdentityView, AdminBillingIdentityInput,
 } from '@/types/api.attendu'
@@ -416,61 +417,69 @@ export interface RunnerJob extends BailDuTravail {
   id: number
   kind: 'start' | 'continue'
   run_id: string | null
+  // La campagne (flotte) du travail ; `null` = hors campagne (déclencheur, appel direct).
+  // ⚠️ C'est CE champ qui rattache un travail à sa campagne, jamais `payload.fleet`.
+  fleet_id?: number | null
   payload: Record<string, unknown> | null
-  status: 'pending' | 'claimed' | 'done' | 'failed'
+  // `string` et non une union fermée : le serveur sert aussi `expired` (occurrence de
+  // déclencheur que personne n'a prise), et le jeu peut s'élargir avant cet écran.
+  // `lib/runnerJobs.libelleTravail` montre tel quel un statut qu'il ne connaît pas.
+  status: string
   attempts: number
   max_attempts: number
   claimed_by: string | null
   last_error: string | null
-  // Le résultat DÉCLARÉ par le worker. `usage_tokens` = input+output NON cachés ;
+  // Le résultat DÉCLARÉ par le worker. `usage_tokens` = entrée hors cache + sortie ;
   // le cache se compte à côté (`usage_cache_*`), sinon un run à gros cache paraît
-  // gratuit. `claims`/`writes` disent le TOUR PERDU d'un coup d'œil : un agent qui
-  // réserve une ligne et conclut sans écrire ne produit aucune erreur.
+  // gratuit.
   //
-  // ⚠️ Le schéma SERVI (`JobResult`, capacité `runner.jobs`) ne nomme que quatre
-  // de ces champs — `usage_tokens`, `stopped`, `steps`, `tool_counts` — et se
-  // déclare `extra=allow`. Tout le reste ci-dessous traverse le contrat sans y
-  // être décrit : c'est une convention entre le worker et cet écran, pas une
-  // garantie d'API. D'où l'`index signature` en fin de bloc, et le rendu
-  // générique de `lib/runnerJobs` : un champ neuf s'affiche sous sa clé brute
-  // au lieu d'attendre qu'on pense à le déclarer ici.
-  //
-  // Les POSTES DE GARDE viennent de `PostesDeGarde` — ce que la garde a dû
-  // rattraper sur les données que le travail a écrites. Un travail peut se
-  // conclure « terminé » avec des gardes garnies : aucune erreur n'est levée,
-  // et c'est pour ça que la surveillance les remonte en tête. ⚠️ Ce sont des
-  // LISTES DE NOMS, pas des compteurs — on les avait typés `number`, et une
-  // liste lue comme un nombre vaut zéro : le bandeau ne s'affichait jamais.
-  result: ({
+  // ⚠️ Le schéma SERVI (`JobResult`, capacité `runner.jobs`) ne nomme qu'un socle —
+  // `usage_tokens`, `stopped`, `steps`, `tool_counts` — et se déclare `extra=allow`.
+  // Le reste traverse le contrat sans y être décrit : c'est une convention entre le
+  // worker et cet écran, pas une garantie d'API. D'où l'`index signature`, et le
+  // rendu générique de `lib/runnerJobs` : un champ neuf s'affiche sous sa clé brute.
+  result: {
     usage_tokens?: number
     usage_cache_read?: number
     usage_cache_write?: number
     stopped?: string
     steps?: number
-    claims?: number
-    writes?: number
-    claim_vide?: boolean
-    faux_depart?: boolean
     model?: string | null
-    estampille?: boolean
     tool_counts?: Record<string, number>
-    // Colonnes écrites hors du schéma déclaré du tableau.
-    hors_schema?: string[]
     [champ: string]: unknown
-  } & PostesDeGarde) | null
+  } | null
   due_at: string | null
   created_at: string | null
   finished_at: string | null
 }
-export const listRunnerJobs = (status?: RunnerJob['status'], limit = 50) =>
-  api<{ jobs: RunnerJob[] }>('/api/me/runner/jobs', {
-    method: 'POST', ...j({ op: 'list', status, limit }),
+
+/** Une page de la file. `total` compte sous les MÊMES filtres, quelle que soit la
+ * page ; `next_cursor` = `null` quand la page est la dernière. */
+export interface RunnerJobsPage {
+  jobs: RunnerJob[]
+  total: number | null
+  next_cursor: string | null
+}
+export interface RunnerJobsFiltre {
+  fleet_id?: number
+  // `scheduled` = déclencheur, `manual` = appel direct : à eux deux, exactement les
+  // travaux sans campagne (`fleet_id IS NULL` côté serveur). Aucun filtre servi ne
+  // dit « sans campagne » d'un seul mot.
+  source?: 'batch' | 'scheduled' | 'manual'
+  status?: 'pending' | 'claimed' | 'done' | 'failed'
+}
+export const listRunnerJobs = (
+  filtre: RunnerJobsFiltre, page: { limit: number; cursor?: string | null },
+) =>
+  api<RunnerJobsPage>('/api/me/runner/jobs', {
+    method: 'POST',
+    ...j({ op: 'list', ...filtre, limit: page.limit, ...(page.cursor ? { cursor: page.cursor } : {}) }),
   })
 
-export type { RunnerFleet, RunnerFleetState }
-export const listRunnerFleets = (status?: string) =>
+export type { RunnerFleet, RunnerFleetState, RunnerArme }
+export const listRunnerFleets = () =>
   api<{ fleets: RunnerFleet[] }>('/api/me/runner/fleets', {
-    method: 'POST', ...j({ op: 'list', status }),
+    method: 'POST', ...j({ op: 'list' }),
   })
 export const getRunnerFleetState = (id: number) =>
   api<{ fleet: RunnerFleet; state: RunnerFleetState }>('/api/me/runner/fleets', {
@@ -509,7 +518,9 @@ export interface RunnerTrigger {
 // tourne-t-elle ? », pas la liste de l'org — et filtrer côté client devient faux dès
 // qu'il y a plus d'une page. Omis = tous les déclencheurs de l'org.
 export const listRunnerTriggers = (procedure?: string) =>
-  api<{ triggers: RunnerTrigger[] }>('/api/me/runner/triggers', {
+  // `runner` : la présence d'un runner pour l'org, servie avec la liste — c'est une
+  // propriété de l'ORG, pas d'un déclencheur. Le bandeau de /automations la lit ici.
+  api<{ triggers: RunnerTrigger[]; runner: RunnerArme | null }>('/api/me/runner/triggers', {
     method: 'POST', ...j(procedure ? { op: 'list', procedure } : { op: 'list' }),
   })
 export const setRunnerTriggerEnabled = (id: number, enabled: boolean) =>

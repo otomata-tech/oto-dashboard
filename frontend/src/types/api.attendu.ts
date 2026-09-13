@@ -50,109 +50,12 @@ export interface BailDuTravail {
   lease_until?: string | null
 }
 
-// ── ③ Les trois postes de garde, enfin DÉCLARÉS ────────────────────────────
-// Ils étaient déjà servis (`JobResult` est `extra=allow`), mais *servi* n'est pas
-// *déclaré* : aucune forme garantie nulle part. D'où une erreur qu'on a commise —
-// les lire comme des COMPTEURS alors que ce sont des LISTES DE NOMS. Une liste
-// lue comme un nombre vaut zéro, et le bandeau de garde ne s'affichait jamais.
-//
-// ⚠️ LE PIÈGE DU LOT. `valeurs_cliente_detruites` a **trois** états, pas deux :
-//
-//   `["ville", "tel"]`  ces colonnes ont été détruites
-//   `[]`                MESURÉ, rien de détruit
-//   `null`              **NON MESURÉ** — le harnais n'a pas pu identifier la ligne
-//                       travaillée (le chemin « conversations » la résout par alias
-//                       et n'y arrive pas toujours), la garde n'a pas tourné
-//
-// Afficher « aucune destruction » là où personne n'a regardé est exactement le
-// défaut que ces postes existent pour empêcher. `null` doit se voir comme un état
-// à part, ni succès ni échec.
-export interface PostesDeGarde {
-  /** Colonnes du client REMISES EN PLACE depuis `<colonne>.origine`. `[]` = la
-   * garde a tourné et n'a rien eu à réparer. Une ligne réparée reste une faute :
-   * réparer ne doit pas faire disparaître le défaut du décompte. */
-  valeurs_cliente_reparees?: string[]
-  /** Contacts fabriqués RETIRÉS de la ligne (leurs noms) — retirés, pas
-   * seulement signalés : une ligne signalée se fait quand même appeler.
-   * `[]` = la garde a tourné et n'en a trouvé aucun. */
-  contacts_fabriques_retires?: string[]
-  /** Colonnes du client trouvées DÉTRUITES. ⚠️ `null` = NON MESURÉ, jamais zéro. */
-  valeurs_cliente_detruites?: string[] | null
-}
-
-
-// ── ② Les FLOTTES : la configuration déclarée d'un passage ─────────────────
-// Servi par la PRÉPRODUCTION (`/api/me/runner/fleets`, schémas `Fleet` et
-// `FleetState` — vérifié sur le document OpenAPI de `mcp.oto.ninja`), PAS encore
-// par la production : le lot est mergé sur le tronc, la prod part au tag.
-// `api.generated.ts` se régénère depuis la PROD — régénérer aujourd'hui
-// effacerait ces types. Ils vivent donc ici, à part, et cette section se supprime
-// d'un coup au premier tag qui emporte le lot.
-/** Une FLOTTE : la configuration DÉCLARÉE d'un passage d'agents.
- *
- * Une flotte vivait dans un fichier YAML sur une machine — invisible d'ici.
- * Ce qu'elle porte est ce qui donne un domicile aux gardes : sa CIBLE
- * (`namespace` + `row_filter`, figés à la déclaration), son contexte
- * d'exécution (`provider`/`model`, figés aussi — les changer en vol rendrait
- * fausse l'attribution des lignes déjà écrites), et ses BORNES.
- *
- * ⚠️ Le budget se compte en JETONS, jamais en monnaie : les tarifs changent et
- * diffèrent par fournisseur. La conversion appartient à qui lit, avec un tarif
- * daté — ne JAMAIS l'afficher en euros ici. */
-export interface RunnerFleet {
-  id: number
-  label: string | null
-  procedure: string | null
-  namespace: string | null
-  row_filter: Record<string, unknown> | null
-  provider: string | null
-  model: string | null
-  tools: string[] | null
-  workers: number | null
-  max_rows: number | null
-  max_tokens: number | null
-  max_tokens_per_row: number | null
-  max_consecutive_failures: number | null
-  status: string | null
-  /** ÉCRIT, jamais déduit du statut : « arrêtée » sans raison oblige à rouvrir
-   * les journaux pour savoir si le budget a coupé ou si la file s'est vidée. */
-  stop_reason: string | null
-  started_at: string | null
-  /** Le battement de l'ordonnanceur. Une flotte `running` qui ne bat plus n'est
-   * pas une concurrence à attendre : c'est un RÉSIDU de passage mort. */
-  heartbeat_at: string | null
-  stopped_at: string | null
-  created_at: string | null
-}
-
-/** L'avancement d'un passage, agrégé sur ses travaux.
- *
- * ⚠️ `no_jobs_attached` est DÉCLARÉ, pas déduit de compteurs à zéro. Un zéro qui
- * peut vouloir dire « rien trouvé » ou « personne n'a regardé » est le défaut le
- * plus coûteux de ce chantier : l'écran doit dire « aucun travail rattaché », pas
- * afficher des zéros qui ressemblent à un passage vide et sage. */
-export interface RunnerFleetState {
-  jobs_total: number
-  pending?: number | null
-  claimed?: number | null
-  done?: number | null
-  failed?: number | null
-  abandoned?: number | null
-  usage_tokens?: number | null
-  /** La ligne la PLUS LOURDE du passage — à ne pas confondre avec le plafond
-   * `max_tokens_per_row`, qui est une borne, pas une mesure. */
-  heaviest_row_tokens?: number | null
-  last_finished?: string | null
-  no_jobs_attached: boolean
-}
-
-
 // ── ③ Changer de moyen de paiement (#845 ①) ────────────────────────────────
 // Servi par la PRÉPRODUCTION (`POST /api/me/billing/method` et
 // `POST /api/me/billing/method/confirm`, schémas inline `MethodChangeStarted` et
 // `MethodChangeResult` — relevés sur le document OpenAPI de `mcp.oto.ninja` le
 // 2026-09-05, oto-backend `595a20a0`), PAS encore par la production. Même régime
-// que la section ② : cette section se supprime au premier tag qui emporte le lot,
+// que tout ce fichier : cette section se supprime au premier tag qui emporte le lot,
 // au profit des types dérivés.
 //
 // Le geste passe par un premier paiement à 0,00 sur la page hébergée du PSP —

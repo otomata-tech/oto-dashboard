@@ -23,6 +23,7 @@
 // endroits le rougit.
 // ─────────────────────────────────────────────────────────────────────────────
 import { describe, expect, it, beforeEach, vi } from 'vitest'
+import { i18n } from '@/lib/i18n'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -143,6 +144,8 @@ function monter(composant: unknown, props: Record<string, unknown>) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const app = createApp(composant as any, props)
   app.component('RouterLink', LIEN_STUB)
+  // La fiche d'un travail parle par i18n (oto#205) : le plugin est celui de l'app.
+  app.use(i18n)
   app.mount(hote)
   return hote
 }

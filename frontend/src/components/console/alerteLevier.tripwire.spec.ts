@@ -48,6 +48,8 @@ const CLASSEES: Record<string, string> = {
   'components/console/billing/BillingUsageCard.vue#0': 'informatif',
   // Audience tronquée : un CONSTAT sur ce qui partira. Restreindre l'audience se fait
   // dans la carte « Campagne », au-dessus, et n'est pas ce qui est demandé ici.
+  'components/console/automations/CampaignCard.vue#0': 'informatif',
+  'components/console/automations/RunnerPresenceBanner.vue#0': 'informatif',
   'components/console/outreach/OutreachRecipients.vue#0': 'informatif',
   // Le premier obstacle à l'envoi, écrit pour dire QUOI FAIRE — et les boutons qui
   // l'accomplissent (aperçu, essai, envoi) sont dans la même carte, sous l'alerte.

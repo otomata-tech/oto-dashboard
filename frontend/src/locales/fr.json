@@ -217,6 +217,139 @@
     "spaceOrg": "Espace Entreprise",
     "spaceAccount": "Gérer mon compte"
   },
+    "automations": {
+      "refresh": "Rafraîchir",
+      "refreshing": "Rafraîchissement…",
+      "time": {
+        "now": "à l'instant",
+        "minutes": "il y a {n} min",
+        "hours": "il y a {n} h",
+        "days": "il y a {n} j"
+      },
+      "runner": {
+        "title": "Runner",
+        "sub": "Le worker qui prend les travaux de cette organisation.",
+        "armedTag": "armé",
+        "armed": "Un worker prend les travaux de cette organisation.",
+        "notArmed": "Aucun runner ne prend les travaux de cette organisation.",
+        "lastSeen": "dernier contact",
+        "neverSeen": "jamais",
+        "workers": "identités de worker actives",
+        "workersHint": "Une identité de worker est un secret déclaré, pas un processus : une seule peut faire tourner plusieurs agents.",
+        "models": "modèles servis",
+        "noModel": "aucun modèle déclaré, seuls les travaux sans modèle sont pris",
+        "notServed": "La présence du runner n'est pas servie.",
+        "error": "Présence du runner illisible : {reason}"
+      },
+      "campaigns": {
+        "title": "Campagnes",
+        "sub": "Chaque campagne, comptée sur l'ensemble de ses travaux.",
+        "empty": "Aucune campagne déclarée.",
+        "betaOff": "Campagnes non activées pour cette organisation.",
+        "error": "Campagnes illisibles : {reason}",
+        "older": "{n} campagne ancienne | {n} campagnes anciennes",
+        "olderHint": "sans changement d'état depuis {days} jours"
+      },
+      "campaign": {
+        "status": {
+          "draftUnread": "non armée",
+          "draft": "brouillon",
+          "historical": "historique",
+          "historicalHint": "Campagne de l'ancien ordonnanceur : son statut n'a pas suivi, elle se lit d'après ses travaux.",
+          "armed": "armée, en attente du premier travail",
+          "running": "en cours",
+          "stopping": "arrêt demandé",
+          "stoppingInFlight": "arrêt demandé, {n} en vol",
+          "stopped": "arrêtée : {reason}",
+          "stoppedNoReason": "arrêtée, sans motif écrit",
+          "done": "terminée",
+          "failed": "en échec",
+          "unknown": "statut inconnu : {status}"
+        },
+        "counters": {
+          "done": "faits",
+          "pending": "en file",
+          "claimed": "en vol",
+          "failed": "en échec",
+          "abandoned": "dont abandonnés",
+          "total": "total"
+        },
+        "tokens": "jetons, entrée hors cache + sortie",
+        "heaviest": "travail le plus lourd",
+        "lastFinished": "dernier travail terminé",
+        "unknown": "inconnu",
+        "none": "aucun",
+        "noModel": "modèle non déclaré",
+        "noJobs": "Aucun travail rattaché à cette campagne.",
+        "loading": "Lecture des compteurs…",
+        "error": "Compteurs illisibles : {reason}",
+        "armedIdle": "Armée depuis {duration} sans premier travail : aucun worker ne sonde la file de cette organisation.",
+        "showJobs": "voir les travaux",
+        "hideJobs": "masquer les travaux"
+      },
+      "jobs": {
+        "status": {
+          "pending": "en file",
+          "claimed": "en vol",
+          "done": "fait",
+          "failed": "en échec",
+          "abandoned": "abandonné",
+          "expired": "expiré",
+          "unknown": "statut inconnu : {status}"
+        },
+        "shown": "{shown} affichés sur {total}",
+        "more": "Afficher la suite",
+        "empty": "Aucun travail.",
+        "error": "Travaux illisibles : {reason}",
+        "open": "ouvrir",
+        "costUnknown": "coût inconnu",
+        "tokens": "{n} jetons",
+        "leaseExpired": "bail dépassé",
+        "expiredHint": "personne ne l'a pris, ce n'est pas un échec"
+      },
+      "offCampaign": {
+        "title": "Travaux hors campagne",
+        "sub": "Partis d'un déclencheur ou d'un appel direct.",
+        "show": "Afficher",
+        "hide": "Masquer",
+        "scheduled": "Déclencheurs",
+        "manual": "Appels directs"
+      },
+      "job": {
+        "model": "modèle",
+        "noModel": "modèle non déclaré",
+        "tokens": "jetons, entrée hors cache + sortie",
+        "costUnknown": "inconnu",
+        "result": {
+          "steps": "étapes",
+          "stopped": "arrêt",
+          "input": "jetons en entrée",
+          "output": "jetons en sortie",
+          "cacheRead": "jetons lus en cache",
+          "cacheWrite": "jetons écrits en cache"
+        },
+        "stop": {
+          "end_turn": "fin de tour",
+          "max_steps": "plafond d'étapes atteint",
+          "max_tokens": "plafond de jetons atteint",
+          "error": "erreur",
+          "stop_sequence": "séquence d'arrêt"
+        }
+      },
+      "triggers": {
+        "next": "prochaine exécution : {date}",
+        "notTaken": "{n} occurrence non prise | {n} occurrences non prises"
+      },
+      "routines": {
+        "title": "Routines Claude Code",
+        "sub": "Un agent autonome qui tourne chez Anthropic, avec tes outils oto branchés."
+      },
+      "run": {
+        "absent": "Aucun travail en vol ne porte le run {run} : il n'est plus en cours.",
+        "horsPage": "Le run {run} n'est pas parmi les {n} travaux en vol lus.",
+        "erreur": "Le travail du run {run} n'a pas pu être lu : {reason}"
+      }
+    },
   "errors": {
     "datastore_exists": "un tableau porte déjà ce nom",
     "duplicate_label": "une clé avec ce connecteur et ce libellé existe déjà",
