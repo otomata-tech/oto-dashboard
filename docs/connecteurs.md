@@ -398,6 +398,15 @@ une carte par niveau du level-switch :
   qui redirige). **Cartes sur le shell partagé** (plus de table, 2026-07-02) — même liste que
   user/org (recherche + chips + tri actifs d'abord). Entitlements de namespace restent par org
   dans `/platform/orgs`.
+  > **Accès plateforme : un seul levier (ADR 0044 §H, oto#233).** L'onglet « accès plateforme »
+  > du tiroir (`ConnectorPlatformAccessPanel`) est le seul endroit où prêter la clé Otomata et
+  > offrir l'option payante, à une org ou à un membre. Les fiches `/platform/orgs/:id` et
+  > `/platform/users/:sub` n'en montrent que le statut effectif, en lecture seule, avec un vrai
+  > lien vers `/platform/connectors` (`PlatformAccessHint.vue`, monté dans le slot `sub` de
+  > `ConsoleCard` : un sous-titre ne rend pas de HTML). Les exports `grantPlatformKey`,
+  > `revokePlatformKey` et `setOptionComp` sont partis avec les leviers ; les routes serveur
+  > restent, leur retrait serait un lot séparé. Tests : `AdminUserView.spec.ts`,
+  > `AdminOrgView.spec.ts`.
 
 ## Fédération MCP (otomata#16)
 

@@ -991,22 +991,11 @@ export const createPlatformKey = (provider: string, label: string, api_key: stri
 export const deletePlatformKey = (provider: string, label: string) =>
   api(`/api/admin/platform-keys/${encodeURIComponent(provider)}/${encodeURIComponent(label)}`, { method: 'DELETE' })
 
-// platform key grants per-user (accès à la clé plateforme d'un connecteur + quota/jour)
-export const grantPlatformKey = (sub: string, provider: string, daily_quota?: number) =>
-  api(`/api/admin/users/${sub}/grants/${encodeURIComponent(provider)}`, { method: 'POST', ...j({ daily_quota }) })
-export const revokePlatformKey = (sub: string, provider: string) =>
-  api(`/api/admin/users/${sub}/grants/${encodeURIComponent(provider)}`, { method: 'DELETE' })
-
 // platform key grants au niveau ORG (couche 2, partage à tous les membres) — super_admin
 export const grantOrgPlatformKey = (orgId: number, provider: string, daily_quota?: number) =>
   api(`/api/admin/orgs/${orgId}/grants/${encodeURIComponent(provider)}`, { method: 'POST', ...j({ daily_quota }) })
 export const revokeOrgPlatformKey = (orgId: number, provider: string) =>
   api(`/api/admin/orgs/${orgId}/grants/${encodeURIComponent(provider)}`, { method: 'DELETE' })
-
-// option comps (offrir/retirer GRATUITEMENT une option payante — couche abonnement,
-// oto-backend/docs/connector-model.md). entity_type user|org, super_admin only.
-export const setOptionComp = (entity_type: 'user' | 'org', entity_id: string, option: string, on: boolean) =>
-  api('/api/admin/option-comps', { method: 'POST', ...j({ entity_type, entity_id, option, on }) })
 
 // accès plateforme connecteur-centrique (ADR 0044 §H) : « qui, au niveau plateforme, a
 // droit à ce connecteur » = grant de clé (couche 2) ∪ option comp (couche 3) en UN acte.

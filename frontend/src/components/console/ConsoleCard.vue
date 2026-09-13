@@ -18,7 +18,10 @@ const hasHead = () => props.title || slots.title || slots.actions
         <div class="t">
           <slot name="title">{{ title }}</slot>
         </div>
-        <div v-if="sub" class="s">{{ sub }}</div>
+        <!-- `sub` (texte) ou le slot `sub` quand le sous-titre porte un lien : jamais de HTML injecté. -->
+        <div v-if="sub || $slots.sub" class="s">
+          <slot name="sub">{{ sub }}</slot>
+        </div>
       </div>
       <div v-if="$slots.actions" class="actions">
         <slot name="actions" />

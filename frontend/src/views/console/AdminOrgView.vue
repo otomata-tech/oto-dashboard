@@ -10,6 +10,7 @@ import Btn from '@/components/console/Btn.vue'
 import Dot from '@/components/console/Dot.vue'
 import Avatar from '@/components/console/Avatar.vue'
 import Dropzone from '@/components/console/Dropzone.vue'
+import PlatformAccessHint from '@/components/console/PlatformAccessHint.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
@@ -441,8 +442,10 @@ const orgOptions = computed(() => detail.value?.option_comps ?? [])
         </table>
       </ConsoleCard>
 
-      <ConsoleCard title="accès plateforme aux connecteurs"
-        sub="connecteurs que la plateforme a ouverts à cette org (clé + option). L'octroi se gère sur la carte du connecteur, dans « connecteurs » (plateforme).">
+      <ConsoleCard title="accès plateforme aux connecteurs">
+        <template #sub>
+          connecteurs que la plateforme a ouverts à cette org (clé + option). <PlatformAccessHint />
+        </template>
         <div class="rowlist">
           <div v-for="opt in orgOptions" :key="opt" class="rowitem" style="gap: 12px">
             <div style="min-width: 0; flex: 1; font-weight: 600; color: var(--color-ink)">{{ opt }}</div>

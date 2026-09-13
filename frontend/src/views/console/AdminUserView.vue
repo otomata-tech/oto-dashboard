@@ -6,20 +6,18 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import Dot from '@/components/console/Dot.vue'
+import PlatformAccessHint from '@/components/console/PlatformAccessHint.vue'
 import CallLogCard from '@/components/console/monitoring/CallLogCard.vue'
-import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
-import { useFormDialog, type FormDialogField } from '@/composables/useFormDialog'
 import { useMe, isSuperAdmin } from '@/composables/useMe'
 import {
-  getAdminUser, setUserRole, resetUserMfa, getPlatformKeys, getConnectors, getMonitoringCalls, getMonitoringCall,
-  grantPlatformKey, revokePlatformKey,
-  setAdminOrgMemberRole, setOptionComp,
+  getAdminUser, setUserRole, resetUserMfa, getMonitoringCalls, getMonitoringCall,
+  setAdminOrgMemberRole,
 } from '@/api/console'
 import { setViewUser } from '@/lib/viewOrg'
 import type {
-  AdminGrant, AdminUserDetail, AdminUserOrg, AdminUserUnipileOrg, ConnectorMeta, PlatformKey, ProviderStatus, Role, ToolCall, UnipileStatus,
+  AdminUserDetail, AdminUserOrg, AdminUserUnipileOrg, ProviderStatus, Role, ToolCall, UnipileStatus,
 } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -27,7 +25,6 @@ import { humanize } from '@/lib/errors'
 const route = useRoute()
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
-const { formDialog, formDialogOpen, openForm } = useFormDialog()
 const { me } = useMe()
 
 // La gestion des rôles plateforme est réservée au super_admin (le backend rejette
@@ -45,8 +42,6 @@ function viewAsUser() {
 
 const sub = computed(() => String(route.params.sub))
 const detail = ref<AdminUserDetail | null>(null)
-const keys = ref<PlatformKey[]>([])
-const catalog = ref<ConnectorMeta[]>([])
 const calls = ref<ToolCall[]>([])
 const error = ref<string | null>(null)
 const callsBusy = ref(true)
@@ -84,11 +79,7 @@ async function loadActivity() {
   catch { /* activité best-effort, ne bloque pas la fiche */ }
   finally { callsBusy.value = false }
 }
-async function loadStatic() {
-  keys.value = (await getPlatformKeys().catch(() => ({ platform_keys: [] }))).platform_keys
-  catalog.value = (await getConnectors().catch(() => ({ connectors: [] }))).connectors
-}
-function loadAll() { error.value = null; loadDetail(); loadActivity(); loadStatic() }
+function loadAll() { error.value = null; loadDetail(); loadActivity() }
 onMounted(loadAll)
 watch(sub, loadAll)
 
@@ -145,38 +136,15 @@ async function pickRole(next: Role) {
   await setRole(next)
 }
 
-const grantFor = (provider: string) => detail.value?.grants.find((g) => g.provider === provider)
-const platformKeysFor = (provider: string) => keys.value.filter((k) => k.provider === provider)
-
-function grantKey(provider: string) {
-  // ADR 0044 §F : grant keyé par PROVIDER (l'instance plateforme du connecteur), plus par id.
-  if (!platformKeysFor(provider).length) { toast(`aucune clé plateforme pour ${provider} — crée-la d'abord dans connecteurs (plateforme)`); return }
-  const fields: FormDialogField[] = [
-    { key: 'quota', label: 'quota journalier', placeholder: 'vide = défaut du provider', hint: 'appels max par jour' },
-  ]
-  openForm({
-    title: `prêter ${provider}`, description: `prête la clé plateforme partagée ${provider} à cet utilisateur (sous quota, clé jamais révélée).`,
-    fields, submitLabel: 'prêter',
-    onConfirm: async (v) => {
-      const quota = v.quota ? Math.max(1, Number(v.quota)) : undefined
-      try { await grantPlatformKey(sub.value, provider, quota); toast(`${provider} prêté`); await loadDetail() }
-      catch (e) { toast(humanize(e)); throw e }
-    },
-  })
-}
-async function revokeKey(g: AdminGrant) {
-  if (!await confirmAction({ title: 'révoquer le prêt', danger: true, confirmLabel: 'Révoquer', message: `révoquer ${g.provider} ?` })) return
-  try { await revokePlatformKey(sub.value, g.provider); toast('prêt révoqué'); await loadDetail() }
-  catch (e) { toast(humanize(e)) }
-}
-// Options de connecteur (couche 3, oto-backend/docs/connector-model.md) : accorder
-// l'option à CET user (comp admin user-level). Plus de paiement.
+// ── accès plateforme aux connecteurs (ADR 0044 §H) — LECTURE SEULE ───────────
+// Prêter la clé Otomata et offrir l'option payante se font sur la carte du
+// connecteur (/platform/connectors, onglet « accès plateforme »), plus ici
+// (oto#233). La fiche n'affiche que le statut EFFECTIF.
 const PAID_OPTIONS = [{ key: 'unipile', label: 'messagerie hébergée (unipile)' }]
 const optionComped = (opt: string) => detail.value?.option_comps?.includes(opt) ?? false
 // Statut EFFECTIF de l'option (pas seulement le comp user) : pour unipile, refléter
 // le comp d'ORG / le BYO — sinon « non offerte » ment quand l'utilisateur est en
-// réalité débloqué via son org (le bouton, lui, reste le levier user-level :
-// offrir/retirer le comp À CET utilisateur, indépendant de l'org).
+// réalité débloqué via son org.
 function optionStatus(opt: string): { text: string; tone?: 'olive' | 'saffron' } {
   if (optionComped(opt)) return { text: 'offerte (comp user)', tone: 'olive' }
   if (opt === 'unipile') {
@@ -186,14 +154,6 @@ function optionStatus(opt: string): { text: string; tone?: 'olive' | 'saffron' }
     if (orgs.some((u) => u.byo)) return { text: 'clé BYO (instance propre)', tone: 'olive' }
   }
   return { text: 'non offerte' }
-}
-async function toggleOption(opt: string) {
-  const on = !optionComped(opt)
-  try {
-    await setOptionComp('user', sub.value, opt, on)
-    toast(on ? `${opt} offert (comp)` : `${opt} retiré`)
-    await loadDetail()
-  } catch (e) { toast(humanize(e)) }
 }
 
 // Messagerie Unipile (lecture seule) — mêmes canaux que ConnectorHostedWidget.
@@ -289,41 +249,37 @@ async function toggleOrgRole(o: AdminUserOrg) {
         <div v-else class="helptext">membre d'aucune organisation.</div>
       </ConsoleCard>
 
-      <!-- accès effectif par provider + grant/revoke inline de la clé plateforme -->
-      <ConsoleCard flush title="accès connecteurs"
-        sub="accès effectif par provider keyé — prêter ou révoquer la clé plateforme partagée inline. la clé perso gagne sur l'org, l'org sur la plateforme.">
+      <!-- accès effectif par provider — lecture seule : l'octroi vit sur la carte du connecteur -->
+      <ConsoleCard flush title="accès connecteurs">
+        <template #sub>
+          accès effectif par provider keyé, en lecture seule. la clé perso gagne sur l'org, l'org sur la plateforme.
+          <PlatformAccessHint />
+        </template>
         <table class="tbl">
-          <thead><tr><th style="width: 18px"></th><th>provider</th><th>accès</th><th style="width: 90px"></th></tr></thead>
+          <thead><tr><th style="width: 18px"></th><th>provider</th><th>accès</th></tr></thead>
           <tbody>
             <tr v-for="[name, p] in providerRows" :key="name">
               <td><Dot :tone="p.mode === 'forbidden' ? 'faint' : p.mode === 'over_quota' ? 'terra' : p.mode === 'platform' ? 'saffron' : 'olive'" :size="7" /></td>
               <td style="font-weight: 600; color: var(--color-ink)">{{ name }}</td>
               <td><Tag :tone="access(p).tone">{{ access(p).text }}</Tag></td>
-              <td style="text-align: right">
-                <Btn v-if="grantFor(name)" kind="danger" @click="revokeKey(grantFor(name)!)">Révoquer</Btn>
-                <Btn v-else-if="platformKeysFor(name).length" kind="mini" @click="grantKey(name)">Prêter la clé</Btn>
-                <span v-else class="dim" style="font-size: 11px">pas de clé plateforme</span>
-              </td>
             </tr>
-            <tr v-if="!providerRows.length"><td colspan="4" class="dim" style="text-align: center; padding: 16px">aucun provider keyé</td></tr>
+            <tr v-if="!providerRows.length"><td colspan="3" class="dim" style="text-align: center; padding: 16px">aucun provider keyé</td></tr>
           </tbody>
         </table>
       </ConsoleCard>
 
-      <!-- options de connecteur : comp admin au niveau user (couche 3) -->
-      <ConsoleCard flush title="options de connecteur"
-        sub="accorder une option de connecteur à cet utilisateur (comp admin). débloque l'option même sans org.">
+      <!-- option payante de connecteur : statut effectif, lecture seule -->
+      <ConsoleCard flush title="options de connecteur">
+        <template #sub>
+          statut effectif de l'option payante pour cet utilisateur, en lecture seule.
+          <PlatformAccessHint />
+        </template>
         <table class="tbl">
-          <thead><tr><th>option</th><th>statut</th><th style="width: 130px"></th></tr></thead>
+          <thead><tr><th>option</th><th>statut</th></tr></thead>
           <tbody>
             <tr v-for="o in PAID_OPTIONS" :key="o.key">
               <td style="font-weight: 600; color: var(--color-ink)">{{ o.label }}</td>
               <td><Tag :tone="optionStatus(o.key).tone">{{ optionStatus(o.key).text }}</Tag></td>
-              <td style="text-align: right">
-                <Btn :kind="optionComped(o.key) ? 'danger' : 'mini'" @click="toggleOption(o.key)">
-                  {{ optionComped(o.key) ? 'Retirer' : 'Accorder l\'option' }}
-                </Btn>
-              </td>
             </tr>
           </tbody>
         </table>
@@ -368,10 +324,6 @@ async function toggleOrgRole(o: AdminUserOrg) {
         :load-detail="(id: number) => getMonitoringCall(id).then((r) => r.call)"
         empty-label="aucun appel dans la fenêtre" />
     </template>
-
-    <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
-      :title="formDialog.title" :description="formDialog.description"
-      :fields="formDialog.fields" :submit-label="formDialog.submitLabel" :on-confirm="formDialog.onConfirm" />
   </div>
 </template>
 
