@@ -56,7 +56,7 @@ Un écran = une section de `lib/consoleNav.ts` ; le détail (composants, API cli
 | identité, consultation (view-as), hub compte | `/account/*` + sidebar/popin | `docs/identite-et-consultation.md` |
 | écrans plateforme — objets possédés, tenants, relance des comptes inactifs | `/platform/objects`, `/platform/tenants`, `/platform/outreach` | `docs/plateforme.md` |
 | facturation — abonnement, tunnel de souscription, factures | `/org/billing` | `docs/facturation.md` |
-| automatisations — bandeau runner, campagnes, leurs gestes (armer, relancer, arrêter) et leurs travaux, travaux hors campagne, déclencheurs et leurs réglages, routines (oto#205) | `/automations` | `docs/automations.md` |
+| automatisations — espace à pages adressables (oto#214) : entrée (runner, à surveiller, routines), campagnes et leurs gestes (armer, relancer, arrêter), programmations et leurs réglages, exécutions et leur fiche (oto#205) ; pages listées par `lib/automationsEspace.ts` | `/automations`, `/automations/campaigns` (+ `/:id`), `/automations/schedules` (+ `/:id`, `/:id/settings`), `/automations/executions` (+ `/:id`) | `docs/automations.md` |
 | observabilité (PostHog + Sentry) | — | `docs/observabilite.md` |
 
 ## Règles de l'UI

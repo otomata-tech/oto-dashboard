@@ -41,6 +41,8 @@ async function monter(triggers: RunnerTrigger[]) {
   document.body.appendChild(hote)
   const app = createApp(Card)
   app.use(i18n)
+  // Le nom d'une ligne mène à la page de la programmation (oto#214).
+  app.component('RouterLink', { props: ['to'], template: '<a :href="to"><slot /></a>' })
   app.mount(hote)
   await vider()
   return hote

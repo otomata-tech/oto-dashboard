@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import Icon from './Icon.vue'
 import OtoMark from './OtoMark.vue'
 import type { MarkState } from '@/lib/mark'
-import { PAGE_META } from '@/lib/consoleNav'
+import { DETAIL_META, PAGE_META } from '@/lib/consoleNav'
 import { useMe } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 import { useTopbar } from '@/composables/useTopbar'
@@ -31,11 +31,8 @@ const markState = computed<MarkState>(() => (!me.value && !error.value ? 'think'
 
 // `title`/`crumb` sont des clés i18n (cf. consoleNav) — résolues par `t()` au rendu.
 const meta = computed(() =>
-  route.meta.detail === 'admin-user'
-    ? { title: 'pageMeta.adminUser.title', crumb: 'pageMeta.adminUser.crumb' }
-    : route.meta.detail === 'admin-org'
-      ? { title: 'pageMeta.adminOrg.title', crumb: 'pageMeta.adminOrg.crumb' }
-      : PAGE_META[String(route.meta.section)] ?? PAGE_META['/overview']!)
+  DETAIL_META[String(route.meta.detail)]
+    ?? PAGE_META[String(route.meta.section)] ?? PAGE_META['/overview']!)
 </script>
 
 <template>

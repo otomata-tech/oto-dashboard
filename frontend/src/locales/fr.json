@@ -54,6 +54,13 @@
     "connectors": { "title": "connecteurs", "crumb": "espace de travail" },
     "procedures": { "title": "procédures", "crumb": "espace de travail" },
     "automations": { "title": "automatisations", "crumb": "espace de travail" },
+    "automationsCampaigns": { "title": "campagnes", "crumb": "automatisations" },
+    "automationsCampaign": { "title": "campagne", "crumb": "automatisations" },
+    "automationsSchedules": { "title": "programmations", "crumb": "automatisations" },
+    "automationsSchedule": { "title": "programmation", "crumb": "automatisations" },
+    "automationsScheduleSettings": { "title": "réglages d'une programmation", "crumb": "automatisations" },
+    "automationsExecutions": { "title": "exécutions", "crumb": "automatisations" },
+    "automationsExecution": { "title": "exécution", "crumb": "automatisations" },
     "data": { "title": "données", "crumb": "espace de travail" },
     "documents": { "title": "documents", "crumb": "espace de travail" },
     "account": { "title": "profil", "crumb": "gérer mon compte" },
@@ -248,7 +255,16 @@
         "betaOff": "Campagnes non activées pour cette organisation.",
         "error": "Campagnes illisibles : {reason}",
         "older": "{n} campagne ancienne | {n} campagnes anciennes",
-        "olderHint": "sans changement d'état depuis {days} jours"
+        "olderHint": "sans changement d'état depuis {days} jours",
+        "open": "page de la campagne",
+        "filteredEmpty": "Aucune campagne sous ce filtre.",
+        "filter": {
+          "label": "Statut",
+          "all": "toutes",
+          "live": "vivantes",
+          "stopped": "arrêtées",
+          "draft": "non armées"
+        }
       },
       "campaign": {
         "status": {
@@ -307,13 +323,80 @@
         "leaseExpired": "bail dépassé",
         "expiredHint": "personne ne l'a pris, ce n'est pas un échec"
       },
-      "offCampaign": {
-        "title": "Travaux hors campagne",
-        "sub": "Partis d'un déclencheur ou d'un appel direct.",
-        "show": "Afficher",
-        "hide": "Masquer",
-        "scheduled": "Déclencheurs",
-        "manual": "Appels directs"
+      "space": {
+        "root": "Automatisations",
+        "label": "Navigation de l'espace Automatisations",
+        "crumbLabel": "Fil d'Ariane",
+        "nav": {
+          "campaigns": "Campagnes",
+          "schedules": "Programmations",
+          "executions": "Exécutions"
+        },
+        "crumbId": "#{id}",
+        "settings": "Réglages",
+        "notAnId": "Cette adresse ne porte pas d'identifiant : rien n'a été demandé au serveur.",
+        "readError": "Lecture impossible : {reason}",
+        "ignoredFilter": "Filtre non reconnu, ignoré : {filters}"
+      },
+      "watch": {
+        "title": "À surveiller",
+        "sub": "Ce qui tourne, ce qui perd des occurrences, ce qui a échoué.",
+        "live": "Campagnes vivantes",
+        "liveEmpty": "Aucune campagne vivante.",
+        "losing": "Programmations qui perdent des occurrences",
+        "losingEmpty": "Aucune programmation ne perd d'occurrence.",
+        "schedulesError": "Programmations illisibles : {reason}",
+        "failed": "Dernières exécutions en échec",
+        "failedAll": "toutes les exécutions en échec"
+      },
+      "campaignPage": {
+        "refused": "Impossible d'ouvrir la campagne {what}",
+        "procedure": "procédure",
+        "target": "tableau visé",
+        "noTarget": "aucun tableau déclaré",
+        "rowFilter": "filtre de lignes",
+        "model": "modèle",
+        "history": "Historique des exécutions",
+        "historySub": "Toutes les exécutions de cette campagne, de la plus récente à la plus ancienne."
+      },
+      "schedulePage": {
+        "refused": "Impossible d'ouvrir la programmation {what}",
+        "enabled": "activée",
+        "disabled": "coupée",
+        "procedure": "procédure",
+        "schedule": "horaire",
+        "timezone": "fuseau",
+        "model": "modèle",
+        "next": "prochaine exécution",
+        "nextNone": "aucune, la programmation est coupée",
+        "lost": "occurrences non prises",
+        "lostSince": "depuis {date}",
+        "lostLast": "dernière {date}",
+        "settings": "Réglages",
+        "back": "Retour à la programmation",
+        "readOnly": "Consultation en lecture seule : aucun réglage ne s'offre ici.",
+        "history": "Historique des exécutions",
+        "historySub": "Toutes les exécutions lancées par cette programmation, de la plus récente à la plus ancienne."
+      },
+      "executions": {
+        "title": "Exécutions",
+        "sub": "Toutes les exécutions de l'organisation, de la plus récente à la plus ancienne.",
+        "sourceLabel": "Source",
+        "statusLabel": "Statut",
+        "campaignLabel": "Campagne",
+        "allSources": "toutes les sources",
+        "allStatuses": "tous les statuts",
+        "allCampaigns": "toutes les campagnes",
+        "source": {
+          "batch": "campagne",
+          "scheduled": "programmation",
+          "manual": "appel direct"
+        }
+      },
+      "executionPage": {
+        "refused": "Impossible d'ouvrir l'exécution {what}",
+        "campaign": "campagne #{id}",
+        "schedule": "programmation #{id}"
       },
       "job": {
         "model": "modèle",
@@ -355,6 +438,7 @@
       "triggers": {
         "next": "prochaine exécution : {date}",
         "notTaken": "{n} occurrence non prise | {n} occurrences non prises",
+        "effect": "Couper périme les occurrences en attente : elles ne partiront jamais. Rallumer reprend le rythme à partir de maintenant — l'échéance manquée pendant l'arrêt n'est pas rattrapée.",
         "form": {
           "open": "Régler",
           "schedule": "Horaire (cron)",

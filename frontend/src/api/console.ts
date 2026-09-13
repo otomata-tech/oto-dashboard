@@ -462,6 +462,9 @@ export interface RunnerJobsPage {
 }
 export interface RunnerJobsFiltre {
   fleet_id?: number
+  // Les travaux enfilés par CETTE programmation (lu par le serveur dans le payload, où le
+  // tick pose `trigger_id`). Servi par `op=list` depuis oto-backend v1.212.0 (oto#214).
+  trigger_id?: number
   // `scheduled` = déclencheur, `manual` = appel direct : à eux deux, exactement les
   // travaux sans campagne (`fleet_id IS NULL` côté serveur). Aucun filtre servi ne
   // dit « sans campagne » d'un seul mot.
@@ -476,7 +479,21 @@ export const listRunnerJobs = (
     ...j({ op: 'list', ...filtre, limit: page.limit, ...(page.cursor ? { cursor: page.cursor } : {}) }),
   })
 
+// UN travail par son identifiant (`op=get`, lecture org-scopée ; 404 `job_not_found`) : la
+// page d'une exécution se recharge par son adresse (oto#214).
+export const getRunnerJob = (id: number) =>
+  api<{ job: RunnerJob }>('/api/me/runner/jobs', {
+    method: 'POST', ...j({ op: 'get', job_id: id }),
+  })
+
 export type { RunnerFleet, RunnerFleetState, RunnerArme }
+// UNE campagne par son identifiant (`op=get` ; 404 `fleet_not_found`, 403 `beta_required`).
+// ⚠️ Seule lecture de campagne que la consultation en lecture seule laisse passer : `get` est
+// dans la liste blanche du serveur, `state` n'y est pas (403 `view_as_read_only`).
+export const getRunnerFleet = (id: number) =>
+  api<{ fleet: RunnerFleet }>('/api/me/runner/fleets', {
+    method: 'POST', ...j({ op: 'get', fleet_id: id }),
+  })
 export const listRunnerFleets = () =>
   api<{ fleets: RunnerFleet[] }>('/api/me/runner/fleets', {
     method: 'POST', ...j({ op: 'list' }),
@@ -541,6 +558,12 @@ export const listRunnerTriggers = (procedure?: string) =>
   // propriété de l'ORG, pas d'un déclencheur. Le bandeau de /automations la lit ici.
   api<{ triggers: RunnerTrigger[]; runner: RunnerArme | null }>('/api/me/runner/triggers', {
     method: 'POST', ...j(procedure ? { op: 'list', procedure } : { op: 'list' }),
+  })
+// UNE programmation par son identifiant (`op=get` ; 404 `trigger_not_found`), servie comme
+// une ligne de `op=list` : avec ses pertes (`expired_*`) et la présence du runner (oto#214).
+export const getRunnerTrigger = (id: number) =>
+  api<{ trigger: RunnerTrigger; runner: RunnerArme | null }>('/api/me/runner/triggers', {
+    method: 'POST', ...j({ op: 'get', trigger_id: id }),
   })
 // Régler un déclencheur (oto#205, lot 2). Ouvert à tout membre, sans garde bêta.
 // `op=update` est PARTIEL : seuls les champs présents changent. `model: ""` revient au

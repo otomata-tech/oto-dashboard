@@ -1,15 +1,13 @@
 <script setup lang="ts">
 // UN déclencheur : quelle procédure part quand, sur quel modèle, ce qu'il a perdu — et ses
 // gestes : l'interrupteur, « Régler » (formulaire en ligne), « Supprimer » (confirmé sur
-// place). Extrait de `RunnerTriggersCard` (oto#205, lot 2).
+// place). Extrait de `RunnerTriggersCard` (oto#205, lot 2) ; son nom mène à la page de la
+// programmation (oto#214), et ses gestes vivent dans `useGestesDeclencheur`, partagé avec la
+// page des réglages.
 //
 // Les droits reflètent le serveur TEL QU'IL EST SERVI : `runner.triggers` est ouvert à tout
 // membre, sans garde admin ni bêta, et l'écran n'en ajoute aucune. `gestes` est faux en
 // consultation en lecture seule, où le serveur refuse toute mutation.
-//
-// Après un réglage ou un interrupteur, la réponse fait foi (`next_due` recalculé par le
-// serveur), puis la carte relit la liste : la ligne rendue n'a ni `expired_*` ni `runner`.
-// Une suppression ne retire la ligne que sur `ok: true`.
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Btn from '../Btn.vue'
@@ -18,11 +16,12 @@ import Toggle from '../Toggle.vue'
 import ConfirmerSurPlace from './ConfirmerSurPlace.vue'
 import RefusServi from './RefusServi.vue'
 import TriggerSettingsForm from './TriggerSettingsForm.vue'
-import { deleteRunnerTrigger, updateRunnerTrigger, type RunnerTrigger } from '@/api/console'
-import { useGesteObserve } from '@/composables/useGesteObserve'
+import type { RunnerTrigger } from '@/api/console'
+import { useGestesDeclencheur } from '@/composables/useGestesDeclencheur'
+import { nomProgrammation } from '@/lib/automationsEspace'
 import { cadenceEnMots } from '@/lib/cadence'
 import { absDate } from '@/lib/cellRender'
-import { apresReglage, modeleDeclencheur, refusServi, type Refus } from '@/lib/runnerGestes'
+import { modeleDeclencheur } from '@/lib/runnerGestes'
 import type { RunnerModel } from '@/types/api'
 
 const props = defineProps<{ trigger: RunnerTrigger; models: RunnerModel[]; gestes: boolean }>()
@@ -31,58 +30,29 @@ const { t } = useI18n()
 
 const cadence = computed(() => cadenceEnMots(props.trigger.cron))
 const modele = computed(() => modeleDeclencheur(props.trigger.model, props.models))
-const bascule = ref(false)
-const refusInterrupteur = ref<Refus | null>(null)
 const reglage = ref(false)
 
-function appliquer(rendu: Partial<RunnerTrigger>) {
-  emit('regle', apresReglage(props.trigger, rendu))
-  emit('relire')
-}
-
-// L'interrupteur n'envoie QUE `enabled`. Couper périme les occurrences en attente ;
-// rallumer peut être refusé (`no_runner_armed`, `model_key_required`, `model_not_served`),
-// et le refus se lit tel que le serveur l'a écrit — jamais « 400 no_runner_armed ».
-async function basculer() {
-  if (bascule.value) return
-  bascule.value = true
-  refusInterrupteur.value = null
-  try {
-    const { trigger } = await updateRunnerTrigger(props.trigger.id, { enabled: !props.trigger.enabled })
-    appliquer(trigger)
-  } catch (e) {
-    refusInterrupteur.value = refusServi(e)
-  } finally {
-    bascule.value = false
-  }
-}
+const {
+  bascule, refusInterrupteur, appliquer, basculer, enSuppression, phaseSuppression,
+  refusSuppression, demanderSuppression, annulerSuppression, confirmerSuppression,
+} = useGestesDeclencheur({
+  trigger: () => props.trigger,
+  surRegle: (tr) => emit('regle', tr),
+  surSupprime: (id) => emit('supprime', id),
+  relire: () => emit('relire'),
+})
 
 function surEnregistre(rendu: Partial<RunnerTrigger>) {
   reglage.value = false
   appliquer(rendu)
 }
-
-// Supprimer : confirmé sur place, sans fenêtre d'observation — la ligne part sur `ok: true`.
-const {
-  phase: phaseSuppression, refus: refusSuppression, demander: demanderSuppression,
-  annuler: annulerSuppression, confirmer: confirmerSuppression,
-} = useGesteObserve<'supprimer'>({
-  envoyer: async () => {
-    const { ok } = await deleteRunnerTrigger(props.trigger.id)
-    if (ok !== true) throw new Error(t('automations.triggers.form.deleteNotConfirmed'))
-    emit('supprime', props.trigger.id)
-  },
-  relire: () => emit('relire'),
-  fenetreMs: () => 0,
-})
-const enSuppression = computed(() =>
-  phaseSuppression.value === 'confirmation' || phaseSuppression.value === 'envoi')
 </script>
 
 <template>
   <li class="rt-item">
     <Toggle v-if="gestes" :on="trigger.enabled" :disabled="bascule" data-test="interrupteur" @click="basculer" />
-    <span class="rt-name">{{ trigger.label || trigger.procedure }}</span>
+    <RouterLink :to="`/automations/schedules/${trigger.id}`" class="rt-name" data-test="page-programmation">
+      {{ nomProgrammation(trigger) }}</RouterLink>
     <!-- Le cadencement dans les mots de qui le lit (#860 ②). ⚠️ Quand la forme ne se dit
          pas fidèlement (pas, listes, plages), on RETOMBE sur l'expression brute plutôt que
          d'approximer. -->
@@ -109,7 +79,7 @@ const enSuppression = computed(() =>
     </span>
     <span v-if="gestes && !reglage && !enSuppression" class="rt-actions">
       <Btn kind="link" data-test="regler" @click="reglage = true">{{ t('automations.triggers.form.open') }}</Btn>
-      <Btn kind="link" data-test="supprimer" @click="demanderSuppression('supprimer')">{{ t('common.delete') }}</Btn>
+      <Btn kind="link" data-test="supprimer" @click="demanderSuppression">{{ t('common.delete') }}</Btn>
     </span>
 
     <RefusServi v-if="refusInterrupteur" class="rt-full" :refus="refusInterrupteur" />
@@ -125,6 +95,7 @@ const enSuppression = computed(() =>
 <style scoped>
 .rt-item { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 12.5px; }
 .rt-name { font-weight: 600; color: var(--color-ink); }
+.rt-name:hover { color: var(--color-saffron-ink); }
 .rt-cron { font-family: var(--font-mono, monospace); font-size: 11.5px; color: var(--color-mute); }
 .rt-model { font-size: 11.5px; color: var(--color-mute); }
 .rt-next { font-size: 11.5px; color: var(--color-faint); }

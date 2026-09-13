@@ -1,25 +1,68 @@
 # `/automations` — suivre les agents hébergés
 
-L'écran des agents qui tournent **pour** l'org, sans elle. Route `/automations`, vue
-`views/console/AutomationsView.vue`. Refondu par **oto#205** : le lot 1 (13/09/2026) porte la
-**lecture juste** ; le lot 2 les **gestes** (armer, relancer, arrêter une campagne ; régler et
-supprimer un déclencheur) ; la vue d'ensemble du coût est le lot 3.
+Les agents qui tournent **pour** l'org, sans elle. Refondu par **oto#205** : le lot 1
+(13/09/2026) porte la **lecture juste** ; le lot 2 les **gestes** (armer, relancer, arrêter une
+campagne ; régler et supprimer un déclencheur) ; la vue d'ensemble du coût est le lot 3.
+**oto#214** (13/09/2026) en fait un **espace** : une entrée et des pages adressables, sous une
+navigation persistante **Campagnes · Programmations · Exécutions** — comprendre ce qui va se
+lancer, régler ce qui est réglable, comprendre ce qui a eu lieu. Aucune écriture nouvelle.
 
 Usages, par priorité (Alexis, 13/09) : **suivre une campagne**, **piloter**, **vue d'ensemble**.
+
+## L'espace et ses pages (oto#214)
+
+Le routeur n'a pas de routes enfants : chaque page est une route **plate** de section
+`/automations` (surlignage du menu), distinguée par `meta.detail`, enregistrée nue et préfixée
+`/o/:orgId[/g/:groupId]` comme toute page de travail. **`lib/automationsEspace.ts` est la seule
+liste de ces pages** : le routeur (`detailRoutes`), la barre du haut (`DETAIL_META`), la
+navigation, le fil d'Ariane et les tests la lisent. La vue d'espace
+(`views/console/AutomationsView.vue`) reste montée d'une page à l'autre ; elle tient l'en-tête
+(fil, `SubTabs`, « Rafraîchir ») et le rafraîchissement, et monte la page de
+`views/console/automations/`, remontée à chaque changement de **chemin** (jamais de query).
+
+| adresse | page | ce qu'elle lit |
+|---|---|---|
+| `/automations` | `AutomationsHomeView` — runner, « à surveiller », routines ; l'ancien `?run=` | `triggers op=list` (présence + pertes), `fleets op=list` (vivantes), `jobs op=list status=failed limit=5`, instances du connecteur `routine` |
+| `/automations/campaigns[?status=live\|stopped\|draft]` | `CampaignsView` — la liste des lots 1-2, filtrée | `fleets op=list` (complète, sans pagination : le filtre ne porte pas sur une fenêtre) |
+| `/automations/campaigns/:id[?shown=N]` | `CampaignView` — identité en lecture, gestes, compteurs, historique | `fleets op=get`, `fleets op=state`, `jobs op=list fleet_id=` |
+| `/automations/schedules` | `SchedulesView` — la carte des programmations, telle quelle | `triggers op=list` |
+| `/automations/schedules/:id[?shown=N]` | `ScheduleView` — activation, horaire en mots, fuseau, modèle, prochaine exécution, pertes, historique | `triggers op=get` (avec `runner`), `jobs op=list trigger_id=` |
+| `/automations/schedules/:id/settings` | `ScheduleSettingsView` — interrupteur, formulaire, suppression, sans rien y ajouter | `triggers op=get` ; gestes `op=update`, `op=delete` |
+| `/automations/executions[?source=&status=&campaign=&shown=N]` | `ExecutionsView` — suivi transverse | `jobs op=list` sous les filtres servis ; `fleets op=list` pour nommer le filtre par campagne |
+| `/automations/executions/:id` | `ExecutionView` — la fiche (`RunnerJobDetail`), liens vers sa campagne ou sa programmation | `jobs op=get` |
+
+- **Une adresse n'affiche que l'objet qu'elle désigne** (`useLectureParId` + `ObjetAdresse`) :
+  un `:id` qui n'est pas un entier positif se dit sans appel ; un 404 se dit avec son code ; la
+  bêta absente se dit sans rouge. `:id` n'est pas contraint dans le routeur : une adresse
+  invalide retomberait sinon en silence sur l'aperçu.
+- **L'URL porte la lecture** : les filtres (une entrée d'historique par changement) et ce qui a
+  été déroulé (`?shown=`, remplacé à chaque « Afficher la suite ») — un retour depuis la page
+  d'une exécution retrouve les mêmes lignes. Un filtre inconnu (`status=expired`) se dit ignoré.
+- **Deux lectures pour une campagne, chacune avec son erreur** : `op=get` ouvre la page, et c'est
+  la seule que la consultation en lecture seule laisse passer ; `op=state` (compteurs) n'est
+  **pas** dans la liste blanche du serveur (`_READ_OPS`, `api/routes.py`) : en consultation elle
+  répond 403 `view_as_read_only`, et seule la section des compteurs le dit. Les deux rendent la
+  flotte : la plus récemment **demandée** fait foi, et la réponse d'un geste passe devant.
+- **« À surveiller »** montre les campagnes vivantes (et « armée sans premier travail »), les
+  programmations dont `expired_count > 0`, et les cinq dernières exécutions en échec avec un lien
+  vers toutes. Rien n'y est calculé sur une fenêtre.
+- **Droits** : ceux des lots 1-2, inchangés. Sur une programmation, tout membre règle hors
+  consultation — la réserve admin décidée pour activer et configurer (Q7) n'est **pas servie** :
+  aucun texte ne la suppose et aucune garde front ne la simule.
 
 ## Les sections, dans l'ordre où on lit l'écran
 
 | section | composant | ce qu'elle lit |
 |---|---|---|
-| Runner | `components/console/automations/RunnerPresenceBanner.vue` | le bloc `runner` de `runner.triggers op=list`, remonté par la carte des déclencheurs (événement `runner`) — la présence est une propriété de l'org, servie là |
-| Campagnes | `automations/CampaignsSection.vue` + `CampaignCard.vue` + `CampaignActions.vue` | `runner.fleets op=list`, puis `op=state` par carte **ouverte** ; gestes `op=launch` / `op=stop` |
-| Travaux d'une campagne | `automations/RunnerJobList.vue` | `runner.jobs op=list` paginé, filtre `fleet_id` |
-| Travaux hors campagne | `automations/OffCampaignSection.vue` (repliée) | deux `RunnerJobList`, filtres `source=scheduled` et `source=manual` |
-| Déclencheurs | `components/console/RunnerTriggersCard.vue` + `automations/TriggerRow.vue` + `automations/TriggerSettingsForm.vue` | `runner.triggers op=list` ; gestes `op=update` (partiel) et `op=delete` ; la même carte est montée sur la fiche d'une procédure |
+| Runner | `components/console/automations/RunnerPresenceBanner.vue` | le bloc `runner` de `runner.triggers op=list`, lu par l'entrée avec la liste (`useProgrammations`) — la présence est une propriété de l'org, servie là |
+| Campagnes | `automations/CampaignsSection.vue` + `CampaignCard.vue` + `CampaignSummary.vue` + `CampaignActions.vue` | `runner.fleets op=list`, puis `op=state` par carte **ouverte** (`useLectureCampagne`) ; gestes `op=launch` / `op=stop` |
+| Travaux d'une campagne | `automations/RunnerJobList.vue` | `runner.jobs op=list` paginé, filtre `fleet_id` ; chaque ligne mène à la page de son exécution |
+| Déclencheurs | `components/console/RunnerTriggersCard.vue` + `automations/TriggerRow.vue` + `automations/TriggerSettingsForm.vue` | `runner.triggers op=list` ; gestes `op=update` (partiel) et `op=delete` (`useGestesDeclencheur`) ; la même carte est montée sur la fiche d'une procédure |
+| À surveiller | `automations/WatchSection.vue` | voir l'entrée, ci-dessus |
 | Routines Claude Code | `automations/RoutinesSection.vue` | les instances du connecteur `routine` |
 
-Plus la **fiche d'un travail**, `components/console/RunnerJobDetail.vue`, que la page tient et
-qu'ouvrent toutes les listes.
+Plus la **fiche d'un travail**, `components/console/RunnerJobDetail.vue`, corps de la page d'une
+exécution.
 
 ## Ce qui est partagé, et où
 
@@ -37,6 +80,17 @@ qu'ouvrent toutes les listes.
   sur place, et un refus du serveur tel qu'il l'a écrit.
 - **`composables/useRafraichissement.ts`** — le rafraîchissement de la page (voir plus bas).
 - **`composables/useCibleRun.ts`** — l'arrivée par `?run=` depuis une ligne de tableau.
+- **`lib/automationsEspace.ts`** (oto#214) — la liste des pages, la navigation, le fil d'Ariane,
+  ce qu'une adresse porte (`idDAdresse`), les filtres de l'URL, `historiqueDe` (le filtre serveur
+  de l'historique d'un objet), `nomProgrammation`, `programmationDe`.
+- **`composables/useLectureParId.ts`** + **`automations/ObjetAdresse.vue`** — lire l'objet
+  qu'une adresse désigne, et en dire l'issue.
+- **`composables/useLectureCampagne.ts`** — les compteurs d'une campagne (`op=state`), pour la
+  carte comme pour la page ; **`automations/CampaignSummary.vue`** — leur rendu, avec les gestes.
+- **`composables/useGestesDeclencheur.ts`** — l'interrupteur et la suppression d'une
+  programmation, pour la ligne comme pour la page des réglages.
+- **`composables/useProgrammations.ts`** — la liste des programmations et la présence du runner,
+  en une lecture. **`composables/useAffichesUrl.ts`** — `?shown=`.
 
 Toute la copie neuve vit sous `automations.*` dans `locales/fr.json` et `locales/en.json`.
 Les chaînes plus anciennes de la fiche, de la carte des déclencheurs et d'une ligne de
@@ -163,7 +217,9 @@ campagne sans aucune date lisible va au repli : on ne la prétend pas récente.
 ## Rafraîchissement
 
 Avant oto#205, la file relisait les 120 derniers travaux toutes les 30 s, **onglet caché
-compris** — 89 % des appels de la route. Désormais (`useRafraichissement`) :
+compris** — 89 % des appels de la route. Désormais (`useRafraichissement`, dont le registre est
+tenu par la vue d'espace depuis oto#214 : seules les sections de la **page montée** s'y
+inscrivent) :
 
 - chaque section **s'inscrit** avec son chargeur ; une carte fermée ne relit rien, une liste
   démontée se désinscrit ;
@@ -188,8 +244,14 @@ compris** — 89 % des appels de la route. Désormais (`useRafraichissement`) :
 
 - **Aucun filtre « sans campagne » d'un seul mot.** `source=scheduled` (déclencheur) et
   `source=manual` (appel direct) sont, côté serveur, les deux moitiés exactes de
-  `fleet_id IS NULL` : la section hors campagne affiche donc deux listes, chacune avec son total
-  vrai, plutôt qu'un filtre reconstruit sur une fenêtre.
+  `fleet_id IS NULL` : la page des exécutions les offre comme deux sources, chacune avec son
+  total vrai, plutôt qu'un filtre reconstruit sur une fenêtre.
+- **Pas de filtre de date** sur `jobs op=list`, et `expired` n'est pas un filtre servi (il l'est
+  sur une ligne). Servis : `status`, `source`, `fleet_id`, `trigger_id` (depuis oto-backend
+  v1.212.0), `limit` (200 au plus), `cursor`.
+- **`fleets op=state` est refusé en consultation en lecture seule** (403 `view_as_read_only` :
+  `state` n'est pas dans `_READ_OPS`), `op=get` passe. La page d'une campagne s'ouvre donc par
+  `get`, et seuls ses compteurs disent le refus. Défaut serveur mesuré le 13/09, sans issue.
 - **Pas de cache par campagne** : `op=state` ne rend ni `usage_cache_read` ni `usage_cache_write`.
   Le cache ne se lit que sur la fiche d'un travail.
 - **`usage_tokens` de campagne est sommé avec un repli à 0.** Tant qu'aucun travail n'est conclu,
@@ -206,9 +268,10 @@ compris** — 89 % des appels de la route. Désormais (`useRafraichissement`) :
   l'affiche que dans le refus de relance R1 : « travaux produits : N sur M ».
   `automations.spec.ts` tient les deux silences sur une campagne en cours ;
   `campaignActions.spec.ts` tient le libellé de R1.
-- **Pas de lecture d'un travail par run.** `?run=` cherche parmi les travaux `claimed` (une page,
-  200 au plus) : les liens ne partent que d'une ligne qu'un run tient, donc d'un travail en vol.
-  Hors de cette page, ou déjà conclu, l'écran le dit.
+- **Pas de lecture d'un travail par run.** `jobs op=get` lit un travail par son **identifiant**,
+  jamais par `run_id`. `?run=` cherche donc parmi les travaux `claimed` (une page, 200 au plus) :
+  les liens ne partent que d'une ligne qu'un run tient, donc d'un travail en vol. Trouvé, il mène à
+  la page de l'exécution ; hors de cette page, ou déjà conclu, l'entrée le dit.
 
 ## La fiche d'un travail
 
@@ -225,11 +288,20 @@ worker ne le produit pas ».
 ## Aller d'une ligne à son travail, et retour
 
 - **ligne → travail** : `DatastoreQueueBar.vue` et `RowDrawer.vue` pointent vers
-  `/automations?run=<run>` pour une ligne tenue par un run ; `useCibleRun` ouvre la fiche.
+  `/automations?run=<run>` pour une ligne tenue par un run ; `useCibleRun` le résout et l'entrée
+  **remplace** l'adresse par `/automations/executions/<id>` (oto#214).
 - **travail → ligne** : seulement pour un travail **en cours**, par la file de travail du tableau
   visé, adressé par **identifiant** (`payload.datastore_id`, oto#160). Sur un travail **conclu**,
   la ligne travaillée n'est plus retrouvable — `_claimed_run` dit sur quelle ligne un run est
   *maintenant*, jamais laquelle il a travaillée — et la fiche le dit au lieu de laisser un silence.
+
+## Retiré par oto#214 (13/09/2026)
+
+- **La section « Travaux hors campagne »** (`OffCampaignSection.vue`) : ses deux listes sont la
+  page des exécutions sous `source=scheduled` et `source=manual`.
+- **La fiche en fenêtre** : `RunnerJobDetail` est le corps de la page d'une exécution, que les
+  listes ouvrent par un lien ; plus aucune fenêtre ne tient un travail.
+- **L'événement `runner` de la carte des programmations** : l'entrée lit la présence elle-même.
 
 ## Retiré par oto#205 (13/09/2026)
 
@@ -271,9 +343,9 @@ le fournisseur, seul l'ordre et une synthèse reviennent.
 
 ## Contrats consommés
 
-`listRunnerFleets()` · `getRunnerFleetState(id)` · `launchRunnerFleet(id)` · `stopRunnerFleet(id)` ·
-`listRunnerJobs(filtre, page)` ·
-`getRunThread(run_id)` · `getNamespaceQueue(id)` · `listRunnerTriggers(procedure?)` ·
+`listRunnerFleets()` · `getRunnerFleet(id)` · `getRunnerFleetState(id)` · `launchRunnerFleet(id)` ·
+`stopRunnerFleet(id)` · `listRunnerJobs(filtre, page)` · `getRunnerJob(id)` ·
+`getRunThread(run_id)` · `getNamespaceQueue(id)` · `listRunnerTriggers(procedure?)` · `getRunnerTrigger(id)` ·
 `updateRunnerTrigger(id, champs)` · `deleteRunnerTrigger(id)` · `getConnectorInstances()` — tous
 dans `api/console.ts`.
 `RunnerFleet`, `RunnerFleetState`, `RunnerArme` et `RunnerModel` sont **dérivés** du document OpenAPI

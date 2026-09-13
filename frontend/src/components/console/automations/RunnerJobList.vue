@@ -1,29 +1,41 @@
 <script setup lang="ts">
 // Une liste PAGINÉE de travaux, sous un filtre SERVEUR : ceux d'une campagne
-// (`fleet_id`), ou ceux d'une source hors campagne (`scheduled`, `manual`).
+// (`fleet_id`), d'une programmation (`trigger_id`), d'une source ou d'un statut.
+// Chaque ligne mène à la page de son exécution (oto#214).
 //
 // ⚠️ `total` est celui du serveur, sous le même filtre : il ne dépend ni de la page
 // ni du curseur. On n'additionne jamais les lignes chargées pour en faire un total —
 // c'est exactement ce que faisait la fenêtre des 120 derniers travaux.
+//
+// Ce qui a été déroulé peut vivre dans l'URL (oto#214) : `affiches` dit combien de lignes
+// relire au montage — rechargement et retour navigateur retrouvent la même liste — et
+// `update:affiches` remonte chaque « Afficher la suite ».
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Btn from '../Btn.vue'
 import Tag from '../Tag.vue'
-import { listRunnerJobs, type RunnerJob, type RunnerJobsFiltre } from '@/api/console'
+import { listRunnerJobs, type RunnerJob, type RunnerJobsFiltre, type RunnerJobsPage } from '@/api/console'
 import { inscrireRafraichissement, useMaintenant } from '@/composables/useRafraichissement'
+import { TAILLE_PAGE } from '@/lib/automationsEspace'
 import { absDate } from '@/lib/cellRender'
 import { humanize } from '@/lib/errors'
 import {
   bailExpire, coutTravail, estConclu, jetons, libelleTravail, procOf, sejour,
 } from '@/lib/runnerJobs'
 
-const props = defineProps<{ filtre: RunnerJobsFiltre }>()
-const emit = defineEmits<{ ouvrir: [job: RunnerJob] }>()
+const props = withDefaults(defineProps<{
+  filtre: RunnerJobsFiltre
+  taille?: number
+  affiches?: number | null
+}>(), { taille: TAILLE_PAGE, affiches: null })
+const emit = defineEmits<{ 'update:affiches': [n: number] }>()
 const { t } = useI18n()
 const maintenant = useMaintenant()
 
 export type { RunnerJobsFiltre }
-const PAGE = 25
+/** Le plus que le serveur rend en une page (`JOBS_PAGE_MAX`) : au-delà, il écrête et rend
+ * un curseur. */
+const PAGE_MAX = 200
 
 const jobs = ref<RunnerJob[]>([])
 const total = ref<number | null>(null)
@@ -32,15 +44,28 @@ const loaded = ref(false)
 const error = ref<string | null>(null)
 const plus = ref(false)
 
-/** Relit depuis le début AUTANT de lignes qu'il y en a d'affichées : un
- * rafraîchissement ne replie pas ce que la personne a déroulé. Le serveur écrête une
- * demande trop grande et rend alors un curseur — rien ne se perd. */
+/** Relit depuis le début jusqu'à `cible` lignes, page par page tant que le serveur rend des
+ * pages PLEINES. Un rafraîchissement ne replie donc pas ce qui a été déroulé, et un retour
+ * navigateur retrouve ce que l'URL dit avoir affiché. */
+async function lireJusqua(cible: number) {
+  const lus: RunnerJob[] = []
+  let curseur: string | null = null
+  let page: RunnerJobsPage
+  do {
+    const limit = Math.min(cible - lus.length, PAGE_MAX)
+    page = await listRunnerJobs(props.filtre, curseur ? { limit, cursor: curseur } : { limit })
+    lus.push(...page.jobs)
+    curseur = page.next_cursor
+    if (page.jobs.length < limit) break
+  } while (lus.length < cible && curseur)
+  jobs.value = lus
+  total.value = page.total
+  suite.value = page.next_cursor
+}
+
 async function charger() {
   try {
-    const page = await listRunnerJobs(props.filtre, { limit: Math.max(PAGE, jobs.value.length) })
-    jobs.value = page.jobs
-    total.value = page.total
-    suite.value = page.next_cursor
+    await lireJusqua(Math.max(props.taille, props.affiches ?? 0, jobs.value.length))
     error.value = null
   } catch (e) {
     error.value = humanize(e)
@@ -53,11 +78,12 @@ async function chargerSuite() {
   if (!suite.value) return
   plus.value = true
   try {
-    const page = await listRunnerJobs(props.filtre, { limit: PAGE, cursor: suite.value })
+    const page = await listRunnerJobs(props.filtre, { limit: props.taille, cursor: suite.value })
     jobs.value = [...jobs.value, ...page.jobs]
     total.value = page.total
     suite.value = page.next_cursor
     error.value = null
+    emit('update:affiches', jobs.value.length)
   } catch (e) {
     error.value = humanize(e)
   } finally {
@@ -78,6 +104,9 @@ function cout(j: RunnerJob): string | null {
   return estConclu(j) ? t('automations.jobs.costUnknown') : null
 }
 
+/** La procédure se dit sur une liste qui en mélange plusieurs, pas sous le filtre d'un objet. */
+const unObjet = () => props.filtre.fleet_id !== undefined || props.filtre.trigger_id !== undefined
+
 onMounted(charger)
 inscrireRafraichissement(charger)
 </script>
@@ -89,16 +118,16 @@ inscrireRafraichissement(charger)
     <p v-else-if="!jobs.length && !error" class="jl-mute">{{ t('automations.jobs.empty') }}</p>
 
     <ul v-if="jobs.length" class="jl-list">
-      <li v-for="jb in jobs" :key="jb.id" class="jl-item">
+      <li v-for="jb in jobs" :key="jb.id" class="jl-item" :data-job="jb.id">
         <span class="jl-id">#{{ jb.id }}</span>
         <Tag :tone="statut(jb).ton">{{ statut(jb).texte }}</Tag>
-        <span v-if="props.filtre.fleet_id === undefined && procOf(jb)" class="jl-proc">{{ procOf(jb) }}</span>
+        <span v-if="!unObjet() && procOf(jb)" class="jl-proc">{{ procOf(jb) }}</span>
         <span v-if="jb.status === 'expired'" class="jl-mute">{{ t('automations.jobs.expiredHint') }}</span>
         <span v-if="bailExpire(jb, maintenant)" class="jl-warn">{{ t('automations.jobs.leaseExpired') }}</span>
         <span v-if="sejour(jb, maintenant)" class="jl-mono">{{ sejour(jb, maintenant) }}</span>
         <span v-if="cout(jb)" class="jl-mono">{{ cout(jb) }}</span>
         <span class="jl-date">{{ absDate(String(jb.finished_at ?? jb.created_at ?? '')) }}</span>
-        <button type="button" class="jl-open" @click="emit('ouvrir', jb)">{{ t('automations.jobs.open') }}</button>
+        <RouterLink :to="`/automations/executions/${jb.id}`" class="jl-open">{{ t('automations.jobs.open') }}</RouterLink>
       </li>
     </ul>
 
@@ -121,10 +150,7 @@ inscrireRafraichissement(charger)
 .jl-proc { font-size: 12px; color: var(--color-ink); }
 .jl-warn { font-size: 11.5px; color: var(--color-terra-ink); }
 .jl-date { font-size: 11px; color: var(--color-faint); margin-left: auto; }
-.jl-open {
-  font: inherit; font-size: 12px; border: 0; background: none; cursor: pointer; padding: 0;
-  color: var(--color-saffron-ink); font-weight: 600;
-}
+.jl-open { font-size: 12px; font-weight: 600; color: var(--color-saffron-ink); }
 .jl-open:hover { color: var(--color-ink); }
 .jl-foot { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--color-mute); }
 .jl-mute { margin: 0; font-size: 12.5px; color: var(--color-mute); }

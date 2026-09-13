@@ -221,26 +221,5 @@ describe('les travaux d’une campagne', () => {
   })
 })
 
-describe('la page : une section en erreur n’efface pas les autres', () => {
-  it('campagnes illisibles, runner et déclencheurs toujours affichés', async () => {
-    api.listRunnerFleets.mockRejectedValue(new ApiError(500, 'boom'))
-    api.listRunnerTriggers.mockResolvedValue({
-      triggers: [{
-        id: 1, procedure: 'veille', cron: '0 8 * * *', tz: 'Europe/Paris', tools: [],
-        project_id: null, label: 'Veille du matin', enabled: true, next_due: '2026-09-14 06:00:00',
-        max_steps: null, expired_count: 0, expired_since: null, expired_last: null,
-      }],
-      runner: { armed: true, workers: 2, last_seen: '2026-09-13 11:59:00', families: [], models: [] },
-    })
-    api.getConnectorInstances.mockResolvedValue({ instances: [] })
-    const V = (await import('@/views/console/AutomationsView.vue')).default
-    const hote = await monter(V)
-
-    expect(hote.textContent).toContain('Campagnes illisibles')
-    expect(hote.textContent).toContain('Veille du matin')
-    expect(hote.textContent).toContain('Un worker prend les travaux de cette organisation.')
-    expect(hote.textContent).toContain('Routines Claude Code')
-    // Hors campagne : repliée par défaut, elle ne lit rien.
-    expect(api.listRunnerJobs).not.toHaveBeenCalled()
-  })
-})
+// Les pages de l'espace (entrée, campagne, programmation, exécution…) et leurs erreurs
+// confinées sont tenues par `views/console/automations/espace*.spec.ts` (oto#214).

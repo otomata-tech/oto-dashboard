@@ -10,7 +10,7 @@
 // tiennent à notre place. Ils échouent à l'ajout d'un écran sans son titre, ou
 // d'un titre sans sa traduction.
 import { describe, expect, it } from 'vitest'
-import { NAV, PAGE_META } from './consoleNav'
+import { DETAIL_META, NAV, PAGE_META } from './consoleNav'
 import fr from '@/locales/fr.json'
 import en from '@/locales/en.json'
 
@@ -43,6 +43,22 @@ describe('PAGE_META', () => {
       for (const cle of [meta.title, meta.crumb]) {
         for (const [nom, dict] of [['fr', fr], ['en', en]] as const) {
           if (typeof resoudre(dict, cle) !== 'string') absents.push(`${chemin} → ${cle} (${nom})`)
+        }
+      }
+    }
+    expect(absents, 'clés i18n non résolues').toEqual([])
+  })
+})
+
+describe('DETAIL_META', () => {
+  // Une page de détail (les pages de l'espace Automatisations, oto#214) prend son titre ici :
+  // sans lui, la barre du haut dirait celui de la section.
+  it('a ses libellés traduits dans les deux locales', () => {
+    const absents: string[] = []
+    for (const [detail, meta] of Object.entries(DETAIL_META)) {
+      for (const cle of [meta.title, meta.crumb]) {
+        for (const [nom, dict] of [['fr', fr], ['en', en]] as const) {
+          if (typeof resoudre(dict, cle) !== 'string') absents.push(`${detail} → ${cle} (${nom})`)
         }
       }
     }

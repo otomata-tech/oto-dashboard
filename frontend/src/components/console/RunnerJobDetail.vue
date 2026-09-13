@@ -10,11 +10,12 @@
 // Retiré le 13/09/2026 (oto#205) : le bandeau des postes de garde et « réservé, rien
 // écrit ». Le runner n'écrit plus ces champs depuis le 01/09 : ils peignaient un zéro
 // qui avait l'air d'un succès. Sur un travail ancien, ils restent lisibles sous leur clé.
+//
+// La fiche était une fenêtre ouverte par les listes ; depuis oto#214 elle est le corps de la
+// page d'une exécution (`/automations/executions/:id`), que les listes ouvrent par un lien.
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ModalOverlay from './ModalOverlay.vue'
 import Tag from './Tag.vue'
-import Icon from './Icon.vue'
 import {
   getNamespaceQueue, getRunThread, type RunnerJob, type RunThreadMessage,
 } from '@/api/console'
@@ -26,16 +27,14 @@ import {
   outilsResultat, postesResultat, procOf, renvois, sejour, sejourMs,
 } from '@/lib/runnerJobs'
 
-const props = defineProps<{ job: RunnerJob | null }>()
-const emit = defineEmits<{ close: [] }>()
+const props = defineProps<{ job: RunnerJob }>()
 
 const { me } = useMe()
 const maintenant = ref(Date.now())
 
 const { t } = useI18n()
 
-const j = computed(() => props.job)
-const ouvert = computed(() => props.job !== null)
+const j = computed<RunnerJob | null>(() => props.job)
 
 // ── Le statut, le modèle, le coût ───────────────────────────────────────────
 // Le libellé d'un statut est celui des listes (`libelleTravail`) : la fiche et la ligne
@@ -232,8 +231,7 @@ watch(() => props.job?.id, async () => {
 </script>
 
 <template>
-  <ModalOverlay :open="ouvert" @close="emit('close')">
-    <div v-if="j" class="modal" role="dialog" aria-modal="true" aria-label="fiche d'un agent">
+    <section v-if="j" class="card jd" aria-label="fiche d'un agent">
       <header class="jd-head">
         <div class="jd-head-txt">
           <h3 class="jd-title">
@@ -246,9 +244,6 @@ watch(() => props.job?.id, async () => {
             <span v-if="sejour(j, maintenant)"> · {{ sejour(j, maintenant) }}</span>
           </p>
         </div>
-        <button class="jd-close" aria-label="fermer" @click="emit('close')">
-          <Icon name="x" :size="16" />
-        </button>
       </header>
 
       <div class="jd-body">
@@ -422,17 +417,12 @@ watch(() => props.job?.id, async () => {
           </div>
         </section>
       </div>
-    </div>
-  </ModalOverlay>
+    </section>
 </template>
 
 <style scoped>
-.modal {
-  width: 100%; max-width: 720px; max-height: 86vh; display: flex; flex-direction: column;
-  background: var(--color-bg); border: 1px solid var(--color-hair); border-radius: 14px;
-  box-shadow: 0 18px 50px -12px color-mix(in srgb, var(--color-ink) 35%, transparent);
-}
-.jd-head { display: flex; align-items: flex-start; gap: 8px; padding: 16px 18px 12px; }
+.jd { display: flex; flex-direction: column; }
+.jd-head { display: flex; align-items: flex-start; gap: 8px; padding-bottom: 12px; }
 .jd-head-txt { flex: 1; min-width: 0; }
 .jd-title {
   margin: 0; font-size: 16px; font-weight: 700; color: var(--color-ink);
@@ -440,15 +430,7 @@ watch(() => props.job?.id, async () => {
 }
 .jd-id { font-family: var(--font-mono, monospace); color: var(--color-faint); font-weight: 600; }
 .jd-desc { margin: 4px 0 0; font-size: 12px; color: var(--color-mute); }
-.jd-close {
-  flex: none; border: 0; background: transparent; cursor: pointer; padding: 3px;
-  border-radius: 7px; color: var(--color-faint); line-height: 0;
-}
-.jd-close:hover { background: var(--color-paper-2); color: var(--color-ink); }
-.jd-body {
-  overflow-y: auto; padding: 0 18px 18px;
-  display: flex; flex-direction: column; gap: 15px;
-}
+.jd-body { display: flex; flex-direction: column; gap: 15px; }
 
 .jd-err {
   background: var(--color-terra-soft); color: var(--color-terra-ink);

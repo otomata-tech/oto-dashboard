@@ -81,6 +81,8 @@ async function monterSection() {
   document.body.appendChild(hote)
   const app = createApp(C)
   app.use(i18n)
+  // Chaque carte mène à la page de sa campagne (oto#214).
+  app.component('RouterLink', { props: ['to'], template: '<a :href="to"><slot /></a>' })
   app.mount(hote)
   demonter = () => app.unmount()
   await vider()

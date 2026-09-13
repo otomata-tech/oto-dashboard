@@ -47,10 +47,12 @@ async function monterAvec(triggers: RunnerTrigger[], props: Record<string, unkno
   document.body.appendChild(host)
   const app = createApp(Card, props)
   app.use(i18n)
+  app.component('RouterLink', LIEN)
   app.mount(host)
   await vider()
   return host
 }
+const LIEN = { props: ['to'], template: '<a :href="to"><slot /></a>' }
 
 describe('RunnerTriggersCard — les occurrences non prises (oto#41)', () => {
   it('affiche le compte ET les deux dates quand des occurrences n’ont pas été prises', async () => {
@@ -151,15 +153,12 @@ describe('RunnerTriggersCard — l’erreur d’un interrupteur (oto#205)', () =
     expect(host.querySelector('[role="alert"]')).toBeNull()
   })
 
-  it('remonte la présence du runner servie avec la liste', async () => {
-    listRunnerTriggers.mockResolvedValue({ triggers: [], runner: { armed: false, workers: 0, last_seen: null, families: [], models: [] } })
-    const Card = (await import('./RunnerTriggersCard.vue')).default
-    const surRunner = vi.fn()
-    const host = document.createElement('div')
-    const app = createApp(Card, { onRunner: surRunner })
-    app.use(i18n)
-    app.mount(host)
-    await vider()
-    expect(surRunner).toHaveBeenCalledWith(expect.objectContaining({ armed: false, workers: 0 }))
+  // La présence du runner ne remonte plus de la carte : l'entrée de l'espace la lit elle-même,
+  // en une lecture (`useProgrammations`, oto#214). La carte mène à la page de chaque ligne.
+  it('le nom d’une ligne mène à la page de sa programmation, par son identifiant', async () => {
+    const host = await monterAvec([{ ...BASE, id: 12 }])
+    const lien = host.querySelector('[data-test="page-programmation"]')
+    expect(lien?.getAttribute('href')).toBe('/automations/schedules/12')
+    expect(lien?.textContent).toContain('Ingestion du matin')
   })
 })

@@ -48,7 +48,13 @@ const CLASSEES: Record<string, string> = {
   'components/console/billing/BillingUsageCard.vue#0': 'informatif',
   // Audience tronquée : un CONSTAT sur ce qui partira. Restreindre l'audience se fait
   // dans la carte « Campagne », au-dessus, et n'est pas ce qui est demandé ici.
-  'components/console/automations/CampaignCard.vue#0': 'informatif',
+  // « Armée depuis N sans premier travail : aucun worker ne sonde la file » (oto#205, extrait
+  // dans le résumé d'une campagne par oto#214). Un constat : démarrer un worker ne se fait pas
+  // depuis le dashboard.
+  'components/console/automations/CampaignSummary.vue#0': 'informatif',
+  // « Aucun runner ne prend les travaux de cette organisation », sur une programmation allumée
+  // (oto#214) : le même constat que le bandeau runner, sans geste possible d'ici.
+  'views/console/automations/ScheduleView.vue#0': 'informatif',
   // « Arrêt demandé depuis N : il sera constaté au prochain passage d'un worker ; les
   // travaux en vol continuent de dépenser. » Rien n'est demandé : l'arrêt est déjà
   // demandé, et aucun geste ne le hâte (`stopped` est un fait que seul le serveur pose).

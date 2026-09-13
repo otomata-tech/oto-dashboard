@@ -54,6 +54,13 @@
     "connectors": { "title": "connectors", "crumb": "workspace" },
     "procedures": { "title": "procedures", "crumb": "workspace" },
     "automations": { "title": "automations", "crumb": "workspace" },
+    "automationsCampaigns": { "title": "campaigns", "crumb": "automations" },
+    "automationsCampaign": { "title": "campaign", "crumb": "automations" },
+    "automationsSchedules": { "title": "schedules", "crumb": "automations" },
+    "automationsSchedule": { "title": "schedule", "crumb": "automations" },
+    "automationsScheduleSettings": { "title": "schedule settings", "crumb": "automations" },
+    "automationsExecutions": { "title": "executions", "crumb": "automations" },
+    "automationsExecution": { "title": "execution", "crumb": "automations" },
     "data": { "title": "data", "crumb": "workspace" },
     "documents": { "title": "documents", "crumb": "workspace" },
     "account": { "title": "profile", "crumb": "manage my account" },
@@ -248,7 +255,16 @@
         "betaOff": "Campaigns are not enabled for this organization.",
         "error": "Campaigns unreadable: {reason}",
         "older": "{n} older campaign | {n} older campaigns",
-        "olderHint": "no state change in {days} days"
+        "olderHint": "no state change in {days} days",
+        "open": "campaign page",
+        "filteredEmpty": "No campaign under this filter.",
+        "filter": {
+          "label": "Status",
+          "all": "all",
+          "live": "live",
+          "stopped": "stopped",
+          "draft": "not armed"
+        }
       },
       "campaign": {
         "status": {
@@ -307,13 +323,80 @@
         "leaseExpired": "lease overrun",
         "expiredHint": "nobody took it, this is not a failure"
       },
-      "offCampaign": {
-        "title": "Jobs outside campaigns",
-        "sub": "Started by a trigger or a direct call.",
-        "show": "Show",
-        "hide": "Hide",
-        "scheduled": "Triggers",
-        "manual": "Direct calls"
+      "space": {
+        "root": "Automations",
+        "label": "Automations space navigation",
+        "crumbLabel": "Breadcrumb",
+        "nav": {
+          "campaigns": "Campaigns",
+          "schedules": "Schedules",
+          "executions": "Executions"
+        },
+        "crumbId": "#{id}",
+        "settings": "Settings",
+        "notAnId": "This address carries no identifier: nothing was asked of the server.",
+        "readError": "Could not read: {reason}",
+        "ignoredFilter": "Unrecognized filter, ignored: {filters}"
+      },
+      "watch": {
+        "title": "To watch",
+        "sub": "What is running, what is losing occurrences, what has failed.",
+        "live": "Live campaigns",
+        "liveEmpty": "No live campaign.",
+        "losing": "Schedules losing occurrences",
+        "losingEmpty": "No schedule is losing occurrences.",
+        "schedulesError": "Schedules unreadable: {reason}",
+        "failed": "Latest failed executions",
+        "failedAll": "all failed executions"
+      },
+      "campaignPage": {
+        "refused": "Cannot open campaign {what}",
+        "procedure": "procedure",
+        "target": "target table",
+        "noTarget": "no table declared",
+        "rowFilter": "row filter",
+        "model": "model",
+        "history": "Execution history",
+        "historySub": "All of this campaign's executions, newest first."
+      },
+      "schedulePage": {
+        "refused": "Cannot open schedule {what}",
+        "enabled": "enabled",
+        "disabled": "off",
+        "procedure": "procedure",
+        "schedule": "schedule",
+        "timezone": "time zone",
+        "model": "model",
+        "next": "next execution",
+        "nextNone": "none, the schedule is off",
+        "lost": "occurrences not taken",
+        "lostSince": "since {date}",
+        "lostLast": "last {date}",
+        "settings": "Settings",
+        "back": "Back to the schedule",
+        "readOnly": "Read-only view: no setting is offered here.",
+        "history": "Execution history",
+        "historySub": "All executions started by this schedule, newest first."
+      },
+      "executions": {
+        "title": "Executions",
+        "sub": "All of the organization's executions, newest first.",
+        "sourceLabel": "Source",
+        "statusLabel": "Status",
+        "campaignLabel": "Campaign",
+        "allSources": "all sources",
+        "allStatuses": "all statuses",
+        "allCampaigns": "all campaigns",
+        "source": {
+          "batch": "campaign",
+          "scheduled": "schedule",
+          "manual": "direct call"
+        }
+      },
+      "executionPage": {
+        "refused": "Cannot open execution {what}",
+        "campaign": "campaign #{id}",
+        "schedule": "schedule #{id}"
       },
       "job": {
         "model": "model",
@@ -355,6 +438,7 @@
       "triggers": {
         "next": "next run: {date}",
         "notTaken": "{n} occurrence not taken | {n} occurrences not taken",
+        "effect": "Turning off expires the pending occurrences: they will never run. Turning back on resumes the rhythm from now — the due time missed while off is not caught up.",
         "form": {
           "open": "Settings",
           "schedule": "Schedule (cron)",

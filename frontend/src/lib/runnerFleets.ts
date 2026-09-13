@@ -25,6 +25,11 @@ const RECENTE_MS = RECENTE_JOURS * 24 * 3_600_000
  * tour : d'après la plateforme, aucun worker ne sonde la file de l'org. */
 export const ARMEE_SANS_TRAVAIL_MS = 60_000
 
+/** Le nom d'une campagne : son libellé, sa procédure, à défaut son identifiant. */
+export function nomCampagne(f: Pick<RunnerFleet, 'id' | 'label' | 'procedure'>): string {
+  return f.label || f.procedure || `#${f.id}`
+}
+
 export function estVivante(f: Pick<RunnerFleet, 'status'>): boolean {
   return (STATUTS_VIVANTS as readonly string[]).includes(f.status ?? '')
 }

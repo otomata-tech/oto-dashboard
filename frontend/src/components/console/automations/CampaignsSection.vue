@@ -1,10 +1,14 @@
 <script setup lang="ts">
-// Les CAMPAGNES, au centre de /automations (oto#205).
+// Les CAMPAGNES de l'org (oto#205), sur la page `/automations/campaigns` (oto#214).
 //
 // Ordre : les vivantes (`armed`, `running`, `stopping`), puis les récentes, puis un
 // repli « N campagnes anciennes » dont le compteur est celui de la liste servie. Les
 // cartes vivantes et récentes s'ouvrent seules ; les anciennes ne lisent leur état
 // qu'à l'ouverture.
+//
+// Le filtre par statut (`filtre`, porté par l'URL de la page) s'applique à la liste
+// COMPLÈTE : `fleets op=list` rend toutes les campagnes de l'org, sans pagination.
+// « vivante », qui règle le rythme du rafraîchissement, se lit sur la liste entière.
 //
 // ⚠️ UNE seule liste à clés pour les trois groupes (lot 2). Un geste fait changer une
 // campagne de groupe — une ancienne relancée devient vivante : rangée dans deux listes
@@ -22,13 +26,15 @@ import { useI18n } from 'vue-i18n'
 import ConsoleCard from '../ConsoleCard.vue'
 import CampaignCard from './CampaignCard.vue'
 import { ApiError } from '@/api'
-import { listRunnerFleets, type RunnerFleet, type RunnerJob } from '@/api/console'
+import { listRunnerFleets, type RunnerFleet } from '@/api/console'
 import { inscrireRafraichissement, useMaintenant } from '@/composables/useRafraichissement'
+import { garderCampagne, type FiltreCampagne } from '@/lib/automationsEspace'
 import { humanize } from '@/lib/errors'
-import { RECENTE_JOURS, repartir } from '@/lib/runnerFleets'
+import { estVivante, RECENTE_JOURS, repartir } from '@/lib/runnerFleets'
 import { fusionnerLecture } from '@/lib/runnerGestes'
 
-const emit = defineEmits<{ ouvrir: [job: RunnerJob]; vivante: [oui: boolean] }>()
+const props = withDefaults(defineProps<{ filtre?: FiltreCampagne | null }>(), { filtre: null })
+const emit = defineEmits<{ vivante: [oui: boolean] }>()
 const { t } = useI18n()
 const maintenant = useMaintenant()
 
@@ -71,7 +77,8 @@ function remplacer(f: RunnerFleet) {
   fleets.value = fleets.value.map((x) => (x.id === f.id ? f : x))
 }
 
-const groupes = computed(() => repartir(fleets.value, maintenant.value))
+const visibles = computed(() => fleets.value.filter((f) => garderCampagne(f, props.filtre)))
+const groupes = computed(() => repartir(visibles.value, maintenant.value))
 
 interface Entree { cle: string; fleet: RunnerFleet | null; ouverte: boolean }
 const entrees = computed<Entree[]>(() => {
@@ -85,7 +92,7 @@ const entrees = computed<Entree[]>(() => {
   return out
 })
 
-watch(() => groupes.value.vivantes.length > 0, (oui) => emit('vivante', oui), { immediate: true })
+watch(() => fleets.value.some(estVivante), (oui) => emit('vivante', oui), { immediate: true })
 
 onMounted(charger)
 inscrireRafraichissement(charger)
@@ -93,6 +100,7 @@ inscrireRafraichissement(charger)
 
 <template>
   <ConsoleCard :title="t('automations.campaigns.title')" :sub="t('automations.campaigns.sub')">
+    <template v-if="$slots.actions" #actions><slot name="actions" /></template>
     <div class="card-body">
       <p v-if="betaAbsente" class="cs-mute" data-test="beta">{{ t('automations.campaigns.betaOff') }}</p>
       <template v-else>
@@ -100,11 +108,11 @@ inscrireRafraichissement(charger)
           {{ t('automations.campaigns.error', { reason: error }) }}</p>
         <p v-if="!loaded" class="cs-mute">{{ t('common.loading') }}</p>
         <p v-else-if="!fleets.length && !error" class="cs-mute">{{ t('automations.campaigns.empty') }}</p>
+        <p v-else-if="!visibles.length && !error" class="cs-mute">{{ t('automations.campaigns.filteredEmpty') }}</p>
 
         <ul v-if="entrees.length" class="cs-list">
           <template v-for="e in entrees" :key="e.cle">
-            <CampaignCard v-if="e.fleet" :fleet="e.fleet" :ouverte-par-defaut="e.ouverte"
-              @ouvrir="(j) => emit('ouvrir', j)" @flotte="remplacer" />
+            <CampaignCard v-if="e.fleet" :fleet="e.fleet" :ouverte-par-defaut="e.ouverte" @flotte="remplacer" />
             <li v-else class="cs-fold">
               <button type="button" class="cs-fold-btn" :aria-expanded="anciennesOuvertes"
                 @click="anciennesOuvertes = !anciennesOuvertes">

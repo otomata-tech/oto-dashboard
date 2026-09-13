@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw, type RouteMeta } f
 import ConsoleLayout from '../views/console/ConsoleLayout.vue'
 import InviteAcceptView from '../views/InviteAcceptView.vue'
 import { NAV, type NavLevel } from '@/lib/consoleNav'
+import { detailEspace, PAGES_ESPACE, SECTION as SECTION_AUTOMATIONS } from '@/lib/automationsEspace'
 import {
   currentViewOrg, setViewOrgId, currentViewGroup, setViewGroupId, consultRedirectPath,
 } from '@/lib/viewOrg'
@@ -48,9 +49,10 @@ const sectionRoutes: RouteRecordRaw[] = NAV.flatMap((g) =>
 )
 
 // Route de détail org-scopée (work) : nue + préfixées, portée par `meta.detail` (et non
-// le nom, pour éviter la collision de noms entre les enregistrements).
-function detailRoutes(path: string, detail: string): RouteRecordRaw[] {
-  const meta = { section: sectionOf(path), level: 'work' as NavLevel, orgScoped: true, detail }
+// le nom, pour éviter la collision de noms entre les enregistrements). `section` se déduit
+// du chemin (`/projects/:id` → `/projects`) ; une page sans paramètre la déclare.
+function detailRoutes(path: string, detail: string, section = sectionOf(path)): RouteRecordRaw[] {
+  const meta = { section, level: 'work' as NavLevel, orgScoped: true, detail }
   return [
     { path, component: ConsoleLayout, meta },
     ...scopedVariants(path, meta),
@@ -127,6 +129,10 @@ const router = createRouter({
     ...detailRoutes('/data/:id/item/:rowId', 'data'),
     ...detailRoutes('/projects/:id/data/:nsRef/item/:rowId', 'project'),
     ...detailRoutes('/procedures/:id', 'procedure'),
+    // L'espace Automatisations (oto#214) : des pages plates de section `/automations`, que la
+    // vue d'espace choisit par `meta.detail`. `:id` n'est pas contraint : une adresse sans
+    // identifiant se DIT, au lieu de retomber en silence sur l'aperçu.
+    ...PAGES_ESPACE.flatMap((p) => detailRoutes(p.path, detailEspace(p.page), SECTION_AUTOMATIONS)),
     // Équipe ouverte (ex `/org/teams/:teamId`) : le scope d'équipe a quitté le dashboard
     // (oto#192) — un ancien lien retombe sur la liste des équipes de l'org.
     { path: '/o/:orgId(\\d+)/org/teams/:teamId(\\d+)', redirect: (to) => `/o/${to.params.orgId}/org/teams` },

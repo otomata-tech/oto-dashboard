@@ -11,6 +11,8 @@
 // synchro — « derive don't duplicate ». Le pill « profil actif » (quelle org) est
 // l'axe ORTHOGONAL : ne pas le confondre avec le niveau (quoi je fais).
 
+import { META_ESPACE } from './automationsEspace'
+
 export type NavLevel = 'work' | 'account' | 'org' | 'platform'
 
 export interface NavItem {
@@ -151,6 +153,14 @@ export function groupOfPath(path: string): NavGroup | undefined {
 }
 export function levelOf(path: string): NavLevel {
   return groupOfPath(path)?.level ?? 'work'
+}
+
+// Titre et fil d'une page de DÉTAIL, par `meta.detail` : ils passent devant ceux de la section.
+// Les pages de l'espace Automatisations (oto#214) viennent de sa liste, `lib/automationsEspace`.
+export const DETAIL_META: Record<string, { title: string; crumb: string }> = {
+  'admin-user': { title: 'pageMeta.adminUser.title', crumb: 'pageMeta.adminUser.crumb' },
+  'admin-org': { title: 'pageMeta.adminOrg.title', crumb: 'pageMeta.adminOrg.crumb' },
+  ...META_ESPACE,
 }
 
 // Valeurs = clés i18n (cf. NAV). Résolues par `t()` dans ConsoleTopbar.

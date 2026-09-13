@@ -20,6 +20,7 @@ import { launchRunnerFleet, stopRunnerFleet, type RunnerFleet, type RunnerFleetS
 import { useGesteObserve } from '@/composables/useGesteObserve'
 import { useMaintenant } from '@/composables/useRafraichissement'
 import { useMe } from '@/composables/useMe'
+import { nomCampagne } from '@/lib/runnerFleets'
 import { droits, FENETRE_OBSERVATION_MS, gestesCampagne, type GesteCampagne } from '@/lib/runnerGestes'
 import { duree, instant } from '@/lib/runnerJobs'
 
@@ -30,7 +31,7 @@ const { me } = useMe()
 const maintenant = useMaintenant()
 
 const permis = computed(() => gestesCampagne(props.fleet, props.etat, droits(me.value)))
-const nom = computed(() => props.fleet.label || props.fleet.procedure || `#${props.fleet.id}`)
+const nom = computed(() => nomCampagne(props.fleet))
 
 const { phase, geste, refus, demander, annuler, confirmer } = useGesteObserve<GesteCampagne>({
   envoyer: async (g) => {
