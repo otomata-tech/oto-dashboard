@@ -458,7 +458,8 @@
       },
       "routines": {
         "title": "Claude Code routines",
-        "sub": "An autonomous agent running at Anthropic, with your oto tools plugged in."
+        "sub": "An autonomous agent running at Anthropic, with your oto tools plugged in.",
+        "empty": "No automation configured. Create a routine on {site} (prompt + Oto connector), in its settings add an “API” trigger (Add another trigger → API), generate its token — it is shown only once — then set it here as the credential of the {connector} connector. One routine per automation: the token only fires its own."
       },
       "run": {
         "absent": "No in-flight execution carries run {run}: it is no longer running.",

@@ -237,6 +237,21 @@ describe('une erreur reste dans sa section', () => {
   })
 })
 
+describe('les routines Claude Code, sans routine', () => {
+  it.each([
+    ['fr', 'ajoute un trigger « API » (Add another trigger → API)'],
+    ['en', 'add an “API” trigger (Add another trigger → API)'],
+  ] as const)('%s : le chemin cite l’écran d’Anthropic, et ses deux liens restent des liens', async (langue, citation) => {
+    i18n.global.locale.value = langue
+    servirMonde(bouchons)
+    const m = await ouvrir('/automations')
+    const vide = m.hote.querySelector('[data-test="routines-vide"]')!
+    expect(vide.textContent).toContain(citation)
+    const liens = [...vide.querySelectorAll('a')].map((a) => a.getAttribute('href'))
+    expect(liens).toEqual(['https://claude.ai/code/routines', '/connectors'])
+  })
+})
+
 describe('les historiques paginent sous leur filtre serveur', () => {
   it('campagne : curseur sous `fleet_id`, pli porté par l’URL, rechargé à l’identique', async () => {
     servirMonde(bouchons)

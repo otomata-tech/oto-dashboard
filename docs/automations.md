@@ -29,7 +29,10 @@ code, les noms d'API, les routes et les clés i18n existantes ne changent pas.
 « travail » garde ses autres sens : l'espace de travail, la file de travail d'un tableau. Garde :
 `lib/lexiqueAutomations.tripwire.spec.ts` (copie `automations.*` en fr et en, gabarits et
 littéraux des pages et composants de l'espace), avec sa contre-épreuve. Les phrases du serveur
-affichées mot pour mot (un refus) ne sont pas les nôtres et n'y passent pas.
+affichées mot pour mot (un refus) ne sont pas les nôtres et n'y passent pas. Une seule exception,
+nommée par son sens — la **citation d'un libellé d'interface tierce** : le texte des routines cite
+l'écran d'Anthropic tel qu'il s'affiche, en anglais (« Add another trigger → API »), sur la seule clé
+`automations.routines.empty` et pour cette seule citation.
 
 ## L'espace et ses pages (oto#214)
 

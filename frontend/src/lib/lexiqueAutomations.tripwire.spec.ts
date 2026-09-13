@@ -65,8 +65,33 @@ function valeurs(dict: unknown, chemin = ''): Array<[string, string]> {
 const copieDe = (dict: Record<string, unknown>): Array<[string, string]> =>
   valeurs(dict).filter(([cle]) => cle.startsWith('automations.') || cle.startsWith('pageMeta.automations'))
 
+// Exception nommée par son SENS : la CITATION d'un libellé d'interface tierce. Le lexique porte
+// sur nos objets, pas sur l'écran d'un tiers : celui des routines Anthropic dit « trigger », en
+// anglais seulement, et le texte qui y envoie doit citer ce qu'on y lit. L'exception retire la
+// seule citation, sur la seule clé qui la porte : le reste de la phrase, et toute autre clé,
+// restent gardés.
+const CITATIONS_INTERFACE_TIERCE: Record<string, Record<'fr' | 'en', string>> = {
+  'automations.routines.empty': {
+    fr: 'ajoute un trigger « API » (Add another trigger → API)',
+    en: 'add an “API” trigger (Add another trigger → API)',
+  },
+}
+
 function fautesDuDictionnaire(dict: Record<string, unknown>, langue: 'fr' | 'en'): string[] {
-  return copieDe(dict).flatMap(([cle, v]) => fautes(v, langue).map((q) => `${cle} = « ${v} » : ${q}`))
+  return copieDe(dict).flatMap(([cle, v]) => {
+    const citation = CITATIONS_INTERFACE_TIERCE[cle]?.[langue]
+    const lu = citation ? v.split(citation).join(' ') : v
+    return fautes(lu, langue).map((q) => `${cle} = « ${v} » : ${q}`)
+  })
+}
+
+/** Une copie du dictionnaire où `cle` vaut `valeur`. */
+function muter(dict: Record<string, unknown>, cle: string, valeur: string): Record<string, unknown> {
+  const copie = JSON.parse(JSON.stringify(dict)) as Record<string, unknown>
+  const chemin = cle.split('.')
+  const parent = chemin.slice(0, -1).reduce<Record<string, unknown>>((o, k) => o[k] as Record<string, unknown>, copie)
+  parent[chemin[chemin.length - 1]!] = valeur
+  return copie
 }
 
 // ── Les sources ─────────────────────────────────────────────────────────────
@@ -152,6 +177,15 @@ describe('lexique de l’espace Automatisations', () => {
     expect(fautesDuDictionnaire(en, 'en')).toEqual([])
   })
 
+  it('chaque citation d’interface tierce figure mot pour mot dans sa clé : une exception périmée se voit', () => {
+    for (const [cle, citations] of Object.entries(CITATIONS_INTERFACE_TIERCE)) {
+      for (const [langue, dict] of [['fr', fr], ['en', en]] as const) {
+        const valeur = copieDe(dict).find(([k]) => k === cle)?.[1] ?? ''
+        expect(valeur, `${cle} (${langue})`).toContain(citations[langue])
+      }
+    }
+  })
+
   it('les pages et les composants de l’espace n’en écrivent aucun en dur', () => {
     expect(fautesDesSources()).toEqual([])
   })
@@ -176,6 +210,23 @@ describe('contre-épreuve : le contrôle voit ce qu’il prétend voir', () => {
   it('rougit en anglais sur trigger, fleet, job', () => {
     for (const phrase of ['Delete this trigger?', 'the fleet stops', 'No job.']) expect(fautes(phrase, 'en')).not.toEqual([])
     expect(fautes('the tool oto_trigger', 'en')).toEqual([])
+  })
+
+  it('l’exception d’interface tierce ne couvre que sa citation, sur sa clé', () => {
+    const cle = 'automations.routines.empty'
+    const citationEn = CITATIONS_INTERFACE_TIERCE[cle]!.en
+    const citationFr = CITATIONS_INTERFACE_TIERCE[cle]!.fr
+    const valeurEn = copieDe(en).find(([k]) => k === cle)![1]
+    const valeurFr = copieDe(fr).find(([k]) => k === cle)![1]
+    // « trigger » ailleurs dans la MÊME clé reste refusé.
+    expect(fautesDuDictionnaire(muter(en, cle, `${valeurEn} Delete this trigger.`), 'en')).toHaveLength(1)
+    // « déclencheur » dans la même clé reste refusé.
+    expect(fautesDuDictionnaire(muter(fr, cle, `${valeurFr} Supprime ce déclencheur.`), 'fr')).toHaveLength(1)
+    // La même citation, portée par une AUTRE clé, n'est pas couverte.
+    expect(fautesDuDictionnaire(muter(en, 'automations.triggers.sub', citationEn), 'en')).toHaveLength(1)
+    expect(fautesDuDictionnaire(muter(fr, 'automations.triggers.sub', `${citationFr}, un déclencheur`), 'fr')).toHaveLength(1)
+    // Sans l'exception, la clé rougirait bien en anglais : l'exception sert, elle n'est pas décorative.
+    expect(fautes(valeurEn, 'en')).not.toEqual([])
   })
 
   it('une copie mutée en mémoire rougit, et la faute nomme sa clé', () => {

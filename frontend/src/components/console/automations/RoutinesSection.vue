@@ -12,7 +12,7 @@
 // et son résultat se lit dans la session. Elle s'appelait « Automatisations » alors
 // qu'elle ne montre que ces routines (renommée par oto#205).
 import { computed, onMounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { Translation, useI18n } from 'vue-i18n'
 import ConsoleCard from '../ConsoleCard.vue'
 import { getConnectorInstances } from '@/api/console'
 import type { ConnectorInstance } from '@/types/api'
@@ -48,14 +48,16 @@ onMounted(load)
     <div class="card-body">
       <p v-if="error" class="au-err">{{ error }}</p>
 
-      <p v-else-if="loaded && !routines.length" class="au-empty">
-        Aucune automatisation configurée. Crée une routine sur
-        <a href="https://claude.ai/code/routines" target="_blank" rel="noopener">claude.ai/code/routines</a>
-        (prompt + connecteur Oto), active son lancement par <strong>API</strong>, génère
-        son jeton — il n'est affiché qu'une fois — puis pose-le ici comme credential du
-        connecteur <RouterLink to="/connectors">Routine Claude Code</RouterLink>.
-        Une routine par automatisation : le jeton ne déclenche que la sienne.
-      </p>
+      <!-- Le chemin CITE l'écran d'Anthropic tel qu'il s'affiche, en anglais seulement
+           (« Add another trigger → API », doc des routines Claude Code, section « Add an API
+           trigger ») : décrire l'effet ne dit pas quoi chercher dans l'écran. -->
+      <Translation v-else-if="loaded && !routines.length" keypath="automations.routines.empty" tag="p"
+        class="au-empty" data-test="routines-vide">
+        <template #site>
+          <a href="https://claude.ai/code/routines" target="_blank" rel="noopener">claude.ai/code/routines</a>
+        </template>
+        <template #connector><RouterLink to="/connectors">Routine Claude Code</RouterLink></template>
+      </Translation>
 
       <ul v-else class="au-list">
         <li v-for="i in routines" :key="i.ref" class="au-item">

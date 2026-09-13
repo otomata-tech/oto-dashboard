@@ -458,7 +458,8 @@
       },
       "routines": {
         "title": "Routines Claude Code",
-        "sub": "Un agent autonome qui tourne chez Anthropic, avec tes outils oto branchés."
+        "sub": "Un agent autonome qui tourne chez Anthropic, avec tes outils oto branchés.",
+        "empty": "Aucune automatisation configurée. Crée une routine sur {site} (prompt + connecteur Oto), dans son écran ajoute un trigger « API » (Add another trigger → API), génère son jeton — il n'est affiché qu'une fois — puis pose-le ici comme credential du connecteur {connector}. Une routine par automatisation : le jeton ne déclenche que la sienne."
       },
       "run": {
         "absent": "Aucune exécution en vol ne porte le run {run} : il n'est plus en cours.",
