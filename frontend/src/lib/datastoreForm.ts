@@ -1,9 +1,11 @@
 // Formulaire typé du drawer datastore (schéma v2, ADR 0046) : descriptors de
 // champs DÉRIVÉS du schéma (ordre déclaré, label, requis, type) + coercion
-// draft ⇄ payload par type déclaré. Fonctions PURES (testables sans DOM).
+// draft → payload d'un scalaire par type déclaré. Fonctions PURES (testables sans DOM).
 // Le front n'impose pas la validation (le backend refuse à l'écriture) — il
-// PRÉPARE des valeurs du bon type et SIGNALE les requis.
+// PRÉPARE des valeurs du bon type et SIGNALE les requis. Le brouillon d'une ligne et
+// ce qu'il écrit (différence, sentinelles, listes renvoyées entières) : `rowDraft.ts`.
 import type { DatastoreField, DatastoreRow, DatastoreSchema } from '@/types/api'
+import { estCleDeCouche } from './rowCells'
 
 export interface FieldDesc {
   key: string
@@ -29,12 +31,15 @@ export const subFieldsOf = (f: DatastoreField): DatastoreField[] =>
   f.type === 'object' ? (f.fields ?? []) : ((f.of && 'fields' in f.of && f.of.fields) || [])
 
 /** Champs du formulaire : déclarés au schéma D'ABORD (ordre déclaré), puis les
- * champs de la row / colonnes connues / ajoutés non déclarés (rien n'est masqué). */
+ * champs de la row / colonnes connues / ajoutés non déclarés (rien n'est masqué).
+ * `sansCouches` écarte les couches servies À PLAT (`adresse.comment`) : l'édition ne
+ * les offre pas comme des champs — `adresse.origine` saisi partirait comme une origine. */
 export function formFields(
   schema: DatastoreSchema | null | undefined,
-  row: DatastoreRow | null,
+  row: Record<string, unknown> | DatastoreRow | null,
   known: string[],
   extra: string[],
+  sansCouches = false,
 ): FieldDesc[] {
   const out: FieldDesc[] = []
   const seen = new Set<string>()
@@ -48,7 +53,7 @@ export function formFields(
     seen.add(f.key)
   }
   for (const k of [...Object.keys(row ?? {}), ...known, ...extra])
-    if (!k.startsWith('_') && !seen.has(k)) {
+    if (!k.startsWith('_') && !seen.has(k) && !(sansCouches && estCleDeCouche(k))) {
       out.push({ key: k, label: k, type: null, required: false, declared: false })
       seen.add(k)
     }
@@ -62,49 +67,9 @@ export function scalarDraft(v: unknown): string {
   return String(v)
 }
 
-/** Copie profonde d'une valeur de row — JSON par construction (elle sort de l'API).
- * PAS `structuredClone` : la row arrive au drawer en prop RÉACTIVE, donc ses valeurs
- * imbriquées sont des Proxy Vue, que l'algo de clonage structuré refuse
- * (`DataCloneError: [object Array] could not be cloned` — Sentry, 2 users). Le
- * round-trip JSON déproxifie ET copie en profondeur d'un seul geste. */
-const cloneValue = <T>(v: T): T => JSON.parse(JSON.stringify(v))
-
-/** Valeur de draft COMPOSITE (structurée) depuis la valeur row. */
-export function compositeDraft(f: DatastoreField, v: unknown): unknown {
-  if (f.type === 'list') {
-    if (Array.isArray(v)) return cloneValue(v)
-    return v == null || v === '' ? [] : [v]
-  }
-  return v && typeof v === 'object' && !Array.isArray(v) ? cloneValue(v) : {}
-}
-
-function pruneRecord(rec: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {}
-  for (const [k, v] of Object.entries(rec)) if (v !== '' && v != null) out[k] = v
-  return out
-}
-
-/** Nettoie un composite édité : champs vides retirés, items vides drop. */
-export function pruneComposite(f: DatastoreField, v: unknown): unknown {
-  if (f.type === 'list') {
-    const arr = Array.isArray(v) ? v : []
-    return arr
-      .map((item) =>
-        item && typeof item === 'object' && !Array.isArray(item)
-          ? pruneRecord(item as Record<string, unknown>)
-          : item)
-      .filter((item) =>
-        item !== '' && item != null &&
-        !(typeof item === 'object' && !Array.isArray(item) && !Object.keys(item as object).length))
-  }
-  if (v && typeof v === 'object' && !Array.isArray(v)) return pruneRecord(v as Record<string, unknown>)
-  return v
-}
-
-/** Valeur de payload depuis le draft, coercée par le TYPE DÉCLARÉ. Champ non
- * déclaré = comportement historique (JSON si parsable, sinon string). */
+/** Valeur de payload d'un SCALAIRE depuis sa saisie, coercée par le TYPE DÉCLARÉ. Champ
+ * non déclaré = comportement historique (JSON si parsable, sinon string). */
 export function payloadValue(d: FieldDesc, raw: unknown): unknown {
-  if (d.declared && isComposite(d.field)) return pruneComposite(d.field!, raw)
   const s = typeof raw === 'string' ? raw : String(raw ?? '')
   const t = s.trim()
   if (t === '') return ''
@@ -119,9 +84,3 @@ export function payloadValue(d: FieldDesc, raw: unknown): unknown {
   }
   try { return JSON.parse(t) } catch { return s }
 }
-
-/** Vide au sens « ne pas écrire à la création » ('' / null / [] / {}). */
-export const isEmptyPayloadValue = (x: unknown): boolean =>
-  x === '' || x == null ||
-  (Array.isArray(x) && !x.length) ||
-  (typeof x === 'object' && !Array.isArray(x) && !Object.keys(x as object).length)

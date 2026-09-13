@@ -404,7 +404,33 @@
     "bad_tz": "fuseau horaire inconnu",
     "bad_quiet_hours": "les heures calmes doivent être deux heures différentes entre 0 et 23",
     "nothing_to_set": "rien à enregistrer",
-    "unknown_scheduled_email": "cet email a disparu, est déjà envoyé ou déjà annulé"
+    "unknown_scheduled_email": "cet email a disparu, est déjà envoyé ou déjà annulé",
+    "revision_missing": "le serveur n'a pas servi la révision de cette ligne : elle ne peut pas être modifiée sans risquer d'écraser une autre écriture"
+  },
+  "rowEditor": {
+    "emptyAssumed": "vide assumé",
+    "emptyAssumedHint": "déclarer ce champ vide volontairement — saisir une valeur retire la bascule",
+    "cleared": "effacé",
+    "reading": "relecture de la ligne…",
+    "readFailed": "la ligne n'a pas pu être relue pour être modifiée : {reason}",
+    "invalidField": "valeur refusée par le schéma du tableau",
+    "invalid": "enregistrement refusé : {reason}",
+    "locked": "cette ligne est réservée par un traitement en cours : rien n'a été enregistré, ton brouillon est gardé.",
+    "saveFailed": "l'enregistrement a échoué : {reason} — ton brouillon est gardé.",
+    "conflict": {
+      "title": "cette ligne a changé depuis que tu l'as ouverte : rien n'a été enregistré, ton brouillon est gardé.",
+      "rereading": "relecture de la version actuelle…",
+      "rereadFailed": "la version actuelle n'a pas pu être relue : {reason}",
+      "read": "version relue",
+      "draft": "ton brouillon",
+      "keepRead": "garder la version relue",
+      "keepDraft": "garder mon brouillon",
+      "takenFromRead": "modifiée ailleurs seulement : la version relue sera reprise.",
+      "draftKept": "modifiée dans ton brouillon seulement : ta saisie est gardée.",
+      "noDataChange": "aucune colonne ne diffère dans la version relue : seule la révision a bougé (un bail pris ou rendu, par exemple).",
+      "after": "rien n'est renvoyé : tranche chaque colonne modifiée des deux côtés, reprends sur la version relue, puis enregistre de nouveau.",
+      "rebase": "reprendre sur la version relue"
+    }
   },
   "target": {
     "doc": {

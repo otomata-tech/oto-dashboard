@@ -1,12 +1,9 @@
 // Formulaire typé du drawer (schéma v2) — helpers PURS : ordre/descriptors des
-// champs, coercion draft ⇄ payload par type déclaré, nettoyage des composites.
+// champs, coercion saisie → payload d'un scalaire par type déclaré. Le brouillon d'une
+// ligne et ce qu'il écrit (plus aucun élagage, oto#213) : `rowDraft.spec.ts`.
 import { describe, expect, it } from 'vitest'
-import { reactive } from 'vue'
-import type { DatastoreField, DatastoreSchema } from '@/types/api'
-import {
-  compositeDraft, formFields, isEmptyPayloadValue, isSubRecordList,
-  payloadValue, pruneComposite,
-} from './datastoreForm'
+import type { DatastoreSchema } from '@/types/api'
+import { formFields, isSubRecordList, payloadValue } from './datastoreForm'
 
 const schema: DatastoreSchema = {
   key: 'siren',
@@ -34,6 +31,13 @@ describe('formFields', () => {
     expect(out.some((d) => d.key.startsWith('_'))).toBe(false)
     expect(out.find((d) => d.key === 'notes')?.requiredWhen).toEqual({ statut: 'qualified' })
   })
+  it('sansCouches : une couche servie à plat n’est pas offerte comme un champ', () => {
+    const ligne = { _id: 'r1', adresse: 'x', 'adresse.comment': 'c', 'adresse.origine': 'o' }
+    const cles = (sans: boolean) => formFields(null, ligne, ['ville.link'], [], sans).map((d) => d.key)
+    expect(cles(true)).toEqual(['adresse'])
+    // la lecture seule garde l'affichage historique
+    expect(cles(false)).toEqual(['adresse', 'adresse.comment', 'adresse.origine', 'ville.link'])
+  })
 })
 
 describe('payloadValue', () => {
@@ -55,10 +59,6 @@ describe('payloadValue', () => {
     expect(payloadValue(d, '12')).toBe(12)
     expect(payloadValue(d, 'abc')).toBe('abc')
   })
-  it('composite : prune les champs vides et les items vides', () => {
-    expect(payloadValue(desc('contacts'), [{ nom: 'Jean', email: '' }, {}]))
-      .toEqual([{ nom: 'Jean' }])
-  })
 })
 
 describe('composites', () => {
@@ -67,36 +67,5 @@ describe('composites', () => {
   it('isSubRecordList distingue list de sous-records vs list scalaire', () => {
     expect(isSubRecordList(contacts)).toBe(true)
     expect(isSubRecordList(idcc)).toBe(false)
-  })
-  it('compositeDraft normalise (null → vide, scalaire isolé → [x])', () => {
-    expect(compositeDraft(contacts, null)).toEqual([])
-    expect(compositeDraft(idcc, 'a')).toEqual(['a'])
-    expect(compositeDraft({ key: 'o', type: 'object', fields: [] } as DatastoreField, null)).toEqual({})
-  })
-  it('compositeDraft clone une valeur RÉACTIVE (proxy Vue) sans DataCloneError', () => {
-    // La row arrive au drawer en prop réactive : structuredClone refusait le proxy.
-    const row = reactive({ contacts: [{ nom: 'x' }], meta: { a: 1 } })
-    const list = compositeDraft(contacts, row.contacts) as { nom: string }[]
-    expect(list).toEqual([{ nom: 'x' }])
-    list[0]!.nom = 'muté' // le draft est bien une COPIE : la row reste intacte
-    expect(row.contacts[0]!.nom).toBe('x')
-    expect(compositeDraft({ key: 'o', type: 'object', fields: [] } as DatastoreField, row.meta))
-      .toEqual({ a: 1 })
-  })
-  it('pruneComposite objet : champs vides retirés', () => {
-    expect(pruneComposite({ key: 'o', type: 'object', fields: [] } as DatastoreField,
-      { a: 'x', b: '', c: null })).toEqual({ a: 'x' })
-  })
-})
-
-describe('isEmptyPayloadValue', () => {
-  it('vide = "" / null / [] / {}', () => {
-    expect(isEmptyPayloadValue('')).toBe(true)
-    expect(isEmptyPayloadValue(null)).toBe(true)
-    expect(isEmptyPayloadValue([])).toBe(true)
-    expect(isEmptyPayloadValue({})).toBe(true)
-    expect(isEmptyPayloadValue(0)).toBe(false)
-    expect(isEmptyPayloadValue(false)).toBe(false)
-    expect(isEmptyPayloadValue([{}])).toBe(false)
   })
 })

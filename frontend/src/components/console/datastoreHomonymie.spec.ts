@@ -24,6 +24,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createApp, nextTick } from 'vue'
+import { i18n } from '@/lib/i18n'
 
 // ── le monde autour de l'écran (aucun réseau, aucun Logto, aucun routeur réel) ──
 vi.mock('@/composables/useAuth', () => ({
@@ -84,6 +85,12 @@ function resoudre(adresse: string) {
 
 /** Chaque segment `{datastore}` adressé par l'écran, dans l'ordre. */
 const adresses: string[] = []
+/** Les lectures de LA fiche, avec leur query : à plat (table) et réinscriptible (éditeur). */
+const lecturesDeFiche: string[] = []
+/** Toute requête que ce faux serveur ne connaît pas. ⚠️ Il répondait à tout — `…/rows/{id}/activity`
+ * recevait une LISTE de lignes, et un reste inconnu `{ ok: true }` : le banc restait vert pour
+ * de mauvaises raisons. Une route non simulée est désormais un échec du test. */
+const nonSimulees: string[] = []
 
 function repondre(corps: unknown) {
   return { ok: true, status: 200, json: async () => corps } as unknown as Response
@@ -91,26 +98,40 @@ function repondre(corps: unknown) {
 
 beforeEach(() => {
   adresses.length = 0
-  vi.stubGlobal('fetch', async (url: string) => {
-    const chemin = new URL(url).pathname
-    if (chemin === '/api/datastores') return repondre({ datastores: [MIEN] })
-    const m = /^\/api\/datastores\/([^/]+)(\/.*)?$/.exec(chemin)
-    if (!m) return repondre({})
+  lecturesDeFiche.length = 0
+  nonSimulees.length = 0
+  vi.stubGlobal('fetch', async (url: string, init: RequestInit = {}) => {
+    const u = new URL(url)
+    const query = u.searchParams.toString()
+    const inconnue = () => {
+      nonSimulees.push(`${init.method ?? 'GET'} ${u.pathname}${u.search}`)
+      return { ok: false, status: 599, json: async () => ({ error: 'non_simulee' }) } as unknown as Response
+    }
+    if ((init.method ?? 'GET') !== 'GET') return inconnue()
+    if (u.pathname === '/api/datastores' && !query) return repondre({ datastores: [MIEN] })
+    const m = /^\/api\/datastores\/([^/]+)(\/.*)?$/.exec(u.pathname)
+    if (!m) return inconnue()
     const adresse = decodeURIComponent(m[1] ?? '')
     adresses.push(adresse)
     const cible = resoudre(adresse)
     if (!cible) return { ok: false, status: 404, json: async () => ({ error: 'not_found' }) } as unknown as Response
     const queue = m[2] ?? ''
-    const fiche = /^\/rows\/([^/?]+)$/.exec(queue)
-    if (fiche) return repondre({ _id: fiche[1], societe: `FICHE-DE-${cible.id}` })
-    if (queue.startsWith('/rows')) {
+    const fiche = /^\/rows\/([^/]+)$/.exec(queue)
+    if (fiche && (!query || query === 'empties=sentinel&layers=nested')) {
+      lecturesDeFiche.push(query)
+      const ligne = { _id: fiche[1], societe: `FICHE-DE-${cible.id}` }
+      return repondre(query ? { ...ligne, _revision: '1' } : ligne)
+    }
+    if (/^\/rows\/[^/]+\/activity$/.test(queue) && !query)
+      return repondre({ activity: [], key: null, retention_days: 30 })
+    if (queue === '/rows') {
       const lignes = LIGNES[cible.id] ?? []
       return repondre({ rows: lignes, total: lignes.length, offset: 0, limit: 25 })
     }
-    if (queue.startsWith('/aggregate')) return repondre({ groups: [] })
-    if (queue.startsWith('/queue')) return repondre({ rows: [] })
-    if (queue.startsWith('/activity')) return repondre({ activity: [], retention_days: 30 })
-    return repondre({ ok: true })
+    if (queue === '/aggregate') return repondre({ groups: [] })
+    if (queue === '/queue' && !query) return repondre({ rows: [] })
+    if (queue === '/activity') return repondre({ activity: [], retention_days: 30 })
+    return inconnue()
   })
 })
 
@@ -121,7 +142,7 @@ const vider = async () => {
 async function monterSurLeRecu() {
   const hote = document.createElement('div')
   document.body.appendChild(hote)
-  createApp(DatastoreTable, { nsRef: String(RECU.id), nsMeta: RECU }).mount(hote)
+  createApp(DatastoreTable, { nsRef: String(RECU.id), nsMeta: RECU }).use(i18n).mount(hote)
   await vider()
   return hote
 }
@@ -134,6 +155,7 @@ describe('un tableau reçu, homonyme d un des siens', () => {
     // …mais les lignes doivent venir du tableau REÇU.
     expect(hote.textContent).toContain('CLIENT-RECU-EN-PARTAGE')
     expect(hote.textContent).not.toContain('MON-CLIENT-A-MOI')
+    expect(nonSimulees).toEqual([])
   })
 
   it('n adresse le serveur QUE par l identifiant', async () => {
@@ -145,10 +167,13 @@ describe('un tableau reçu, homonyme d un des siens', () => {
     bouton?.dispatchEvent(new Event('click', { bubbles: true }))
     await vider()
 
-    // Six routes au moins : lignes, deux agrégats, file, fiche hors page, journal.
+    // Huit routes au moins : lignes, deux agrégats, file, fiche hors page à plat, sa
+    // relecture réinscriptible par l'éditeur (oto#213), le journal de la fiche, celui du tableau.
+    expect(lecturesDeFiche).toEqual(['', 'empties=sentinel&layers=nested'])
     expect(new Set(adresses).size).toBeGreaterThan(0)
-    expect(adresses.length).toBeGreaterThanOrEqual(6)
+    expect(adresses.length).toBeGreaterThanOrEqual(8)
     expect(adresses).toEqual(adresses.map(() => String(RECU.id)))
+    expect(nonSimulees).toEqual([])
   })
 })
 

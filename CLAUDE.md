@@ -114,7 +114,7 @@ L'identité Otomata se définit dans `oto-studio/brand/` et s'implémente pour l
 | `connecteurs.md` | moteur unique `connector-scope` (3 surfaces), les retraits d'oto#192, verdict-first, 3 projections ADR 0022, carte-shell, compte partagé, multi-compte, formulaire de credential, fédération MCP, hubs à onglets. |
 | `orgs-groupes-invitations.md` | qui est admin d'org pour l'écran, garde serveur par écran (oto#210), écrire en consultation — recensement des gestes et mesure contre le middleware (oto#211), roster des équipes (ADR 0012) et retrait du scope d'équipe (oto#192), droits par verbe sur les procédures (historique), invitations en cascade aux 2 niveaux. |
 | `projets.md` | index + page `/projects/:id`, slots & inventaire dérivé (ADR 0035), partage navigable `<slug>.share.oto.cx`. |
-| `datastore.md` | grille server-driven, vue fiches, deeplink par id, ownership ADR 0030, partage unifié, file de travail et run qui tient une ligne. |
+| `datastore.md` | grille server-driven, vue fiches, deeplink par id, ownership ADR 0030, partage unifié, éditeur de lignes (relecture réinscriptible, différence seule, couches gardées, sentinelles, révision et refus — oto#213), file de travail et run qui tient une ligne. |
 | `agent-context.md` | agent readme (injecté, cumulable, ADR 0042), procédures, guides, onboarding devenu projet, fiche profil. |
 | `recherche.md` | popup ⌘K + page `/search`, un seul chemin de rendu, deep-link `?doc=`, backlinks. |
 | `identite-et-consultation.md` | affichage (sidebar) vs switch (popin), consultation vs maison (ADR 0023), « voir en tant que », hub `/account`. |

@@ -58,6 +58,14 @@ const CLASSEES: Record<string, string> = {
   // Le premier obstacle à l'envoi, écrit pour dire QUOI FAIRE — et les boutons qui
   // l'accomplissent (aperçu, essai, envoi) sont dans la même carte, sous l'alerte.
   'views/console/AdminOutreachView.vue#0': 'levier-voisin',
+  // Écriture de ligne refusée (oto#213). La ligne est RÉSERVÉE par un traitement en cours :
+  // rien n'est demandé au lecteur, et rien n'est renvoyé — l'écran le dit, c'est tout.
+  'components/console/RowWriteRefusal.vue#1': 'informatif',
+  // Refus du schéma qu'aucun champ affiché ne porte : le formulaire de la fiche est dessous.
+  'components/console/RowWriteRefusal.vue#2': 'levier-voisin',
+  // Échec d'écriture qui n'est pas un refus traité (réseau, 500) : le brouillon est gardé,
+  // « Save » est dans le pied de la même fiche.
+  'components/console/RowWriteRefusal.vue#3': 'levier-voisin',
 }
 const RAISONS = new Set(['informatif', 'levier-voisin'])
 

@@ -8,6 +8,7 @@
 //   le reste (badge/metric/scalaires, déclarés ou non) → grille compacte 2 col,
 //   inputs typés (number/bool), requis marqués (* / required_when).
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Btn from './Btn.vue'
 import Icon from './Icon.vue'
 import Tag from './Tag.vue'
@@ -16,18 +17,18 @@ import FormDialog from './FormDialog.vue'
 import SubRecordEditor from './SubRecordEditor.vue'
 import ModalOverlay from './ModalOverlay.vue'
 import RowAbandonNotice from './RowAbandonNotice.vue'
+import RowActivityList from './RowActivityList.vue'
+import RowWriteRefusal from './RowWriteRefusal.vue'
+import VideAssumeToggle from './VideAssumeToggle.vue'
 import { useFormDialog } from '@/composables/useFormDialog'
-import type { DatastoreRow, DatastoreSchema, RowActivityEntry } from '@/types/api'
+import { useRowEditor } from '@/composables/useRowEditor'
+import type { DatastoreRow, DatastoreSchema } from '@/types/api'
 import type { LifecycleIntent } from '@/lib/datastoreLifecycle'
 import { abandonVerdict, claimBudget } from '@/lib/datastoreClaims'
-import { cellKind, absDate, relDate } from '@/lib/cellRender'
-import { actorOf, changeOf, originLabel, originTone, whenOf } from '@/lib/rowActivity'
+import { cellKind, absDate } from '@/lib/cellRender'
 import { bailLigne } from '@/lib/bailDeLigne'
-import {
-  compositeDraft, formFields, isComposite, isEmptyPayloadValue, payloadValue,
-  scalarDraft, type FieldDesc,
-} from '@/lib/datastoreForm'
-import { getRowActivity } from '@/api/console'
+import { isComposite, scalarDraft, type FieldDesc } from '@/lib/datastoreForm'
+import { accepteVideColonne } from '@/lib/rowDraft'
 import { cleTitre } from '../../lib/datastoreTitle'
 
 const props = defineProps<{
@@ -43,20 +44,32 @@ const emit = defineEmits<{
   // Le 2e argument n'est posé que par une transition de cycle de vie : il porte
   // l'état d'AVANT, seul instant où on le connaît encore (cf. applyTransition).
   (e: 'save', payload: Record<string, unknown>, transition?: LifecycleIntent): void
+  (e: 'saved', row: DatastoreRow): void   // édition écrite par la fiche elle-même (oto#213)
   (e: 'delete'): void
   (e: 'close'): void
   (e: 'release'): void       // libération forcée du bail (file de travail)
 }>()
 
+const { t } = useI18n()
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
 
-// Drafts : scalaires en string d'input, composites déclarés en valeur structurée.
-const scalars = ref<Record<string, string>>({})
-const composites = ref<Record<string, unknown>>({})
+// Édition (oto#213) : la ligne est RELUE à l'ouverture, seule la différence part, sur la
+// révision lue, et les refus se traitent dans la fiche — tout cela vit dans `useRowEditor`.
+// Tant que la relecture n'est pas là, la fiche s'affiche en lecture (`editable`).
 const extra = ref<string[]>([])
-
-const editFields = computed<FieldDesc[]>(() =>
-  formFields(props.schema, props.row, props.fields, extra.value))
+const {
+  scalars, empties, composites, champs: editFields, basculerVide,
+  etat, echecLecture, refus, echecEcriture, echecRelecture, envoi,
+  ouvrir, rouvrir, fermer, aAjouter, enregistrer, relire,
+  choix, opposees, tranche, choisir, reprendre, refusDuChamp, refusHorsChamp,
+} = useRowEditor({
+  schema: () => props.schema,
+  ligne: () => props.row,
+  connues: () => props.fields,
+  ajoutees: () => extra.value,
+  sansCouches: () => !props.readOnly,
+})
+const editable = computed(() => !props.readOnly && (props.isNew || etat.value === 'prete'))
 
 // ── répartition PAR RÔLE (l'auto-adaptation au schéma) ──────────────────────
 // ⚠️ Résolu depuis le SCHÉMA puis apparié par clé : `FieldDesc` ne porte que
@@ -74,6 +87,9 @@ const lifecycleOpts = computed(() => lifecycleStates.value.map((s) => ({ value: 
 const BOOL_OPTIONS = [{ value: 'true', label: 'true' }, { value: 'false', label: 'false' }]
 const isLifecycleStatus = (d: FieldDesc) =>
   d.role === 'status' && lifecycleStates.value.length > 0
+// La bascule « vide assumé » : là où le contrat accepte la sentinelle, hors statut à cycle
+// de vie (qui ne change que par ses transitions). Un composite n'en a pas ; ses cellules d'élément si.
+const accepteVide = (d: FieldDesc) => accepteVideColonne(d) && !isLifecycleStatus(d)
 const compositeFields = computed(() =>
   editFields.value.filter((d) => d.declared && isComposite(d.field)))
 const longFields = computed(() =>
@@ -85,18 +101,11 @@ const gridFields = computed(() =>
     d.role !== 'note' && d.role !== 'qualif' &&
     !(isLifecycleStatus(d) && !props.isNew))) // le statut vit dans l'en-tête (sauf création)
 
-watch(() => [props.open, props.row], () => {
-  if (!props.open) return
+watch(() => [props.open, props.row?._id, props.isNew, props.readOnly], () => {
   extra.value = []
-  const s: Record<string, string> = {}
-  const c: Record<string, unknown> = {}
-  const base: Record<string, unknown> = props.row ?? {}
-  for (const d of formFields(props.schema, props.row, props.fields, [])) {
-    if (d.declared && isComposite(d.field)) c[d.key] = compositeDraft(d.field!, base[d.key])
-    else s[d.key] = scalarDraft(base[d.key])
-  }
-  scalars.value = s
-  composites.value = c
+  if (props.open && !props.isNew && !props.readOnly && props.row && props.datastore)
+    void ouvrir(props.datastore, props.row._id)
+  else fermer(props.row)
 }, { immediate: true })
 
 function addField() {
@@ -112,15 +121,19 @@ function addField() {
   })
 }
 
-function save() {
-  const payload: Record<string, unknown> = {}
-  for (const d of editFields.value) {
-    const raw = d.declared && isComposite(d.field) ? composites.value[d.key] : (scalars.value[d.key] ?? '')
-    const v = payloadValue(d, raw)
-    if (props.isNew && isEmptyPayloadValue(v)) continue // ajout : on n'écrit pas les vides
-    payload[d.key] = v
-  }
-  emit('save', payload)
+async function save() {
+  if (props.isNew) { emit('save', aAjouter()); return }
+  const ecrite = await enregistrer()
+  if (ecrite === 'inchangee') emit('close')   // rien n'a changé : aucun appel
+  else if (ecrite) emit('saved', ecrite)
+}
+
+/** Le refus du schéma rattaché à ce champ — la phrase du serveur, et l'élément visé. */
+function erreurDe(cle: string): string | null {
+  const r = refusDuChamp(cle)
+  if (!r) return null
+  const raison = r.detail ?? t('rowEditor.invalidField')
+  return r.chemin && r.chemin !== cle ? `${r.chemin} — ${raison}` : raison
 }
 
 function isLong(key: string): boolean {
@@ -233,20 +246,6 @@ function applyTransition(state: string) {
   emit('save', { [k]: state }, { key: k, from: currentStatus.value, to: state })
 }
 
-// ── historique de la fiche (ADR 0046 b4, élargi) : les appels corrélés à cette
-// fiche + leur run — chargé LAZY à l'ouverture (jamais en mode ajout). Le journal
-// ne recense plus les seuls gestes d'agent : ceux posés dans la console y figurent
-// aussi (kind=rest), d'où le badge d'origine — et le renommage de la section.
-const activity = ref<RowActivityEntry[] | null>(null)
-const activityFailed = ref(false)
-watch(() => [props.open, props.row?._id], async () => {
-  activity.value = null
-  activityFailed.value = false
-  if (!props.open || props.isNew || !props.row?._id || !props.datastore) return
-  try {
-    activity.value = (await getRowActivity(props.datastore, props.row._id)).activity
-  } catch { activityFailed.value = true }
-}, { immediate: true })
 </script>
 
 <template>
@@ -256,9 +255,13 @@ watch(() => [props.open, props.row?._id], async () => {
           <div class="rd-head-txt">
             <!-- le field role=title EST le titre de la fiche -->
             <template v-if="titleDesc">
-              <input v-if="!readOnly" v-model="scalars[titleDesc.key]" class="rd-title-input"
-                :placeholder="titleDesc.label" />
+              <div v-if="editable" class="rd-title-row">
+                <input v-model="scalars[titleDesc.key]" class="rd-title-input" :placeholder="titleDesc.label" />
+                <VideAssumeToggle v-if="accepteVide(titleDesc)" :model-value="!!empties[titleDesc.key]"
+                  @update:model-value="basculerVide(titleDesc.key, $event)" />
+              </div>
               <h3 v-else class="modal-title">{{ scalars[titleDesc.key] || '—' }}</h3>
+              <p v-if="erreurDe(titleDesc.key)" class="rd-err" role="alert">{{ erreurDe(titleDesc.key) }}</p>
             </template>
             <h3 v-else class="modal-title">{{ isNew ? 'new row' : 'row detail' }}</h3>
             <p v-if="!isNew" class="modal-desc mono">{{ row?._id ?? '' }}</p>
@@ -290,16 +293,31 @@ watch(() => [props.open, props.row?._id], async () => {
           <Btn v-if="row?._claimed_by && !readOnly" kind="mini" @click="emit('release')">Libérer le bail</Btn>
         </div>
 
+        <!-- une écriture refusée : le brouillon reste, rien n'est renvoyé d'ici (oto#213) -->
+        <RowWriteRefusal v-if="refus || echecEcriture" class="rd-refus" :refus="refus"
+          :echec="echecEcriture" :echec-relecture="echecRelecture" :opposees="opposees"
+          :choix="choix" :tranche="tranche" :hors-champ="refusHorsChamp"
+          @choisir="choisir" @reprendre="reprendre" @relire="relire" />
+
         <div class="rd-body">
+          <p v-if="etat === 'lecture'" class="dim rd-state">{{ t('rowEditor.reading') }}</p>
+          <p v-else-if="etat === 'echec'" class="rd-err rd-state" role="alert">
+            {{ t('rowEditor.readFailed', { reason: echecLecture }) }}
+            <Btn kind="link" @click="rouvrir">{{ t('common.retry') }}</Btn>
+          </p>
           <!-- scalaires courts : grille compacte 2 colonnes -->
           <div v-if="gridFields.length" class="rd-grid">
-            <div v-for="d in gridFields" :key="d.key" class="rd-field"
-              :class="{ wide: !readOnly && isWide(d) }">
-              <label class="rd-label">{{ d.label }}<span v-if="d.required" class="rd-req"
-                  title="champ requis">*</span><span v-else-if="d.requiredWhen" class="rd-req rd-req--soft"
-                  :title="`requis quand ${reqWhenLabel(d)}`">*</span></label>
+            <div v-for="d in gridFields" :key="d.key" class="rd-field" :data-field="d.key"
+              :class="{ wide: editable && isWide(d) }">
+              <div class="rd-label-row">
+                <label class="rd-label">{{ d.label }}<span v-if="d.required" class="rd-req"
+                    title="champ requis">*</span><span v-else-if="d.requiredWhen" class="rd-req rd-req--soft"
+                    :title="`requis quand ${reqWhenLabel(d)}`">*</span></label>
+                <VideAssumeToggle v-if="editable && accepteVide(d)" :model-value="!!empties[d.key]"
+                  @update:model-value="basculerVide(d.key, $event)" />
+              </div>
 
-              <template v-if="readOnly">
+              <template v-if="!editable">
                 <a v-if="urlOf(d.key)" :href="urlOf(d.key)!" target="_blank" rel="noopener" class="rd-link">
                   {{ row?.[d.key] }}
                 </a>
@@ -331,56 +349,41 @@ watch(() => [props.open, props.row?._id], async () => {
                 <!-- valeur ISO non déclarée `date` : on la rend lisible sans la modifier -->
                 <span v-if="dateHint(d)" class="rd-hint">{{ dateHint(d) }}</span>
               </template>
+              <p v-if="erreurDe(d.key)" class="rd-err" role="alert">{{ erreurDe(d.key) }}</p>
             </div>
           </div>
 
           <!-- sous-records déclarés : sections structurées -->
-          <div v-for="d in compositeFields" :key="d.key" class="rd-field rd-section">
+          <div v-for="d in compositeFields" :key="d.key" class="rd-field rd-section" :data-field="d.key">
             <label class="rd-label">{{ d.label }}<span v-if="d.required" class="rd-req"
                 title="champ requis">*</span></label>
-            <p v-if="readOnly" class="rd-readval">{{ readVal(d.key) }}</p>
-            <SubRecordEditor v-else :field="d.field!"
-              :model-value="composites[d.key]" @update:model-value="composites[d.key] = $event" />
+            <p v-if="!editable" class="rd-readval">{{ readVal(d.key) }}</p>
+            <SubRecordEditor v-else-if="composites[d.key]" :field="d.field!"
+              :model-value="composites[d.key]!" @update:model-value="composites[d.key] = $event" />
+            <p v-if="erreurDe(d.key)" class="rd-err" role="alert">{{ erreurDe(d.key) }}</p>
           </div>
 
           <!-- prose (note / qualif) : pleine largeur en pied de fiche -->
-          <div v-for="d in longFields" :key="d.key" class="rd-field rd-section">
-            <label class="rd-label">{{ d.label }}<span v-if="d.required" class="rd-req"
-                title="champ requis">*</span><span v-else-if="d.requiredWhen" class="rd-req rd-req--soft"
-                :title="`requis quand ${reqWhenLabel(d)}`">*</span></label>
-            <p v-if="readOnly" class="rd-readval">{{ readVal(d.key) }}</p>
+          <div v-for="d in longFields" :key="d.key" class="rd-field rd-section" :data-field="d.key">
+            <div class="rd-label-row">
+              <label class="rd-label">{{ d.label }}<span v-if="d.required" class="rd-req"
+                  title="champ requis">*</span><span v-else-if="d.requiredWhen" class="rd-req rd-req--soft"
+                  :title="`requis quand ${reqWhenLabel(d)}`">*</span></label>
+              <VideAssumeToggle v-if="editable && accepteVide(d)" :model-value="!!empties[d.key]"
+                @update:model-value="basculerVide(d.key, $event)" />
+            </div>
+            <p v-if="!editable" class="rd-readval">{{ readVal(d.key) }}</p>
             <textarea v-else v-model="scalars[d.key]" class="rd-input rd-area" rows="4"
               :placeholder="d.label" />
+            <p v-if="erreurDe(d.key)" class="rd-err" role="alert">{{ erreurDe(d.key) }}</p>
           </div>
 
           <p v-if="!editFields.length" class="dim" style="padding: 8px 0">no fields yet — add one below.</p>
 
-          <!-- les trois états sont rendus : une section qui s'évapore en cas d'échec
-               laisserait croire « aucune action sur cette fiche », soit exactement
-               l'angle mort que cet historique est censé fermer. -->
+          <!-- historique de la fiche : ses trois états sont rendus (RowActivityList) -->
           <div v-if="!isNew && datastore" class="rd-activity">
             <span class="rd-label">historique de la fiche</span>
-            <p v-if="activityFailed" class="dim rd-activity-state">
-              historique indisponible pour le moment.
-            </p>
-            <p v-else-if="activity && !activity.length" class="dim rd-activity-state">
-              aucune action enregistrée sur cette fiche.
-            </p>
-            <ul v-else-if="activity" class="rd-activity-list">
-              <li v-for="(a, i) in activity" :key="i" :class="{ err: !a.ok }">
-                <span class="mono dim" :title="absDate(whenOf(a))">{{ relDate(whenOf(a)) }}</span>
-                <Tag :tone="originTone(a)">{{ originLabel(a) }}</Tag>
-                <span v-if="changeOf(a)" class="rd-activity-change">{{ changeOf(a) }}</span>
-                <span class="dim">{{ actorOf(a) }}</span>
-                <span v-if="a.doctrine" class="dim">· {{ a.doctrine }}</span>
-                <code class="mono rd-activity-tool">{{ a.tool }}</code>
-                <span v-if="!a.ok" class="rd-activity-err" :title="a.error ?? undefined">échec</span>
-              </li>
-            </ul>
-            <p v-else class="dim rd-activity-state">chargement…</p>
-            <p v-if="activity && activity.length" class="rd-activity-note dim">
-              journal de travail (rétention ~30 j), pas un audit permanent.
-            </p>
+            <RowActivityList :datastore="datastore" :row-id="row?._id ?? null" />
           </div>
 
           <div v-if="!isNew && row?._updated_at" class="rd-meta dim mono">
@@ -398,11 +401,13 @@ watch(() => [props.open, props.row?._id], async () => {
         </div>
 
         <footer class="rd-foot">
-          <Btn v-if="!readOnly" kind="mini" icon="plus" @click="addField">Field</Btn>
+          <Btn v-if="editable" kind="mini" icon="plus" @click="addField">Field</Btn>
           <span class="rd-spacer" />
           <Btn v-if="!readOnly && !isNew" kind="danger" icon="trash" @click="emit('delete')">Delete</Btn>
           <Btn kind="ghost" @click="emit('close')">{{ readOnly ? 'Close' : 'Cancel' }}</Btn>
-          <Btn v-if="!readOnly" kind="mini" icon="check" @click="save">Save</Btn>
+          <!-- un conflit se tranche AVANT de réenregistrer : aucun renvoi tant qu'il est ouvert -->
+          <Btn v-if="!readOnly" kind="mini" icon="check" :disabled="!editable || envoi || refus?.sorte === 'conflit'"
+            @click="save">Save</Btn>
         </footer>
 
         <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
@@ -429,6 +434,12 @@ watch(() => [props.open, props.row?._id], async () => {
 }
 .rd-title-input:hover { border-color: var(--color-hair-soft); }
 .rd-title-input:focus { outline: none; border-color: var(--color-cobalt); background: var(--color-surface); }
+.rd-title-row, .rd-label-row { display: flex; align-items: center; gap: 6px; }
+.rd-label-row { justify-content: space-between; margin-bottom: 4px; }
+.rd-label-row .rd-label { margin-bottom: 0; }
+.rd-err { margin: 3px 0 0; font-size: 11.5px; color: var(--color-terra-ink); overflow-wrap: anywhere; }
+.rd-state { margin: 0 0 8px; font-size: 12px; }
+.rd-refus { margin: 0 18px 10px; }
 .rd-close {
   flex: none; border: 0; background: transparent; cursor: pointer; padding: 3px;
   border-radius: 7px; color: var(--color-faint); line-height: 0;
@@ -472,20 +483,6 @@ watch(() => [props.open, props.row?._id], async () => {
 .rd-run { font-weight: 600; color: var(--color-saffron-ink); }
 .rd-run:hover { color: var(--color-ink); }
 .rd-activity { margin: 14px 0 4px; padding-top: 8px; border-top: 1px dashed var(--color-hair-soft); }
-.rd-activity-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
-/* états vide / échec / chargement de l'historique, même gabarit que ses lignes */
-.rd-activity-state { margin: 4px 0 0; font-size: 11.5px; }
-.rd-activity-list li { font-size: 11.5px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; color: var(--color-ink-soft); }
-.rd-activity-list li.err { color: var(--color-terra-ink); }
-.rd-activity-list code { font-size: 11px; }
-/* ce qui a changé : la transition d'état, sinon les champs écrits */
-.rd-activity-change {
-  font-size: 11px; color: var(--color-ink);
-  background: var(--color-paper-2); border-radius: var(--radius-md); padding: 1px 7px;
-}
-.rd-activity-tool { color: var(--color-faint); margin-left: auto; }
-.rd-activity-err { font-size: 10px; color: var(--color-terra-ink); border: 1px solid currentColor; border-radius: var(--radius-pill); padding: 0 6px; }
-.rd-activity-note { margin: 6px 0 0; font-size: 10.5px; }
 .rd-foot {
   display: flex; align-items: center; gap: 8px; padding: 12px 18px 16px;
   border-top: 1px solid var(--color-hair-soft);

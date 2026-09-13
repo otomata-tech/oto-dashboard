@@ -11,7 +11,7 @@ import type {
   GoogleOauthStatus, GroupDetail, GroupListItem, InstructionDetail,
   InstructionVersion, LinkedProcedure, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption,
-  ColumnFilter, DatastoreRow, DatastoreEntry, SharedDatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, SharePrincipal, ToolCall, ToolEntry,
+  ColumnFilter, DatastoreRow, DatastoreEntry, SharedDatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, RewritableRow, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallDetail, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   ConnectorOAuthStatus, ConnectorOAuthDisconnected, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult,
@@ -729,6 +729,12 @@ export const getNamespaceAggregate = (ns: string, opts: AggregateQuery = {}) => 
 export const getNamespaceRow = (ns: string, rowId: string) =>
   api<DatastoreRow>(
     `/api/datastores/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`)
+// La même row, relue pour être RÉÉCRITE (oto#213) : vides assumés en sentinelle et
+// couches imbriquées — la seule forme qu'on peut renvoyer telle quelle sans rien perdre.
+export const getRewritableRow = (ns: string, rowId: string) =>
+  api<RewritableRow>(
+    `/api/datastores/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`
+    + '?empties=sentinel&layers=nested')
 // File de travail (ADR 0046 D) — supervision : rows sous bail (_claimed_by/_claimed_until).
 export const getNamespaceQueue = (ns: string) =>
   api<{ rows: DatastoreRow[] }>(`/api/datastores/${encodeURIComponent(ns)}/queue`)
@@ -784,9 +790,14 @@ export const unshareResource = (resource_type: string, resource_id: string, prin
 export const appendNamespaceRow = (ns: string, row: Record<string, unknown>) =>
   api<DatastoreRow>(`/api/datastores/${encodeURIComponent(ns)}/rows`,
     { method: 'POST', ...j(row) })
-export const updateNamespaceRow = (ns: string, rowId: string, patch: Record<string, unknown>) =>
+// `expectedRevision` : l'écriture n'a lieu que si la ligne est encore à cette révision,
+// sinon 409 `revision_conflict` et rien n'est écrit. En query, jamais dans le corps.
+export const updateNamespaceRow = (
+  ns: string, rowId: string, patch: Record<string, unknown>, expectedRevision?: string,
+) =>
   api<DatastoreRow>(
-    `/api/datastores/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`,
+    `/api/datastores/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`
+    + (expectedRevision === undefined ? '' : `?expected_revision=${encodeURIComponent(expectedRevision)}`),
     { method: 'PATCH', ...j(patch) })
 export const deleteNamespaceRow = (ns: string, rowId: string) =>
   api(`/api/datastores/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`,

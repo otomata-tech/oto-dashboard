@@ -917,7 +917,20 @@ export interface DatastoreRow extends BailDeLaLigne {
   _id: string
   _created_at?: string | null
   _updated_at?: string | null
+  // La révision de la ligne : un entier sérialisé en TEXTE (`str(rev)`, colonne
+  // `datastore_rows.rev`). Elle bouge avec les données ET avec le bail : deux lectures
+  // de même révision ont les mêmes données, l'inverse est faux.
+  _revision?: string | null
   [field: string]: unknown
+}
+
+// Une ligne relue pour être RÉÉCRITE (`?empties=sentinel&layers=nested`, contrat
+// oto#204 étape 2) : une case qui porte une couche arrive `{valeur, comment?, link?,
+// origine?}`, un vide assumé `{"valeur":"@empty"}` — au premier niveau comme dans une
+// cellule d'élément de liste. La révision y est EXIGÉE : sans elle, aucune écriture
+// conditionnelle, donc aucune écriture (`useRowEditor` refuse d'ouvrir l'édition).
+export interface RewritableRow extends DatastoreRow {
+  _revision: string
 }
 
 // Une entrée du JOURNAL du datastore (ADR 0046 b4, élargi) — une fiche ou un

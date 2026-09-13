@@ -404,7 +404,33 @@
     "bad_tz": "unknown timezone",
     "bad_quiet_hours": "quiet hours must be two different hours between 0 and 23",
     "nothing_to_set": "nothing to save",
-    "unknown_scheduled_email": "this email is gone, already sent, or already cancelled"
+    "unknown_scheduled_email": "this email is gone, already sent, or already cancelled",
+    "revision_missing": "the server did not serve this row's revision: it cannot be edited without risking overwriting another write"
+  },
+  "rowEditor": {
+    "emptyAssumed": "assumed empty",
+    "emptyAssumedHint": "declare this field deliberately empty — typing a value turns it off",
+    "cleared": "cleared",
+    "reading": "reading the row…",
+    "readFailed": "the row could not be read for editing: {reason}",
+    "invalidField": "value refused by the table's schema",
+    "invalid": "save refused: {reason}",
+    "locked": "this row is reserved by a job in progress: nothing was saved, your draft is kept.",
+    "saveFailed": "saving failed: {reason} — your draft is kept.",
+    "conflict": {
+      "title": "this row changed since you opened it: nothing was saved, your draft is kept.",
+      "rereading": "reading the current version…",
+      "rereadFailed": "the current version could not be read: {reason}",
+      "read": "current version",
+      "draft": "your draft",
+      "keepRead": "keep the current version",
+      "keepDraft": "keep my draft",
+      "takenFromRead": "changed elsewhere only: the current version will be taken.",
+      "draftKept": "changed in your draft only: your input is kept.",
+      "noDataChange": "no column differs in the current version: only the revision moved (a lease taken or released, for instance).",
+      "after": "nothing is sent: settle each column changed on both sides, rebase on the current version, then save again.",
+      "rebase": "rebase on the current version"
+    }
   },
   "target": {
     "doc": {

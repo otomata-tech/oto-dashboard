@@ -203,6 +203,62 @@ d'org qui décide du repli, jamais la nature du contenu.
   la main dans `types/api.ts` (pas dans `api.attendu.ts`, réservé à ce qu'une PR backend
   **ouverte** sert). `api:refresh` la ramènerait — avec toute la dérive accumulée.
 
+## L'éditeur de lignes : relire, écrire la différence, sur la révision lue (oto#213)
+
+La fiche (`RowDrawer.vue`) cassait l'aller-retour d'une ligne : elle prenait la ligne dans
+la page (à plat, sans révision), **élaguait** les `""`, les `null` et les éléments vides
+avant d'écrire (un vide assumé ou un élément de liste disparaissait), et renvoyait la
+**projection entière** du formulaire sans précondition — une écriture concurrente était
+écrasée. Vider un champ ne faisait rien (`""` est écarté sur une valeur en place).
+
+Désormais, pour une ligne existante et modifiable (`composables/useRowEditor.ts`) :
+
+- **Relecture à l'ouverture**, par l'id, en forme réinscriptible :
+  `GET …/rows/{id}?empties=sentinel&layers=nested` (`getRewritableRow`). La ligne de la
+  page reste affichée **en lecture** le temps de la relire. Sans `_revision` servie
+  (texte), l'édition ne s'ouvre pas (`errors.revision_missing`).
+- **Seule la différence part** (`lib/rowDraft.ts`, `correctif`) : une colonne n'est nommée
+  que si sa saisie a changé. Aller-retour sans modification = corps vide = **aucun PATCH**
+  (la fiche se ferme). Un ajout est la différence avec une ligne vide.
+- **Rien n'est élagué, ni retiré sans geste** : une colonne liste part entière, chaque
+  élément tel que relu (ses `""`, ses `{"valeur":"@empty"}`, un élément `null` compris),
+  avec ses seules cellules modifiées réécrites. Le serveur ne sait pas signaler un élément
+  retiré (son relevé des vides perdus se compte par attribut) : seul le bouton « retirer »
+  en retire un. `origine` n'est **jamais** renvoyée (`caseIntacte`) ; une couche servie à
+  plat (`adresse.comment`) n'est pas offerte comme un champ en édition (`formFields(…, sansCouches)`).
+- **Une case modifiée garde ses couches** (`avecCouches`) : elle part comme l'objet lu,
+  `comment` et `link` compris, `valeur` seule changée — `@clear` et `@empty` compris. Une
+  valeur écrite sans ses couches les fait tomber (`origine` survit d'elle-même). Une case
+  lue nue part nue.
+- **Sentinelles** : vider une valeur écrit `@clear` ; la bascule « vide assumé »
+  (`VideAssumeToggle.vue`) écrit `@empty`, se désactive quand on saisit une valeur, et
+  désactivée sans valeur écrit `@clear`. Offerte sur un champ scalaire (hors `json` et hors
+  statut à cycle de vie) et sur une cellule d'élément de liste de sous-records, **jamais**
+  sur l'attribut d'identité (`of.key`), dans une liste de valeurs, un objet ou une colonne
+  `json` — le serveur y refuse la sentinelle en 400 ; là, vider écrit `""` comme avant.
+- **Écriture** : le PATCH existant avec `?expected_revision=<_revision lue>`.
+- **Refus** (`lib/rowRefusal.ts`, `RowWriteRefusal.vue`), brouillon toujours gardé :
+  - 409 `revision_conflict` : la ligne est relue, la version relue est montrée à côté du
+    brouillon colonne par colonne (`lib/rowConflict.ts`). Modifiée des deux côtés → la
+    personne choisit ; modifiée ailleurs seulement → reprise ; dans le brouillon seulement
+    → gardée. « reprendre sur la version relue » **n'envoie rien** : la personne
+    réenregistre, et seule la différence avec la version relue part. Aucun nouvel essai
+    automatique. ⚠️ La révision bouge aussi avec le bail : un 409 peut arriver à données
+    identiques, l'écran le dit.
+  - 409 `row_locked` : dit, sans renvoi.
+  - 400 `row_invalid` : rattaché au champ nommé par `details.expected_column` (la phrase
+    du serveur sous le champ) ; sinon dit en tête de fiche. ⚠️ Le serveur n'envoie pas
+    `expected_column` pour une cellule d'élément de liste : le chemin n'est que dans la
+    phrase, et l'écran ne la lit **jamais** pour deviner un champ (`rowEditor.spec.ts`).
+  - `row_invalid` et `row_locked` sont rendus par `POST rows` et `PATCH rows/{id}` mais
+    ne sont pas déclarés dans l'OpenAPI : ils se lisent dans l'enveloppe générique
+    `{error, detail, details}` (`ApiError`), sans type servi.
+
+Hors lot : l'éditeur des couches (valeur, `comment`, `link`), et les transitions de cycle
+de vie, qui écrivent toujours leur seule colonne sans précondition de révision (par la table).
+Bancs : `lib/rowDraft.spec.ts` (pur), `components/console/rowEditor.spec.ts` (monté contre
+un faux store à compare-and-set, qui juge l'état du store et les requêtes parties).
+
 ## La file de travail d'un tableau, et le run qui tient une ligne
 
 Le bandeau de supervision (`DatastoreQueueBar.vue`, ADR 0046 D) liste les lignes **sous

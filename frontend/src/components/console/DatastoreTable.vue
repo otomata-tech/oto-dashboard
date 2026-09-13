@@ -365,6 +365,13 @@ const { announceTransition } = useTransitionUndo({
   refresh: refreshAll,
 })
 
+// L'ÉDITION d'une ligne existante s'écrit dans la fiche (oto#213 : relue, différence,
+// révision, refus traités sur place) et remonte par `saved`. Ne passent ici que l'ajout
+// et les transitions de cycle de vie.
+async function onSaved() {
+  toast('row saved')
+  closeDrawer(); await refreshAll()
+}
 async function onSave(payload: Record<string, unknown>, transition?: LifecycleIntent) {
   const n = dsRef.value
   if (!n) return
@@ -536,7 +543,7 @@ async function transfer() {
 
     <RowDrawer :open="drawerOpen" :row="drawerRow" :fields="fields" :is-new="drawerNew"
       :read-only="readOnly" :schema="meta.schema ?? null" :datastore="dsRef"
-      @save="onSave" @delete="onDelete" @close="closeDrawer"
+      @save="onSave" @saved="onSaved" @delete="onDelete" @close="closeDrawer"
       @release="drawerRow && onRelease(drawerRow._id)" />
     <SharePrincipalDialog :open="shareOpen" resource-type="datastore_namespace"
       :resource-id="String(meta.id)" :resource-label="name ?? undefined"
