@@ -991,12 +991,6 @@ export const createPlatformKey = (provider: string, label: string, api_key: stri
 export const deletePlatformKey = (provider: string, label: string) =>
   api(`/api/admin/platform-keys/${encodeURIComponent(provider)}/${encodeURIComponent(label)}`, { method: 'DELETE' })
 
-// platform key grants au niveau ORG (couche 2, partage à tous les membres) — super_admin
-export const grantOrgPlatformKey = (orgId: number, provider: string, daily_quota?: number) =>
-  api(`/api/admin/orgs/${orgId}/grants/${encodeURIComponent(provider)}`, { method: 'POST', ...j({ daily_quota }) })
-export const revokeOrgPlatformKey = (orgId: number, provider: string) =>
-  api(`/api/admin/orgs/${orgId}/grants/${encodeURIComponent(provider)}`, { method: 'DELETE' })
-
 // accès plateforme connecteur-centrique (ADR 0044 §H) : « qui, au niveau plateforme, a
 // droit à ce connecteur » = grant de clé (couche 2) ∪ option comp (couche 3) en UN acte.
 export const getPlatformAccess = (provider: string) =>
