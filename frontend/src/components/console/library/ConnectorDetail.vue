@@ -11,6 +11,7 @@ import ConnectorBadges from '@/components/console/ConnectorBadges.vue'
 import DocSections from '@/components/console/DocSections.vue'
 import ConnectorToolDialog from '@/components/console/library/ConnectorToolDialog.vue'
 import { authExplain, authModesExplain } from '@/lib/connectorAuth'
+import { useMe, canWriteInOrg } from '@/composables/useMe'
 import type { DocSection, MyConnector, ToolRegistryEntry } from '@/types/api'
 
 const props = defineProps<{
@@ -34,6 +35,9 @@ const sortedTools = computed(() =>
 const keyProviders = computed(() => authModesExplain(c.value))
 const fields = computed(() => c.value.credential_fields ?? [])
 const installed = computed(() => c.value.state !== 'not_selected')
+// Installer est une écriture, refusée en consultation (oto#212).
+const { me } = useMe()
+const canWrite = computed(() => canWriteInOrg(me.value))
 
 // Outil ouvert dans la fiche détail (« en savoir plus » + banc de test).
 const openTool = ref<string | null>(null)
@@ -44,9 +48,11 @@ const openTool = ref<string | null>(null)
     <template #actions>
       <Btn kind="mini" @click="emit('back')">← Back</Btn>
       <a v-if="c.href" :href="c.href" target="_blank" rel="noopener" class="cd-site">↗ site éditeur</a>
-      <Btn v-if="!installed" kind="mini" :disabled="busy" @click="emit('install')">
-        {{ busy ? '…' : 'Installer' }}
-      </Btn>
+      <template v-if="!installed">
+        <Btn v-if="canWrite" kind="mini" :disabled="busy" @click="emit('install')">
+          {{ busy ? '…' : 'Installer' }}
+        </Btn>
+      </template>
       <RouterLink v-else to="/connectors" class="cd-installed">installé →</RouterLink>
     </template>
 

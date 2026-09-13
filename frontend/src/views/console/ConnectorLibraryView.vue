@@ -14,6 +14,7 @@ import ConnectorCardShell from '@/components/console/ConnectorCardShell.vue'
 import ConnectorTileBody from '@/components/console/ConnectorTileBody.vue'
 import ConnectorDetail from '@/components/console/library/ConnectorDetail.vue'
 import { useDeepLink } from '@/composables/useDeepLink'
+import { useMe, canWriteInOrg } from '@/composables/useMe'
 import { getMyConnectors, getToolRegistry, selectConnector } from '@/api/console'
 import type { MyConnector, ToolRegistryEntry } from '@/types/api'
 import { humanize } from '@/lib/errors'
@@ -73,7 +74,10 @@ const toolsByConnector = computed(() => {
 const toolsOf = (c: MyConnector) => toolsByConnector.value.get(c.name) ?? []
 
 // Installer = sélectionner dans son workspace (state → active). Le détail (config
-// credential, masquage, désactivation) se gère ensuite dans /connectors.
+// credential, masquage, désactivation) se gère ensuite dans /connectors. Une écriture,
+// refusée en consultation (oto#212) : le bouton suit la règle d'écriture d'org.
+const { me } = useMe()
+const canWrite = computed(() => canWriteInOrg(me.value))
 async function install(c: MyConnector) {
   busy.value = c.name
   try { await selectConnector(c.name); c.state = 'active' }
@@ -131,10 +135,11 @@ const filtered = computed(() => {
               </span>
               <div class="lib-actions">
                 <span class="lib-more">détails →</span>
-                <Btn v-if="c.state === 'not_selected'" kind="mini" :disabled="busy === c.name"
-                  @click.stop="install(c)">
-                  {{ busy === c.name ? '…' : 'Install' }}
-                </Btn>
+                <template v-if="c.state === 'not_selected'">
+                  <Btn v-if="canWrite" kind="mini" :disabled="busy === c.name" @click.stop="install(c)">
+                    {{ busy === c.name ? '…' : 'Install' }}
+                  </Btn>
+                </template>
                 <RouterLink v-else to="/connectors" class="lib-installed" @click.stop>installed →</RouterLink>
               </div>
             </template>

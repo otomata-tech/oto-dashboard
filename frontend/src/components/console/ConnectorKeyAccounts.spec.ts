@@ -128,6 +128,8 @@ describe('ConnectorKeyAccounts — la liste servie, après le geste', () => {
 
   it('garde le geste d’ajout atteignable quand la liste ne se lit pas', async () => {
     identities.mockRejectedValue(new Error('502'))
+    // Le geste suit la règle d'écriture d'org (oto#212) : un profil chargé, hors consultation.
+    useMe().me.value = { sub: 'u' } as unknown as Me
     const c = mount({ addAccount: () => {} })
     await settle()
 

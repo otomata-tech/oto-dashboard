@@ -12,12 +12,17 @@ import AccountShareSection from './AccountShareSection.vue'
 import { getUnipileStatus, connectUnipile, disconnectUnipile, setCredential, deleteApiKey,
   getConnectorIdentities, setConnectorIdentity, getAccountGrants } from '@/api/console'
 import { useFormDialog, type FormDialogField } from '@/composables/useFormDialog'
+import { useMe, canWriteInOrg } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
 import { fmtDate } from '@/types/api'
 import type { UnipileStatus, ConnectorIdentity, AccountGrant } from '@/types/api'
 
+// Clé perso, connexion des canaux, compte piloté : des écritures, refusées en consultation
+// (oto#212). L'état des canaux et des comptes reste lu.
+const { me } = useMe()
+const canWrite = computed(() => canWriteInOrg(me.value))
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
@@ -153,8 +158,10 @@ async function dropMyKey() {
     <!-- Ma clé Unipile (perso) — prime sur la clé d'org. -->
     <div v-if="!loading" class="hw-mykey">
       <span class="dim hw-mykey-lbl">résout via {{ modeLabel }}</span>
-      <Btn kind="mini" @click="editMyKey">{{ unipile?.mode === 'user' ? 'changer ma clé' : 'poser ma clé' }}</Btn>
-      <Btn v-if="unipile?.mode === 'user'" kind="danger" @click="dropMyKey">retirer</Btn>
+      <template v-if="canWrite">
+        <Btn kind="mini" @click="editMyKey">{{ unipile?.mode === 'user' ? 'changer ma clé' : 'poser ma clé' }}</Btn>
+        <Btn v-if="unipile?.mode === 'user'" kind="danger" @click="dropMyKey">retirer</Btn>
+      </template>
     </div>
     <div v-for="c in channels" :key="c.key" class="hw-channel">
       <div class="hw-row">
@@ -174,7 +181,7 @@ async function dropMyKey() {
                   : `relie ton ${c.label} pour commencer`)) }}
           </div>
         </div>
-        <template v-if="unipile?.subscribed">
+        <template v-if="unipile?.subscribed && canWrite">
           <Btn v-if="unipile?.channels?.[c.key]?.connected" kind="danger" @click="drop(c.key)">Déconnecter</Btn>
           <Btn v-else kind="mini" @click="link(c.key)">Connecter</Btn>
         </template>
@@ -189,7 +196,7 @@ async function dropMyKey() {
             <Tag v-if="idn.granted" tone="cobalt">partagé par {{ ownerLabel(idn) }}</Tag>
             <span v-if="idn.status && idn.status.toUpperCase() !== 'OK'" class="dim hw-acct-st">· {{ idn.status }}</span>
           </span>
-          <Btn v-if="!idn.is_default" kind="mini" @click="pick(idn.id)">Utiliser ce compte</Btn>
+          <Btn v-if="canWrite && !idn.is_default" kind="mini" @click="pick(idn.id)">Utiliser ce compte</Btn>
         </div>
       </div>
       <!-- #55 face propriétaire : autoriser/révoquer des membres à opérer CE compte -->

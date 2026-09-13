@@ -8,7 +8,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import Dot from '@/components/console/Dot.vue'
 import Btn from '@/components/console/Btn.vue'
-import { useMe } from '@/composables/useMe'
+import { useMe, canWriteInOrg } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
 import { getConnectorInstances, suspendInstance, getOrg } from '@/api/console'
@@ -31,6 +31,9 @@ const { toast } = useToast()
 
 const c = computed(() => props.connector)
 const status = computed(() => me.value?.providers?.[c.value.name])
+// Tester, remplacer, retirer, suspendre : des écritures, refusées en consultation (oto#212).
+// La pile, elle, reste lue.
+const canWrite = computed(() => canWriteInOrg(me.value))
 // Niveau qui RÉSOUT aujourd'hui (over_quota = c'est bien la clé plateforme qui sert).
 const effective = computed<string | null>(() => {
   const m = status.value?.mode
@@ -240,7 +243,7 @@ async function toggleSuspend(i: ConnectorInstance) {
           </div>
           <div v-if="koOn(i) && healthReason" class="ks-row-meta ks-ko">{{ healthReason }}</div>
           <div class="ks-row-meta">{{ meta(i) }}</div>
-          <div v-if="i.level === 'member' && i.via !== 'shared_with_me'" class="ks-actions">
+          <div v-if="canWrite && i.level === 'member' && i.via !== 'shared_with_me'" class="ks-actions">
             <template v-if="i.suspended">
               <Btn kind="mini" :disabled="busy" @click="toggleSuspend(i)">Réactiver</Btn>
             </template>

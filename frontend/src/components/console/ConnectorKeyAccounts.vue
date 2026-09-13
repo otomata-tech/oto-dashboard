@@ -15,7 +15,7 @@ import Btn from './Btn.vue'
 import Dot from './Dot.vue'
 import Tag from './Tag.vue'
 import { deleteApiKey, getConnectorIdentities, setConnectorIdentity } from '@/api/console'
-import { useMe } from '@/composables/useMe'
+import { useMe, canWriteInOrg } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
@@ -32,6 +32,9 @@ const accounts = ref<ConnectorIdentity[]>([])
 const loading = ref(true)
 const unreadable = ref(false)
 const busy = ref('')
+// Par défaut, retirer, ajouter : des écritures, refusées en consultation (oto#212). La liste
+// des comptes reste lue.
+const canWrite = computed(() => canWriteInOrg(me.value))
 
 // Un compte du coffre a pour id son NOM ('' = la ligne mono historique).
 const named = computed(() => accounts.value.filter((a) => a.id !== ''))
@@ -110,7 +113,7 @@ async function remove(a: ConnectorIdentity) {
         <Dot :tone="a.is_default ? 'olive' : 'faint'" :size="8" />
         <span class="ka-name">{{ labelOf(a) }}</span>
         <Tag v-if="a.is_default" tone="olive">par défaut</Tag>
-        <span class="ka-actions">
+        <span v-if="canWrite" class="ka-actions">
           <Btn v-if="!a.is_default" kind="mini" :disabled="busy === a.id"
                @click="makeDefault(a)">Par défaut</Btn>
           <Btn kind="danger" :disabled="busy === a.id" @click="remove(a)">Retirer</Btn>
@@ -129,7 +132,7 @@ async function remove(a: ConnectorIdentity) {
       </p>
     </template>
 
-    <div v-if="lever.addAccount" class="ka-add">
+    <div v-if="lever.addAccount && canWrite" class="ka-add">
       <Btn kind="mini" @click="lever.addAccount(connector, names)">
         Ajouter un {{ noun }}
       </Btn>

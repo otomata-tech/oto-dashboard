@@ -16,7 +16,7 @@ import Dot from './Dot.vue'
 import Tag from './Tag.vue'
 import ConnectorSessionConnect from './ConnectorSessionConnect.vue'
 import { deleteApiKey, getConnectorIdentities, setConnectorIdentity } from '@/api/console'
-import { useMe } from '@/composables/useMe'
+import { useMe, canWriteInOrg } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
@@ -31,6 +31,9 @@ const { confirmAction } = usePrompt()
 const status = computed(() => me.value?.providers?.[props.connector.name])
 const configured = computed(() => !!status.value?.user_key_configured)
 const connecting = ref(false)
+// Connecter, déconnecter, choisir la cible : des écritures (ou le chemin d'une écriture),
+// refusées en consultation (oto#212). Les sessions posées et la cible restent lues.
+const canWrite = computed(() => canWriteInOrg(me.value))
 // Connecteur org-partageable (byo_org) → session configurable aussi en équipe/org.
 const shareable = computed(() => !!props.connector.auth_modes?.includes('byo_org'))
 
@@ -82,15 +85,15 @@ async function drop(scope: Scope, who: string) {
     <div v-if="!sessions.length" class="sw-row">
       <Dot tone="faint" :size="8" />
       <span class="sw-status dim">aucune session — connecte-toi pour te loguer via un navigateur distant</span>
-      <Btn kind="mini" @click="connecting = true">Connecter</Btn>
+      <Btn v-if="canWrite" kind="mini" @click="connecting = true">Connecter</Btn>
     </div>
     <template v-else>
       <div v-for="s in sessions" :key="s.scope" class="sw-row">
         <Dot tone="olive" :size="8" />
         <span class="sw-status dim">session · {{ s.label }} — posée le {{ fmtDate(s.setAt) ?? '' }}</span>
-        <Btn kind="danger" @click="drop(s.scope, s.label)">Déconnecter</Btn>
+        <Btn v-if="canWrite" kind="danger" @click="drop(s.scope, s.label)">Déconnecter</Btn>
       </div>
-      <div v-if="shareable" class="sw-row sw-add">
+      <div v-if="shareable && canWrite" class="sw-row sw-add">
         <span class="sw-status dim">connecter un autre niveau (toi, équipe, org)</span>
         <Btn kind="mini" @click="connecting = true">Connecter</Btn>
       </div>
@@ -102,7 +105,7 @@ async function drop(scope: Scope, who: string) {
       <span class="sw-status dim">
         {{ target ? `cible : ${target}` : 'aucune cible par défaut — choisis le client sur lequel travailler' }}
       </span>
-      <Btn kind="mini" :disabled="loadingIds" @click="openPicker">{{ target ? 'Changer' : 'Choisir' }}</Btn>
+      <Btn v-if="canWrite" kind="mini" :disabled="loadingIds" @click="openPicker">{{ target ? 'Changer' : 'Choisir' }}</Btn>
     </div>
     <div v-if="picking" class="sw-picker">
       <span v-if="loadingIds" class="dim sw-load">chargement… (ouvre la session distante, ~10s)</span>

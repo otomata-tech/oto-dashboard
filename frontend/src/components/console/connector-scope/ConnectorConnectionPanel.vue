@@ -17,7 +17,7 @@ import ConnectorFlowConnect from '@/components/console/ConnectorFlowConnect.vue'
 import ConnectorKeyAccounts from '@/components/console/ConnectorKeyAccounts.vue'
 import ConnectorKeyStack from './ConnectorKeyStack.vue'
 import ConnectorVerdictLine from './ConnectorVerdictLine.vue'
-import { useMe, isOrgAdmin } from '@/composables/useMe'
+import { useMe, canAdministerOrg, canWriteInOrg } from '@/composables/useMe'
 import { getOrgConnectorActivation } from '@/api/console'
 import type { ConnectionLever } from './adapter'
 import { connectWidgetKind } from '@/lib/connectorConnect'
@@ -65,10 +65,14 @@ const authLabel = computed(() => {
 // d'ici pose la clé de l'org de contexte, et il appartient à un admin d'org.
 const poseAt = computed(() => poseScope(c.value.auth_modes))
 const orgKeyOnly = computed(() => poseAt.value === 'org')
-// Même borne que l'adaptateur : l'admin d'org tel que le serveur le tient (`isOrgAdmin`,
-// oto#210) — un `admin` opérationnel serait refusé en 403 après la saisie.
-const canPoseKey = computed(() => poseAt.value === 'member'
-  || (orgKeyOnly.value && isOrgAdmin(me.value)))
+// Les gestes de ce panneau suivent la règle d'écriture d'org (`useMe`) : en consultation, le
+// serveur les refuse tous (oto#212). Le verdict et la pile restent lus.
+const canWrite = computed(() => canWriteInOrg(me.value))
+// Même borne que l'adaptateur : l'admin d'org tel que le serveur le tient, hors consultation
+// (`canAdministerOrg`, oto#210 et oto#212) — un `admin` opérationnel serait refusé en 403 après
+// la saisie.
+const canPoseKey = computed(() => canWrite.value
+  && (poseAt.value === 'member' || (orgKeyOnly.value && canAdministerOrg(me.value))))
 const authExplain = computed(() => {
   switch (c.value.auth.method) {
     case 'secret': return orgKeyOnly.value
@@ -169,21 +173,25 @@ const keyCta = computed(() => (orgKeyOnly.value
              ligne « ta clé — aucune » rendent le geste à son propriétaire. Rien de
              tout ça quand il n'y a aucune clé : il n'y a alors rien au-dessus à
              confondre, et annoncer un vide de plus serait du bruit. -->
-        <div v-if="!keyConfigured && !flow" class="dr-mine" :class="{ split: otherKeys > 0 && !orgKeyOnly }">
+        <div v-if="!keyConfigured && !flow && (canWrite || (otherKeys > 0 && !orgKeyOnly))"
+             class="dr-mine" :class="{ split: otherKeys > 0 && !orgKeyOnly }">
           <span v-if="otherKeys > 0 && !orgKeyOnly" class="dr-mine-lbl"><Dot tone="saffron" />ta clé — aucune</span>
           <!-- Clé d'org sans clé personnelle possible : le bouton n'est offert qu'à
                qui peut réellement poser. Un membre voyait ici « Connecter HTTP », et
-               le serveur refusait la pose après toute la saisie. -->
+               le serveur refusait la pose après toute la saisie. En consultation, ni
+               geste ni renvoi : la coque dit la lecture seule (oto#212). -->
           <Btn v-if="canPoseKey" kind="mini" @click="lever.configureKey(c)">{{ keyCta }}</Btn>
-          <span v-else class="dr-mine-lbl"><Dot tone="faint" />clé d'org — un admin de ton org la pose</span>
+          <span v-else-if="canWrite" class="dr-mine-lbl"><Dot tone="faint" />clé d'org — un admin de ton org la pose</span>
         </div>
         <!-- Geste de connexion déclaré (consentement OAuth…) : il COEXISTE avec le
              formulaire de champs, il ne le remplace pas — pour ces connecteurs on pose
              l'application PUIS on autorise. Rendu dès que le descripteur existe ;
              c'est le backend qui dit s'il reste une étape (`pending_action`), jamais
              un calcul local sur la présence d'une clé (poser l'app CRÉE le credential,
-             gater là-dessus masquerait le bouton au moment où il sert). -->
-        <ConnectorFlowConnect v-if="flow" :connector="c" :status="status"
+             gater là-dessus masquerait le bouton au moment où il sert). Tout l'encart
+             est un geste : omis en consultation, l'étape restante reste dite par le
+             verdict (`pending_action`). -->
+        <ConnectorFlowConnect v-if="flow && canWrite" :connector="c" :status="status"
                               :configure="() => lever.configureKey(c)" />
         <!-- Comptes nommés (#121) : un compte du coffre = un workspace Slack, une
              organisation Zoho. Ne s'affiche qu'une fois un credential posé — le

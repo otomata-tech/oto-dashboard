@@ -521,3 +521,13 @@ exposition (« installé, mais ton agent ne le voit pas — … ») ; copy dans
 
 Vue non dérivable (`available: false`) ⇒ aucune ligne ne se dit invisible. Chargement en
 échec ⇒ la liste reste, et l'échec s'affiche en tête de l'écran.
+
+## En consultation, l'écran du membre n'offre aucun geste (oto#212, 13/09/2026)
+
+`/o/<org>/connectors` ouvert par un opérateur non-membre : le serveur refuse chaque écriture
+(`403 view_as_read_only`). Tous les gestes de « mes connecteurs » et de la marketplace (exposition,
+clé, pile de provenance, comptes nommés, flux déclaré, widgets Google, fédéré, session et hébergé,
+installation) lisent `canWriteInOrg`, et la clé d'org `canAdministerOrg`. Les lectures restent.
+L'exposition sans droit n'est plus grisée : l'état se lit sur une ligne. Recensement, appels et
+mesure : `docs/orgs-groupes-invitations.md` §« `/connectors` en consultation ». « Voir en tant
+que » n'est pas couvert : aucun champ servi ne le dit.

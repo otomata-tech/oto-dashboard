@@ -60,6 +60,9 @@ client-filter, monté sous le switcher dans `ConsoleUserMenu`, gaté `isPlatform
 recharge sur `/console` → tout le dashboard rend la vue de ce user (sa maison suit). Bandeau
 permanent `ViewAsBanner.vue` (monté dans `App.vue`) « tu vois en tant que X — quitter ». Entrer
 efface la consultation org/équipe ; pas sur soi-même ; mutations rejetées backend (read-only).
+⚠️ Le serveur ne l'annonce par aucun champ : `/api/me` décrit le compte vu, `active_org_readonly`
+y vaut faux pour un membre, et les gestes du compte vu restent affichés. Le front ne le déduit pas
+(oto#212) : c'est un besoin de contrat backend.
 REST-only, zéro effet MCP. ⚠️ **L'état d'un tiers (fiche admin) est calculé contre SON org
 persistée, pas `current_org`** (qui renverrait le contexte du requérant) — cf. backend §ADR 0023.
 

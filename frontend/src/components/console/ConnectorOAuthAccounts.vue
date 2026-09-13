@@ -6,11 +6,12 @@
 // oto-dashboard#125) ; statut et révocation restent sur les endpoints Google
 // (seul connecteur multi-compte, forme propre — leur équivalent générique reste à
 // cadrer avec le backend) ; B3 généralisera l'affichage aux autres flux oauth.
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import Tag from './Tag.vue'
 import Btn from './Btn.vue'
 import Dot from './Dot.vue'
 import { getGoogleStatus, startConnectorFlow, revokeGoogle } from '@/api/console'
+import { useMe, canWriteInOrg } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
@@ -21,6 +22,9 @@ const { toast } = useToast()
 const { confirmAction } = usePrompt()
 const status = ref<GoogleOauthStatus | null>(null)
 const loading = ref(true)
+// Lier et révoquer sont des écritures, refusées en consultation (oto#212).
+const { me } = useMe()
+const canWrite = computed(() => canWriteInOrg(me.value))
 
 async function refresh() { status.value = await getGoogleStatus().catch(() => null) }
 onMounted(async () => { await refresh(); loading.value = false })
@@ -45,11 +49,11 @@ async function revoke(email: string) {
           <div class="oa-email">{{ g.email }} <Tag v-if="g.is_default" tone="saffron">default</Tag></div>
           <div class="oa-scopes">{{ g.scopes.join(' · ') }} · granted {{ fmtDate(g.granted_at) ?? '—' }}</div>
         </div>
-        <Btn kind="danger" @click="revoke(g.email!)">Revoke</Btn>
+        <Btn v-if="canWrite" kind="danger" @click="revoke(g.email!)">Revoke</Btn>
       </div>
     </div>
     <span v-else-if="!loading" class="dim oa-empty">no account linked yet — link one to unlock the connector's tools.</span>
-    <Btn kind="mini" icon="plus" class="oa-add" @click="link">Link account</Btn>
+    <Btn v-if="canWrite" kind="mini" icon="plus" class="oa-add" @click="link">Link account</Btn>
   </div>
 </template>
 

@@ -4,7 +4,7 @@
 // revalidé à chaque appel côté backend). Monté sous chaque canal connecté du widget
 // hosted (ConnectorHostedWidget) ; le membre autorisé, lui, passe par le picker
 // d'identités (le compte partagé y apparaît « compte de X »).
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import Btn from './Btn.vue'
 import Tag from './Tag.vue'
 import FormDialog from './FormDialog.vue'
@@ -12,7 +12,7 @@ import { getOrg, grantAccountAccess, revokeAccountAccess } from '@/api/console'
 import { useFormDialog, type FormDialogField } from '@/composables/useFormDialog'
 import { usePrompt } from '@/composables/usePrompt'
 import { useToast } from '@/composables/useToast'
-import { useMe } from '@/composables/useMe'
+import { useMe, canWriteInOrg } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
 import { fmtDate } from '@/types/api'
 import type { AccountGrant } from '@/types/api'
@@ -28,6 +28,9 @@ const { confirmAction } = usePrompt()
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
 const { me } = useMe()
 const busy = ref(false)
+// Autoriser et révoquer sont des écritures, refusées en consultation (oto#212) : la section
+// garde la liste des autorisations, et disparaît quand il n'y a ni geste ni autorisation.
+const canWrite = computed(() => canWriteInOrg(me.value))
 
 const who = (g: AccountGrant) => g.grantee_name || g.grantee_email || g.grantee_sub || '?'
 
@@ -74,17 +77,17 @@ async function revoke(g: AccountGrant) {
 </script>
 
 <template>
-  <div class="asx">
+  <div v-if="canWrite || grants.length" class="asx">
     <div class="asx-head">
       <span class="dim asx-title">opéré aussi par</span>
-      <Btn kind="mini" :disabled="busy" @click="addGrant">Autoriser quelqu'un</Btn>
+      <Btn v-if="canWrite" kind="mini" :disabled="busy" @click="addGrant">Autoriser quelqu'un</Btn>
     </div>
     <div v-for="g in grants" :key="g.grantee_sub ?? ''" class="asx-row">
       <span class="asx-who">{{ who(g) }}
         <Tag tone="saffron">peut opérer ce compte</Tag>
         <span v-if="g.granted_at" class="dim asx-date">depuis {{ fmtDate(g.granted_at) }}</span>
       </span>
-      <Btn kind="danger" @click="revoke(g)">Révoquer</Btn>
+      <Btn v-if="canWrite" kind="danger" @click="revoke(g)">Révoquer</Btn>
     </div>
     <FormDialog v-if="formDialog" v-model:open="formDialogOpen"
       :title="formDialog.title" :description="formDialog.description"

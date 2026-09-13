@@ -8,7 +8,7 @@ description: >-
    « une alerte qui réclame un geste offre le moyen de l'accomplir », et son tripwire ;
    « un identifiant de compte s'affiche en personne » (#143) ; « une adresse n'affiche que
    l'objet qu'elle désigne » (oto#201, oto#203) ; « un rôle ne vaut pas droit d'écrire »
-   (oto#211).
+   (oto#211, étendu à `/connectors` par oto#212).
 ---
 
 # Conventions du front
@@ -129,9 +129,9 @@ La règle, portée par `lib/routeTarget.ts` (`resolveTarget`, `targetRefusal`) :
 Seule une adresse SANS paramètre choisit par défaut (l'entrée du menu `/procedures`, l'accueil
 d'un projet). Tests : `DoctrineView.spec.ts`, `ProjectDetailView.spec.ts`, `DataView.spec.ts`.
 
-## ⚠️ Un rôle ne vaut pas droit d'écrire (oto#211)
+## ⚠️ Un rôle ne vaut pas droit d'écrire (oto#211, oto#212)
 
-**Règle transverse, tous écrans d'org.** En consultation (`active_org_readonly`), le serveur refuse
+**Règle transverse, tous écrans d'org et de travail.** En consultation (`active_org_readonly`), le serveur refuse
 toute écriture en `403 view_as_read_only`, super_admin compris. Un geste d'écriture ne lit donc
 jamais un rôle seul : il lit `canAdministerOrg` (geste d'admin d'org) ou `canWriteInOrg` (geste de
 membre), dans `composables/useMe.ts`, la seule source. `useOrgScope` les expose, et
@@ -150,5 +150,16 @@ Deux pièges que la règle a fait sortir :
 - **un geste de membre n'est gardé par aucun rôle** : « quitter l'org » et « annuler un envoi
   programmé » étaient offerts même à l'admin plateforme qui consulte une org dont il n'est pas
   membre. Ils lisent `canWriteInOrg`.
+
+**Étendue à `/connectors` (oto#212).** Un écran hors `/org/*` est aussi en consultation dès que
+l'URL porte `/o/<org>/`. « Mes connecteurs » et la marketplace offraient 22 écritures, portées par
+onze composants (panneaux du tiroir, widgets de connexion, marketplace) : chacun lit la même règle.
+Un troisième piège : **un contrôle grisé n'est pas un contrôle omis**. L'exposition du membre
+rendait ses trois boutons `disabled` ; sans droit, le panneau rend désormais l'état sur une ligne.
+
+**Ce que la règle ne couvre pas : « voir en tant que ».** Le serveur y refuse toute écriture, mais
+aucun champ servi ne l'annonce : `/api/me` décrit le compte vu. La règle ne se nourrit que de ce que
+le serveur sert ; elle ne déduit rien de l'en-tête envoyé ni du `localStorage` du bandeau. Tant que
+le contrat ne le dit pas, les gestes du compte vu restent affichés.
 
 Recensement écran par écran, et sa mesure contre le middleware : `docs/orgs-groupes-invitations.md`.

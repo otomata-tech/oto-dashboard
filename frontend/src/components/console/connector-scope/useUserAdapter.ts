@@ -10,7 +10,7 @@ import {
   setCredential, deleteApiKey, verifyConnector,
   getOrgFieldFilters, credentialPrefill, setOrgSecret,
 } from '@/api/console'
-import { useMe, isOrgAdmin } from '@/composables/useMe'
+import { useMe, canAdministerOrg, canWriteInOrg } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
 import { connectorVerdict } from '@/lib/connectorVerdict'
 import { originBadge } from '@/lib/installOrigin'
@@ -35,8 +35,13 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
   const nominalOrgAdmin = computed(() => me.value?.org_role === 'org_admin')
   // Qui peut poser la CLÉ D'ORG : l'admin d'org tel que le serveur le tient — org_admin ou
   // super_admin, jamais l'`admin` plateforme, qui se ferait refuser en 403 après la saisie
-  // (`isOrgAdmin`, oto#210). On ouvre le formulaire à qui le serveur acceptera, ni plus ni moins.
-  const canPoseOrgKey = computed(() => isOrgAdmin(me.value))
+  // (oto#210) —, hors consultation (`canAdministerOrg`, oto#212). On ouvre le formulaire à qui
+  // le serveur acceptera, ni plus ni moins.
+  const canPoseOrgKey = computed(() => canAdministerOrg(me.value))
+  // Les gestes du membre (exposition, clé, connexion) : en consultation (`/o/<org>/connectors`
+  // d'un opérateur non-membre), le serveur les refuse tous en `403 view_as_read_only`. Même
+  // règle que les écrans d'org (oto#211, oto#212).
+  const canWrite = computed(() => canWriteInOrg(me.value))
   const isPersonal = computed(() => !!me.value?.active_org_is_personal)
   const installed = (r: MyConnector) => r.state !== 'not_selected'
   const unseenWhy = (r: MyConnector) => {
@@ -163,7 +168,7 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
             ? 'connecté, mais tous ses outils sont masqués à ton agent pour l\'instant. ta sélection est conservée.'
             : "pas installé — passe-le en actif pour exposer ses outils.",
       }),
-      canEdit: () => true,
+      canEdit: () => canWrite.value,
       set: (r, next) => setExposure(r, next as ExposureState),
     },
     connection: {

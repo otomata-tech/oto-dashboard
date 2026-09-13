@@ -2,6 +2,8 @@
 // Panneau disponibilité du drawer unifié — 4 variantes selon le scope :
 //  master (plateforme) / binary (org, team) : toggle on/off ·
 //  exposure3 (user) : off/muted/live · readonly : statut hérité, sans contrôle.
+// Un levier qu'on ne peut pas régler (`canEdit` faux, par exemple en consultation, oto#212)
+// n'est jamais grisé : le contrôle est omis et l'état se lit sur une ligne.
 import { computed } from 'vue'
 import type { AvailabilityLever, ExposureState } from './adapter'
 import Toggle from '@/components/console/Toggle.vue'
@@ -18,9 +20,9 @@ const EXPOSURE_LABEL: Record<ExposureState, string> = { off: 'Non installé', mu
   <section class="cav">
     <h4 class="cav-h">{{ lever.title }}</h4>
 
-    <div v-if="lever.variant === 'exposure3'" class="cav-seg">
+    <div v-if="lever.variant === 'exposure3' && canEdit" class="cav-seg">
       <button v-for="opt in EXPOSURE" :key="opt" type="button"
-        class="cav-segbtn" :class="{ on: s.exposure === opt }" :disabled="!canEdit"
+        class="cav-segbtn" :class="{ on: s.exposure === opt }"
         @click="lever.set(row, opt)">{{ EXPOSURE_LABEL[opt] }}</button>
     </div>
 
@@ -41,6 +43,4 @@ const EXPOSURE_LABEL: Record<ExposureState, string> = { off: 'Non installé', mu
 .cav-note { font-size: 11.5px; color: var(--color-faint); margin-top: 8px; }
 .cav-seg { display: inline-flex; border: 1px solid var(--color-hair-classic); border-radius: var(--radius-pill); overflow: hidden; }
 .cav-segbtn { font-size: 12px; padding: 5px 14px; border: 0; background: transparent; color: var(--color-mute); cursor: pointer; }
-.cav-segbtn.on { background: var(--color-ink); color: var(--color-surface); font-weight: 600; }
-.cav-segbtn:disabled { cursor: default; opacity: .6; }
-</style>
+.cav-segbtn.on { background: var(--color-ink); color: var(--color-surface); font-weight: 600; }</style>

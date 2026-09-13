@@ -3,7 +3,8 @@ title: Orgs, groupes & invitations
 type: reference
 description: >-
   Qui est admin d'org pour l'écran, et la garde serveur de chaque usage (oto#210). Écrire dans
-  l'org : le rôle ET hors consultation, une seule règle pour tous les gestes (oto#211). Le roster
+  l'org : le rôle ET hors consultation, une seule règle pour tous les gestes (oto#211), `/connectors`
+  compris ; « voir en tant que » n'est pas servi, donc pas couvert (oto#212). Le roster
   des équipes d'une org (le scope d'équipe dédié a quitté le dashboard, oto#192) et
   la feature cascade « inviter un user » : une carte partagée montée aux 2 niveaux (plateforme
   / org), même triade REST, acceptation commune.
@@ -32,7 +33,8 @@ comptait aussi l'`admin` plateforme, que chaque op d'admin d'org refuse en 403 :
 | abonnement (`BillingView`), clé d'org depuis une fiche connecteur (`useUserAdapter`, `ConnectorConnectionPanel`) | gestes | non relue dans ce lot | règle déjà juste, recopiée : s'appuie sur `isOrgAdmin` |
 
 Depuis oto#211, les gestes de ce tableau lisent `canAdministerOrg`, qui ajoute au rôle l'absence
-de consultation (section suivante).
+de consultation (section suivante) ; la clé d'org depuis une fiche connecteur l'a rejoint avec
+oto#212.
 
 `useOrgScope` (`/org`, `/org/settings`, `/org/security`, `/org/monitoring`) portait déjà la règle
 juste, plus le rôle lu dans le détail de l'org. Son `isOrgAdmin` ne garde plus que des lectures (la
@@ -91,15 +93,51 @@ Hors du tableau, sans changement :
   `active_org_readonly`, l'écran masque donc ses gestes ; mais le middleware ne pose la lecture
   seule que sur la branche org, et une écriture y traverse (mesuré le 13/09, `roles.can_read_group`
   acceptant). À trancher côté serveur.
-- **« voir en tant que »** (`X-Oto-View-As`) : le middleware refuse aussi toute écriture, mais
-  `active_org_readonly` n'en dit rien ; les gestes du compte vu restent affichés (lu dans le code,
-  non rejoué). Hors oto#211.
+- **« voir en tant que »** (`X-Oto-View-As`) : le middleware refuse toute écriture (rejoué le
+  13/09 pour oto#212 : les 22 écritures de `/connectors` prennent `403 view_as_read_only`), mais
+  **aucun champ servi ne le dit**. `/api/me` est calculé pour le compte vu : le sub servi est la
+  cible, la consultation ne pose aucune org, et `active_org_readonly` (le seul champ de lecture
+  seule de `MeView`) vaut donc faux pour un membre. Le front ne le déduit pas, ni de l'en-tête
+  qu'il envoie, ni du `localStorage` du bandeau : c'est un besoin de contrat backend. D'ici là, les
+  gestes du compte vu restent affichés.
 
 Tests : `views/console/orgConsultation.spec.ts` (`/org`, `/org/settings`, `/org/security`, pied de
 `/org/connectors`), `views/console/GroupsView.spec.ts`, `views/console/BillingView.spec.ts`,
 `components/console/connector-scope/useOrgAdapter.spec.ts` et `ConnectorCredentialPanel.spec.ts`,
 `composables/useMe.spec.ts` (la règle, et `droits` égal à sa projection) — chaque écran, pour
 l'org_admin et le super_admin, gestes présents hors consultation et absents en consultation.
+
+## `/connectors` en consultation (oto#212)
+
+`/o/<org>/connectors` est un écran de travail, hors `/org/*` : un opérateur non-membre y lit ses
+propres connecteurs dans le contexte de l'org consultée, et le serveur y refuse chaque écriture
+comme ailleurs. Jusqu'au 13/09/2026, l'écran les offrait toutes. Même règle, mêmes fonctions : chaque
+composant qui porte un geste lit `canWriteInOrg` (ou `canAdministerOrg` pour la clé d'org), et
+l'état reste lu.
+
+| composant | geste | appel | règle |
+|---|---|---|---|
+| exposition (`ConnectorAvailabilityPanel`, levier de `useUserAdapter`) | actif, en veille, non installé | `POST /api/me/connectors/{p}/select`, `POST …/pause`, `DELETE /api/me/connectors/{p}` | `canWriteInOrg` (`canEdit`) ; sans droit, l'état se lit sur une ligne, les boutons ne sont plus grisés |
+| connexion (`ConnectorConnectionPanel`) | connecter, poser ma clé | `POST /api/settings/api-keys/{p}` | `canWriteInOrg` |
+| connexion | poser la clé de l'org | `PUT /api/orgs/{id}/secrets/{p}` | `canAdministerOrg` (panneau et `useUserAdapter.configureKey`) |
+| flux déclaré (`ConnectorFlowConnect`) | autoriser, identifiants de l'application | `POST /api/me/connectors/{p}/connect`, `POST /api/settings/api-keys/{p}` | `canWriteInOrg` : l'encart est omis, l'étape restante reste dite par le verdict |
+| pile de provenance (`ConnectorKeyStack`) | tester, remplacer, retirer, suspendre, réactiver | `POST …/{p}/verify`, `POST`/`DELETE /api/settings/api-keys/{p}`, `POST /api/me/connector-instances/suspend` | `canWriteInOrg` |
+| comptes nommés (`ConnectorKeyAccounts`) | par défaut, retirer, ajouter | `PUT /api/connectors/{p}/identities/default`, `DELETE …/api-keys/{p}?account=`, `POST …/api-keys/{p}` | `canWriteInOrg` |
+| Google (`ConnectorOAuthAccounts`) | link account, revoke | `POST /api/me/connectors/google/connect`, `DELETE /api/google/oauth?account=` | `canWriteInOrg` |
+| MCP fédéré (`ConnectorFederatedWidget`) | connect, reconnect, disconnect | `POST …/{p}/connect`, `DELETE /api/me/connectors/{p}/oauth` | `canWriteInOrg` |
+| session navigateur (`ConnectorSessionWidget`) | connecter, déconnecter, choisir la cible, utiliser | `POST …/{p}/session/{start,finalize}`, `DELETE …/api-keys/{p}?scope=`, `PUT …/identities/default` | `canWriteInOrg` |
+| compte hébergé (`ConnectorHostedWidget`, `AccountShareSection`) | poser, changer ou retirer ma clé, connecter, déconnecter, utiliser ce compte, autoriser quelqu'un, révoquer | `POST`/`DELETE /api/settings/api-keys/unipile`, `POST /api/me/unipile/connect`, `DELETE /api/me/unipile?channel=`, `PUT …/identities/default`, `POST`/`DELETE /api/me/connector-accounts/{c}/grants` | `canWriteInOrg` ; la section de partage disparaît quand il n'y a ni geste ni autorisation |
+| marketplace (`ConnectorLibraryView`, `ConnectorDetail`) | install, installer | `POST /api/me/connectors/{p}/select` | `canWriteInOrg` |
+
+**Mesuré** : ces 22 écritures ont été rejouées le 13/09/2026 contre le `ViewAsMiddleware` d'oto-backend
+`origin/main` (`f4124f22`), avec la méthode, le chemin et le corps du front, dans trois modes : en
+consultation d'org et en « voir en tant que », toutes prennent `403 view_as_read_only` ; pour un membre
+réel, toutes traversent ; six lectures (`GET`) passent dans les trois modes. Sans geste d'écriture :
+les outils et la confidentialité (en lecture depuis oto#192), la fiche d'un outil (`GET`).
+
+Tests : `components/console/connector-scope/connectorsConsultation.spec.ts` (treize cas, chacun pour
+l'org_admin et le super_admin hors et en consultation, et pour l'admin plateforme en consultation),
+`useUserAdapter.spec.ts` (la clé d'org en consultation).
 
 ## Groupes / départements (ADR 0012)
 

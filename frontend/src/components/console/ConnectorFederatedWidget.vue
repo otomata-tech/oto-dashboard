@@ -11,6 +11,7 @@ import Btn from './Btn.vue'
 import Dot from './Dot.vue'
 import DocSections from './DocSections.vue'
 import { getFederatedStatus, startConnectorFlow, disconnectFederated } from '@/api/console'
+import { useMe, canWriteInOrg } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
@@ -22,6 +23,9 @@ const { toast } = useToast()
 const { confirmAction } = usePrompt()
 const status = ref<ConnectorOAuthStatus | null>(null)
 const loading = ref(true)
+// Connecter et déconnecter sont des écritures, refusées en consultation (oto#212).
+const { me } = useMe()
+const canWrite = computed(() => canWriteInOrg(me.value))
 
 async function refresh() { status.value = await getFederatedStatus(props.connector.name).catch(() => null) }
 onMounted(async () => { await refresh(); loading.value = false })
@@ -60,9 +64,11 @@ async function drop() {
             ? `connected ${fmtDate(status?.set_at) ?? ''} · login délégué (mcp fédéré)`
             : 'not connected — login delegated to the provider (mcp fédéré)' }}
       </span>
-      <Btn v-if="rejected" kind="mini" @click="link">Reconnect</Btn>
-      <Btn v-else-if="connected" kind="danger" @click="drop">Disconnect</Btn>
-      <Btn v-else-if="!loading" kind="mini" @click="link">Connect</Btn>
+      <template v-if="canWrite">
+        <Btn v-if="rejected" kind="mini" @click="link">Reconnect</Btn>
+        <Btn v-else-if="connected" kind="danger" @click="drop">Disconnect</Btn>
+        <Btn v-else-if="!loading" kind="mini" @click="link">Connect</Btn>
+      </template>
     </div>
     <DocSections v-if="docs.length" :sections="docs" />
   </div>

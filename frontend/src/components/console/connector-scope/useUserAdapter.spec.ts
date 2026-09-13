@@ -211,11 +211,11 @@ describe("palier de pose depuis l'écran d'une org", () => {
 // qui consulte l'org doit donc pouvoir poser, et un `admin` opérationnel — qui serait
 // refusé en 403 — ne doit pas se voir offrir le formulaire.
 describe("qui peut poser la clé d'org depuis l'écran du membre", () => {
-  const ouvre = async (role: string, orgRole: string | null) => {
+  const ouvre = async (role: string, orgRole: string | null, active_org_readonly = false) => {
     let opened: CredentialDialogSpec | null = null
     const toasts: string[] = []
     useMe().me.value = {
-      sub: 'u', active_org: 302, org_role: orgRole, role, providers: {},
+      sub: 'u', active_org: 302, org_role: orgRole, role, providers: {}, active_org_readonly,
     } as unknown as NonNullable<ReturnType<typeof useMe>['me']['value']>
     await useUserAdapter({
       openForm: () => {}, openCredential: (s) => { opened = s },
@@ -232,6 +232,12 @@ describe("qui peut poser la clé d'org depuis l'écran du membre", () => {
   })
   it("l'admin de l'org le peut", async () => {
     expect((await ouvre('member', 'org_admin')).opened).not.toBeNull()
+  })
+  // oto#212 — en consultation, le serveur refuse la pose (`403 view_as_read_only`), super_admin
+  // compris : la règle est celle de toute écriture d'org, `canAdministerOrg`.
+  it("en consultation, personne ne pose la clé d'org — super_admin compris", async () => {
+    expect((await ouvre('super_admin', null, true)).opened).toBeNull()
+    expect((await ouvre('member', 'org_admin', true)).opened).toBeNull()
   })
 })
 
