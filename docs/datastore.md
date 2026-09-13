@@ -190,11 +190,14 @@ d'org qui décide du repli, jamais la nature du contenu.
   - une **URL `/data/<nom>`** tapée ou collée : `DataView` la résout dans les listes du
     lecteur puis la normalise en `/data/<id>`. Le dashboard n'en fabrique plus (la
     recherche, les files, le runner et le `url` servi par le backend portent l'id).
-    Résidu connu : `applySelection` cherche l'id et le nom dans la même passe — un tableau
-    dont le NOM serait le numéro d'un autre pourrait gagner ;
+    Depuis oto#203 (13/09/2026, `lib/routeTarget.ts`) : l'id se cherche AVANT le nom, et un
+    nom porté par plusieurs tableaux (le sien et un reçu) **n'ouvre rien** — l'écran liste
+    les candidats et l'adresse n'est pas réécrite ; seul un nom unique se normalise ;
   - `/projects/:id/data/:nsRef` ne désigne pas un tableau mais un **lien du projet**
-    (`selectFromRoute` cherche dans les liens du projet, jamais dans les tableaux du
-    lecteur) ; ce qui part au serveur est ensuite le `datastore_id` du lien.
+    (`useProjectTarget` cherche dans les liens du projet, jamais dans les tableaux du
+    lecteur) ; ce qui part au serveur est ensuite le `datastore_id` du lien. Un lien
+    introuvable ou un nom porté par plusieurs liens se dit, rien ne s'affiche à sa place
+    (`docs/projets.md`).
 
 - Le **snapshot OpenAPI commité ne connaît pas encore cette route** : son type est écrit à
   la main dans `types/api.ts` (pas dans `api.attendu.ts`, réservé à ce qu'une PR backend

@@ -16,9 +16,9 @@ import type { DoctrineBundle, GuideById, InstructionUsage, InstructionVersion, O
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { accountLabel } from '@/lib/accountLabel'
-import {
-  procedureRefusal, procedureTarget, targetKey, type ProcedureRefusal, type ProcedureTarget,
-} from '@/lib/procedureTarget'
+import { procedureTarget, targetKey, type ProcedureTarget } from '@/lib/procedureTarget'
+import { targetRefusal, type TargetRefusal } from '@/lib/routeTarget'
+import TargetRefusalCard from '@/components/console/TargetRefusalCard.vue'
 import { buildReg, hasDead, refNames, type ToolReg } from '@/components/console/doctrine/tools'
 import DoctrineContent from '@/components/console/doctrine/DoctrineContent.vue'
 import ReferencedTools from '@/components/console/doctrine/ReferencedTools.vue'
@@ -48,7 +48,7 @@ const listed = computed(() => target.value.kind === 'listed')
 const outside = ref<GuideById | null>(null)
 const opening = ref(false)
 // Ce qui a empêché d'ouvrir la procédure DEMANDÉE — rien ne s'affiche à sa place.
-const refus = ref<ProcedureRefusal | null>(null)
+const refus = ref<TargetRefusal | null>(null)
 watch(routeParam, () => {
   if (!bundle.value) return   // `loadAll` lira le paramètre courant quand la liste arrive
   const t = procedureTarget(routeParam.value, docs.value)
@@ -109,7 +109,7 @@ async function viewVersion(v: number) {
     const doc = await getInstruction(activeSlug.value, v)
     viewingBody.value = doc.body_md
     viewing.value = v
-  } catch (e) { refus.value = procedureRefusal(`« ${activeSlug.value} » v${v}`, e) }
+  } catch (e) { refus.value = targetRefusal(`« ${activeSlug.value} » v${v}`, e) }
   finally { viewLoading.value = false }
 }
 function backToCurrent() { viewing.value = null; viewingBody.value = '' }
@@ -190,7 +190,7 @@ async function openListed(slug: string, mine: number) {
     const v = (await getInstructionVersions(slug).catch(() => ({ versions: [] }))).versions
     if (mine === seq) versions.value = v
   } catch (e) {
-    if (mine === seq) refus.value = procedureRefusal(`« ${slug} »`, e)
+    if (mine === seq) refus.value = targetRefusal(`« ${slug} »`, e)
   }
   try {
     const u = await getInstructionUsage(slug)
@@ -213,7 +213,7 @@ async function openById(id: number, mine: number) {
     saved.value = g.body_md ?? ''
     summary.value = g.description ?? ''
   } catch (e) {
-    if (mine === seq) refus.value = procedureRefusal(`#${id}`, e)
+    if (mine === seq) refus.value = targetRefusal(`#${id}`, e)
   } finally {
     if (mine === seq) opening.value = false
   }
@@ -249,11 +249,8 @@ async function openById(id: number, mine: number) {
       <!-- ─────── colonne gauche ─────── -->
       <div class="col">
         <!-- la procédure demandée ne s'ouvre pas : le dire, avec le code, et rien à sa place (oto#201) -->
-        <div v-if="refus" class="card proc-refus" role="alert">
-          <div class="proc-refus__t">impossible d'ouvrir la procédure {{ refus.what }}</div>
-          <code v-if="refus.code" class="proc-refus__code">{{ refus.code }}</code>
-          <div v-if="refus.detail" class="proc-refus__d">{{ refus.detail }}</div>
-        </div>
+        <TargetRefusalCard v-if="refus" :title="`impossible d'ouvrir la procédure ${refus.what}`"
+          :code="refus.code" :detail="refus.detail" />
         <p v-else-if="opening" class="dim">chargement de la procédure…</p>
 
         <!-- bandeau dead-ref -->
@@ -387,12 +384,6 @@ async function openById(id: number, mine: number) {
 .card__head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .eyebrow { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-mute); }
 .dim { font-family: var(--font-mono); font-size: 10px; color: var(--color-faint); }
-
-/* refus d'ouverture (oto#201) */
-.proc-refus { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; background: var(--color-terra-soft); border-color: var(--color-terra); }
-.proc-refus__t { font-size: 14px; font-weight: 700; color: var(--color-terra-ink); }
-.proc-refus__code { font-family: var(--font-mono); font-size: 11.5px; color: var(--color-terra-ink); }
-.proc-refus__d { font-size: 12.5px; line-height: 1.55; color: var(--color-terra-ink); }
 
 /* en-tête */
 .hdr__tags { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

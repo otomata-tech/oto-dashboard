@@ -48,7 +48,9 @@ gardent « doctrine » (`Doctrine*View`, `getDoctrine`, `/api/me/instructions*`)
   ou slug hors liste → l'écran le dit avec le code, rien à la place. Seule l'entrée du menu,
   sans id, ouvre la première procédure. ⚠️ Un id listé ne passe PAS par `guides/{guide_id}` :
   un opérateur plateforme qui consulte une org sans en être membre y prendrait 403
-  (`can_access` n'a pas d'escalade plateforme). Tests : `DoctrineView.spec.ts`.
+  (`can_access` n'a pas d'escalade plateforme). Tests : `DoctrineView.spec.ts`. Le refus et
+  sa carte sont communs aux écrans qui résolvent une adresse depuis oto#203
+  (`lib/routeTarget.ts`, `TargetRefusalCard.vue`, `docs/conventions.md`).
 - **guide** (ADR 0042, prose PLATE **chargée à la demande** via `oto_guide` — pendant du
   readme, mais pas injectée) = how-to éditable dans la console : `GuidesCard.vue` (créer/
   éditer/supprimer, éditeur + confirmation **inline**, jamais de dialog natif), montée dans

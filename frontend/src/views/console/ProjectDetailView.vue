@@ -19,6 +19,7 @@ import ProjectViewer from '@/components/console/project/ProjectViewer.vue'
 import ProjectShareDialog from '@/components/console/project/ProjectShareDialog.vue'
 import ProjectHistoryDrawer from '@/components/console/project/ProjectHistoryDrawer.vue'
 import EntityPickerDialog from '@/components/console/project/EntityPickerDialog.vue'
+import TargetRefusalCard from '@/components/console/TargetRefusalCard.vue'
 import type { RailGroup, RailItem } from '@/components/console/project/rail'
 import {
   getProject, updateProject, archiveProject, copyProject, setProjectTemplate, projectHandoff,
@@ -30,10 +31,13 @@ import { humanize } from '@/lib/errors'
 import { projectVisibility } from '@/lib/projectVisibility'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
+import { useProjectTarget } from '@/composables/useProjectTarget'
+import { useI18n } from 'vue-i18n'
 
 const route = useRoute()
 const router = useRouter()
 const { toast } = useToast()
+const { t } = useI18n()
 
 const projectId = Number(route.params.id)
 const project = ref<Project | null>(null)
@@ -155,8 +159,17 @@ const docTitleMap = computed<Record<string, number>>(() => {
   for (const d of docs.value) m[d.title.split(/\s+/).join(' ').toLowerCase()] = d.id
   return m
 })
-// Item sélectionné (recomputé → survit aux reloads ; fallback accueil si disparu).
+// Ce que l'adresse désigne (page `?doc=`, tableau `/data/:nsRef`), et ce que l'écran dit
+// quand elle ne l'ouvre pas : jamais le brief ni l'objet précédent à sa place (oto#203).
+const { refusal, pending: opening, outsideDoc, selectFromRoute } = useProjectTarget({
+  projectId, docs, tableLinks: () => linksOf('tableau'), sel, linkKey: bindingKey,
+})
+// Item sélectionné (recomputé → survit aux reloads ; accueil si disparu). Une ADRESSE qui ne
+// s'ouvre pas ne passe jamais par ce repli : `refusal` prend la place du viewer.
 const selItem = computed<RailItem | null>(() => {
+  const hors = outsideDoc.value
+  if (hors && sel.value === `doc:${hors.id}`)
+    return { key: sel.value, kind: 'page', label: hors.title, doc: hors, pad: 0, hint: hors.description }
   for (const g of railGroups.value) { const it = g.items.find((x) => x.key === sel.value); if (it) return it }
   return railGroups.value[0]?.items[0] ?? null
 })
@@ -199,24 +212,14 @@ function procRunTag(slug: string): { tone: 'olive' | 'terra' | 'saffron'; label:
 }
 const { scoped } = useScopedLink()
 
-// Sélection ↔ URL pour les TABLEAUX : `/projects/:id/data/:nsRef` ouvre le tableau lié
-// correspondant (les autres entités restent en sélection interne `sel`). Navigation
-// directe / refresh / back : on resynchronise depuis l'URL.
-function selectFromRoute() {
-  const ref = route.params.nsRef
-  if (typeof ref === 'string' && ref) {
-    const l = linksOf('tableau').find((x) => x.target_ref === ref || String(x.datastore ?? '') === ref)
-    if (l) { sel.value = bindingKey(l); return }
-  }
-  // Deep-link PAGE `?doc=<id>` (lot 3 Ship 2) — prérequis de tout clic de résultat
-  // (recherche, fil Récent, backlinks) : arriver par URL sélectionne la page.
-  const d = route.query.doc
-  if (typeof d === 'string' && /^\d+$/.test(d)) sel.value = `doc:${d}`
-}
-watch(() => route.params.nsRef, selectFromRoute)
-watch(() => route.query.doc, selectFromRoute)
+// Sélection ↔ URL : `/projects/:id/data/:nsRef` ouvre un tableau lié, `?doc=<id>` une page —
+// prérequis de tout clic de résultat (recherche, fil Récent, backlinks). Les autres entités
+// restent en sélection interne `sel`. Navigation directe / refresh / back : l'adresse est
+// relue, une fois le projet chargé — jamais contre des listes pas encore arrivées.
+const address = computed(() => `${route.params.nsRef ?? ''}|${route.query.doc ?? ''}`)
+watch(address, () => { if (loaded.value && project.value) void selectFromRoute() })
 
-onMounted(async () => { await load(); selectFromRoute() })
+onMounted(async () => { await load(); if (project.value) await selectFromRoute() })
 
 // ── actions d'en-tête ──
 async function saveBrief(value: string) {
@@ -266,29 +269,32 @@ async function archive() {
 
 // ── navigateur : sélection + ajout ──
 function onSelect(it: RailItem) {
+  if (it.kind === 'page' && it.doc) { openDoc(it.doc.id); return }
   sel.value = it.key
   // Un tableau lié ouvre sa vue COMPLÈTE dans le projet et pose l'URL dédiée ;
-  // toute autre entité quitte la vue tableau (retour à /projects/:id).
+  // toute autre entité quitte l'adresse d'un tableau ou d'une page (retour à /projects/:id).
   if (it.kind === 'tableau' && it.link) {
     void router.push(scoped(`/projects/${projectId}/data/${it.link.target_ref}`))
     return
   }
-  if (route.params.nsRef != null) {
-    void router.push(scoped(`/projects/${projectId}`))
-  }
-  // Miroir URL de la page sélectionnée (`?doc=`) — lien partageable, refresh stable.
-  const did = it.kind === 'page' && it.doc ? String(it.doc.id) : undefined
-  if ((route.query.doc as string | undefined) !== did)
-    void router.replace({ query: { ...route.query, doc: did } })
+  if (route.params.nsRef != null) void router.push(scoped(`/projects/${projectId}`))
+  else if (route.query.doc != null) void router.replace({ query: { ...route.query, doc: undefined } })
+}
+// Ouvrir une page = lui donner SON adresse (`?doc=`, lien partageable, refresh stable) :
+// une page ne s'affiche jamais sous l'adresse d'un tableau ou d'une autre page (oto#203).
+function openDoc(id: number) {
+  sel.value = `doc:${id}`
+  if (route.params.nsRef != null) void router.push(scoped(`/projects/${projectId}?doc=${id}`))
+  else if (route.query.doc !== String(id)) void router.replace({ query: { ...route.query, doc: String(id) } })
 }
 function openAdd(kind: NonNullable<typeof addKind.value>) { addParent.value = null; addKind.value = kind }
 function openSubPage(parentId: number) { addParent.value = parentId; addKind.value = 'page' }
 async function onLinked() { await Promise.all([reloadProject(), loadActivity(), loadAudit()]) }
-async function onCreatedDoc(id: number) { await loadDocs(); sel.value = `doc:${id}` }
+async function onCreatedDoc(id: number) { await loadDocs(); openDoc(id) }
 // Lien-souche [[Titre]] cliqué (Ship 4) : crée la page au niveau projet + l'ouvre.
 async function onCreatePage(title: string) {
   if (readOnly.value) return
-  try { const d = await createDoc(projectId, title); await loadDocs(); sel.value = `doc:${d.id}` }
+  try { const d = await createDoc(projectId, title); await loadDocs(); openDoc(d.id) }
   catch (e) { toast(humanize(e)) }
 }
 // Déplacement d'une page (Ship 2 + reparentage par drag) : calcule l'INDEX cible parmi
@@ -309,7 +315,10 @@ async function onMove({ id, parentId, beforeId }: { id: number; parentId: number
 }
 async function onReloadDocs() {
   await loadDocs()
-  if (sel.value.startsWith('doc:') && !docs.value.some((d) => `doc:${d.id}` === sel.value)) sel.value = 'home'
+  if (!sel.value.startsWith('doc:') || docs.value.some((d) => `doc:${d.id}` === sel.value)) return
+  // La page affichée n'existe plus : l'adresse la quitte, l'accueil ne s'affiche pas sous elle.
+  sel.value = 'home'
+  if (route.query.doc != null) void router.replace({ query: { ...route.query, doc: undefined } })
 }
 async function onReloadFiles() {
   await loadFiles()
@@ -387,12 +396,18 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
 
       <!-- navigateur : rail (gauche) + viewer (droite) -->
       <div class="pj-body">
-        <ProjectViewer class="pj-body__vw" :item="selItem" :project-id="projectId" :project-name="project.name"
+        <!-- l'adresse désigne un objet qui ne s'ouvre pas : le dire, rien à sa place (oto#203) -->
+        <p v-if="opening" class="pj-body__vw pj-target dim">{{ t('target.doc.loading') }}</p>
+        <div v-else-if="refusal" class="pj-body__vw pj-target">
+          <TargetRefusalCard :title="refusal.title" :code="refusal.code" :detail="refusal.detail"
+            :choices="refusal.choices" />
+        </div>
+        <ProjectViewer v-else class="pj-body__vw" :item="selItem" :project-id="projectId" :project-name="project.name"
           :brief="project.brief_md" :read-only="readOnly" :doc-title-map="docTitleMap"
           :table-links="linksOf('tableau')"
           :excluded-url-prefixes="project.excluded_url_prefixes"
           @save-brief="saveBrief" @reload-docs="onReloadDocs" @reload-files="onReloadFiles"
-          @reload-links="onReloadLinks" @reload-project="reloadProject" @changed="onChanged" @open-doc="(id) => sel = `doc:${id}`"
+          @reload-links="onReloadLinks" @reload-project="reloadProject" @changed="onChanged" @open-doc="openDoc"
           @add-subpage="openSubPage" @create-page="onCreatePage" />
         <ProjectRail class="pj-body__rail" :groups="railGroups" :sel="sel" :read-only="readOnly"
           @select="onSelect" @add="openAdd" @move="onMove" />
@@ -473,6 +488,7 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
 .pj-body__rail { order: 1; align-self: start; position: sticky; top: 0;
   max-height: calc(100vh - 60px); overflow-y: auto; }
 .pj-body__vw { order: 2; min-width: 0; }
+.pj-target { margin: 0; padding: 24px 26px; }
 @media (max-width: 720px) { .pj-body { grid-template-columns: 1fr; } .pj-body__rail { border-right: 0; border-bottom: 1px solid var(--color-hair); } }
 
 .surface-card { background: var(--color-surface); border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 18px; }

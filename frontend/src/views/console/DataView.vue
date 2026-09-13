@@ -7,16 +7,20 @@ import Tag from '@/components/console/Tag.vue'
 import Icon from '@/components/console/Icon.vue'
 import DatastoreTable from '@/components/console/DatastoreTable.vue'
 import NamespaceCreateDialog from '@/components/console/NamespaceCreateDialog.vue'
+import TargetRefusalCard from '@/components/console/TargetRefusalCard.vue'
+import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
 import { useMe } from '@/composables/useMe'
 import { getNamespaces, getSharedWithMe, createNamespace } from '@/api/console'
 import type { DatastoreEntry, SharedDatastoreEntry } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { resolveTarget, type TargetChoice, type TargetKey } from '@/lib/routeTarget'
 
 const { toast } = useToast()
 const { me } = useMe()
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const datastores = ref<DatastoreEntry[]>([])
 // Ce que `GET /api/me/datastores/shared` sert : les tableaux partagés NOMINATIVEMENT à
@@ -140,18 +144,34 @@ const contexte = computed(() => {
     + `${aPart ? ` ; ${aPart} sont rangés à part` : ''}.`
 })
 
+// L'appartenance d'un tableau en UN mot : le badge d'une ligne, l'indice d'un candidat
+// homonyme (oto#203). Un tableau d'un AUTRE utilisateur reçu par partage reste `shared`.
+function appartenance(ns: SharedDatastoreEntry): string | null {
+  if (ns.owner_type === 'org') return 'org'
+  if (ns.owner_type === 'group') return 'team'
+  if (ns.shared) return `shared · ${ns.permission || 'read'}`
+  return ns.is_personal ? 'personnel' : null
+}
+
 // Sélection pilotée par le CHEMIN `/data/:id` (id stable au renommage, ADR 0032) —
-// résolu par id OU nom (les liens agent portent le nom) ; l'ancien `?ns=` est normalisé.
+// résolu par id PUIS par nom (les liens agent portent le nom) ; l'ancien `?ns=` est
+// normalisé. ⚠️ L'id d'abord, et un nom porté par plusieurs tableaux ne choisit pas
+// (oto#203) : chercher les deux dans la même passe laissait l'ordre de la liste trancher,
+// et l'adresse réécrite vers le premier homonyme effaçait la trace du nom demandé.
+const CLES: TargetKey<SharedDatastoreEntry>[] = [(n) => n.id, (n) => n.datastore]
 const selParam = computed(() => {
   const p = route.params.id
   if (typeof p === 'string' && p) return p
   const q = route.query.ns
   return typeof q === 'string' && q ? q : null
 })
+const resolution = computed(() =>
+  (selParam.value ? resolveTarget(selParam.value, toutes.value, CLES) : null))
 async function applySelection(raw: string | null) {
   if (!raw) { selectedId.value = null; return }
-  const ns = toutes.value.find((n) => String(n.id) === raw || n.datastore === raw)
-  if (!ns) { selectedId.value = null; return }
+  const r = resolveTarget(raw, toutes.value, CLES)
+  if (r.kind !== 'found') { selectedId.value = null; return }
+  const ns = r.item
   if (String(route.params.id) !== String(ns.id)) {
     const { ns: _drop, ...rest } = route.query
     // préserve le deep-link de row (`…/item/<rowId>`) quand on normalise nom → id
@@ -163,6 +183,18 @@ async function applySelection(raw: string | null) {
 }
 watch(selParam, (v) => { void applySelection(v) })
 
+// Un nom porté par plusieurs tableaux — le sien et un reçu, typiquement : l'écran liste les
+// candidats, le choix reste au lecteur. Même garde qu'`introuvable` ci-dessous : une liste
+// qui n'a pas chargé ne prouve rien.
+const candidats = computed<TargetChoice[] | null>(() => {
+  const r = resolution.value
+  if (!loaded.value || error.value || current.value || r?.kind !== 'ambiguous') return null
+  return r.candidates.map((n) => ({
+    key: String(n.id), label: n.datastore, to: `/data/${n.id}`,
+    hint: [`#${n.id}`, appartenance(n)].filter(Boolean).join(' · '),
+  }))
+})
+
 // Un `/data/:id` qui ne résout rien rendait EXACTEMENT le même écran que « rien de
 // sélectionné » : `applySelection` jette l'id (ligne ci-dessus) et on retombe sur
 // « pick a datastore ». Le destinataire d'un lien direct légitime lisait donc une
@@ -173,7 +205,7 @@ watch(selParam, (v) => { void applySelection(v) })
 // `!error` : une liste qui n'a pas chargé n'est pas un tableau introuvable — sans ce
 // garde, une panne de réseau accuserait le partage.
 const introuvable = computed(
-  () => loaded.value && !error.value && !!selParam.value && !current.value)
+  () => loaded.value && !error.value && !!selParam.value && !current.value && !candidats.value)
 
 // Les deux listes en un seul temps : `current` se résout sur leur union, et un chargement
 // en deux vagues ferait clignoter « tableau introuvable ici » sur un lien direct légitime.
@@ -266,10 +298,7 @@ async function onNsDeleted() {
                      reçu par partage reste donc sur la branche `shared`. -->
                 <span class="ns-tags">
                   <Tag v-if="ns.schema?.fields?.length" tone="olive">typé</Tag>
-                  <Tag v-if="ns.owner_type === 'org'" tone="cobalt">org</Tag>
-                  <Tag v-else-if="ns.owner_type === 'group'" tone="cobalt">team</Tag>
-                  <Tag v-else-if="ns.shared" tone="cobalt">shared · {{ ns.permission || 'read' }}</Tag>
-                  <Tag v-else-if="ns.is_personal" tone="cobalt">personnel</Tag>
+                  <Tag v-if="appartenance(ns)" tone="cobalt">{{ appartenance(ns) }}</Tag>
                 </span>
               </button>
             </div>
@@ -286,6 +315,9 @@ async function onNsDeleted() {
       <!-- contenu du tableau sélectionné (composant réutilisable) -->
       <DatastoreTable v-if="current" :ns-ref="String(selectedId)" :ns-meta="current"
         @changed="load" @deleted="onNsDeleted" />
+      <!-- un nom porté par plusieurs tableaux : les candidats, aucun ouvert à la place d'un autre (oto#203) -->
+      <TargetRefusalCard v-else-if="candidats" :title="t('target.table.ambiguous', { raw: selParam })"
+        :detail="t('target.table.pick')" :choices="candidats" />
       <!-- ⚠️ Cette carte accusait le partage nominatif — « ouvre l'accès mais n'entre
            dans aucune liste ». C'était vrai jusqu'au 10/09 ; depuis la section « partagé
            avec moi », un tableau reçu SE RÉSOUT ici, et cette phrase enverrait le

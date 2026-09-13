@@ -405,5 +405,21 @@
     "bad_quiet_hours": "les heures calmes doivent être deux heures différentes entre 0 et 23",
     "nothing_to_set": "rien à enregistrer",
     "unknown_scheduled_email": "cet email a disparu, est déjà envoyé ou déjà annulé"
+  },
+  "target": {
+    "doc": {
+      "notFound": "page {what} introuvable dans ce projet",
+      "notAnId": "l'adresse attend l'identifiant d'une page.",
+      "otherProject": "elle appartient à un autre projet.",
+      "openInProject": "l'ouvrir dans son projet",
+      "otherId": "le serveur a rendu la page #{got}.",
+      "loading": "chargement de la page…"
+    },
+    "table": {
+      "notFound": "tableau « {raw} » introuvable dans ce projet",
+      "notLinked": "aucun tableau lié à ce projet ne porte ce nom ou cet identifiant.",
+      "ambiguous": "« {raw} » désigne plusieurs tableaux",
+      "pick": "aucun n'est ouvert à la place d'un autre : choisis celui à ouvrir."
+    }
   }
 }

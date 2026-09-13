@@ -482,3 +482,42 @@ describe('DataView — « partagé avec moi » : ce qu\'aucune liste ne rendait 
     unmount()
   })
 })
+
+describe('DataView — une adresse ambiguë ne choisit pas en silence (oto#203)', () => {
+  // Deux tableaux nommés pareil : le sien, et un reçu en partage. Avant oto#203,
+  // `applySelection` cherchait l'id ET le nom dans la même passe : `/data/clients` ouvrait
+  // le premier de la liste et réécrivait l'adresse en `/data/<son id>` — la trace du nom
+  // demandé disparaissait, et rien ne disait qu'un autre tableau portait ce nom.
+  const MIEN = entree({ id: 41, datastore: 'clients' })
+  const RECU_HOMONYME = entree({ id: 77, datastore: 'clients', ...RECU }) as SharedDatastoreEntry
+  const cartes = (host: HTMLElement) =>
+    [...host.querySelectorAll('.target-refusal a')].map((a) => a.getAttribute('href'))
+
+  it('un nom porté par deux tableaux : aucun ne s\'ouvre, l\'adresse reste, les candidats sont listés', async () => {
+    const { host, panneau, titres, unmount } = await monterListe([MIEN], '/data/clients', [RECU_HOMONYME])
+
+    expect(panneau()).toBeNull()
+    expect(host.querySelector('.ns-item.active')).toBeNull()
+    expect(cartes(host)).toEqual(['/data/41', '/data/77'])
+    expect(host.querySelector('.target-refusal')?.textContent).toContain('clients')
+    expect(titres()).not.toContain('tableau introuvable ici')
+    expect(titres()).not.toContain('pick a datastore')
+    unmount()
+  })
+
+  it('l\'identifiant tranche avant le nom : `/data/41` ouvre le tableau 41, pas celui qui s\'appelle « 41 »', async () => {
+    const { panneau, unmount } = await monterListe([
+      entree({ id: 12, datastore: '41' }),
+      entree({ id: 41, datastore: 'clients' }),
+    ], '/data/41')
+    expect(panneau()).toBe('41|clients')
+    unmount()
+  })
+
+  it('un nom porté par un seul tableau reste ouvert et normalisé vers son id', async () => {
+    const { panneau, host, unmount } = await monterListe([MIEN], '/data/clients')
+    expect(panneau()).toBe('41|clients')
+    expect(host.querySelector('.target-refusal')).toBeNull()
+    unmount()
+  })
+})

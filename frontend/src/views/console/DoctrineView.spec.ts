@@ -134,7 +134,7 @@ describe('/procedures/:id hors de la liste chargée', () => {
     api.getGuideById.mockResolvedValue({ ...HORS_LISTE, guide_id: 999, doctrine_id: 999 })
     const { host, unmount } = await monter('/procedures/344')
 
-    expect(texte(host, '.proc-refus')).toContain('#344')
+    expect(texte(host, '.target-refusal')).toContain('#344')
     expect(titre(host)).toBeNull()
     expect(corps(host)).toBeNull()
     unmount()
@@ -148,7 +148,7 @@ describe('/procedures/:id hors de la liste chargée', () => {
     api.getGuideById.mockRejectedValue(new ApiError(status, code, detail))
     const { host, router, unmount } = await monter('/procedures/344')
 
-    const refus = texte(host, '.proc-refus')
+    const refus = texte(host, '.target-refusal')
     expect(refus).toContain('#344')
     expect(refus).toContain(`${status} ${code}`)
     if (detail) expect(refus).toContain(detail)
@@ -162,7 +162,7 @@ describe('/procedures/:id hors de la liste chargée', () => {
   it('un slug absent de la liste ne retombe pas sur la première procédure', async () => {
     const { host, router, unmount } = await monter('/procedures/proc-inconnue')
 
-    expect(texte(host, '.proc-refus')).toContain('proc-inconnue')
+    expect(texte(host, '.target-refusal')).toContain('proc-inconnue')
     expect(titre(host)).toBeNull()
     expect(host.textContent).not.toContain('corps de A')
     expect(router.currentRoute.value.fullPath).toBe('/procedures/proc-inconnue')

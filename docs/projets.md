@@ -26,6 +26,25 @@ picker des vraies entités via `getNamespaces`/`getConnectors`/`getDoctrine`)
 dans `api/console.ts` (POST op-aware `/api/me/{projects,docs}`). Backend : `oto-backend/CLAUDE.md`
 §Projet. Non faits : MCP-App rendu, édition temps réel, pré-set vendable.
 
+**L'adresse désigne l'objet affiché, jamais un autre** (oto#203, 13/09/2026 —
+`composables/useProjectTarget.ts`, règle commune `lib/routeTarget.ts`). Deux adresses portent
+une sélection : `?doc=<id>` (une page) et `/projects/:id/data/:nsRef` (un tableau lié). Avant,
+une adresse qui ne résolvait rien laissait la sélection intacte : l'accueil (le brief) au
+montage, l'objet PRÉCÉDENT en navigation. Désormais :
+- **page listée** → ouverte depuis la liste ; **id hors liste** → `oto_doc op=get` : une page
+  de ce projet s'affiche (liste en retard ou non chargée), celle d'un **autre projet** se nomme
+  avec le lien vers son projet, un **refus** s'affiche avec son code ; pas un id → introuvable,
+  sans appel ;
+- **tableau** → le lien du projet par `target_ref`, puis `datastore_id`, puis le nom ; un nom
+  porté par plusieurs liens **liste les candidats** sans en ouvrir aucun ;
+- ouvrir une page (rail, backlink, création) lui donne SA propre adresse ; supprimer la page
+  affichée retire `?doc=`. Connecteurs, procédures et fichiers n'ont pas d'adresse : ils
+  quittent celle d'une page ou d'un tableau.
+
+Tests : `views/console/ProjectDetailView.spec.ts`. ⚠️ Une page de ce projet lue hors liste
+disparaît au prochain rechargement des pages (le repli « page disparue » la traite comme
+supprimée).
+
 ## Slots & inventaire dérivé (ADR 0035, B4/B5)
 
 > **Slots & inventaire dérivé (ADR 0035, B4/B5).** Le formulaire « publier en endpoint MCP »

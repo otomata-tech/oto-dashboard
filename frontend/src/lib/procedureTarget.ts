@@ -15,8 +15,9 @@
 // qui consulte une org sans en être membre (`X-Oto-Org`, lecture seule) en voit la liste,
 // mais `can_access` ne lui accorde aucune escalade plateforme — la lecture par id lui
 // rendrait 403 sur ce qu'il voit listé.
-import { ApiError } from '@/api'
-import { humanize } from '@/lib/errors'
+//
+// Le refus affiché (code et phrase du serveur) est commun aux écrans qui résolvent une
+// adresse : `lib/routeTarget.ts` (oto#203).
 
 export interface ListedProcedure { id: number; slug: string }
 
@@ -37,20 +38,4 @@ export function procedureTarget(raw: string | null, docs: ListedProcedure[]): Pr
 export function targetKey(t: ProcedureTarget): string {
   if (t.kind === 'listed' || t.kind === 'by-id') return `id:${t.id}`
   return t.kind === 'unknown' ? `raw:${t.raw}` : 'first'
-}
-
-export interface ProcedureRefusal {
-  what: string            // la procédure DEMANDÉE : `#344`, `« proc-x »`
-  code: string | null     // `403 forbidden` tel que le serveur l'a rendu ; null hors réponse serveur
-  detail: string | null   // la phrase du serveur, à défaut la traduction du code
-}
-
-/** Le refus tel que le serveur l'a rendu : son code et sa phrase, jamais une autre procédure. */
-export function procedureRefusal(what: string, e: unknown): ProcedureRefusal {
-  if (e instanceof ApiError) {
-    const code = `${e.status} ${e.code}`
-    const human = humanize(e)
-    return { what, code, detail: e.detail?.trim() || (human !== code ? human : null) }
-  }
-  return { what, code: null, detail: humanize(e) }
 }

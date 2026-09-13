@@ -6,7 +6,8 @@ description: >-
    local vert / CI rouge » : le cache incrémental qui ne re-vérifie pas les fichiers non tou
   chés, et le working tree ≠ arbre commité sur un checkout partagé. Plus la règle transverse
    « une alerte qui réclame un geste offre le moyen de l'accomplir », et son tripwire ;
-   et « un identifiant de compte s'affiche en personne » (#143).
+   « un identifiant de compte s'affiche en personne » (#143) ; « une adresse n'affiche que
+   l'objet qu'elle désigne » (oto#201, oto#203).
 ---
 
 # Conventions du front
@@ -106,3 +107,23 @@ affichaient un fait faux, sans que rien ne casse.
 ⚠️ **Resté en l'état, hors du périmètre d'oto#193** : l'étape d'accueil « connecter un
 client » de l'aperçu (`OverviewView.vue`) est cochée en dur (`done: true`) — même défaut que
 la pastille, sur un autre élément.
+
+## ⚠️ Une adresse n'affiche que l'objet qu'elle désigne (oto#201, oto#203)
+
+Quatre écrans résolvaient un paramètre d'URL contre une liste et, faute de résultat,
+affichaient AUTRE CHOSE sans le dire : la première procédure (`/procedures/:id`, oto#201) ; le
+brief du projet ou le tableau précédent (`/projects/:id?doc=`, `/projects/:id/data/:nsRef`) ;
+le premier de deux tableaux homonymes, adresse réécrite (`/data/<nom>`, oto#203). Une réponse
+plausible et fausse, pire qu'une erreur.
+
+La règle, portée par `lib/routeTarget.ts` (`resolveTarget`, `targetRefusal`) :
+- **les clés dans l'ordre, l'identifiant d'abord** — un id ne désigne qu'un objet ; chercher
+  id et nom dans la même passe laisse l'ordre de la liste trancher ;
+- **un nom porté par plusieurs objets ne choisit pas** : l'écran liste les candidats, et
+  n'efface pas l'adresse demandée en la réécrivant ;
+- **rien trouvé** : l'écran le dit, avec le code du serveur s'il y a eu une lecture, et rien
+  ne s'affiche à la place — `components/console/TargetRefusalCard.vue` ;
+- **une liste qui n'a pas chargé ne prouve pas l'absence** : on dit l'erreur, ou on lit par id.
+
+Seule une adresse SANS paramètre choisit par défaut (l'entrée du menu `/procedures`, l'accueil
+d'un projet). Tests : `DoctrineView.spec.ts`, `ProjectDetailView.spec.ts`, `DataView.spec.ts`.

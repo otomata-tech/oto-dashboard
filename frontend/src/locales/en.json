@@ -405,5 +405,21 @@
     "bad_quiet_hours": "quiet hours must be two different hours between 0 and 23",
     "nothing_to_set": "nothing to save",
     "unknown_scheduled_email": "this email is gone, already sent, or already cancelled"
+  },
+  "target": {
+    "doc": {
+      "notFound": "page {what} not found in this project",
+      "notAnId": "the address expects a page id.",
+      "otherProject": "it belongs to another project.",
+      "openInProject": "open it in its project",
+      "otherId": "the server returned page #{got}.",
+      "loading": "loading the page…"
+    },
+    "table": {
+      "notFound": "table “{raw}” not found in this project",
+      "notLinked": "no table linked to this project has this name or id.",
+      "ambiguous": "“{raw}” matches several tables",
+      "pick": "none is opened in place of another: pick the one to open."
+    }
   }
 }

@@ -71,6 +71,7 @@ Une phrase par règle ; l'incident qui l'a produite et ses cas limites vivent da
 - **Un secret conservé est OMIS du corps** du formulaire de credential : le serveur traite une clé présente et vide comme un effacement. → `docs/connecteurs.md`
 - **Un paiement RÉUSSI ne produit jamais de copie négative** : les branches de `confirm` sont des 200 discriminées par `status`, `pending_mandate` est une attente, et aucun bouton de paiement n'est atteignable pendant l'attente. → `docs/facturation.md`
 - **Les horodatages du backend arrivent en UTC sans fuseau** : toute lecture de date passe par `instant()` (`lib/runnerJobs.ts`), jamais par `Date.parse` nu. → `docs/automations.md`
+- **Une adresse n'affiche que l'objet qu'elle désigne** : id avant nom, un nom ambigu liste ses candidats, un objet introuvable se dit avec le code du serveur — jamais un autre objet à sa place (`lib/routeTarget.ts`, `TargetRefusalCard.vue`). → `docs/conventions.md`
 - **Une page absente de `PAGE_META` retombe silencieusement sur l'overview** ; `lib/consoleNav.spec.ts` tient la règle (tout écran a son titre, tout titre ses deux traductions). → `docs/automations.md`
 - **Un écran n'énonce que ce qu'il sait** : un état (pastille, coche) lit un signal servi, jamais une valeur par défaut, sinon il disparaît ; un domaine affiché vient de l'environnement servi (`lib/servedEnv.ts`), jamais d'une constante. → `docs/conventions.md`
 - **Copy user-facing = verbatim** (`lib/connectorVerdict.ts` porte la copy du CDC), jamais reformulée ; i18n FR complète.
@@ -104,7 +105,7 @@ L'identité Otomata se définit dans `oto-studio/brand/` et s'implémente pour l
 |---|---|
 | `commands.md` | lancer le dashboard, tester un fix en local contre les vraies données de prod. |
 | `deploiement.md` | tronc unique (`main` = preprod, tag = prod), artefact-only, cutover ADR 0040. |
-| `conventions.md` | le typecheck du CI et ses deux vecteurs de « local vert / CI rouge » ; les règles transverses « alerte sans levier » (avec son tripwire) et « un identifiant de compte s'affiche en personne », avec leurs incidents. |
+| `conventions.md` | le typecheck du CI et ses deux vecteurs de « local vert / CI rouge » ; les règles transverses « alerte sans levier » (avec son tripwire), « un identifiant de compte s'affiche en personne » et « une adresse n'affiche que l'objet qu'elle désigne », avec leurs incidents. |
 | `design-system.md` | où vit l'identité et pourquoi le dashboard ne s'y branche pas encore, direction « 2a », les deux fichiers de tokens, état d'intégration, archivage de `design-system/`. |
 | `handoff-design-system.md` | plan de portage du DS dans le front (b1→b8) — **historique**. |
 | `refonte-pages-projet.md` | cahier des charges de la refonte UX des pages Projet — **historique**. |
