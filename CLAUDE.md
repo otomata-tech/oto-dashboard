@@ -56,7 +56,7 @@ Un écran = une section de `lib/consoleNav.ts` ; le détail (composants, API cli
 | identité, consultation (view-as), hub compte | `/account/*` + sidebar/popin | `docs/identite-et-consultation.md` |
 | écrans plateforme — objets possédés, tenants, relance des comptes inactifs | `/platform/objects`, `/platform/tenants`, `/platform/outreach` | `docs/plateforme.md` |
 | facturation — abonnement, tunnel de souscription, factures | `/org/billing` | `docs/facturation.md` |
-| automatisations — bandeau runner, campagnes, leurs gestes (armer, relancer, arrêter) et leurs travaux, travaux hors campagne, déclencheurs, routines (oto#205) | `/automations` | `docs/automations.md` |
+| automatisations — bandeau runner, campagnes, leurs gestes (armer, relancer, arrêter) et leurs travaux, travaux hors campagne, déclencheurs et leurs réglages, routines (oto#205) | `/automations` | `docs/automations.md` |
 | observabilité (PostHog + Sentry) | — | `docs/observabilite.md` |
 
 ## Règles de l'UI
@@ -117,6 +117,6 @@ L'identité Otomata se définit dans `oto-studio/brand/` et s'implémente pour l
 | `identite-et-consultation.md` | affichage (sidebar) vs switch (popin), consultation vs maison (ADR 0023), « voir en tant que », hub `/account`. |
 | `plateforme.md` | `/platform/objects` (ADR 0030), `/platform/tenants` (ADR 0052, lecture seule), `/platform/outreach` (les cinq verrous vivent au serveur). |
 | `facturation.md` | `/org/billing` et son tunnel, `pending_mandate` = attente, l'alerte qui porte son levier, factures, préalables peints d'un coup, miroir de TVA. |
-| `automations.md` | les sections et ce qu'elles lisent, ce qui est partagé (statut → libellé, jetons, rafraîchissement), les règles du modèle de campagne, les gestes sur une campagne (droits, R1/R2, témoin par relecture), ordre et repli, rafraîchissement onglet visible, erreurs par section, ce que l'API ne permet pas, fiche d'un travail, ce qu'oto#205 a retiré, pièges vécus (UTC, `null` = non mesuré, `lease_until`, `PAGE_META`). |
+| `automations.md` | les sections et ce qu'elles lisent, ce qui est partagé (statut → libellé, jetons, rafraîchissement), les règles du modèle de campagne, les gestes sur une campagne (droits, R1/R2, témoin par relecture) et le réglage d'un déclencheur (champs modifiés seuls, modèle jamais présélectionné), ordre et repli, rafraîchissement onglet visible, erreurs par section, ce que l'API ne permet pas, fiche d'un travail, ce qu'oto#205 a retiré, pièges vécus (UTC, `null` = non mesuré, `lease_until`, `PAGE_META`). |
 | `types-api.md` | chaîne `Output` → OpenAPI → snapshot → types → alias, les deux contrôles CI, ce qui reste manuel, le sas `api.attendu.ts`. |
 | `observabilite.md` | PostHog (gaté consentement) + Sentry, source maps au build, token à scoper. |

@@ -529,6 +529,9 @@ export interface RunnerTrigger {
   // le même geste qu'une perte de ce matin.
   expired_since: string | null
   expired_last: string | null
+  // Le modèle DÉCLARÉ, pris dans le catalogue `runner.models` (servi en prod depuis
+  // v1.276.0). `null` = aucun : le worker qui prend le travail tourne sur le sien.
+  model: string | null
 }
 // `procedure` filtre SERVEUR (#860 ①). L'écran d'une procédure demande « celle-ci
 // tourne-t-elle ? », pas la liste de l'org — et filtrer côté client devient faux dès
@@ -539,9 +542,22 @@ export const listRunnerTriggers = (procedure?: string) =>
   api<{ triggers: RunnerTrigger[]; runner: RunnerArme | null }>('/api/me/runner/triggers', {
     method: 'POST', ...j(procedure ? { op: 'list', procedure } : { op: 'list' }),
   })
-export const setRunnerTriggerEnabled = (id: number, enabled: boolean) =>
-  api<{ trigger: RunnerTrigger }>('/api/me/runner/triggers', {
-    method: 'POST', ...j({ op: 'update', trigger_id: id, enabled }),
+// Régler un déclencheur (oto#205, lot 2). Ouvert à tout membre, sans garde bêta.
+// `op=update` est PARTIEL : seuls les champs présents changent. `model: ""` revient au
+// modèle du worker ; `cron` et `tz` sont revalidés ENSEMBLE (`invalid_schedule`, dont le
+// `detail` nomme le fautif) et `next_due` est recalculé par le serveur ; `enabled: true`
+// peut être refusé (`no_runner_armed`, `model_key_required`, `model_not_served`).
+// ⚠️ La réponse est la ligne BRUTE : ni `expired_*` ni `runner` — relire avec `op=list`.
+export type RunnerTriggerChamps = Partial<{ cron: string; tz: string; model: string; enabled: boolean }>
+export const updateRunnerTrigger = (id: number, champs: RunnerTriggerChamps) =>
+  api<{ trigger: Partial<RunnerTrigger> }>('/api/me/runner/triggers', {
+    method: 'POST', ...j({ op: 'update', trigger_id: id, ...champs }),
+  })
+// `{ ok: true }`, ou 404 `trigger_not_found`. Le serveur périme d'abord les occurrences en
+// attente du déclencheur : elles ne partiront jamais.
+export const deleteRunnerTrigger = (id: number) =>
+  api<{ ok?: boolean }>('/api/me/runner/triggers', {
+    method: 'POST', ...j({ op: 'delete', trigger_id: id }),
   })
 
 // « Reprendre dans Claude » — blob copier-coller qui pré-écrit oto_use_project (B5b).

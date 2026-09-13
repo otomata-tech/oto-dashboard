@@ -4,7 +4,7 @@
 // « occurrences non prises » depuis oto#205.
 //
 // Ces tests tiennent les deux moitiés : la perte se voit, et l'absence de perte ne
-// fabrique aucun bruit.
+// fabrique aucun bruit. Les réglages (lot 2) sont tenus par `automations/triggerRow.spec.ts`.
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import type { RunnerTrigger } from '@/api/console'
@@ -12,13 +12,16 @@ import { ApiError } from '@/api'
 import { i18n } from '@/lib/i18n'
 
 const listRunnerTriggers = vi.fn()
-const setRunnerTriggerEnabled = vi.fn()
-vi.mock('@/api/console', () => ({ listRunnerTriggers, setRunnerTriggerEnabled }))
+const updateRunnerTrigger = vi.fn()
+const deleteRunnerTrigger = vi.fn()
+vi.mock('@/api/console', () => ({ listRunnerTriggers, updateRunnerTrigger, deleteRunnerTrigger }))
+const me = { value: { sub: 'moi', role: 'member', org_role: 'org_member' } }
+vi.mock('@/composables/useMe', () => ({ useMe: () => ({ me }), isSuperAdmin: () => false }))
 
 const BASE: RunnerTrigger = {
   id: 1, procedure: 'daily-brain', cron: '0 8 * * *', tz: 'Europe/Paris',
   tools: [], project_id: null, label: 'Ingestion du matin', enabled: true,
-  next_due: '2026-09-04T06:00:00Z', max_steps: null,
+  next_due: '2026-09-04T06:00:00Z', max_steps: null, model: null,
   expired_count: null, expired_since: null, expired_last: null,
 }
 
@@ -96,6 +99,13 @@ describe('RunnerTriggersCard — montée sur une procédure (#860 ①)', () => {
     const host = await monterAvec([], { procedure: 'daily-brain' })
     expect(host.textContent).toContain('ne tourne pas toute seule')
   })
+
+  it('offre les mêmes gestes que sur la page : c’est le même composant', async () => {
+    const host = await monterAvec([BASE], { procedure: 'daily-brain' })
+    expect(host.querySelector('[data-test="interrupteur"]')).not.toBeNull()
+    expect(host.querySelector('[data-test="regler"]')).not.toBeNull()
+    expect(host.querySelector('[data-test="supprimer"]')).not.toBeNull()
+  })
 })
 
 describe('RunnerTriggersCard — ce que l’arrêt fait (#860 ④)', () => {
@@ -112,23 +122,28 @@ describe('RunnerTriggersCard — ce que l’arrêt fait (#860 ④)', () => {
 })
 
 describe('RunnerTriggersCard — l’erreur d’un interrupteur (oto#205)', () => {
-  it('reste sur SON déclencheur, ne remplace pas la liste, et s’efface au geste suivant réussi', async () => {
+  it('reste sur SON déclencheur, se lit telle que le serveur l’a écrite, et s’efface au geste suivant réussi', async () => {
     const autre: RunnerTrigger = { ...BASE, id: 2, label: 'Relance du soir' }
     const host = await monterAvec([BASE, autre])
-    setRunnerTriggerEnabled.mockRejectedValueOnce(new ApiError(400, 'no_runner_armed'))
+    const detail = "aucun runner armé pour cette org (aucun worker n'a jamais sondé la file de cette org : rien n'exécuterait ce déclencheur)."
+    updateRunnerTrigger.mockRejectedValueOnce(new ApiError(400, 'no_runner_armed', detail))
 
-    const interrupteur = () => host.querySelectorAll('li')[0]!.querySelector('button') as HTMLButtonElement
+    const interrupteur = () => host.querySelectorAll('li')[0]!.querySelector('[data-test="interrupteur"]') as HTMLButtonElement
     interrupteur().click()
     await vider()
     const lignes = [...host.querySelectorAll('li')]
     expect(lignes).toHaveLength(2)
-    expect(lignes[0]!.querySelector('[role="alert"]')?.textContent).toContain('no_runner_armed')
+    const alerte = lignes[0]!.querySelector('[role="alert"]')?.textContent ?? ''
+    expect(alerte).toContain(`Refusé : ${detail}`)
+    expect(alerte).toContain('no_runner_armed')
+    expect(alerte).not.toContain('400 no_runner_armed')
     expect(lignes[1]!.querySelector('[role="alert"]')).toBeNull()
     expect(host.textContent).toContain('Relance du soir')
 
-    setRunnerTriggerEnabled.mockResolvedValueOnce({ trigger: { ...BASE, enabled: false } })
+    updateRunnerTrigger.mockResolvedValueOnce({ trigger: { ...BASE, enabled: false } })
     interrupteur().click()
     await vider()
+    expect(updateRunnerTrigger).toHaveBeenLastCalledWith(1, { enabled: false })
     expect(host.querySelector('[role="alert"]')).toBeNull()
   })
 

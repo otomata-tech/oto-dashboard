@@ -1859,3 +1859,6 @@ export type RunnerFleetState = components['schemas']['FleetState']
 /** La présence d'un runner pour l'org. ⚠️ `workers` compte des identités de worker
  * (secrets déclarés) vues récemment, pas des processus. */
 export type RunnerArme = components['schemas']['RunnerArme']
+/** Un modèle du catalogue, marqué `served` s'il est servi en ce moment. ⚠️ `default` est ce
+ * que le serveur PROPOSE : l'écran ne le présélectionne jamais sur un déclencheur. */
+export type RunnerModel = components['schemas']['RunnerModel']

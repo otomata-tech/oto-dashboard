@@ -354,7 +354,17 @@
       },
       "triggers": {
         "next": "prochaine exécution : {date}",
-        "notTaken": "{n} occurrence non prise | {n} occurrences non prises"
+        "notTaken": "{n} occurrence non prise | {n} occurrences non prises",
+        "form": {
+          "open": "Régler",
+          "schedule": "Horaire (cron)",
+          "timezone": "Fuseau",
+          "model": "Modèle",
+          "workerModel": "modèle du worker",
+          "notServed": "non servi",
+          "deleteConfirm": "Supprimer ce déclencheur ? Ses occurrences en attente ne partiront jamais.",
+          "deleteNotConfirmed": "suppression non confirmée par le serveur, le déclencheur reste listé"
+        }
       },
       "routines": {
         "title": "Routines Claude Code",

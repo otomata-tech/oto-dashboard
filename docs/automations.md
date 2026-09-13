@@ -2,8 +2,8 @@
 
 L'écran des agents qui tournent **pour** l'org, sans elle. Route `/automations`, vue
 `views/console/AutomationsView.vue`. Refondu par **oto#205** : le lot 1 (13/09/2026) porte la
-**lecture juste** ; le lot 2 les **gestes** (armer, relancer, arrêter une campagne) ; la vue
-d'ensemble du coût est le lot 3.
+**lecture juste** ; le lot 2 les **gestes** (armer, relancer, arrêter une campagne ; régler et
+supprimer un déclencheur) ; la vue d'ensemble du coût est le lot 3.
 
 Usages, par priorité (Alexis, 13/09) : **suivre une campagne**, **piloter**, **vue d'ensemble**.
 
@@ -15,7 +15,7 @@ Usages, par priorité (Alexis, 13/09) : **suivre une campagne**, **piloter**, **
 | Campagnes | `automations/CampaignsSection.vue` + `CampaignCard.vue` + `CampaignActions.vue` | `runner.fleets op=list`, puis `op=state` par carte **ouverte** ; gestes `op=launch` / `op=stop` |
 | Travaux d'une campagne | `automations/RunnerJobList.vue` | `runner.jobs op=list` paginé, filtre `fleet_id` |
 | Travaux hors campagne | `automations/OffCampaignSection.vue` (repliée) | deux `RunnerJobList`, filtres `source=scheduled` et `source=manual` |
-| Déclencheurs | `components/console/RunnerTriggersCard.vue` | `runner.triggers op=list` ; aussi montée sur la fiche d'une procédure |
+| Déclencheurs | `components/console/RunnerTriggersCard.vue` + `automations/TriggerRow.vue` + `automations/TriggerSettingsForm.vue` | `runner.triggers op=list` ; gestes `op=update` (partiel) et `op=delete` ; la même carte est montée sur la fiche d'une procédure |
 | Routines Claude Code | `automations/RoutinesSection.vue` | les instances du connecteur `routine` |
 
 Plus la **fiche d'un travail**, `components/console/RunnerJobDetail.vue`, que la page tient et
@@ -28,7 +28,9 @@ qu'ouvrent toutes les listes.
 - **`lib/runnerJobs.ts`** — un travail : `libelleTravail`, `coutTravail` (connu / inconnu),
   `modeleTravail`, `jetons`, `instant` (dates UTC), `bail`, la lecture du `result`.
 - **`lib/runnerGestes.ts`** — les gestes : `droits`, `gestesCampagne` (statut × état × droits),
-  `borneAtteinte` (R1), `MOTIF_ECHECS_CONSECUTIFS` (R2), `fusionnerLecture`, `refusServi`.
+  `borneAtteinte` (R1), `MOTIF_ECHECS_CONSECUTIFS` (R2), `fusionnerLecture`, `refusServi` ; pour un
+  déclencheur, `reglageInitial`, `champsModifies`, `apresReglage`, `modeleDeclencheur`,
+  `optionsModele`, `fuseauxProposes`.
 - **`composables/useGesteObserve.ts`** — un geste en quatre temps : confirmation, envoi,
   observation, refus.
 - **`automations/ConfirmerSurPlace.vue`** et **`automations/RefusServi.vue`** — la confirmation
@@ -37,8 +39,8 @@ qu'ouvrent toutes les listes.
 - **`composables/useCibleRun.ts`** — l'arrivée par `?run=` depuis une ligne de tableau.
 
 Toute la copie neuve vit sous `automations.*` dans `locales/fr.json` et `locales/en.json`.
-Les chaînes plus anciennes de la fiche et de la carte des déclencheurs restent écrites en
-français dans le gabarit.
+Les chaînes plus anciennes de la fiche, de la carte des déclencheurs et d'une ligne de
+déclencheur (`TriggerRow`) restent écrites en français dans le gabarit.
 
 ## Les règles du modèle, et ce qui les tient
 
@@ -114,6 +116,39 @@ Fixées par la session flotte dans oto#205.
 `lib/runnerGestes.spec.ts` tient la table. `automations/campaignActions.spec.ts` tient la garde
 (ni « arrêtée » ni « en cours », en fr comme en en, avant la relecture qui les sert), sa
 contre-épreuve par un mutant simulé en mémoire, la fenêtre d'observation, les refus et les droits.
+
+## Régler un déclencheur (lot 2)
+
+`automations/TriggerRow.vue` (une ligne et ses gestes) et `automations/TriggerSettingsForm.vue`
+(le formulaire en ligne), sous `RunnerTriggersCard.vue`. La fiche d'une procédure
+(`DoctrineView`) monte la **même** carte, donc les mêmes gestes.
+
+- **Tout ce que le backend sert** : l'interrupteur, « Régler » (horaire cron avec son aperçu en
+  mots, fuseau, modèle), « Supprimer » confirmé sur place.
+- **Les droits reflètent le serveur servi** : `runner.triggers` est ouvert à tout membre, sans
+  garde admin ni bêta, et l'écran n'en ajoute aucune. Seule la lecture seule masque les gestes.
+  Réserver l'allumage et l'horaire à l'admin est une décision backend en attente : l'écran
+  suivra ce que le serveur servira.
+- **Seuls les champs modifiés partent** (`champsModifies`) : `op=update` est partiel, et un
+  `model` renvoyé inchangé sur un déclencheur allumé repasserait la garde du modèle servi.
+- **Le modèle** : « modèle du worker » (envoie `""`), puis les modèles `served` du catalogue
+  (`runner.models`, servi avec la liste). Un modèle courant non servi reste affiché et marqué
+  « non servi », sur la ligne et dans le formulaire. ⚠️ **Jamais de présélection du
+  `default`** : sans modèle déclaré, le formulaire part de « modèle du worker ».
+- **Le fuseau** : `Intl.supportedValuesOf('timeZone')`, le fuseau courant en tête s'il n'y
+  figure pas. La validation reste au serveur : `invalid_schedule` (cron et fuseau revalidés
+  ensemble) s'affiche sous l'horaire, avec le `detail` qui nomme le fautif, et la saisie reste.
+- **Après succès**, la réponse fait foi (`next_due` recalculé par le serveur), puis la carte
+  relit `op=list`. ⚠️ La réponse est la ligne **brute**, sans `expired_*` : ce que le
+  déclencheur a perdu se garde de la lecture précédente (`apresReglage`), sinon le compte
+  s'effacerait jusqu'à la relecture.
+- **Suppression** : ses occurrences en attente ne partiront jamais (le serveur les périme avant
+  de supprimer) ; la ligne ne part que sur `ok: true`.
+- **Refus** de l'interrupteur, du formulaire et de la suppression : le `detail` du serveur mot
+  pour mot, avec son code — jamais « 400 no_runner_armed » brut.
+
+`automations/triggerRow.spec.ts` tient ces règles, montées dans la carte ;
+`lib/runnerGestes.spec.ts` tient ce que le formulaire envoie.
 
 ## Ordre et repli des campagnes
 
@@ -237,7 +272,11 @@ le fournisseur, seul l'ordre et une synthèse reviennent.
 `listRunnerFleets()` · `getRunnerFleetState(id)` · `launchRunnerFleet(id)` · `stopRunnerFleet(id)` ·
 `listRunnerJobs(filtre, page)` ·
 `getRunThread(run_id)` · `getNamespaceQueue(id)` · `listRunnerTriggers(procedure?)` ·
-`setRunnerTriggerEnabled(id, on)` · `getConnectorInstances()` — tous dans `api/console.ts`.
-`RunnerFleet`, `RunnerFleetState` et `RunnerArme` sont **dérivés** du document OpenAPI
+`updateRunnerTrigger(id, champs)` · `deleteRunnerTrigger(id)` · `getConnectorInstances()` — tous
+dans `api/console.ts`.
+`RunnerFleet`, `RunnerFleetState`, `RunnerArme` et `RunnerModel` sont **dérivés** du document OpenAPI
 (`types/api.ts`) ; `RunnerJob` reste écrit à la main (contrat ouvert de `result`, statut `string`
 parce que le serveur sert aussi `expired`), avec `lease_until` pris dans `types/api.attendu.ts`.
+`RunnerTrigger` reste aussi écrit à la main, plus strict que le schéma généré : tout champ neuf
+s'y recopie (`model`, lot 2). Les codes de refus ne sont pas typés : plusieurs manquent à tout
+OpenAPI, ils se lisent par l'enveloppe d'erreur générique.

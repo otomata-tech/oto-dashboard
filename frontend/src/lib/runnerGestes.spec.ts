@@ -1,12 +1,15 @@
 // La table des gestes d'une campagne (oto#205, lot 2) : statut × état lu × droits.
 // Chaque ligne est un cas que la session flotte a tranché sur le tronc ; un changement de
 // règle se lit ici comme une ligne qui change, pas comme un composant qui bouge.
+// Puis ce qu'un formulaire de déclencheur envoie.
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '@/api'
+import type { RunnerTrigger } from '@/api/console'
 import type { RunnerFleet, RunnerFleetState } from '@/types/api'
 import {
-  borneAtteinte, droits, fusionnerLecture, gestesCampagne, MOTIF_ECHECS_CONSECUTIFS, refusServi,
-  type Droits, type Empechement, type GesteCampagne,
+  apresReglage, borneAtteinte, champsModifies, droits, fuseauxProposes, fusionnerLecture,
+  gestesCampagne, modeleDeclencheur, MOTIF_ECHECS_CONSECUTIFS, optionsModele, refusServi,
+  reglageInitial, type Droits, type Empechement, type GesteCampagne,
 } from './runnerGestes'
 
 const ADMIN = droits({ role: 'member', org_role: 'org_admin' })
@@ -107,5 +110,63 @@ describe('refusServi', () => {
 
   it('sans réponse du serveur, pas de code inventé', () => {
     expect(refusServi(new Error('Failed to fetch'))).toEqual({ code: null, texte: 'Failed to fetch' })
+  })
+})
+
+describe('déclencheurs — ce que le formulaire envoie', () => {
+  const T = { cron: '0 8 * * *', tz: 'Europe/Paris', model: null }
+  const CATALOGUE = [
+    { id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', served: true },
+    { id: 'claude-opus', label: 'Claude Opus', served: true },
+    { id: 'mistral-large', label: 'Mistral Large', served: false },
+  ]
+
+  it('sans modèle déclaré, le réglage part de « modèle du worker », jamais du défaut', () => {
+    expect(reglageInitial(T)).toEqual({ cron: '0 8 * * *', tz: 'Europe/Paris', model: '' })
+  })
+
+  it('seuls les champs modifiés', () => {
+    const i = reglageInitial(T)
+    expect(champsModifies(i, { ...i })).toEqual({})
+    expect(champsModifies(i, { ...i, cron: ' 0 8 * * * ' })).toEqual({})
+    expect(champsModifies(i, { ...i, tz: 'UTC' })).toEqual({ tz: 'UTC' })
+    expect(champsModifies(i, { ...i, cron: ' 0 9 * * *', model: 'claude-opus' }))
+      .toEqual({ cron: '0 9 * * *', model: 'claude-opus' })
+  })
+
+  it('revenir au modèle du worker envoie `""`', () => {
+    const i = reglageInitial({ ...T, model: 'mistral-large' })
+    expect(champsModifies(i, { ...i, model: '' })).toEqual({ model: '' })
+  })
+
+  it('après un réglage, la réponse fait foi et ce qui a été perdu survit', () => {
+    const courant: RunnerTrigger = {
+      id: 1, procedure: 'veille', cron: '0 8 * * *', tz: 'Europe/Paris', tools: [], project_id: null,
+      label: null, enabled: true, next_due: '2026-09-14T06:00:00Z', max_steps: null, model: null,
+      expired_count: 41, expired_since: '2026-08-20T06:00:00Z', expired_last: '2026-09-02T06:00:00Z',
+    }
+    const rendu = { ...courant, cron: '0 9 * * *', next_due: '2026-09-14T07:00:00Z',
+      expired_count: null, expired_since: null, expired_last: null }
+    expect(apresReglage(courant, rendu)).toEqual({ ...rendu, expired_count: 41,
+      expired_since: '2026-08-20T06:00:00Z', expired_last: '2026-09-02T06:00:00Z' })
+  })
+
+  it('les modèles proposés : les servis ; le courant non servi ajouté et marqué', () => {
+    expect(optionsModele(CATALOGUE, '').map((o) => o.value)).toEqual(['claude-sonnet-4-5', 'claude-opus'])
+    expect(optionsModele(CATALOGUE, 'mistral-large').at(-1))
+      .toEqual({ value: 'mistral-large', label: 'Mistral Large', nonServi: true })
+    expect(optionsModele(CATALOGUE, 'claude-opus')).toHaveLength(2)
+  })
+
+  it('le modèle d’une ligne : sans catalogue lu, on ne marque rien', () => {
+    expect(modeleDeclencheur(null, CATALOGUE)).toEqual({ label: null, nonServi: false })
+    expect(modeleDeclencheur('mistral-large', CATALOGUE)).toEqual({ label: 'Mistral Large', nonServi: true })
+    expect(modeleDeclencheur('inconnu', CATALOGUE)).toEqual({ label: 'inconnu', nonServi: true })
+    expect(modeleDeclencheur('mistral-large', [])).toEqual({ label: 'mistral-large', nonServi: false })
+  })
+
+  it('le fuseau courant est toujours proposé, une seule fois', () => {
+    expect(fuseauxProposes('Mars/Olympus')[0]).toBe('Mars/Olympus')
+    expect(fuseauxProposes('Europe/Paris').filter((z) => z === 'Europe/Paris')).toHaveLength(1)
   })
 })

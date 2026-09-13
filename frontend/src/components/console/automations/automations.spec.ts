@@ -11,7 +11,8 @@ import type { RunnerFleet, RunnerFleetState, RunnerJob } from '@/api/console'
 const api = vi.hoisted(() => ({
   listRunnerFleets: vi.fn(), getRunnerFleetState: vi.fn(), listRunnerJobs: vi.fn(),
   launchRunnerFleet: vi.fn(), stopRunnerFleet: vi.fn(),
-  listRunnerTriggers: vi.fn(), setRunnerTriggerEnabled: vi.fn(), getConnectorInstances: vi.fn(),
+  listRunnerTriggers: vi.fn(), updateRunnerTrigger: vi.fn(), deleteRunnerTrigger: vi.fn(),
+  getConnectorInstances: vi.fn(),
   getRunThread: vi.fn(), getNamespaceQueue: vi.fn(),
 }))
 vi.mock('@/api/console', () => api)

@@ -1,5 +1,6 @@
-// Les GESTES de /automations (oto#205, lot 2) — qui peut quoi sur une campagne, et ce
-// qu'un refus du serveur donne à lire. Sorti des composants pour être éprouvé.
+// Les GESTES de /automations (oto#205, lot 2) — qui peut quoi sur une campagne, ce qu'un
+// formulaire de déclencheur envoie, et ce qu'un refus du serveur donne à lire. Sorti des
+// composants pour être éprouvé.
 //
 // Règles confirmées par la session flotte sur le tronc (13/09/2026) :
 //   • Armer et Relancer ne s'affichent qu'à un admin d'org — jamais grisés pour un
@@ -12,8 +13,9 @@
 //     backend (compter depuis `armed_at`) — le levier nommé est toujours « déclarer une
 //     nouvelle campagne », jamais « augmenter la borne ».
 import { ApiError } from '@/api'
+import type { RunnerTrigger } from '@/api/console'
 import { isSuperAdmin } from '@/composables/useMe'
-import type { Me, RunnerFleet, RunnerFleetState } from '@/types/api'
+import type { Me, RunnerFleet, RunnerFleetState, RunnerModel } from '@/types/api'
 import { explain } from './errors'
 
 export type GesteCampagne = 'armer' | 'relancer' | 'arreter'
@@ -125,4 +127,88 @@ export interface Refus {
 
 export function refusServi(e: unknown): Refus {
   return { code: e instanceof ApiError ? e.code : null, texte: explain(e) }
+}
+
+// ── Déclencheurs ─────────────────────────────────────────────────────────────────
+// `runner.triggers` est ouvert à tout membre, sans garde admin ni bêta : l'écran ne garde
+// rien de plus que le serveur servi. Seule la lecture seule masque les gestes.
+
+/** Ce que le formulaire d'un déclencheur règle. `model: ''` = le modèle du worker. */
+export interface ReglageDeclencheur {
+  cron: string
+  tz: string
+  model: string
+}
+
+/** ⚠️ Un déclencheur sans modèle déclaré se règle sur `''` (« modèle du worker »), JAMAIS
+ * sur le modèle `default` du catalogue : l'écrire changerait la famille qui sert l'agent. */
+export function reglageInitial(t: Pick<RunnerTrigger, 'cron' | 'tz' | 'model'>): ReglageDeclencheur {
+  return { cron: t.cron, tz: t.tz, model: t.model ?? '' }
+}
+
+/** Les SEULS champs modifiés : `op=update` est partiel, et renvoyer un champ inchangé
+ * n'est pas neutre — un `model` renvoyé tel quel sur un déclencheur allumé repasse la
+ * garde du modèle servi. Un cron ne change pas par ses espaces de bord. */
+export function champsModifies(
+  initial: ReglageDeclencheur,
+  saisi: ReglageDeclencheur,
+): Partial<ReglageDeclencheur> {
+  const champs: Partial<ReglageDeclencheur> = {}
+  const cron = saisi.cron.trim()
+  if (cron !== initial.cron.trim()) champs.cron = cron
+  if (saisi.tz !== initial.tz) champs.tz = saisi.tz
+  if (saisi.model !== initial.model) champs.model = saisi.model
+  return champs
+}
+
+/** ⚠️ La ligne rendue par `op=update` est la ligne BRUTE : ni `expired_*`, ni `runner`.
+ * Ce que le déclencheur a perdu se garde de la lecture précédente jusqu'à la relecture ; le
+ * reste — dont `next_due`, recalculé par le serveur — vient de la réponse. */
+export function apresReglage(courant: RunnerTrigger, rendu: Partial<RunnerTrigger>): RunnerTrigger {
+  return {
+    ...courant,
+    ...rendu,
+    expired_count: courant.expired_count,
+    expired_since: courant.expired_since,
+    expired_last: courant.expired_last,
+  }
+}
+
+/** Les fuseaux que le navigateur connaît, le fuseau courant en tête s'il n'y figure pas
+ * (`UTC` n'est pas listé partout). La validation reste au serveur. */
+export function fuseauxProposes(courant: string): string[] {
+  const connus = Intl.supportedValuesOf('timeZone')
+  return connus.includes(courant) ? connus : [courant, ...connus]
+}
+
+type ModeleCatalogue = Pick<RunnerModel, 'id' | 'label' | 'served'>
+
+/** Le modèle déclaré d'un déclencheur, dit avec le catalogue servi. `label: null` = aucun
+ * modèle déclaré. `nonServi` ne se prononce que sur un catalogue LU : sans lui, on ne sait
+ * pas, et on ne marque rien. */
+export function modeleDeclencheur(
+  model: string | null | undefined,
+  catalogue: ModeleCatalogue[],
+): { label: string | null; nonServi: boolean } {
+  if (!model) return { label: null, nonServi: false }
+  const connu = catalogue.find((m) => m.id === model)
+  return { label: connu?.label ?? model, nonServi: catalogue.length > 0 && !connu?.served }
+}
+
+export interface OptionModele {
+  value: string
+  label: string
+  nonServi: boolean
+}
+
+/** Les modèles SERVIS, dans l'ordre du catalogue — plus le modèle courant s'il ne l'est
+ * pas, marqué : le taire ferait croire à un réglage qui n'existe pas. « Modèle du worker »
+ * (`''`) n'y figure pas : c'est l'option vide du select. Le `default` du catalogue ne
+ * change ni l'ordre ni la sélection. */
+export function optionsModele(catalogue: ModeleCatalogue[], courant: string): OptionModele[] {
+  const servis = catalogue.filter((m) => m.served)
+    .map((m) => ({ value: m.id, label: m.label, nonServi: false }))
+  if (!courant || servis.some((o) => o.value === courant)) return servis
+  const { label, nonServi } = modeleDeclencheur(courant, catalogue)
+  return [...servis, { value: courant, label: label ?? courant, nonServi }]
 }

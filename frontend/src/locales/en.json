@@ -354,7 +354,17 @@
       },
       "triggers": {
         "next": "next run: {date}",
-        "notTaken": "{n} occurrence not taken | {n} occurrences not taken"
+        "notTaken": "{n} occurrence not taken | {n} occurrences not taken",
+        "form": {
+          "open": "Settings",
+          "schedule": "Schedule (cron)",
+          "timezone": "Time zone",
+          "model": "Model",
+          "workerModel": "worker's model",
+          "notServed": "not served",
+          "deleteConfirm": "Delete this trigger? Its pending occurrences will never run.",
+          "deleteNotConfirmed": "deletion not confirmed by the server, the trigger stays listed"
+        }
       },
       "routines": {
         "title": "Claude Code routines",
