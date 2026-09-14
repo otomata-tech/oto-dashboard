@@ -408,10 +408,20 @@ une carte par niveau du level-switch :
   > restent, leur retrait serait un lot séparé. Tests : `AdminUserView.spec.ts`,
   > `AdminOrgView.spec.ts`.
 
-## Fédération MCP (otomata#16)
+## OAuth mono-compte — l'ex-« fédération MCP » (otomata#16)
 
-`ConnectorFederatedWidget.vue` porte la carte « federated mcp » (connect/disconnect d'un
-compte fédéré per-user). Connecteurs concernés : atlassian, folkmcp. **Les trois verbes
+> ⚠️ **Le nom ment depuis le 09/09/2026.** La fédération MCP a été **retirée de la
+> plateforme** (ADR 0069) : `atlassian` et `folkmcp` ne sont plus au catalogue, le backend
+> ne sert plus aucune de leurs routes (vérifié le 14/09 sur le descriptif servi), et
+> `resolve_mount_token` n'existe plus. Ce qui reste est le widget, qui n'a jamais été
+> propre à la fédération : `connectWidgetKind` le choisit pour **tout connecteur OAuth
+> mono-compte** (`auth.kind === 'oauth'` et cardinalité ≠ multi-compte) — aujourd'hui
+> salesforce et zoho. Le renommer (`ConnectorFederatedWidget` → `ConnectorOAuthWidget`)
+> est un lot à part, pas un geste de documentation.
+
+`ConnectorFederatedWidget.vue` porte la carte de connexion d'un compte OAuth mono-compte
+(connect/disconnect per-user). Connecteurs historiquement concernés : atlassian, folkmcp —
+tous deux retirés depuis. **Les trois verbes
 sont désormais sur un chemin fixe qui ne nomme pas le connecteur** (oto-dashboard#125,
 items 1-3, bouclés le 04/09/2026) :
 - démarrer (`startConnectorFlow`, chemin fixe générique — commit `433d563`, 01/09) ;
