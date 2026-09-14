@@ -2608,7 +2608,7 @@ export interface paths {
         put?: never;
         /**
          * Docs (markdown pages tree inside a project; inherit the project's access)
-         * @description Docs (markdown pages tree inside a project; inherit the project's access). A reference page is a DOC, in the PROJECT it belongs to (that project's « Documents » zone in the dashboard): CAPTURE the sourced facts of a piece of work there (kind=source/note) as you learn them, and search it before the web. How the org works (rules, conventions) belongs in its guide (`oto_guide`, read back by `oto_context`), and what concerns the person in their profile card (`oto_profile`) — not in a page. op=create (project_id, title; optional parent_id/body_md/kind) / bulk_create (project_id + `pages`=[{title, body_md?, kind?, parent_index?}] → N pages in ONE call, build a tree via parent_index = an earlier page in the batch) / list (project_id → the page INDEX, build the tree via parent_id: titles and `body_md_length`, NOT the bodies — pick a page here, then op=get it. `fields=["*"]` returns whole pages, `fields=[…]` picks columns) / search (project_id + query → full-text hits {id,title,kind,snippet}: LOCATE a page, then get its content) / get (the whole page, incl. `rev`, an ETag; pass `fields=[…]` to read ONLY those columns — `fields=["id","rev"]` gets the rev for an optimistic patch without paying for the body) / update (title/body_md/kind, full body; snapshots the prior version; pass `expected_rev` from op=get for optimistic conflict detection → 409 if the page changed since) / patch (edit ONE region in place, WITHOUT re-emitting the page — this is how you edit a page too long to re-send: `mode` replace|append|prepend|delete, and ONE target, either `section`=its markdown heading + `body_md` = that section's BODY, WITHOUT repeating the heading (the server keeps it) — matched on the heading TEXT, level and case ignored: when several headings match, the patch is REFUSED with their list (never applied to the first), OR `region="preamble"` = everything ABOVE the first heading (provenance banner, "Last verified" line, front-matter) — it belongs to no section, so no `section` value can ever reach it; that is a SEPARATE axis, never a reserved heading name like "__preamble__" (a page may legitimately have such a heading, and it stays reachable via `section`). Passing both, or neither, is refused. `mode=delete` removes the target INCLUDING its heading (pass no `body_md`) — the only way to drop a heading without rewriting the page; to merely empty a section and keep its heading, use mode=replace with an empty `body_md`. Two authors on different regions don't clobber; every mode honours `expected_rev` and snapshots a revision. SCOPE: a section runs to the next heading of EQUAL-OR-HIGHER level, so its NESTED sub-sections are part of it — replacing OR deleting a `###` also takes its `####` children (the response then lists `removed_subsections`). To keep them, target the sub-heading itself or use mode=append) / A SUCCESSFUL WRITE (create/update/patch/move) returns a RECEIPT, not the page: id, title, `url`, `rev`, `updated_at` and `body_md_length` — you just wrote the body, so it is not replayed back at you. Add `fields=["*"]` if you really want the stored page back, or `fields=[…]` to pick columns. / A page's `description` is a chapô you STORE: leave it out and the index DERIVES one from the first prose line of the body (marked `description_derived`), so it moves with every body edit — that is not an overwrite. Pass `description` explicitly to pin one that stops following the body. / EVERY page carries `url` — the web address to READ it, in the reader's own product. That is the answer to "where is it?": hand it over as-is, never rebuild an address from a pattern. `null` means that reader's product has no such view — then say where it lives (project + title) rather than invent a link. / revisions (doc_id → version history, newest first; each row's `id` is what op=revert takes) / revert (doc_id + `revision_id` from op=revisions → puts that past title+body back). A revert moves FORWARD: the current state is snapshotted first, so nothing is lost and a revert can itself be reverted; the response echoes `reverted_from`. It honours `expected_rev` too — pass it or you may silently overwrite a peer's edit. It restores a VERSION of a page that still exists; it does NOT undo a delete (a deleted page took its revisions with it) / backlinks (doc_id → the pages that CITE this one). LINK PAGES with `[[Exact page title]]` in body_md — that wiki-link is the ONLY thing that creates a backlink (prose mentions, [text](doc:88) and [text](/docs/88) create none). Resolved AT WRITE TIME against the page's own project first, then every project the ORGANIZATION owns — never a team project, a personal project or another organization's — case- and edge-space-insensitive. A title carried by pages of SEVERAL org projects (none in the page's own) is AMBIGUOUS: nothing is linked and the write lists the candidates under `citations_ambigues` — make the title unique rather than guessing. A title that doesn't exist yet is kept as a stub and links itself once the page is created or renamed. ⚠️ That is the reach of RESOLUTION, not of the graph, and they differ BOTH ways. (a) The graph is not symmetric: a page of a team or personal project resolves into the org's projects, but no page of an org project can ever link to it. A page can therefore be cited and still read as an orphan here: do not use backlinks as a completeness or orphan check without knowing that. (b) op=backlinks shows every STORED link whatever its project, including one left behind by a page MOVED between projects — no resolution would make it today, and it disappears, silently, the next time the citing page is written. So a cross-project backlink is not proof that the same `[[…]]`, written now, would resolve. (c) The list is filtered by YOUR access: citations living in projects you cannot read are removed. When that happens the response says `hidden_by_access: true` — « nobody cites this page » and « three pages cite it, you cannot see them » call for opposite moves, so the second is never reported as the first. The COUNT of hidden ones is deliberately not given: it would tell you how many pages exist in projects that are closed to you. Every write says which of its `[[…]]` found nothing, under `citations_sans_cible` / request_change (read-only users propose a new body_md/title + message) / list_changes (owner: pending requests) / resolve_change (request_id + accept: true applies it, false rejects) / set_public (public: true → shareable public read-only link to THIS PAGE ALONE: the reader gets its title and body, and nothing else — not the project, not the sibling pages, not this page's own sub-pages, which each need their own link ; false → private ; returns public_url) / delete (removes the page AND its whole subtree, revisions included — irreversible, there is no trash and no undelete. The response says how many pages went with it (`descendants`); ask FIRST with `dry_run: true`, which deletes nothing and returns the same count, whenever a human has to confirm) / move (reparent/reorder in-project via parent_id [null=top-level] + position; OR cross-project via `to_project`=target project id → moves the page AND its subtree there, write required on both. ⚠️ A move is NOT free for links: the page's own `[[…]]` are re-resolved in the TARGET project (some become stubs), while the links pointing AT it are left stored though now out of reach — they still show in op=backlinks and die on the citing page's next write. After reorganising a tree, rewrite the citing pages and read their `citations_sans_cible`). kind ∈ doc|note|source. EMBED A LIVE DATASTORE in a page body with a fenced block ```oto-data<newline><namespace-name-or-id><newline>``` → the viewer renders that datastore's table LIVE (always up to date). Prefer this over a hand-typed summary table when the data lives in a datastore (single source of truth, no drift).
+         * @description Docs (markdown pages tree inside a project; inherit the project's access). A reference page is a DOC, in the PROJECT it belongs to (that project's « Documents » zone in the dashboard): CAPTURE the sourced facts of a piece of work there (kind=source/note) as you learn them, and search it before the web. How the org works (rules, conventions) belongs in its guide (`oto_guide`, read back by `oto_context`), and what concerns the person in their profile card (`oto_profile`) — not in a page. op=create (project_id, title; optional parent_id/body_md/kind) / bulk_create (project_id + `pages`=[{title, body_md?, kind?, parent_index?}] → N pages in ONE call, build a tree via parent_index = an earlier page in the batch) / list (project_id → the page INDEX, build the tree via parent_id: titles and `body_md_length`, NOT the bodies — pick a page here, then op=get it. `fields=["*"]` returns whole pages, `fields=[…]` picks columns) / search (project_id + query → full-text hits {id,title,kind,snippet}: LOCATE a page, then get its content) / get (the whole page, incl. `rev`, an ETag; pass `fields=[…]` to read ONLY those columns — `fields=["id","rev"]` gets the rev for an optimistic patch without paying for the body) / update (title/body_md/kind, full body; snapshots the prior version; pass `expected_rev` from op=get for optimistic conflict detection → 409 if the page changed since) / patch (edit ONE region in place, WITHOUT re-emitting the page — this is how you edit a page too long to re-send: `mode` replace|append|prepend|delete, and ONE target, either `section`=its markdown heading + `body_md` = that section's BODY, WITHOUT repeating the heading (the server keeps it) — matched on the heading TEXT, level and case ignored: when several headings match, the patch is REFUSED with their list (never applied to the first), OR `region="preamble"` = everything ABOVE the first heading (provenance banner, "Last verified" line, front-matter) — it belongs to no section, so no `section` value can ever reach it; that is a SEPARATE axis, never a reserved heading name like "__preamble__" (a page may legitimately have such a heading, and it stays reachable via `section`). Passing both, or neither, is refused. `mode=delete` removes the target INCLUDING its heading (pass no `body_md`) — the only way to drop a heading without rewriting the page; to merely empty a section and keep its heading, use mode=replace with an empty `body_md`. Two authors on different regions don't clobber; every mode honours `expected_rev` and snapshots a revision. SCOPE: a section runs to the next heading of EQUAL-OR-HIGHER level, so its NESTED sub-sections are part of it — replacing OR deleting a `###` also takes its `####` children (the response then lists `removed_subsections`). To keep them, target the sub-heading itself or use mode=append) / A SUCCESSFUL WRITE (create/update/patch/move) returns a RECEIPT, not the page: id, title, `url`, `rev`, `updated_at` and `body_md_length` — you just wrote the body, so it is not replayed back at you. Add `fields=["*"]` if you really want the stored page back, or `fields=[…]` to pick columns. / A page's `description` is a chapô you STORE: leave it out and the index DERIVES one from the first prose line of the body (marked `description_derived`), so it moves with every body edit — that is not an overwrite. Pass `description` explicitly to pin one that stops following the body. / EVERY page carries `url` — the web address to READ it, in the reader's own product. That is the answer to "where is it?": hand it over as-is, never rebuild an address from a pattern. `null` means that reader's product has no such view — then say where it lives (project + title) rather than invent a link. / revisions (doc_id → version history, newest first; each row's `id` is what op=revert takes) / revert (doc_id + `revision_id` from op=revisions → puts that past title+body back). A revert moves FORWARD: the current state is snapshotted first, so nothing is lost and a revert can itself be reverted; the response echoes `reverted_from`. It honours `expected_rev` too — pass it or you may silently overwrite a peer's edit. It restores a VERSION of a page that still exists; it does NOT undo a delete (a deleted page took its revisions with it) / backlinks (doc_id → the pages that CITE this one). LINK PAGES with `[[Exact page title]]` in body_md — that wiki-link is the ONLY thing that creates a backlink (prose mentions, [text](doc:88) and [text](/docs/88) create none). Resolved AT WRITE TIME against the page's own project first, then every project the ORGANIZATION owns — never a team project, a personal project or another organization's — case- and edge-space-insensitive. A title carried by pages of SEVERAL org projects (none in the page's own) is AMBIGUOUS: nothing is linked and the write lists the candidates under `citations_ambigues` — make the title unique rather than guessing. A title that doesn't exist yet is kept as a stub and links itself once the page is created or renamed. ⚠️ That is the reach of RESOLUTION, not of the graph, and they differ BOTH ways. (a) The graph is not symmetric: a page of a team or personal project resolves into the org's projects, but no page of an org project can ever link to it. A page can therefore be cited and still read as an orphan here: do not use backlinks as a completeness or orphan check without knowing that. (b) op=backlinks shows every STORED link whatever its project, including one left behind by a page MOVED between projects — no resolution would make it today, and it disappears, silently, the next time the citing page is written. So a cross-project backlink is not proof that the same `[[…]]`, written now, would resolve. (c) The list is filtered by YOUR access: citations living in projects you cannot read are removed. When that happens the response says `hidden_by_access: true` — « nobody cites this page » and « three pages cite it, you cannot see them » call for opposite moves, so the second is never reported as the first. The COUNT of hidden ones is deliberately not given: it would tell you how many pages exist in projects that are closed to you. Every write says which of its `[[…]]` found nothing, under `citations_sans_cible` / set_public (public: true → shareable public read-only link to THIS PAGE ALONE: the reader gets its title and body, and nothing else — not the project, not the sibling pages, not this page's own sub-pages, which each need their own link ; false → private ; returns public_url) / delete (removes the page AND its whole subtree, revisions included — irreversible, there is no trash and no undelete. The response says how many pages went with it (`descendants`); ask FIRST with `dry_run: true`, which deletes nothing and returns the same count, whenever a human has to confirm) / move (reparent/reorder in-project via parent_id [null=top-level] + position; OR cross-project via `to_project`=target project id → moves the page AND its subtree there, write required on both. ⚠️ A move is NOT free for links: the page's own `[[…]]` are re-resolved in the TARGET project (some become stubs), while the links pointing AT it are left stored though now out of reach — they still show in op=backlinks and die on the citing page's next write. After reorganising a tree, rewrite the citing pages and read their `citations_sans_cible`). kind ∈ doc|note|source. EMBED A LIVE DATASTORE in a page body with a fenced block ```oto-data<newline><namespace-name-or-id><newline>``` → the viewer renders that datastore's table LIVE (always up to date). Prefer this over a hand-typed summary table when the data lives in a datastore (single source of truth, no drift).
          */
         post: operations["me_doc_post"];
         delete?: never;
@@ -3177,26 +3177,6 @@ export interface paths {
          * @description Set the HOME group (department) — persistent default. UI-ONLY (décision 2026-07-06, comme org.set_home) : pas de binding MCP, l'agent ne mute pas le défaut (il pose aussi l'org parente en maison — double mutation).
          */
         put: operations["group_set_home_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/me/inbox": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * YOUR inbox — two lists
-         * @description YOUR inbox — two lists. `to_review`: change-request proposals awaiting your decision on projects you can write (resolve with oto_doc op=resolve) + pending org invitations (each carries a `code`: join with oto_org op=accept_invite, or turn it down with op=reject_invite — declining clears it from this list). `recent`: YOUR own proposals now accepted/rejected + projects freshly shared with you. `count` = items needing a decision. Check it to know what awaits you (the « readers propose / authors validate » loop) — no argument needed.
-         */
-        get: operations["me_inbox_get"];
-        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -3885,8 +3865,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The application CHROME in one call: company, user, the rail in ordered SECTIONS (everyone / one per team / private / shared-when-not-empty), counters of things AWAITING you, and a
-         * @description The application CHROME in one call: company, user, the rail in ordered SECTIONS (everyone / one per team / private / shared-when-not-empty), counters of things AWAITING you, and a short connector index for the command palette. Read-only, never paginated — depth is capped instead (`more` counts what was cut). Pass `rev` from a previous answer for a conditional read: unchanged returns `{not_modified: true, rev}` (HTTP 304 on REST) so you keep your cached copy. PROVISIONAL surface: the shape is contracted, not frozen.
+         * The application CHROME in one call: company, user, the rail in ordered SECTIONS (everyone / one per team / private / shared-when-not-empty), `counters` of things AWAITING you (noth
+         * @description The application CHROME in one call: company, user, the rail in ordered SECTIONS (everyone / one per team / private / shared-when-not-empty), `counters` of things AWAITING you (nothing is counted today, so it is `{}` — a missing key means « not counted », never zero), and a short connector index for the command palette. Read-only, never paginated — depth is capped instead (`more` counts what was cut). Pass `rev` from a previous answer for a conditional read: unchanged returns `{not_modified: true, rev}` (HTTP 304 on REST) so you keep your cached copy. PROVISIONAL surface: the shape is contracted, not frozen.
          */
         get: operations["me_shell_get"];
         put?: never;
@@ -9513,162 +9493,6 @@ export interface components {
              * @default null
              */
             project_name: string | null;
-        };
-        /**
-         * InboxInvitation
-         * @description Invitation en attente pour mon email — cross-org, hors org active.
-         */
-        InboxInvitation: {
-            /**
-             * Code
-             * @default null
-             */
-            code: string | null;
-            /**
-             * Org Id
-             * @default null
-             */
-            org_id: number | null;
-            /**
-             * Org Name
-             * @default null
-             */
-            org_name: string | null;
-            /**
-             * Group Id
-             * @default null
-             */
-            group_id: number | null;
-            /**
-             * Invited By
-             * @default null
-             */
-            invited_by: string | null;
-            /**
-             * Created At
-             * @default null
-             */
-            created_at: string | null;
-        };
-        /**
-         * InboxProposal
-         * @description Une proposition en attente sur un projet où j'ai l'écriture.
-         */
-        InboxProposal: {
-            /** Request Id */
-            request_id: number;
-            /** Kind */
-            kind: string;
-            /**
-             * Project Id
-             * @default null
-             */
-            project_id: number | null;
-            /**
-             * Project Name
-             * @default null
-             */
-            project_name: string | null;
-            /**
-             * Doc Id
-             * @default null
-             */
-            doc_id: number | null;
-            /**
-             * Doc Title
-             * @default null
-             */
-            doc_title: string | null;
-            /**
-             * Proposed Title
-             * @default null
-             */
-            proposed_title: string | null;
-            /**
-             * Proposed Body Md
-             * @default null
-             */
-            proposed_body_md: string | null;
-            /**
-             * Requested By
-             * @default null
-             */
-            requested_by: string | null;
-            /**
-             * Message
-             * @default null
-             */
-            message: string | null;
-            /**
-             * Created At
-             * @default null
-             */
-            created_at: string | null;
-        };
-        /**
-         * InboxRecent
-         * @description Voie « info qui vieillit ». **Liste hétérogène, discriminée par `type`** :
-         *     `proposal_resolved` (retour au proposeur) ou `project_shared` — d'où des champs
-         *     optionnels qui ne coexistent jamais tous.
-         */
-        InboxRecent: {
-            /** Type */
-            type: string;
-            /**
-             * Request Id
-             * @default null
-             */
-            request_id: number | null;
-            /**
-             * Status
-             * @default null
-             */
-            status: string | null;
-            /**
-             * Project Id
-             * @default null
-             */
-            project_id: number | null;
-            /**
-             * Project Name
-             * @default null
-             */
-            project_name: string | null;
-            /**
-             * Doc Id
-             * @default null
-             */
-            doc_id: number | null;
-            /**
-             * Doc Title
-             * @default null
-             */
-            doc_title: string | null;
-            /**
-             * Proposed Title
-             * @default null
-             */
-            proposed_title: string | null;
-            /**
-             * Resolved By
-             * @default null
-             */
-            resolved_by: string | null;
-            /**
-             * Resolved At
-             * @default null
-             */
-            resolved_at: string | null;
-            /**
-             * Permission
-             * @default null
-             */
-            permission: string | null;
-            /**
-             * Granted At
-             * @default null
-             */
-            granted_at: string | null;
         };
         /**
          * ProcedureRef
@@ -22349,7 +22173,7 @@ export interface operations {
                      * Op
                      * @enum {string}
                      */
-                    op: "create" | "bulk_create" | "list" | "search" | "get" | "update" | "patch" | "delete" | "move" | "revisions" | "revert" | "request_change" | "list_changes" | "resolve_change" | "set_public" | "backlinks";
+                    op: "create" | "bulk_create" | "list" | "search" | "get" | "update" | "patch" | "delete" | "move" | "revisions" | "revert" | "set_public" | "backlinks";
                     /**
                      * Project Id
                      * @default null
@@ -22395,21 +22219,6 @@ export interface operations {
                      * @default null
                      */
                     position?: number | null;
-                    /**
-                     * Request Id
-                     * @default null
-                     */
-                    request_id?: number | null;
-                    /**
-                     * Message
-                     * @default null
-                     */
-                    message?: string | null;
-                    /**
-                     * Accept
-                     * @default null
-                     */
-                    accept?: boolean | null;
                     /**
                      * Public
                      * @default null
@@ -23707,94 +23516,6 @@ export interface operations {
                          * @default null
                          */
                         name: string | null;
-                    };
-                };
-            };
-            /** @description `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_org_mismatch";
-                    };
-                };
-            };
-            /** @description jeton absent ou invalide */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_not_found";
-                    };
-                };
-            };
-            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_closed";
-                    };
-                };
-            };
-        };
-    };
-    me_inbox_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
-                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** To Review */
-                        to_review: components["schemas"]["InboxProposal"][];
-                        /** Invitations */
-                        invitations: components["schemas"]["InboxInvitation"][];
-                        /** Recent */
-                        recent: components["schemas"]["InboxRecent"][];
-                        /** Recent Total */
-                        recent_total: number;
-                        /** Count */
-                        count: number;
                     };
                 };
             };
