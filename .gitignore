@@ -12,3 +12,6 @@ dist/
 # Motif ciblé, pas `.claude/` en bloc : `.claude/skills/` doit rester versionnable.
 **/.claude/agent-memory/
 **/.claude/worktrees/
+
+# Mémoires d'agent : locales au poste, jamais versionnées — dépôt PUBLIC.
+.claude/agent-memory/
