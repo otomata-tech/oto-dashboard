@@ -13,7 +13,10 @@
 
 import { META_ESPACE } from './automationsEspace'
 
-export type NavLevel = 'work' | 'account' | 'org' | 'platform'
+// 'team' : restauré pour le SEUL panneau connecteurs d'équipe (oto#192 avait retiré
+// tout le niveau équipe côté nav) — pas une entrée du menu, juste un niveau
+// d'adaptateur pour ConnectorScopeView (cf. connector-scope/registry.ts).
+export type NavLevel = 'work' | 'account' | 'org' | 'platform' | 'team'
 
 export interface NavItem {
   path: string

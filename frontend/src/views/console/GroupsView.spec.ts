@@ -53,11 +53,11 @@ beforeEach(() => {
 
 describe('GroupsView — les gestes suivent la règle du serveur (oto#210)', () => {
   it.each([
-    ['org_admin', 'member', 'org_admin', ['New', 'Members', 'Edit', 'Delete']],
+    ['org_admin', 'member', 'org_admin', ['New', 'Members', 'Connectors', 'Edit', 'Delete']],
     ['membre simple', 'member', 'org_member', []],
     ["admin plateforme, membre de l'org", 'admin', 'org_member', []],
     ["admin plateforme qui consulte l'org", 'admin', null, []],
-    ['super_admin', 'super_admin', null, ['New', 'Members', 'Edit', 'Delete']],
+    ['super_admin', 'super_admin', null, ['New', 'Members', 'Connectors', 'Edit', 'Delete']],
   ])('%s : %j', async (_nom, role, orgRole, attendus) => {
     expect(await boutons(role, orgRole)).toEqual(attendus)
   })
@@ -82,7 +82,7 @@ describe('GroupsView — en consultation, aucun geste (oto#211)', () => {
     ['org_admin', 'member', 'org_admin'],
     ['super_admin', 'super_admin', null],
   ])('%s : gestes présents hors consultation, absents en consultation', async (_nom, role, orgRole) => {
-    expect(await boutons(role, orgRole, false)).toEqual(['New', 'Members', 'Edit', 'Delete'])
+    expect(await boutons(role, orgRole, false)).toEqual(['New', 'Members', 'Connectors', 'Edit', 'Delete'])
     expect(await boutons(role, orgRole, true)).toEqual([])
   })
 })

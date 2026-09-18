@@ -155,6 +155,20 @@ Liste des équipes d'une org : `/org/teams` (`GroupsView.vue`) — lister, crée
 > Les routes backend restent servies (dashboard.oto.cx les appelle) ; leur retrait se décide
 > route par route, après le tag prod du front. Un ancien lien `/team/*` ou `/group` retombe
 > sur l'accueil (route attrape-tout).
+>
+> **Retour partiel (18/09/2026)** : un besoin réel (poser/remplacer la clé partagée d'une
+> équipe, coupure de connecteur, accès réservé à des membres) a montré que la mesure du
+> 12/09 ratait au moins ce cas. Restaurés, périmètre resserré à ce SEUL panneau :
+> `useTeamAdapter`, `useTeamScope`, `TeamScopeHeader`, `TeamConnectorsView`, les fonctions
+> `api/console.ts` de connecteur/secret d'équipe (`setGroupSecret`, `getGroupConnectorActivation`,
+> `getGroupConnectorAcl`, etc.), les types `GroupConnectorActivation`/`GroupAclEntry`. Route
+> de détail minimale et NOUVELLE (pas l'ancienne `/team/connectors`) :
+> `/org/teams/:groupId/connectors`, atteinte par un bouton « Connectors » sur `GroupsView`
+> (visible org_admin ou chef de CETTE équipe). Niveau nav `'team'` réintroduit
+> (`consoleNav.ts`, `registry.ts`) mais SANS le fil d'Ariane ni l'entrée « Gérer mon équipe »
+> de `ConsoleIdentity` — navigation par un simple lien dur (`window.location.assign`), pas
+> une refonte du switcher. Ce qui reste retiré : membres, contexte, procédures, invitation
+> d'équipe — à rouvrir séparément si le même signal se confirme pour eux.
 
 **Les MEMBRES sont revenus, seuls (18/09/2026).** Un besoin réel (un membre d'équipe, pas
 org_admin, bloqué pour gérer les membres/secrets de sa propre équipe) a montré que la mesure
