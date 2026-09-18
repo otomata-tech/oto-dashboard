@@ -8,7 +8,7 @@ import type {
   BillingIdentityView, BillingIdentityInput, BillingConfirmResult, BillingInvoice, LegalStatus,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideById, GuideScope,
-  GoogleOauthStatus, GroupDetail, GroupListItem, InstructionDetail,
+  GoogleOauthStatus, GroupDetail, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LinkedProcedure, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption,
   ColumnFilter, DatastoreRow, DatastoreEntry, SharedDatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, RewritableRow, SharePrincipal, ToolCall, ToolEntry,
@@ -969,6 +969,15 @@ export const getGroup = (id: number) => api<GroupDetail>(`/api/groups/${id}`)
 export const updateGroup = (id: number, patch: { name?: string; description?: string }) =>
   api(`/api/groups/${id}`, { method: 'PATCH', ...j(patch) })
 export const deleteGroup = (id: number) => api(`/api/groups/${id}`, { method: 'DELETE' })
+// membres de l'équipe (oto#192 avait retiré ces trois gestes avec le scope d'équipe
+// dédié ; réintroduits seuls, sur GroupsView, pour gérer les membres d'une équipe
+// depuis /org/teams — pas de saisie libre d'email, la personne doit déjà être dans l'org).
+export const addGroupMember = (groupId: number, target: string, role: GroupRole = 'group_member') =>
+  api(`/api/groups/${groupId}/members`, { method: 'POST', ...j({ target, role }) })
+export const setGroupMemberRole = (groupId: number, sub: string, role: GroupRole) =>
+  api(`/api/groups/${groupId}/members/${sub}`, { method: 'POST', ...j({ role }) })
+export const removeGroupMember = (groupId: number, sub: string) =>
+  api(`/api/groups/${groupId}/members/${sub}`, { method: 'DELETE' })
 // doctrine & skills du groupe (lecture = membre, écriture = chef)
 export const getGroupInstructionVersions = (id: number, slug: string) =>
   api<{ slug: string; versions: InstructionVersion[] }>(`/api/groups/${id}/instructions/${slug}/versions`)

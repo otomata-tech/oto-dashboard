@@ -1,11 +1,14 @@
 <script setup lang="ts">
 // Équipes (« teams ») d'une org — surface ORG (org_admin) : le ROSTER des équipes.
-// Lister, créer, renommer, supprimer. La GESTION d'UNE équipe (contexte, membres,
-// connecteurs, procédures) a quitté le dashboard avec son scope dédié (oto#192). Le
-// vocabulaire produit « département/groupe » est passé à « team » le 2026-07-06 ; les
+// Lister, créer, renommer, supprimer, et depuis chaque ligne, gérer ses MEMBRES
+// (`/org/teams/:id`, TeamDetailView). Le reste de la gestion d'une équipe (contexte,
+// connecteurs, procédures) a quitté le dashboard avec son scope dédié (oto#192) ; seuls
+// les membres sont revenus (besoin réel, 18/09/2026) — cf. docs/orgs-groupes-invitations.md.
+// Le vocabulaire produit « département/groupe » est passé à « team » le 2026-07-06 ; les
 // identifiants de code restent `group`/`getGroup`. Le backend porte l'autz (roles.py) ;
 // l'UI masque les gestes org-admin.
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
@@ -18,6 +21,7 @@ import { listGroups, createGroup, updateGroup, deleteGroup } from '@/api/console
 import type { GroupListItem } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
+const router = useRouter()
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
@@ -74,6 +78,8 @@ function rename(g: GroupListItem) {
     },
   })
 }
+function openTeam(g: GroupListItem) { router.push(`/org/teams/${g.id}`) }
+
 async function removeGroup(g: GroupListItem) {
   if (!await confirmAction({ title: 'delete team', danger: true, confirmLabel: 'Delete', message: 'delete this team? members, readme, procedures and shared keys are purged. members stay in the org.' })) return
   try { await deleteGroup(g.id); toast('team deleted'); await load() }
@@ -108,6 +114,7 @@ async function removeGroup(g: GroupListItem) {
               <span v-else class="dim" style="font-size: 11px">—</span>
             </td>
             <td style="text-align: right; white-space: nowrap">
+              <Btn v-if="orgAdmin || g.my_role != null" kind="mini" @click="openTeam(g)">Members</Btn>
               <template v-if="orgAdmin">
                 <Btn kind="mini" @click="rename(g)">Edit</Btn>
                 <Btn kind="danger" @click="removeGroup(g)">Delete</Btn>

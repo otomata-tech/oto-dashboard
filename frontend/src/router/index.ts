@@ -48,11 +48,14 @@ const sectionRoutes: RouteRecordRaw[] = NAV.flatMap((g) =>
   }),
 )
 
-// Route de détail org-scopée (work) : nue + préfixées, portée par `meta.detail` (et non
-// le nom, pour éviter la collision de noms entre les enregistrements). `section` se déduit
-// du chemin (`/projects/:id` → `/projects`) ; une page sans paramètre la déclare.
-function detailRoutes(path: string, detail: string, section = sectionOf(path)): RouteRecordRaw[] {
-  const meta = { section, level: 'work' as NavLevel, orgScoped: true, detail }
+// Route de détail org-scopée : nue + préfixées, portée par `meta.detail` (et non le nom,
+// pour éviter la collision de noms entre les enregistrements). `section` se déduit du
+// chemin (`/projects/:id` → `/projects`) ; une page sans paramètre la déclare. `level`
+// pilote le switch de niveau de nav (`work` par défaut — `/org/teams/:id` est `org`).
+function detailRoutes(
+  path: string, detail: string, section = sectionOf(path), level: NavLevel = 'work',
+): RouteRecordRaw[] {
+  const meta = { section, level, orgScoped: true, detail }
   return [
     { path, component: ConsoleLayout, meta },
     ...scopedVariants(path, meta),
@@ -133,11 +136,10 @@ const router = createRouter({
     // vue d'espace choisit par `meta.detail`. `:id` n'est pas contraint : une adresse sans
     // identifiant se DIT, au lieu de retomber en silence sur l'aperçu.
     ...PAGES_ESPACE.flatMap((p) => detailRoutes(p.path, detailEspace(p.page), SECTION_AUTOMATIONS)),
-    // Équipe ouverte (ex `/org/teams/:teamId`) : le scope d'équipe a quitté le dashboard
-    // (oto#192) — un ancien lien retombe sur la liste des équipes de l'org.
-    { path: '/o/:orgId(\\d+)/org/teams/:teamId(\\d+)', redirect: (to) => `/o/${to.params.orgId}/org/teams` },
-    { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/org/teams/:teamId(\\d+)', redirect: (to) => `/o/${to.params.orgId}/org/teams` },
-    { path: '/org/teams/:teamId(\\d+)', redirect: '/org/teams' },
+    // Détail d'une équipe (membres seuls, cf. TeamDetailView) — le scope d'équipe complet
+    // (contexte, connecteurs, procédures, invitation) reste hors dashboard depuis oto#192 ;
+    // seule la gestion des membres est revenue (besoin réel, 18/09/2026).
+    ...detailRoutes('/org/teams/:teamId(\\d+)', 'team', '/org/teams', 'org'),
     ...sectionRoutes,
     {
       // Le retour PKCE est traité par initAuth() avant le mount du router

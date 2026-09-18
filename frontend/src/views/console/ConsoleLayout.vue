@@ -22,6 +22,7 @@ const OverviewView = defineAsyncComponent(() => import('./OverviewView.vue'))
 const AdminUserView = defineAsyncComponent(() => import('./AdminUserView.vue'))
 const AdminOrgView = defineAsyncComponent(() => import('./AdminOrgView.vue'))
 const ProjectDetailView = defineAsyncComponent(() => import('./ProjectDetailView.vue'))
+const TeamDetailView = defineAsyncComponent(() => import('./TeamDetailView.vue'))
 
 // Keyé par path canonique (= meta.section porté par chaque route, cf. consoleNav).
 const VIEWS: Record<string, Component> = {
@@ -80,6 +81,7 @@ const current = computed(() => {
   if (route.meta.detail === 'admin-user') return AdminUserView    // fiche /platform/users/:sub
   if (route.meta.detail === 'admin-org') return AdminOrgView      // fiche /platform/orgs/:id
   if (route.meta.detail === 'project') return ProjectDetailView   // page /projects/:id
+  if (route.meta.detail === 'team') return TeamDetailView         // page /org/teams/:teamId
   return VIEWS[section.value] ?? OverviewView
 })
 // Clé de remount : une page de détail remonte quand son ID change, pas sa query.
@@ -89,6 +91,7 @@ const viewKey = computed(() => {
   if (route.meta.detail === 'admin-user') return route.fullPath
   if (route.meta.detail === 'admin-org') return `/platform/orgs/${route.params.id}`
   if (route.meta.detail === 'project') return `/projects/${route.params.id}`
+  if (route.meta.detail === 'team') return `/org/teams/${route.params.teamId}`
   return section.value
 })
 </script>
