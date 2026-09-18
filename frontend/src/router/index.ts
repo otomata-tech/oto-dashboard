@@ -139,7 +139,7 @@ const router = createRouter({
     // Détail d'une équipe (membres seuls, cf. TeamDetailView) — le scope d'équipe complet
     // (contexte, connecteurs, procédures, invitation) reste hors dashboard depuis oto#192 ;
     // seule la gestion des membres est revenue (besoin réel, 18/09/2026).
-    ...detailRoutes('/org/teams/:teamId(\\d+)', 'team', '/org/teams', 'org'),
+    ...detailRoutes('/org/teams/:teamId(\\d+)', 'team', '/org/teams', 'team'),
     // Connecteurs d'une équipe donnée (restauré, périmètre resserré — oto#192 avait tout
     // retiré). Route de détail SŒUR de celle du dessus (même entité, sous-chemin
     // distinct) : nue + préfixée org, PAS de variante `/g/:groupId` (elle N'A PAS de sens

@@ -169,6 +169,26 @@ Liste des équipes d'une org : `/org/teams` (`GroupsView.vue`) — lister, crée
 > de `ConsoleIdentity` — navigation par un simple lien dur (`window.location.assign`), pas
 > une refonte du switcher. Ce qui reste retiré : membres, contexte, procédures, invitation
 > d'équipe — à rouvrir séparément si le même signal se confirme pour eux.
+>
+> **Le soir même (18/09), l'entrée « Gérer mon équipe » revient.** Un chef d'équipe qui
+> n'est pas admin d'org n'avait AUCUNE porte vers ce qu'il a le droit de gérer : la liste
+> des équipes vit sous « gérer mon org », qu'il ne voit pas (`orgAdmin` sur l'entrée), et
+> aucune garde de route ne le bloque — seul le menu le masquait (vécu avec une cheffe
+> d'équipe qui devait remplacer la clé Pennylane de son équipe). Ce qui existe désormais :
+> - `ConsoleIdentity` offre « Gérer mon équipe » à qui est `group_admin` de son équipe
+>   ACTIVE (`me.group_role`, le rôle que le serveur tient sur l'équipe affichée) →
+>   `/org/teams/<active_group>` ; un chef de plusieurs équipes change d'équipe active pour
+>   gérer l'autre ; sans équipe active, pas d'entrée ;
+> - un groupe de nav de niveau `'team'` (`nav.section.team` : membres, connecteurs), dont
+>   les chemins portent le jeton `{groupId}` (`TEAM_TOKEN`, résolu par la sidebar depuis la
+>   route, sinon l'équipe active) et nomment leur page de détail (`NavItem.detail`, qui
+>   dit « on est ici » à la place de la section, partagée par les deux pages) ;
+> - la page membres `/org/teams/:teamId` passe au niveau `'team'` (elle était `'org'`) :
+>   les deux pages d'une équipe ont la même sidebar ; l'admin d'org revient à la liste par
+>   « Gérer mon org » du menu profil ;
+> - `DETAIL_META` titre les deux pages (« membres de l'équipe », « connecteurs de l'équipe »).
+> Toujours pas de fil d'Ariane Plateforme ▸ Org ▸ Team ni de switcher d'équipe : le lot
+> ouvre la porte, il ne rebâtit pas le scope.
 
 **Les MEMBRES sont revenus, seuls (18/09/2026).** Un besoin réel (un membre d'équipe, pas
 org_admin, bloqué pour gérer les membres/secrets de sa propre équipe) a montré que la mesure

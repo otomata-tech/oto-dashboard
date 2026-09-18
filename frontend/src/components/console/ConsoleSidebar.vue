@@ -8,7 +8,7 @@ import ConsoleIdentity from './ConsoleIdentity.vue'
 import ConsoleUserMenu from './ConsoleUserMenu.vue'
 import SidebarSpaces from './SidebarSpaces.vue'
 import SearchOverlay from './SearchOverlay.vue'
-import { NAV, navItemVisible } from '@/lib/consoleNav'
+import { NAV, navItemVisible, teamPath } from '@/lib/consoleNav'
 import { useMe, isPlatformOperator, isSuperAdmin, isOrgAdmin, seesOrgAdministration } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
@@ -46,6 +46,17 @@ const visibleGroups = computed(() => {
      .map((g) => ({ ...g, items: g.items.filter((it) => navItemVisible(it, rights)) }))
 })
 
+// L'équipe visée par le niveau « team » : celle de la route (les deux pages d'équipe
+// nomment leur paramètre différemment), sinon l'équipe active du profil.
+const teamId = computed(() => {
+  const p = route.params.groupId ?? route.params.teamId
+  return typeof p === 'string' ? p : String(me.value?.active_group ?? '')
+})
+const linkOf = (path: string) => scoped(teamPath(path, teamId.value))
+// « On est ici » : par la page de détail quand l'entrée en nomme une, sinon par la section.
+const isOn = (it: { path: string; detail?: string }) =>
+  it.detail ? route.meta.detail === it.detail : route.meta.section === it.path
+
 // Plomberie de l'agent (Connecteurs/Procédures) : ancrée en bas, hors de la nav
 // principale — subordonnée aux projets (refonte nav JB, pt 4).
 const plomberieItems = computed(() =>
@@ -73,8 +84,8 @@ const plomberieItems = computed(() =>
         <template v-for="it in g.items.filter((i) => !i.plomberie)" :key="it.path">
           <RouterLink
             class="sb-item"
-            :class="{ on: route.meta.section === it.path }"
-            :to="scoped(it.path)"
+            :class="{ on: isOn(it) }"
+            :to="linkOf(it.path)"
             @click="closeNav"
           >
             <span class="ic"><Icon :name="it.icon" :size="15" /></span>

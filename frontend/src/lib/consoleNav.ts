@@ -13,10 +13,19 @@
 
 import { META_ESPACE } from './automationsEspace'
 
-// 'team' : restauré pour le SEUL panneau connecteurs d'équipe (oto#192 avait retiré
-// tout le niveau équipe côté nav) — pas une entrée du menu, juste un niveau
-// d'adaptateur pour ConnectorScopeView (cf. connector-scope/registry.ts).
+// 'team' (« gérer mon équipe ») : agir SUR une équipe donnée — ses membres, ses
+// connecteurs. Retiré avec tout le niveau équipe (oto#192), revenu le 18/09 : un chef
+// d'équipe qui n'est pas admin d'org n'avait AUCUNE porte vers ce qu'il a le droit de
+// gérer (poser la clé d'un connecteur pour son équipe) — la liste des équipes vit sous
+// « gérer mon org », qu'il ne voit pas. Les pages restent sous /org/teams/:id.
 export type NavLevel = 'work' | 'account' | 'org' | 'platform' | 'team'
+
+// Le niveau équipe vise UNE équipe : ses chemins portent ce jeton, résolu par la sidebar
+// depuis la route (`teamPath`). Une entrée de nav reste un chemin unique et nommé.
+export const TEAM_TOKEN = '{groupId}'
+export function teamPath(path: string, groupId: string): string {
+  return path.replace(TEAM_TOKEN, groupId)
+}
 
 export interface NavItem {
   path: string
@@ -37,6 +46,9 @@ export interface NavItem {
   // l'opérateur plateforme n'y lirait qu'un refus, même en consultation (oto#210).
   orgAdminReads?: boolean
   plomberie?: boolean // rendu ANCRÉ EN BAS (zone plomberie de l'agent, refonte nav pt 4)
+  // Page de DÉTAIL (`route.meta.detail`) : c'est elle qui dit « on est ici », pas la
+  // section — les deux pages d'une équipe partagent la section /org/teams.
+  detail?: string
 }
 
 export interface NavGroup {
@@ -129,6 +141,14 @@ export const NAV: NavGroup[] = [
     // pointant la même page — et la section « org » ne le servait de toute façon
     // qu'à qui savait déjà y entrer.
   ]},
+  // ── Gérer mon équipe : agir SUR l'équipe consultée (chef d'équipe / org_admin) ──
+  // Pas de cran de droit ici : on n'arrive à ce niveau que par une page d'équipe, et le
+  // serveur ne sert ces pages qu'à qui peut les lire (membre de l'org) ; les gestes s'y
+  // gardent eux-mêmes (`canManage`).
+  { group: 'nav.section.team', level: 'team', items: [
+    { path: `/org/teams/${TEAM_TOKEN}`, label: 'nav.members', icon: 'users', detail: 'team' },
+    { path: `/org/teams/${TEAM_TOKEN}/connectors`, label: 'nav.connectors', icon: 'plug', detail: 'team-connectors' },
+  ]},
   // ── Gérer la plateforme : réservé opérateur plateforme ─────────────────────
   // Refonte 2026-07-23 : /platform/instructions absorbé par le context (B5),
   // /platform/usage fusionné dans la supervision (onglet « signaux d'usage »).
@@ -163,6 +183,8 @@ export function levelOf(path: string): NavLevel {
 export const DETAIL_META: Record<string, { title: string; crumb: string }> = {
   'admin-user': { title: 'pageMeta.adminUser.title', crumb: 'pageMeta.adminUser.crumb' },
   'admin-org': { title: 'pageMeta.adminOrg.title', crumb: 'pageMeta.adminOrg.crumb' },
+  'team': { title: 'pageMeta.team.title', crumb: 'pageMeta.team.crumb' },
+  'team-connectors': { title: 'pageMeta.teamConnectors.title', crumb: 'pageMeta.teamConnectors.crumb' },
   ...META_ESPACE,
 }
 
@@ -194,6 +216,10 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/org/security': { title: 'pageMeta.orgSecurity.title', crumb: 'pageMeta.orgSecurity.crumb' },
   '/org/connectors': { title: 'pageMeta.orgConnectors.title', crumb: 'pageMeta.orgConnectors.crumb' },
   '/org/teams': { title: 'pageMeta.orgTeams.title', crumb: 'pageMeta.orgTeams.crumb' },
+  // Les deux pages du niveau équipe : leur titre vient de DETAIL_META (page de détail) ;
+  // ces entrées tiennent la règle « tout écran de la nav a son titre ».
+  [`/org/teams/${TEAM_TOKEN}`]: { title: 'pageMeta.team.title', crumb: 'pageMeta.team.crumb' },
+  [`/org/teams/${TEAM_TOKEN}/connectors`]: { title: 'pageMeta.teamConnectors.title', crumb: 'pageMeta.teamConnectors.crumb' },
   '/org/monitoring': { title: 'pageMeta.orgMonitoring.title', crumb: 'pageMeta.orgMonitoring.crumb' },
   '/platform/context': { title: 'pageMeta.platformContext.title', crumb: 'pageMeta.platformContext.crumb' },
   '/platform/monitoring': { title: 'pageMeta.platformMonitoring.title', crumb: 'pageMeta.platformMonitoring.crumb' },

@@ -43,7 +43,8 @@
       "workspace": "espace de travail",
       "account": "compte",
       "organization": "organisation",
-      "platformAdmin": "plateforme · admin"
+      "platformAdmin": "plateforme · admin",
+      "team": "équipe"
     }
   },
   "pageMeta": {
@@ -75,6 +76,8 @@
     "orgSecurity": { "title": "sécurité de l'org", "crumb": "gérer mon org" },
     "orgConnectors": { "title": "connecteurs de l'org", "crumb": "gérer mon org" },
     "orgTeams": { "title": "équipes", "crumb": "gérer mon org" },
+    "team": { "title": "membres de l’équipe", "crumb": "gérer mon équipe" },
+    "teamConnectors": { "title": "connecteurs de l’équipe", "crumb": "gérer mon équipe" },
     "orgMonitoring": { "title": "supervision de l'org", "crumb": "gérer mon org" },
     "platformContext": { "title": "ce que voit l'agent · plateforme", "crumb": "plateforme" },
     "platformMonitoring": { "title": "supervision & usage", "crumb": "plateforme" },

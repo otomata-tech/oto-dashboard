@@ -10,7 +10,7 @@
 // tiennent à notre place. Ils échouent à l'ajout d'un écran sans son titre, ou
 // d'un titre sans sa traduction.
 import { describe, expect, it } from 'vitest'
-import { DETAIL_META, NAV, PAGE_META } from './consoleNav'
+import { DETAIL_META, NAV, PAGE_META, teamPath } from './consoleNav'
 import fr from '@/locales/fr.json'
 import en from '@/locales/en.json'
 
@@ -142,5 +142,26 @@ describe('#160 — le cran `orgAdmin` sur les entrées du niveau org', () => {
       + 'PEUT atteindre le niveau org (par l’abonnement), donc une entrée non marquée '
       + 'lui est montrée — et il la trouvera fermée',
     ).toEqual([])
+  })
+})
+
+// Niveau « équipe » (18/09) : un chef d'équipe qui n'est pas admin d'org n'avait aucune
+// porte vers la clé qu'il a le droit de poser — la liste des équipes vit sous « gérer
+// mon org ». Les entrées de ce niveau visent UNE équipe : un jeton dans le chemin,
+// résolu depuis la route, et une page de détail qui dit « on est ici ».
+describe('le niveau équipe', () => {
+  const TEAM = NAV.find((g) => g.level === 'team')
+  it('offre les membres et les connecteurs de l’équipe, chacun nommant sa page de détail', () => {
+    expect(TEAM?.items.map((i) => [i.detail, teamPath(i.path, '42')])).toEqual([
+      ['team', '/org/teams/42'],
+      ['team-connectors', '/org/teams/42/connectors'],
+    ])
+  })
+  it('ne pose aucun cran de droit : les gestes se gardent dans la page', () => {
+    expect(TEAM?.items.some((i) => i.orgAdmin || i.orgAdminReads || i.super)).toBe(false)
+  })
+  it('titre ses deux pages comme pages de détail', () => {
+    expect(DETAIL_META['team']).toBeDefined()
+    expect(DETAIL_META['team-connectors']).toBeDefined()
   })
 })
