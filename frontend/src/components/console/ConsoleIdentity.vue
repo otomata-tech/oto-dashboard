@@ -36,6 +36,12 @@ const govEntries = computed(() => {
   // Mène aux écrans d'administration, que l'opérateur plateforme LIT aussi (oto#210).
   if (seesOrgAdministration(me.value))
     out.push({ key: 'org', label: 'Gérer mon org', icon: 'building', to: '/org' })
+  // Chef de l'équipe active (`group_role`, le rôle que le serveur tient sur l'équipe
+  // affichée) : ses membres, ses connecteurs. Sans cette entrée, un chef d'équipe qui
+  // n'est pas admin d'org n'avait aucune porte vers la clé qu'il a le droit de poser
+  // (vécu 18/09 : la liste des équipes vit sous « gérer mon org », qu'il ne voit pas).
+  if (me.value?.group_role === 'group_admin' && me.value.active_group != null)
+    out.push({ key: 'team', label: 'Gérer mon équipe', icon: 'users', to: `/org/teams/${me.value.active_group}` })
   // ⚠️ « Abonnement » a QUITTÉ ce popover le 04/09 (décision d'Alexis : « dans le
   // menu, pas dans le sélecteur d'org »). Il est au niveau `work` de `consoleNav`,
   // donc dans le menu principal de l'espace de travail.
@@ -89,6 +95,7 @@ const isConsulting = computed(() =>
 const kicker = computed(() => {
   if (level.value === 'account') return 'gérer mon compte'
   if (level.value === 'org') return 'gérer mon org'
+  if (level.value === 'team') return 'gérer mon équipe'
   if (level.value === 'platform') return 'plateforme'
   return isConsulting.value ? 'consultation' : 'votre contexte'
 })
