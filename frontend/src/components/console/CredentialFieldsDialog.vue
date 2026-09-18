@@ -60,7 +60,7 @@ const props = defineProps<{
   onConfirm: (values: Record<string, string>, account: string) => Promise<void>
   // Optionnel : sonde exécutée APRÈS un enregistrement réussi (« tester la connexion »).
   // OK → ferme ; échec → reste ouvert avec le message provider pour corriger.
-  verify?: () => Promise<VerifyResult>
+  verify?: (account: string) => Promise<VerifyResult>
 }>()
 const emit = defineEmits<{ (e: 'update:open', value: boolean): void }>()
 
@@ -225,7 +225,7 @@ const submit = handleSubmit(async (values) => {
   // fiche afficher l'étape suivante.
   testing.value = true
   try {
-    const res = await props.verify()
+    const res = await props.verify(account)
     testRes.value = res
     if (res.ok || res.pending) emit('update:open', false)
   } catch (e) {

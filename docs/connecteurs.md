@@ -359,12 +359,14 @@ genre, la liste meurt.
    (`key`, catalogue relu sur la preprod le 18/09). Envoyée dans `fields`, la clé était
    ignorée et la pose refusée en 400 `empty_api_key`. Même aiguillage que `editKey`
    (`secret_kind === 'fields'`).
-2. **La sonde d'org ne connaît pas les comptes nommés.** `verify` (level `org`) n'a pas de
-   paramètre `account` et lit la ligne anonyme — qui n'existe plus dès la première société
-   nommée : « aucune clé d'org posée » devant deux sociétés posées. D'où, au palier org :
-   **pas de sonde après la pose** (le dialogue resterait ouvert sur une erreur fausse) et
-   **« tester » omis** dès qu'un compte nommé existe (levier qui ne peut pas aboutir). À
-   rebrancher quand la sonde prendra un `account` — c'est un trou backend, signalé.
+2. **La sonde d'org doit viser un compte.** Sans `account`, `verify` (level `org`) lit la
+   ligne anonyme — qui n'existe plus dès la première société nommée : « aucune clé d'org
+   posée » devant deux sociétés posées. Le lot a d'abord vécu sans sonde au palier org ;
+   **depuis le backend v1.314.0** (`account` sur la sonde, le soir même) : le dialogue sonde
+   **le compte que la pose vient d'écrire** (`CredentialDialogSpec.verify(account)`), et
+   **chaque société porte son « tester »** dans la liste (`ConnectorKeyAccounts.verify`),
+   verdict sous sa ligne. Le « tester » générique du panneau reste réservé à la clé
+   anonyme : dès qu'un compte nommé existe, il n'a plus rien à viser et s'efface.
 
 ### Amendement du 2026-09-01 — les deux vues suivent le profil, et l'absence de défaut se dit
 

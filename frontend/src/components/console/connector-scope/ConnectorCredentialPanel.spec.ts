@@ -103,8 +103,9 @@ describe('ConnectorCredentialPanel — comptes nommés au palier org', () => {
     })
     const boutons = await monterAvec(ORG, MULTI)
     expect(boutons).not.toContain('Renouveler')
-    // « tester » aussi : la sonde d'org ne vise que la ligne anonyme, qui n'existe plus.
-    expect(boutons).not.toContain('tester')
+    // Le « tester » générique aussi (il vise la ligne anonyme, qui n'existe plus) : à la
+    // place, un « tester » PAR société dans la liste.
+    expect(boutons.filter((b) => b === 'tester')).toHaveLength(2)
     // Chaque société porte son retrait ; celle qui n'est pas par défaut, son « Par défaut ».
     expect(boutons.filter((b) => b === 'Retirer')).toHaveLength(2)
     expect(boutons).toContain('Par défaut')

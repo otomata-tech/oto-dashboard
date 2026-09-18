@@ -57,6 +57,7 @@ type Props = {
   connector?: MyConnector
   scope?: 'member' | 'org'
   add?: (existing: string[]) => void
+  verify?: (account: string) => Promise<unknown>
   onNamed?: (n: number) => void
   onChanged?: () => void
 }
@@ -233,6 +234,33 @@ describe('ConnectorKeyAccounts — au palier org', () => {
     await settle()
     expect(removeKey).toHaveBeenCalledWith('payfit', 'org', expect.any(String))
     expect(changed).toHaveBeenCalledTimes(2)
+    c.cleanup()
+  })
+
+  it('sonde UNE société, et pose son verdict sous sa ligne', async () => {
+    servedAt(account('Société A', true), account('Société B'))
+    const verify = vi.fn(async (id: string) => (id === 'Société B'
+      ? { ok: false, provider: 'payfit', error: 'clé refusée' }
+      : { ok: true, provider: 'payfit' }))
+    const c = mount({ connector: PAYFIT, scope: 'org', add: () => {}, verify: verify as never })
+    await settle()
+
+    const testers = c.buttons().filter((b) => (b.textContent ?? '').trim() === 'tester')
+    expect(testers).toHaveLength(2)
+    testers[1]!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await settle()
+
+    expect(verify).toHaveBeenCalledWith('Société B')
+    expect(c.text()).toContain('✗ Société B : clé refusée')
+    expect(c.text()).not.toContain('Société A : connexion OK')
+    c.cleanup()
+  })
+
+  it('sans sonde fournie, aucun « tester » — le palier membre n’en a pas par compte', async () => {
+    servedAt(account('Société A', true), account('Société B'))
+    const c = mount({ connector: PAYFIT, scope: 'org', add: () => {} })
+    await settle()
+    expect(c.buttons().some((b) => (b.textContent ?? '').trim() === 'tester')).toBe(false)
     c.cleanup()
   })
 

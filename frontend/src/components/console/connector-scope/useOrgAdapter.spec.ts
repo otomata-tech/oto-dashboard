@@ -192,7 +192,7 @@ describe("useOrgAdapter — ajouter une clé d'org nommée", () => {
     expect(api.setOrgSecret).toHaveBeenCalledWith(42, 'payfit', '', undefined, { bot_token: 'b', user_token: 'u' }, 'Société B')
   })
 
-  it('ne sonde PAS après la pose : la sonde d’org ne connaît pas les comptes nommés', async () => {
+  it('sonde le compte que la pose vient d’écrire, au palier org', async () => {
     const a = await adaptateur('org_admin')
     api.getConnectors.mockResolvedValue({ connectors: [{
       name: 'payfit', label: 'PayFit', secret_kind: 'api_key', credential_fields: CHAMPS, verifiable: true,
@@ -200,7 +200,18 @@ describe("useOrgAdapter — ajouter une clé d'org nommée", () => {
     }] })
     await a.load()
     a.credential.addAccount(PAYFIT, [])
-    expect((ctx.openCredential.mock.calls[0]![0] as Spec).verify).toBeUndefined()
+    const spec = ctx.openCredential.mock.calls[0]![0] as Spec
+    await (spec.verify as (account: string) => Promise<unknown>)('Société B')
+    // Sans `account`, la sonde d'org lirait la ligne anonyme, que le serveur vient de
+    // renommer — « aucune clé d'org posée » sur une pose réussie (vécu 18/09).
+    expect(api.verifyConnector).toHaveBeenCalledWith('payfit', 'org', 'Société B')
+  })
+
+  it('le « tester » du levier vise le compte qu’on lui donne', async () => {
+    const a = await adaptateur('org_admin')
+    ;(a.credential as unknown as { verify: (r: unknown, account?: string) => Promise<unknown> })
+      .verify(PAYFIT, 'Société A')
+    expect(api.verifyConnector).toHaveBeenCalledWith('payfit', 'org', 'Société A')
   })
 
   it.each([

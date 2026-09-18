@@ -33,12 +33,15 @@ export function openAddAccount(
     // Un compte NEUF : rien à pré-remplir, rien à conserver.
     docs: c.doc_sections,
     accountMode: 'new', accountNoun: w.noun, accountNames: existing,
-    // ⚠️ Pas de sonde après la pose au palier ORG. `verify` (level `org`) ne connaît pas
-    // les comptes nommés : il lit la ligne anonyme, que le serveur vient justement de
-    // renommer — il répondrait 400 `no_org_credential` sur une pose RÉUSSIE, et le
-    // dialogue resterait ouvert sur une erreur fausse. À rebrancher le jour où la sonde
-    // prend un `account`.
-    verify: c.verifiable && opts.scope === 'member' ? () => verifyConnector(c.name) : undefined,
+    // Au palier ORG la sonde vise le compte que la pose vient d'écrire (`account`,
+    // backend v1.314.0) : sans lui elle lirait la ligne anonyme, que le serveur vient
+    // justement de renommer, et répondrait « aucune clé d'org » sur une pose réussie
+    // (vécu 18/09). Au palier membre elle teste le credential effectif de la cascade.
+    verify: c.verifiable
+      ? (account) => (opts.scope === 'org'
+        ? verifyConnector(c.name, 'org', account)
+        : verifyConnector(c.name))
+      : undefined,
     onConfirm: async (values, account) => {
       await opts.save(values, account)
       ctx.toast(`${w.noun} « ${account} » ajouté${w.e}`)

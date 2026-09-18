@@ -241,7 +241,7 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
       canEdit: (r) => orgAdmin.value && canHaveKey(r),
       edit: (r) => editKey(r),
       remove: (r) => removeKey(r),
-      verify: (r) => verifyConnector(r.connector, 'org'),
+      verify: (r, account) => verifyConnector(r.connector, 'org', account),
       canVerify: () => canWrite.value,
       accountScope: 'org',
       addAccount,

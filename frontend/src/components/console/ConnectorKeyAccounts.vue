@@ -26,7 +26,7 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
 import { accountWords } from '@/lib/accountNoun'
-import type { ConnectorIdentity, ConnectorMeta } from '@/types/api'
+import type { ConnectorIdentity, ConnectorMeta, VerifyResult } from '@/types/api'
 
 const props = withDefaults(defineProps<{
   connector: ConnectorMeta
@@ -34,7 +34,9 @@ const props = withDefaults(defineProps<{
   scope?: 'member' | 'org'
   // Poser un compte de plus (le geste de l'adaptateur) ; absent = pas d'ajout offert.
   add?: (existing: string[]) => void
-}>(), { scope: 'member', add: undefined })
+  // Sonder UN compte (palier org : la sonde prend un `account`) ; absent = pas de test.
+  verify?: (account: string) => Promise<VerifyResult>
+}>(), { scope: 'member', add: undefined, verify: undefined })
 // `named` : combien de comptes NOMMÉS sont posés — le panneau d'org retire alors ses
 // gestes « clé unique », qui viseraient un compte anonyme qui n'existe plus.
 // `changed` : une écriture ici (défaut, retrait) — le parent relit ce qu'il affiche.
@@ -111,6 +113,16 @@ async function makeDefault(a: ConnectorIdentity) {
   } catch (e) { toast(humanize(e)) } finally { busy.value = '' }
 }
 
+// Le verdict de la dernière sonde, par compte : un compte, un résultat, sous sa ligne.
+const tested = ref<Record<string, VerifyResult>>({})
+async function test(a: ConnectorIdentity) {
+  if (!props.verify) return
+  busy.value = a.id
+  try { tested.value = { ...tested.value, [a.id]: await props.verify(a.id) } }
+  catch (e) { tested.value = { ...tested.value, [a.id]: { ok: false, provider: '', error: humanize(e) } } }
+  finally { busy.value = '' }
+}
+
 async function remove(a: ConnectorIdentity) {
   const ok = await confirmAction({
     title: `retirer ${w.value.ce}`,
@@ -139,16 +151,23 @@ async function remove(a: ConnectorIdentity) {
         <template v-if="atOrg">{{ w.plural }} {{ connector.label }} de l'org</template>
         <template v-else>tes {{ w.plural }} {{ connector.label }}</template>
       </div>
-      <div v-for="a in accounts" :key="a.id" class="ka-row">
+      <template v-for="a in accounts" :key="a.id">
+      <div class="ka-row">
         <Dot :tone="a.is_default ? 'olive' : 'faint'" :size="8" />
         <span class="ka-name">{{ labelOf(a) }}</span>
         <Tag v-if="a.is_default" tone="olive">par défaut</Tag>
         <span v-if="canWrite" class="ka-actions">
           <Btn v-if="!a.is_default" kind="mini" :disabled="busy === a.id"
                @click="makeDefault(a)">Par défaut</Btn>
+          <Btn v-if="verify" kind="mini" :disabled="busy === a.id" @click="test(a)">tester</Btn>
           <Btn kind="danger" :disabled="busy === a.id" @click="remove(a)">Retirer</Btn>
         </span>
       </div>
+      <p v-if="tested[a.id]" class="ka-test"
+         :style="{ color: tested[a.id]!.ok ? 'var(--color-olive)' : 'var(--color-terra-ink)' }">
+        {{ tested[a.id]!.ok ? `✓ ${labelOf(a)} : connexion OK` : `✗ ${labelOf(a)} : ${tested[a.id]!.error}` }}
+      </p>
+      </template>
       <!-- Tant qu'aucun n'est marqué, la cascade ne tranche pas : le dire là où le
            geste qui répare est à portée de clic. -->
       <p v-if="noDefault" class="helptext ka-warn">
@@ -183,6 +202,7 @@ async function remove(a: ConnectorIdentity) {
 .ka-row { display: flex; align-items: center; gap: 9px; padding: 5px 0; }
 .ka-name { font-size: 12.5px; font-weight: 600; color: var(--color-ink); }
 .ka-actions { margin-left: auto; display: flex; gap: 6px; }
+.ka-test { margin: -2px 0 6px 17px; font-size: 11.5px; }
 .ka-note { margin: 8px 0 0; }
 .ka-warn { margin: 8px 0 0; display: flex; align-items: baseline; gap: 7px; }
 .ka-add { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }

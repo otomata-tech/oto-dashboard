@@ -146,9 +146,12 @@ export const deleteApiKey = (
 // credential et vérifie qu'il authentifie réellement, en remontant le vrai message
 // provider. `level='auto'` (défaut) = le credential effectif ; `level='org'` = la clé
 // DE L'ORG consultée (l'en-tête X-Oto-Org est injecté par api()).
-export const verifyConnector = (provider: string, level: 'auto' | 'org' = 'auto') =>
+// `account` (palier org seulement, backend v1.314.0) vise UNE instance nommée du
+// connecteur — une société PayFit ; vide = la ligne anonyme. Sans lui, la sonde d'org
+// ne trouve rien dès qu'un compte nommé existe (le serveur a renommé l'anonyme).
+export const verifyConnector = (provider: string, level: 'auto' | 'org' = 'auto', account = '') =>
   api<VerifyResult>(`/api/me/connectors/${encodeURIComponent(provider)}/verify`,
-    { method: 'POST', ...j({ level }) })
+    { method: 'POST', ...j({ level, ...(account ? { account } : {}) }) })
 
 // ── sessions navigateur (brevo, crunchbase) — Live View Browserbase ──
 // Connexion DEPUIS le dashboard : `start` ouvre un navigateur distant et renvoie
