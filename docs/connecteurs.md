@@ -306,8 +306,8 @@ de toolbox vivent en bas de la même vue. Les **tokens CLI** ont migré vers le 
 > Composants : `ConnectorKeyAccounts.vue` (liste, compte par défaut, retrait, « ajouter
 > un <mot> ») monté dans le panneau de connexion dès qu'un credential est posé sur un
 > connecteur `multi_account` ; `CredentialFieldsDialog.vue` (champ nom) ; geste
-> `ConnectionLever.addAccount` (scope USER — org/équipe posent toujours leur compte
-> partagé unique).
+> `ConnectionLever.addAccount` (scope USER). **Depuis le 18/09, le palier ORG aussi** —
+> voir l'amendement ci-dessous ; l'équipe pose toujours son compte partagé unique.
 >
 > ⚠️ **Piloté par la liste SERVIE** (`getConnectorIdentities`), jamais par une clé
 > composée reconstruite ici : quand le backend donnera aux instances un identifiant
@@ -320,6 +320,51 @@ de toolbox vivent en bas de la même vue. Les **tokens CLI** ont migré vers le 
 > serait faux, annoncer « ton agent perdra ce connecteur » aussi : le dialog de retrait
 > dit désormais « il te restera N workspaces — ton agent devra préciser lequel ». Et les
 > lignes de la pile portent le nom du compte, sinon deux « Ta clé » ne se distinguent pas.
+
+### Amendement du 2026-09-18 — une clé d'org PAR SOCIÉTÉ (le palier org devient multi-compte)
+
+**Le trou.** Un groupe qui paie ses sociétés sur PayFit a une clé par société. Le backend
+servait PayFit en multi-compte (`auth.cardinality = "multi_account"`, `account_noun =
+« société »`) et `org.secret.set` acceptait un `account` nommé — mais l'org ne pouvait
+poser qu'UNE clé : le bloc des comptes n'était monté qu'au palier membre, et l'adaptateur
+d'org n'avait pas de geste d'ajout. Lot commencé par une session, repris par une autre
+(branche `wip/cles-org-multi-comptes`, commit `c68e9a1`), relu contre le serveur.
+
+**Ce qui change, sans dupliquer le palier membre :**
+- le geste d'ajout est **un** (`connector-scope/addAccount.ts`, `openAddAccount`) : les
+  deux adaptateurs y branchent leur route d'écriture et leur palier ; le dialogue est le
+  même (`accountMode: 'new'`, nom obligatoire, doublon refusé à la saisie, mot du registre) ;
+- `ConnectorKeyAccounts` sert **deux paliers** (`scope`) : même liste, même défaut, même
+  retrait, par les routes qui prennent déjà `scope` (`identities?scope=`,
+  `identities/default`, `DELETE api-keys?scope=`). Il ne reçoit plus un levier entier mais
+  le seul geste dont il a besoin (`add`) — c'est ce qui lui permet de servir le panneau
+  « clé partagée d'org », dont le levier n'a pas la forme de celui du membre ;
+- `CredentialLever.accountScope` + `addAccount` : le panneau de clé d'org monte le bloc
+  quand le levier sait poser, que le connecteur porte plusieurs comptes et qu'une clé est
+  déjà là. **Dès qu'un compte NOMMÉ existe, « Renouveler » et « Retirer » de la clé unique
+  s'effacent** (`named`) : le serveur a renommé la ligne anonyme en `principal`, reposer
+  sans nom serait refusé (409 `account_required`) ; chaque société porte ses gestes ;
+- le droit au palier org est celui du serveur : `canAdministerOrg` (org_admin hors
+  consultation) pour écrire, membre pour lire.
+
+**Les accords du mot** (`lib/accountNoun.ts`). Le registre sert le mot, pas son genre :
+« Ajouter un société » est le bouton qu'aurait lu l'admin d'un groupe. Une liste fermée des
+mots féminins du registre accorde articles, démonstratifs et participes ; un mot inconnu
+s'accorde au masculin — faute visible, jamais un geste faux. Le jour où le registre sert le
+genre, la liste meurt.
+
+⚠️ **Deux règles du serveur relues, qui auraient cassé le lot tel qu'il avait été laissé :**
+1. **Clé unique ⇒ `api_key`, jamais `fields`.** `org.secret.set` ne lit `fields` que pour un
+   connecteur multi-champs (`credentials_store.secret_from_input`) ; PayFit n'a qu'un champ
+   (`key`, catalogue relu sur la preprod le 18/09). Envoyée dans `fields`, la clé était
+   ignorée et la pose refusée en 400 `empty_api_key`. Même aiguillage que `editKey`
+   (`secret_kind === 'fields'`).
+2. **La sonde d'org ne connaît pas les comptes nommés.** `verify` (level `org`) n'a pas de
+   paramètre `account` et lit la ligne anonyme — qui n'existe plus dès la première société
+   nommée : « aucune clé d'org posée » devant deux sociétés posées. D'où, au palier org :
+   **pas de sonde après la pose** (le dialogue resterait ouvert sur une erreur fausse) et
+   **« tester » omis** dès qu'un compte nommé existe (levier qui ne peut pas aboutir). À
+   rebrancher quand la sonde prendra un `account` — c'est un trou backend, signalé.
 
 ### Amendement du 2026-09-01 — les deux vues suivent le profil, et l'absence de défaut se dit
 

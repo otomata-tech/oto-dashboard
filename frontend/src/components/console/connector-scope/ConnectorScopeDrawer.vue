@@ -48,7 +48,7 @@ const badge = computed(() => props.adapter.badge?.(props.row) ?? null)
       </summary>
       <div class="csd-acc-body">
         <ConnectorCredentialPanel v-if="(t.key === 'main' || t.key === 'credential') && adapter.credential"
-          :lever="adapter.credential" :row="row" />
+          :lever="adapter.credential" :row="row" :meta="meta" @changed="adapter.reload()" />
         <ConnectorConnectionPanel v-else-if="t.key === 'connection' && adapter.connection"
           :lever="(adapter.connection as unknown as ConnectionLever<MyConnector>)" :connector="(row as unknown as MyConnector)" />
         <ConnectorToolsPanel v-else-if="t.key === 'tools' && adapter.tools"

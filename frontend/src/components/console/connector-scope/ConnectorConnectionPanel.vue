@@ -101,6 +101,11 @@ const keyConfigured = computed(() => !!status.value?.user_key_configured)
 // Le connecteur porte-t-il plusieurs comptes ? Dérivé du descripteur backend, comme
 // tout le reste de ce panneau — jamais d'une liste de noms tenue côté front.
 const multiAccount = computed(() => c.value.auth.cardinality === 'multi_account')
+// Le geste d'ajout du levier, lié à CE connecteur ; absent = le bloc n'offre pas l'ajout.
+const addAccount = computed(() => {
+  const add = props.lever.addAccount
+  return add ? (existing: string[]) => add(c.value, existing) : undefined
+})
 const needsKey = computed(() => connKind.value === 'key')
 const docRefCount = computed(() => c.value.doctrine_ref_count ?? 0)
 
@@ -196,7 +201,7 @@ const keyCta = computed(() => (orgKeyOnly.value
         <!-- Comptes nommés (#121) : un compte du coffre = un workspace Slack, une
              organisation Zoho. Ne s'affiche qu'une fois un credential posé — le
              premier compte reste anonyme, la pose ordinaire ne change pas. -->
-        <ConnectorKeyAccounts v-if="keyConfigured && multiAccount" :connector="c" :lever="lever" />
+        <ConnectorKeyAccounts v-if="keyConfigured && multiAccount" :connector="c" :add="addAccount" />
       </div>
 
       <ConnectorOAuthAccounts v-else-if="connKind === 'google'" />

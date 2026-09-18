@@ -16,6 +16,7 @@ import { connectorVerdict } from '@/lib/connectorVerdict'
 import { originBadge } from '@/lib/installOrigin'
 import { notSeenByName, unseenReason } from '@/lib/agentToolbox'
 import { poseScope } from '@/lib/credentialScope'
+import { openAddAccount } from './addAccount'
 import type { ConnectorState, FieldFiltersBundle, InstalledNotSeen, MyConnector, ToolEntry } from '@/types/api'
 
 export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector> {
@@ -218,27 +219,11 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
           },
         })
       },
-      // Un compte de PLUS (#121) : le nom est demandé et obligatoire — le serveur
-      // refuse une seconde pose anonyme, et migre lui-même la ligne anonyme vers un
-      // libellé au premier compte nommé. Le mot affiché vient du registre.
-      addAccount: (r, existing) => {
-        const fields = r.credential_fields ?? []
-        if (!fields.length) return
-        const noun = r.auth.account_noun || 'compte'
-        ctx.openCredential({
-          label: r.label, fields, single: fields.length === 1,
-          fieldDiscriminator: r.auth?.field_discriminator,
-          // Un compte NEUF : rien à pré-remplir, rien à conserver.
-          docs: r.doc_sections,
-          accountMode: 'new', accountNoun: noun, accountNames: existing,
-          verify: r.verifiable ? () => verifyConnector(r.name) : undefined,
-          onConfirm: async (values, account) => {
-            await setCredential(r.name, values, account)
-            ctx.toast(`${noun} « ${account} » ajouté`)
-            await reload()
-          },
-        })
-      },
+      // Un compte de PLUS (#121) — le geste commun à tous les paliers (`addAccount.ts`),
+      // posé ici au palier membre.
+      addAccount: (r, existing) => openAddAccount(ctx, r, existing, {
+        scope: 'member', save: (values, account) => setCredential(r.name, values, account), reload,
+      }),
       removeKey: async (r, note) => {
         const message = `retirer ta clé ${r.label} ?${note ? ` ${note}` : ''}`
         if (!await ctx.confirmAction({ title: 'retirer la clé', danger: true, confirmLabel: 'Retirer', message })) return
