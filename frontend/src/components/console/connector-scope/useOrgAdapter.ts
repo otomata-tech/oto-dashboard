@@ -14,6 +14,7 @@ import {
 } from '@/api/console'
 import { useMe, canAdministerOrg, canWriteInOrg } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
+import { openAddAccount } from './addAccount'
 import type {
   OrgConnectorActivation, ConnectorMeta, FieldFiltersBundle,
   ConnectorAclEntry, GroupListItem, OrgMember,
@@ -21,7 +22,7 @@ import type {
 import type { FormDialogField } from '@/composables/useFormDialog'
 
 export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnectorActivation> {
-  const { me } = useMe()
+  const { me, reload: reloadMe } = useMe()
   const orgId = computed(() => me.value?.active_org ?? null)
   // Leviers d'écriture (`ORG_ADMIN_OF` côté serveur) : l'admin d'org tel que le serveur le
   // tient, hors consultation (`canAdministerOrg`). L'admin plateforme lit, il ne règle rien
@@ -125,6 +126,19 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
     try { await deleteOrgSecret(orgId.value, r.connector); ctx.toast(`${r.label} : clé d'org retirée`); await load() }
     catch (e) { ctx.toast(humanize(e)) }
   }
+  // Une clé d'org de PLUS, sous un nom (#121) — une société d'un groupe PayFit. Même
+  // geste qu'au palier membre (`addAccount.ts`), écrit par `org.secret.set` avec
+  // `account`. Le rechargement de `me` est le signal que la liste des comptes écoute.
+  function addAccount(r: OrgConnectorActivation, existing: string[]) {
+    const m = meta(r)
+    if (!m || !orgAdmin.value || orgId.value == null) return
+    const org = orgId.value
+    openAddAccount(ctx, m, existing, {
+      scope: 'org',
+      save: (values, account) => setOrgSecret(org, r.connector, '', undefined, values, account),
+      reload: () => Promise.all([load(), reloadMe()]),
+    })
+  }
 
   // ── accès (RBAC ADR 0025) ──
   function principalLabel(e: ConnectorAclEntry): string {
@@ -221,6 +235,8 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
       remove: (r) => removeKey(r),
       verify: (r) => verifyConnector(r.connector, 'org'),
       canVerify: () => canWrite.value,
+      accountScope: 'org',
+      addAccount,
       // Consentement AU SCOPE ORG. Sans lui, cette surface laissait POSER l'application
       // OAuth de l'org sans aucun moyen de l'activer : l'org_admin enregistrait
       // client_id/secret/login_url, et devait deviner qu'il fallait aller sur sa fiche

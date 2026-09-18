@@ -953,9 +953,15 @@ export const removeOrgMember = (id: number, sub: string) =>
 export const leaveOrg = (id: number) =>
   api<{ ok: boolean; org_id: number; left: boolean }>(`/api/me/orgs/${id}/membership`, { method: 'DELETE' })
 // Pose/rotation de la clé partagée d'org (org_admin, self-service, ADR 0022).
-export const setOrgSecret = (id: number, provider: string, api_key: string, base_url?: string, fields?: Record<string, string>) =>
+// `account` (multi-compte) = le NOM du compte d'org visé — une société d'un groupe.
+// Vide = le compte mono historique ; mêmes règles qu'au palier membre (`setCredential`).
+export const setOrgSecret = (
+  id: number, provider: string, api_key: string, base_url?: string,
+  fields?: Record<string, string>, account = '',
+) =>
   api<{ ok: boolean; org_id: number; provider: string }>(
-    `/api/orgs/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url, fields }) })
+    `/api/orgs/${id}/secrets/${provider}`,
+    { method: 'PUT', ...j({ api_key, base_url, fields, ...(account ? { account } : {}) }) })
 export const deleteOrgSecret = (id: number, provider: string) =>
   api(`/api/orgs/${id}/secrets/${provider}`, { method: 'DELETE' })
 
