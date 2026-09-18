@@ -27,6 +27,12 @@ const accountsAt = computed(() => {
   return accountScope && addAccount && multi && s.value.present ? accountScope : null
 })
 const addAccount = (existing: string[]) => props.lever.addAccount?.(props.row, existing)
+// La sonde d'UN compte nommé, offerte à la liste aux mêmes conditions que « tester ».
+const verifyAccount = computed(() => {
+  const { verify, canVerify } = props.lever
+  if (!verify || !(canVerify?.(props.row) ?? true)) return undefined
+  return (account: string) => verify(props.row, account)
+})
 // Dès qu'un compte NOMMÉ existe, la ligne anonyme a migré (le serveur la renomme au
 // premier compte nommé) : « Renouveler » la reposerait sans nom (refusé, 409) et
 // « Retirer » viserait un compte qui n'existe plus. Chaque compte porte alors ses
@@ -50,9 +56,10 @@ async function connect() {
 // Sonde « tester la connexion » (résultat éphémère) quand le levier l'expose, qu'une clé est
 // posée, et que le levier ne la retient pas (`canVerify`) : c'est un POST sans `op`, que le
 // serveur refuse en consultation (oto#211).
-// ⚠️ Omis dès qu'un compte NOMMÉ existe à ce palier : la sonde ne sait viser que la ligne
-// anonyme, que le serveur a renommée — elle répondrait « aucune clé d'org posée » devant
-// deux sociétés posées. Un levier qui ne peut pas aboutir ne s'affiche pas.
+// Sans compte, la sonde vise la ligne ANONYME. Dès qu'un compte nommé existe à ce
+// palier, cette ligne n'existe plus (le serveur l'a renommée) : ce bouton répondrait
+// « aucune clé d'org posée » devant deux sociétés posées. Chaque société porte alors
+// son propre « tester » dans la liste (`verifyAccount`).
 const canTest = computed(() =>
   !!props.lever.verify && s.value.present && (props.lever.canVerify?.(props.row) ?? true)
   && !(accountsAt.value && namedAccounts.value > 0))
@@ -104,8 +111,8 @@ async function test() {
         survivra au départ de son titulaire. La redonner permet d'en changer.
       </p>
       <ConnectorKeyAccounts v-if="accountsAt && meta" :connector="meta" :scope="accountsAt"
-                            :add="addAccount" @named="(n) => namedAccounts = n"
-                            @changed="emit('changed')" />
+                            :add="addAccount" :verify="verifyAccount"
+                            @named="(n) => namedAccounts = n" @changed="emit('changed')" />
       <div v-if="!canEdit && !canTest" class="helptext" style="margin-top: 8px">lecture seule.</div>
     </template>
   </section>

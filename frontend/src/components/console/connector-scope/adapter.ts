@@ -70,7 +70,9 @@ export interface CredentialLever<R> {
   canEdit(r: R): boolean
   edit(r: R): void            // ajoute/rotate (ouvre FormDialog ou CredentialFieldsDialog)
   remove?(r: R): void         // retrait single-instance
-  verify?(r: R): Promise<VerifyResult>
+  // `account` (comptes nommés au palier org) : la sonde vise CETTE instance ; sans lui,
+  // la ligne anonyme — qui n'existe plus dès le premier compte nommé.
+  verify?(r: R, account?: string): Promise<VerifyResult>
   // « tester » est un POST sans `op` : en consultation, le serveur le refuse comme une écriture
   // (oto#211). Le levier dit s'il l'offre ; absent, il est offert dès qu'une clé est posée.
   canVerify?(r: R): boolean
@@ -201,7 +203,9 @@ export interface CredentialDialogSpec {
   // `values` porte les champs déclarés ; `account` le NOM du compte visé quand le
   // connecteur en gère plusieurs ('' = le compte mono historique).
   onConfirm: (values: Record<string, string>, account: string) => Promise<void>
-  verify?: () => Promise<VerifyResult>
+  // Sonde après la pose ; reçoit le NOM du compte que la pose vient d'écrire (multi-compte),
+  // pour viser cette instance-là et non la ligne anonyme.
+  verify?: (account: string) => Promise<VerifyResult>
   // Multi-compte (oto-dashboard#121) — le GESTE dit quoi faire du nom, jamais une
   // heuristique du dialog :
   //  · 'none'  = pose ordinaire (premier credential, ou connecteur mono-compte) —
