@@ -5,6 +5,9 @@
 // vocabulaire produit « département/groupe » est passé à « team » le 2026-07-06 ; les
 // identifiants de code restent `group`/`getGroup`. Le backend porte l'autz (roles.py) ;
 // l'UI masque les gestes org-admin.
+// 18/09/2026 : lien « connectors » restauré vers /org/teams/:groupId/connectors (seul
+// le panneau clé/disponibilité/accès d'équipe est revenu, pas le reste du niveau
+// équipe) — visible pour l'org_admin OU le chef de CETTE équipe (`my_role`).
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
@@ -32,6 +35,21 @@ const activeOrgId = computed(() => me.value?.active_org ?? null)
 // plateforme LIT la liste, il ne crée, ne renomme ni ne supprime (oto#210) ; en consultation,
 // personne (oto#211).
 const orgAdmin = computed(() => canAdministerOrg(me.value))
+
+// Visible pour l'org_admin (toutes les équipes) OU le chef de CETTE équipe précise —
+// même garde que le serveur (`GROUP_ADMIN_OF` = chef d'équipe OU org_admin parent).
+function canManageConnectors(g: GroupListItem): boolean {
+  return orgAdmin.value || g.my_role === 'group_admin'
+}
+function connectorsLink(g: GroupListItem): string {
+  return activeOrgId.value == null
+    ? `/org/teams/${g.id}/connectors`
+    : `/o/${activeOrgId.value}/org/teams/${g.id}/connectors`
+}
+// Navigation DURE (pas router.push) : on quitte le niveau org pour le niveau équipe,
+// même patron que goUpToOrg/goUpToPlatform de ConsoleIdentity — un push SPA laisserait
+// `me`/la sidebar périmés (le niveau équipe n'a pas de state à recomposer proprement ici).
+function openConnectors(g: GroupListItem) { window.location.assign(connectorsLink(g)) }
 
 async function load() {
   if (activeOrgId.value == null) { loaded.value = true; return }
@@ -108,6 +126,7 @@ async function removeGroup(g: GroupListItem) {
               <span v-else class="dim" style="font-size: 11px">—</span>
             </td>
             <td style="text-align: right; white-space: nowrap">
+              <Btn v-if="canManageConnectors(g)" kind="mini" @click="openConnectors(g)">Connectors</Btn>
               <template v-if="orgAdmin">
                 <Btn kind="mini" @click="rename(g)">Edit</Btn>
                 <Btn kind="danger" @click="removeGroup(g)">Delete</Btn>

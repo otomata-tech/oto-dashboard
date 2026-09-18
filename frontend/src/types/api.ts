@@ -1166,6 +1166,17 @@ export interface GroupDetail {
   secrets: GroupSecret[]
 }
 
+// Activation de connecteur au grain ÉQUIPE (ADR 0012, restrict-only). L'équipe ne peut
+// que COUPER ce que l'org expose (jamais exposer au-delà). `effective` = org_available
+// ET pas coupé par l'équipe. Restauré (oto#192 avait retiré l'alias front — le schéma
+// backend, lui, n'a jamais bougé, la route reste servie).
+export type GroupConnectorActivation = components['schemas']['GroupActivationRow']
+
+// ACL connecteur au grain ÉQUIPE (ADR 0012 B2, restrict-only) : réserver un connecteur
+// à des MEMBRES de l'équipe. Intersection avec l'ACL d'org (narrowing pur). Restauré
+// (même raison que ci-dessus).
+export type GroupAclEntry = components['schemas']['GroupAclEntry']
+
 // ── admin ──
 export interface AdminGrant {
   provider: string

@@ -138,6 +138,19 @@ const router = createRouter({
     { path: '/o/:orgId(\\d+)/org/teams/:teamId(\\d+)', redirect: (to) => `/o/${to.params.orgId}/org/teams` },
     { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/org/teams/:teamId(\\d+)', redirect: (to) => `/o/${to.params.orgId}/org/teams` },
     { path: '/org/teams/:teamId(\\d+)', redirect: '/org/teams' },
+    // Connecteurs d'une équipe donnée (restauré, périmètre resserré — oto#192 avait tout
+    // retiré). Route de détail minimale : nue + préfixée org, PAS de variante `/g/:groupId`
+    // (elle N'A PAS de sens ici, la cible EST l'équipe consultée).
+    {
+      path: '/org/teams/:groupId(\\d+)/connectors',
+      component: ConsoleLayout,
+      meta: { section: '/org/teams', level: 'team' as NavLevel, orgScoped: true, detail: 'team-connectors' },
+    },
+    {
+      path: '/o/:orgId(\\d+)/org/teams/:groupId(\\d+)/connectors',
+      component: ConsoleLayout,
+      meta: { section: '/org/teams', level: 'team' as NavLevel, orgScoped: true, detail: 'team-connectors' },
+    },
     ...sectionRoutes,
     {
       // Le retour PKCE est traité par initAuth() avant le mount du router

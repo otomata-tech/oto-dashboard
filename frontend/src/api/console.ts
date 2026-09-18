@@ -8,7 +8,7 @@ import type {
   BillingIdentityView, BillingIdentityInput, BillingConfirmResult, BillingInvoice, LegalStatus,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, ProjectActivity, ProjectRun,
   DoctrineBundle, Guide, GuideById, GuideScope,
-  GoogleOauthStatus, GroupDetail, GroupListItem, InstructionDetail,
+  GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupListItem, InstructionDetail,
   InstructionVersion, LinkedProcedure, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption,
   ColumnFilter, DatastoreRow, DatastoreEntry, SharedDatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, RewritableRow, SharePrincipal, ToolCall, ToolEntry,
@@ -969,6 +969,30 @@ export const getGroup = (id: number) => api<GroupDetail>(`/api/groups/${id}`)
 export const updateGroup = (id: number, patch: { name?: string; description?: string }) =>
   api(`/api/groups/${id}`, { method: 'PATCH', ...j(patch) })
 export const deleteGroup = (id: number) => api(`/api/groups/${id}`, { method: 'DELETE' })
+// Restauré (oto#192 avait retiré ces alias front — les routes backend n'ont jamais
+// bougé, elles restent servies à leurs autres clients) : le SEUL levier équipe
+// réintroduit ici est la clé/secret partagé de connecteur.
+// Mono-champ (api_key) OU multi-champs (zoho/silae… → fields), même contrat que la clé d'org.
+export const setGroupSecret = (id: number, provider: string, api_key: string, base_url?: string, fields?: Record<string, string>) =>
+  api(`/api/groups/${id}/secrets/${provider}`, { method: 'PUT', ...j({ api_key, base_url, fields }) })
+export const deleteGroupSecret = (id: number, provider: string) =>
+  api(`/api/groups/${id}/secrets/${provider}`, { method: 'DELETE' })
+// Disponibilité de connecteur au grain équipe (ADR 0012, restrict-only). L'équipe
+// ne peut que COUPER (set enabled=false) / ré-ouvrir (clear) ce que l'org expose.
+export const getGroupConnectorActivation = (id: number) =>
+  api<{ group_id: number; connectors: GroupConnectorActivation[] }>(`/api/groups/${id}/connectors/activation`)
+export const setGroupConnectorActivation = (id: number, name: string, enabled: boolean) =>
+  api(`/api/groups/${id}/connectors/${name}/activation`, { method: 'PUT', ...j({ enabled }) })
+export const clearGroupConnectorActivation = (id: number, name: string) =>
+  api(`/api/groups/${id}/connectors/${name}/activation`, { method: 'DELETE' })
+// ACL connecteur au grain équipe (ADR 0012 B2, restrict-only) : réserver un connecteur
+// à des membres de l'équipe (narrowing de l'ACL d'org).
+export const getGroupConnectorAcl = (id: number) =>
+  api<{ group_id: number; access: GroupAclEntry[]; restricted: string[] }>(`/api/groups/${id}/connectors/acl`)
+export const setGroupConnectorAccess = (id: number, connector: string, member: string) =>
+  api(`/api/groups/${id}/connectors/${connector}/access`, { method: 'POST', ...j({ member }) })
+export const clearGroupConnectorAccess = (id: number, connector: string, member: string) =>
+  api(`/api/groups/${id}/connectors/${connector}/access?member=${encodeURIComponent(member)}`, { method: 'DELETE' })
 // doctrine & skills du groupe (lecture = membre, écriture = chef)
 export const getGroupInstructionVersions = (id: number, slug: string) =>
   api<{ slug: string; versions: InstructionVersion[] }>(`/api/groups/${id}/instructions/${slug}/versions`)

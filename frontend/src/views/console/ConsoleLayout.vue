@@ -22,6 +22,11 @@ const OverviewView = defineAsyncComponent(() => import('./OverviewView.vue'))
 const AdminUserView = defineAsyncComponent(() => import('./AdminUserView.vue'))
 const AdminOrgView = defineAsyncComponent(() => import('./AdminOrgView.vue'))
 const ProjectDetailView = defineAsyncComponent(() => import('./ProjectDetailView.vue'))
+// Restauré (oto#192 avait retiré tout le niveau équipe) — périmètre resserré au SEUL
+// panneau connecteurs d'équipe (clé partagée, disponibilité, accès), sur un besoin réel
+// (18/09/2026). Route de détail minimale, pas la réintégration du fil d'Ariane/nav
+// niveau équipe : à unifier plus tard avec un éventuel écran « membres d'équipe ».
+const TeamConnectorsView = defineAsyncComponent(() => import('./TeamConnectorsView.vue'))
 
 // Keyé par path canonique (= meta.section porté par chaque route, cf. consoleNav).
 const VIEWS: Record<string, Component> = {
@@ -80,6 +85,7 @@ const current = computed(() => {
   if (route.meta.detail === 'admin-user') return AdminUserView    // fiche /platform/users/:sub
   if (route.meta.detail === 'admin-org') return AdminOrgView      // fiche /platform/orgs/:id
   if (route.meta.detail === 'project') return ProjectDetailView   // page /projects/:id
+  if (route.meta.detail === 'team-connectors') return TeamConnectorsView  // /org/teams/:groupId/connectors
   return VIEWS[section.value] ?? OverviewView
 })
 // Clé de remount : une page de détail remonte quand son ID change, pas sa query.
@@ -89,6 +95,7 @@ const viewKey = computed(() => {
   if (route.meta.detail === 'admin-user') return route.fullPath
   if (route.meta.detail === 'admin-org') return `/platform/orgs/${route.params.id}`
   if (route.meta.detail === 'project') return `/projects/${route.params.id}`
+  if (route.meta.detail === 'team-connectors') return `/org/teams/${route.params.groupId}/connectors`
   return section.value
 })
 </script>
