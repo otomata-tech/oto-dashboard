@@ -29,6 +29,7 @@ comptait aussi l'`admin` plateforme, que chaque op d'admin d'org refuse en 403 :
 | menu d'org : supervision (`orgAdminReads`) | voir l'écran | lectures `ORG_ADMIN_OF`, même en consultation | refusé : entrée retirée |
 | `/org/connectors` (`useOrgAdapter`) : disponibilité, clé d'org, accès réservé, autoriser au scope org | gestes | `ORG_ADMIN_OF` ; `is_org_admin` dans le corps pour l'autorisation qui lit le scope | refusé : gestes retirés |
 | `/org/teams` (`GroupsView`) : créer, renommer, supprimer | gestes | `ORG_ADMIN_OF` ; `GROUP_ADMIN_OF` | refusé : gestes retirés |
+| `/org/teams/:id` (`TeamDetailView`) : membres (add/role/remove) | gestes | `GROUP_ADMIN_OF` (lecture : `GROUP_MEMBER_OF`) | refusé : gestes retirés (lecture ouverte) |
 | campagnes (`runnerGestes.droits`) : armer, relancer | gestes | `is_org_admin` dans le corps → `403 org_admin_required` | déjà refusé (oto#205), s'appuie sur `isOrgAdmin` |
 | abonnement (`BillingView`), clé d'org depuis une fiche connecteur (`useUserAdapter`, `ConnectorConnectionPanel`) | gestes | non relue dans ce lot | règle déjà juste, recopiée : s'appuie sur `isOrgAdmin` |
 
@@ -74,6 +75,7 @@ L'écran omet ses gestes, jamais grisés, et ne la répète pas ; ses lectures r
 | `/org/connectors` | tester | `POST /api/me/connectors/{p}/verify`, sans `op` | `canWriteInOrg` (`canVerify` du levier) |
 | `/org/connectors` | annuler un envoi programmé | `DELETE /api/orgs/{id}/scheduled-emails/{eid}` (`ORG_MEMBER_OF`) | `canWriteInOrg` |
 | `/org/teams` | new, edit, delete | `POST /api/orgs/{id}/groups`, `PATCH`/`DELETE /api/groups/{id}` | `canAdministerOrg` |
+| `/org/teams/:id` | add member, role, remove | `POST /api/groups/{id}/members{,/{sub}}`, `DELETE /api/groups/{id}/members/{sub}` | `canAdministerOrg` OU chef explicite de CETTE équipe (`my_role`) |
 | `/org/billing` | choisir, payer, changer de carte, résilier, annuler la résiliation, identité | `POST /api/me/billing/{subscribe,method,cancel,resume}`, `PUT /api/me/billing/identity` | `canAdministerOrg` (`canManage`) |
 | `/automations` | armer, relancer, arrêter, régler un déclencheur | `docs/automations.md` | `droits` |
 
@@ -141,7 +143,7 @@ l'org_admin et le super_admin hors et en consultation, et pour l'admin plateform
 
 ## Groupes / départements (ADR 0012)
 
-Liste des équipes d'une org : `/org/teams` (`GroupsView.vue`) — lister, créer, renommer, supprimer (org_admin). Les anciens chemins `/console/groups`, `/org/departments` et `/org/teams/:id` sont des redirections (`router/index.ts`). Un membre bascule son **groupe actif** (`useGroup` → `PUT /api/me/active-group`) ; une équipe se **consulte** par le préfixe d'URL `/o/:org/g/:group/` sur les écrans de travail (`WorkspaceSwitcher`). Hiérarchie de droits côté backend (`roles.py`, escalade descendante) — l'UI masque seulement les contrôles.
+Liste des équipes d'une org : `/org/teams` (`GroupsView.vue`) — lister, créer, renommer, supprimer (org_admin), et depuis chaque ligne, gérer ses membres (`/org/teams/:id`, `TeamDetailView.vue` — cf. plus haut). Les anciens chemins `/console/groups` et `/org/departments` sont des redirections (`router/index.ts`) ; `/org/teams/:id` ne l'est plus depuis le 18/09/2026. Un membre bascule son **groupe actif** (`useGroup` → `PUT /api/me/active-group`) ; une équipe se **consulte** par le préfixe d'URL `/o/:org/g/:group/` sur les écrans de travail (`WorkspaceSwitcher`). Hiérarchie de droits côté backend (`roles.py`, escalade descendante) — l'UI masque seulement les contrôles.
 
 > **Le scope d'équipe dédié a quitté le dashboard (oto#192, 12/09/2026).** Ses pages — `/team`
 > (membres, secrets partagés et invitation d'équipe, `TeamMembersView` + `GroupDetailCards`),
@@ -153,6 +155,31 @@ Liste des équipes d'une org : `/org/teams` (`GroupsView.vue`) — lister, crée
 > Les routes backend restent servies (dashboard.oto.cx les appelle) ; leur retrait se décide
 > route par route, après le tag prod du front. Un ancien lien `/team/*` ou `/group` retombe
 > sur l'accueil (route attrape-tout).
+>
+> **Retour partiel (18/09/2026)** : un besoin réel (poser/remplacer la clé partagée d'une
+> équipe, coupure de connecteur, accès réservé à des membres) a montré que la mesure du
+> 12/09 ratait au moins ce cas. Restaurés, périmètre resserré à ce SEUL panneau :
+> `useTeamAdapter`, `useTeamScope`, `TeamScopeHeader`, `TeamConnectorsView`, les fonctions
+> `api/console.ts` de connecteur/secret d'équipe (`setGroupSecret`, `getGroupConnectorActivation`,
+> `getGroupConnectorAcl`, etc.), les types `GroupConnectorActivation`/`GroupAclEntry`. Route
+> de détail minimale et NOUVELLE (pas l'ancienne `/team/connectors`) :
+> `/org/teams/:groupId/connectors`, atteinte par un bouton « Connectors » sur `GroupsView`
+> (visible org_admin ou chef de CETTE équipe). Niveau nav `'team'` réintroduit
+> (`consoleNav.ts`, `registry.ts`) mais SANS le fil d'Ariane ni l'entrée « Gérer mon équipe »
+> de `ConsoleIdentity` — navigation par un simple lien dur (`window.location.assign`), pas
+> une refonte du switcher. Ce qui reste retiré : membres, contexte, procédures, invitation
+> d'équipe — à rouvrir séparément si le même signal se confirme pour eux.
+
+**Les MEMBRES sont revenus, seuls (18/09/2026).** Un besoin réel (un membre d'équipe, pas
+org_admin, bloqué pour gérer les membres/secrets de sa propre équipe) a montré que la mesure
+d'oto#192 ratait ce cas. Périmètre resserré, décidé par Alexis : uniquement `POST`/`DELETE
+/api/groups/{id}/members{,/{sub}}` — pas le contexte, pas les connecteurs, pas les procédures,
+pas l'invitation d'équipe (ces gestes restent hors dashboard). Porté par `/org/teams/:teamId`
+(`TeamDetailView.vue`, meta `detail: 'team'`, niveau `org`), atteint depuis une ligne de
+`GroupsView.vue` (bouton « Members »). `TeamMembersCard.vue` reprend le composant `GroupDetailCards`
+retiré par oto#192, sans sa carte `InvitationsCard` (invitation d'équipe, hors périmètre).
+`canManage` = `canAdministerOrg` (le rôle explicite `my_role` sous-compte l'escalade org_admin,
+cf. commentaire de `GroupBrief.my_role`) OU chef explicite de CETTE équipe.
 
 > **Droits par verbe sur les procédures (oto-backend#695/#719, front #144) — historique.**
 > Le serveur sert `can_write_instructions` et `can_delete_instructions` à côté de `can_edit`

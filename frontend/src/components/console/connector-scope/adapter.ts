@@ -16,7 +16,7 @@ import type { DotTone } from '@/lib/consoleTypes'
 import type { FormDialogConfig } from '@/composables/useFormDialog'
 import type { ConfirmConfig } from '@/composables/usePrompt'
 
-export type ConnectorScope = 'user' | 'org' | 'platform'
+export type ConnectorScope = 'user' | 'org' | 'platform' | 'team'
 export type TagTone = 'olive' | 'saffron' | 'terra' | 'cobalt' | 'ink'
 
 // View-model d'une cellule de colonne (une surface décide dot/tag/label/sub, le
