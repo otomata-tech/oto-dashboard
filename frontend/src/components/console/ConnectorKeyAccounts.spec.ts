@@ -19,15 +19,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import ConnectorKeyAccounts from './ConnectorKeyAccounts.vue'
 import { useMe } from '@/composables/useMe'
-import type { ConnectionLever } from './connector-scope/adapter'
 import type { ConnectorIdentity, Me, MyConnector } from '@/types/api'
 
 const identities = vi.fn()
+const setDefault = vi.fn(async (..._a: unknown[]) => ({}))
+const removeKey = vi.fn(async (..._a: unknown[]) => ({}))
+// Le profil que `reload()` relit après une écriture : le rendre vide retirerait tous
+// les gestes de l'écran, et le test lirait un défaut qu'il a lui-même fabriqué.
+const profile = vi.fn(async (): Promise<unknown> => null)
 vi.mock('@/api/console', () => ({
   getConnectorIdentities: (...a: unknown[]) => identities(...a),
-  setConnectorIdentity: vi.fn(async () => ({})),
-  deleteApiKey: vi.fn(async () => ({})),
-  getMe: vi.fn(async () => null),
+  setConnectorIdentity: (...a: unknown[]) => setDefault(...a),
+  deleteApiKey: (...a: unknown[]) => removeKey(...a),
+  getMe: () => profile(),
 }))
 vi.mock('@/composables/usePrompt', () => ({
   usePrompt: () => ({ confirmAction: async () => true }),
@@ -46,13 +50,20 @@ function served(...list: ConnectorIdentity[]) {
   identities.mockResolvedValue({ connector: 'slack', supported: true, identities: list })
 }
 
-function mount(lever: Partial<ConnectionLever<MyConnector>> = {}) {
+// Le bloc ne reçoit plus un levier entier mais le SEUL geste dont il a besoin (`add`) et
+// le palier qu'il sert (`scope`) : c'est ce qui lui permet de servir aussi le panneau
+// « clé partagée d'org », dont le levier n'a pas la forme de celui du membre.
+type Props = {
+  connector?: MyConnector
+  scope?: 'member' | 'org'
+  add?: (existing: string[]) => void
+  onNamed?: (n: number) => void
+  onChanged?: () => void
+}
+function mount(props: Props = {}) {
   const host = document.createElement('div')
   document.body.appendChild(host)
-  const app = createApp(ConnectorKeyAccounts, {
-    connector: CONNECTOR,
-    lever: { configureKey: () => {}, removeKey: () => {}, ...lever },
-  })
+  const app = createApp(ConnectorKeyAccounts, { connector: CONNECTOR, ...props })
   app.mount(host)
   return {
     host,
@@ -99,7 +110,7 @@ describe('ConnectorKeyAccounts — la liste servie, après le geste', () => {
 
   it('recharge la liste quand le profil est rechargé — le compte ajouté apparaît', async () => {
     served(account(''))
-    const c = mount({ addAccount: () => {} })
+    const c = mount({ add: () => {} })
     await settle()
     expect(identities).toHaveBeenCalledTimes(1)
     expect(c.text()).not.toContain('client-x')
@@ -130,11 +141,119 @@ describe('ConnectorKeyAccounts — la liste servie, après le geste', () => {
     identities.mockRejectedValue(new Error('502'))
     // Le geste suit la règle d'écriture d'org (oto#212) : un profil chargé, hors consultation.
     useMe().me.value = { sub: 'u' } as unknown as Me
-    const c = mount({ addAccount: () => {} })
+    const c = mount({ add: () => {} })
     await settle()
 
     expect(c.buttons().some((b) => (b.textContent ?? '').includes('Ajouter un workspace')))
       .toBe(true)
+    c.cleanup()
+  })
+})
+
+// Le palier ORG (une clé PayFit par société d'un groupe) : le même bloc, monté dans le
+// panneau « clé partagée d'org ». Avant ce lot, l'org ne pouvait poser qu'UNE clé : le
+// bloc n'était monté qu'au palier membre, et l'adaptateur d'org n'avait pas de geste
+// d'ajout. Ce qui change ici n'est pas le rendu mais QUI lit, QUI écrit, et les mots.
+const PAYFIT = {
+  name: 'payfit', label: 'PayFit',
+  auth: { method: 'secret', cardinality: 'multi_account', account_noun: 'société', fields: [] },
+} as unknown as MyConnector
+const ADMIN = { sub: 'u', role: 'member', org_role: 'org_admin', active_org: 42 } as unknown as Me
+
+function servedAt(...list: ConnectorIdentity[]) {
+  identities.mockResolvedValue({ connector: 'payfit', supported: true, identities: list })
+}
+
+describe('ConnectorKeyAccounts — au palier org', () => {
+  beforeEach(() => {
+    document.body.innerHTML = ''
+    identities.mockReset(); setDefault.mockClear(); removeKey.mockClear()
+    profile.mockResolvedValue(ADMIN)
+    useMe().me.value = ADMIN
+  })
+
+  it('lit les comptes DE L’ORG, pas ceux du membre', async () => {
+    servedAt(account('Société A', true), account('Société B'))
+    const c = mount({ connector: PAYFIT, scope: 'org', add: () => {} })
+    await settle()
+
+    expect(identities).toHaveBeenCalledWith('payfit', 'org')
+    expect(c.text()).toContain('Société A')
+    expect(c.text()).toContain("sociétés PayFit de l'org")
+    c.cleanup()
+  })
+
+  it('accorde le mot du registre : « une société », jamais « un société »', async () => {
+    servedAt(account(''))
+    const c = mount({ connector: PAYFIT, scope: 'org', add: () => {} })
+    await settle()
+
+    const labels = c.buttons().map((b) => (b.textContent ?? '').trim())
+    expect(labels).toContain('Ajouter une société')
+    expect(c.text()).toContain('une seconde société vit à côté de la première')
+    c.cleanup()
+  })
+
+  it('liste une société NOMMÉE même seule : sinon elle n’aurait plus de geste de retrait', async () => {
+    // Au palier membre, un compte seul ne se liste pas (la pile de provenance le dit
+    // déjà). À l'org rien au-dessus ne nomme le compte, et le panneau retire ses gestes
+    // « clé unique » dès qu'un compte nommé existe (`named`).
+    servedAt(account('Société A', true))
+    const named = vi.fn()
+    const c = mount({ connector: PAYFIT, scope: 'org', add: () => {}, onNamed: named })
+    await settle()
+
+    expect(c.text()).toContain('Société A')
+    expect(named).toHaveBeenLastCalledWith(1)
+    c.cleanup()
+  })
+
+  it('passe le nom des sociétés déjà posées au geste d’ajout', async () => {
+    servedAt(account('Société A', true), account('Société B'))
+    const add = vi.fn()
+    const c = mount({ connector: PAYFIT, scope: 'org', add })
+    await settle()
+    c.click('Ajouter une société')
+
+    expect(add).toHaveBeenCalledWith(['Société A', 'Société B'])
+    c.cleanup()
+  })
+
+  it('choisit le défaut et retire AU PALIER ORG, et prévient le panneau', async () => {
+    servedAt(account('Société A', true), account('Société B'))
+    const changed = vi.fn()
+    const c = mount({ connector: PAYFIT, scope: 'org', add: () => {}, onChanged: changed })
+    await settle()
+
+    c.click('Par défaut')
+    await settle()
+    expect(setDefault).toHaveBeenCalledWith('payfit', 'Société B', 'org')
+
+    c.click('Retirer')
+    await settle()
+    expect(removeKey).toHaveBeenCalledWith('payfit', 'org', expect.any(String))
+    expect(changed).toHaveBeenCalledTimes(2)
+    c.cleanup()
+  })
+
+  it('un membre sans le rôle d’admin d’org lit la liste, sans aucun geste', async () => {
+    useMe().me.value = { ...ADMIN, org_role: 'org_member' } as unknown as Me
+    servedAt(account('Société A', true), account('Société B'))
+    const c = mount({ connector: PAYFIT, scope: 'org', add: () => {} })
+    await settle()
+
+    expect(c.text()).toContain('Société B')
+    expect(c.buttons()).toHaveLength(0)
+    c.cleanup()
+  })
+
+  it('en consultation, l’admin d’org n’a aucun geste non plus', async () => {
+    useMe().me.value = { ...ADMIN, active_org_readonly: true } as unknown as Me
+    servedAt(account('Société A', true), account('Société B'))
+    const c = mount({ connector: PAYFIT, scope: 'org', add: () => {} })
+    await settle()
+
+    expect(c.buttons()).toHaveLength(0)
     c.cleanup()
   })
 })

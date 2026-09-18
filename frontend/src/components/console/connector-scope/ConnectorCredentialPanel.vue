@@ -5,15 +5,34 @@
 // le levier de l'adaptateur (FormDialog ou CredentialFieldsDialog, hébergés par la vue).
 import { computed, ref } from 'vue'
 import type { CredentialLever } from './adapter'
-import type { VerifyResult } from '@/types/api'
+import type { ConnectorMeta, VerifyResult } from '@/types/api'
 import Dot from '@/components/console/Dot.vue'
 import Btn from '@/components/console/Btn.vue'
+import ConnectorKeyAccounts from '@/components/console/ConnectorKeyAccounts.vue'
 import { humanize } from '@/lib/errors'
 
-const props = defineProps<{ lever: CredentialLever<R>; row: R }>()
+const props = defineProps<{ lever: CredentialLever<R>; row: R; meta?: ConnectorMeta }>()
+const emit = defineEmits<{ changed: [] }>()
 const s = computed(() => props.lever.state(props.row))
 const canEdit = computed(() => props.lever.canEdit(props.row))
 const items = computed(() => props.lever.items?.(props.row) ?? null)
+
+// Comptes NOMMÉS à ce palier (#121) — une clé PayFit par société d'un groupe. Offerts
+// quand le levier sait en poser, que le connecteur en porte plusieurs (dérivé du
+// descripteur, comme au panneau de connexion) et qu'une clé est déjà posée : le premier
+// compte reste anonyme, la pose ordinaire ne change pas.
+const accountsAt = computed(() => {
+  const { accountScope, addAccount } = props.lever
+  const multi = props.meta?.auth?.cardinality === 'multi_account'
+  return accountScope && addAccount && multi && s.value.present ? accountScope : null
+})
+const addAccount = (existing: string[]) => props.lever.addAccount?.(props.row, existing)
+// Dès qu'un compte NOMMÉ existe, la ligne anonyme a migré (le serveur la renomme au
+// premier compte nommé) : « Renouveler » la reposerait sans nom (refusé, 409) et
+// « Retirer » viserait un compte qui n'existe plus. Chaque compte porte alors ses
+// gestes dans la liste.
+const namedAccounts = ref(0)
+const singleGestures = computed(() => canEdit.value && !(accountsAt.value && namedAccounts.value > 0))
 
 // Geste hors formulaire qui COMPLÈTE le credential (consentement OAuth). Il n'apparaît
 // que s'il reste à faire — c'est le BACKEND qui le dit (`pending`), jamais la présence
@@ -31,8 +50,12 @@ async function connect() {
 // Sonde « tester la connexion » (résultat éphémère) quand le levier l'expose, qu'une clé est
 // posée, et que le levier ne la retient pas (`canVerify`) : c'est un POST sans `op`, que le
 // serveur refuse en consultation (oto#211).
+// ⚠️ Omis dès qu'un compte NOMMÉ existe à ce palier : la sonde ne sait viser que la ligne
+// anonyme, que le serveur a renommée — elle répondrait « aucune clé d'org posée » devant
+// deux sociétés posées. Un levier qui ne peut pas aboutir ne s'affiche pas.
 const canTest = computed(() =>
-  !!props.lever.verify && s.value.present && (props.lever.canVerify?.(props.row) ?? true))
+  !!props.lever.verify && s.value.present && (props.lever.canVerify?.(props.row) ?? true)
+  && !(accountsAt.value && namedAccounts.value > 0))
 const testing = ref(false)
 const testRes = ref<VerifyResult | null>(null)
 async function test() {
@@ -64,8 +87,8 @@ async function test() {
       <div v-if="s.present" class="ccp-state"><Dot tone="olive" /> {{ s.label }}<span v-if="s.sub" class="ccp-sub"> · {{ s.sub }}</span></div>
       <div v-else class="ccp-state dim">{{ s.label }}</div>
       <div v-if="canEdit || canTest" class="ccp-actions">
-        <Btn v-if="canEdit" kind="mini" :icon="s.present ? undefined : 'plus'" @click="lever.edit(row)">{{ s.present ? 'Renouveler' : 'Ajouter une clé' }}</Btn>
-        <Btn v-if="canEdit && s.present && lever.remove" kind="danger" @click="lever.remove(row)">Retirer</Btn>
+        <Btn v-if="singleGestures" kind="mini" :icon="s.present ? undefined : 'plus'" @click="lever.edit(row)">{{ s.present ? 'Renouveler' : 'Ajouter une clé' }}</Btn>
+        <Btn v-if="singleGestures && s.present && lever.remove" kind="danger" @click="lever.remove(row)">Retirer</Btn>
         <Btn v-if="canTest" kind="mini" :disabled="testing" @click="test">{{ testing ? 'test…' : 'tester' }}</Btn>
         <Btn v-if="canEdit && connectCta?.available(row)" kind="mini" :disabled="connecting"
              @click="connect">{{ connecting ? 'ouverture…' : connectCta.label(row) }}</Btn>
@@ -80,6 +103,9 @@ async function test() {
         service à un compte personnel : les actions lui seront attribuées, et la connexion
         survivra au départ de son titulaire. La redonner permet d'en changer.
       </p>
+      <ConnectorKeyAccounts v-if="accountsAt && meta" :connector="meta" :scope="accountsAt"
+                            :add="addAccount" @named="(n) => namedAccounts = n"
+                            @changed="emit('changed')" />
       <div v-if="!canEdit && !canTest" class="helptext" style="margin-top: 8px">lecture seule.</div>
     </template>
   </section>

@@ -83,6 +83,12 @@ export interface CredentialLever<R> {
   // sans laisser les activer : c'est l'état dans lequel /org/connectors a laissé un
   // org_admin le 02/08, application enregistrée et aucun bouton pour consentir.
   connect?: ConnectCta<R>
+  // Comptes NOMMÉS au palier de CE levier (#121) — une clé PayFit par société d'un
+  // groupe. Même geste que `ConnectionLever.addAccount` (le dialogue est commun,
+  // `addAccount.ts`) ; `accountScope` dit à quel palier la liste servie se lit et se
+  // retire. Absents = ce scope ne gère pas de comptes nommés : ni liste ni ajout.
+  accountScope?: 'org'
+  addAccount?(r: R, existing: string[]): void
 }
 
 export interface ConnectCta<R> {
@@ -132,6 +138,7 @@ export interface ConnectionLever<R> {
   // second workspace Slack, une seconde organisation Zoho. `existing` = les comptes
   // déjà posés (le dialog refuse un doublon avant l'aller-retour serveur). Absent =
   // ce scope ne sait pas encore ajouter un compte ; l'écran n'affiche alors rien.
+  // Le même geste existe au palier org (`CredentialLever.addAccount`).
   addAccount?(r: R, existing: string[]): void
   // `note` = phrase honnête sur le relais (calculée par la pile : ce qui prendrait
   // la suite, ou l'avertissement « rien ne prendra le relais ») — CDC P8.

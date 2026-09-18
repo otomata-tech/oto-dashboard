@@ -96,7 +96,7 @@ const CAS: [string, Cas][] = [
     gestes: ['Tester', 'Remplacer', 'Retirer', 'Suspendre'], lectures: ['Ta clé', 'utilisée'] }],
   ['comptes nommés', {
     charger: () => import('../ConnectorKeyAccounts.vue'),
-    props: () => ({ connector: SLACK, lever: lever().connection }),
+    props: () => ({ connector: SLACK, add: (existing: string[]) => lever().connection!.addAccount!(SLACK as never, existing) }),
     avant: () => api.getConnectorIdentities.mockResolvedValue({ connector: 'slack', supported: true, identities: [
       { id: 'principal', label: 'principal', is_default: true, status: 'ok', channel: null },
       { id: 'client-x', label: 'client-x', is_default: false, status: 'ok', channel: null }] }),
