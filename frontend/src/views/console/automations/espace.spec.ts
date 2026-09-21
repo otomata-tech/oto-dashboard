@@ -132,10 +132,14 @@ describe('le retour navigateur garde filtres et pagination', () => {
   })
 
   it('campagnes : le filtre de statut vit dans l’URL ; un inconnu se dit ignoré', async () => {
+    const ilYaUneHeure = new Date(Date.now() - 3_600_000).toISOString().replace('T', ' ').slice(0, 19)
     servirMonde(bouchons, {
       fleets: [
         flotte({ id: 7, label: 'vivante' }),
-        flotte({ id: 9, label: 'finie', status: 'stopped', stopped_at: '2026-09-13 10:00:00', stop_reason: 'fin' }),
+        // Arrêtée IL Y A une heure, pas à une date fixe : passé `RECENTE_JOURS`, une campagne
+        // arrêtée se replie hors du filtre, et une date écrite en dur a fait rougir le tronc
+        // le 21/09/2026, sept jours après avoir été vraie.
+        flotte({ id: 9, label: 'finie', status: 'stopped', stopped_at: ilYaUneHeure, stop_reason: 'fin' }),
       ],
     })
     const noms = (m: Monte) => [...m.hote.querySelectorAll('.cc-name')].map((n) => n.textContent)
