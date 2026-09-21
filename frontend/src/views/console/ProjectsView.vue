@@ -12,11 +12,15 @@ import TopbarPage from '@/components/console/TopbarPage.vue'
 import NameDialog from '@/components/console/NameDialog.vue'
 import ProjectCreateDialog from '@/components/console/ProjectCreateDialog.vue'
 import type { ProjectOwnerPayload } from '@/components/console/ProjectCreateDialog.vue'
-import { listProjects, listProjectTemplates, createProject, copyProject, listGroups } from '@/api/console'
-import type { Project } from '@/types/api'
+import MarkdownView from '@/components/console/MarkdownView.vue'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import {
+  listProjects, listProjectTemplates, createProject, copyProject, listGroups, listSharedDocs, getDoc,
+} from '@/api/console'
+import type { Doc, Project, SharedDoc } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import {
-  projectVisibility, projectBucket, BUCKET_LABEL, BUCKET_HINT, type ProjectBucket,
+  projectVisibility, projectBucket, BUCKET_ORDER, BUCKET_LABEL, BUCKET_HINT,
 } from '@/lib/projectVisibility'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
@@ -27,7 +31,13 @@ const { toast } = useToast()
 const { me } = useMe()
 
 const projects = ref<Project[]>([])
+// Projets partagés à MOI en personne : aucune liste d'org ne les rend (ils n'appartiennent
+// à aucune org) — `scope: 'me'`, rangés dans leur propre section.
+const personalShares = ref<Project[]>([])
 const templates = ref<Project[]>([])
+// Pages partagées SEULES, sans leur projet : avec l'org consultée, avec moi.
+const docsOrg = ref<SharedDoc[]>([])
+const docsMe = ref<SharedDoc[]>([])
 const loaded = ref(false)
 const error = ref<string | null>(null)
 
@@ -45,40 +55,91 @@ const nameConfig = ref<NameDialogConfig | null>(null)
 
 async function load() {
   try {
-    const [ps, ts] = await Promise.all([listProjects(), listProjectTemplates().catch(() => ({ projects: [] }))])
+    const [ps, mine, ts, dOrg, dMe] = await Promise.all([
+      listProjects(),
+      listProjects('me').catch(() => ({ projects: [] as Project[] })),
+      listProjectTemplates().catch(() => ({ projects: [] as Project[] })),
+      listSharedDocs('org').catch(() => ({ docs: [] as SharedDoc[] })),
+      listSharedDocs('me').catch(() => ({ docs: [] as SharedDoc[] })),
+    ])
     projects.value = ps.projects
+    const inOrg = new Set(ps.projects.map((p) => p.id))
+    personalShares.value = mine.projects.filter((p) => !inOrg.has(p.id))
     templates.value = ts.projects
+    docsOrg.value = dOrg.docs
+    const orgDocIds = new Set(dOrg.docs.map((d) => d.id))
+    docsMe.value = dMe.docs.filter((d) => !orgDocIds.has(d.id))
   } catch (e) { error.value = humanize(e) }
   finally { loaded.value = true }
 }
 onMounted(load)
 
 function openProject(id: number) { router.push(`/projects/${id}`) }
+// Le contexte CONSULTÉ : `me` est lu sous l'en-tête de consultation (`active_org` = org
+// consultée ?? maison) et relu à chaque changement d'org (navigation dure).
+const bucketCtx = computed(() => ({ orgId: me.value?.active_org ?? null, sub: me.value?.sub ?? null }))
+const personalIds = computed(() => new Set(personalShares.value.map((p) => p.id)))
 // ADR 0049 : la visibilité DÉCOULE de l'ownership. On affiche donc l'AUDIENCE
 // (« Privé », « Toute l'org »…) plutôt que le scope technique (« perso », « org ») :
-// la question de l'utilisateur est « qui voit ce projet ? ».
-function ownerLabel(p: Project): string {
-  return projectVisibility(p, { orgName: me.value?.active_org_name }).label
+// la question de l'utilisateur est « qui voit ce projet ? ». Un projet REÇU se dit reçu :
+// le nommer par l'org consultée l'attribuerait à la mauvaise org.
+function visibilityOf(p: Project) {
+  const received = personalIds.value.has(p.id) ? 'me'
+    : projectBucket(p, bucketCtx.value) === 'shared' ? 'org' : undefined
+  return projectVisibility(p, { orgName: me.value?.active_org_name, received })
 }
-function ownerTitle(p: Project): string {
-  return projectVisibility(p, { orgName: me.value?.active_org_name }).detail
-}
-function isPrivate(p: Project): boolean {
-  return projectVisibility(p, { orgName: me.value?.active_org_name }).isPrivate
-}
+function ownerLabel(p: Project): string { return visibilityOf(p).label }
+function ownerTitle(p: Project): string { return visibilityOf(p).detail }
+function isPrivate(p: Project): boolean { return visibilityOf(p).isPrivate }
 
 // Sections de la liste : ce qui est À MOI d'abord (privé sauf partage), puis le
-// collectif. Un projet sensible ne se retrouve plus noyé au milieu de ceux de l'org.
-const BUCKET_ORDER: ProjectBucket[] = ['mine', 'group', 'org', 'platform']
-const sections = computed(() =>
-  BUCKET_ORDER
-    .map((b) => ({
-      bucket: b,
-      label: BUCKET_LABEL[b],
-      hint: BUCKET_HINT[b],
-      items: projects.value.filter((p) => projectBucket(p) === b),
-    }))
-    .filter((s) => s.items.length))
+// collectif, puis ce que l'org reçoit, puis ce que JE reçois en personne. Un projet
+// sensible ne se retrouve plus noyé au milieu de ceux de l'org, et un projet d'une autre
+// org ne se lit plus comme un projet de celle-ci.
+const sections = computed(() => [
+  ...BUCKET_ORDER.map((b) => ({
+    key: b as string,
+    label: BUCKET_LABEL[b],
+    hint: BUCKET_HINT[b],
+    items: projects.value.filter((p) => projectBucket(p, bucketCtx.value) === b),
+  })),
+  {
+    key: 'me',
+    label: 'Partagés avec moi',
+    hint: 'Partagés avec toi en personne : ils n’appartiennent à aucune de tes organisations.',
+    items: personalShares.value,
+  },
+].filter((s) => s.items.length))
+// Tout ce que l'écran liste, sections confondues (tableau dense, compteur, état vide).
+const listed = computed(() => [...projects.value, ...personalShares.value])
+
+// Pages partagées seules — lecture sur place (le lecteur n'a souvent QUE la page : son
+// projet lui est fermé, `url` vaut alors null). Avec l'accès au projet, on l'y ouvre.
+const docSections = computed(() => [
+  { key: 'org', label: 'Pages partagées avec cette organisation',
+    hint: 'Une page seule, sans son projet — en lecture.', items: docsOrg.value },
+  { key: 'me', label: 'Pages partagées avec moi',
+    hint: 'Partagées avec toi en personne — en lecture.', items: docsMe.value },
+].filter((s) => s.items.length))
+const VIA: Record<string, string> = { org: 'l’organisation', team: 'ton équipe', person: 'toi' }
+const readerOpen = ref(false)
+const reader = ref<{ entry: SharedDoc; doc: Doc | null; error: string | null } | null>(null)
+async function openSharedDoc(entry: SharedDoc) {
+  reader.value = { entry, doc: null, error: null }
+  readerOpen.value = true
+  try {
+    const doc = await getDoc(entry.id)
+    if (reader.value?.entry.id === entry.id) reader.value = { entry, doc, error: null }
+  } catch (e) {
+    if (reader.value?.entry.id === entry.id) reader.value = { entry, doc: null, error: humanize(e) }
+  }
+}
+function openInProject() {
+  const d = reader.value?.doc
+  if (!d) return
+  readerOpen.value = false
+  router.push(`/projects/${d.project_id}?doc=${d.id}`)
+}
 // Pastilles ORIENTÉES ÉTAT — dérivées des seuls champs portés par la liste (pas d'appel
 // backend par carte) : modèle / mcp live / partagé / lecture / à vérifier (règle `chipsFor`
 // de la maquette). Tons sémantiques ; `lecture` = neutre (pas de ton).
@@ -130,7 +191,7 @@ function useTemplate(t: Project) {
   }
   nameOpen.value = true
 }
-const hasProjects = computed(() => loaded.value && !error.value && projects.value.length > 0)
+const hasProjects = computed(() => loaded.value && !error.value && listed.value.length > 0)
 </script>
 
 <template>
@@ -140,7 +201,7 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
       <div class="pl-head">
         <div class="pl-head__id">
           <h1 class="pl-head__t">Projets</h1>
-          <span v-if="hasProjects" class="pl-head__n">{{ projects.length }} projets</span>
+          <span v-if="hasProjects" class="pl-head__n">{{ listed.length }} projets</span>
         </div>
         <div v-if="hasProjects" class="pl-seg" role="group" aria-label="disposition">
           <button class="pl-seg__b" :class="{ on: layout === 'cards' }" @click="setLayout('cards')">cartes</button>
@@ -153,7 +214,7 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
     <!-- états -->
     <p v-if="error" class="dim" style="font-size: 13px">{{ error }}</p>
     <p v-else-if="!loaded" class="dim" style="font-size: 13px">chargement…</p>
-    <div v-else-if="!projects.length" class="pl-empty">
+    <div v-else-if="!listed.length" class="pl-empty">
       <p class="pl-empty__t">Aucun projet</p>
       <p class="pl-empty__s">Un projet est un conteneur de travail — un but et ses entités (tableaux, connecteurs, procédures). Partageable, reprenable dans Claude.</p>
       <button class="pl-new" @click="create"><Icon name="plus" :size="14" /> Créer un projet</button>
@@ -163,7 +224,7 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
     <template v-else-if="layout === 'cards'">
       <!-- sections : « à moi » d'abord, puis le collectif — l'appartenance devient
            lisible sans lire chaque badge -->
-      <section v-for="s in sections" :key="s.bucket" class="pl-sec">
+      <section v-for="s in sections" :key="s.key" class="pl-sec">
         <div class="pl-sec__head">
           <h2 class="pl-sec__title">{{ s.label }}</h2>
           <span class="pl-sec__count">{{ s.items.length }}</span>
@@ -198,7 +259,7 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
       <div class="pl-row pl-row--head">
         <span>projet</span><span>état</span><span>maj</span><span class="pl-row__num">entités</span><span></span>
       </div>
-      <button v-for="p in projects" :key="p.id" class="pl-row" @click="openProject(p.id)">
+      <button v-for="p in listed" :key="p.id" class="pl-row" @click="openProject(p.id)">
         <span class="pl-row__name"><span class="pl-row__nt"><span v-if="p.icon" class="pl-ico">{{ p.icon }}</span>{{ p.name }}</span><span class="pl-row__owner"
           :class="{ 'pl-row__owner--private': isPrivate(p) }" :title="ownerTitle(p)">{{ ownerLabel(p) }}</span></span>
         <span class="pl-row__chips"><Tag v-for="c in chipsFor(p)" :key="c.label" :tone="c.tone">{{ c.label }}</Tag></span>
@@ -207,6 +268,23 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
         <span class="pl-row__go"><Icon name="chevron-right" :size="15" /></span>
       </button>
     </div>
+
+    <!-- pages partagées seules (sans leur projet) -->
+    <section v-for="s in docSections" :key="`docs-${s.key}`" class="pl-sec">
+      <div class="pl-sec__head">
+        <h2 class="pl-sec__title">{{ s.label }}</h2>
+        <span class="pl-sec__count">{{ s.items.length }}</span>
+        <span class="pl-sec__hint dim">{{ s.hint }}</span>
+      </div>
+      <div class="pl-table">
+        <button v-for="d in s.items" :key="d.id" class="pl-row pl-row--doc" @click="openSharedDoc(d)">
+          <span class="pl-row__name"><Icon name="file-text" :size="14" /><span class="pl-row__nt">{{ d.title }}</span></span>
+          <span class="pl-row__owner">{{ d.shared_by ? `par ${d.shared_by}` : '' }}{{ d.via && VIA[d.via] ? ` · avec ${VIA[d.via]}` : '' }}</span>
+          <span class="pl-row__maj">{{ fmtDate(d.updated_at) }}</span>
+          <span class="pl-row__go"><Icon name="chevron-right" :size="15" /></span>
+        </button>
+      </div>
+    </section>
 
     <!-- modèles -->
     <template v-if="hasProjects && templates.length">
@@ -227,6 +305,24 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
         </div>
       </div>
     </template>
+
+    <!-- lecture d'une page partagée seule -->
+    <Dialog v-model:open="readerOpen">
+      <DialogContent class="pl-reader">
+        <DialogHeader>
+          <DialogTitle>{{ reader?.doc?.title ?? reader?.entry.title }}</DialogTitle>
+          <DialogDescription>
+            Page partagée seule, en lecture{{ reader?.entry.shared_by ? ` — par ${reader.entry.shared_by}` : '' }}.
+          </DialogDescription>
+        </DialogHeader>
+        <p v-if="reader?.error" class="dim" style="font-size: 13px">{{ reader.error }}</p>
+        <p v-else-if="!reader?.doc" class="dim" style="font-size: 13px">chargement…</p>
+        <template v-else>
+          <div class="pl-reader__body"><MarkdownView :source="reader.doc.body_md" /></div>
+          <div v-if="reader.entry.url"><Btn kind="mini" icon="external-link" @click="openInProject">Ouvrir dans son projet</Btn></div>
+        </template>
+      </DialogContent>
+    </Dialog>
 
     <NameDialog v-if="nameConfig" v-model:open="nameOpen"
       :title="nameConfig.title" :description="nameConfig.description"
@@ -296,6 +392,12 @@ const hasProjects = computed(() => loaded.value && !error.value && projects.valu
 .pl-row__num { font-family: var(--font-mono); font-size: 11px; color: var(--color-mute); text-align: right; }
 .pl-row--head .pl-row__num { text-align: right; }
 .pl-row__go { display: inline-flex; color: var(--color-faint); }
+
+/* pages partagées seules */
+.pl-row--doc { grid-template-columns: 1fr auto 132px 28px; }
+.pl-row--doc .pl-row__name { color: var(--color-mute); }
+.pl-reader { max-width: min(760px, calc(100vw - 32px)); }
+.pl-reader__body { max-height: 60vh; overflow: auto; }
 
 /* modèles */
 .pl-tpl-hd { display: flex; align-items: center; gap: 9px; margin-top: 16px; }

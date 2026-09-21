@@ -698,6 +698,20 @@ export interface Doc {
   created_at?: string | null
   updated_at?: string | null
 }
+// Une page partagée SEULE, reçue (`oto_doc op=shared_with_me`, oto-backend #1084). Elle
+// NOMME la page, sans son corps (qui se lit par `getDoc`). `url` vaut null quand le lecteur
+// n'a que la page : l'adresse servie ouvre la page dans son projet, qu'il ne lit pas.
+// ÉCRIT À LA MAIN — la capacité `me.doc` ne déclare pas son `Output`.
+export type SharedDocScope = 'me' | 'org'
+export interface SharedDoc {
+  id: number
+  title: string
+  updated_at?: string | null
+  role?: string | null
+  via?: 'person' | 'team' | 'org' | string | null   // à qui la page a été partagée
+  shared_by?: string | null                          // nom de qui l'a partagée
+  url?: string | null
+}
 // Version antérieure d'un Doc (ADR 0032 §3, B4c) — snapshot avant une mise à jour.
 export interface DocRevision {
   id: number

@@ -26,6 +26,21 @@ picker des vraies entités via `getNamespaces`/`getConnectors`/`getDoctrine`)
 dans `api/console.ts` (POST op-aware `/api/me/{projects,docs}`). Backend : `oto-backend/CLAUDE.md`
 §Projet. Non faits : MCP-App rendu, édition temps réel, pré-set vendable.
 
+**Ce que l'index d'une org range, et où** (21/09/2026 — `lib/projectVisibility.ts`,
+`projectBucket`, test `lib/projectVisibility.spec.ts`). Les sections suivent le
+propriétaire rapporté au contexte CONSULTÉ (`me.active_org`, lu sous l'en-tête de
+consultation) : mes projets, les équipes, l'org, puis **« Partagés avec cette organisation »**
+(`shared` : une autre org ou une autre personne l'a partagé à l'org ou à une de mes équipes
+en elle — il se lisait comme un projet de l'org consultée), puis la bibliothèque. Un projet
+partagé à **moi en personne** n'est dans la liste d'aucune org (règle backend) : il arrive
+par `listProjects('me')` dans sa propre section « Partagés avec moi ». Un projet reçu se dit
+reçu (`projectVisibility(…, { received })`) : jamais « visible par tous les membres de
+<org consultée> » d'un projet qui appartient à une autre. En dessous, les **pages partagées
+seules** (`listSharedDocs('org' | 'me')`, `oto_doc op=shared_with_me scope=…`) : le clic
+ouvre la page par son id dans un lecteur (`getDoc`), car le lecteur n'a souvent QUE la page
+(son projet lui est fermé, `url` vaut null) ; avec l'accès au projet (`url` posée), le lecteur
+propose de l'ouvrir dans son projet.
+
 **L'adresse désigne l'objet affiché, jamais un autre** (oto#203, 13/09/2026 —
 `composables/useProjectTarget.ts`, règle commune `lib/routeTarget.ts`). Deux adresses portent
 une sélection : `?doc=<id>` (une page) et `/projects/:id/data/:nsRef` (un tableau lié). Avant,

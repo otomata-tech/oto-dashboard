@@ -7,6 +7,7 @@ import type {
   BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
   BillingIdentityView, BillingIdentityInput, BillingConfirmResult, BillingInvoice, LegalStatus,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, ProjectActivity, ProjectRun,
+  SharedDoc, SharedDocScope,
   DoctrineBundle, Guide, GuideById, GuideScope,
   GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LinkedProcedure, Locale, Me, MonitoringSummary,
@@ -336,7 +337,11 @@ const projectsApi = <T>(body: Record<string, unknown>) =>
 // `brief_length`, sans les briefs) : elle existe pour un agent, dont la fenêtre de contexte
 // est la ressource rare. Un navigateur n'a pas ce problème et REND le brief (extrait de
 // carte, page projet) — il demande donc explicitement le brut.
-export const listProjects = () => projectsApi<{ projects: Project[] }>({ op: 'list', fields: ['*'] })
+// `scope` : omis/`org` = la liste de l'org consultée (ses projets, mes perso rangés en
+// elle, ce qui est partagé à elle ou à mes équipes en elle) ; `me` = les projets partagés
+// à MOI en personne, qu'aucune liste d'org ne rend.
+export const listProjects = (scope?: 'org' | 'me') =>
+  projectsApi<{ projects: Project[] }>({ op: 'list', fields: ['*'], ...(scope ? { scope } : {}) })
 // Zone Documents de l'org = un projet d'org ordinaire, ancré par id côté serveur.
 // Le chemin `/api/me/kb` et le nom de cette fonction sont des identifiants d'API
 // hérités (règle maison : le code garde son nom, seule la copy change).
@@ -624,6 +629,10 @@ const docsApi = <T>(body: Record<string, unknown>) =>
 export const listDocs = (project_id: number) =>
   docsApi<{ project_id: number; docs: Doc[] }>({ op: 'list', project_id, fields: ['*'] })
 export const getDoc = (doc_id: number) => docsApi<Doc>({ op: 'get', doc_id })
+// Pages partagées SEULES (sans leur projet) : `org` = avec l'org consultée (et mes équipes
+// en elle), `me` = avec moi en personne. Une entrée nomme la page ; `getDoc` la lit.
+export const listSharedDocs = (scope: SharedDocScope) =>
+  docsApi<{ docs: SharedDoc[]; count: number; scope: SharedDocScope | null }>({ op: 'shared_with_me', scope })
 export const createDoc = (project_id: number, title: string,
   opts?: { parent_id?: number | null; body_md?: string; kind?: DocKind }) =>
   docsApi<Doc>({ op: 'create', project_id, title, ...(opts ?? {}) })
