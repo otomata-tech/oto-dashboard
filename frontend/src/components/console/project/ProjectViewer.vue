@@ -498,7 +498,8 @@ async function removeFile() {
           <!-- actions secondaires page (doc) -->
           <div v-if="!isHome && doc" class="vw__pageact">
             <button class="vw__x" @click="toggleHistory">{{ showHistory ? "Masquer l'historique" : 'Historique' }}</button>
-            <button v-if="!readOnly" class="vw__x" @click="toggleDocPublic">{{ doc.public ? 'Rendre privé' : 'Partager par lien' }}</button>
+            <!-- Portée dans le libellé, et l'icône de partage des deux autres gestes (#158). -->
+            <button v-if="!readOnly" class="vw__x" @click="toggleDocPublic"><Icon name="ext" :size="12" /> {{ doc.public ? 'Rendre privé' : 'Partager cette page seule' }}</button>
             <button v-if="!readOnly" class="vw__x vw__x--danger" @click="removeDoc">Supprimer</button>
           </div>
 
@@ -669,7 +670,7 @@ async function removeFile() {
           <button class="vw__x" @click="preview = file"><Icon name="file-text" :size="12" /> Prévisualiser</button>
           <a v-if="file.download_url" class="vw__x" :href="file.download_url" target="_blank" rel="noopener"><Icon name="download" :size="12" /> Télécharger</a>
           <a v-if="file.public && file.public_url" class="vw__x" :href="file.public_url" target="_blank" rel="noopener"><Icon name="ext" :size="12" /> Lien public</a>
-          <button v-if="!readOnly" class="vw__x" @click="toggleFilePublic">{{ file.public ? 'Rendre privé' : 'Partager par lien public' }}</button>
+          <button v-if="!readOnly" class="vw__x" @click="toggleFilePublic"><Icon name="ext" :size="12" /> {{ file.public ? 'Rendre privé' : 'Partager ce fichier' }}</button>
           <button v-if="!readOnly" class="vw__x vw__x--danger" @click="removeFile">Supprimer</button>
         </div>
       </div>
