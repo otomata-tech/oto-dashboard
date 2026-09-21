@@ -146,7 +146,7 @@ function defaultSlug(): string {
     .filter(Boolean).join('-')
 }
 // DEUX intentions distinctes (R1) :
-// - « Partager par lien public » = UN CLIC (accès figé `secret`, sous-domaine auto non
+// - « Partager tout le projet » = UN CLIC (accès figé `secret`, sous-domaine auto non
 //   devinable, TOUT navigable en lecture seule). Pas de sélection d'outils : c'est un
 //   instantané navigable, pas un endpoint MCP — le prompt d'outils n'avait aucun sens ici
 //   (retour JB). La curation d'outils vit dans « Publier en endpoint MCP » ci-dessous.
@@ -355,7 +355,11 @@ async function transfer() {
               <input class="sd__url" :value="shareUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
               <Btn kind="mini" icon="copy" @click="copyShareUrl">Copier</Btn>
             </div>
-            <Btn v-else-if="!readOnly" kind="mini" icon="external-link" @click="publishPublicLink()">Partager par lien public</Btn>
+            <!-- Le libellé dit la PORTÉE (#158) : « Partager par lien public » ici et « Partager
+                 par lien » sur une page se lisaient pareil et faisaient deux choses — un
+                 utilisateur a exposé un projet entier en croyant envoyer une page. -->
+            <Btn v-else-if="!readOnly" kind="mini" icon="external-link" @click="publishPublicLink()">Partager tout le projet</Btn>
+            <p v-if="!shareUrl && !readOnly" class="sd__desc" style="margin: 8px 0 0">pour n'envoyer qu'une page : ouvrez-la, Partager cette page seule.</p>
 
             <!-- Ce que verra le destinataire (issue #131) : pages puis tableaux — visible dès
                  que le lien « secret » est actif, quel que soit le chemin qui l'a créé (un
