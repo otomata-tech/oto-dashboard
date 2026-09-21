@@ -134,12 +134,6 @@ async function openSharedDoc(entry: SharedDoc) {
     if (reader.value?.entry.id === entry.id) reader.value = { entry, doc: null, error: humanize(e) }
   }
 }
-function openInProject() {
-  const d = reader.value?.doc
-  if (!d) return
-  readerOpen.value = false
-  router.push(`/projects/${d.project_id}?doc=${d.id}`)
-}
 // Pastilles ORIENTÉES ÉTAT — dérivées des seuls champs portés par la liste (pas d'appel
 // backend par carte) : modèle / mcp live / partagé / lecture / à vérifier (règle `chipsFor`
 // de la maquette). Tons sémantiques ; `lecture` = neutre (pas de ton).
@@ -319,7 +313,6 @@ const hasProjects = computed(() => loaded.value && !error.value && listed.value.
         <p v-else-if="!reader?.doc" class="dim" style="font-size: 13px">chargement…</p>
         <template v-else>
           <div class="pl-reader__body"><MarkdownView :source="reader.doc.body_md" /></div>
-          <div v-if="reader.entry.url"><Btn kind="mini" icon="external-link" @click="openInProject">Ouvrir dans son projet</Btn></div>
         </template>
       </DialogContent>
     </Dialog>
