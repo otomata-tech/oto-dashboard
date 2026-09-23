@@ -9,7 +9,8 @@
 //   · la révision : `?expected_revision` ≠ courante → 409 et RIEN n'est écrit ;
 //   · la réservation : 409 `row_locked` ;
 //   · une valeur écrite garde `origine` et les SEULES couches `comment`/`link` envoyées —
-//     une couche non renvoyée tombe ;
+//     une couche non renvoyée tombe ; `{valeur: null, comment}` efface la valeur et LAISSE
+//     le comment, orphelin (comme en prod, v1.335.0) — seul un `null` nu efface tout ;
 //   · le contrat à deux gestes (oto#140, 23/09/2026), dans son état FINAL : `null` retire
 //     la valeur, vide assumé compris (sur un requis : 400 `row_invalid` + `expected_column`),
 //     `@empty` la marque ; `""` et `[]` REMPLACENT la valeur en place (06/10/2026) ;
@@ -299,6 +300,24 @@ describe('vider, et le vide assumé', () => {
     intactes(['contacts'])
   })
 
+  it('vider une case qui porte un comment et un link : null NU, la case part entière, rien d’orphelin', async () => {
+    await monter()
+    taper(champ('ville').querySelector('input'), '')
+    await cliquer(bouton('Save'))
+    expect(patches()[0]!.corps).toEqual({ ville: null })
+    expect('ville' in store.ligne).toBe(false)
+    intactes(['ville'])
+  })
+
+  it('vider une cellule d’élément qui porte un comment : null NU dans l’élément', async () => {
+    await monter()
+    taper(cellule('contacts', 2, 'email').querySelector('input'), '')
+    await cliquer(bouton('Save'))
+    expect((patches()[0]!.corps!.contacts as Ligne[])[2]!.email).toBeNull()
+    expect((store.ligne.contacts as Ligne[])[2]).toEqual({ nom: 'Chloé', fonction: '' })
+    intactes(['contacts'])
+  })
+
   it('vider un champ requis : 400 rattaché au champ, rien d’écrit, pas de fausse réussite', async () => {
     const emis = await monter()
     taper(champ('siret').querySelector('input'), '')
@@ -339,7 +358,7 @@ describe('vider, et le vide assumé', () => {
     expect(bascule.getAttribute('aria-pressed')).toBe('true')   // lu : {"valeur":"@empty"}
     await cliquer(bascule)
     await cliquer(bouton('Save'))
-    expect(patches()[0]!.corps).toEqual({ effectif: { valeur: null } })
+    expect(patches()[0]!.corps).toEqual({ effectif: null })
     expect('effectif' in store.ligne).toBe(false)
   })
 

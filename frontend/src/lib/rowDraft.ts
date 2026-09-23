@@ -10,7 +10,8 @@
 //      élément tel que relu (ses `""`, ses `{"valeur":"@empty"}`), moins `origine`, et
 //      seules ses cellules modifiées sont réécrites.
 //   3. Une case modifiée garde ses couches : l'objet tel que lu, `valeur` seule changée
-//      (`avecCouches`) — sinon `comment` et `link` tombent.
+//      (`avecCouches`) — sinon `comment` et `link` tombent. Sauf une case effacée : elle
+//      part en `null` NU, ses couches avec elle (sinon elles restent, orphelines).
 //   4. Vider est un geste (contrat à deux gestes, oto#140 du 23/09/2026) : une saisie
 //      effacée part en `null`, qui efface quel que soit le type — jamais `""` ni `[]`, qui
 //      REMPLACENT la valeur en place à partir du 06/10/2026, ni `@clear`, refusé au

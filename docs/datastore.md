@@ -227,7 +227,9 @@ Désormais, pour une ligne existante et modifiable (`composables/useRowEditor.ts
   en retire un. `origine` n'est **jamais** renvoyée (`caseIntacte`) ; une couche servie à
   plat (`adresse.comment`) n'est pas offerte comme un champ en édition (`formFields(…, sansCouches)`).
 - **Une case modifiée garde ses couches** (`avecCouches`) : elle part comme l'objet lu,
-  `comment` et `link` compris, `valeur` seule changée — `null` et `@empty` compris. Une
+  `comment` et `link` compris, `valeur` seule changée — `@empty` compris. Sauf une case
+  **effacée** : elle part en `null` NU, ses couches avec elle — `{valeur: null, comment}`
+  laisserait le comment orphelin sur une case vide (vérifié en prod, v1.335.0). Une
   valeur écrite sans ses couches les fait tomber (`origine` survit d'elle-même). Une case
   lue nue part nue.
 - **Deux gestes** (contrat d'écriture d'une case, oto#140, 23/09/2026) : **vider écrit

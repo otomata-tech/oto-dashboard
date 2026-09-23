@@ -114,20 +114,21 @@ describe('une case modifiée garde ses couches', () => {
     })
   })
 
-  it('effacer renvoie les couches à côté de null', () => {
-    expect(ecrire(LUE(), (b) => { b.scalaires.adresse = '' })).toEqual({
-      adresse: { valeur: null, comment: 'registre', link: 'https://registre' },
-    })
+  it('effacer écrit un null NU : comment et link partent avec la valeur (sinon ils restent orphelins)', () => {
+    expect(ecrire(LUE(), (b) => { b.scalaires.adresse = '' })).toEqual({ adresse: null })
   })
 
-  it('dans un élément aussi : la cellule modifiée garde son comment', () => {
-    const corps = ecrire(LUE(), (b) => saisir(elements(b, 'contacts')[0]!, 'fonction', ''))
-    expect((corps.contacts as Ligne[])[0]!.fonction).toEqual({ valeur: null, comment: 'intérim' })
+  it('dans un élément aussi : la cellule modifiée garde son comment, la cellule effacée part nue', () => {
+    const corps = ecrire(LUE(), (b) => saisir(elements(b, 'contacts')[0]!, 'fonction', 'DAF'))
+    expect((corps.contacts as Ligne[])[0]!.fonction).toEqual({ valeur: 'DAF', comment: 'intérim' })
+    const vide = ecrire(LUE(), (b) => saisir(elements(b, 'contacts')[0]!, 'fonction', ''))
+    expect((vide.contacts as Ligne[])[0]!.fonction).toBeNull()
   })
 
   it('avecCouches : une case lue nue part nue', () => {
     expect(avecCouches('x', 'y')).toBe('y')
-    expect(avecCouches({ valeur: 'x', origine: 'o', link: 'l' }, null)).toEqual({ valeur: null, link: 'l' })
+    expect(avecCouches({ valeur: 'x', origine: 'o', link: 'l' }, 'y')).toEqual({ valeur: 'y', link: 'l' })
+    expect(avecCouches({ valeur: 'x', comment: 'c', link: 'l' }, null)).toBeNull()
   })
 })
 
@@ -142,7 +143,7 @@ describe('vider, et le vide assumé', () => {
   })
 
   it('désactiver un vide assumé : sans valeur → null, avec une valeur → la valeur', () => {
-    expect(ecrire(LUE(), (b) => { b.vides.ville = false })).toEqual({ ville: { valeur: null } })
+    expect(ecrire(LUE(), (b) => { b.vides.ville = false })).toEqual({ ville: null })
     expect(ecrire(LUE(), (b) => { b.scalaires.ville = 'Lyon' })).toEqual({ ville: { valeur: 'Lyon' } })
   })
 

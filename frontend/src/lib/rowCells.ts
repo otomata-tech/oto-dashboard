@@ -40,11 +40,16 @@ export const copie = <T>(v: T): T => (v === undefined ? v : JSON.parse(JSON.stri
 /**
  * La case d'une colonne qu'on MODIFIE : l'objet tel que lu, `comment` et `link` compris,
  * avec seule `valeur` changée — une valeur écrite sans ses couches les fait TOMBER
- * (contrat oto#204 étape 2), y compris à côté d'un `null` qui efface. `origine` n'est jamais
- * renvoyée : elle survit d'elle-même. Une case lue nue part nue.
+ * (contrat oto#204 étape 2). `origine` n'est jamais renvoyée : elle survit d'elle-même.
+ * Une case lue nue part nue.
+ *
+ * ⚠️ Effacer part en `null` NU (oto#140) : le commentaire et le lien décrivaient la valeur
+ * effacée et partent avec elle. `{valeur: null, comment, link}` efface la valeur mais
+ * LAISSE les couches, orphelines sur une case vide (vérifié en prod, v1.335.0). L'éditeur
+ * n'offre pas l'édition des couches : aucune n'a donc à être renvoyée à côté d'un `null`.
  */
 export function avecCouches(lue: unknown, valeur: unknown): unknown {
-  if (!estEnveloppee(lue)) return valeur
+  if (valeur === null || !estEnveloppee(lue)) return valeur
   const out: Record<string, unknown> = copie(lue)
   delete out.origine
   out.valeur = valeur
