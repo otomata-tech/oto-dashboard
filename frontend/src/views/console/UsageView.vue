@@ -1,8 +1,11 @@
 <script setup lang="ts">
-// Signaux d'usage (onglet de MonitoringView) : déroulés (runs) + manques signalés
-// (gaps) + qualité des outils (tool_feedback). Tables sur ConsoleTable (pagination
-// + états intégrés) ; chaque ligne agrégée porte date + rapporteur(s), le drill-down
-// les signaux bruts datés et attribués.
+// Signaux d'usage : déroulés (runs) + manques signalés (gaps) + qualité des outils
+// (tool_feedback). Tables sur ConsoleTable (pagination + états intégrés) ; chaque ligne
+// agrégée porte date + rapporteur(s), le drill-down les signaux bruts datés et attribués.
+//
+// UN écran, le niveau en paramètre : onglet de la supervision PLATEFORME (MonitoringView,
+// `orgId` absent → `/api/admin/usage/*`) ET de la supervision d'ORG (OrgMonitoringView,
+// `orgId` → `/api/orgs/{id}/monitoring/*`, 23/09/2026, repris d'oto-frontend).
 import { computed, onMounted, ref, watch } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import ConsoleTable from '@/components/console/ConsoleTable.vue'
@@ -10,13 +13,27 @@ import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
 import SignalAggCard, { type SignalAggRow } from '@/components/console/monitoring/SignalAggCard.vue'
 import SignalDetail from '@/components/console/monitoring/SignalDetail.vue'
-import { getUsageRuns, getUsageRun, getUsageGaps, getUsageToolQuality, getUsageSignals } from '@/api/console'
+import {
+  getUsageRuns, getUsageRun, getUsageGaps, getUsageToolQuality, getUsageSignals,
+  getOrgUsageRuns, getOrgUsageRun, getOrgUsageGaps, getOrgUsageToolQuality, getOrgUsageSignals,
+} from '@/api/console'
 import type { DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
 // Fenêtre d'agrégation des signaux — pilotée par le picker partagé de
 // MonitoringView. Absente (montage autonome) : le défaut backend (30 j) s'applique.
-const props = defineProps<{ windowDays?: number }>()
+const props = defineProps<{ windowDays?: number; orgId?: number | null }>()
+
+// Les cinq lectures du niveau affiché — choisies une fois, lues partout ci-dessous.
+const src = computed(() => {
+  const org = props.orgId
+  return org == null
+    ? { runs: getUsageRuns, run: getUsageRun, gaps: getUsageGaps,
+        tools: getUsageToolQuality, signals: getUsageSignals }
+    : { runs: () => getOrgUsageRuns(org), run: (id: string) => getOrgUsageRun(org, id),
+        gaps: (d?: number) => getOrgUsageGaps(org, d), tools: (d?: number) => getOrgUsageToolQuality(org, d),
+        signals: (s?: string, t?: string) => getOrgUsageSignals(org, s, t) }
+})
 
 const runs = ref<DoctrineRun[]>([])
 const gaps = ref<UsageGap[]>([])
@@ -54,7 +71,7 @@ async function load() {
   const days = props.windowDays
   try {
     const [r, g, t] = await Promise.all([
-      getUsageRuns(), getUsageGaps(days), getUsageToolQuality(days)])
+      src.value.runs(), src.value.gaps(days), src.value.tools(days)])
     if (days !== props.windowDays) return    // fenêtre changée pendant le vol
     runs.value = r.runs
     gaps.value = g.gaps
@@ -64,13 +81,13 @@ async function load() {
 }
 onMounted(load)
 // Rejouer les agrégats quand le picker bouge (les déroulés ne sont pas fenêtrés).
-watch(() => props.windowDays, () => { openSignal.value = null; load() })
+watch(() => [props.windowDays, props.orgId], () => { openSignal.value = null; load() })
 
 async function toggleRun(run: DoctrineRun) {
   if (openRun.value === run.run_id) { openRun.value = null; return }
   openRun.value = run.run_id
   runCalls.value = []
-  try { runCalls.value = (await getUsageRun(run.run_id)).calls }
+  try { runCalls.value = (await src.value.run(run.run_id)).calls }
   catch (e) { error.value = humanize(e) }
 }
 
@@ -84,7 +101,7 @@ async function toggleSignals(signal: string, target: string | null, kind: string
   openSignal.value = { signal, key }
   signalRows.value = []
   try {
-    const rows = (await getUsageSignals(signal, target ?? undefined)).signals
+    const rows = (await src.value.signals(signal, target ?? undefined)).signals
     signalRows.value = rows.filter((s) => s.kind === kind)
   } catch (e) { error.value = humanize(e) }
 }

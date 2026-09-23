@@ -1232,6 +1232,24 @@ export const getUsageGaps = (days?: number) =>
   api<{ gaps: UsageGap[] }>(`/api/admin/usage/gaps${days ? `?days=${days}` : ''}`)
 export const getUsageToolQuality = (days?: number) =>
   api<{ tools: ToolFeedbackAgg[] }>(`/api/admin/usage/tool-quality${days ? `?days=${days}` : ''}`)
+// Les mêmes lentilles au scope d'UNE org (org_admin, `ORG_ADMIN_OF`) : bornées à ce qui a été
+// émis sous cette org. Mêmes formes que la plateforme ; seul le chemin porte l'org.
+export const getOrgUsageRuns = (orgId: number) =>
+  api<{ runs: DoctrineRun[] }>(`/api/orgs/${orgId}/monitoring/runs`)
+export const getOrgUsageRun = (orgId: number, runId: string) =>
+  api<{ run_id: string; calls: RunCall[] }>(`/api/orgs/${orgId}/monitoring/runs/${encodeURIComponent(runId)}`)
+export const getOrgUsageGaps = (orgId: number, days?: number) =>
+  api<{ gaps: UsageGap[] }>(`/api/orgs/${orgId}/monitoring/gaps${days ? `?days=${days}` : ''}`)
+export const getOrgUsageToolQuality = (orgId: number, days?: number) =>
+  api<{ tools: ToolFeedbackAgg[] }>(`/api/orgs/${orgId}/monitoring/tool-quality${days ? `?days=${days}` : ''}`)
+// ⚠️ `op=signals` est EXIGÉ par le contrat de cette route (paramètre d'aiguillage de la
+// capacité de suivi), et la cible s'y nomme `tool`, pas `target`.
+export const getOrgUsageSignals = (orgId: number, signal?: string, target?: string) => {
+  const q = new URLSearchParams({ op: 'signals' })
+  if (signal) q.set('signal', signal)
+  if (target) q.set('tool', target)
+  return api<{ signals: UsageSignal[] }>(`/api/orgs/${orgId}/monitoring/signals?${q.toString()}`)
+}
 // Détail (drill-down) : signaux bruts filtrés par signal (tool_feedback|gap) + target (outil/intent).
 export const getUsageSignals = (signal?: string, target?: string) => {
   const q = new URLSearchParams()

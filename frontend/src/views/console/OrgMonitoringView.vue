@@ -8,12 +8,14 @@
 // (`capabilities/org_monitoring.py`) — seul le SCOPE change : tout est borné à ce qui a
 // été émis SOUS cette org (`tool_calls.org_id`), jamais à l'appartenance des membres.
 // Deux lentilles plateforme n'y sont pas (api rest, funnel de toute la base : santé
-// d'infra) ; une n'existe qu'ici : `adoption`, membre par membre.
+// d'infra) ; une n'existe qu'ici : `adoption`, membre par membre. Les signaux d'usage
+// (déroulés, manques, qualité des outils) y sont depuis le 23/09/2026 : même panneau
+// que la plateforme (`UsageView`, `orgId` en paramètre), repris d'oto-frontend.
 //
 // ⚠ L'org visée est passée EXPLICITEMENT dans l'URL (`/api/orgs/{id}/…`), jamais déduite
 // d'un header de consultation — le scope d'une lecture nominative doit se lire dans le
 // chemin.
-import { computed, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import SubTabs, { type SubTab } from '@/components/console/SubTabs.vue'
 import MonitoringWindowPicker from '@/components/console/monitoring/MonitoringWindowPicker.vue'
@@ -31,6 +33,8 @@ import { humanize } from '@/lib/errors'
 import { useDeepLink } from '@/composables/useDeepLink'
 import { useOrgScope } from '@/composables/useOrgScope'
 
+const Usage = defineAsyncComponent(() => import('./UsageView.vue'))
+
 const { activeOrgId, loaded: orgLoaded, isOrgAdmin, error: orgError } = useOrgScope()
 
 const TABS = computed<SubTab[]>(() => [
@@ -38,6 +42,7 @@ const TABS = computed<SubTab[]>(() => [
   { key: 'mcp', label: 'outils mcp', hint: 'invocations par l’agent' },
   { key: 'connecteurs', label: 'connecteurs', hint: 'ce qui bloque tes membres' },
   { key: 'journal', label: 'journal', hint: 'appels bruts, filtrables' },
+  { key: 'usage', label: 'signaux d’usage', hint: 'déroulés, manques, qualité des outils' },
 ])
 const VALID = computed(() => new Set(TABS.value.map((t) => t.key)))
 
@@ -156,6 +161,7 @@ watch([activeOrgId, isOrgAdmin], () => { loadStats(); loadCalls() })
         <ToolCallsCard v-else-if="tab === 'mcp'" :summary="summary" :window-days="win" :loading="loading" />
 
         <ConnectorHealthCard v-else-if="tab === 'connecteurs'" :conn="conn" :window-days="win" :loading="loading" />
+        <Usage v-else-if="tab === 'usage'" :key="activeOrgId ?? 0" :window-days="win" :org-id="activeOrgId" />
 
         <template v-else-if="tab === 'journal'">
           <CallLogFilters v-model="filters" />
