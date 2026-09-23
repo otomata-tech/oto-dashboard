@@ -504,7 +504,6 @@
   "rowEditor": {
     "emptyAssumed": "assumed empty",
     "emptyAssumedHint": "declare this field deliberately empty — typing a value turns it off",
-    "cleared": "cleared",
     "reading": "reading the row…",
     "readFailed": "the row could not be read for editing: {reason}",
     "invalidField": "value refused by the table's schema",

@@ -114,26 +114,26 @@ describe('une case modifiée garde ses couches', () => {
     })
   })
 
-  it('effacer renvoie les couches à côté de @clear', () => {
+  it('effacer renvoie les couches à côté de null', () => {
     expect(ecrire(LUE(), (b) => { b.scalaires.adresse = '' })).toEqual({
-      adresse: { valeur: '@clear', comment: 'registre', link: 'https://registre' },
+      adresse: { valeur: null, comment: 'registre', link: 'https://registre' },
     })
   })
 
   it('dans un élément aussi : la cellule modifiée garde son comment', () => {
     const corps = ecrire(LUE(), (b) => saisir(elements(b, 'contacts')[0]!, 'fonction', ''))
-    expect((corps.contacts as Ligne[])[0]!.fonction).toEqual({ valeur: '@clear', comment: 'intérim' })
+    expect((corps.contacts as Ligne[])[0]!.fonction).toEqual({ valeur: null, comment: 'intérim' })
   })
 
   it('avecCouches : une case lue nue part nue', () => {
     expect(avecCouches('x', 'y')).toBe('y')
-    expect(avecCouches({ valeur: 'x', origine: 'o', link: 'l' }, '@clear')).toEqual({ valeur: '@clear', link: 'l' })
+    expect(avecCouches({ valeur: 'x', origine: 'o', link: 'l' }, null)).toEqual({ valeur: null, link: 'l' })
   })
 })
 
 describe('vider, et le vide assumé', () => {
-  it('vider une valeur en place écrit @clear, pas ""', () => {
-    expect(ecrire(LUE(), (b) => { b.scalaires.effectif = '' })).toEqual({ effectif: '@clear' })
+  it('vider une valeur en place écrit null, ni "" (qui remplace au 06/10) ni @clear (refusé au 08/10)', () => {
+    expect(ecrire(LUE(), (b) => { b.scalaires.effectif = '' })).toEqual({ effectif: null })
   })
 
   it('activer le vide assumé écrit @empty', () => {
@@ -141,12 +141,12 @@ describe('vider, et le vide assumé', () => {
       .toEqual({ effectif: '@empty' })
   })
 
-  it('désactiver un vide assumé : sans valeur → @clear, avec une valeur → la valeur', () => {
-    expect(ecrire(LUE(), (b) => { b.vides.ville = false })).toEqual({ ville: { valeur: '@clear' } })
+  it('désactiver un vide assumé : sans valeur → null, avec une valeur → la valeur', () => {
+    expect(ecrire(LUE(), (b) => { b.vides.ville = false })).toEqual({ ville: { valeur: null } })
     expect(ecrire(LUE(), (b) => { b.scalaires.ville = 'Lyon' })).toEqual({ ville: { valeur: 'Lyon' } })
   })
 
-  it('dans un élément : vider une cellule nue → @clear ; basculer → @empty', () => {
+  it('dans un élément : vider une cellule nue → null ; basculer → @empty', () => {
     const corps = ecrire(LUE(), (b) => {
       const liste = elements(b, 'contacts')
       saisir(liste[0]!, 'nom', '')
@@ -154,23 +154,39 @@ describe('vider, et le vide assumé', () => {
       liste[2]!.textes.nom = ''
     })
     const [a, , c] = corps.contacts as Ligne[]
-    expect(a!.nom).toBe('@clear')
+    expect(a!.nom).toBeNull()
     expect(c!.nom).toBe('@empty')
   })
 
-  it('aucune sentinelle sur l’identité, dans un objet, ni dans une colonne json : "" part tel quel', () => {
+  it('sur l’identité, dans un objet, dans une colonne json : vider écrit null aussi', () => {
     const corps = ecrire(LUE(), (b) => {
       saisir(elements(b, 'contacts')[0]!, 'email', '')
       const siege = (b.composites.siege as Extract<CompositeSaisi, { sorte: 'objet' }>).element
       saisir(siege, 'rue', '')
       b.scalaires.meta = ''
     })
-    expect((corps.contacts as Ligne[])[0]!.email).toBe('')
-    expect(corps.siege).toEqual({ rue: '' })
-    expect(corps.meta).toBe('')
+    expect((corps.contacts as Ligne[])[0]!.email).toBeNull()
+    expect(corps.siege).toEqual({ rue: null })
+    expect(corps.meta).toBeNull()
   })
 
-  it('la bascule n’est offerte que là où le contrat accepte la sentinelle', () => {
+  it('une liste vidée écrit null, pas [] (qui remplace au 06/10)', () => {
+    const corps = ecrire(LUE(), (b) => {
+      (b.composites.idcc as Extract<CompositeSaisi, { sorte: 'valeurs' }>).valeurs = []
+      ;(b.composites.contacts as Extract<CompositeSaisi, { sorte: 'elements' }>).elements = []
+    })
+    expect(corps).toEqual({ idcc: null, contacts: null })
+  })
+
+  it('aucun corps ne porte jamais @clear ni @keep', () => {
+    const corps = ecrire(LUE(), (b) => {
+      b.scalaires.adresse = ''; b.scalaires.effectif = ''; b.vides.ville = false
+      saisir(elements(b, 'contacts')[0]!, 'fonction', '')
+    })
+    expect(JSON.stringify(corps)).not.toMatch(/@clear|@keep/)
+  })
+
+  it('la bascule n’est offerte que là où le contrat accepte @empty', () => {
     const desc = (cle: string) => champs(LUE()).find((d) => d.key === cle)!
     expect(accepteVideColonne(desc('ville'))).toBe(true)
     expect(accepteVideColonne(desc('note'))).toBe(true)      // non déclarée

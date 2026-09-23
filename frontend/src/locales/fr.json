@@ -504,7 +504,6 @@
   "rowEditor": {
     "emptyAssumed": "vide assumé",
     "emptyAssumedHint": "déclarer ce champ vide volontairement — saisir une valeur retire la bascule",
-    "cleared": "effacé",
     "reading": "relecture de la ligne…",
     "readFailed": "la ligne n'a pas pu être relue pour être modifiée : {reason}",
     "invalidField": "valeur refusée par le schéma du tableau",

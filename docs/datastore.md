@@ -227,15 +227,21 @@ Désormais, pour une ligne existante et modifiable (`composables/useRowEditor.ts
   en retire un. `origine` n'est **jamais** renvoyée (`caseIntacte`) ; une couche servie à
   plat (`adresse.comment`) n'est pas offerte comme un champ en édition (`formFields(…, sansCouches)`).
 - **Une case modifiée garde ses couches** (`avecCouches`) : elle part comme l'objet lu,
-  `comment` et `link` compris, `valeur` seule changée — `@clear` et `@empty` compris. Une
+  `comment` et `link` compris, `valeur` seule changée — `null` et `@empty` compris. Une
   valeur écrite sans ses couches les fait tomber (`origine` survit d'elle-même). Une case
   lue nue part nue.
-- **Sentinelles** : vider une valeur écrit `@clear` ; la bascule « vide assumé »
-  (`VideAssumeToggle.vue`) écrit `@empty`, se désactive quand on saisit une valeur, et
-  désactivée sans valeur écrit `@clear`. Offerte sur un champ scalaire (hors `json` et hors
-  statut à cycle de vie) et sur une cellule d'élément de liste de sous-records, **jamais**
-  sur l'attribut d'identité (`of.key`), dans une liste de valeurs, un objet ou une colonne
-  `json` — le serveur y refuse la sentinelle en 400 ; là, vider écrit `""` comme avant.
+- **Deux gestes** (contrat d'écriture d'une case, oto#140, 23/09/2026) : **vider écrit
+  `null`**, qui efface quel que soit le type — champ scalaire, colonne `json`, sous-champ
+  d'objet, cellule d'élément, attribut d'identité ; une liste vidée (valeurs ou
+  sous-records) part aussi en `null`. Jamais `""` ni `[]`, qui **remplacent** la valeur en
+  place à partir du 06/10/2026, ni `@clear`/`@keep`, **refusés** à partir du 08/10/2026 ;
+  une case non touchée n'est pas nommée. La bascule « vide assumé »
+  (`VideAssumeToggle.vue`) écrit `@empty` (« cherché, rien »), se désactive quand on saisit
+  une valeur, et désactivée sans valeur écrit `null` (qui retire le marqueur). Offerte sur
+  un champ scalaire (hors `json` et hors statut à cycle de vie) et sur une cellule
+  d'élément de liste de sous-records, **jamais** sur l'attribut d'identité (`of.key`),
+  dans une liste de valeurs, un objet ou une colonne `json` — le serveur y refuse
+  `@empty` en 400.
 - **Écriture** : le PATCH existant avec `?expected_revision=<_revision lue>`.
 - **Refus** (`lib/rowRefusal.ts`, `RowWriteRefusal.vue`), brouillon toujours gardé :
   - 409 `revision_conflict` : la ligne est relue, la version relue est montrée à côté du

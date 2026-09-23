@@ -9,7 +9,7 @@
 import { useI18n } from 'vue-i18n'
 import Btn from './Btn.vue'
 import Notice from './Notice.vue'
-import { EFFACER, VIDE_ASSUME, valeurDe } from '@/lib/rowCells'
+import { VIDE_ASSUME, valeurDe } from '@/lib/rowCells'
 import type { RefusDeLigne } from '@/lib/rowRefusal'
 import type { Choix, ColonneOpposee } from '@/lib/rowConflict'
 
@@ -28,7 +28,6 @@ const { t } = useI18n()
 function texte(v: unknown): string {
   const x = valeurDe(v)
   if (x === VIDE_ASSUME) return t('rowEditor.emptyAssumed')
-  if (x === EFFACER) return t('rowEditor.cleared')
   if (x == null || x === '') return '—'
   return typeof x === 'object' ? JSON.stringify(x) : String(x)
 }

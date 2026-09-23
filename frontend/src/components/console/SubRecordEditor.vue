@@ -7,8 +7,9 @@
 // ⚠️ Le modèle est une SAISIE (`CompositeSaisi`, lib/rowDraft), pas la valeur écrite :
 // chaque élément garde sa version relue, pour que l'écriture renvoie intact ce qui n'a pas
 // été touché (ses `""`, ses vides assumés) et sache qu'une cellule vidée AVAIT une valeur
-// (`@clear`). La bascule « vide assumé » n'est offerte que là où le contrat accepte la
-// sentinelle : une cellule d'élément de liste de sous-records, hors attribut d'identité.
+// (elle part en `null`, qui efface). La bascule « vide assumé » n'est offerte que là où le
+// contrat accepte `@empty` : une cellule d'élément de liste de sous-records, hors attribut
+// d'identité.
 import { computed } from 'vue'
 import Btn from './Btn.vue'
 import Icon from './Icon.vue'

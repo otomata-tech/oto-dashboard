@@ -7,10 +7,10 @@
 // ASSUMÉ, lui, est toujours enveloppé — `{"valeur":"@empty"}` — au premier niveau comme
 // dans une cellule d'élément de liste.
 
-/** Le vide assumé : « ce champ est vide, et c'est voulu ». */
+/** Le vide assumé : « cherché, rien ». Le SEUL marqueur du contrat d'écriture d'une case
+ * (oto#140, 23/09/2026) ; l'autre geste, effacer, est `null` — valeur et marqueur compris.
+ * `@clear` et `@keep` sont refusés par le backend à partir du 08/10/2026 : jamais écrits ici. */
 export const VIDE_ASSUME = '@empty'
-/** Effacer : retire la valeur et le marqueur éventuel, sans assumer le vide. */
-export const EFFACER = '@clear'
 
 const COUCHES = ['valeur', 'comment', 'link', 'origine']
 
@@ -40,7 +40,7 @@ export const copie = <T>(v: T): T => (v === undefined ? v : JSON.parse(JSON.stri
 /**
  * La case d'une colonne qu'on MODIFIE : l'objet tel que lu, `comment` et `link` compris,
  * avec seule `valeur` changée — une valeur écrite sans ses couches les fait TOMBER
- * (contrat oto#204 étape 2), y compris à côté de `@clear`. `origine` n'est jamais
+ * (contrat oto#204 étape 2), y compris à côté d'un `null` qui efface. `origine` n'est jamais
  * renvoyée : elle survit d'elle-même. Une case lue nue part nue.
  */
 export function avecCouches(lue: unknown, valeur: unknown): unknown {

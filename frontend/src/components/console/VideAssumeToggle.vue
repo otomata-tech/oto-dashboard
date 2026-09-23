@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // Bascule « vide assumé » d'un champ (oto#213) : active, l'écriture déclare le champ vide
-// VOLONTAIREMENT (`@empty`) ; saisir une valeur la désactive, et la désactiver sans valeur
-// efface (`@clear`). L'appelant ne l'offre que là où le contrat accepte la sentinelle.
+// VOLONTAIREMENT (`@empty`, « cherché, rien ») ; saisir une valeur la désactive, et la
+// désactiver sans valeur efface (`null`). L'appelant ne l'offre que là où le contrat
+// accepte le marqueur.
 import { useI18n } from 'vue-i18n'
 
 defineProps<{ modelValue: boolean }>()

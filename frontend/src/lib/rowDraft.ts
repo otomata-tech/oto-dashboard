@@ -11,13 +11,15 @@
 //      seules ses cellules modifiées sont réécrites.
 //   3. Une case modifiée garde ses couches : l'objet tel que lu, `valeur` seule changée
 //      (`avecCouches`) — sinon `comment` et `link` tombent.
-//   4. Vider n'est pas « ne rien écrire » : une valeur effacée part en `@clear`, un vide
-//      assumé en `@empty` — là où le contrat accepte une sentinelle : une colonne scalaire
-//      (pas `json`), et une cellule d'élément de liste de sous-records sauf son attribut
-//      d'identité (`of.key`). Ni une liste de scalaires, ni un objet : là, vider écrit `""`.
+//   4. Vider est un geste (contrat à deux gestes, oto#140 du 23/09/2026) : une saisie
+//      effacée part en `null`, qui efface quel que soit le type — jamais `""` ni `[]`, qui
+//      REMPLACENT la valeur en place à partir du 06/10/2026, ni `@clear`, refusé au
+//      08/10/2026. Un vide assumé part en `@empty`, là où le contrat accepte le marqueur :
+//      une colonne scalaire (pas `json`), et une cellule d'élément de liste de sous-records
+//      sauf son attribut d'identité (`of.key`). Retirer le vide assumé sans valeur = `null`.
 import type { DatastoreField } from '@/types/api'
 import {
-  EFFACER, VIDE_ASSUME, avecCouches, caseIntacte, copie, estVideAssume, valeurDe,
+  VIDE_ASSUME, avecCouches, caseIntacte, copie, estVideAssume, valeurDe,
 } from './rowCells'
 import { isComposite, isSubRecordList, payloadValue, scalarDraft, type FieldDesc } from './datastoreForm'
 
@@ -40,11 +42,11 @@ export interface Brouillon {
 const estRecord = (v: unknown): v is Record<string, unknown> =>
   !!v && typeof v === 'object' && !Array.isArray(v)
 
-/** Colonne où le contrat accepte une sentinelle : scalaire, et pas `json`. */
+/** Colonne où le contrat accepte le vide assumé (`@empty`) : scalaire, et pas `json`. */
 export const accepteVideColonne = (d: FieldDesc): boolean =>
   !(d.declared && (isComposite(d.field) || d.type === 'json'))
 
-/** Sous-champ où le contrat accepte une sentinelle : liste de sous-records, hors `of.key`. */
+/** Sous-champ où le contrat accepte le vide assumé : liste de sous-records, hors `of.key`. */
 export const accepteVideSousChamp = (f: DatastoreField, sousCle: string): boolean =>
   isSubRecordList(f) && f.of?.key !== sousCle
 
@@ -115,15 +117,15 @@ function forme(texte: string | undefined, vide: boolean | undefined): Forme {
 const memeForme = (a: Forme, b: Forme): boolean =>
   a.sorte === b.sorte && (a.sorte !== 'texte' || a.texte === (b as { texte: string }).texte)
 
-/** Ce qu'on écrit pour une saisie qui a CHANGÉ. Passer de quelque chose à rien = effacer. */
-function ecritureSaisie(apres: Forme, sentinelles: boolean, texte: (t: string) => unknown): unknown {
+/** Ce qu'on écrit pour une saisie qui a CHANGÉ. Passer de quelque chose à rien = `null`,
+ * qui efface ; `@empty` seulement là où le marqueur est accepté. */
+function ecritureSaisie(apres: Forme, videAccepte: boolean, texte: (t: string) => unknown): unknown {
   if (apres.sorte === 'texte') return texte(apres.texte)
-  if (!sentinelles) return ''
-  return apres.sorte === 'vide' ? VIDE_ASSUME : EFFACER
+  return apres.sorte === 'vide' && videAccepte ? VIDE_ASSUME : null
 }
 
 /** Un élément tel qu'on le renvoie : relu intact (moins `origine`), cellules modifiées réécrites. */
-export function ecritureElement(e: ElementSaisi, sentinelles: (sousCle: string) => boolean): unknown {
+export function ecritureElement(e: ElementSaisi, videAccepte: (sousCle: string) => boolean): unknown {
   if (estElementBrut(e)) return copie(e.lu)
   const lu = estRecord(e.lu) ? e.lu : {}
   const out: Record<string, unknown> = {}
@@ -135,7 +137,7 @@ export function ecritureElement(e: ElementSaisi, sentinelles: (sousCle: string) 
   for (const k of new Set([...Object.keys(e.textes), ...Object.keys(e.vides)])) {
     const apres = forme(e.textes[k], e.vides[k])
     if (memeForme(forme(ref.textes[k], ref.vides[k]), apres)) continue
-    out[k] = avecCouches(lu[k], ecritureSaisie(apres, sentinelles(k), (t) => t))
+    out[k] = avecCouches(lu[k], ecritureSaisie(apres, videAccepte(k), (t) => t))
   }
   return out
 }
@@ -152,7 +154,9 @@ function changement(d: FieldDesc, lue: unknown, avant: Brouillon, apres: Brouill
   if (d.declared && isComposite(d.field)) {
     const a = ecritureComposite(d.field!, avant.composites[d.key])
     const b = ecritureComposite(d.field!, apres.composites[d.key])
-    return JSON.stringify(a) === JSON.stringify(b) ? null : { valeur: avecCouches(lue, b) }
+    if (JSON.stringify(a) === JSON.stringify(b)) return null
+    // une liste VIDÉE efface (`null`) : `[]` remplacerait la valeur en place (06/10/2026)
+    return { valeur: avecCouches(lue, Array.isArray(b) && b.length === 0 ? null : b) }
   }
   const fa = forme(avant.scalaires[d.key], avant.vides[d.key])
   const fb = forme(apres.scalaires[d.key], apres.vides[d.key])

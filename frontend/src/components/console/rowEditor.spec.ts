@@ -10,9 +10,11 @@
 //   · la réservation : 409 `row_locked` ;
 //   · une valeur écrite garde `origine` et les SEULES couches `comment`/`link` envoyées —
 //     une couche non renvoyée tombe ;
-//   · `@clear` retire la valeur (sur un requis : 400 `row_invalid` + `expected_column`),
-//     `@empty` la marque, `""` est écarté sur une valeur en place ;
-//   · une sentinelle sur `of.key`, dans une colonne json, une liste de valeurs ou un objet
+//   · le contrat à deux gestes (oto#140, 23/09/2026), dans son état FINAL : `null` retire
+//     la valeur, vide assumé compris (sur un requis : 400 `row_invalid` + `expected_column`),
+//     `@empty` la marque ; `""` et `[]` REMPLACENT la valeur en place (06/10/2026) ;
+//     `@clear` et `@keep` → 400 (08/10/2026) ;
+//   · `@empty` sur `of.key`, dans une colonne json, une liste de valeurs ou un objet
 //     → 400 ; `origine` dans un corps → 400.
 // Une colonne non nommée n'est pas touchée. Ce banc juge l'ÉTAT DU STORE et les requêtes
 // parties, jamais ce que l'écran croit avoir fait.
@@ -69,9 +71,15 @@ const copie = <T>(v: T): T => JSON.parse(JSON.stringify(v))
 const estObjet = (v: unknown): v is Ligne => !!v && typeof v === 'object' && !Array.isArray(v)
 const enveloppee = (v: unknown): v is Ligne => estObjet(v) && 'valeur' in v
 const valeurDe = (v: unknown) => (enveloppee(v) ? v.valeur : v)
-const SENTINELLES = ['@clear', '@empty']
-const contientSentinelle = (v: unknown): boolean =>
-  SENTINELLES.includes(v as string) || (!!v && typeof v === 'object' && Object.values(v).some(contientSentinelle))
+const VIDE_ASSUME = '@empty'
+const RETIRES = ['@clear', '@keep']             // refusés à partir du 08/10/2026
+const contient = (mots: string[]) => {
+  const f = (v: unknown): boolean =>
+    mots.includes(v as string) || (!!v && typeof v === 'object' && Object.values(v).some(f))
+  return f
+}
+const contientVideAssume = contient([VIDE_ASSUME])
+const contientRetire = contient(RETIRES)
 const contientOrigine = (v: unknown): boolean =>
   !!v && typeof v === 'object' && Object.entries(v).some(([k, x]) => k === 'origine' || contientOrigine(x))
 const repondre = (status: number, corps: unknown) =>
@@ -91,32 +99,32 @@ function caseApres(avant: unknown, envoyee: unknown, valeur: unknown): unknown {
 /** Applique le corps sur une COPIE ; rend un refus, ou null quand la ligne est écrite. */
 function fusionner(corps: Ligne): Response | null {
   if (contientOrigine(corps)) return refuser(400, 'invalid_row_input')
+  if (contientRetire(corps)) return refuser(400, 'row_invalid')
   const suivante = copie(store.ligne)
   for (const [col, v] of Object.entries(corps)) {
     const f = SCHEMA.fields!.find((x) => x.key === col)
     const val = valeurDe(v)
     const avant = suivante[col]
     const listeDeRecords = f?.type === 'list' && !!f.of?.key
-    if (!listeDeRecords && (f?.type === 'json' || f?.type === 'list' || f?.type === 'object') && contientSentinelle(val))
+    if (!listeDeRecords && (f?.type === 'json' || f?.type === 'list' || f?.type === 'object') && contientVideAssume(val))
       return refuser(400, 'row_invalid', { expected_column: col })
     let apres: unknown
-    if (val === '@clear') {
+    if (val === null) {
       if (f?.required) return refuser(400, 'row_invalid', { expected_column: col })
       apres = caseApres(avant, v, null)
-    } else if (val === '') continue
-    else if (listeDeRecords) {
+    } else if (listeDeRecords) {
       const items: Ligne[] = []
       for (const item of val as Ligne[]) {
         const out: Ligne = {}
         for (const [k, c] of Object.entries(item)) {
           const cv = valeurDe(c)
-          if (SENTINELLES.includes(cv as string) && k === f!.of!.key)
+          if (cv === VIDE_ASSUME && k === f!.of!.key)
             return refuser(400, 'row_invalid', { expected_column: col })
           // Un sous-champ requis vidé dans un ÉLÉMENT : le serveur refuse SANS
           // `details.expected_column` — le chemin n'est que dans la phrase.
-          if (cv === '@clear' && f!.of!.fields?.find((s) => s.key === k)?.required)
+          if (cv === null && f!.of!.fields?.find((s) => s.key === k)?.required)
             return repondre(400, { error: 'row_invalid', detail: `écriture refusée : ${col}[${items.length}].${k} est requis` })
-          const cellule = cv === '@clear' ? caseApres(undefined, c, null) : caseApres(undefined, c, cv)
+          const cellule = caseApres(undefined, c, cv)
           if (cellule !== undefined) out[k] = cellule
         }
         items.push(out)
@@ -260,20 +268,42 @@ describe('la fiche relit la ligne, et n’écrit que la différence', () => {
 })
 
 describe('vider, et le vide assumé', () => {
-  it('vider un champ non requis envoie @clear', async () => {
+  it('vider un champ non requis envoie null, jamais "" ni @clear', async () => {
     await monter()
     taper(champ('pays').querySelector('input'), '')
     await cliquer(bouton('Save'))
-    expect(patches()[0]!.corps).toEqual({ pays: '@clear' })
+    expect(patches()[0]!.corps).toEqual({ pays: null })
     expect('pays' in store.ligne).toBe(false)
     intactes(['pays'])
+  })
+
+  it('vider une liste de valeurs, une colonne json, un sous-champ d’objet : null, jamais [] ni ""', async () => {
+    await monter()
+    taper(champ('idcc').querySelector('textarea'), '')
+    taper(champ('meta').querySelector('input, textarea'), '')
+    taper(champ('siege').querySelector('input'), '')
+    await cliquer(bouton('Save'))
+    expect(patches()[0]!.corps).toEqual({ idcc: null, meta: null, siege: { rue: null } })
+    expect('idcc' in store.ligne).toBe(false)
+    expect('meta' in store.ligne).toBe(false)
+    expect(store.ligne.siege).toEqual({ rue: null })
+    intactes(['idcc', 'meta', 'siege'])
+  })
+
+  it('vider une liste de sous-records en retirant tous ses éléments : null', async () => {
+    await monter()
+    for (let i = 0; i < 3; i++) await cliquer(q('[data-field="contacts"] [data-item="0"] .sre-x'))
+    await cliquer(bouton('Save'))
+    expect(patches()[0]!.corps).toEqual({ contacts: null })
+    expect('contacts' in store.ligne).toBe(false)
+    intactes(['contacts'])
   })
 
   it('vider un champ requis : 400 rattaché au champ, rien d’écrit, pas de fausse réussite', async () => {
     const emis = await monter()
     taper(champ('siret').querySelector('input'), '')
     await cliquer(bouton('Save'))
-    expect(patches()[0]!.corps).toEqual({ siret: '@clear' })
+    expect(patches()[0]!.corps).toEqual({ siret: null })
     expect(champ('siret').querySelector('[role="alert"]')?.textContent).toContain('refus du store : row_invalid')
     expect(champ('pays').querySelector('[role="alert"]')).toBeNull()
     expect(store.rev).toBe(7)
@@ -286,7 +316,7 @@ describe('vider, et le vide assumé', () => {
     taper(cellule('contacts', 0, 'nom').querySelector('input'), '')
     await cliquer(bouton('Save'))
     expect(patches()).toHaveLength(1)
-    expect((patches()[0]!.corps!.contacts as Ligne[])[0]!.nom).toBe('@clear')
+    expect((patches()[0]!.corps!.contacts as Ligne[])[0]!.nom).toBeNull()
     // la phrase du serveur NOMME `contacts[0].nom` : aucun champ ne doit s'en saisir
     expect([...document.body.querySelectorAll('[data-field] [role="alert"]')]).toEqual([])
     expect(q('.rwr')?.textContent).toContain('écriture refusée : contacts[0].nom est requis')
@@ -303,13 +333,13 @@ describe('vider, et le vide assumé', () => {
     expect(store.ligne.pays).toEqual({ valeur: '@empty' })
   })
 
-  it('désactiver un vide assumé sans valeur envoie @clear', async () => {
+  it('désactiver un vide assumé sans valeur envoie null', async () => {
     await monter()
     const bascule = champ('effectif').querySelector('.vat')!
     expect(bascule.getAttribute('aria-pressed')).toBe('true')   // lu : {"valeur":"@empty"}
     await cliquer(bascule)
     await cliquer(bouton('Save'))
-    expect(patches()[0]!.corps).toEqual({ effectif: { valeur: '@clear' } })
+    expect(patches()[0]!.corps).toEqual({ effectif: { valeur: null } })
     expect('effectif' in store.ligne).toBe(false)
   })
 
