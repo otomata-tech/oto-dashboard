@@ -13,18 +13,20 @@
 //
 // Le MÊME bloc sert deux paliers (`scope`) : les comptes du membre (panneau de
 // connexion) et ceux de l'org (panneau « clé partagée d'org » de /org/connectors — une
-// clé PayFit par société d'un groupe). Les trois routes prennent le palier
-// (`identities?scope=`, `identities/default`, `DELETE api-keys?scope=`) : seuls
-// changent le droit d'écrire et les mots.
+// clé PayFit par société d'un groupe). Les quatre routes prennent le palier
+// (`identities?scope=`, `identities/default`, `PATCH identities/{id}`,
+// `DELETE api-keys?scope=`) : seuls changent le droit d'écrire et les mots.
 import { computed, onMounted, ref, watch } from 'vue'
 import Btn from './Btn.vue'
 import Dot from './Dot.vue'
 import Tag from './Tag.vue'
-import { deleteApiKey, getConnectorIdentities, setConnectorIdentity } from '@/api/console'
+import {
+  deleteApiKey, getConnectorIdentities, renameConnectorIdentity, setConnectorIdentity,
+} from '@/api/console'
 import { useMe, canAdministerOrg, canWriteInOrg } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
-import { humanize } from '@/lib/errors'
+import { explain, humanize } from '@/lib/errors'
 import { accountWords } from '@/lib/accountNoun'
 import type { ConnectorIdentity, ConnectorMeta, VerifyResult } from '@/types/api'
 
@@ -43,7 +45,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ named: [n: number]; changed: [] }>()
 const { me, reload } = useMe()
 const { toast } = useToast()
-const { confirmAction } = usePrompt()
+const { confirmAction, promptText } = usePrompt()
 
 const w = computed(() => accountWords(props.connector.auth?.account_noun))
 const noun = computed(() => w.value.noun)
@@ -123,6 +125,25 @@ async function test(a: ConnectorIdentity) {
   finally { busy.value = '' }
 }
 
+// Le nom EST ce que l'agent passe en `_account=` : le renommer change la cible, pas un
+// libellé d'affichage. Un nom déjà pris est refusé ici et par le serveur (l'écriture
+// écraserait l'autre clé).
+async function rename(a: ConnectorIdentity) {
+  const next = (await promptText(`renommer ${w.value.ce}`, {
+    label: 'nom', value: a.id, required: true,
+    hint: `${agent.value} ${w.value.pronom} vise par ce nom (_account) : une procédure qui cite l'ancien devra suivre.`,
+  }))?.trim()
+  if (!next || next === a.id) return
+  if (names.value.includes(next)) { toast(`« ${next} » est déjà pris`); return }
+  busy.value = a.id
+  try {
+    await renameConnectorIdentity(props.connector.name, a.id, next, props.scope)
+    toast(`${noun.value} renommé${w.value.e} : ${next}`)
+    await Promise.all([load(), reload()])
+    emit('changed')
+  } catch (e) { toast(explain(e)) } finally { busy.value = '' }
+}
+
 async function remove(a: ConnectorIdentity) {
   const ok = await confirmAction({
     title: `retirer ${w.value.ce}`,
@@ -160,6 +181,7 @@ async function remove(a: ConnectorIdentity) {
           <Btn v-if="!a.is_default" kind="mini" :disabled="busy === a.id"
                @click="makeDefault(a)">Par défaut</Btn>
           <Btn v-if="verify" kind="mini" :disabled="busy === a.id" @click="test(a)">tester</Btn>
+          <Btn v-if="a.id !== ''" kind="mini" :disabled="busy === a.id" @click="rename(a)">Renommer</Btn>
           <Btn kind="danger" :disabled="busy === a.id" @click="remove(a)">Retirer</Btn>
         </span>
       </div>

@@ -24,6 +24,9 @@ import type { ConnectorIdentity, Me, MyConnector } from '@/types/api'
 const identities = vi.fn()
 const setDefault = vi.fn(async (..._a: unknown[]) => ({}))
 const removeKey = vi.fn(async (..._a: unknown[]) => ({}))
+const renameKey = vi.fn(async (..._a: unknown[]) => ({}))
+// La réponse que l'utilisateur tape dans la modale de renommage.
+const typed = { value: null as string | null }
 // Le profil que `reload()` relit après une écriture : le rendre vide retirerait tous
 // les gestes de l'écran, et le test lirait un défaut qu'il a lui-même fabriqué.
 const profile = vi.fn(async (): Promise<unknown> => null)
@@ -31,10 +34,11 @@ vi.mock('@/api/console', () => ({
   getConnectorIdentities: (...a: unknown[]) => identities(...a),
   setConnectorIdentity: (...a: unknown[]) => setDefault(...a),
   deleteApiKey: (...a: unknown[]) => removeKey(...a),
+  renameConnectorIdentity: (...a: unknown[]) => renameKey(...a),
   getMe: () => profile(),
 }))
 vi.mock('@/composables/usePrompt', () => ({
-  usePrompt: () => ({ confirmAction: async () => true }),
+  usePrompt: () => ({ confirmAction: async () => true, promptText: async () => typed.value }),
 }))
 
 const CONNECTOR = {
@@ -234,6 +238,48 @@ describe('ConnectorKeyAccounts — au palier org', () => {
     await settle()
     expect(removeKey).toHaveBeenCalledWith('payfit', 'org', expect.any(String))
     expect(changed).toHaveBeenCalledTimes(2)
+    c.cleanup()
+  })
+
+  it('renomme une société AU PALIER ORG, et prévient le panneau', async () => {
+    servedAt(account('Société A', true), account('Société B'))
+    renameKey.mockClear()
+    typed.value = '  Filiale B '
+    const changed = vi.fn()
+    const c = mount({ connector: PAYFIT, scope: 'org', add: () => {}, onChanged: changed })
+    await settle()
+
+    const renommer = c.buttons().filter((b) => (b.textContent ?? '').trim() === 'Renommer')
+    expect(renommer).toHaveLength(2)
+    renommer[1]!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await settle()
+
+    expect(renameKey).toHaveBeenCalledWith('payfit', 'Société B', 'Filiale B', 'org')
+    expect(changed).toHaveBeenCalledTimes(1)
+    c.cleanup()
+  })
+
+  it('refuse un nom déjà pris sans appeler le serveur', async () => {
+    servedAt(account('Société A', true), account('Société B'))
+    renameKey.mockClear()
+    typed.value = 'Société A'
+    const c = mount({ connector: PAYFIT, scope: 'org', add: () => {} })
+    await settle()
+
+    const renommer = c.buttons().filter((b) => (b.textContent ?? '').trim() === 'Renommer')
+    renommer[1]!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await settle()
+
+    expect(renameKey).not.toHaveBeenCalled()
+    c.cleanup()
+  })
+
+  it('aucun « Renommer » sur le compte anonyme : il n’a pas de nom à changer', async () => {
+    servedAt(account(''), account('Société B'))
+    const c = mount({ connector: PAYFIT, scope: 'org', add: () => {} })
+    await settle()
+
+    expect(c.buttons().filter((b) => (b.textContent ?? '').trim() === 'Renommer')).toHaveLength(1)
     c.cleanup()
   })
 

@@ -227,6 +227,13 @@ export const setConnectorIdentity = (
 ) =>
   api(`/api/connectors/${encodeURIComponent(connector)}/identities/default`,
     { method: 'PUT', ...j(scope !== 'member' ? { identity_id, scope } : { identity_id }) })
+// Renommer un compte nommé : le nom est la valeur de `_account`, c'est donc la ligne du
+// coffre qui change (un nom déjà pris est refusé).
+export const renameConnectorIdentity = (
+  connector: string, identity_id: string, name: string, scope: 'member' | 'org' | 'group' = 'member',
+) =>
+  api(`/api/connectors/${encodeURIComponent(connector)}/identities/${encodeURIComponent(identity_id)}`,
+    { method: 'PATCH', ...j(scope !== 'member' ? { name, scope } : { name }) })
 
 // ── autorisation de compte connecteur partagé (#55) — le PROPRIÉTAIRE accorde/
 // révoque à un user nommé (email/sub, même hors de ses orgs) le droit d'opérer SON compte ──

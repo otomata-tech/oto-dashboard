@@ -303,11 +303,16 @@ de toolbox vivent en bas de la même vue. Les **tokens CLI** ont migré vers le 
 > au premier compte nommé, et refuse une pose anonyme là où des comptes nommés existent.
 > **L'écran suit ces règles, il ne les rejoue pas** — un doublon de nom est le seul refus
 > anticipé côté saisie, pour éviter un aller-retour.
-> Composants : `ConnectorKeyAccounts.vue` (liste, compte par défaut, retrait, « ajouter
-> un <mot> ») monté dans le panneau de connexion dès qu'un credential est posé sur un
+> Composants : `ConnectorKeyAccounts.vue` (liste, compte par défaut, renommage, retrait,
+> « ajouter un <mot> ») monté dans le panneau de connexion dès qu'un credential est posé sur un
 > connecteur `multi_account` ; `CredentialFieldsDialog.vue` (champ nom) ; geste
 > `ConnectionLever.addAccount` (scope USER). **Depuis le 18/09, le palier ORG aussi** —
 > voir l'amendement ci-dessous ; l'équipe pose toujours son compte partagé unique.
+>
+> **Renommer un compte (23/09)** : le nom EST la valeur que l'agent passe en `_account`,
+> donc `renameConnectorIdentity` (`PATCH /api/connectors/{c}/identities/{id}`) déplace la
+> ligne du coffre, au palier du bloc. Un nom déjà pris est refusé à la saisie et par le
+> serveur (l'écriture écraserait l'autre clé) ; le compte anonyme n'a pas le geste.
 >
 > ⚠️ **Piloté par la liste SERVIE** (`getConnectorIdentities`), jamais par une clé
 > composée reconstruite ici : quand le backend donnera aux instances un identifiant
