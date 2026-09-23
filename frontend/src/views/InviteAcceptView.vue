@@ -5,7 +5,7 @@ import Btn from '@/components/console/Btn.vue'
 import Squiggle from '@/components/console/Squiggle.vue'
 import { useAuth } from '@/composables/useAuth'
 import { useMe } from '@/composables/useMe'
-import { previewInvite, previewInviteByCode, acceptInvite } from '@/api/console'
+import { previewInvite, acceptInvite } from '@/api/console'
 import type { InvitePreview } from '@/types/api'
 import { humanize } from '@/lib/errors'
 
@@ -27,10 +27,11 @@ const errMsg = ref('')
 const errCode = ref('')
 const otl = ref('')  // one-time-token Logto (magic link) — connexion sans saisie de code
 
-// Forme du lien : token mail legacy (?token=) ou code court nominatif d'org
-// (/invitation/<code>).
+// Forme du lien : `/invitation/<token>` (ce que le backend envoie depuis le 15/09), ou
+// l'ancien `?token=`. ⚠️ Le code court a été RETIRÉ du backend le 15/09 (oto-backend#560,
+// f461a30c) : cette page lisait encore le segment d'URL comme un code, appelait une route
+// disparue, et chaque invitation envoyée par mail tombait en « lien invalide » (vu 23/09).
 const token = ref('')
-const code = ref('')
 
 function codeOf(e: unknown): string {
   const raw = e instanceof Error ? e.message : String(e)
@@ -48,8 +49,7 @@ const joinTarget = computed<string | null>(() => {
 // Retour post-login = l'URL courante (préserve code/token), OTT réinjecté par login().
 const returnTo = () => `${window.location.pathname}${window.location.search}`
 function acceptPayload() {
-  if (token.value) return { token: token.value }
-  return { code: code.value }
+  return { token: token.value }
 }
 
 // Crée un compte (ou se connecte) avec l'email invité pré-rempli, puis revient ici.
@@ -77,17 +77,14 @@ async function accept() {
 
 onMounted(async () => {
   const qs = new URLSearchParams(window.location.search)
-  token.value = qs.get('token') ?? ''
+  token.value = (route.params.token as string) || qs.get('token') || ''
   otl.value = qs.get('otl') ?? ''
-  code.value = (route.params.code as string) ?? ''
-  if (!token.value && !code.value) {
+  if (!token.value) {
     state.value = 'error'; errMsg.value = 'ce lien d\'invitation est incomplet.'; return
   }
   // Aperçu public d'abord : on accompagne avant tout bounce vers l'auth.
   try {
-    preview.value = token.value
-      ? await previewInvite(token.value)
-      : await previewInviteByCode(code.value)
+    preview.value = await previewInvite(token.value)
   } catch (e) {
     errCode.value = codeOf(e)
     errMsg.value = humanize(e)
