@@ -26,6 +26,19 @@ picker des vraies entités via `getNamespaces`/`getConnectors`/`getDoctrine`)
 dans `api/console.ts` (POST op-aware `/api/me/{projects,docs}`). Backend : `oto-backend/CLAUDE.md`
 §Projet. Non faits : MCP-App rendu, édition temps réel, pré-set vendable.
 
+**L'arbre de la barre latérale descend aux pages** (23/09/2026, repris du rail d'oto-frontend
+quand le dashboard est resté le front du produit — `components/console/SidebarProjectTree.vue`).
+Sous chaque espace (`SidebarSpaces`), un projet se déplie jusqu'à ses **pages** (arborescence,
+profondeur affichée bornée à trois) et ses **tableaux liés** ; le projet affiché est déplié
+d'office. Un clic ouvre l'objet **dans l'écran projet** (`?doc=<id>`, `/data/<ref>`) : pas de
+fiche à part, décision d'Alexis. Deux gestes, ceux du rail d'origine : « + » crée une page
+« Sans titre » au premier niveau et l'ouvre ; le crayon renomme une page sur place (Entrée
+enregistre, Échap abandonne). Offerts si le projet est en écriture (`can_write`) **et** hors
+consultation (`canWriteInOrg`). L'arbre et l'écran projet montrent les mêmes pages et
+s'avertissent l'un l'autre par `lib/docsSignal.ts` (un compteur par projet ; chacun ignore le
+numéro qu'il vient d'émettre) : sans ce signal, une page créée d'un côté manquait de l'autre.
+Tests : `SidebarProjectTree.spec.ts`, `lib/docsSignal.spec.ts`.
+
 **Ce que l'index d'une org range, et où** (21/09/2026 — `lib/projectVisibility.ts`,
 `projectBucket`, test `lib/projectVisibility.spec.ts`). Les sections suivent le
 propriétaire rapporté au contexte CONSULTÉ (`me.active_org`, lu sous l'en-tête de

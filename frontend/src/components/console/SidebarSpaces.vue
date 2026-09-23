@@ -3,9 +3,11 @@
 // scope owner de projet : « Mes projets » (org-owned de l'org active) + une équipe
 // par groupe (group-owned) + « Partagés ». Repliable ; projet actif = barre saffron.
 // Backend prêt (ADR 0049) : op=list renvoie chaque projet tagué owner_type/owner_id.
+// Chaque projet se déplie jusqu'à ses pages et tableaux (`SidebarProjectTree`, 23/09/2026).
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import Icon from './Icon.vue'
+import SidebarProjectTree from './SidebarProjectTree.vue'
 import { listProjects, listGroups } from '@/api/console'
 import type { Project } from '@/types/api'
 import { useMe } from '@/composables/useMe'
@@ -107,11 +109,8 @@ function toggle(key: string) {
         <span class="space-count">{{ s.projects.length }}</span>
       </button>
       <template v-if="open.has(s.key)">
-        <RouterLink v-for="p in s.projects.slice(0, CAP)" :key="p.id" class="space-proj"
-          :class="{ on: String(p.id) === activeProjectId }" :to="scoped(`/projects/${p.id}`)" @click="closeNav">
-          <span class="proj-dot" :style="{ background: s.color }" />
-          <span class="proj-name">{{ p.name }}</span>
-        </RouterLink>
+        <SidebarProjectTree v-for="p in s.projects.slice(0, CAP)" :key="p.id"
+          :project="p" :color="s.color" :active="String(p.id) === activeProjectId" />
         <RouterLink v-if="s.projects.length > CAP" class="space-more" :to="scoped('/projects')" @click="closeNav">
           + {{ s.projects.length - CAP }} autres
         </RouterLink>
@@ -131,13 +130,6 @@ function toggle(key: string) {
 .space-fold { flex: none; }
 .space-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .space-count { flex: none; font-family: var(--font-mono); font-size: 10px; color: var(--sidebar-fg-mute); }
-.space-proj { display: flex; align-items: center; gap: 8px; padding: 5px 10px 5px 30px;
-  color: var(--sidebar-fg); font-size: 12.5px; text-decoration: none; border-radius: var(--radius-md);
-  border-left: 2px solid transparent; }
-.space-proj:hover { background: var(--sidebar-hover-bg); }
-.space-proj.on { font-weight: 700; border-left-color: var(--color-saffron); background: var(--sidebar-hover-bg); }
-.proj-dot { flex: none; width: 7px; height: 7px; border-radius: 999px; }
-.proj-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .space-more { display: block; padding: 4px 10px 5px 30px; font-size: 12px; font-style: italic;
   color: var(--sidebar-fg-mute); text-decoration: none; border-radius: var(--radius-md); }
 .space-more:hover { background: var(--sidebar-hover-bg); color: var(--sidebar-fg); }

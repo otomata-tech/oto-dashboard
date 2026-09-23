@@ -29,6 +29,7 @@ import { apiDownload } from '@/api'
 import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile, Doc, ProjectRun } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { projectVisibility } from '@/lib/projectVisibility'
+import { bumpDocs, docsVersion } from '@/lib/docsSignal'
 import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { useProjectTarget } from '@/composables/useProjectTarget'
@@ -187,7 +188,10 @@ async function reloadProject() { try { project.value = await getProject(projectI
 async function loadGrants() { try { grants.value = (await getResource('project', String(projectId))).grants } catch { grants.value = [] } }
 async function loadActivity() { try { activity.value = (await getProjectActivity(projectId)).activity } catch { activity.value = [] } }
 async function loadFiles() { try { files.value = (await listProjectFiles(projectId)).files } catch (e) { toast(humanize(e)) } }
-async function loadDocs() { try { docs.value = (await listDocs(projectId)).docs } catch (e) { toast(humanize(e)) } }
+// Pages partagées avec l'arbre latéral (`docsSignal`) : on le prévient, on relit quand il écrit.
+let ownDocs = -1
+async function loadDocs() { try { docs.value = (await listDocs(projectId)).docs; ownDocs = bumpDocs(projectId) } catch (e) { toast(humanize(e)) } }
+watch(() => docsVersion(projectId), (v) => { if (v !== ownDocs) void loadDocs() })
 async function loadAudit() {
   try {
     const inv = await getProjectInventory(projectId)
