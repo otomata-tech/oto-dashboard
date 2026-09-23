@@ -125,6 +125,28 @@ describe('CredentialFieldsDialog — ajout d’un compte nommé', () => {
   })
 })
 
+// Une clé que le fournisseur refuse n'est PAS enregistrée (400 `verify_failed`) : le
+// refus doit se lire dans le dialog, resté ouvert — il ne se voyait qu'en console.
+describe('CredentialFieldsDialog — refus du serveur à la pose', () => {
+  beforeEach(() => { document.body.innerHTML = '' })
+
+  it('affiche le détail du refus et garde le dialog ouvert', async () => {
+    const { ApiError } = await import('@/api')
+    const onConfirm = vi.fn(async () => {
+      throw new ApiError(400, 'verify_failed', 'la clé a été refusée par le service : elle n’est PAS enregistrée')
+    })
+    const d = mountDialog({ onConfirm })
+    await nextTick()
+    await type(d.input('bot_token'), 'xoxb-faux')
+    await submit(d.form())
+
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(d.text()).toContain('la clé a été refusée par le service')
+    expect(d.form()).not.toBeNull()
+    d.cleanup()
+  })
+})
+
 // Connecteur à DISCRIMINANT (`http`) : le mode d'auth commande les autres champs. Tant
 // qu'il n'est pas choisi, seuls les champs communs se montrent — les douze champs d'un
 // coup, c'est ce qui a rendu la modale illisible (08/09). Choisi, le formulaire ne

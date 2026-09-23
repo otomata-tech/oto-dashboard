@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from '@/components/ui/select'
-import { humanize } from '@/lib/errors'
+import { explain, humanize } from '@/lib/errors'
 import {
   keptSecrets, payloadFor, relevantFields, requiredAtInput, secretPlaceholder,
 } from '@/lib/credentialForm'
@@ -211,8 +211,11 @@ const submit = handleSubmit(async (values) => {
   const fieldValues = payloadFor(visible.value, all, { kept: kept.value })
   try {
     await props.onConfirm(fieldValues, account)
-  } catch {
-    // Le parent affiche le toast d'erreur ; on garde le dialog ouvert pour corriger.
+  } catch (e) {
+    // Le refus s'affiche DANS le dialog, qui reste ouvert pour corriger : les
+    // `onConfirm` ne l'affichent pas tous, et un 400 `verify_failed` (clé refusée
+    // par le fournisseur, rien n'est enregistré) ne se voyait qu'en console.
+    testRes.value = { ok: false, provider: '', error: explain(e) }
     return
   }
   // Pas de sonde câblée → comportement historique (fermer au succès).
