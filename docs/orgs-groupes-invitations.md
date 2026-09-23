@@ -212,20 +212,20 @@ cf. commentaire de `GroupBrief.my_role`) OU chef explicite de CETTE équipe.
 
 `Me` porte `active_group`/`active_group_name`/`group_role` ; `ProviderStatus.mode` peut valoir `group` (libellé « team key »). Contrats : `oto-backend/docs/groups-and-roles.md`.
 
-## Invitations — feature cascade (plateforme / org)
+## Invitations — feature cascade (plateforme / org / équipe)
 
-Inviter un user est une **feature cascade** (même geste aux deux niveaux). UNE carte partagée
+Inviter un user est une **feature cascade** (même geste aux trois niveaux). UNE carte partagée
 `components/console/InvitationsCard.vue` (câblage API dans `composables/useInvitations.ts`)
-montée sur les 2 écrans, gatée sur le rôle qui gère :
+montée sur les 3 écrans, gatée sur le rôle qui gère :
 - **org** → `OrgView.vue` (`/org`, `scope={level:'org', id}`, gate `isOrgAdmin`) — l'invité rejoint l'org.
+- **équipe** → `TeamDetailView.vue` (`/org/teams/:id`, `scope={level:'team', id}`, gate `canManage` = admin d'org ou chef de CETTE équipe, comme `GROUP_ADMIN_OF`) — l'invité rejoint l'org parente comme membre ET l'équipe avec le rôle choisi (`group_member` / `group_admin`). Revenue le 23/09/2026 : retirée le 12/09 avec le scope d'équipe (oto#192), elle existait dans oto-frontend, et le dashboard reste le front du produit.
 - **plateforme** → `AdminUsersView.vue` (`/platform/users`, `scope={level:'platform'}`, gate admin plateforme) — onboarding pur (org perso au signup).
 
-L'invitation d'**équipe** a quitté le dashboard avec le scope d'équipe (oto#192 : aucune en
-45 jours) ; l'invitation d'org, elle, est vivante (89 acceptations depuis juin).
-
 Chaque niveau expose la même triade REST (`api/console.ts`) : `list*Invitations` / `invite*` /
-`revoke*Invitation` (org : `/api/orgs/{id}/invitations` ; plateforme : `/api/admin/invitations`).
-**Acceptation commune** inchangée : `InviteAcceptView.vue` (routes `/invite`, `/invitation/:code`)
-→ `acceptInvite({token?|code?})`, avec copy adaptée au scope (`InvitePreview.scope`/`group_name`
+`revoke*Invitation` (org : `/api/orgs/{id}/invitations` ; équipe : `/api/groups/{id}/invitations` ;
+plateforme : `/api/admin/invitations`). Plus de code court (retiré du backend le 15/09) : seul le
+lien porte l'invitation.
+**Acceptation commune** : `InviteAcceptView.vue` (routes `/invitation/:token`, `/invite?token=`)
+→ `acceptInvite({token})`, avec copy adaptée au scope (`InvitePreview.scope`/`group_name`
 → « rejoindre l'équipe X / oto » — une invitation d'équipe émise ailleurs s'accepte toujours ici).
 Backend : `oto-backend/docs/rest-api.md` §invitations + `capabilities/{orgs,groups,platform}_invites.py`.

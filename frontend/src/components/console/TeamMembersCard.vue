@@ -5,8 +5,8 @@
 // en 45 jours ». Besoin réel apparu le 18/09/2026 : un membre d'équipe (pas org_admin)
 // ne pouvait plus gérer les membres/secrets de sa propre équipe. Périmètre resserré,
 // décidé par Alexis : SEULS les membres reviennent ici (pas le contexte, pas les
-// connecteurs, pas les procédures, pas l'invitation d'équipe — ces gestes restent hors
-// dashboard tant que leur propre besoin n'est pas mesuré).
+// connecteurs, pas les procédures). Connecteurs revenus le 18/09, invitation d'équipe le
+// 23/09 (le dashboard reste le front du produit) : `InvitationsCard`, niveau `team`.
 //
 // MEMBRES — on n'ajoute pas par saisie libre d'email : la personne doit déjà être dans
 // l'org, donc on PICKE parmi les membres de l'org pas encore dans l'équipe.

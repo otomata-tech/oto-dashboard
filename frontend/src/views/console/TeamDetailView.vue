@@ -8,6 +8,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import TeamMembersCard from '@/components/console/TeamMembersCard.vue'
+import InvitationsCard from '@/components/console/InvitationsCard.vue'
 import { useMe, canAdministerOrg } from '@/composables/useMe'
 import { getGroup } from '@/api/console'
 import type { GroupDetail } from '@/types/api'
@@ -44,6 +45,10 @@ watch(teamId, load)
       <ConsoleCard :title="detail.group.name" :sub="detail.group.description || 'team detail.'" />
       <TeamMembersCard :key="detail.group.id" :group-id="detail.group.id" :org-id="detail.group.org_id"
         :members="detail.members" :can-manage="canManage" :me-sub="meSub" @changed="load" />
+      <!-- Inviter une personne NOUVELLE (pas encore dans l'org) : elle rejoint l'org et
+           l'équipe au clic. Lister exige le même droit qu'inviter (`GROUP_ADMIN_OF`). -->
+      <InvitationsCard v-if="canManage" :scope="{ level: 'team', id: detail.group.id }"
+        :can-read="canManage" :can-manage="canManage" />
     </template>
   </div>
 </template>

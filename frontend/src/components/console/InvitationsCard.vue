@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Carte « invitations » RÉUTILISÉE aux 2 niveaux de la cascade (org / plateforme).
+// Carte « invitations » RÉUTILISÉE aux 3 niveaux de la cascade (org / équipe / plateforme).
 // Même geste partout — inviter par email (ou obtenir un lien à partager soi-même), lister
 // les invitations en attente, révoquer. Le vocabulaire (rôle, copy) s'adapte au niveau ;
 // le câblage API vit dans `useInvitations`. Le backend porte l'autz ; `canManage` masque
@@ -35,12 +35,17 @@ const canReadRef = toRef(props, 'canRead')
 const { invitations, loading, error, reload, invite, revoke } = useInvitations(scopeRef, canReadRef)
 
 const level = computed(() => props.scope.level)
-const noun = computed(() => (level.value === 'org' ? 'the org' : 'oto'))
-const roleOptions = [{ value: 'org_member', label: 'member' }, { value: 'org_admin', label: 'admin' }]
-const defaultRole = 'org_member'
+const noun = computed(() => (level.value === 'org' ? 'the org' : level.value === 'team' ? 'the team' : 'oto'))
+// Le rôle se dit dans le vocabulaire du niveau : `group_*` pour une équipe (l'invité entre
+// alors dans l'org parente comme membre simple, et dans l'équipe avec ce rôle).
+const atTeam = computed(() => level.value === 'team')
+const roleOptions = computed(() => (atTeam.value
+  ? [{ value: 'group_member', label: 'member' }, { value: 'group_admin', label: 'team lead' }]
+  : [{ value: 'org_member', label: 'member' }, { value: 'org_admin', label: 'admin' }]))
+const defaultRole = computed(() => (atTeam.value ? 'group_member' : 'org_member'))
 
 function isLead(iv: OrgInvitation): boolean {
-  return iv.org_role === 'org_admin'
+  return atTeam.value ? iv.group_role === 'group_admin' : iv.org_role === 'org_admin'
 }
 
 // Émet l'invitation et enchaîne l'effet de bord (mail envoyé → toast, lien à
@@ -51,11 +56,12 @@ async function doInvite(email: string | null, role: string, sendMail: boolean) {
   if (res.emailed) toast(`invite sent to ${res.email}`)
   else openReveal({
     title: 'share this invite yourself',
-    description: `send this link (or code) to the person — it joins them to ${noun.value}.`,
+    description: `send this link to the person — it joins them to ${noun.value}.`,
     submitLabel: 'done',
+    // Plus de code court : retiré du backend le 15/09 (oto-backend#560), seul le lien porte
+    // l'invitation. Le champ « code » s'affichait vide depuis.
     fields: [
       { key: 'url', label: 'invite link', initial: res.invite_url },
-      { key: 'code', label: 'code', initial: res.code },
     ],
     onConfirm: async () => {},
   })
@@ -68,8 +74,8 @@ function openInvite() {
     { key: 'email', label: 'email (optional)', placeholder: 'name@company.com',
       hint: 'leave blank to get a link to share yourself' },
     ...(level.value === 'platform' ? [] : [{
-      key: 'role', label: 'role', type: 'select' as const, initial: defaultRole,
-      options: roleOptions }]),
+      key: 'role', label: 'role', type: 'select' as const, initial: defaultRole.value,
+      options: roleOptions.value }]),
     { key: 'delivery', label: 'how', type: 'select' as const, initial: 'mail',
       options: [{ value: 'mail', label: 'send by email' }, { value: 'code', label: 'give me a link to share' }] },
   ]
@@ -84,7 +90,7 @@ function openInvite() {
       const sendMail = v.delivery !== 'code'
       const email = (v.email || '').trim()
       if (sendMail && !email) { toast('an email is required to send by email'); throw new Error('email required') }
-      const role = (v.role as string) || defaultRole
+      const role = (v.role as string) || defaultRole.value
       try {
         await doInvite(email || null, role, sendMail)
       } catch (e) {
@@ -151,7 +157,7 @@ async function revokeInv(id: number) {
               </div>
             </div>
           </td>
-          <td><Tag v-if="isLead(iv)" tone="ink">admin</Tag><Tag v-else>member</Tag></td>
+          <td><Tag v-if="isLead(iv)" tone="ink">{{ atTeam ? 'team lead' : 'admin' }}</Tag><Tag v-else>member</Tag></td>
           <td><Dot tone="saffron" :size="7" /></td>
           <td v-if="canManage" style="text-align: right">
             <Btn kind="danger" @click="revokeInv(iv.id)">revoke</Btn>

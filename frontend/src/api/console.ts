@@ -938,6 +938,15 @@ export const inviteMember = (id: number, email: string | null, role: OrgRole, se
     `/api/orgs/${id}/invitations`, { method: 'POST', ...j({ email, role, send_email: sendEmail }) })
 export const revokeInvitation = (id: number, inviteId: number) =>
   api(`/api/orgs/${id}/invitations/${inviteId}`, { method: 'DELETE' })
+// ÉQUIPE (chef d'équipe ou admin d'org, `GROUP_ADMIN_OF`) : l'invité rejoint l'org parente
+// ET l'équipe. Revenue le 23/09/2026 (le dashboard reste le front, oto-frontend l'avait).
+export const listGroupInvitations = (groupId: number) =>
+  api<{ invitations: OrgInvitation[] }>(`/api/groups/${groupId}/invitations`)
+export const inviteToGroup = (groupId: number, email: string | null, role: GroupRole, sendEmail = true) =>
+  api<InviteResult & { role: string }>(
+    `/api/groups/${groupId}/invitations`, { method: 'POST', ...j({ email, role, send_email: sendEmail }) })
+export const revokeGroupInvitation = (groupId: number, inviteId: number) =>
+  api(`/api/groups/${groupId}/invitations/${inviteId}`, { method: 'DELETE' })
 // PLATEFORME (admin plateforme — org cible optionnelle : vide = onboarding pur) :
 export const listPlatformInvitations = () =>
   api<{ invitations: OrgInvitation[] }>(`/api/admin/invitations`)
