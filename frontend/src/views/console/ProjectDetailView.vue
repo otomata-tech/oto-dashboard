@@ -22,12 +22,13 @@ import EntityPickerDialog from '@/components/console/project/EntityPickerDialog.
 import TargetRefusalCard from '@/components/console/TargetRefusalCard.vue'
 import type { RailGroup, RailItem } from '@/components/console/project/rail'
 import {
-  getProject, updateProject, archiveProject, copyProject, setProjectTemplate, projectHandoff,
+  getProject, updateProject, copyProject, setProjectTemplate, projectHandoff,
   getProjectActivity, getResource, listProjectFiles, listDocs, getProjectInventory, getProjectRuns, moveDoc, createDoc } from '@/api/console'
 import type { ProjectAudit } from '@/api/console'
 import { apiDownload } from '@/api'
 import type { Project, ProjectLink, ProjectActivity, NamespaceShare, ProjectFile, Doc, ProjectRun } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { archiveWithConfirm } from '@/lib/projectArchive'
 import { projectVisibility } from '@/lib/projectVisibility'
 import { bumpDocs, docsVersion } from '@/lib/docsSignal'
 import { useMe } from '@/composables/useMe'
@@ -267,7 +268,7 @@ async function toggleTemplate() {
 async function archive() {
   menuOpen.value = false
   if (!project.value) return
-  try { await archiveProject(projectId); toast('projet archivé'); router.push('/projects') }
+  try { if (await archiveWithConfirm(projectId, project.value.name)) { toast('projet archivé'); router.push('/projects') } }
   catch (e) { toast(humanize(e)) }
 }
 

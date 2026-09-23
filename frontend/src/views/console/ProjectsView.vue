@@ -16,6 +16,7 @@ import MarkdownView from '@/components/console/MarkdownView.vue'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import {
   listProjects, listProjectTemplates, createProject, copyProject, listGroups, listSharedDocs, getDoc,
+  listArchivedProjects, unarchiveProject,
 } from '@/api/console'
 import type { Doc, Project, SharedDoc } from '@/types/api'
 import { fmtDate } from '@/types/api'
@@ -185,6 +186,28 @@ function useTemplate(t: Project) {
   }
   nameOpen.value = true
 }
+// Projets ARCHIVÉS (oto#38) : repliés par défaut, chargés à la demande — ils ne sont
+// qu'un moyen de défaire un archivage, pas une section de travail.
+const archivedOpen = ref(false)
+const archived = ref<Project[] | null>(null)
+const archivedError = ref<string | null>(null)
+async function loadArchived() {
+  archivedError.value = null
+  try { archived.value = (await listArchivedProjects()).projects }
+  catch (e) { archivedError.value = humanize(e) }
+}
+function toggleArchived() {
+  archivedOpen.value = !archivedOpen.value
+  if (archivedOpen.value) void loadArchived()
+}
+async function unarchive(p: Project) {
+  try {
+    await unarchiveProject(p.id)
+    toast('projet désarchivé')
+    archived.value = (archived.value ?? []).filter((a) => a.id !== p.id)
+    await load()
+  } catch (e) { toast(humanize(e)) }
+}
 const hasProjects = computed(() => loaded.value && !error.value && listed.value.length > 0)
 </script>
 
@@ -300,6 +323,26 @@ const hasProjects = computed(() => loaded.value && !error.value && listed.value.
       </div>
     </template>
 
+    <!-- projets archivés (oto#38) : les retrouver, les désarchiver -->
+    <section v-if="loaded && !error" class="pl-sec pl-arch">
+      <button class="pl-arch__toggle" :aria-expanded="archivedOpen" @click="toggleArchived">
+        <Icon :name="archivedOpen ? 'chevron-down' : 'chevron-right'" :size="14" />
+        Projets archivés
+      </button>
+      <template v-if="archivedOpen">
+        <p v-if="archivedError" class="dim" style="font-size: 13px">{{ archivedError }}</p>
+        <p v-else-if="archived === null" class="dim" style="font-size: 13px">chargement…</p>
+        <p v-else-if="!archived.length" class="dim" style="font-size: 13px">Aucun projet archivé.</p>
+        <div v-else class="pl-table">
+          <div v-for="p in archived" :key="p.id" class="pl-row pl-row--arch">
+            <span class="pl-row__name"><span class="pl-row__nt"><span v-if="p.icon" class="pl-ico">{{ p.icon }}</span>{{ p.name }}</span></span>
+            <span class="pl-row__maj">archivé · {{ fmtDate(p.archived_at) }}</span>
+            <Btn kind="mini" @click="unarchive(p)">Désarchiver</Btn>
+          </div>
+        </div>
+      </template>
+    </section>
+
     <!-- lecture d'une page partagée seule -->
     <Dialog v-model:open="readerOpen">
       <DialogContent class="pl-reader">
@@ -391,6 +434,11 @@ const hasProjects = computed(() => loaded.value && !error.value && listed.value.
 .pl-row--doc .pl-row__name { color: var(--color-mute); }
 .pl-reader { max-width: min(760px, calc(100vw - 32px)); }
 .pl-reader__body { max-height: 60vh; overflow: auto; }
+
+/* projets archivés */
+.pl-arch { margin-top: 22px; }
+.pl-arch__toggle { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 0; border: 0; background: transparent; font: inherit; font-size: 13.5px; font-weight: 700; color: var(--color-mute); cursor: pointer; }
+.pl-row--arch { grid-template-columns: 1fr auto auto; cursor: default; }
 
 /* modèles */
 .pl-tpl-hd { display: flex; align-items: center; gap: 9px; margin-top: 16px; }

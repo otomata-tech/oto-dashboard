@@ -380,8 +380,20 @@ export const copyProject = (id: number, name: string) =>
 // Publier / retirer un projet comme modèle copiable (B5a).
 export const setProjectTemplate = (id: number, is_template: boolean) =>
   projectsApi<Project>({ op: 'update', project_id: id, is_template })
-export const archiveProject = (id: number) =>
-  projectsApi<{ ok: boolean }>({ op: 'archive', project_id: id })
+// Archiver retire le projet de toutes les listes ; rien n'est détruit (oto#38). Un projet
+// qui porte un brief ou une procédure liée est REFUSÉ (409 `confirm_required`, le compte
+// dans `details.unreachable`) tant que `confirm` n'est pas posé : cf. lib/projectArchive.
+export interface ProjectUnreachable { pages: number; procedures: number; links: number; brief: boolean }
+export const archiveProject = (id: number, confirm = false) =>
+  projectsApi<{ ok: boolean; archived: boolean; unreachable: ProjectUnreachable }>(
+    { op: 'archive', project_id: id, ...(confirm ? { confirm: true } : {}) })
+// L'inverse (oto#38). `unarchived: false` = le projet n'était pas archivé, pas une erreur.
+export const unarchiveProject = (id: number) =>
+  projectsApi<{ ok: boolean; unarchived: boolean; was_archived_at: string | null }>(
+    { op: 'unarchive', project_id: id })
+// Les projets ARCHIVÉS de l'org consultée, pour les retrouver et les désarchiver.
+export const listArchivedProjects = () =>
+  projectsApi<{ projects: Project[] }>({ op: 'list', archived: true, fields: ['*'] })
 export const linkProject = (id: number, target_type: ProjectLinkType, target_ref: string, label?: string, role?: string, config?: ConnectorLinkConfig, identity_ref?: string) =>
   projectsApi<{ ok: boolean; links: ProjectLink[] }>({ op: 'link', project_id: id, target_type, target_ref, label, role, config, identity_ref })
 export const unlinkProject = (id: number, target_type: ProjectLinkType, target_ref: string, identity_ref?: string) =>
