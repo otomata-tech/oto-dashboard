@@ -955,10 +955,8 @@ export const revokePlatformInvitation = (inviteId: number) =>
 // d'accueil « vous êtes invité·e » avant la création de compte.
 export const previewInvite = (token: string) =>
   apiPublic<InvitePreview>(`/api/invitations/${encodeURIComponent(token)}`)
-export const previewInviteByCode = (code: string) =>
-  apiPublic<InvitePreview>(`/api/invitations/code/${encodeURIComponent(code)}`)
-// Accept par token mail (legacy) ou code court nominatif — commun aux 3 scopes.
-export const acceptInvite = (payload: { token?: string; code?: string }) =>
+// Accept par token (le code court a été retiré du backend le 15/09) — commun aux 3 scopes.
+export const acceptInvite = (payload: { token: string }) =>
   api<{ ok: boolean; org_id: number | null; org_role: string | null;
         group_id?: number | null; group_role?: string | null;
         name: string | null; self?: boolean }>(

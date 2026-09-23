@@ -98,9 +98,9 @@ const router = createRouter({
     { path: '/o/:orgId(\\d+)/org/departments', redirect: (to) => `/o/${to.params.orgId}/org/teams` },
     { path: '/o/:orgId(\\d+)/g/:groupId(\\d+)/org/departments', redirect: (to) => `/o/${to.params.orgId}/g/${to.params.groupId}/org/teams` },
     // Acceptation d'invitation d'org (hors shell console) — gère sa propre auth.
-    // /invite?token= = lien mail legacy ; /invitation/<code> = lien partageable nominatif.
+    // /invitation/<token> = le lien envoyé par le backend ; /invite?token= = ancien lien mail.
     { path: '/invite', name: 'invite', component: InviteAcceptView },
-    { path: '/invitation/:code', name: 'invitation', component: InviteAcceptView },
+    { path: '/invitation/:token', name: 'invitation', component: InviteAcceptView },
     // NB : les partages publics de projet/doc ne sont PLUS des routes SPA — le partage
     // navigable d'un projet est rendu SERVER-SIDE sur `<slug>.share.oto.cx` (share_ui),
     // et `/p/d/<token>` (doc public) est rendu server-side par le backend via Caddy.
