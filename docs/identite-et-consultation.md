@@ -112,7 +112,7 @@ coupe). Brancher son abonnement Claude (Pro, Max) pour que ses agents tournent d
   ouverte.
 - **Option nominative** : aucune lecture ne dit qui l'a ; le 403 `subscription_not_enabled` au
   premier geste passe l'écran en « option non ouverte » et retire le bouton.
-- **Retrait** : « Se déconnecter » (garde le bac, statut `disconnected`) ; « Effacer mon bac »
+- **Retrait** : « Se déconnecter » (garde le sandbox, statut `disconnected`) ; « Effacer mon sandbox »
   (`?destroy=true`, irréversible) après confirmation `usePrompt` — jamais `window.confirm`.
   Après un retrait l'état est **relu**, pas déduit.
 - Le sélecteur de modèle d'une programmation (`optionsModele`) propose les `sub:*` dès que le

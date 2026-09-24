@@ -1873,7 +1873,7 @@ export type LegalContext = components['schemas']['LegalContext']
 export type LegalStatus = ApiOut<'me_legal_get_get'>
 
 // ── abonnement de modèle PERSONNEL (`/api/me/model-subscriptions`, palier membre) ──
-// Un abonnement (Claude Pro/Max…) que SES agents consomment, dans un bac à sable à soi.
+// Un abonnement (Claude Pro/Max…) que SES agents consomment, dans un sandbox à soi.
 // ⚠️ `statut` est servi en `str` : l'ensemble fermé (`connected | needs_login |
 // paused_limit | disconnected`) se resserre dans `lib/modelSubscription.ts`, qui lève
 // sur une valeur inconnue plutôt que de l'afficher comme un état qu'il ne sait pas lire.

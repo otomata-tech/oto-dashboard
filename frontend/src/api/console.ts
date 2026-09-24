@@ -1339,7 +1339,7 @@ export const acceptLegal = (context: 'access' | 'purchase') =>
   api<LegalStatus>('/api/me/legal/accept', { method: 'POST', ...j({ context }) })
 
 // ── Abonnement de modèle personnel (palier membre, jamais l'org) ──
-// La session du fournisseur naît et reste DANS le bac de la personne : la plateforme
+// La session du fournisseur naît et reste DANS le sandbox de la personne : la plateforme
 // ne reçoit qu'une URL de connexion et ne transmet que le code affiché par le fournisseur.
 const subPath = (family: string) => `/api/me/model-subscriptions/${encodeURIComponent(family)}`
 export const getModelSubscriptions = () =>
@@ -1348,7 +1348,7 @@ export const startModelSubscriptionLogin = (family: string) =>
   api<ModelSubscriptionLogin>(`${subPath(family)}/login`, { method: 'POST', ...j({}) })
 export const sendModelSubscriptionCode = (family: string, code: string) =>
   api<ModelSubscription>(`${subPath(family)}/login/code`, { method: 'PUT', ...j({ code }) })
-// `destroy` : efface le bac lui-même, et la session qu'il porte — irréversible.
+// `destroy` : efface le sandbox lui-même, et la session qu'il porte — irréversible.
 export const removeModelSubscription = (family: string, destroy = false) =>
   api<ModelSubscriptionRemoved>(`${subPath(family)}${destroy ? '?destroy=true' : ''}`, { method: 'DELETE' })
 // Admin (super_admin) : forcer un plan sur une org sans paiement (plan=null retire).

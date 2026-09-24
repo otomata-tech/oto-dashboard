@@ -472,7 +472,7 @@
       "needs_login": "Ta session Claude a expiré chez Anthropic : reconnecte-toi pour que tes agents repartent.",
       "paused": "Limite d'usage de ton abonnement atteinte : tes agents reprennent à sa réinitialisation.",
       "pausedUntil": "Limite d'usage de ton abonnement atteinte : tes agents sont en pause jusqu'au {date}.",
-      "disconnected": "Tu t'es déconnecté : ton bac est conservé, et la reconnexion ne demande qu'un login."
+      "disconnected": "Tu t'es déconnecté : ton sandbox est conservé, et la reconnexion ne demande qu'un login."
     },
     "lastOk": "dernier passage réussi {date}",
     "waiting": "{n} travail attend — il repartira seul. | {n} travaux attendent — ils repartiront seuls.",
@@ -486,19 +486,19 @@
     "validating": "Validation…",
     "restart": "Recommencer",
     "teamNote": "Si tu choisis chez Anthropic une organisation Team ou Enterprise, c'est elle qui paie l'usage, pas ton abonnement personnel.",
-    "trust": "Ta session Claude reste dans ton bac à sable : la plateforme ne la voit ni ne la stocke.",
+    "trust": "Ta session Claude reste dans ton sandbox : la plateforme ne la voit ni ne la stocke.",
     "notEnabled": "Cette option n'est pas ouverte sur ton compte. L'équipe oto l'ouvre sur demande.",
     "disconnect": "Se déconnecter",
-    "destroy": "Effacer mon bac",
-    "destroyTitle": "Effacer ton bac ?",
-    "destroyMessage": "Le bac et la session Claude qu'il porte sont détruits. C'est irréversible : pour revenir, il faudra refaire la connexion complète.",
+    "destroy": "Effacer mon sandbox",
+    "destroyTitle": "Effacer ton sandbox ?",
+    "destroyMessage": "Le sandbox et la session Claude qu'il porte sont détruits. C'est irréversible : pour revenir, il faudra refaire la connexion complète.",
     "toastConnected": "abonnement Claude connecté",
     "toastDisconnected": "abonnement Claude déconnecté",
-    "toastDestroyed": "bac effacé",
+    "toastDestroyed": "sandbox effacé",
     "errors": {
       "subscription_not_enabled": "Cette option n'est pas ouverte sur ton compte.",
       "login_failed": "Anthropic n'a pas ouvert de session avec ce code (expiré ou déjà utilisé). Clique « Recommencer ».",
-      "farm_unavailable": "Le service des bacs ne répond pas pour le moment. Réessaie dans quelques minutes.",
+      "farm_unavailable": "Le service des sandboxes ne répond pas pour le moment. Réessaie dans quelques minutes.",
       "not_connected": "Aucun abonnement Claude n'est branché sur ton compte."
     }
   },

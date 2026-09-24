@@ -3,7 +3,7 @@
 //
 // Le parcours est celui du fournisseur, pas le nôtre : POST login rend une URL que la
 // personne ouvre chez Anthropic ; Anthropic lui affiche un code ; elle le colle ici et
-// PUT code le transmet à SON bac, où la session naît et reste. La plateforme ne voit
+// PUT code le transmet à SON sandbox, où la session naît et reste. La plateforme ne voit
 // ni ne stocke la session — elle ne relaie qu'une URL et un code à usage unique.
 //
 // Le chemin est ouvert à des personnes NOMMÉES, et aucune lecture ne dit à l'avance qui
@@ -23,7 +23,7 @@ export const CLAUDE_FAMILY = 'claude_subscription'
 
 export const STATUTS = ['connected', 'needs_login', 'paused_limit', 'disconnected'] as const
 export type SubscriptionStatut = (typeof STATUTS)[number]
-/** `none` = aucune ligne : jamais connecté, ou bac effacé. */
+/** `none` = aucune ligne : jamais connecté, ou sandbox effacé. */
 export type SubscriptionEtat = SubscriptionStatut | 'none'
 
 /** Le statut servi, resserré sur l'ensemble fermé. Une valeur inconnue LÈVE : l'afficher
@@ -96,7 +96,7 @@ export function useModelSubscription(family: string = CLAUDE_FAMILY) {
     return r.url
   }
 
-  /** Transmet le code à son bac ; true = connecté. Un échec laisse l'étape en place :
+  /** Transmet le code à son sandbox ; true = connecté. Un échec laisse l'étape en place :
    *  la personne relit le code, ou « Recommencer ». */
   async function submitCode(code: string): Promise<boolean> {
     const c = code.trim()
@@ -116,7 +116,7 @@ export function useModelSubscription(family: string = CLAUDE_FAMILY) {
   }
 
   // Après un retrait, on RELIT l'état plutôt que de le déduire : « se déconnecter » garde
-  // la ligne (`disconnected`), « effacer le bac » la retire — c'est le serveur qui le dit.
+  // la ligne (`disconnected`), « effacer le sandbox » la retire — c'est le serveur qui le dit.
   async function remove(destroy: boolean): Promise<boolean> {
     const r = await geste(() => removeModelSubscription(family, destroy))
     if (!r) return false

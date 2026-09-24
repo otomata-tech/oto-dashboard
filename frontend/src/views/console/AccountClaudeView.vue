@@ -44,7 +44,7 @@ const lastOk = computed(() =>
 
 // Se connecter n'a de sens que sans session vivante ; « reconnecter » quand il y en a eu une.
 const canConnect = computed(() => ['none', 'needs_login', 'disconnected'].includes(etat.value))
-// Retirer suppose une ligne ; un bac effacé n'en a plus.
+// Retirer suppose une ligne ; un sandbox effacé n'en a plus.
 const canRemove = computed(() => etat.value !== 'none')
 
 async function connect() {

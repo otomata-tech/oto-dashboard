@@ -3,7 +3,7 @@
 //      réponse du PUT code qui dit « connecté » et le palier ;
 //   2. le 403 `subscription_not_enabled` (chemin ouvert à des personnes nommées, aucune
 //      lecture ne le dit avant) se DIT, et le bouton qui échouerait disparaît ;
-//   3. effacer le bac passe par la modale de la console, jamais `window.confirm`, et
+//   3. effacer le sandbox passe par la modale de la console, jamais `window.confirm`, et
 //      renoncer n'appelle rien ;
 //   4. un statut hors de l'ensemble fermé lève au lieu d'être affiché comme un autre.
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
@@ -150,13 +150,13 @@ describe('AccountClaudeView — l’écran', () => {
     unmount()
   })
 
-  it('effacer le bac demande confirmation dans la console ; renoncer n’appelle rien', async () => {
+  it('effacer le sandbox demande confirmation dans la console ; renoncer n’appelle rien', async () => {
     api.getModelSubscriptions.mockResolvedValue({ subscriptions: [CONNECTE] })
     const nativeConfirm = vi.spyOn(window, 'confirm')
     const { host, unmount } = await mountView()
     const { state, resolve } = usePrompt()
 
-    bouton(host, 'Effacer mon bac')!.click()
+    bouton(host, 'Effacer mon sandbox')!.click()
     await settle()
     expect(state.value?.kind).toBe('confirm')
     expect(state.value?.kind === 'confirm' && state.value.config.message).toContain('irréversible')
@@ -166,7 +166,7 @@ describe('AccountClaudeView — l’écran', () => {
 
     api.removeModelSubscription.mockResolvedValue({ ok: true, family: 'claude_subscription', sandbox_destroyed: true })
     api.getModelSubscriptions.mockResolvedValue({ subscriptions: [] })
-    bouton(host, 'Effacer mon bac')!.click()
+    bouton(host, 'Effacer mon sandbox')!.click()
     await settle()
     resolve(true)
     await settle()
