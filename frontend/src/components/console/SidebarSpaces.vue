@@ -2,6 +2,10 @@
 // Arbre d'ESPACES de la sidebar (refonte nav JB, call 16/07 pt 5). Un espace = un
 // scope owner de projet : « Mes projets » (org-owned de l'org active) + une équipe
 // par groupe (group-owned) + « Partagés ». Repliable ; projet actif = barre saffron.
+// ⚠️ Rangement = `projectBucket`, LA règle de l'index `/projects` (24/09/2026) : la barre
+// avait la sienne, et rangeait sous « Mes projets » les projets de l'ORG avec les projets
+// personnels (23 au lieu de 5), et sous « Partagés » des projets que l'org partage VERS
+// d'autres (`shared`), pas des projets reçus. Deux écrans, deux réponses à « à qui ? ».
 // Backend prêt (ADR 0049) : op=list renvoie chaque projet tagué owner_type/owner_id.
 // Chaque projet se déplie jusqu'à ses pages et tableaux (`SidebarProjectTree`, 23/09/2026).
 import { computed, onMounted, ref, watch } from 'vue'
@@ -13,6 +17,7 @@ import type { Project } from '@/types/api'
 import { useMe } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 import { useScopedLink } from '@/composables/useScopedLink'
+import { projectBucket, BUCKET_LABEL } from '@/lib/projectVisibility'
 
 const route = useRoute()
 const { me } = useMe()
@@ -61,32 +66,37 @@ const CAP = 5
 interface Space { key: string; label: string; color: string; projects: Project[] }
 
 const spaces = computed<Space[]>(() => {
-  const mine: Project[] = []; const shared: Project[] = []
+  const ctx = { orgId: me.value?.active_org ?? null, sub: me.value?.sub ?? null }
+  const mine: Project[] = []; const org: Project[] = []; const shared: Project[] = []
   const byGroup: Record<string, Project[]> = {}
   for (const p of projects.value) {
-    if (p.shared) shared.push(p)
-    else if (p.owner_type === 'group') (byGroup[p.owner_id] ||= []).push(p)
-    else mine.push(p) // owner_type='org' de l'org active
+    const b = projectBucket(p, ctx)
+    if (b === 'mine') mine.push(p)
+    else if (b === 'org') org.push(p)
+    else if (b === 'group') (byGroup[p.owner_id] ||= []).push(p)
+    else if (b === 'shared') shared.push(p)
+    // 'platform' : les modèles de la bibliothèque vivent dans l'index, pas dans la barre.
   }
-  const out: Space[] = [{ key: 'org', label: 'Mes projets', color: accentFor('org'), projects: mine }]
+  const out: Space[] = [{ key: 'mine', label: BUCKET_LABEL.mine, color: accentFor('mine'), projects: mine }]
   for (const gid of Object.keys(byGroup).sort((a, b) =>
     (groupNames.value[a] || a).localeCompare(groupNames.value[b] || b)))
     // Repli sans identifiant technique : « Équipe » nu vaut mieux qu'« Équipe 12 »
     // (cas dégradé — la liste des équipes n'a pas pu être chargée).
     out.push({ key: `g:${gid}`, label: groupNames.value[gid] || 'Équipe', color: accentFor(gid), projects: byGroup[gid] ?? [] })
-  if (shared.length) out.push({ key: 'shared', label: 'Partagés', color: accentFor('shared'), projects: shared })
+  if (org.length) out.push({ key: 'org', label: me.value?.active_org_name || 'Organisation', color: accentFor('org'), projects: org })
+  if (shared.length) out.push({ key: 'shared', label: BUCKET_LABEL.shared, color: accentFor('shared'), projects: shared })
   return out
 })
 
 const activeProjectId = computed(() => (route.path.match(/\/projects\/(\d+)/) || [])[1] ?? null)
 
 // Ouverts : « Mes projets » + l'espace du projet courant (semé une fois au chargement).
-const open = ref<Set<string>>(new Set(['org']))
+const open = ref<Set<string>>(new Set(['mine']))
 let seeded = false
 watch(spaces, (list) => {
   if (seeded || !list.length) return
   seeded = true
-  const s = new Set(['org'])
+  const s = new Set(['mine'])
   const act = list.find((sp) => sp.projects.some((p) => String(p.id) === activeProjectId.value))
   if (act) s.add(act.key)
   open.value = s

@@ -43,7 +43,11 @@ d'éditeur de blocs : le stockage reste `body_md`, les blocs relèvent du modèl
 
 **L'arbre de la barre latérale descend aux pages** (23/09/2026, repris du rail d'oto-frontend
 quand le dashboard est resté le front du produit — `components/console/SidebarProjectTree.vue`).
-Sous chaque espace (`SidebarSpaces`), un projet se déplie jusqu'à ses **pages** (arborescence,
+Les espaces de la barre rangent les projets par **la même règle que l'index**
+(`projectBucket`, 24/09/2026) : « Mes projets » (à moi), les équipes, l'organisation (sous son
+nom), « Partagés avec cette organisation » (reçus). Elle avait sa propre règle et rangeait
+sous « Mes projets » les projets de l'org avec les personnels, et sous « Partagés » ceux que
+l'org partage vers d'autres. Sous chaque espace, un projet se déplie jusqu'à ses **pages** (arborescence,
 profondeur affichée bornée à trois) et ses **tableaux liés** ; le projet affiché est déplié
 d'office. Un clic ouvre l'objet **dans l'écran projet** (`?doc=<id>`, `/data/<ref>`) : pas de
 fiche à part, décision d'Alexis. Deux gestes, ceux du rail d'origine : « + » crée une page

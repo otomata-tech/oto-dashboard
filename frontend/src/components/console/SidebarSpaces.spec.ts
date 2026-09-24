@@ -13,21 +13,21 @@ const vider = async () => {
 }
 import SidebarSpaces from './SidebarSpaces.vue'
 
-const me = ref<{ active_org: number | null } | null>(null)
+const me = ref<{ active_org: number | null; sub?: string; active_org_name?: string } | null>(null)
 
-vi.mock('@/composables/useMe', () => ({ useMe: () => ({ me }) }))
+vi.mock('@/composables/useMe', () => ({ useMe: () => ({ me }), canWriteInOrg: () => true }))
 vi.mock('@/composables/useNav', () => ({ useNav: () => ({ closeNav: () => {} }) }))
 vi.mock('@/composables/useScopedLink', () => ({
   useScopedLink: () => ({ scoped: (p: string) => p }),
 }))
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ path: '/overview', params: {} }),
+  useRoute: () => ({ path: '/overview', params: {}, query: {}, meta: {} }),
+  useRouter: () => ({ push: async () => {} }),
   RouterLink: { template: '<a><slot /></a>' },
 }))
+const PROJETS = vi.hoisted(() => ({ liste: [{ id: 1, name: 'Prospection', owner_type: 'group', owner_id: 9 }] as unknown[] }))
 vi.mock('@/api/console', () => ({
-  listProjects: vi.fn(async () => ({
-    projects: [{ id: 1, name: 'Prospection', owner_type: 'group', owner_id: 9 }],
-  })),
+  listProjects: vi.fn(async () => ({ projects: PROJETS.liste })),
   listGroups: vi.fn(async () => ({ groups: [{ id: 9, group_id: 9, name: 'Commerciale' }] })),
 }))
 
@@ -61,5 +61,26 @@ describe('SidebarSpaces — les noms d équipes suivent `me`', () => {
     const host = await monter()
     expect(listGroups).toHaveBeenCalledWith(2)
     expect(host.textContent).toContain('Commerciale')
+  })
+})
+
+// Le rangement suit la règle de l'index `/projects` (`projectBucket`) : la barre rangeait
+// sous « Mes projets » les projets de l'org avec les projets personnels, et sous
+// « Partagés » ceux que l'org partage VERS d'autres — vu le 24/09 (23 « à moi » au lieu de 5).
+describe('SidebarSpaces — à qui appartient chaque projet', () => {
+  beforeEach(() => {
+    me.value = { active_org: 2, sub: 'u1', active_org_name: 'Otomata Admin' }
+    PROJETS.liste = [
+      { id: 10, name: 'Perso', owner_type: 'user', owner_id: 'u1' },
+      { id: 11, name: 'De l’org', owner_type: 'org', owner_id: '2' },
+      { id: 12, name: 'De l’org, partagé vers d’autres', owner_type: 'org', owner_id: '2', shared: true },
+      { id: 13, name: 'Reçu d’une autre org', owner_type: 'org', owner_id: '7' },
+    ]
+  })
+
+  it('personnel, organisation et reçus : trois espaces, chacun son compte', async () => {
+    const host = await monter()
+    const tetes = [...host.querySelectorAll('.space-hd')].map((b) => b.textContent!.replace(/\s+/g, ''))
+    expect(tetes).toEqual(['Mesprojets1', 'OtomataAdmin2', 'Partagésaveccetteorganisation1'])
   })
 })
