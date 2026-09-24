@@ -33,11 +33,11 @@ const r = computed(() => resolveTool(props.reg, props.name))
   font-size: 8px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.65;
 }
 .oto-chip--ok, .oto-chip--fed {
-  background: var(--color-olive-soft); border-color: #d7e398; color: var(--color-olive-ink);
+  background: var(--color-olive-soft); border-color: color-mix(in srgb, var(--color-olive) 40%, var(--color-olive-soft)); color: var(--color-olive-ink);
 }
 .oto-chip--ok .oto-chip__dot, .oto-chip--fed .oto-chip__dot { background: var(--color-olive); }
 .oto-chip--dead {
-  background: var(--color-terra-soft); border-color: #eeb39c; color: var(--color-terra-ink);
+  background: var(--color-terra-soft); border-color: color-mix(in srgb, var(--color-terra) 35%, var(--color-terra-soft)); color: var(--color-terra-ink);
 }
 .oto-chip--dead .oto-chip__dot { background: var(--color-terra); }
 
@@ -61,6 +61,6 @@ const r = computed(() => resolveTool(props.reg, props.name))
 .oto-tip__srcd { color: var(--color-terra-soft); }
 .oto-tip__desc {
   display: block; font-family: var(--font-sans); font-size: 11.5px; line-height: 1.45;
-  color: rgba(254, 252, 245, 0.78); margin-top: 5px;
+  color: color-mix(in srgb, var(--color-bg) 78%, transparent); margin-top: 5px;
 }
 </style>

@@ -413,11 +413,11 @@ async function openById(id: number, mine: number) {
 }
 
 /* warning */
-.warn { display: flex; align-items: flex-start; gap: 11px; background: var(--color-terra-soft); border: 1px solid #eeb39c; border-radius: 12px; padding: 12px 14px; }
+.warn { display: flex; align-items: flex-start; gap: 11px; background: var(--color-terra-soft); border: 1px solid color-mix(in srgb, var(--color-terra) 35%, var(--color-terra-soft)); border-radius: 12px; padding: 12px 14px; }
 .warn__i { flex: none; margin-top: 1px; }
 .warn__t { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.55; color: var(--color-terra-ink); }
 .warn__t strong { color: var(--color-terra-ink); font-weight: 700; }
-.warn__t code { font-family: var(--font-mono); font-size: 11.5px; background: rgba(255, 255, 255, 0.5); padding: 1px 5px; border-radius: 4px; }
+.warn__t code { font-family: var(--font-mono); font-size: 11.5px; background: color-mix(in srgb, var(--color-surface) 50%, transparent); padding: 1px 5px; border-radius: 4px; }
 
 /* procédures */
 .doclist { display: flex; flex-direction: column; gap: 3px; }

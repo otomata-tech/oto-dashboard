@@ -80,9 +80,9 @@ const meta = computed(() =>
 }
 .gov-banner strong { font-weight: 700; color: var(--color-ink); }
 .gov-banner.platform {
-  color: #7a2e0e;
+  color: var(--color-terra-ink);
   background: color-mix(in srgb, var(--color-saffron) 22%, var(--color-surface));
   border-bottom-color: color-mix(in srgb, var(--color-saffron) 45%, var(--color-hair));
 }
-.gov-banner.platform strong { color: #7a2e0e; }
+.gov-banner.platform strong { color: var(--color-terra-ink); }
 </style>

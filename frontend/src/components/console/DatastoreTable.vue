@@ -571,7 +571,7 @@ async function transfer() {
 .ds-role { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--color-olive-ink, #5a6a3a); background: var(--color-olive-soft, #eef0e6); border-radius: 4px; padding: 1px 5px; }
 .ds-empty { text-align: center; padding: 8px 24px 20px; }
 .ds-pager { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 16px; }
-.ds-pager .pj-x { border: 1px solid var(--color-hair-soft, #cfcfcf); background: #fff; border-radius: 6px; padding: 4px 10px; font-size: 12px; color: var(--color-ink-soft, #6b6b6b); cursor: pointer; }
+.ds-pager .pj-x { border: 1px solid var(--color-hair-soft, #cfcfcf); background: var(--color-surface); border-radius: 6px; padding: 4px 10px; font-size: 12px; color: var(--color-ink-soft, #6b6b6b); cursor: pointer; }
 .ds-pager .pj-x:disabled { opacity: .4; cursor: default; }
 .ds-erroract { margin-left: 6px; color: var(--color-cobalt-ink); text-decoration: underline; text-underline-offset: 2px; }
 </style>

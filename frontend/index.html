@@ -8,6 +8,19 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>oto console</title>
+    <!-- Le thème AVANT le premier rendu, sinon un écran sombre clignote en clair.
+         Même résolution que `src/lib/theme.ts` (clé `oto.theme`) : les deux ensemble. -->
+    <script>
+      (function () {
+        var p = null
+        try { p = localStorage.getItem('oto.theme') } catch (e) {}
+        var sombre = p === 'dark' || (p !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        var el = document.documentElement
+        el.dataset.theme = sombre ? 'dark' : 'light'
+        if (sombre) el.classList.add('dark')
+        el.style.colorScheme = sombre ? 'dark' : 'light'
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>

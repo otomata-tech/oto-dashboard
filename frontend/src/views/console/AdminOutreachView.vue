@@ -442,7 +442,7 @@ onMounted(chargeRegistres)
 .prev { margin-top: 14px; }
 .prev-box {
   display: block; width: 100%; height: 460px; border: 1px solid var(--color-card-bd);
-  border-radius: var(--radius-md); background: #fff;
+  border-radius: var(--radius-md); background: var(--color-surface);
 }
 .mt { margin-top: 14px; }
 .row-actions { margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }

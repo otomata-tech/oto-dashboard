@@ -1659,5 +1659,11 @@
       "manageMasters": "Gérer les masters →",
       "mastersHint": "l'activation master + la clé plateforme se gèrent dans le cockpit connecteurs plateforme."
     }
+  },
+  "theme": {
+    "label": "thème",
+    "system": "système",
+    "light": "clair",
+    "dark": "sombre"
   }
 }

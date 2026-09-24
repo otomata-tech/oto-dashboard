@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// « Préférences » (/account/preferences) — langue + confidentialité (analytics RGPD, si
+// « Préférences » (/account/preferences) — langue, thème + confidentialité (analytics RGPD, si
 // PostHog configuré). Ex-onglet « préférences » d'AccountView.
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -7,6 +7,7 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
 import LocaleSwitch from '@/components/console/LocaleSwitch.vue'
+import ThemeSwitch from '@/components/console/ThemeSwitch.vue'
 import { analyticsEnabled, consent, grantConsent, reopenConsent } from '@/lib/analytics'
 
 const { t } = useI18n()
@@ -25,6 +26,10 @@ const analyticsGranted = computed(() => consent.value === 'granted')
         <div class="acc-row">
           <span class="acc-k">{{ t('common.language') }}</span>
           <span class="acc-v"><LocaleSwitch /></span>
+        </div>
+        <div class="acc-row" data-test="theme">
+          <span class="acc-k">{{ t('theme.label') }}</span>
+          <span class="acc-v"><ThemeSwitch /></span>
         </div>
         <div v-if="analyticsOn" class="acc-row">
           <span class="acc-k">{{ t('account.privacyState') }}</span>

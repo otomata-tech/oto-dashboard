@@ -116,6 +116,64 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ── Thème SOMBRE « encre de nuit » (24/09/2026) ───────────────────────────────
+   Posé par `lib/theme.ts` (et `index.html` avant le premier rendu) sur
+   <html data-theme="dark">. Même rôle pour chaque token, valeurs retournées : le
+   papier devient une encre brune profonde, l'encre devient le papier. Les accents
+   gardent leur teinte ; leurs variantes `-ink` (texte sur fond doux) s'éclaircissent,
+   leurs `-soft` (fonds doux) s'assombrissent. La sidebar, déjà encre, descend d'un
+   cran pour rester l'ancrage contrasté.
+   ⚠️ La charte (`oto-studio/brand`) ne définit pas encore de thème sombre : ces
+   valeurs sont dérivées ici et y remonteront. Une couleur écrite en dur dans un
+   composant ne suit pas le thème : toujours un token. */
+:root[data-theme="dark"] {
+  --color-bg:         #17110a;
+  --color-paper:      #17110a;
+  --color-paper-2:    #241b10;
+  --color-paper-3:    #2e2416;
+  --color-surface:    #1f1810;
+
+  --color-ink:        #f3ead3;
+  --color-ink-soft:   #ddd0b0;
+  --color-mute:       #b8a987;
+  --color-faint:      #a89a78;
+  --color-hair:       #3b2f1f;
+  --color-hair-soft:  #30261a;
+  --color-card-bd:    #362b1c;
+  --color-hair-classic:      #4a3c28;
+  --color-hair-classic-soft: #3b2f1f;
+
+  --color-saffron:     #f0b41e;
+  --color-saffron-ink: #f6d27a;
+  --color-saffron-soft:#3d2e0b;
+
+  --color-terra:       #ec6030;
+  --color-terra-ink:   #f5a98c;
+  --color-terra-soft:  #40190b;
+
+  --color-olive:       #a3c236;
+  --color-olive-ink:   #cfe08f;
+  --color-olive-soft:  #293110;
+
+  --color-cobalt:      #5a9be0;
+  --color-cobalt-ink:  #add0f3;
+  --color-cobalt-soft: #122b47;
+
+  --sidebar-bg:         #0f0b06;
+  --sidebar-fg:         #e4d7ba;
+  --sidebar-fg-strong:  #fefcf5;
+  --sidebar-fg-mute:    #a99a75;
+  --sidebar-active-fg:  #2c2112;
+
+  /* Le voile et les ombres restent SOMBRES : dérivés de l'encre en clair, ils
+     deviendraient clairs ici. */
+  --scrim: rgba(0, 0, 0, 0.55);
+  --shadow-xs:     0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-card:   0 4px 18px -12px rgba(0, 0, 0, 0.8);
+  --shadow-pop:    0 12px 32px -12px rgba(0, 0, 0, 0.7);
+  --shadow-drawer: 6px 0 28px rgba(0, 0, 0, 0.5);
+}
+
 
 /* ── recherche sidebar (lot 3 Ship 2) : faux champ sur les tokens encre — la
    primitive claire .cc-search jurerait sur --sidebar-bg. Focus ring saffron. */
@@ -296,7 +354,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-small); 
   color: var(--color-ink-soft); vertical-align: middle;
 }
 .tbl tr:last-child td { border-bottom: 0; }
-.tbl tbody tr:hover td { background: rgba(244,236,210,0.45); }
+.tbl tbody tr:hover td { background: color-mix(in srgb, var(--color-paper-2) 45%, transparent); }
 .tbl .mono { font-family: var(--font-mono); font-size: 11.5px; background: none; border: 0; padding: 0; color: var(--color-ink); }
 .tbl .num { text-align: right; font-family: var(--font-mono); font-size: 11px; }
 .tbl .dim { color: var(--color-faint); }

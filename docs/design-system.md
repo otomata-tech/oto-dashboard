@@ -18,6 +18,22 @@ description: >-
 - Tokens Otomata (« Manuscrit chaud ») en CSS pur — **aucune dépendance à @otomata/ui**. ⚠️ Deux fichiers, ne pas confondre : `src/assets/main.css` (`@theme`) ne déclare que les **6 couleurs de base** (génération des utilitaires Tailwind) ; le **set complet** (`--color-surface`/`-bg`/`-ink-soft`/`-hair-soft`/`-paper-3` + tous les `-soft`/`-ink` des accents + `--ease-out`, classes `.o-medallion`/`.fadein`, keyframes `oto-pulse`) vit dans **`src/assets/console.css`**, importé global via `main.ts`, consommé par les vues console en `var(--…)`. Pour un écran console, piocher dans `console.css`.
 - **Design system console : `DESIGN.md`** (racine repo) — catalogue d'usage des classes `console.css` (shell, card, grilles, stats, tables, tags sémantiques, boutons, états empty/error/loading, checklist nouvel écran) + tableau « marketing vs console » (mêmes tokens, deux dialectes à ne pas transplanter). Tokens « Manuscrit chaud » communs : `@otomata/ui` `THEME.md`.
 
+## Thème sombre « encre de nuit » (24/09/2026, demande d'Alexis)
+
+Préférence **système / clair / sombre** dans `/account/preferences` (`ThemeSwitch.vue`), le
+système par défaut. Gardée par le navigateur (`localStorage` `oto.theme`), pas par le compte.
+`lib/theme.ts` pose le thème effectif sur `<html>` : `data-theme` (tokens) et la classe `dark`
+(variantes `dark:` des primitives shadcn) ; `index.html` rejoue la même résolution avant le
+premier rendu, sans quoi un écran sombre clignote en clair — les deux vont ensemble.
+
+Les valeurs vivent dans `console.css` sous `:root[data-theme="dark"]` : mêmes rôles, valeurs
+retournées (le papier devient encre, l'encre devient papier ; `-ink` s'éclaircit, `-soft`
+s'assombrit ; voile et ombres restent sombres). Les primitives shadcn suivent ces tokens
+(`main.css` ne porte plus la palette stone `.dark` par défaut). ⚠️ La charte
+(`oto-studio/brand`) n'a pas encore de thème sombre : ces valeurs sont dérivées ici et doivent y
+remonter. ⚠️ Une couleur écrite en dur dans un composant ne suit pas le thème : toujours un
+token (les `var(--token, #repli)` sont sans risque, le token étant toujours défini).
+
 ## Sources de vérité & direction « 2a »
 
 **L'identité Otomata se définit dans `oto-studio/brand/`** (repo public `otomata-tech/oto-studio`)

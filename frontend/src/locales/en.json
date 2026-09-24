@@ -1659,5 +1659,11 @@
       "manageMasters": "Manage masters →",
       "mastersHint": "master activation + the platform key are managed in the platform connectors cockpit."
     }
+  },
+  "theme": {
+    "label": "theme",
+    "system": "system",
+    "light": "light",
+    "dark": "dark"
   }
 }

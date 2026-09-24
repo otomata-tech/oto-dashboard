@@ -8,7 +8,11 @@ import { i18n } from './lib/i18n'
 import { useAuth } from './composables/useAuth'
 import { initAnalytics, capturePageview } from './lib/analytics'
 import { initSentry } from './lib/sentry'
+import { initTheme } from './lib/theme'
 
+// Le thème (clair, sombre, système) : `index.html` l'a déjà posé avant le premier rendu ;
+// ici on suit le système quand la préférence le suit.
+initTheme()
 // Analytics + session replay (PostHog Cloud EU) — no-op si VITE_POSTHOG_KEY absent.
 initAnalytics()
 // Chunk périmé après un redeploy (import dynamique / CSS d'une route qui n'existe

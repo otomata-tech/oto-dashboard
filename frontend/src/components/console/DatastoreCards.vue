@@ -171,8 +171,8 @@ function itemsOf(row: DatastoreRow, f: DatastoreField): unknown[] {
   gap: 12px; padding: 12px 16px;
 }
 @media (max-width: 640px) { .ds-cards { grid-template-columns: 1fr; } }
-.ds-card { border: 1px solid var(--color-hair-soft, #e6e6e3); border-radius: 10px; padding: 12px 14px; background: #fff; cursor: pointer; transition: box-shadow .15s var(--ease-out, ease); }
-.ds-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+.ds-card { border: 1px solid var(--color-hair-soft, #e6e6e3); border-radius: 10px; padding: 12px 14px; background: var(--color-surface); cursor: pointer; transition: box-shadow .15s var(--ease-out, ease); }
+.ds-card:hover { box-shadow: var(--shadow-card); }
 .ds-card__head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
 .ds-card__title { flex: 1; min-width: 0; margin: 0; font-size: 14px; font-weight: 700; color: var(--color-ink, #2a2a2a); }
 .ds-card__metrics { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 8px; }
