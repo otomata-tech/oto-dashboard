@@ -7,7 +7,6 @@ import { notSeenByName, seenCounts, unseenReason } from './agentToolbox'
 describe('installé mais invisible — la raison que lit le membre', () => {
   it.each([
     ['cut', 'coupé pour ton organisation'],
-    ['restricted', 'réservé à certaines équipes'],
     ['no_tools', 'aucun outil chargé'],
     ['paused', null],
   ] as const)('reason=%s → %s', (reason, list) => {

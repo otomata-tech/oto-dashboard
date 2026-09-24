@@ -12,7 +12,6 @@ import Tag from '@/components/console/Tag.vue'
 import ConnectorTransforms from '@/components/console/ConnectorTransforms.vue'
 import ConnectorAvailabilityPanel from './ConnectorAvailabilityPanel.vue'
 import ConnectorCredentialPanel from './ConnectorCredentialPanel.vue'
-import ConnectorAccessPanel from './ConnectorAccessPanel.vue'
 import ConnectorPlatformAccessPanel from './ConnectorPlatformAccessPanel.vue'
 import ConnectorConnectionPanel from './ConnectorConnectionPanel.vue'
 import ConnectorToolsPanel from './ConnectorToolsPanel.vue'
@@ -53,7 +52,6 @@ const badge = computed(() => props.adapter.badge?.(props.row) ?? null)
           :lever="(adapter.connection as unknown as ConnectionLever<MyConnector>)" :connector="(row as unknown as MyConnector)" />
         <ConnectorToolsPanel v-else-if="t.key === 'tools' && adapter.tools"
           :lever="(adapter.tools as unknown as ToolsLever<MyConnector>)" :row="(row as unknown as MyConnector)" />
-        <ConnectorAccessPanel v-else-if="t.key === 'access' && adapter.access" :lever="adapter.access" :row="row" />
         <ConnectorPlatformAccessPanel v-else-if="t.key === 'access' && adapter.platformAccess"
           :lever="adapter.platformAccess" :row="row" />
         <div v-else-if="t.key === 'redaction' && adapter.redaction" class="csd-pad">

@@ -3,19 +3,19 @@
 //    connecteur pour son équipe (jamais l'exposer au-delà de l'org — borné).
 //  - CLÉ PARTAGÉE d'équipe (group secret, résolue avant la clé d'org — cascade perso ›
 //    équipe › org › plateforme), sur les connecteurs à clé partageable.
-// (L'ACCÈS d'équipe — B2 — suivra.)
+// Pas de levier « accès » : réserver un connecteur à une partie des membres n'existe plus
+// (24/09/2026, ADR 0053 D1) — on place la clé au bon niveau.
 import { computed, ref } from 'vue'
-import type { AclPrincipal, CellVM, ConnectorScopeAdapter, ScopeCtx } from './adapter'
+import type { CellVM, ConnectorScopeAdapter, ScopeCtx } from './adapter'
 import {
   getConnectors, getGroupConnectorActivation, setGroupConnectorActivation, clearGroupConnectorActivation,
-  getGroupConnectorAcl, setGroupConnectorAccess, clearGroupConnectorAccess,
   setGroupSecret, deleteGroupSecret,
   startConnectorFlow, credentialPrefill,
 } from '@/api/console'
 import { useTeamScope } from '@/composables/useTeamScope'
 import { humanize } from '@/lib/errors'
 import { fmtDate } from '@/types/api'
-import type { ConnectorMeta, CredentialField, GroupAclEntry, GroupConnectorActivation, GroupMember, GroupSecret } from '@/types/api'
+import type { ConnectorMeta, CredentialField, GroupConnectorActivation, GroupSecret } from '@/types/api'
 
 const SHAREABLE = new Set(['api_key', 'fields'])
 
@@ -34,22 +34,17 @@ export function useTeamAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<GroupConnec
   const keyed = computed(() => new Map(secrets.value.map((s) => [s.provider, s])))
   const hasKey = (name: string) => keyed.value.has(name)
   const keyOf = (name: string) => keyed.value.get(name) ?? null
-  const members = computed<GroupMember[]>(() => team.detail.value?.members ?? [])
-  const acl = ref<GroupAclEntry[]>([])
-  const aclFor = (name: string) => acl.value.filter((e) => e.connector === name)
 
   async function load() {
     const gid = team.groupId.value
     if (gid == null) { rows.value = []; ready.value = true; return }
     try {
-      const [act, cat, aclRes] = await Promise.all([
+      const [act, cat] = await Promise.all([
         getGroupConnectorActivation(gid),
         getConnectors().catch(() => ({ connectors: [] as ConnectorMeta[] })),
-        getGroupConnectorAcl(gid).catch(() => ({ access: [] as GroupAclEntry[] })),
       ])
       rows.value = act.connectors
       metaMap.value = Object.fromEntries(cat.connectors.map((c) => [c.name, c]))
-      acl.value = aclRes.access
     } catch (e) { error.value = humanize(e) } finally { ready.value = true }
   }
   async function reload() { await Promise.all([load(), team.reload()]) }
@@ -104,34 +99,6 @@ export function useTeamAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<GroupConnec
     catch (e) { ctx.toast(humanize(e)) }
   }
 
-  // ── accès d'équipe (RBAC ADR 0012 B2 — réserver à des membres de l'équipe) ──
-  const memberLabel = (sub: string) => {
-    const m = members.value.find((x) => x.sub === sub)
-    return m?.name || m?.email || sub
-  }
-  function addAccess(r: GroupConnectorActivation) {
-    const gid = team.groupId.value
-    if (gid == null || !canManage.value) return
-    const opts = members.value.map((m) => ({ value: m.sub, label: m.name || m.email || m.sub }))
-    if (!opts.length) { ctx.toast('ajoute d\'abord des membres à l\'équipe'); return }
-    ctx.openForm({
-      title: `${r.label} — réserver à un membre`,
-      description: 'réserve ce connecteur à un membre de l\'équipe. dès le 1er ajout, il devient RÉSERVÉ dans l\'équipe (invisible + bloqué pour les autres membres). restreint l\'accès de l\'org, ne l\'élargit jamais.',
-      fields: [{ key: 'member', label: 'autoriser', type: 'select', required: true, options: opts }],
-      submitLabel: 'autoriser',
-      onConfirm: async (v) => {
-        try { await setGroupConnectorAccess(gid, r.connector, String(v.member)); ctx.toast(`${r.label} : accès réservé`); await load() }
-        catch (e) { ctx.toast(humanize(e)); throw e }
-      },
-    })
-  }
-  async function removeAccess(r: GroupConnectorActivation, sub: string) {
-    const gid = team.groupId.value
-    if (gid == null || !canManage.value) return
-    try { await clearGroupConnectorAccess(gid, r.connector, sub); await load() }
-    catch (e) { ctx.toast(humanize(e)) }
-  }
-
   return {
     scope: 'team',
     rows, ready, error, load, reload,
@@ -151,7 +118,6 @@ export function useTeamAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<GroupConnec
     columns: [
       { key: 'availability', label: 'disponibilité' },
       { key: 'key', label: "clé d'équipe" },
-      { key: 'access', label: 'accès' },
     ],
     cell: (r, col): CellVM | undefined => {
       if (col === 'availability') {
@@ -165,14 +131,10 @@ export function useTeamAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<GroupConnec
         const date = fmtDate(s?.set_at)
         return { dot: 'olive', label: 'posée', sub: (s?.base_url ? 'remote bridge' : 'api key') + (date ? ` · ${date}` : '') }
       }
-      if (col === 'access') {
-        const n = aclFor(r.connector).length
-        return n ? { dot: 'saffron', label: `réservé · ${n}` } : { label: 'ouvert', muted: true }
-      }
       return undefined
     },
     hasDrawer: true,
-    tabs: () => [{ key: 'main', label: 'gouvernance' }, { key: 'access', label: 'accès' }, { key: 'about', label: 'à propos' }],
+    tabs: () => [{ key: 'main', label: 'gouvernance' }, { key: 'about', label: 'à propos' }],
     availability: {
       variant: 'binary',
       title: 'disponibilité pour ton équipe',
@@ -217,13 +179,6 @@ export function useTeamAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<GroupConnec
           } catch (e) { ctx.toast(humanize(e)) }
         },
       },
-    },
-    access: {
-      restricted: (r) => aclFor(r.connector).length > 0,
-      principals: (r): AclPrincipal[] => aclFor(r.connector).map((e) => ({ type: 'user', id: e.principal_sub, label: memberLabel(e.principal_sub) })),
-      canEdit: () => canManage.value,
-      add: (r) => addAccess(r),
-      remove: (r, _type, id) => removeAccess(r, id),
     },
   }
 }

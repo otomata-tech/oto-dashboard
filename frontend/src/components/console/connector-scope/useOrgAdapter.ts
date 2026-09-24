@@ -1,15 +1,16 @@
 // Adaptateur ORG (scope=org, /org/connectors). Leviers : disponibilité BINAIRE (bornée
-// par la plateforme = plancher dur), clé partagée d'org, accès (RBAC ADR 0025) et
-// rédaction de champs en lecture (ConnectorTransforms). Réplique la logique de l'ex-`OrgConnectorsView` + `OrgConnectorDrawer`.
+// par la plateforme = plancher dur), clé partagée d'org et rédaction de champs en
+// lecture (ConnectorTransforms). Plus de levier « accès » : réserver un connecteur à une
+// partie des membres n'existe plus (24/09/2026, ADR 0053 D1) — on place la clé au bon
+// niveau (clé perso vs clé d'org). Réplique la logique de l'ex-`OrgConnectorsView` + `OrgConnectorDrawer`.
 import { computed, ref } from 'vue'
 import type {
-  AclPrincipal, CellVM, ConnectorScopeAdapter, ScopeCtx,
+  CellVM, ConnectorScopeAdapter, ScopeCtx,
 } from './adapter'
 import {
   getOrgConnectorActivation, setOrgConnectorActivation, clearOrgConnectorActivation,
   getOrgFieldFilters, getConnectors, getOrg,
   setOrgSecret, deleteOrgSecret, verifyConnector, startConnectorFlow,
-  getConnectorAcl, setConnectorAccess, clearConnectorAccess, listGroups,
   credentialPrefill,
 } from '@/api/console'
 import { useMe, canAdministerOrg, canWriteInOrg } from '@/composables/useMe'
@@ -17,7 +18,6 @@ import { humanize } from '@/lib/errors'
 import { openAddAccount } from './addAccount'
 import type {
   OrgConnectorActivation, ConnectorMeta, FieldFiltersBundle,
-  ConnectorAclEntry, GroupListItem, OrgMember,
 } from '@/types/api'
 import type { FormDialogField } from '@/composables/useFormDialog'
 
@@ -35,9 +35,6 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
   const metaMap = ref<Record<string, ConnectorMeta>>({})
   const filters = ref<FieldFiltersBundle | null>(null)
   const orgSecrets = ref<Set<string>>(new Set())
-  const acl = ref<ConnectorAclEntry[]>([])
-  const groups = ref<GroupListItem[]>([])
-  const members = ref<OrgMember[]>([])
   const ready = ref(false)
   const error = ref<string | null>(null)
 
@@ -47,26 +44,20 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
     return k === 'api_key' || k === 'fields'
   }
   const hasOrgKey = (name: string) => orgSecrets.value.has(name)
-  const aclFor = (name: string) => acl.value.filter((e) => e.connector === name)
 
   async function load() {
     if (orgId.value == null) { ready.value = true; return }
     try {
-      const [act, ff, cat, org, aclRes, grps] = await Promise.all([
+      const [act, ff, cat, org] = await Promise.all([
         getOrgConnectorActivation(orgId.value),
         getOrgFieldFilters(orgId.value).catch(() => null),
         getConnectors().catch(() => ({ connectors: [] as ConnectorMeta[] })),
         getOrg(orgId.value).catch(() => null),
-        getConnectorAcl(orgId.value).catch(() => ({ access: [] as ConnectorAclEntry[] })),
-        listGroups(orgId.value).catch(() => ({ groups: [] as GroupListItem[] })),
       ])
       rows.value = act.connectors
       filters.value = ff
       metaMap.value = Object.fromEntries(cat.connectors.map((c) => [c.name, c]))
       orgSecrets.value = new Set((org?.secrets ?? []).map((s) => s.provider))
-      acl.value = aclRes.access
-      groups.value = grps.groups
-      members.value = org?.members ?? []
     } catch (e) { error.value = humanize(e) } finally { ready.value = true }
   }
 
@@ -148,49 +139,12 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
     })
   }
 
-  // ── accès (RBAC ADR 0025) ──
-  function principalLabel(e: ConnectorAclEntry): string {
-    if (e.principal_type === 'group') {
-      const g = groups.value.find((x) => String(x.id) === String(e.principal_id))
-      return g ? `équipe · ${g.name}` : `équipe #${e.principal_id}`
-    }
-    const m = members.value.find((x) => x.sub === e.principal_id)
-    return m?.name || m?.email || e.principal_id
-  }
-  function addAccess(r: OrgConnectorActivation) {
-    if (!orgAdmin.value) return
-    const opts = [
-      ...groups.value.map((g) => ({ value: `group:${g.id}`, label: `équipe · ${g.name}` })),
-      ...members.value.map((m) => ({ value: `user:${m.sub}`, label: `membre · ${m.name || m.email || m.sub}` })),
-    ]
-    if (!opts.length) { ctx.toast("crée d'abord un groupe ou ajoute des membres"); return }
-    ctx.openForm({
-      title: `${r.label} — réserver l'accès`,
-      description: "ajoute un groupe ou un membre autorisé. dès le 1er ajout, le connecteur devient RÉSERVÉ (invisible + bloqué pour les autres, même avec leur propre clé).",
-      fields: [{ key: 'principal', label: 'autoriser', type: 'select', required: true, options: opts }],
-      submitLabel: 'autoriser',
-      onConfirm: async (v) => {
-        const raw = String(v.principal)
-        const i = raw.indexOf(':')
-        const ptype = raw.slice(0, i); const pid = raw.slice(i + 1)
-        if (!ptype || !pid) { ctx.toast('sélection invalide'); throw new Error('invalid principal') }
-        try { await setConnectorAccess(orgId.value!, r.connector, ptype, pid); ctx.toast(`${r.label} : accès réservé`); await load() }
-        catch (e) { ctx.toast(humanize(e)); throw e }
-      },
-    })
-  }
-  async function removeAccess(r: OrgConnectorActivation, ptype: string, pid: string) {
-    if (!orgAdmin.value || orgId.value == null) return
-    try { await clearConnectorAccess(orgId.value, r.connector, ptype, pid); await load() }
-    catch (e) { ctx.toast(humanize(e)) }
-  }
-
   return {
     scope: 'org',
     rows, ready, error, load, reload: load,
     listTitle: "connecteurs de l'org",
     listSub: "pour chaque connecteur : disponibilité (bornée par la plateforme), clé partagée "
-      + "d'org, accès et rédaction. clique une ligne pour régler ses leviers.",
+      + "d'org et rédaction. clique une ligne pour régler ses leviers.",
     emptyText: 'aucun connecteur.',
     searchPlaceholder: 'rechercher…',
     key: (r) => r.connector,
@@ -203,7 +157,6 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
     columns: [
       { key: 'availability', label: 'disponibilité' },
       { key: 'key', label: "clé d'org" },
-      { key: 'access', label: 'accès' },
     ],
     cell: (r, col): CellVM | undefined => {
       if (col === 'availability') {
@@ -213,15 +166,11 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
         if (!canHaveKey(r)) return { label: '—', muted: true }
         return hasOrgKey(r.connector) ? { tag: { tone: 'olive', text: 'posée' } } : { label: 'aucune', muted: true }
       }
-      if (col === 'access') {
-        const n = aclFor(r.connector).length
-        return n ? { dot: 'saffron', label: `réservé · ${n}` } : { label: 'ouvert', muted: true }
-      }
       return undefined
     },
     hasDrawer: true,
     tabs: () => [
-      { key: 'main', label: 'gouvernance' }, { key: 'access', label: 'accès' },
+      { key: 'main', label: 'gouvernance' },
       { key: 'redaction', label: 'rédaction' }, { key: 'about', label: 'à propos' },
     ],
     availability: {
@@ -266,13 +215,6 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
           } catch (e) { ctx.toast(humanize(e)) }
         },
       },
-    },
-    access: {
-      restricted: (r) => aclFor(r.connector).length > 0,
-      principals: (r): AclPrincipal[] => aclFor(r.connector).map((e) => ({ type: e.principal_type, id: e.principal_id, label: principalLabel(e) })),
-      canEdit: () => orgAdmin.value,
-      add: (r) => addAccess(r),
-      remove: (r, type, id) => removeAccess(r, type, id),
     },
     redaction: {
       props: (r) => {

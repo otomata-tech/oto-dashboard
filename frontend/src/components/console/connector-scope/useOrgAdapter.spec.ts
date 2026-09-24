@@ -1,7 +1,7 @@
 // Les leviers de /org/connectors, rôle par rôle (oto#210).
 //
-// Côté serveur (oto-backend, relu sur origin/main le 13/09) : disponibilité, clé d'org et
-// accès réservé s'écrivent sous `ORG_ADMIN_OF` ; l'autorisation au scope org exige
+// Côté serveur (oto-backend, relu sur origin/main le 13/09) : disponibilité et clé d'org
+// s'écrivent sous `ORG_ADMIN_OF` ; l'autorisation au scope org exige
 // `is_org_admin` là où le connecteur la lit. L'admin d'org, pour le serveur, c'est
 // l'org_admin et le super_admin — JAMAIS l'`admin` plateforme, à qui les lectures
 // (`ORG_MEMBER_OF`, en consultation) restent servies mais chaque écriture refusée en 403.
@@ -12,8 +12,7 @@ const api = vi.hoisted(() => ({
   getOrgConnectorActivation: vi.fn(), setOrgConnectorActivation: vi.fn(),
   clearOrgConnectorActivation: vi.fn(), getOrgFieldFilters: vi.fn(), getConnectors: vi.fn(),
   getOrg: vi.fn(), setOrgSecret: vi.fn(), deleteOrgSecret: vi.fn(), verifyConnector: vi.fn(),
-  startConnectorFlow: vi.fn(), getConnectorAcl: vi.fn(), setConnectorAccess: vi.fn(),
-  clearConnectorAccess: vi.fn(), listGroups: vi.fn(), credentialPrefill: vi.fn(),
+  startConnectorFlow: vi.fn(), credentialPrefill: vi.fn(),
 }))
 vi.mock('@/api/console', () => api)
 const me = ref<Record<string, unknown> | null>(null)
@@ -38,7 +37,6 @@ type Leviers = {
     canVerify: (r: unknown) => boolean
     connect: { available: (r: unknown) => boolean }
   }
-  access: { canEdit: () => boolean }
 }
 
 async function leviers(role: string, org_role: string | null, active_org_readonly = false) {
@@ -51,7 +49,6 @@ async function leviers(role: string, org_role: string | null, active_org_readonl
     disponibilite: a.availability.canEdit(row),
     cle: a.credential.canEdit(row),
     autoriser: a.credential.connect.available(row),
-    acces: a.access.canEdit(),
     ecritureEnvoyee: api.setOrgConnectorActivation.mock.calls.length > 0,
   }
 }
@@ -64,13 +61,11 @@ beforeEach(() => {
     connectors: [{ name: 'pennylane', secret_kind: 'api_key', connect: { label: 'Autoriser' } }],
   })
   api.getOrg.mockResolvedValue({ secrets: [{ provider: 'pennylane' }], members: [] })
-  api.getConnectorAcl.mockResolvedValue({ access: [] })
-  api.listGroups.mockResolvedValue({ groups: [] })
   api.setOrgConnectorActivation.mockResolvedValue({})
 })
 
-const TOUS = { disponibilite: true, cle: true, autoriser: true, acces: true, ecritureEnvoyee: true }
-const AUCUN = { disponibilite: false, cle: false, autoriser: false, acces: false, ecritureEnvoyee: false }
+const TOUS = { disponibilite: true, cle: true, autoriser: true, ecritureEnvoyee: true }
+const AUCUN = { disponibilite: false, cle: false, autoriser: false, ecritureEnvoyee: false }
 
 describe("useOrgAdapter — les leviers d'org suivent la règle du serveur (oto#210)", () => {
   it.each([

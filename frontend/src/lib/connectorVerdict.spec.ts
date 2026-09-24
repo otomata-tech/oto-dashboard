@@ -141,16 +141,9 @@ describe('connectorVerdict — indisponible', () => {
     expect(v.cta).toBe('Connecter HubSpot')
   })
 
-  it('réellement restreint → Réservé, et là seulement', () => {
-    const v = connectorVerdict(conn(), ps({
-      mode: 'forbidden', user_key_configured: false, rbac_restricted: true,
-    }))
-    expect(v.list).toBe('Réservé')
-    expect(v.hint).toBe(true)
-  })
-
-  it('un backend qui ne dit rien de la restriction n\'en invente pas', () => {
-    // Le drapeau est optionnel : son absence vaut « rien n'est annoncé », jamais un mur.
+  it('« aucune clé ne résout » n\'est jamais un mur « Réservé »', () => {
+    // La restriction « vers le bas » n'existe plus (24/09/2026) : `forbidden` seul
+    // veut dire « pas encore connecté », jamais « demande à un admin ».
     const v = connectorVerdict(conn(), ps({ mode: 'forbidden', user_key_configured: false }))
     expect(v.list).not.toBe('Réservé')
   })

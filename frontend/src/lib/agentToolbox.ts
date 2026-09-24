@@ -71,9 +71,6 @@ export function unseenReason(
       const list = opts.isPersonal ? 'coupé' : 'coupé pour ton organisation'
       return { list, phrase: `${list} ; il reviendra seul à sa réouverture` }
     }
-    case 'restricted':
-      // Reprise du verdict « Réservé » (lib/connectorVerdict.ts).
-      return { list: 'réservé à certaines équipes', phrase: 'réservé à certaines équipes — demande à un admin' }
     case 'no_tools':
       return { list: 'aucun outil chargé', phrase: "aucun de ses outils n'est chargé pour l'instant" }
   }

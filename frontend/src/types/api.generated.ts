@@ -1096,26 +1096,6 @@ export interface paths {
         patch: operations["group_update_patch"];
         trace?: never;
     };
-    "/api/groups/{id}/connectors/acl": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * [team] List the connector access rules of a team (which connectors are reserved, and to which members)
-         * @description [team] List the connector access rules of a team (which connectors are reserved, and to which members). Team-level RBAC narrows the org's — it can only further restrict.
-         */
-        get: operations["connectors_acl_group_list_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/groups/{id}/connectors/activation": {
         parameters: {
             query?: never;
@@ -1131,30 +1111,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/groups/{id}/connectors/{connector}/access": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * [team lead] Reserve a connector to a member of your team (member=<sub>)
-         * @description [team lead] Reserve a connector to a member of your team (member=<sub>). Adding the first member makes it restricted within the team (deny-by-default) — a further narrowing of the org, never an expansion.
-         */
-        post: operations["connectors_acl_group_grant_post"];
-        /**
-         * [team lead] Remove a member from a connector's team access list
-         * @description [team lead] Remove a member from a connector's team access list. Removing the last member reopens the connector to the whole team.
-         */
-        delete: operations["connectors_acl_group_revoke_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1669,7 +1625,7 @@ export interface paths {
         };
         /**
          * What this user's agent actually sees at the start of a conversation, for the consulted org (X-Oto-Org): the exact list of visible tools, grouped by connector, plus the installed co
-         * @description What this user's agent actually sees at the start of a conversation, for the consulted org (X-Oto-Org): the exact list of visible tools, grouped by connector, plus the installed connectors whose tools are hidden and why (paused / cut / restricted / no_tools). Computed by the handshake's own visibility function — read this instead of recomputing 'active connectors' client-side. available:false = could not be derived, never 'no tools'.
+         * @description What this user's agent actually sees at the start of a conversation, for the consulted org (X-Oto-Org): the exact list of visible tools, grouped by connector, plus the installed connectors whose tools are hidden and why (paused / cut / no_tools). Computed by the handshake's own visibility function — read this instead of recomputing 'active connectors' client-side. available:false = could not be derived, never 'no tools'.
          */
         get: operations["me_agent_toolbox_get"];
         put?: never;
@@ -3669,26 +3625,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/orgs/{id}/connectors/acl": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * [org admin] List the connector access rules of an org (which connectors are restricted, and to which departments/members).
-         * @description [org admin] List the connector access rules of an org (which connectors are restricted, and to which departments/members).
-         */
-        get: operations["connectors_acl_list_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/orgs/{id}/connectors/activation": {
         parameters: {
             query?: never;
@@ -3704,30 +3640,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/orgs/{id}/connectors/{connector}/access": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * [org admin] Restrict a connector to a department (principal_type='group', principal_id=<group_id>) or a member (principal_type='user', principal_id=<sub>)
-         * @description [org admin] Restrict a connector to a department (principal_type='group', principal_id=<group_id>) or a member (principal_type='user', principal_id=<sub>). Adding the first principal makes the connector restricted (deny-by-default) for the org.
-         */
-        post: operations["connectors_acl_grant_post"];
-        /**
-         * [org admin] Remove a department/member from a connector's access list
-         * @description [org admin] Remove a department/member from a connector's access list. Removing the last principal reopens the connector to the whole org.
-         */
-        delete: operations["connectors_acl_revoke_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3811,7 +3723,7 @@ export interface paths {
         get?: never;
         /**
          * [org admin] Set your org's KIT as a whole list — the connectors your org installs into its members' toolboxes
-         * @description [org admin] Set your org's KIT as a whole list — the connectors your org installs into its members' toolboxes. Only the DIFFERENCE with the current kit is applied, to current members AND to members who join later: each added connector is installed for every member who doesn't have it (never over a member's own choice — a connector they paused or removed themselves stays that way); a connector taken out of the kit is uninstalled where the kit installed it, and nowhere else. Connectors already in the kit are not replayed. Returns, per changed connector, installed / already_active / paused / removed_by_member / masked_by_access. Members' agents see it at their NEXT conversation. ADDING a connector unknown to the catalog or not available for your org is REFUSED, naming why — nothing is written. A connector already in the kit that your org has since cut stays in it: installed, hidden for everyone, back on its own when reopened (listed in `cut`). connectors = connector names ([] empties the kit).
+         * @description [org admin] Set your org's KIT as a whole list — the connectors your org installs into its members' toolboxes. Only the DIFFERENCE with the current kit is applied, to current members AND to members who join later: each added connector is installed for every member who doesn't have it (never over a member's own choice — a connector they paused or removed themselves stays that way); a connector taken out of the kit is uninstalled where the kit installed it, and nowhere else. Connectors already in the kit are not replayed. Returns, per changed connector, installed / already_active / paused / removed_by_member. Members' agents see it at their NEXT conversation. ADDING a connector unknown to the catalog or not available for your org is REFUSED, naming why — nothing is written. A connector already in the kit that your org has since cut stays in it: installed, hidden for everyone, back on its own when reopened (listed in `cut`). connectors = connector names ([] empties the kit).
          */
         put: operations["connectors_recommend_put"];
         post?: never;
@@ -6435,11 +6347,6 @@ export interface components {
              */
             removed_at: string | null;
             /**
-             * Masked By Access
-             * @default null
-             */
-            masked_by_access: number | null;
-            /**
              * Uninstalled
              * @default null
              */
@@ -6808,55 +6715,6 @@ export interface components {
              * @default null
              */
             download_url: string | null;
-        };
-        /**
-         * GroupAclEntry
-         * @description Une ligne d'ACL d'équipe. Le seul type de principal est le membre — d'où
-         *     `principal_sub` et non le couple (type, id) du grain org (projection
-         *     historique, conservée).
-         */
-        GroupAclEntry: {
-            /** Connector */
-            connector: string;
-            /** Principal Sub */
-            principal_sub: string;
-            /**
-             * Granted By
-             * @default null
-             */
-            granted_by: string | null;
-            /**
-             * Granted At
-             * @default null
-             */
-            granted_at: string | null;
-        };
-        /**
-         * AclEntry
-         * @description Une ligne d'ACL d'org : « ce connecteur est réservé à ce principal ».
-         *     La PRÉSENCE de lignes est ce qui restreint (ADR 0025) — il n'y a pas de ligne
-         *     de refus, donc pas de moyen d'exclure quelqu'un d'un connecteur ouvert.
-         */
-        AclEntry: {
-            /** Connector */
-            connector: string;
-            /**
-             * Principal Type
-             * @enum {string}
-             */
-            principal_type: "group" | "user";
-            /** Principal Id */
-            principal_id: string;
-            /**
-             * Granted By
-             * @default null
-             */
-            granted_by: string | null;
-            /**
-             * Granted At
-             * @default null
-             */
-            granted_at: string | null;
         };
         /**
          * ToolState
@@ -8560,8 +8418,7 @@ export interface components {
          * @description Un connecteur INSTALLÉ dont l'agent ne voit aucun outil, et pourquoi.
          *
          *     `paused` = le membre l'a mis en pause ; `cut` = l'org (ou la plateforme) l'a coupé —
-         *     il revient seul à la réouverture ; `restricted` = une règle d'accès de l'org ou de
-         *     l'équipe active le réserve à d'autres ; `no_tools` = installé mais aucun outil monté
+         *     il revient seul à la réouverture ; `no_tools` = installé mais aucun outil monté
          *     sous ce nom (module non chargé).
          */
         InstalledNotSeen: {
@@ -8583,7 +8440,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "paused" | "cut" | "restricted" | "no_tools";
+            reason: "paused" | "cut" | "no_tools";
         };
         /**
          * SeenConnector
@@ -8635,11 +8492,11 @@ export interface components {
          * ProviderStatus
          * @description L'accès effectif à un connecteur, pour l'acteur et dans l'org active.
          *
-         *     ⚠️ **Trois refus différents, qu'un écran ne doit pas confondre** :
-         *     `mode='forbidden'` = aucune clé ne résout ; `rbac_restricted` = l'accès t'est
-         *     refusé par une règle ; `health_ko` = la clé est là mais elle ne répond plus.
-         *     Les afficher pareil produit le mur « demande à un admin » devant quelqu'un que
-         *     rien ne bloque — le faux diagnostic réparé le 2026-07-16.
+         *     ⚠️ **Deux refus différents, qu'un écran ne doit pas confondre** :
+         *     `mode='forbidden'` = aucune clé ne résout ; `health_ko` = la clé est là mais elle
+         *     ne répond plus. Il n'existe plus de règle qui réserve un connecteur à une partie
+         *     des membres (retirée le 24/09/2026, ADR 0053 D1) : aucun écran ne doit afficher
+         *     « réservé à certaines équipes ».
          */
         ProviderStatus: {
             /**
@@ -8713,24 +8570,6 @@ export interface components {
              * @default null
              */
             pending_action: string | null;
-            /**
-             * Rbac Restricted
-             * @description Une règle d'org ou d'équipe refuse ce connecteur à cet acteur. ⚠️ À ne pas confondre avec `mode='forbidden'`, qui dit seulement qu'aucune clé ne résout : afficher « réservé à certaines équipes » sur une simple absence de clé oppose un mur à quelqu'un que rien ne bloque. ⚠️ Fail-open : un incident de lecture rend `false`, jamais une restriction inventée — une absence de restriction annoncée ne prouve donc pas l'accès. Ce cas-là n'est plus muet : il pose `rbac_restricted_measured: false` juste en dessous.
-             * @default false
-             */
-            rbac_restricted: boolean;
-            /**
-             * Rbac Restricted Measured
-             * @description La règle ci-dessus a-t-elle été LUE ? Absent = oui. `false` = non (hoquet de base sur le palier org ou équipe) : `rbac_restricted` vaut alors `false` par DÉFAUT et non par constat — « on n'a pas su » et « rien ne te restreint » sortiraient sinon du même booléen (oto#42, règle 1). ⚠️ Jamais posé sur une entrée `rbac_restricted: true` : un refus reste établi même si l'autre palier est tombé, l'union des refus ne pouvant que croître.
-             * @default null
-             */
-            rbac_restricted_measured: boolean | null;
-            /**
-             * Rbac Restricted Hint
-             * @description Quel palier n'a pas répondu et quoi en faire, en clair — présent exactement quand `rbac_restricted_measured` est `false`. ⚠️ Il dit aussi que l'accès n'est pas ouvert pour autant : l'enforcement au moment de l'appel (`require_connector_access`) refuse indépendamment de cette fiche.
-             * @default null
-             */
-            rbac_restricted_hint: string | null;
             /**
              * Health Ko
              * @description La clé est posée mais le connecteur ne répond plus (session expirée, jeton révoqué…), constaté par la sonde de vérification et **persistant** jusqu'à une reconnexion ou un test réussi. Absent tant que rien n'a été constaté.
@@ -15195,93 +15034,6 @@ export interface operations {
             };
         };
     };
-    connectors_acl_group_list_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
-                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
-            };
-            path: {
-                /** @description champ `group_id` de la requête */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Group Id */
-                        group_id: number;
-                        /** Access */
-                        access: components["schemas"]["GroupAclEntry"][];
-                        /** Restricted */
-                        restricted: string[];
-                    };
-                };
-            };
-            /** @description `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_org_mismatch";
-                    };
-                };
-            };
-            /** @description jeton absent ou invalide */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_not_found";
-                    };
-                };
-            };
-            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_closed";
-                    };
-                };
-            };
-        };
-    };
     connectors_activation_group_list_get: {
         parameters: {
             query?: never;
@@ -15308,199 +15060,6 @@ export interface operations {
                         group_id: number;
                         /** Connectors */
                         connectors: components["schemas"]["GroupActivationRow"][];
-                    };
-                };
-            };
-            /** @description `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_org_mismatch";
-                    };
-                };
-            };
-            /** @description jeton absent ou invalide */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_not_found";
-                    };
-                };
-            };
-            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_closed";
-                    };
-                };
-            };
-        };
-    };
-    connectors_acl_group_grant_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
-                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
-            };
-            path: {
-                /** @description champ `group_id` de la requête */
-                id: number;
-                connector: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Member */
-                    member: string;
-                };
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Ok */
-                        ok: boolean;
-                        /** Group Id */
-                        group_id: number;
-                        /** Connector */
-                        connector: string;
-                        /** Member */
-                        member: string;
-                        /** Restricted */
-                        restricted: boolean;
-                    };
-                };
-            };
-            /** @description `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_org_mismatch";
-                    };
-                };
-            };
-            /** @description jeton absent ou invalide */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_not_found";
-                    };
-                };
-            };
-            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_closed";
-                    };
-                };
-            };
-        };
-    };
-    connectors_acl_group_revoke_delete: {
-        parameters: {
-            query: {
-                member: string;
-            };
-            header?: {
-                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
-                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
-            };
-            path: {
-                /** @description champ `group_id` de la requête */
-                id: number;
-                connector: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Ok */
-                        ok: boolean;
-                        /** Group Id */
-                        group_id: number;
-                        /** Connector */
-                        connector: string;
-                        /** Member */
-                        member: string;
-                        /** Restricted */
-                        restricted: boolean;
                     };
                 };
             };
@@ -21557,7 +21116,7 @@ export interface operations {
                     "application/json": components["schemas"]["Erreur"];
                 };
             };
-            /** @description refus d'autorisation (ou hors portée du jeton) ; `connector_restricted` — une règle d'org ou d'équipe interdit ce connecteur à cet acteur */
+            /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -31289,93 +30848,6 @@ export interface operations {
             };
         };
     };
-    connectors_acl_list_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
-                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
-            };
-            path: {
-                /** @description champ `org_id` de la requête */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Org Id */
-                        org_id: number;
-                        /** Access */
-                        access: components["schemas"]["AclEntry"][];
-                        /** Restricted */
-                        restricted: string[];
-                    };
-                };
-            };
-            /** @description `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_org_mismatch";
-                    };
-                };
-            };
-            /** @description jeton absent ou invalide */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_not_found";
-                    };
-                };
-            };
-            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_closed";
-                    };
-                };
-            };
-        };
-    };
     connectors_activation_org_list_get: {
         parameters: {
             query?: never;
@@ -31402,215 +30874,6 @@ export interface operations {
                         org_id: number;
                         /** Connectors */
                         connectors: components["schemas"]["OrgActivationRow"][];
-                    };
-                };
-            };
-            /** @description `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_org_mismatch";
-                    };
-                };
-            };
-            /** @description jeton absent ou invalide */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_not_found";
-                    };
-                };
-            };
-            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_closed";
-                    };
-                };
-            };
-        };
-    };
-    connectors_acl_grant_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
-                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
-            };
-            path: {
-                /** @description champ `org_id` de la requête */
-                id: number;
-                connector: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /**
-                     * Principal Type
-                     * @enum {string}
-                     */
-                    principal_type: "group" | "user";
-                    /** Principal Id */
-                    principal_id: string;
-                };
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Ok */
-                        ok: boolean;
-                        /** Org Id */
-                        org_id: number;
-                        /** Connector */
-                        connector: string;
-                        /**
-                         * Principal Type
-                         * @enum {string}
-                         */
-                        principal_type: "group" | "user";
-                        /** Principal Id */
-                        principal_id: string;
-                        /** Restricted */
-                        restricted: boolean;
-                    };
-                };
-            };
-            /** @description `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_org_mismatch";
-                    };
-                };
-            };
-            /** @description jeton absent ou invalide */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"];
-                };
-            };
-            /** @description `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_not_found";
-                    };
-                };
-            };
-            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Erreur"] & {
-                        /** @enum {unknown} */
-                        error?: "run_closed";
-                    };
-                };
-            };
-        };
-    };
-    connectors_acl_revoke_delete: {
-        parameters: {
-            query: {
-                principal_type: "group" | "user";
-                principal_id: string;
-            };
-            header?: {
-                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
-                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
-            };
-            path: {
-                /** @description champ `org_id` de la requête */
-                id: number;
-                connector: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Ok */
-                        ok: boolean;
-                        /** Org Id */
-                        org_id: number;
-                        /** Connector */
-                        connector: string;
-                        /**
-                         * Principal Type
-                         * @enum {string}
-                         */
-                        principal_type: "group" | "user";
-                        /** Principal Id */
-                        principal_id: string;
-                        /** Restricted */
-                        restricted: boolean;
                     };
                 };
             };
@@ -36569,7 +35832,7 @@ export interface operations {
                     "application/json": components["schemas"]["Erreur"];
                 };
             };
-            /** @description refus d'autorisation (ou hors portée du jeton) ; `connector_restricted` — une règle d'org ou d'équipe interdit ce connecteur à cet acteur */
+            /** @description refus d'autorisation (ou hors portée du jeton) */
             403: {
                 headers: {
                     [name: string]: unknown;

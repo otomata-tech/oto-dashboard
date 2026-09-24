@@ -260,10 +260,6 @@ export interface ConnectorActivation {
 // les membres (override > master > OFF) ; recommended = baseline default_connectors.
 export type OrgConnectorActivation = components['schemas']['OrgActivationRow']
 
-// RBAC connecteur interne à l'org (ADR 0025) : une entrée = un principal (département
-// ou membre) autorisé sur un connecteur. ≥1 entrée pour un connecteur ⟹ il est réservé.
-export type ConnectorAclEntry = components['schemas']['AclEntry']
-
 // Miroir de access.py::status_for (cascade user > group > org > tenant > platform).
 // ⚠️ ÉCRIT À LA MAIN — `/api/me` est bien dans le document servi, mais son champ
 // `providers` y est déclaré `additionalProperties: true` (dict ouvert, aucune forme) :
@@ -304,14 +300,6 @@ export interface ProviderStatus {
   // effacé quand il repasse. `health_reason` = message provider nettoyé.
   health_ko?: boolean | null
   health_reason?: string | null
-  // L'accès à ce connecteur t'est-il RÉELLEMENT refusé (RBAC ADR 0025/0012 B2) ?
-  // ⚠️ À ne PAS confondre avec `mode: 'forbidden'`, qui dit seulement « aucune clé ne
-  // résout » — l'état par défaut de tout connecteur pas encore connecté. L'écran a
-  // longtemps déduit « Réservé à certaines équipes — demande à un admin » du second,
-  // et affichait donc un mur à qui n'était pas bloqué, jusqu'à un org_admin devant le
-  // connecteur de sa propre org. Optionnel : un backend antérieur ne le renvoie pas,
-  // et son absence vaut « pas de restriction annoncée ».
-  rbac_restricted?: boolean
 }
 
 // Langue de l'UI (i18n EN/FR). Défini ici pour que `lib/i18n.ts` l'importe sans
@@ -1187,11 +1175,6 @@ export interface GroupDetail {
 // ET pas coupé par l'équipe. Restauré (oto#192 avait retiré l'alias front — le schéma
 // backend, lui, n'a jamais bougé, la route reste servie).
 export type GroupConnectorActivation = components['schemas']['GroupActivationRow']
-
-// ACL connecteur au grain ÉQUIPE (ADR 0012 B2, restrict-only) : réserver un connecteur
-// à des MEMBRES de l'équipe. Intersection avec l'ACL d'org (narrowing pur). Restauré
-// (même raison que ci-dessus).
-export type GroupAclEntry = components['schemas']['GroupAclEntry']
 
 // ── admin ──
 export interface AdminGrant {

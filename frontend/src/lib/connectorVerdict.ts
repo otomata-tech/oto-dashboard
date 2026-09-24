@@ -114,20 +114,9 @@ export function connectorVerdict(
           phrase: `Une clé existe dans l’équipe ${ps.team_key_group.name} — active cette équipe, ou pose la tienne : elle passera avant.`,
         }
       }
-      // ⚠️ « Réservé » se dit sur la RESTRICTION RÉELLE (`rbac_restricted`), jamais
-      // sur `forbidden` — qui veut seulement dire « aucune clé ne résout », l'état
-      // par défaut de tout connecteur pas encore connecté. Déduit de `forbidden`,
-      // ce mur s'affichait à qui n'était pas bloqué : un org_admin devant le
-      // connecteur de SA propre org lisait « demande à un admin ». Faux diagnostic
-      // repéré le 2026-07-16, corrigé le 2026-08-28 quand le serveur a enfin su
-      // dire la différence.
-      if (ps?.rbac_restricted) {
-        return {
-          ...base, dot: 'saffron', hint: true,
-          list: 'Réservé',
-          phrase: 'Réservé à certaines équipes — demande à un admin.',
-        }
-      }
+      // Pas de mur « Réservé » : aucune règle ne réserve plus un connecteur à une
+      // partie des membres (retirée le 24/09/2026, ADR 0053 D1). `forbidden` dit
+      // seulement « aucune clé ne résout » → on retombe sur « À connecter ».
     }
     // Pas de clé du tout.
     return {

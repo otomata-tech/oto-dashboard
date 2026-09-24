@@ -49,13 +49,17 @@ raconte, elle ne décrit plus.
 > adaptateur porte des **leviers OPTIONNELS** (availability variants master/binary/exposure3/
 > readonly · credential single/multi · access · redaction+email [org] · connection+tools+lenses
 > [user]) — un levier absent ⇒ colonne/onglet omis (jamais inerte). Panneaux de drawer :
-> `Connector{Availability,Credential,Access,Connection,Tools,About}Panel`. Les widgets de
+> `Connector{Availability,Credential,Connection,Tools,About}Panel` (+ `ConnectorPlatformAccessPanel`). Les widgets de
 > connexion (`ConnectorOAuthAccounts`/`SessionWidget`/`HostedWidget`/`FederatedWidget`) sont
 > **réutilisés verbatim** dans `ConnectorConnectionPanel`. Chaque scope garde un wrapper mince
 > (`AdminConnectorsView`/`OrgConnectorsView`/`TeamConnectorsView` + le panneau `mine` du hub)
 > qui fournit `.content-inner` + ses cartes header/footer propres. **SUPPRIMÉS** : `ConnectorsView`,
 > `ConnectorDrawer`, `GroupConnectorsCard`, `ConnectorAdminCard`, `OrgConnectorDrawer`. Nouveau
-> pouvoir **team** (gouvernance d'équipe restrict-only) : dispo + accès, cf. oto-backend B1/B2.
+> pouvoir **team** (gouvernance d'équipe restrict-only) : dispo + clé d'équipe, cf. oto-backend B1.
+> **Levier « accès » retiré (24/09/2026)** : réserver un connecteur à une partie des membres
+> (org ou équipe) n'existe plus — ADR 0053 D1 : on place la clé au bon niveau (clé perso vs
+> clé d'org). Onglet, colonne, panneau `ConnectorAccessPanel` et routes `…/connectors/acl`,
+> `…/connectors/{p}/access` supprimés.
 > La prose historique ci-dessous reste utile pour le VOCABULAIRE (3 projections, cascade, 3 états)
 > mais les noms de composants (`ConnectorCard`, `ConnectorsView`…) ne valent plus.
 > **Lot 2 (17/07, PROD)** : présentation **verdict-first** — liste = colonne « État » en langage
@@ -112,17 +116,14 @@ cliente par client, issue otomata-private#31) : la cible courante vient de
 `me.providers[name].identity_label` (zéro coût), le **listing** (`getConnectorIdentities`)
 loue une session Browserbase (~10 s) → chargé au clic seulement ; choix via
 `setConnectorIdentity`.
-### Le verdict ne dit « Réservé » que si ça l'est
+### Le verdict ne dit jamais « Réservé »
 
 ⚠️ **`mode: 'forbidden'` veut dire « aucune clé ne résout », PAS « accès refusé ».** C'est
-l'état par défaut de tout connecteur BYO pas encore connecté. Le verdict en déduisait
-« Réservé à certaines équipes — demande à un admin » : un mur affiché à qui n'était bloqué
-par rien. La restriction réelle se lit sur **`ProviderStatus.rbac_restricted`** (servi
-depuis le 2026-08-28), qui suit le même seam que l'enforcement au call-time — donc les
-mêmes escalades : super_admin, admin d'org et chef d'équipe ne sont jamais refusés.
-
-Absent (backend antérieur) ⇒ **rien n'est annoncé**, jamais un mur. Côté serveur le calcul
-est fail-open par palier : un hoquet de base n'invente pas une restriction.
+l'état par défaut de tout connecteur BYO pas encore connecté → « À connecter ». Le verdict
+en a longtemps déduit « Réservé à certaines équipes — demande à un admin » : un mur affiché
+à qui n'était bloqué par rien. Depuis le 24/09/2026, il n'existe plus de règle qui réserve
+un connecteur à une partie des membres (ADR 0053 D1) : `ProviderStatus.rbac_restricted` a
+disparu du contrat, et le verdict « Réservé » avec lui.
 
 **Ce que ça a coûté** : repéré le 2026-07-16 sur un Zoho simplement pas connecté, resté
 tel quel faute de signal pour le corriger, puis vécu en clientèle — un responsable ne
@@ -586,7 +587,6 @@ exposition (« installé, mais ton agent ne le voit pas — … ») ; copy dans
 | `reason` | ce que lit le membre |
 |---|---|
 | `cut` | coupé pour ton organisation (solo : coupé) ; il reviendra seul à sa réouverture |
-| `restricted` | réservé à certaines équipes — demande à un admin (reprise du verdict « Réservé ») |
 | `no_tools` | aucun outil chargé |
 | `paused` | rien d'ajouté : le verdict dit déjà « En veille — outils masqués de tes agents » |
 

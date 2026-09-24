@@ -110,16 +110,10 @@ const needsKey = computed(() => connKind.value === 'key')
 const docRefCount = computed(() => c.value.doctrine_ref_count ?? 0)
 
 // Verdict « état pour toi » (ADR 0044) — ET-logique des 3 couches.
-// ⚠️ `mode='forbidden'` ≠ RBAC : côté backend c'est « aucune clé ne résout », l'état
-// par défaut de tout connecteur BYO pas encore connecté. La restriction RÉELLE se lit
-// sur `ProviderStatus.rbac_restricted`, servi depuis le 2026-08-28 — avant, le verdict
-// la déduisait de `forbidden` et affichait « Réservé à certaines équipes — demande à
-// un admin » à qui n'était bloqué par rien. Le raisonnement de repli qui vivait ici
-// (« un connecteur restreint est filtré du catalogue, donc le voir prouve qu'on y a
-// droit ») était juste pour un membre et FAUX pour un opérateur plateforme, qui voit
-// tout — et il n'empêchait pas le verdict de mentir. Constaté le 2026-07-16 sur un
-// Zoho simplement pas connecté, puis en clientèle sur un admin d'org devant SA propre
-// org (oto-dashboard#126).
+// ⚠️ `mode='forbidden'` dit seulement « aucune clé ne résout », l'état par défaut de
+// tout connecteur BYO pas encore connecté — jamais « réservé ». Réserver un connecteur à
+// une partie des membres n'existe plus (24/09/2026, ADR 0053 D1) : on place la clé au
+// bon niveau (clé perso vs clé d'org).
 // La phrase « une clé existe dans ton équipe » vivait ici EN DOUBLE du verdict, mot
 // pour mot : deux fois la même consigne dans le même bloc, et aucune des deux ne
 // disait qu'on pouvait poser la sienne. Elle n'est plus écrite qu'au verdict.

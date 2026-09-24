@@ -27,7 +27,7 @@ comptait aussi l'`admin` plateforme, que chaque op d'admin d'org refuse en 403 :
 |---|---|---|---|
 | menu d'org (`orgAdmin`) : membres, paramètres, sécurité, connecteurs, équipes ; « Gérer mon org » | voir l'écran | lectures `ORG_MEMBER_OF` — en consultation, `effective_org_role` le tient pour membre | les lit : **non restreint** (`seesOrgAdministration`) |
 | menu d'org : supervision (`orgAdminReads`) | voir l'écran | lectures `ORG_ADMIN_OF`, même en consultation | refusé : entrée retirée |
-| `/org/connectors` (`useOrgAdapter`) : disponibilité, clé d'org, accès réservé, autoriser au scope org | gestes | `ORG_ADMIN_OF` ; `is_org_admin` dans le corps pour l'autorisation qui lit le scope | refusé : gestes retirés |
+| `/org/connectors` (`useOrgAdapter`) : disponibilité, clé d'org, autoriser au scope org | gestes | `ORG_ADMIN_OF` ; `is_org_admin` dans le corps pour l'autorisation qui lit le scope | refusé : gestes retirés |
 | `/org/teams` (`GroupsView`) : créer, renommer, supprimer | gestes | `ORG_ADMIN_OF` ; `GROUP_ADMIN_OF` | refusé : gestes retirés |
 | `/org/teams/:id` (`TeamDetailView`) : membres (add/role/remove) | gestes | `GROUP_ADMIN_OF` (lecture : `GROUP_MEMBER_OF`) | refusé : gestes retirés (lecture ouverte) |
 | campagnes (`runnerGestes.droits`) : armer, relancer | gestes | `is_org_admin` dans le corps → `403 org_admin_required` | déjà refusé (oto#205), s'appuie sur `isOrgAdmin` |
@@ -71,7 +71,7 @@ L'écran omet ses gestes, jamais grisés, et ne la répète pas ; ses lectures r
 | `/org/settings` | modifier, déposer ou retirer le logo, supprimer | `PATCH /api/orgs/{id}`, `POST`/`DELETE …/logo`, `DELETE /api/orgs/{id}` | `canAdminister` |
 | `/org/settings` | quitter | `DELETE /api/me/orgs/{id}/membership` | `canWrite` ; sans geste, la « zone danger » disparaît |
 | `/org/security` | activer ou désactiver le MFA | `PUT /api/orgs/{id}/mfa` | `canAdminister` |
-| `/org/connectors` | disponibilité, clé d'org, autoriser, accès réservé | `PUT`/`DELETE …/connectors/{p}/activation`, `PUT`/`DELETE …/secrets/{p}`, `POST /api/me/connectors/{p}/connect`, `POST`/`DELETE …/connectors/{p}/access` | `canAdministerOrg` (`useOrgAdapter`) |
+| `/org/connectors` | disponibilité, clé d'org, autoriser | `PUT`/`DELETE …/connectors/{p}/activation`, `PUT`/`DELETE …/secrets/{p}`, `POST /api/me/connectors/{p}/connect` | `canAdministerOrg` (`useOrgAdapter`) |
 | `/org/connectors` | tester | `POST /api/me/connectors/{p}/verify`, sans `op` | `canWriteInOrg` (`canVerify` du levier) |
 | `/org/connectors` | annuler un envoi programmé | `DELETE /api/orgs/{id}/scheduled-emails/{eid}` (`ORG_MEMBER_OF`) | `canWriteInOrg` |
 | `/org/teams` | new, edit, delete | `POST /api/orgs/{id}/groups`, `PATCH`/`DELETE /api/groups/{id}` | `canAdministerOrg` |
@@ -161,7 +161,8 @@ Liste des équipes d'une org : `/org/teams` (`GroupsView.vue`) — lister, crée
 > 12/09 ratait au moins ce cas. Restaurés, périmètre resserré à ce SEUL panneau :
 > `useTeamAdapter`, `useTeamScope`, `TeamScopeHeader`, `TeamConnectorsView`, les fonctions
 > `api/console.ts` de connecteur/secret d'équipe (`setGroupSecret`, `getGroupConnectorActivation`,
-> `getGroupConnectorAcl`, etc.), les types `GroupConnectorActivation`/`GroupAclEntry`. Route
+> etc.), le type `GroupConnectorActivation` (l'accès réservé à des membres, `getGroupConnectorAcl`
+> et `GroupAclEntry`, a disparu le 24/09/2026 avec la restriction « vers le bas », ADR 0053 D1). Route
 > de détail minimale et NOUVELLE (pas l'ancienne `/team/connectors`) :
 > `/org/teams/:groupId/connectors`, atteinte par un bouton « Connectors » sur `GroupsView`
 > (visible org_admin ou chef de CETTE équipe). Niveau nav `'team'` réintroduit

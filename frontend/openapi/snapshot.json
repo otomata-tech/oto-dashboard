@@ -1,11 +1,12 @@
 {
   "source": "https://mcp.oto.cx/api/openapi.json",
   "fetched_at": "2026-09-24T09:02:42.216Z",
-  "sha256": "8bbcd2717ea190d4d028fd0e6fa8475cf212e663dd9d0769ec47a48b02d0ccb5",
+  "sha256": "7f8054fcb6f968ccf2a2c873e798a2d0e16c9db20a456442710d02474ae79195",
   "coverage": {
-    "operations": 289,
-    "withResponse": 220,
+    "operations": 283,
+    "withResponse": 214,
     "legacy": 32,
-    "schemas": 143
-  }
+    "schemas": 141
+  },
+  "delta": "retrait de la restriction d'accès aux connecteurs, oto-backend 1e7b4da4 (delta openapi.build() parent d913d7ec → 1e7b4da4, reporté sur le snapshot de prod)"
 }

@@ -81,7 +81,7 @@ consultée (en-tête `X-Oto-Org`). Dérivation pure : `lib/agentToolbox.ts` (`to
   personne a masqués elle-même (préférence `enabled: false`), marqués « masqué par toi ».
   Le geste masquer / afficher a quitté le dashboard (oto#192, 12/09/2026 : aucun usage
   depuis le 06/08) : la liste se lit ici, elle ne s'y règle plus. Les autres outils du catalogue ne sont **pas** listés : leur connecteur
-  n'est pas installé, est en veille, coupé ou réservé, et aucun bouton ici ne les ferait
+  n'est pas installé, est en veille ou coupé, et aucun bouton ici ne les ferait
   voir. Avant, la liste groupait `GET /api/me/tools` (tout le catalogue + préférences) et
   comptait « visible » tout outil non masqué — des outils que l'agent n'avait pas.
 - **Compteurs** : `tools.length`, jamais `tools_total` (outils MONTÉS, visibles ou non).

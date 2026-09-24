@@ -99,16 +99,6 @@ export interface ConnectCta<R> {
   start(r: R): Promise<void>
 }
 
-// Accès (RBAC connecteur, ADR 0025 — org : réserver à des principals).
-export interface AclPrincipal { type: string; id: string; label: string }
-export interface AccessLever<R> {
-  restricted(r: R): boolean
-  principals(r: R): AclPrincipal[]
-  canEdit(r: R): boolean
-  add(r: R): void
-  remove(r: R, type: string, id: string): void
-}
-
 // Accès PLATEFORME (ADR 0044 §H, scope plateforme) : « qui, au niveau plateforme, a
 // droit à ce connecteur » = grant de clé (couche 2) ∪ option comp (couche 3), en un acte.
 // Le panneau est autonome (fetch/grant/revoke via l'API) ; le levier ne porte que le
@@ -187,7 +177,6 @@ export interface ConnectorScopeAdapter<R = unknown> {
   // leviers (absents ⇒ colonne/onglet non rendu)
   availability?: AvailabilityLever<R>
   credential?: CredentialLever<R>
-  access?: AccessLever<R>
   platformAccess?: PlatformAccessLever<R>
   redaction?: RedactionLever<R>
   connection?: ConnectionLever<R>

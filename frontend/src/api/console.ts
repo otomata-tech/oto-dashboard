@@ -3,13 +3,13 @@
 import { api, apiDownload, apiUpload, apiPublic } from '@/api'
 import type {
   ApiTokenCreated,
-  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AgentToolbox, AccountProfile, InitGuide, InitScope, ApiToken, ConnectorAclEntry, ConnectorActivation, ConnectorInstance, ConnectorMeta, CredentialState, MyConnector, SearchHit,
+  AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AgentToolbox, AccountProfile, InitGuide, InitScope, ApiToken, ConnectorActivation, ConnectorInstance, ConnectorMeta, CredentialState, MyConnector, SearchHit,
   BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
   BillingIdentityView, BillingIdentityInput, BillingConfirmResult, BillingInvoice, LegalStatus,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, ProjectActivity, ProjectRun,
   SharedDoc, SharedDocScope,
   DoctrineBundle, Guide, GuideById, GuideScope,
-  GoogleOauthStatus, GroupAclEntry, GroupConnectorActivation, GroupDetail, GroupListItem, GroupRole, InstructionDetail,
+  GoogleOauthStatus, GroupConnectorActivation, GroupDetail, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LinkedProcedure, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption,
   ColumnFilter, DatastoreRow, DatastoreEntry, SharedDatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, RewritableRow, SharePrincipal, ToolCall, ToolEntry,
@@ -927,15 +927,6 @@ export const setOrgConnectorActivation = (id: number, name: string, enabled: boo
 export const clearOrgConnectorActivation = (id: number, name: string) =>
   api<{ org_id: number; connector: string; cleared: boolean }>(
     `/api/orgs/${id}/connectors/${encodeURIComponent(name)}/activation`, { method: 'DELETE' })
-// RBAC connecteur interne à l'org (ADR 0025) : réserver un connecteur à des départements/membres.
-export const getConnectorAcl = (id: number) =>
-  api<{ org_id: number; access: ConnectorAclEntry[]; restricted: string[] }>(`/api/orgs/${id}/connectors/acl`)
-export const setConnectorAccess = (id: number, connector: string, principal_type: string, principal_id: string) =>
-  api(`/api/orgs/${id}/connectors/${encodeURIComponent(connector)}/access`,
-    { method: 'POST', ...j({ principal_type, principal_id }) })
-export const clearConnectorAccess = (id: number, connector: string, principal_type: string, principal_id: string) =>
-  api(`/api/orgs/${id}/connectors/${encodeURIComponent(connector)}/access?principal_type=${principal_type}&principal_id=${encodeURIComponent(principal_id)}`,
-    { method: 'DELETE' })
 // Recommandation d'org (« org propose ») — baseline consultative de connecteurs.
 export const setOrgConnectors = (id: number, connectors: string[]) =>
   api<{ org_id: number; recommended: string[] }>(
@@ -1040,14 +1031,6 @@ export const setGroupConnectorActivation = (id: number, name: string, enabled: b
   api(`/api/groups/${id}/connectors/${name}/activation`, { method: 'PUT', ...j({ enabled }) })
 export const clearGroupConnectorActivation = (id: number, name: string) =>
   api(`/api/groups/${id}/connectors/${name}/activation`, { method: 'DELETE' })
-// ACL connecteur au grain équipe (ADR 0012 B2, restrict-only) : réserver un connecteur
-// à des membres de l'équipe (narrowing de l'ACL d'org).
-export const getGroupConnectorAcl = (id: number) =>
-  api<{ group_id: number; access: GroupAclEntry[]; restricted: string[] }>(`/api/groups/${id}/connectors/acl`)
-export const setGroupConnectorAccess = (id: number, connector: string, member: string) =>
-  api(`/api/groups/${id}/connectors/${connector}/access`, { method: 'POST', ...j({ member }) })
-export const clearGroupConnectorAccess = (id: number, connector: string, member: string) =>
-  api(`/api/groups/${id}/connectors/${connector}/access?member=${encodeURIComponent(member)}`, { method: 'DELETE' })
 // doctrine & skills du groupe (lecture = membre, écriture = chef)
 export const getGroupInstructionVersions = (id: number, slug: string) =>
   api<{ slug: string; versions: InstructionVersion[] }>(`/api/groups/${id}/instructions/${slug}/versions`)
