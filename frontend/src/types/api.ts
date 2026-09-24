@@ -698,6 +698,7 @@ export interface Doc {
   created_at?: string | null
   updated_at?: string | null
   rev?: string | null            // ETag servi par `op=get` et les reçus d'écriture (`expected_rev`)
+  updated_by?: string | null     // compte de la dernière modification (oto#274) — un identifiant, à résoudre en nom
 }
 // Une page partagée SEULE, reçue (`oto_doc op=shared_with_me`, oto-backend #1084). Elle
 // NOMME la page, sans son corps (qui se lit par `getDoc`). `url` vaut null quand le lecteur

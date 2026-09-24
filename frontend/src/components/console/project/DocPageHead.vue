@@ -3,12 +3,16 @@
 // projet puis les pages parentes, cliquables), le titre — modifiable en place quand on
 // peut écrire —, puis la date de dernière modification et l'état de l'enregistrement.
 //
-// « par qui » manque : une page ne sert pas son dernier auteur (oto#274). On n'invente pas
-// de nom à partir de l'historique, qui dit qui a écrit la version d'AVANT.
+// « par qui » : `updated_by`, servi depuis oto#274 — un identifiant de compte, affiché
+// « toi » si c'est le lecteur, sinon par `accountLabel` (nom, adresse, identifiant). Absent
+// (page déplacée depuis, écrivain inconnu) : la date seule, jamais un nom deviné.
 import { computed, nextTick, ref } from 'vue'
 import type { Doc } from '@/types/api'
 import { fmtDay } from '@/types/api'
 import type { SaveStatus } from '@/composables/useDocAutosave'
+import { useMe } from '@/composables/useMe'
+import { useOrgMembers } from '@/composables/useOrgMembers'
+import { accountLabel } from '@/lib/accountLabel'
 
 const props = defineProps<{
   projectName: string
@@ -33,6 +37,14 @@ const trail = computed(() => {
     p = d.parent_id
   }
   return out
+})
+
+const { me } = useMe()
+const members = useOrgMembers()
+const author = computed(() => {
+  const sub = props.doc.updated_by
+  if (!sub) return null
+  return sub === me.value?.sub ? 'toi' : accountLabel(sub, members.value)
 })
 
 const STATUS: Record<SaveStatus, string> = {
@@ -76,7 +88,7 @@ function commit() {
     </div>
     <div v-if="doc.description" class="dph__eb">{{ doc.description }}</div>
     <div class="dph__meta">
-      <span v-if="doc.updated_at">modifié le {{ fmtDay(doc.updated_at) }}</span>
+      <span v-if="doc.updated_at">modifié le {{ fmtDay(doc.updated_at) }}<template v-if="author"> par {{ author }}</template></span>
       <span v-if="status && STATUS[status]" class="dph__st" :class="`dph__st--${status}`">
         · {{ STATUS[status] }}<template v-if="status === 'error' && error"> — {{ error }}</template>
       </span>

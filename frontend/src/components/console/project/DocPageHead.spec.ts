@@ -2,6 +2,15 @@
 // place seulement quand on peut écrire, et le levier du conflit dans sa phrase.
 import { describe, expect, it } from 'vitest'
 import { createApp, h, nextTick } from 'vue'
+import { vi } from 'vitest'
+import { ref } from 'vue'
+
+const me = ref<{ sub: string; active_org: number } | null>({ sub: 'moi', active_org: 2 })
+vi.mock('@/composables/useMe', () => ({ useMe: () => ({ me }) }))
+vi.mock('@/composables/useOrgMembers', () => ({
+  useOrgMembers: () => ref([{ sub: 'u-cel', name: 'Céleste', email: 'c@x.fr' }]),
+}))
+
 import DocPageHead from './DocPageHead.vue'
 import type { Doc } from '@/types/api'
 
@@ -56,5 +65,17 @@ describe('DocPageHead', () => {
     ;[...m.host.querySelectorAll('button')].find((b) => b.textContent?.includes('recharge'))!.click()
     expect(m.events['reload']).toEqual([])
     m.cleanup()
+  })
+  it('dit qui a modifié en dernier : « toi », sinon le nom, jamais l’identifiant quand le nom est connu', () => {
+    const a = monter({ projectName: 'P', doc: { ...docs[2], updated_by: 'moi' }, docs })
+    expect(a.host.textContent).toContain('par toi')
+    a.cleanup()
+    const b = monter({ projectName: 'P', doc: { ...docs[2], updated_by: 'u-cel' }, docs })
+    expect(b.host.textContent).toContain('par Céleste')
+    expect(b.host.textContent).not.toContain('u-cel')
+    b.cleanup()
+    const c = monter({ projectName: 'P', doc: { ...docs[2], updated_by: null }, docs })
+    expect(c.host.textContent).not.toContain(' par ')
+    c.cleanup()
   })
 })

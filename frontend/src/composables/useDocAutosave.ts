@@ -7,17 +7,17 @@
 //    et on NE réécrit PAS par-dessus — l'écran le dit, et propose de recharger ;
 //  - jamais plus d'une écriture à la fois ; une frappe pendant l'envoi repart après.
 //
-// ⚠️ Pourquoi 4 s et pas 1 s comme chez JB : chaque écriture crée une VERSION dans
-// l'historique, réindexe la page et recalcule ses rétroliens (oto-backend `update_doc`).
-// Tant que le backend ne regroupe pas les versions d'un même auteur (oto#274), écrire à
-// chaque seconde noierait l'historique.
+// Délai : 1,5 s d'inactivité. Il était de 4 s tant que chaque écriture créait une VERSION
+// dans l'historique ; depuis oto#274 (backend v1.344.0), les écritures d'un même compte par
+// cette face, à moins de 5 min de la précédente, ne font qu'une version. Chaque écriture
+// réindexe encore la page et recalcule ses rétroliens : ne pas descendre plus bas sans raison.
 import { computed, ref, shallowRef, watch, type Ref } from 'vue'
 import { getDoc, updateDoc } from '@/api/console'
 import { ApiError } from '@/api'
 import { humanize } from '@/lib/errors'
 import type { Doc, DocKind } from '@/types/api'
 
-export const IDLE_MS = 4000
+export const IDLE_MS = 1500
 
 export interface DocDraft { title: string; body_md: string; kind: DocKind; description: string }
 export type SaveStatus = 'idle' | 'pending' | 'saving' | 'saved' | 'error' | 'conflict'
