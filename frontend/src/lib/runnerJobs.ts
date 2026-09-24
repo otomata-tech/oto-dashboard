@@ -77,6 +77,8 @@ export type Ton = 'olive' | 'saffron' | 'terra' | 'cobalt' | 'ink'
 
 const STATUTS_TRAVAIL: Record<string, Ton> = {
   pending: 'saffron', claimed: 'cobalt', done: 'olive', failed: 'terra',
+  // Retenu par la pause de sa programmation webhook : il partira quand on la rallume.
+  held: 'ink',
   abandoned: 'terra',
   // ⚠️ `expired` n'est pas `failed` : personne n'est venu le prendre, il n'a jamais
   // tourné. Le peindre en échec enverrait chercher une erreur d'exécution qui

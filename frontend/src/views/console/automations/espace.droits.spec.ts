@@ -17,6 +17,7 @@ const api = vi.hoisted(() => ({
   launchRunnerFleet: vi.fn(), stopRunnerFleet: vi.fn(), listRunnerJobs: vi.fn(), getRunnerJob: vi.fn(),
   listRunnerTriggers: vi.fn(), getRunnerTrigger: vi.fn(), updateRunnerTrigger: vi.fn(),
   deleteRunnerTrigger: vi.fn(), getConnectorInstances: vi.fn(), getRunThread: vi.fn(), getNamespaceQueue: vi.fn(),
+  listRunnerDeliveries: vi.fn(),
 }))
 vi.mock('@/api/console', () => api)
 const me = vi.hoisted(() => ({ value: null as Record<string, unknown> | null }))

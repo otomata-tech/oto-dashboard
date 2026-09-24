@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // /automations/executions — le suivi TRANSVERSE des exécutions de l'org (oto#214) : la file
-// servie, paginée par curseur, sous les seuls filtres SERVIS — source, statut, campagne.
+// servie, paginée par curseur, sous les seuls filtres SERVIS — source, statut, campagne,
+// programmation (`?schedule=`, le lien « voir dans le suivi » d'une programmation).
 // Filtres et lignes déroulées vivent dans l'URL : retour navigateur et rechargement
 // retrouvent la même lecture, et un filtre inconnu se dit ignoré. Aucun filtre n'est
 // reconstruit côté client ; le serveur ne sert pas de filtre de date.
@@ -15,10 +16,10 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import OtoSelect from '@/components/console/OtoSelect.vue'
 import RunnerJobList from '@/components/console/automations/RunnerJobList.vue'
 import { ApiError } from '@/api'
-import { listRunnerFleets, type RunnerFleet } from '@/api/console'
+import { listRunnerFleets, listRunnerTriggers, type RunnerFleet, type RunnerTrigger } from '@/api/console'
 import { useAffichesUrl } from '@/composables/useAffichesUrl'
 import {
-  filtresExecutions, queryAvecFiltre, SOURCES_EXECUTION, STATUTS_EXECUTION, type ChampFiltre,
+  filtresExecutions, nomProgrammation, queryAvecFiltre, SOURCES_EXECUTION, STATUTS_EXECUTION, type ChampFiltre,
 } from '@/lib/automationsEspace'
 import { humanize } from '@/lib/errors'
 import { nomCampagne } from '@/lib/runnerFleets'
@@ -47,6 +48,18 @@ async function lireCampagnes() {
 }
 onMounted(lireCampagnes)
 
+// Les programmations nomment les options de leur filtre (`runner.triggers`, ouvert à tout
+// membre). Une lecture refusée retire le filtre de la liste, jamais celui de l'URL.
+const programmations = ref<RunnerTrigger[]>([])
+const programmationsErreur = ref<string | null>(null)
+onMounted(async () => {
+  try {
+    programmations.value = (await listRunnerTriggers()).triggers
+  } catch (e) {
+    programmationsErreur.value = humanize(e)
+  }
+})
+
 type Option = { value: string; label: string }
 const optSources = computed<Option[]>(() =>
   SOURCES_EXECUTION.map((s) => ({ value: s, label: t(`automations.executions.source.${s}`) })))
@@ -56,6 +69,13 @@ const optCampagnes = computed<Option[]>(() => {
   const opts = campagnes.value.map((f) => ({ value: String(f.id), label: nomCampagne(f) }))
   const vise = lecture.value.valeur.fleet_id
   // Une campagne visée par l'URL reste nommée, même absente de la liste lue.
+  if (vise !== undefined && !opts.some((o) => o.value === String(vise))) opts.unshift({ value: String(vise), label: `#${vise}` })
+  return opts
+})
+
+const optProgrammations = computed<Option[]>(() => {
+  const opts = programmations.value.map((p) => ({ value: String(p.id), label: nomProgrammation(p) }))
+  const vise = lecture.value.valeur.trigger_id
   if (vise !== undefined && !opts.some((o) => o.value === String(vise))) opts.unshift({ value: String(vise), label: `#${vise}` })
   return opts
 })
@@ -80,9 +100,16 @@ function changer(champ: ChampFiltre, valeur: string) {
             :options="optCampagnes" size="sm" :none-label="t('automations.executions.allCampaigns')"
             :aria-label="t('automations.executions.campaignLabel')"
             @update:model-value="(v) => changer('campaign', v)" />
+          <OtoSelect v-if="optProgrammations.length" data-test="filtre-programmation"
+            :model-value="lecture.valeur.trigger_id ? String(lecture.valeur.trigger_id) : ''"
+            :options="optProgrammations" size="sm" :none-label="t('automationsFilters.allSchedules')"
+            :aria-label="t('automationsFilters.scheduleLabel')"
+            @update:model-value="(v) => changer('schedule', v)" />
         </div>
         <p v-if="campagnesErreur" class="ex-err" role="alert">
           {{ t('automations.campaigns.error', { reason: campagnesErreur }) }}</p>
+        <p v-if="programmationsErreur" class="ex-err" role="alert">
+          {{ t('automationsFilters.schedulesError', { reason: programmationsErreur }) }}</p>
         <p v-if="lecture.ignores.length" class="ex-mute" data-test="ignores">
           {{ t('automations.space.ignoredFilter', { filters: lecture.ignores.join(', ') }) }}</p>
         <RunnerJobList :key="cle" :filtre="lecture.valeur" :affiches="affiches" @update:affiches="surAffiches" />

@@ -315,6 +315,7 @@
           "done": "terminée",
           "failed": "en échec",
           "abandoned": "abandonnée",
+          "held": "retenue par la pause",
           "expired": "expirée",
           "unknown": "statut inconnu : {status}"
         },
@@ -669,5 +670,41 @@
     "emptyRow": "rien dans le parcours de cette fiche. Le journal des valeurs ne couvre que les écritures faites depuis le 24/09/2026 : ce qui précède n'y figure pas.",
     "origin": { "console": "console", "agent": "agent", "import": "import", "api": "API", "upload": "fichier", "system": "système", "unknown": "hors appel" },
     "value": { "absent": "(absent)", "null": "null", "withNote": "+ note", "withLink": "+ lien" }
+  },
+  "automationsWebhook": {
+    "kind": "webhook",
+    "trigger": "déclenchement",
+    "triggerValue": "à chaque livraison de la source",
+    "received": "reçues",
+    "received24h": "aucune livraison sur 24 h | {n} livraison sur 24 h | {n} livraisons sur 24 h",
+    "refused24h": "dont {n} refusée | dont {n} refusées",
+    "lastDelivery": "dernière :",
+    "none": "aucune",
+    "queue": "file",
+    "queueValue": "{pending} prêtes à partir, {held} retenues par la pause",
+    "url": "adresse à donner à la source",
+    "outcome": {
+      "queued": "acceptée",
+      "delayed": "acceptée, lissée",
+      "refused_paused": "refusée : programmation coupée",
+      "refused_secret": "refusée : secret invalide",
+      "refused_too_large": "refusée : corps trop volumineux",
+      "unknown": "résultat inconnu : {outcome}"
+    },
+    "deliveries": {
+      "title": "Livraisons reçues",
+      "sub": "Les 50 dernières, de la plus récente à la plus ancienne. Le résultat est celui de la réception ; l'exécution dit ce que le travail est devenu.",
+      "empty": "Aucune livraison reçue pour l'instant.",
+      "error": "Impossible de lire les livraisons : {reason}",
+      "execution": "exécution #{id}",
+      "dueAt": "part au plus tôt {date}",
+      "attempts": "{n} tentative échouée | {n} tentatives échouées"
+    }
+  },
+  "automationsFilters": {
+    "seeInExecutions": "Voir dans le suivi des exécutions",
+    "scheduleLabel": "Programmation",
+    "allSchedules": "toutes les programmations",
+    "schedulesError": "Impossible de lire les programmations : {reason}"
   }
 }

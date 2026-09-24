@@ -98,7 +98,7 @@ export interface LectureUrl<T> { valeur: T; ignores: string[] }
 
 export const SOURCES_EXECUTION = ['batch', 'scheduled', 'manual'] as const
 export const STATUTS_EXECUTION = ['pending', 'claimed', 'done', 'failed'] as const
-export type ChampFiltre = 'source' | 'status' | 'campaign'
+export type ChampFiltre = 'source' | 'status' | 'campaign' | 'schedule'
 
 /** Les filtres SERVIS de la liste des exécutions, lus dans la query. Aucun n'est reconstruit
  * côté client. `expired` n'est pas un filtre servi : il se dit ignoré. */
@@ -122,6 +122,12 @@ export function filtresExecutions(q: LocationQuery): LectureUrl<RunnerJobsFiltre
     const id = idDAdresse(campagne)
     if (id !== null) valeur.fleet_id = id
     else ignores.push(`campaign=${campagne}`)
+  }
+  const programmation = un(q.schedule)
+  if (programmation !== null) {
+    const id = idDAdresse(programmation)
+    if (id !== null) valeur.trigger_id = id
+    else ignores.push(`schedule=${programmation}`)
   }
   return { valeur, ignores }
 }
@@ -164,6 +170,12 @@ export function garderCampagne(f: Pick<RunnerFleet, 'status'>, filtre: FiltreCam
 /** Le nom d'une programmation : son libellé, à défaut la procédure qu'elle lance. */
 export function nomProgrammation(t: { label: string | null; procedure: string }): string {
   return t.label || t.procedure
+}
+
+/** Une programmation webhook part quand sa source livre, pas à une heure : elle n'a ni
+ * `cron` ni prochaine exécution, et se lit par ses livraisons. Sans `kind`, c'est un horaire. */
+export function estWebhook(t: { kind?: string | null }): boolean {
+  return t.kind === 'webhook'
 }
 
 // ── L'historique d'un objet ─────────────────────────────────────────────────

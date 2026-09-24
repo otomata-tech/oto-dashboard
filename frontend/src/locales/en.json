@@ -315,6 +315,7 @@
           "done": "done",
           "failed": "failed",
           "abandoned": "abandoned",
+          "held": "held by the pause",
           "expired": "expired",
           "unknown": "unknown status: {status}"
         },
@@ -669,5 +670,41 @@
     "emptyRow": "nothing in this record's history. The value log only covers writes made since 2026-09-24: anything earlier is not in it.",
     "origin": { "console": "console", "agent": "agent", "import": "import", "api": "API", "upload": "file", "system": "system", "unknown": "no call" },
     "value": { "absent": "(absent)", "null": "null", "withNote": "+ note", "withLink": "+ link" }
+  },
+  "automationsWebhook": {
+    "kind": "webhook",
+    "trigger": "trigger",
+    "triggerValue": "on each delivery from the source",
+    "received": "received",
+    "received24h": "no delivery in 24 h | {n} delivery in 24 h | {n} deliveries in 24 h",
+    "refused24h": "{n} refused | {n} refused",
+    "lastDelivery": "last:",
+    "none": "none",
+    "queue": "queue",
+    "queueValue": "{pending} ready to run, {held} held by the pause",
+    "url": "address to give to the source",
+    "outcome": {
+      "queued": "accepted",
+      "delayed": "accepted, smoothed",
+      "refused_paused": "refused: schedule off",
+      "refused_secret": "refused: invalid secret",
+      "refused_too_large": "refused: body too large",
+      "unknown": "unknown outcome: {outcome}"
+    },
+    "deliveries": {
+      "title": "Deliveries received",
+      "sub": "The last 50, newest first. The outcome is the one at reception; the execution tells what the job became.",
+      "empty": "No delivery received yet.",
+      "error": "Cannot read the deliveries: {reason}",
+      "execution": "execution #{id}",
+      "dueAt": "runs at the earliest {date}",
+      "attempts": "{n} failed attempt | {n} failed attempts"
+    }
+  },
+  "automationsFilters": {
+    "seeInExecutions": "See in the execution log",
+    "scheduleLabel": "Schedule",
+    "allSchedules": "all schedules",
+    "schedulesError": "Cannot read the schedules: {reason}"
   }
 }

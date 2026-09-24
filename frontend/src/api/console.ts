@@ -21,7 +21,7 @@ import type {
   TenantRow, TenantTotals, TenantSheet,
   OutreachInput, OutreachResult,
   RecentChangesView,
-  RunnerFleet, RunnerFleetState, RunnerArme,
+  RunnerFleet, RunnerFleetState, RunnerArme, RunnerTrigger, RunnerDelivery,
   ModelSubscription, ModelSubscriptionList, ModelSubscriptionLogin, ModelSubscriptionRemoved,
 } from '@/types/api'
 // ⚠️ Contrat SERVI PAR UN LOT NON DÉPLOYÉ (oto-backend PR #723) — écrit à la main
@@ -514,7 +514,7 @@ export const getRunnerJob = (id: number) =>
     method: 'POST', ...j({ op: 'get', job_id: id }),
   })
 
-export type { RunnerFleet, RunnerFleetState, RunnerArme }
+export type { RunnerFleet, RunnerFleetState, RunnerArme, RunnerTrigger, RunnerDelivery }
 // UNE campagne par son identifiant (`op=get` ; 404 `fleet_not_found`, 403 `beta_required`).
 // ⚠️ Seule lecture de campagne que la consultation en lecture seule laisse passer : `get` est
 // dans la liste blanche du serveur, `state` n'y est pas (403 `view_as_read_only`).
@@ -547,37 +547,6 @@ export const stopRunnerFleet = (id: number) =>
     method: 'POST', ...j({ op: 'stop', fleet_id: id }),
   })
 
-// ⚠️ Écrit à la main, plus STRICT que `components["schemas"]["Trigger"]` du contrat
-// généré, qui déclare `procedure`/`cron`/`tz`/`enabled` nullables (Optional côté
-// pydantic) alors que le serveur les rend toujours. Basculer sur le schéma généré
-// obligerait à traiter des `null` que la surface ne produit pas — c'est pour ça que
-// la copie existe. Le prix est celui-ci : tout champ neuf doit être recopié.
-export interface RunnerTrigger {
-  id: number
-  procedure: string
-  cron: string
-  tz: string
-  tools: string[]
-  project_id: number | null
-  label: string | null
-  enabled: boolean
-  next_due: string | null
-  max_steps: number | null
-  // Ce que ce déclencheur a PERDU : des occurrences enfilées que personne n'est venu
-  // prendre dans leur cycle, et que le tick a périmées. Servi par le backend depuis
-  // le 01/09 et affiché nulle part jusqu'ici — quarante-et-une occurrences empilées
-  // sur treize jours n'ont été découvertes que par hasard. `0` est un vrai zéro
-  // (rien perdu), pas une absence de mesure.
-  expired_count: number | null
-  // Deux dates, jamais une seule : « depuis quand » et « est-ce encore en cours »
-  // sont deux questions différentes, et une perte ancienne qui a cessé n'appelle pas
-  // le même geste qu'une perte de ce matin.
-  expired_since: string | null
-  expired_last: string | null
-  // Le modèle DÉCLARÉ, pris dans le catalogue `runner.models` (servi en prod depuis
-  // v1.276.0). `null` = aucun : le worker qui prend le travail tourne sur le sien.
-  model: string | null
-}
 // `procedure` filtre SERVEUR (#860 ①). L'écran d'une procédure demande « celle-ci
 // tourne-t-elle ? », pas la liste de l'org — et filtrer côté client devient faux dès
 // qu'il y a plus d'une page. Omis = tous les déclencheurs de l'org.
@@ -603,6 +572,13 @@ export type RunnerTriggerChamps = Partial<{ cron: string; tz: string; model: str
 export const updateRunnerTrigger = (id: number, champs: RunnerTriggerChamps) =>
   api<{ trigger: Partial<RunnerTrigger> }>('/api/me/runner/triggers', {
     method: 'POST', ...j({ op: 'update', trigger_id: id, ...champs }),
+  })
+// Les livraisons reçues par une programmation webhook (`op=deliveries`), les plus récentes
+// d'abord. Sans `with_input` : le corps reçu n'est pas une donnée d'écran de suivi. Une
+// programmation d'une autre org rend une liste vide, jamais les livraisons d'autrui.
+export const listRunnerDeliveries = (id: number, limit = 50) =>
+  api<{ deliveries: RunnerDelivery[] }>('/api/me/runner/triggers', {
+    method: 'POST', ...j({ op: 'deliveries', trigger_id: id, limit }),
   })
 // `{ ok: true }`, ou 404 `trigger_not_found`. Le serveur périme d'abord les occurrences en
 // attente du déclencheur : elles ne partiront jamais.

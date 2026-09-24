@@ -143,7 +143,8 @@ export interface ReglageDeclencheur {
 /** ⚠️ Un déclencheur sans modèle déclaré se règle sur `''` (« modèle du worker »), JAMAIS
  * sur le modèle `default` du catalogue : l'écrire changerait la famille qui sert l'agent. */
 export function reglageInitial(t: Pick<RunnerTrigger, 'cron' | 'tz' | 'model'>): ReglageDeclencheur {
-  return { cron: t.cron, tz: t.tz, model: t.model ?? '' }
+  // Un webhook n'a ni `cron` ni fuseau à régler : `''` des deux côtés, jamais envoyé.
+  return { cron: t.cron ?? '', tz: t.tz ?? '', model: t.model ?? '' }
 }
 
 /** Les SEULS champs modifiés : `op=update` est partiel, et renvoyer un champ inchangé
@@ -161,9 +162,10 @@ export function champsModifies(
   return champs
 }
 
-/** ⚠️ La ligne rendue par `op=update` est la ligne BRUTE : ni `expired_*`, ni `runner`.
- * Ce que le déclencheur a perdu se garde de la lecture précédente jusqu'à la relecture ; le
- * reste — dont `next_due`, recalculé par le serveur — vient de la réponse. */
+/** ⚠️ La ligne rendue par `op=update` est la ligne BRUTE : ni `expired_*`, ni `runner`, ni ce
+ * qu'un webhook a reçu (`hook_url`, livraisons, file). Tout cela se garde de la lecture
+ * précédente jusqu'à la relecture ; le reste — dont `next_due`, recalculé par le serveur —
+ * vient de la réponse. */
 export function apresReglage(courant: RunnerTrigger, rendu: Partial<RunnerTrigger>): RunnerTrigger {
   return {
     ...courant,
@@ -171,6 +173,12 @@ export function apresReglage(courant: RunnerTrigger, rendu: Partial<RunnerTrigge
     expired_count: courant.expired_count,
     expired_since: courant.expired_since,
     expired_last: courant.expired_last,
+    hook_url: courant.hook_url,
+    deliveries_24h: courant.deliveries_24h,
+    deliveries_refused_24h: courant.deliveries_refused_24h,
+    last_delivery: courant.last_delivery,
+    queue_pending: courant.queue_pending,
+    queue_held: courant.queue_held,
   }
 }
 

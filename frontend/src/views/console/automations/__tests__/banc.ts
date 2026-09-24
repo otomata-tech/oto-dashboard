@@ -13,7 +13,7 @@ import type { Mock } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { ApiError } from '@/api'
 import type {
-  RunnerFleet, RunnerFleetState, RunnerJob, RunnerJobsFiltre, RunnerJobsPage, RunnerTrigger,
+  RunnerDelivery, RunnerFleet, RunnerFleetState, RunnerJob, RunnerJobsFiltre, RunnerJobsPage, RunnerTrigger,
 } from '@/api/console'
 import { detailEspace, PAGES_ESPACE, SECTION } from '@/lib/automationsEspace'
 import { i18n } from '@/lib/i18n'
@@ -25,7 +25,8 @@ import Espace from '@/views/console/AutomationsView.vue'
 export type Bouchons = Record<
   | 'listRunnerFleets' | 'getRunnerFleet' | 'getRunnerFleetState' | 'launchRunnerFleet' | 'stopRunnerFleet'
   | 'listRunnerJobs' | 'getRunnerJob' | 'listRunnerTriggers' | 'getRunnerTrigger' | 'updateRunnerTrigger'
-  | 'deleteRunnerTrigger' | 'getConnectorInstances' | 'getRunThread' | 'getNamespaceQueue',
+  | 'deleteRunnerTrigger' | 'getConnectorInstances' | 'getRunThread' | 'getNamespaceQueue'
+  | 'listRunnerDeliveries',
   Mock
 >
 
@@ -53,11 +54,8 @@ export const ETAT: RunnerFleetState = {
   last_finished: '2026-09-13 11:58:00', no_jobs_attached: false,
 }
 
-export const programmation = (over: Partial<RunnerTrigger> = {}): RunnerTrigger => ({
-  id: 3, procedure: 'veille', cron: '0 8 * * *', tz: 'Europe/Paris', tools: [], project_id: null,
-  label: 'Veille du matin', enabled: true, next_due: '2026-09-14 06:00:00', max_steps: null,
-  model: null, expired_count: 0, expired_since: null, expired_last: null, ...over,
-})
+import { programmation, webhook } from './programmation'
+export { programmation, webhook }
 
 export const RUNNER = { armed: true, workers: 1, last_seen: '2026-09-13 11:59:00', families: [], models: [] }
 
@@ -103,6 +101,7 @@ export interface Monde {
   fleets?: RunnerFleet[]
   etat?: (f: RunnerFleet) => RunnerFleetState
   triggers?: RunnerTrigger[]
+  livraisons?: RunnerDelivery[]
   file?: RunnerJob[]
 }
 
@@ -146,6 +145,7 @@ export function servirMonde(api: Bouchons, monde: Monde = {}) {
   api.getConnectorInstances.mockResolvedValue({ instances: [] })
   api.getRunThread.mockResolvedValue({ run_id: 'r', messages: [] })
   api.getNamespaceQueue.mockResolvedValue({ rows: [] })
+  api.listRunnerDeliveries.mockResolvedValue({ deliveries: monde.livraisons ?? [] })
 }
 
 const VIDE = { render: () => null }

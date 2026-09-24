@@ -7,6 +7,7 @@ import { ApiError } from '@/api'
 import type { RunnerTrigger } from '@/api/console'
 import { i18n } from '@/lib/i18n'
 import type { RunnerModel } from '@/types/api'
+import { programmation, webhook } from '@/views/console/automations/__tests__/programmation'
 
 const api = vi.hoisted(() => ({
   listRunnerTriggers: vi.fn(), updateRunnerTrigger: vi.fn(), deleteRunnerTrigger: vi.fn(),
@@ -19,11 +20,9 @@ vi.mock('@/composables/useMe', async (importOriginal) => ({
   useMe: () => ({ me }),
 }))
 
-const BASE: RunnerTrigger = {
-  id: 1, procedure: 'veille', cron: '0 8 * * *', tz: 'Europe/Paris', tools: [], project_id: null,
-  label: 'Veille du matin', enabled: true, next_due: '2026-09-14T06:00:00Z', max_steps: null,
-  model: null, expired_count: 0, expired_since: null, expired_last: null,
-}
+const BASE: RunnerTrigger = programmation({
+  id: 1, next_due: '2026-09-14T06:00:00Z',
+})
 const CATALOGUE: RunnerModel[] = [
   { id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', family: 'anthropic', served: true, default: true },
   { id: 'mistral-large', label: 'Mistral Large', family: 'mistral', served: false, default: false },
@@ -75,6 +74,14 @@ describe('régler un déclencheur', () => {
     await cliquer(sel(hote, 'enregistrer'))
     expect(api.updateRunnerTrigger).toHaveBeenCalledTimes(1)
     expect(api.updateRunnerTrigger).toHaveBeenCalledWith(1, { cron: '0 9 * * *' })
+  })
+
+  it('un webhook ne propose ni horaire ni fuseau : seul son modèle se règle', async () => {
+    const hote = await monter([webhook({ id: 1 })])
+    await cliquer(sel(hote, 'regler'))
+    expect(sel(hote, 'reglage')).not.toBeNull()
+    expect(sel(hote, 'champ-horaire')).toBeNull()
+    expect(sel(hote, 'champ-modele')).not.toBeNull()
   })
 
   it('rien de modifié : « Enregistrer » ne part pas', async () => {

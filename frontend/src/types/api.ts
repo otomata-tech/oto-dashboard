@@ -1938,6 +1938,17 @@ export type RunnerFleetState = components['schemas']['FleetState']
 /** La présence d'un runner pour l'org. ⚠️ `workers` compte des identités de worker
  * (secrets déclarés) vues récemment, pas des processus. */
 export type RunnerArme = components['schemas']['RunnerArme']
+/** Une programmation du runner (`runner.triggers`), horaire ou webhook (`kind`). Dérivée du
+ * contrat servi ; seuls `procedure`, `enabled` et `tools`, que le serveur rend toujours, sont
+ * resserrés. ⚠️ `cron` est `null` sur un webhook : c'est la source qui donne le coup d'envoi.
+ * `hook_url`, les comptes de livraisons et la file (`queue_*`) ne sont servis que sur un
+ * webhook, et `0` y est un vrai zéro. */
+export type RunnerTrigger = components['schemas']['Trigger'] & {
+  procedure: string; enabled: boolean; tools: string[]
+}
+/** Une livraison reçue par une programmation webhook. `outcome` est figé à la réception
+ * (`queued` = acceptée) ; ce que le travail est devenu, c'est `job_status`. */
+export type RunnerDelivery = components['schemas']['Delivery']
 /** Un modèle du catalogue, marqué `served` s'il est servi en ce moment. ⚠️ `default` est ce
  * que le serveur PROPOSE : l'écran ne le présélectionne jamais sur un déclencheur. */
 export type RunnerModel = components['schemas']['RunnerModel']

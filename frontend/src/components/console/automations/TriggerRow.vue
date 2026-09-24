@@ -18,7 +18,7 @@ import RefusServi from './RefusServi.vue'
 import TriggerSettingsForm from './TriggerSettingsForm.vue'
 import type { RunnerTrigger } from '@/api/console'
 import { useGestesDeclencheur } from '@/composables/useGestesDeclencheur'
-import { nomProgrammation } from '@/lib/automationsEspace'
+import { estWebhook, nomProgrammation } from '@/lib/automationsEspace'
 import { cadenceEnMots } from '@/lib/cadence'
 import { absDate } from '@/lib/cellRender'
 import { modeleDeclencheur } from '@/lib/runnerGestes'
@@ -56,7 +56,13 @@ function surEnregistre(rendu: Partial<RunnerTrigger>) {
     <!-- Le cadencement dans les mots de qui le lit (#860 ②). ⚠️ Quand la forme ne se dit
          pas fidèlement (pas, listes, plages), on RETOMBE sur l'expression brute plutôt que
          d'approximer. -->
-    <span class="rt-cron">
+    <!-- Un webhook n'a pas d'horaire : il se dit par son genre et ce qu'il a reçu. -->
+    <template v-if="estWebhook(trigger)">
+      <Tag tone="cobalt" data-test="genre">{{ t('automationsWebhook.kind') }}</Tag>
+      <span class="rt-next" data-test="recues">{{ t('automationsWebhook.received24h', trigger.deliveries_24h ?? 0) }}<template
+        v-if="trigger.deliveries_refused_24h">, {{ t('automationsWebhook.refused24h', trigger.deliveries_refused_24h) }}</template></span>
+    </template>
+    <span v-else class="rt-cron">
       <template v-if="cadence">{{ cadence }}</template>
       <template v-else>{{ trigger.cron }}</template>
       · {{ trigger.tz }}
@@ -64,7 +70,7 @@ function surEnregistre(rendu: Partial<RunnerTrigger>) {
     <span class="rt-model">{{ modele.label ?? t('automations.triggers.form.workerModel') }}</span>
     <Tag v-if="modele.nonServi" tone="terra">{{ t('automations.triggers.form.notServed') }}</Tag>
     <Tag v-if="!trigger.enabled" tone="ink">{{ t('automations.schedulePage.disabled') }}</Tag>
-    <span v-else-if="trigger.next_due" class="rt-next">
+    <span v-else-if="trigger.next_due && !estWebhook(trigger)" class="rt-next">
       {{ t('automations.triggers.next', { date: absDate(trigger.next_due) }) }}</span>
     <!-- Les occurrences que personne n'est venu prendre avant la suivante : le serveur les
          périme et les COMPTE (`expired_count`, un vrai 0). Un déclencheur qui en accumule

@@ -18,7 +18,7 @@ code, les noms d'API, les routes et les clés i18n existantes ne changent pas.
 |---|---|---|
 | **procédure** (procedure) | les instructions réutilisables ; jamais un agent ; lien vers la page Procédures | `/api/me/instructions*`, `Doctrine*View`, `/procedures/:id` |
 | **campagne** (campaign) | un lot de travail : une procédure, une cible, des bornes ; jamais « flotte » | `runner.fleets` (`/api/me/runner/fleets`), `RunnerFleet`, `fleet_id` |
-| **programmation** (schedule) | ce qui lance des exécutions à l'horaire servi, sans promettre d'autre événement ; jamais « déclencheur » | `runner.triggers` (`/api/me/runner/triggers`), `RunnerTrigger`, `trigger_id` |
+| **programmation** (schedule) | ce qui lance des exécutions : à l'horaire servi, ou à chaque livraison de sa source (`kind: webhook`) ; jamais « déclencheur » | `runner.triggers` (`/api/me/runner/triggers`), `RunnerTrigger`, `trigger_id` |
 | **exécution** (execution) | un travail lancé, son état, son résultat ; terminée ne veut pas dire réussie ; jamais « travail » ni « job » | `runner.jobs` (table `runner_jobs`), `RunnerJob`, `job_id` |
 | **tentative** (attempt) | un essai du même travail : seulement le compte servi, aucun historique inventé | `runner_jobs.attempts` / `max_attempts` |
 | **journal** (log) | les échanges disponibles pour une exécution : le fil de son run | `runs.thread` (`/api/me/runs/thread`), `run_id` — un run et une exécution sont deux identités, sans correspondance un pour un |
@@ -51,9 +51,9 @@ navigation, le fil d'Ariane et les tests la lisent. La vue d'espace
 | `/automations/campaigns[?status=live\|stopped\|draft]` | `CampaignsView` — la liste des lots 1-2, filtrée | `fleets op=list` (complète, sans pagination : le filtre ne porte pas sur une fenêtre) |
 | `/automations/campaigns/:id[?shown=N]` | `CampaignView` — identité en lecture, gestes, compteurs, historique | `fleets op=get`, `fleets op=state`, `jobs op=list fleet_id=` |
 | `/automations/schedules` | `SchedulesView` — la carte des programmations, telle quelle | `triggers op=list` |
-| `/automations/schedules/:id[?shown=N]` | `ScheduleView` — activation, horaire en mots, fuseau, modèle, prochaine exécution, pertes, historique | `triggers op=get` (avec `runner`), `jobs op=list trigger_id=` |
+| `/automations/schedules/:id[?shown=N]` | `ScheduleView` — activation, horaire en mots, fuseau, modèle, prochaine exécution, pertes, historique ; un webhook remplace horaire, fuseau et prochaine exécution par l'adresse à donner à la source, ses livraisons sur 24 h, sa file et ses 50 dernières livraisons (`WebhookDeliveries`) | `triggers op=get` (avec `runner`), `jobs op=list trigger_id=`, `triggers op=deliveries` (webhook) |
 | `/automations/schedules/:id/settings` | `ScheduleSettingsView` — interrupteur, formulaire, suppression, sans rien y ajouter | `triggers op=get` ; gestes `op=update`, `op=delete` |
-| `/automations/executions[?source=&status=&campaign=&shown=N]` | `ExecutionsView` — suivi transverse | `jobs op=list` sous les filtres servis ; `fleets op=list` pour nommer le filtre par campagne |
+| `/automations/executions[?source=&status=&campaign=&schedule=&shown=N]` | `ExecutionsView` — suivi transverse ; `schedule` est le lien « voir dans le suivi » d'une programmation | `jobs op=list` sous les filtres servis ; `fleets op=list` et `triggers op=list` pour nommer les filtres par campagne et par programmation |
 | `/automations/executions/:id` | `ExecutionView` — la fiche (`RunnerJobDetail`), liens vers sa campagne ou sa programmation | `jobs op=get` |
 
 - **Une adresse n'affiche que l'objet qu'elle désigne** (`useLectureParId` + `ObjetAdresse`) :
@@ -293,6 +293,13 @@ inscrivent) :
   l'affiche que dans le refus de relance R1 : « travaux produits : N sur M ».
   `automations.spec.ts` tient les deux silences sur une campagne en cours ;
   `campaignActions.spec.ts` tient le libellé de R1.
+- **Programmation webhook (24/09/2026)** : l'écran la LIT (genre, adresse composée par le serveur,
+  livraisons, file) et ne règle que son modèle et son interrupteur. Le secret ne se relit jamais
+  (seuls `create` et `rotate_secret` le rendent) : il ne s'affiche donc pas. Créer un webhook,
+  renouveler son secret (`rotate_secret`), vider sa file (`clear_queue`) et régler son lissage
+  (`max_per_hour`, `freshness_seconds`, `payload_mode`) restent hors de l'écran. `outcome` d'une
+  livraison est figé à la réception ; son `job_status` est relu, et `held` (retenu par la pause)
+  a son libellé.
 - **Pas de lecture d'un travail par run.** `jobs op=get` lit un travail par son **identifiant**,
   jamais par `run_id`. `?run=` cherche donc parmi les travaux `claimed` (une page, 200 au plus) :
   les liens ne partent que d'une ligne qu'un run tient, donc d'un travail en vol. Trouvé, il mène à
@@ -371,11 +378,14 @@ le fournisseur, seul l'ordre et une synthèse reviennent.
 `listRunnerFleets()` · `getRunnerFleet(id)` · `getRunnerFleetState(id)` · `launchRunnerFleet(id)` ·
 `stopRunnerFleet(id)` · `listRunnerJobs(filtre, page)` · `getRunnerJob(id)` ·
 `getRunThread(run_id)` · `getNamespaceQueue(id)` · `listRunnerTriggers(procedure?)` · `getRunnerTrigger(id)` ·
-`updateRunnerTrigger(id, champs)` · `deleteRunnerTrigger(id)` · `getConnectorInstances()` — tous
+`updateRunnerTrigger(id, champs)` · `deleteRunnerTrigger(id)` · `listRunnerDeliveries(id)` · `getConnectorInstances()` — tous
 dans `api/console.ts`.
 `RunnerFleet`, `RunnerFleetState`, `RunnerArme` et `RunnerModel` sont **dérivés** du document OpenAPI
 (`types/api.ts`) ; `RunnerJob` reste écrit à la main (contrat ouvert de `result`, statut `string`
 parce que le serveur sert aussi `expired`), avec `lease_until` pris dans `types/api.attendu.ts`.
-`RunnerTrigger` reste aussi écrit à la main, plus strict que le schéma généré : tout champ neuf
-s'y recopie (`model`, lot 2). Les codes de refus ne sont pas typés : plusieurs manquent à tout
+`RunnerTrigger` est dérivé du schéma `Trigger` depuis le 24/09/2026 (seuls `procedure`,
+`enabled` et `tools` y sont resserrés) : la copie écrite à la main ignorait `kind`, et montrait
+un webhook comme un horaire cron. `cron` et `tz` y sont nullables, parce qu'un webhook n'en a
+pas. `RunnerDelivery` est dérivé de `Delivery`. Fixture de test partagée :
+`views/console/automations/__tests__/programmation.ts`. Les codes de refus ne sont pas typés : plusieurs manquent à tout
 OpenAPI, ils se lisent par l'enveloppe d'erreur générique.

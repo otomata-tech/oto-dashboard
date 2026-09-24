@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Régler UN déclencheur, en ligne (oto#205, lot 2) : tout ce que le backend sert — horaire,
-// fuseau, modèle. L'interrupteur et la suppression vivent sur la ligne (`TriggerRow`).
+// fuseau, modèle ; un webhook n'a ni horaire ni fuseau, il ne règle que son modèle. L'interrupteur et la suppression vivent sur la ligne (`TriggerRow`).
 //
 // ⚠️ Seuls les champs MODIFIÉS partent (`champsModifies`) : `op=update` est partiel.
 // ⚠️ Le modèle ne se présélectionne JAMAIS sur le `default` du catalogue : sans modèle
@@ -13,6 +13,7 @@ import Btn from '../Btn.vue'
 import OtoSelect from '../OtoSelect.vue'
 import RefusServi from './RefusServi.vue'
 import { updateRunnerTrigger, type RunnerTrigger } from '@/api/console'
+import { estWebhook } from '@/lib/automationsEspace'
 import { cadenceEnMots } from '@/lib/cadence'
 import {
   champsModifies, fuseauxProposes, optionsModele, refusServi, reglageInitial, type Refus,
@@ -60,20 +61,22 @@ async function enregistrer() {
 
 <template>
   <form class="tsf" data-test="reglage" @submit.prevent="enregistrer">
-    <div class="tsf-field" data-test="champ-horaire">
-      <label class="tsf-lbl" :for="`tsf-cron-${trigger.id}`">{{ t('automations.triggers.form.schedule') }}</label>
-      <div class="tsf-line">
-        <input :id="`tsf-cron-${trigger.id}`" v-model="saisi.cron" class="inp mono sm tsf-cron"
-          data-test="cron" spellcheck="false" autocomplete="off" />
-        <span v-if="apercu" class="tsf-hint">{{ apercu }}</span>
+    <template v-if="!estWebhook(trigger)">
+      <div class="tsf-field" data-test="champ-horaire">
+        <label class="tsf-lbl" :for="`tsf-cron-${trigger.id}`">{{ t('automations.triggers.form.schedule') }}</label>
+        <div class="tsf-line">
+          <input :id="`tsf-cron-${trigger.id}`" v-model="saisi.cron" class="inp mono sm tsf-cron"
+            data-test="cron" spellcheck="false" autocomplete="off" />
+          <span v-if="apercu" class="tsf-hint">{{ apercu }}</span>
+        </div>
+        <RefusServi v-if="refusHoraire" :refus="refusHoraire" />
       </div>
-      <RefusServi v-if="refusHoraire" :refus="refusHoraire" />
-    </div>
-    <div class="tsf-field">
-      <span class="tsf-lbl">{{ t('automations.triggers.form.timezone') }}</span>
-      <OtoSelect v-model="saisi.tz" :options="fuseaux" size="sm"
-        :aria-label="t('automations.triggers.form.timezone')" />
-    </div>
+      <div class="tsf-field">
+        <span class="tsf-lbl">{{ t('automations.triggers.form.timezone') }}</span>
+        <OtoSelect v-model="saisi.tz" :options="fuseaux" size="sm"
+          :aria-label="t('automations.triggers.form.timezone')" />
+      </div>
+    </template>
     <div class="tsf-field" data-test="champ-modele">
       <span class="tsf-lbl">{{ t('automations.triggers.form.model') }}</span>
       <OtoSelect v-model="saisi.model" :options="modeles" size="sm"

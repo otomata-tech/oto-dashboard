@@ -104,7 +104,7 @@ src/components/console/project/ProjectWorkQueues.vue 9
 src/components/console/ProjectCreateDialog.vue 12
 src/components/console/PromptDialog.vue 2
 src/components/console/RowAbandonNotice.vue 3
-src/components/console/RowActivityList.vue 4
+src/components/console/RowActivityList.vue 3
 src/components/console/RowDrawer.vue 17
 src/components/console/RunnerJobDetail.vue 29
 src/components/console/RunnerTriggersCard.vue 1

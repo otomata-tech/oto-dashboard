@@ -11,6 +11,7 @@ import {
   gestesCampagne, modeleDeclencheur, MOTIF_ECHECS_CONSECUTIFS, optionsModele, refusServi,
   reglageInitial, type Droits, type Empechement, type GesteCampagne,
 } from './runnerGestes'
+import { programmation, webhook } from '@/views/console/automations/__tests__/programmation'
 
 const ADMIN = droits({ role: 'member', org_role: 'org_admin' })
 const MEMBRE = droits({ role: 'member', org_role: 'org_member' })
@@ -143,15 +144,27 @@ describe('déclencheurs — ce que le formulaire envoie', () => {
   })
 
   it('après un réglage, la réponse fait foi et ce qui a été perdu survit', () => {
-    const courant: RunnerTrigger = {
-      id: 1, procedure: 'veille', cron: '0 8 * * *', tz: 'Europe/Paris', tools: [], project_id: null,
-      label: null, enabled: true, next_due: '2026-09-14T06:00:00Z', max_steps: null, model: null,
+    const courant: RunnerTrigger = programmation({
+      id: 1, label: null, next_due: '2026-09-14T06:00:00Z',
       expired_count: 41, expired_since: '2026-08-20T06:00:00Z', expired_last: '2026-09-02T06:00:00Z',
-    }
+    })
     const rendu = { ...courant, cron: '0 9 * * *', next_due: '2026-09-14T07:00:00Z',
       expired_count: null, expired_since: null, expired_last: null }
     expect(apresReglage(courant, rendu)).toEqual({ ...rendu, expired_count: 41,
       expired_since: '2026-08-20T06:00:00Z', expired_last: '2026-09-02T06:00:00Z' })
+  })
+
+  it('un webhook se règle sans horaire ni fuseau : changer son modèle n’envoie que le modèle', () => {
+    const i = reglageInitial(webhook({ tz: null }))
+    expect(i).toEqual({ cron: '', tz: '', model: '' })
+    expect(champsModifies(i, { ...i, model: 'mistral-large' })).toEqual({ model: 'mistral-large' })
+  })
+
+  it('après un réglage, ce qu’un webhook a reçu survit : la ligne rendue ne le porte pas', () => {
+    const courant = webhook()
+    const rendu = { ...courant, model: 'mistral-large', hook_url: null, deliveries_24h: null,
+      deliveries_refused_24h: null, last_delivery: null, queue_pending: null, queue_held: null }
+    expect(apresReglage(courant, rendu)).toEqual({ ...courant, model: 'mistral-large' })
   })
 
   it('les modèles proposés : les servis ; le courant non servi ajouté et marqué', () => {

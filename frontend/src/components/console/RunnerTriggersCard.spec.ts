@@ -10,6 +10,7 @@ import { createApp, nextTick } from 'vue'
 import type { RunnerTrigger } from '@/api/console'
 import { ApiError } from '@/api'
 import { i18n } from '@/lib/i18n'
+import { programmation } from '@/views/console/automations/__tests__/programmation'
 
 const listRunnerTriggers = vi.fn()
 const updateRunnerTrigger = vi.fn()
@@ -22,12 +23,10 @@ vi.mock('@/composables/useMe', async (importOriginal) => ({
   useMe: () => ({ me }),
 }))
 
-const BASE: RunnerTrigger = {
-  id: 1, procedure: 'daily-brain', cron: '0 8 * * *', tz: 'Europe/Paris',
-  tools: [], project_id: null, label: 'Ingestion du matin', enabled: true,
-  next_due: '2026-09-04T06:00:00Z', max_steps: null, model: null,
-  expired_count: null, expired_since: null, expired_last: null,
-}
+const BASE: RunnerTrigger = programmation({
+  id: 1, procedure: 'daily-brain', label: 'Ingestion du matin', next_due: '2026-09-04T06:00:00Z',
+  expired_count: null,
+})
 
 const vider = async () => {
   for (let i = 0; i < 6; i++) { await new Promise((r) => setTimeout(r, 0)); await nextTick() }

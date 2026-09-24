@@ -4,20 +4,26 @@
 // RÉEL de ses exécutions (`jobs op=list trigger_id=`, servi depuis oto-backend v1.212.0).
 // Lue par `triggers op=get`, qui sert aussi la présence du runner et le catalogue des modèles.
 //
+// Une programmation WEBHOOK part quand sa source livre : ni horaire, ni fuseau, ni prochaine
+// exécution. Elle se lit par l'adresse à donner à la source, ce qu'elle a reçu sur 24 h, ce
+// qui attend dans sa file, et ses dernières livraisons (`WebhookDeliveries`).
+//
 // Le lien vers les réglages suit le serveur servi : `runner.triggers` est ouvert à tout membre,
 // seule la consultation en lecture seule l'omet (le serveur y refuse toute écriture).
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
+import CopyField from '@/components/console/CopyField.vue'
 import Notice from '@/components/console/Notice.vue'
 import Tag from '@/components/console/Tag.vue'
 import ObjetAdresse from '@/components/console/automations/ObjetAdresse.vue'
 import RunnerJobList from '@/components/console/automations/RunnerJobList.vue'
+import WebhookDeliveries from '@/components/console/automations/WebhookDeliveries.vue'
 import { getRunnerTrigger } from '@/api/console'
 import { useAffichesUrl } from '@/composables/useAffichesUrl'
 import { useLectureParId } from '@/composables/useLectureParId'
 import { useMe } from '@/composables/useMe'
-import { historiqueDe, nomProgrammation } from '@/lib/automationsEspace'
+import { estWebhook, historiqueDe, nomProgrammation } from '@/lib/automationsEspace'
 import { cadenceEnMots } from '@/lib/cadence'
 import { absDate } from '@/lib/cellRender'
 import { droits, modeleDeclencheur } from '@/lib/runnerGestes'
@@ -52,11 +58,32 @@ const filtreHistorique = computed(() =>
                 <dd><RouterLink :to="`/procedures/${encodeURIComponent(trigger.procedure)}`" class="sv-lien">
                   {{ trigger.procedure }}</RouterLink></dd>
               </div>
-              <div>
-                <dt>{{ t('automations.schedulePage.schedule') }}</dt>
-                <dd>{{ cadenceEnMots(trigger.cron) ?? trigger.cron }} <span class="sv-mono">{{ trigger.cron }}</span></dd>
-              </div>
-              <div><dt>{{ t('automations.schedulePage.timezone') }}</dt><dd>{{ trigger.tz }}</dd></div>
+              <template v-if="estWebhook(trigger)">
+                <div data-test="genre">
+                  <dt>{{ t('automationsWebhook.trigger') }}</dt>
+                  <dd><Tag tone="cobalt">{{ t('automationsWebhook.kind') }}</Tag> {{ t('automationsWebhook.triggerValue') }}</dd>
+                </div>
+                <div data-test="recues">
+                  <dt>{{ t('automationsWebhook.received') }}</dt>
+                  <dd>
+                    {{ t('automationsWebhook.received24h', trigger.deliveries_24h ?? 0) }}<template
+                      v-if="trigger.deliveries_refused_24h">, {{ t('automationsWebhook.refused24h', trigger.deliveries_refused_24h) }}</template>
+                    <span class="sv-mute"> · {{ t('automationsWebhook.lastDelivery') }}
+                      {{ trigger.last_delivery ? absDate(trigger.last_delivery) : t('automationsWebhook.none') }}</span>
+                  </dd>
+                </div>
+                <div data-test="file">
+                  <dt>{{ t('automationsWebhook.queue') }}</dt>
+                  <dd>{{ t('automationsWebhook.queueValue', { pending: trigger.queue_pending ?? 0, held: trigger.queue_held ?? 0 }) }}</dd>
+                </div>
+              </template>
+              <template v-else>
+                <div>
+                  <dt>{{ t('automations.schedulePage.schedule') }}</dt>
+                  <dd>{{ cadenceEnMots(trigger.cron) ?? trigger.cron }} <span class="sv-mono">{{ trigger.cron }}</span></dd>
+                </div>
+                <div><dt>{{ t('automations.schedulePage.timezone') }}</dt><dd>{{ trigger.tz }}</dd></div>
+              </template>
               <div>
                 <dt>{{ t('automations.schedulePage.model') }}</dt>
                 <dd>
@@ -65,7 +92,7 @@ const filtreHistorique = computed(() =>
                     {{ t('automations.triggers.form.notServed') }}</Tag>
                 </dd>
               </div>
-              <div>
+              <div v-if="!estWebhook(trigger)">
                 <dt>{{ t('automations.schedulePage.next') }}</dt>
                 <dd v-if="!trigger.enabled">{{ t('automations.schedulePage.nextNone') }}</dd>
                 <dd v-else>{{ trigger.next_due ? absDate(trigger.next_due) : '—' }}</dd>
@@ -81,12 +108,25 @@ const filtreHistorique = computed(() =>
                 </dd>
               </div>
             </dl>
+            <!-- L'adresse est composée par le serveur, sur le domaine qu'il annonce : jamais
+                 reconstruite ici. Le secret ne se relit pas, il ne se montre donc pas. -->
+            <CopyField v-if="estWebhook(trigger) && trigger.hook_url" :value="trigger.hook_url"
+              :label="t('automationsWebhook.url')" data-test="adresse" />
+          </div>
+        </ConsoleCard>
+
+        <ConsoleCard v-if="estWebhook(trigger)" :title="t('automationsWebhook.deliveries.title')"
+          :sub="t('automationsWebhook.deliveries.sub')">
+          <div class="card-body">
+            <WebhookDeliveries :trigger-id="trigger.id" />
           </div>
         </ConsoleCard>
 
         <ConsoleCard v-if="filtreHistorique" :title="t('automations.schedulePage.history')"
           :sub="t('automations.schedulePage.historySub')">
           <div class="card-body" data-test="historique">
+            <RouterLink :to="{ path: '/automations/executions', query: { schedule: String(lecture.id.value) } }"
+              class="sv-lien sv-suivi" data-test="vers-suivi">{{ t('automationsFilters.seeInExecutions') }}</RouterLink>
             <RunnerJobList :filtre="filtreHistorique" :affiches="affiches" @update:affiches="surAffiches" />
           </div>
         </ConsoleCard>
@@ -105,4 +145,5 @@ const filtreHistorique = computed(() =>
 .sv-mute { font-size: 11.5px; color: var(--color-mute); }
 .sv-lien { font-weight: 600; color: var(--color-saffron-ink); }
 .sv-lien:hover { color: var(--color-ink); }
+.sv-suivi { display: inline-block; margin-bottom: 8px; font-size: 12px; }
 </style>
