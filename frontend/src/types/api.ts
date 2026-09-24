@@ -1844,6 +1844,16 @@ export type LegalDocument = components['schemas']['LegalDocument']
 export type LegalContext = components['schemas']['LegalContext']
 export type LegalStatus = ApiOut<'me_legal_get_get'>
 
+// ── abonnement de modèle PERSONNEL (`/api/me/model-subscriptions`, palier membre) ──
+// Un abonnement (Claude Pro/Max…) que SES agents consomment, dans un bac à sable à soi.
+// ⚠️ `statut` est servi en `str` : l'ensemble fermé (`connected | needs_login |
+// paused_limit | disconnected`) se resserre dans `lib/modelSubscription.ts`, qui lève
+// sur une valeur inconnue plutôt que de l'afficher comme un état qu'il ne sait pas lire.
+export type ModelSubscription = components['schemas']['Abonnement']
+export type ModelSubscriptionList = ApiOut<'me_model_subscriptions_list_get'>
+export type ModelSubscriptionLogin = ApiOut<'me_model_subscriptions_connect_post'>
+export type ModelSubscriptionRemoved = ApiOut<'me_model_subscriptions_remove_delete'>
+
 // ── accueil : « Dernières modifications » (oto#191, `GET /api/me/recent-changes`) ──
 // Une page (`type: 'doc'`, `id` = son `doc_id`, `project` renseigné) ou une procédure
 // (`id` = l'id stable que `/procedures/:id` ouvre, `project: null`, `scope` = son palier).

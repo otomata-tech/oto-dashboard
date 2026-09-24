@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Oto REST API",
-    "version": "v1.342.0+5a745f7e",
+    "version": "v1.350.0+f69eb235",
     "description": "API REST de la plateforme Oto. Deux faces servent le même métier (ADR 0009) : le\nMCP (`/mcp`, JWT Logto) et ce REST. Ce document est **dérivé du serveur** à chaque\nrequête — il décrit ce qui tourne, pas une intention.\n\n**Authentification** — `Authorization: Bearer <jeton>`, sous deux formes :\n\n- **JWT Logto** (session interactive : dashboard, connecteur MCP) ;\n- **jeton API** `oto_…` (intégration programmatique), émis depuis une session\n  interactive — un jeton ne peut ni lister, ni créer, ni révoquer de jeton.\n\n**Portée d'un jeton** — un jeton API peut être **porté** à sa création\n(`POST /api/me/tokens` avec `scopes`) : il n'ouvre alors QUE les tableaux nommés,\nen lecture ou écriture, et rien d'autre de l'organisation. C'est la forme à confier\nà une intégration tierce. Hors portée : `403 token_scope_forbidden`.\n\n**Verbe dans le corps** — les surfaces consolidées (projets, pages, procédures,\nressources…) exposent un seul chemin dont le corps porte le verbe : `{\"op\": \"list\"}`.\nLes valeurs possibles sont dans l'énuméré `op` du schéma de la requête.\n\n**Contexte d'organisation** — en-tête optionnel `X-Oto-Org` (et `X-Oto-Group`) pour\ntravailler dans une organisation précise ; par défaut, l'organisation maison.\n\n**Erreurs** — une seule enveloppe, le composant `Erreur` : `error` (jeton machine\nstable, la clé sur laquelle un client décide), `detail` (la phrase, actionnable) et\nparfois `details` (forme structurée). Les 4xx listés sur une opération sont ceux\nqu'elle DÉCLARE, chacun rejoué par un test ; la liste n'est pas exhaustive : tout\nappel peut rendre `400 invalid_input` / `unknown_fields` / `invalid_json` /\n`invalid_body` (validation de la requête par l'adaptateur), `401` et `403`.\n"
   },
   "paths": {
@@ -4597,7 +4597,7 @@
             }
           },
           "400": {
-            "description": "`invalid_row_input` — l'appel est refusé par le stockage avant d'écrire — dont une `expected_revision` illisible (la `_revision` est une chaîne de chiffres) ; `jeton_mal_place` — `datastore` ou `row_id` porte un jeton à sa mauvaise place (`slot:` sur l'identifiant de ligne, par exemple) : le message dit la conduite qui aboutit ; `row_invalid` — une ligne du lot est refusée par le schéma ou le cycle de vie : le message nomme son rang (et sa clé) et dit combien de lignes étaient déjà écrites avant l'arrêt ; `business_key_required` — le tableau exige sa clé métier à la création et une ligne du lot ne la porte pas, ou ne désigne aucune ligne existante : le message nomme la ligne ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "description": "`invalid_row_input` — l'appel est refusé par le stockage avant d'écrire — dont une `expected_revision` illisible (la `_revision` est une chaîne de chiffres) ; `jeton_mal_place` — `datastore` ou `row_id` porte un jeton à sa mauvaise place (`slot:` sur l'identifiant de ligne, par exemple) : le message dit la conduite qui aboutit ; `row_invalid` — une ligne du lot est refusée par le schéma ou le cycle de vie : le message nomme son rang (et sa clé) et dit combien de lignes étaient déjà écrites avant l'arrêt ; `business_key_required` — le tableau exige sa clé métier à la création et une ligne du lot ne la porte pas, ou ne désigne aucune ligne existante : le message nomme la ligne ; `details.cle_portee` dit si elle portait la clé, `details.a_renvoyer` le fragment à renvoyer ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
             "content": {
               "application/json": {
                 "schema": {
@@ -5330,7 +5330,7 @@
             }
           },
           "400": {
-            "description": "`invalid_row_input` — l'appel est refusé par le stockage avant d'écrire — dont une `expected_revision` illisible (la `_revision` est une chaîne de chiffres) ; `jeton_mal_place` — `datastore` ou `row_id` porte un jeton à sa mauvaise place (`slot:` sur l'identifiant de ligne, par exemple) : le message dit la conduite qui aboutit ; `row_invalid` — la ligne fusionnée est refusée par le schéma strict ou par le cycle de vie (transition non déclarée) : le message nomme les champs fautifs, `details.expected_column` la colonne quand il y en a une ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "description": "`invalid_row_input` — l'appel est refusé par le stockage avant d'écrire — dont une `expected_revision` illisible (la `_revision` est une chaîne de chiffres) ; `jeton_mal_place` — `datastore` ou `row_id` porte un jeton à sa mauvaise place (`slot:` sur l'identifiant de ligne, par exemple) : le message dit la conduite qui aboutit ; `row_invalid` — la ligne fusionnée est refusée par le schéma strict ou par le cycle de vie (transition non déclarée) : le message nomme les champs fautifs, `details.expected_column` la colonne quand il y en a une, `details.a_renvoyer` le fragment de ligne à renvoyer (gabarits `<…>` à remplacer) ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
             "content": {
               "application/json": {
                 "schema": {
@@ -29795,6 +29795,779 @@
         }
       }
     },
+    "/api/me/model-subscriptions": {
+      "get": {
+        "operationId": "me_model_subscriptions_list_get",
+        "summary": "List YOUR model subscriptions and their state.\n\nA subscription lets your own agents run on the plan you already pay for, inside a\nsandbox that belongs to you",
+        "description": "List YOUR model subscriptions and their state.\n\nA subscription lets your own agents run on the plan you already pay for, inside a\nsandbox that belongs to you. The platform never holds your provider session: you\nsign in inside that sandbox, through the provider's own flow.\n\nThis is member-scope only, always: a subscription belongs to whoever pays for it,\nand no one else — not even an admin of your organisation — reads or cuts it.",
+        "tags": [
+          "model_subscriptions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "subscriptions": {
+                      "items": {
+                        "$ref": "#/components/schemas/Abonnement"
+                      },
+                      "title": "Subscriptions",
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "subscriptions"
+                  ],
+                  "title": "AbonnementsListe",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_org_mismatch"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "jeton absent ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "refus d'autorisation (ou hors portée du jeton)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_not_found"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`run_closed` — le run de `X-Oto-Run` est clos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_closed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XOtoRun"
+          }
+        ]
+      }
+    },
+    "/api/me/model-subscriptions/{family}": {
+      "delete": {
+        "operationId": "me_model_subscriptions_remove_delete",
+        "summary": "Sign out of a model subscription, or destroy its sandbox.\n\nDefault (`?destroy=false`): you are signed out",
+        "description": "Sign out of a model subscription, or destroy its sandbox.\n\nDefault (`?destroy=false`): you are signed out. Your agents stop running on\nthat plan, and nothing is destroyed — reconnecting is one sign-in away.\n\nWith `?destroy=true`: the sandbox itself is destroyed, and everything in it.\nIrreversible.",
+        "tags": [
+          "model_subscriptions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "ok": {
+                      "title": "Ok",
+                      "type": "boolean"
+                    },
+                    "family": {
+                      "title": "Family",
+                      "type": "string"
+                    },
+                    "sandbox_destroyed": {
+                      "description": "Whether the sandbox itself was destroyed. `false` = signed out only, the sandbox is still there.",
+                      "title": "Sandbox Destroyed",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "family",
+                    "sandbox_destroyed"
+                  ],
+                  "title": "AbonnementRetire",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`unknown_family` — une famille qui n'est pas servie par abonnement ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "unknown_family",
+                            "run_org_mismatch"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "jeton absent ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "refus d'autorisation (ou hors portée du jeton)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`not_connected` — aucun abonnement de cette famille pour cette personne ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "not_connected",
+                            "run_not_found"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`run_closed` — le run de `X-Oto-Run` est clos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_closed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "`farm_unavailable` — la destruction du bac a échoué : rien n'est effacé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "farm_unavailable"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "family",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "description": "The model family this subscription serves, e.g. `claude_subscription`.",
+              "title": "Family",
+              "type": "string"
+            }
+          },
+          {
+            "name": "destroy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "`false` (default): sign out — the sandbox is kept, so reconnecting later is one sign-in away. `true`: destroy the sandbox itself, and everything in it. Irreversible.",
+              "title": "Destroy",
+              "type": "boolean"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/XOtoRun"
+          }
+        ]
+      }
+    },
+    "/api/me/model-subscriptions/{family}/login": {
+      "post": {
+        "operationId": "me_model_subscriptions_connect_post",
+        "summary": "Start connecting a model subscription: returns the provider's sign-in URL.\n\nOpen the URL in YOUR browser and sign in with your own account; the provider then\nshows a code",
+        "description": "Start connecting a model subscription: returns the provider's sign-in URL.\n\nOpen the URL in YOUR browser and sign in with your own account; the provider then\nshows a code. Send it to `PUT /api/me/model-subscriptions/{family}/login/code`.\nYour session is created inside your sandbox and never leaves it — the platform\nnever sees your credentials. Open to named people only.",
+        "tags": [
+          "model_subscriptions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "url": {
+                      "description": "The provider's sign-in page. Open it in YOUR browser, sign in, then send the code it shows to `PUT …/login/code`.",
+                      "title": "Url",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "url"
+                  ],
+                  "title": "ConnexionOuverte",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`unknown_family` — une famille qui n'est pas servie par abonnement ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "unknown_family",
+                            "run_org_mismatch"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "jeton absent ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "refus d'autorisation (ou hors portée du jeton) ; `subscription_not_enabled` — ce chemin n'est pas ouvert à cette personne",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_not_found"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`run_closed` — le run de `X-Oto-Run` est clos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_closed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "`farm_unavailable` — la ferme des bacs ne répond pas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "farm_unavailable"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "family",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "description": "The model family to connect, e.g. `claude_subscription`.",
+              "title": "Family",
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/XOtoRun"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Pre-fills the provider's sign-in page. Optional.",
+                    "title": "Email"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/model-subscriptions/{family}/login/code": {
+      "put": {
+        "operationId": "me_model_subscriptions_login_code_put",
+        "summary": "Finish connecting a model subscription with the code the provider showed.\n\nThe code is single-use and only works inside your sandbox",
+        "description": "Finish connecting a model subscription with the code the provider showed.\n\nThe code is single-use and only works inside your sandbox. On success the\nsubscription is `connected` and your jobs on it can run.",
+        "tags": [
+          "model_subscriptions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Un abonnement tel qu'un écran le montre.\n\n⚠️ Ni adresse e-mail, ni organisation du fournisseur, ni rien qui approche\nune session : la sonde les lit, la plateforme n'en garde rien.",
+                  "properties": {
+                    "family": {
+                      "title": "Family",
+                      "type": "string"
+                    },
+                    "statut": {
+                      "description": "`connected` | `needs_login` | `paused_limit` | `disconnected`.",
+                      "title": "Statut",
+                      "type": "string"
+                    },
+                    "plan": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "The plan tier the provider reported, e.g. `max`.",
+                      "title": "Plan"
+                    },
+                    "limit_reset_at": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "When the plan limit lifts, if the person is waiting on one. Their jobs stay queued until then — none fail.",
+                      "title": "Limit Reset At"
+                    },
+                    "last_ok_at": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Last Ok At"
+                    },
+                    "waiting_jobs": {
+                      "default": 0,
+                      "description": "How many of your jobs are queued on this subscription right now. While you are signed out, need to reconnect, or wait on a plan limit, they WAIT — none fail — and they resume on their own once you are back.",
+                      "title": "Waiting Jobs",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "family",
+                    "statut"
+                  ],
+                  "title": "Abonnement",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`unknown_family` — une famille qui n'est pas servie par abonnement ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "unknown_family",
+                            "run_org_mismatch"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "jeton absent ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "refus d'autorisation (ou hors portée du jeton) ; `subscription_not_enabled` — ce chemin n'est pas ouvert à cette personne",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_not_found"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`login_failed` — aucune connexion en attente ; `run_closed` — le run de `X-Oto-Run` est clos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "login_failed",
+                            "run_closed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`login_failed` — le fournisseur n'a pas ouvert de session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "login_failed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "`farm_unavailable` — la ferme des bacs ne répond pas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "farm_unavailable"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "family",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "description": "The model family being connected.",
+              "title": "Family",
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/XOtoRun"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "description": "The code the provider's page showed after sign-in.",
+                    "title": "Code",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/me/nodes/edit": {
       "post": {
         "operationId": "me_node_edit_post",
@@ -30213,7 +30986,7 @@
                         }
                       ],
                       "default": null,
-                      "description": "Tableau : le nom du tableau à repasser aux surfaces `data_*`. `null` sur une page. ⚠️ **C'est un NOM, et un nom peut désigner deux tableaux.** Les écritures de lignes le résolvent dans le scope de l'appelant, où « vivier », « leads » ou « contacts » existent souvent en plusieurs exemplaires (perso, équipe, org) : deux homonymes atteignables suffisent à écrire dans l'autre, sans erreur. Tant que l'écriture au grain du nœud n'existe pas, un client qui enchaîne « ouvrir ce tableau » puis « y écrire » assume cette ambiguïté.",
+                      "description": "Table copied from the datastore: its IDENTIFIER (digits, as a string) to pass as `datastore` to the `data_*` surfaces — never its name, which resolves in YOUR scope and can land on a homonym (a personal « vivier » beside the org's). `null` on a page and on a table born in the node model (read its rows through the node rows surface).",
                       "title": "Datastore"
                     },
                     "trail": {
@@ -31501,7 +32274,7 @@
       "post": {
         "operationId": "me_project_post",
         "summary": "Projects (organization layer)",
-        "description": "Projects (organization layer). op=create (name, optional brief_md; owner_type user|org + owner_id for a team project) / list (ORG-SCOPED: the ACTIVE org's projects + projects shared with it or with your teams in it — pass `org=<id>` to see another org's; `scope=\"me\"` lists instead the projects shared with YOU as a person, which no org list shows; every response echoes the effective org in `_org`. An INDEX: names and `brief_md_length`, NOT the briefs — read one with op=get, or pass `fields=[\"*\"]` for whole records) / list_templates (published MODEL projects you can copy, from the ACTIVE org and the platform library) / get (project + its links + an `audit` of those links: dead_links / unbound_slots / inert_procedures — a linked entity that no longer resolves surfaces HERE, act on it) / update (name, icon = an emoji shown in the lists and headers (\"\" clears it), brief_md, is_template = publish/unpublish as a copyable model, excluded_url_prefixes = URL prefixes such as `linkedin.com/in/` that search tools drop and extraction tools refuse under this project — a whole host must be written `host/*`, `[]` clears, mcp_instructions_md = the prose the published endpoint serves its recipients, fixed WITHOUT republishing — slug, access and tools stay as they are; owner/admin only) / copy (deep-copy a project you can read — its own or a model — into a NEW project in your active org: brief + doc tree + links + raw files; a tableau link stays a POINTER to the same namespace by default (config.provision absent/`shared`), but with config.provision=`empty`|`seeded` it is PROVISIONED — a FRESH namespace (same schema, rows only if `seeded`) so each copy gets its own isolated table (e.g. a campaign template's lead pool). A `shared` tableau owned by ANOTHER org is re-provisioned EMPTY (never a pointer to the source's private data), and links whose namespace no longer resolves are skipped — both surfaced in the response `warnings`. Pass project_id = source + name = target) / handoff (a copy-paste « resume in Claude » blob that pre-writes the per-call `_project=` token for this project) / archive (hides it from every list, destroys nothing; the response says what became unreachable — pages, linked procedures, links, brief — and a project with a non-empty brief or a linked procedure needs `confirm=true`, else 409 `confirm_required`) / unarchive (puts an archived project back; `was_archived_at` echoes what it undid; find archived ones with op=list `archived=true`) / link & unlink (attach an entity: target_type tableau|procedure|connecteur + target_ref = its id/slug/name, optional label + optional role = why this entity belongs to the project + optional config = the entity's PRE-MADE per-project override; for a connecteur: {identity_id?, instructions_md?} = which account to act as + prose instructions to apply (e.g. 'only filter agreements by the mutuelle theme'), or `instance_ref` (a ref from oto_instance op=list, ADR 0038 B5) to bind EXACTLY that credential — calls carrying this project's token then resolve it hard, no fallback; for a tableau: {provision?: shared|empty|seeded} = how a project copy treats it (empty/seeded = each copy gets its own fresh table). Optional `slot` = the SLOT NAME this link BINDS for the project (ADR 0035): procedures declare required entities as slots and reference them <slot:name> in their prose — the project maps each name to a concrete entity via its links. Slot names are a PROJECT-wide vocabulary (unique per project → 409 slot_taken; two linked procedures sharing `sortie` share the binding). Re-linking preserves every field you omit — label, role, config and slot; pass a value to change one. link says WHAT IT DID in `link_status`: `created` (the binding did not exist), `unchanged` (it was already there and this call rewrote nothing) or `updated` (it existed and this call changed it — `changed_fields` then lists which of label/role/slot/config/target_ref moved). Re-running a link is safe and idempotent, so a caller told to ENSURE a resource is attached must read `link_status` — not `ok` — to know whether it actually acted. unlink returns `removed` = how many bindings it actually took out, and REFUSES (`link_not_found`) when it matched none — it never answers ok on a link it did not find. Give the `target_ref` as op=get renders it: an older link may still carry the NAME of its tableau (or the SLUG of its procedure) instead of the id. link and unlink both recognize either spelling: link rewrites that older link to the id (`rewritten_from` = the old spelling) instead of adding a second one, unlink takes back every spelling. get/link return each link's role + slot + config + a derived `cross_project` flag (the same entity is linked by another project → avoid brutal edits / ask); a tableau link also returns its resolved `datastore` (the NAME, a label) and `datastore_id` (the IDENTIFIER, resolved server-side in the PROJECT OWNER's scope) — address THIS project's table with `datastore_id` in the data_* tools, never by hardcoding a name: several tables can carry one name, and at equal name resolution prefers the CALLER's own personal table. No `datastore_id` = this link does not resolve to a single table here — say so instead of guessing. EVERY project carries `url` — the web address to OPEN it, in the reader's own product; hand it over as-is when asked \"where is it?\", never rebuild one from a pattern (`null` = that reader's product has no such view). Share & transfer go through oto_resource (resource_type='project', ADR 0030 owned resource) — this includes RE-PARENTING a project in place (same id, links, runs preserved): op=transfer new_owner_group=<id> hands it to a TEAM so the project and its connector credentials sit at the SAME level (the team's secrets then resolve when you open it), new_owner_org=<id> to an org, new_owner_email to a user. (op=update only changes name/icon/brief_md/is_template — never the owner; op=copy makes a NEW id.) inventory = the project's DERIVED surface (union of the linked procedures' <tool:> refs + tools actually used by the project's runs, plus connectors from links & declared slots) — never retype a tool list: derive, then curate. runs (optional target_ref = a linked procedure's stable id) = the project's recent runs (label/guide/outcome), filtered to that procedure when given. OMIT project_id on op=runs and you get YOUR OWN still-open runs instead, each with its `run_id` — that is how you find a run you opened and lost the id of, so you can finally close it with run_finish. Across every org, since a run you cannot find is usually one you opened elsewhere. lint (optional stale_days, default 90) = health of this project's pages: stale (untouched since), empty (trivial body), duplicate_titles (likely merges). publish_mcp (mcp_slug + mcp_access anonymous|secret|org + mcp_tools = the fixed tool allowlist) publishes the project as a dedicated MCP endpoint `<mcp_slug>.mcp.oto.cx/mcp`, the toolset served under the OWNER ORG's credentials — `anonymous` = no login + LISTED in the public directory; `secret` = no login but UNLISTED, the slug is server-generated & unguessable (a secret URL; mcp_slug is an optional readable prefix); `org` = Logto JWT + pins the org. For anonymous/secret, tools that aren't credential-less or resolvable for the org are published anyway but FAIL cleanly at call time — they come back in `mcp_unresolvable_tools` (configure an org key or drop them). mcp_expose_datastore (SECRET only) opts the `data_*` tools in: they then act under the OWNER ORG's authority (read/write the org's namespaces) without a login — off by default (the datastore stays private); refused on anonymous/org. unpublish_mcp removes it. get returns mcp_slug/mcp_access/mcp_tools/mcp_expose_datastore/mcp_url.",
+        "description": "Projects (organization layer). op=create (name, optional brief_md; owner_type user|org + owner_id for a team project) / list (ORG-SCOPED: the ACTIVE org's projects + projects shared with it or with your teams in it — pass `org=<id>` to see another org's; `scope=\"me\"` lists instead the projects shared with YOU as a person, which no org list shows; every response echoes the effective org in `_org`. An INDEX: names and `brief_md_length`, NOT the briefs — read one with op=get, or pass `fields=[\"*\"]` for whole records) / list_templates (published MODEL projects you can copy, from the ACTIVE org and the platform library) / get (project + its links + an `audit` of those links: dead_links / unbound_slots / inert_procedures — a linked entity that no longer resolves surfaces HERE, act on it) / update (name, icon = an emoji shown in the lists and headers (\"\" clears it), brief_md, is_template = publish/unpublish as a copyable model, excluded_url_prefixes = URL prefixes such as `linkedin.com/in/` that search tools drop and extraction tools refuse under this project — a whole host must be written `host/*`, `[]` clears, mcp_instructions_md = the prose the published endpoint serves its recipients, fixed WITHOUT republishing — slug, access and tools stay as they are; owner/admin only) / copy (deep-copy a project you can read — its own or a model — into a NEW project in your active org: brief + doc tree + links + raw files; a tableau link stays a POINTER to the same namespace by default (config.provision absent/`shared`), but with config.provision=`empty`|`seeded` it is PROVISIONED — a FRESH namespace (same schema, rows only if `seeded`) so each copy gets its own isolated table (e.g. a campaign template's lead pool). A `shared` tableau owned by ANOTHER org is re-provisioned EMPTY (never a pointer to the source's private data), and links whose namespace no longer resolves are skipped — both surfaced in the response `warnings`. Pass project_id = source + name = target) / handoff (a copy-paste « resume in Claude » blob that pre-writes the per-call `_project=` token for this project) / archive (hides it from every list, destroys nothing; the response says what became unreachable — pages, linked procedures, links, brief — and a project with a non-empty brief or a linked procedure needs `confirm=true`, else 409 `confirm_required`) / unarchive (puts an archived project back; `was_archived_at` echoes what it undid; find archived ones with op=list `archived=true`) / link & unlink (attach an entity: target_type tableau|procedure|connecteur + target_ref = its id/slug/name, optional label + optional role = why this entity belongs to the project + optional config = the entity's PRE-MADE per-project override; for a connecteur: {identity_id?, instructions_md?} = which account to act as + prose instructions to apply (e.g. 'only filter agreements by the mutuelle theme'), or `instance_ref` (a ref from oto_instance op=list, ADR 0038 B5) to bind EXACTLY that credential — calls carrying this project's token then resolve it hard, no fallback; for a tableau: {provision?: shared|empty|seeded} = how a project copy treats it (empty/seeded = each copy gets its own fresh table). Optional `slot` = the SLOT NAME this link BINDS for the project (ADR 0035): procedures declare required entities as slots and reference them <slot:name> in their prose — the project maps each name to a concrete entity via its links. Slot names are a PROJECT-wide vocabulary (unique per project → 409 slot_taken; two linked procedures sharing `sortie` share the binding). Re-linking preserves every field you omit — label, role, config and slot; pass a value to change one. link says WHAT IT DID in `link_status`: `created` (the binding did not exist), `unchanged` (it was already there and this call rewrote nothing) or `updated` (it existed and this call changed it — `changed_fields` then lists which of label/role/slot/config/target_ref moved). Re-running a link is safe and idempotent, so a caller told to ENSURE a resource is attached must read `link_status` — not `ok` — to know whether it actually acted. unlink returns `removed` = how many bindings it actually took out, and REFUSES (`link_not_found`) when it matched none — it never answers ok on a link it did not find. Give the `target_ref` as op=get renders it: an older link may still carry the NAME of its tableau (or the SLUG of its procedure) instead of the id. link and unlink both recognize either spelling: link rewrites that older link to the id (`rewritten_from` = the old spelling) instead of adding a second one, unlink takes back every spelling. get/link return each link's role + slot + config + a derived `cross_project` flag (the same entity is linked by another project → avoid brutal edits / ask); a tableau link also returns its resolved `datastore` (the NAME, a label) and `datastore_id` (the IDENTIFIER, resolved server-side in the PROJECT OWNER's scope) — address THIS project's table with `datastore_id` in the data_* tools, never by hardcoding a name: several tables can carry one name, and at equal name resolution prefers the CALLER's own personal table. No `datastore_id` = this link does not resolve to a single table here (`datastore_ambigu: true` = its NAME designates several tables in the owner's scope) — say so instead of guessing. EVERY project carries `url` — the web address to OPEN it, in the reader's own product; hand it over as-is when asked \"where is it?\", never rebuild one from a pattern (`null` = that reader's product has no such view). Share & transfer go through oto_resource (resource_type='project', ADR 0030 owned resource) — this includes RE-PARENTING a project in place (same id, links, runs preserved): op=transfer new_owner_group=<id> hands it to a TEAM so the project and its connector credentials sit at the SAME level (the team's secrets then resolve when you open it), new_owner_org=<id> to an org, new_owner_email to a user. (op=update only changes name/icon/brief_md/is_template — never the owner; op=copy makes a NEW id.) inventory = the project's DERIVED surface (union of the linked procedures' <tool:> refs + tools actually used by the project's runs, plus connectors from links & declared slots) — never retype a tool list: derive, then curate. runs (optional target_ref = a linked procedure's stable id) = the project's recent runs (label/guide/outcome), filtered to that procedure when given. OMIT project_id on op=runs and you get YOUR OWN still-open runs instead, each with its `run_id` — that is how you find a run you opened and lost the id of, so you can finally close it with run_finish. Across every org, since a run you cannot find is usually one you opened elsewhere. lint (optional stale_days, default 90) = health of this project's pages: stale (untouched since), empty (trivial body), duplicate_titles (likely merges). publish_mcp (mcp_slug + mcp_access anonymous|secret|org + mcp_tools = the fixed tool allowlist) publishes the project as a dedicated MCP endpoint `<mcp_slug>.mcp.oto.cx/mcp`, the toolset served under the OWNER ORG's credentials — `anonymous` = no login + LISTED in the public directory; `secret` = no login but UNLISTED, the slug is server-generated & unguessable (a secret URL; mcp_slug is an optional readable prefix); `org` = Logto JWT + pins the org. For anonymous/secret, tools that aren't credential-less or resolvable for the org are published anyway but FAIL cleanly at call time — they come back in `mcp_unresolvable_tools` (configure an org key or drop them). mcp_expose_datastore (SECRET only) opts the `data_*` tools in: they then act under the OWNER ORG's authority (read/write the org's namespaces) without a login — off by default (the datastore stays private); refused on anonymous/org. unpublish_mcp removes it. get returns mcp_slug/mcp_access/mcp_tools/mcp_expose_datastore/mcp_url.",
         "tags": [
           "me"
         ],
@@ -33127,7 +33900,7 @@
       "post": {
         "operationId": "runner_fleets_post",
         "summary": "Declared configuration of an agent PASS — what a fleet runs, on which table, within which perimeter, and up to which limit",
-        "description": "Declared configuration of an agent PASS — what a fleet runs, on which table, within which perimeter, and up to which limit. op=create (`label` + procedure slug + `tools` allowlist ; optional target `namespace` + `row_filter`, execution context `model` — one of the catalogue served as `runner.models` by oto_trigger; `provider` is deduced from it; omitted, the worker runs its own —, and limits `max_rows` / `max_tokens` / `max_consecutive_failures` / `max_tokens_per_row` — budgets are counted in TOKENS, never money) / list (optionally filtered by `status`; one CARD per fleet — `input_sha256` in place of `input`, and `projection` names what it leaves out) / get (the full declaration) / state / update. ⚠️ op=launch ARMS the fleet — it does NOT start any process. The state becomes `armed`, never `running`: `running` is a FACT, not an intent — a worker asked for work and Oto produced this pass's first job. That happens BY ITSELF, usually within seconds: workers poll continuously and Oto makes the work when they ask. **No scheduler is involved and none has to be started.** An `armed` still `armed` after a minute therefore means NO WORKER IS POLLING for this org — not 'nobody has taken it'. Symmetrically, op=stop REQUESTS the stop (`stopping`); the fleet keeps reserving, calling and SPENDING until none of its jobs is left in flight, at which point Oto states the fact (`stopped`) at the next poll. Never report a launch on `armed`, nor a stop on `stopping` — the gap between the two is also the diagnosis. op=launch is REFUSED with `no_runner_armed` when no worker polls for this org at all (nothing would ever execute it — reading, updating and op=stop stay open), and with `model_not_served` when the fleet declares a model no live worker serves: its jobs would wait forever. op=state returns the pass PROGRESS aggregated over its jobs — pending, claimed, done, failed, abandoned, tokens consumed, heaviest single row, `empty_jobs` (finished with no row), `stopped_after_write` — plus `reservable_rows`, what the scheduler still sees to serve — and says `no_jobs_attached` explicitly rather than returning zeros you would read as 'nothing happened'. The TARGET is frozen at declaration: redirecting a running pass to another table is what declaring exists to prevent; the execution context (`provider`/`model`) is frozen too, since changing it mid-flight falsifies the attribution of rows already written — declare another fleet instead — duplicate, never switch. An EXTERNAL scheduler is still served here, and each of its calls names it with `taken_by` (its own id, stable across its restarts): op=take (`armed`→`running`, records `taken_by` — returned by get and list; taking back a `running` pass it already holds is a resume and succeeds, one held by ANOTHER scheduler is refused `held_by_other`), op=beat (heartbeat AND reads back `stop_requested` in the same call), op=ack_stop (`stopping`→`stopped`) — both refused `not_the_holder` to anyone but the holder. ⚠️ None of them is required any more, and you should not call them: polling alone moves a pass, and op=take would only claim one that was about to start on its own.",
+        "description": "Declared configuration of an agent PASS — what a fleet runs, on which table, within which perimeter, and up to which limit. op=create (`label` + procedure slug + `tools` allowlist ; optional target `namespace` + `row_filter`, execution context `model` — one of the catalogue served as `runner.models` by oto_trigger; `provider` is deduced from it; omitted, the worker runs its own —, and limits `max_rows` / `max_tokens` / `max_consecutive_failures` / `max_tokens_per_row` — budgets are counted in TOKENS, never money) / list (optionally filtered by `status`; one CARD per fleet — `input_sha256` in place of `input`, and `projection` names what it leaves out) / get (the full declaration) / state / update. ⚠️ op=launch ARMS the fleet — it does NOT start any process. The state becomes `armed`, never `running`: `running` is a FACT, not an intent — a worker asked for work and Oto produced this pass's first job. That happens BY ITSELF, usually within seconds: workers poll continuously and Oto makes the work when they ask. **No scheduler is involved and none has to be started.** An `armed` still `armed` after a minute therefore means NO WORKER IS POLLING for this org — not 'nobody has taken it'. Symmetrically, op=stop REQUESTS the stop (`stopping`); the fleet keeps reserving, calling and SPENDING until none of its jobs is left in flight, at which point Oto states the fact (`stopped`) at the next poll. Never report a launch on `armed`, nor a stop on `stopping` — the gap between the two is also the diagnosis. op=launch is REFUSED with `no_runner_armed` when no worker polls for this org at all (nothing would ever execute it — reading, updating and op=stop stay open), and with `model_not_served` when the fleet declares a model no live worker serves: its jobs would wait forever. op=state returns the pass PROGRESS aggregated over its jobs — pending, claimed, done, failed, abandoned, tokens consumed, heaviest single row, `empty_jobs` (finished with no row), `stopped_after_write` — plus `reservable_rows`, what the scheduler still sees to serve — and says `no_jobs_attached` explicitly rather than returning zeros you would read as 'nothing happened'. ⚠️ Those counters count JOBS, never rows: a job that gives its row back unwritten still ends `done`, so `done` = `jobs_total` with `failed` = 0 is NOT a success. What became of the ROWS is in `rows` — per final status value, `concluded`, `abandoned` (failed, with the reason) and `open`, read from the table itself — and what each execution concluded is in `runs_by_outcome` (done / partial / failed / blocked). Report the outcome from `rows`, and say its `scope`. The TARGET is frozen at declaration: redirecting a running pass to another table is what declaring exists to prevent; the execution context (`provider`/`model`) is frozen too, since changing it mid-flight falsifies the attribution of rows already written — declare another fleet instead — duplicate, never switch. An EXTERNAL scheduler is still served here, and each of its calls names it with `taken_by` (its own id, stable across its restarts): op=take (`armed`→`running`, records `taken_by` — returned by get and list; taking back a `running` pass it already holds is a resume and succeeds, one held by ANOTHER scheduler is refused `held_by_other`), op=beat (heartbeat AND reads back `stop_requested` in the same call), op=ack_stop (`stopping`→`stopped`) — both refused `not_the_holder` to anyone but the holder. ⚠️ None of them is required any more, and you should not call them: polling alone moves a pass, and op=take would only claim one that was about to start on its own.",
         "tags": [
           "runner"
         ],
@@ -45868,6 +46641,19 @@
                       "title": "Active Users",
                       "type": "integer"
                     },
+                    "emitter_named_calls": {
+                      "default": 0,
+                      "title": "Emitter Named Calls",
+                      "type": "integer"
+                    },
+                    "by_emitter": {
+                      "default": [],
+                      "items": {
+                        "$ref": "#/components/schemas/EmitterStat"
+                      },
+                      "title": "By Emitter",
+                      "type": "array"
+                    },
                     "by_tool": {
                       "items": {
                         "$ref": "#/components/schemas/ToolStat"
@@ -46185,6 +46971,178 @@
             "schema": {
               "default": 30,
               "title": "Days",
+              "type": "integer"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/XOtoRun"
+          }
+        ]
+      }
+    },
+    "/api/orgs/{id}/monitoring/view-as": {
+      "get": {
+        "operationId": "org_monitoring_view_as_writes_get",
+        "summary": "Writes made ON BEHALF of a member of this org by a platform operator (view-as with explicit write acceptance): who (operator), as whom (target), which route, when, outcome",
+        "description": "Writes made ON BEHALF of a member of this org by a platform operator (view-as with explicit write acceptance): who (operator), as whom (target), which route, when, outcome. Never arguments nor secrets. Org admin only.",
+        "tags": [
+          "monitoring"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Les écritures faites en « voir en tant que » sous cette org, plus récentes\nd'abord (fenêtre `days`, défaut 30). Vide = aucune sur la fenêtre.",
+                  "properties": {
+                    "writes": {
+                      "items": {
+                        "$ref": "#/components/schemas/ViewAsWriteRow"
+                      },
+                      "title": "Writes",
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "writes"
+                  ],
+                  "title": "OrgViewAsWrites",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_org_mismatch"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "jeton absent ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "refus d'autorisation (ou hors portée du jeton)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_not_found"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`run_closed` — le run de `X-Oto-Run` est clos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_closed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "integer"
+            },
+            "description": "champ `org_id` de la requête"
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "title": "Limit",
               "type": "integer"
             }
           },
@@ -47902,7 +48860,7 @@
       "post": {
         "operationId": "resources_govern_post",
         "summary": "Govern an OWNED resource (ADR 0030) without reading its content",
-        "description": "Govern an OWNED resource (ADR 0030) without reading its content. op=list: resources you govern (platform admins see all); op=get: owner + shares + metadata (each grant carries a `role`); op=transfer: hand ownership to a user (`new_owner_email`), to one of YOUR orgs (`new_owner_org`, you must be a member) OR to one of YOUR teams (`new_owner_group`, ADR 0049 — scoping a resource to a pôle IS the way to restrict it); a user-owned previous owner keeps editor access (transfer is owner/admin only, never a grantee). ANTI-LOCKOUT: if the transfer would leave YOU unable to ever get the resource back (handing to a third party, or to an org/team you don't administer), it is refused with code `confirm_loss_of_control` — resend with `confirm_transfer=true` to proceed consciously (a platform admin is never blocked and can always recover it). op=share/unshare — ONE unified « Share », two axes (ADR 0048): AUDIENCE (`audience`) = where it goes: `person` (`email`) / `team` (`group_id`, a group of an org you belong to) / `org` (`org_id`, a whole org, client delivery) → a grant; `public`/`secret` → PUBLISH the project (public = listed, secret = unguessable link) with `mcp_tools` (defaults to the already-published set); `private` → unpublish. ROLE (`role`) = what they can do: `viewer` (read), `editor` (write), `manager` (GOVERNANCE — re-share / delete / publish, grantable, but NOT ownership transfer); public/secret force viewer. Legacy `permission` read|write is still accepted (mapped to viewer/editor). KEYS (`credentials`, project share only, same for person/team/org): a recipient works in the project with THEIR OWN keys (`own`, the default) — the owner org's and team's keys are NOT lent. `credentials='inherit'` lends them, bounded by your own rights (you must be a member of the owner org; refused with `inherit_beyond_sharer_rights` otherwise); re-share with `credentials='own'` or unshare to revoke. op=get shows each grant's `credentials`. resource_type ∈ {datastore_namespace, project, procedure, doc} — it is the discriminant, and it also decides which shape comes back. PROCEDURES (resource_type=procedure): op=transfer MOVES the procedure with its history — same resource_id, every revision, its project links and its shares follow it (a slug already taken at the destination gets a suffix, nothing is overwritten). By contrast, transferring a PROJECT with cascade=true COPIES its linked procedures into the target (see DELIVER A FULL PROJECT below). resource_type=\"doc\" shares ONE PAGE ALONE (resource_id = its oto_doc id), read-only: role `viewer` (the default — editor/manager are refused with `doc_viewer_only`), audience person/team/org only (public/secret do not apply to a page). The recipient reads it with oto_doc op=get and finds it with oto_doc op=shared_with_me — never its project, sibling pages, sub-pages, revisions or backlinks. Sharing a page takes the right to govern its project; op=unshare closes it at once; op=list lists the pages you shared one by one; a page is never transferred on its own. ⚠️ KNOWN DEFECT, kept for backward compatibility: resource_type DEFAULTS to `datastore_namespace`. Omitting it does NOT mean « any type » — the call silently targets a datastore namespace, so op=get/list answer about the wrong family, and op=transfer/share ACT ON A DIFFERENT RESOURCE than the one you meant (same numeric id, other family). ALWAYS pass resource_type explicitly. The fix is a separate surface, oto_resource_v2 / POST /api/resources/v2, which REQUIRES the field — migrate to it. DELIVER A FULL PROJECT (#52): share/transfer a project with cascade=true to carry its linked entities in one gesture — linked tableaux get the same share/transfer, linked procedures are share-granted read (readable cross-org via oto_procedure op=get guide_id) or COPIED into the target org on transfer (link re-pointed, source untouched), connector links report `recipient_credential` (the recipient plugs their own key; the project's pre-made identity/instructions overrides travel with it) or `inherited_credential` under credentials=inherit; docs & files follow automatically. Returns a per-entity cascade report. Owner OR org/platform admin governing it; never exposes row content.",
+        "description": "Govern an OWNED resource (ADR 0030) without reading its content. op=list: resources you govern (platform admins see all); op=get: owner + shares + metadata (each grant carries a `role`); op=transfer: hand ownership to a user (`new_owner_email`), to one of YOUR orgs (`new_owner_org`, you must be a member) OR to one of YOUR teams (`new_owner_group`, ADR 0049 — scoping a resource to a pôle IS the way to restrict it); a user-owned previous owner keeps editor access (transfer is owner/admin only, never a grantee). ANTI-LOCKOUT: if the transfer would leave YOU unable to ever get the resource back (handing to a third party, or to an org/team you don't administer), it is refused with code `confirm_loss_of_control` — resend with `confirm_transfer=true` to proceed consciously (a platform admin is never blocked and can always recover it). op=share/unshare — ONE unified « Share », two axes (ADR 0048): AUDIENCE (`audience`) = where it goes: `person` (`email`) / `team` (`group_id`, a group of an org you belong to) / `org` (`org_id`, a whole org, client delivery) → a grant; `public`/`secret` → PUBLISH the project (public = listed, secret = unguessable link) with `mcp_tools` (defaults to the already-published set); `private` → unpublish. ROLE (`role`) = what they can do: `viewer` (read), `editor` (write), `manager` (GOVERNANCE — re-share / delete / publish, grantable, but NOT ownership transfer); public/secret force viewer. Legacy `permission` read|write is still accepted (mapped to viewer/editor). KEYS (`credentials`, project share only, same for person/team/org): a recipient works in the project with THEIR OWN keys (`own`, the default) — the owner org's and team's keys are NOT lent. `credentials='inherit'` lends them, bounded by your own rights (you must be a member of the owner org; refused with `inherit_beyond_sharer_rights` otherwise); re-share with `credentials='own'` or unshare to revoke. op=get shows each grant's `credentials`. EXPIRY (`ttl_days`, share to person/team/org only; refused with `ttl_days_grant_only` elsewhere): the share expires after N days — past it the recipient loses access (content, listings, lent keys), with NO reminder before. Omitted on a re-share: an active share keeps its expiry, an expired one is reopened without one; to remove an expiry, unshare then share. With cascade=true the linked tableaux/procedures get the same expiry. op=share returns `expires_at` (null = none); op=get lists each grant's `expires_at` and `expired` — an expired share stays listed, marked, until unshared. resource_type ∈ {datastore_namespace, project, procedure, doc} — it is the discriminant, and it also decides which shape comes back. PROCEDURES (resource_type=procedure): op=transfer MOVES the procedure with its history — same resource_id, every revision, its project links and its shares follow it (a slug already taken at the destination gets a suffix, nothing is overwritten). By contrast, transferring a PROJECT with cascade=true COPIES its linked procedures into the target (see DELIVER A FULL PROJECT below). resource_type=\"doc\" shares ONE PAGE ALONE (resource_id = its oto_doc id), read-only: role `viewer` (the default — editor/manager are refused with `doc_viewer_only`), audience person/team/org only (public/secret do not apply to a page). The recipient reads it with oto_doc op=get and finds it with oto_doc op=shared_with_me — never its project, sibling pages, sub-pages, revisions or backlinks. Sharing a page takes the right to govern its project; op=unshare closes it at once; op=list lists the pages you shared one by one; a page is never transferred on its own. ⚠️ KNOWN DEFECT, kept for backward compatibility: resource_type DEFAULTS to `datastore_namespace`. Omitting it does NOT mean « any type » — the call silently targets a datastore namespace, so op=get/list answer about the wrong family, and op=transfer/share ACT ON A DIFFERENT RESOURCE than the one you meant (same numeric id, other family). ALWAYS pass resource_type explicitly. The fix is a separate surface, oto_resource_v2 / POST /api/resources/v2, which REQUIRES the field — migrate to it. DELIVER A FULL PROJECT (#52): share/transfer a project with cascade=true to carry its linked entities in one gesture — linked tableaux get the same share/transfer, linked procedures are share-granted read (readable cross-org via oto_procedure op=get guide_id) or COPIED into the target org on transfer (link re-pointed, source untouched), connector links report `recipient_credential` (the recipient plugs their own key; the project's pre-made identity/instructions overrides travel with it) or `inherited_credential` under credentials=inherit; docs & files follow automatically. Returns a per-entity cascade report. Owner OR org/platform admin governing it; never exposes row content.",
         "tags": [
           "resources"
         ],
@@ -47966,7 +48924,7 @@
             }
           },
           "400": {
-            "description": "`email_required` — share/unshare sans principal : ni `email`, ni `org_id`, ni `group_id` ; `doc_viewer_only` — `share` of a page (`resource_type=\"doc\"`) with a role other than `viewer` — a page is shared read-only; share its project to let someone write ; `credentials_project_share_only` — `credentials` sur autre chose que le partage d'un projet à une personne, une équipe ou une org ; `publication_unsupported` — audience `public`/`secret`/`private` sur autre chose qu'un projet — seul un projet se publie ; `unsupported_resource_type` — famille de ressource inconnue — surface héritée seulement, la stricte la refuse à la validation ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "description": "`email_required` — share/unshare sans principal : ni `email`, ni `org_id`, ni `group_id` ; `doc_viewer_only` — `share` of a page (`resource_type=\"doc\"`) with a role other than `viewer` — a page is shared read-only; share its project to let someone write ; `credentials_project_share_only` — `credentials` sur autre chose que le partage d'un projet à une personne, une équipe ou une org ; `ttl_days_grant_only` — `ttl_days` hors du partage d'une ressource à une personne, une équipe ou une org (autre op, ou audience public/secret/private) ; `publication_unsupported` — audience `public`/`secret`/`private` sur autre chose qu'un projet — seul un projet se publie ; `unsupported_resource_type` — famille de ressource inconnue — surface héritée seulement, la stricte la refuse à la validation ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
             "content": {
               "application/json": {
                 "schema": {
@@ -47981,6 +48939,7 @@
                             "email_required",
                             "doc_viewer_only",
                             "credentials_project_share_only",
+                            "ttl_days_grant_only",
                             "publication_unsupported",
                             "unsupported_resource_type",
                             "run_org_mismatch"
@@ -48278,6 +49237,20 @@
                     "description": "Project share only — which keys the recipient works with. `own` (default): their own keys. `inherit`: also the project owner's org/team keys, bounded by YOUR rights (you must be a member of the owner org). Omitted = unchanged.",
                     "title": "Credentials"
                   },
+                  "ttl_days": {
+                    "anyOf": [
+                      {
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Share only (person/team/org): the share EXPIRES after this many days (integer ≥ 1) — past it, the recipient loses access. Omitted: an active share keeps its expiry, a new or expired one has none. Nobody is reminded before it expires.",
+                    "title": "Ttl Days"
+                  },
                   "confirm_transfer": {
                     "default": false,
                     "title": "Confirm Transfer",
@@ -48297,7 +49270,7 @@
       "post": {
         "operationId": "resources_govern_v2_post",
         "summary": "BETA",
-        "description": "BETA. Same governance surface as oto_resource (ADR 0030), with a STRICT input contract: resource_type is REQUIRED (no default) ∈ {datastore_namespace, project, procedure, doc}, and resource_id must be numeric. PROCEDURES (resource_type=procedure): op=transfer MOVES the procedure with its history — same resource_id, every revision, its project links and its shares follow it (a slug already taken at the destination gets a suffix, nothing is overwritten). By contrast, transferring a PROJECT with cascade=true COPIES its linked procedures into the target (see DELIVER A FULL PROJECT below). resource_type=\"doc\" shares ONE PAGE ALONE (resource_id = its oto_doc id), read-only: role `viewer` (the default — editor/manager are refused with `doc_viewer_only`), audience person/team/org only (public/secret do not apply to a page). The recipient reads it with oto_doc op=get and finds it with oto_doc op=shared_with_me — never its project, sibling pages, sub-pages, revisions or backlinks. Sharing a page takes the right to govern its project; op=unshare closes it at once; op=list lists the pages you shared one by one; a page is never transferred on its own. Prefer this tool over oto_resource: on the legacy one, omitting resource_type silently targets a datastore namespace, so op=transfer/share act on a DIFFERENT resource than the one you meant. Everything else is identical — op=list: resources you govern (platform admins see all); op=get: owner + shares + metadata (each grant carries a `role`); op=transfer: hand ownership to a user (`new_owner_email`), to one of YOUR orgs (`new_owner_org`, you must be a member) OR to one of YOUR teams (`new_owner_group`, ADR 0049 — scoping a resource to a pôle IS the way to restrict it); a user-owned previous owner keeps editor access (transfer is owner/admin only, never a grantee). ANTI-LOCKOUT: if the transfer would leave YOU unable to ever get the resource back (handing to a third party, or to an org/team you don't administer), it is refused with code `confirm_loss_of_control` — resend with `confirm_transfer=true` to proceed consciously (a platform admin is never blocked and can always recover it). op=share/unshare — ONE unified « Share », two axes (ADR 0048): AUDIENCE (`audience`) = where it goes: `person` (`email`) / `team` (`group_id`, a group of an org you belong to) / `org` (`org_id`, a whole org, client delivery) → a grant; `public`/`secret` → PUBLISH the project (public = listed, secret = unguessable link) with `mcp_tools` (defaults to the already-published set); `private` → unpublish. ROLE (`role`) = what they can do: `viewer` (read), `editor` (write), `manager` (GOVERNANCE — re-share / delete / publish, grantable, but NOT ownership transfer); public/secret force viewer. Legacy `permission` read|write is still accepted (mapped to viewer/editor). KEYS (`credentials`, project share only, same for person/team/org): a recipient works in the project with THEIR OWN keys (`own`, the default) — the owner org's and team's keys are NOT lent. `credentials='inherit'` lends them, bounded by your own rights (you must be a member of the owner org; refused with `inherit_beyond_sharer_rights` otherwise); re-share with `credentials='own'` or unshare to revoke. op=get shows each grant's `credentials`. DELIVER A FULL PROJECT (#52): share/transfer a project with cascade=true to carry its linked entities in one gesture — linked tableaux get the same share/transfer, linked procedures are share-granted read (readable cross-org via oto_procedure op=get guide_id) or COPIED into the target org on transfer (link re-pointed, source untouched), connector links report `recipient_credential` (the recipient plugs their own key; the project's pre-made identity/instructions overrides travel with it) or `inherited_credential` under credentials=inherit; docs & files follow automatically. Returns a per-entity cascade report. Owner OR org/platform admin governing it; never exposes row content.",
+        "description": "BETA. Same governance surface as oto_resource (ADR 0030), with a STRICT input contract: resource_type is REQUIRED (no default) ∈ {datastore_namespace, project, procedure, doc}, and resource_id must be numeric. PROCEDURES (resource_type=procedure): op=transfer MOVES the procedure with its history — same resource_id, every revision, its project links and its shares follow it (a slug already taken at the destination gets a suffix, nothing is overwritten). By contrast, transferring a PROJECT with cascade=true COPIES its linked procedures into the target (see DELIVER A FULL PROJECT below). resource_type=\"doc\" shares ONE PAGE ALONE (resource_id = its oto_doc id), read-only: role `viewer` (the default — editor/manager are refused with `doc_viewer_only`), audience person/team/org only (public/secret do not apply to a page). The recipient reads it with oto_doc op=get and finds it with oto_doc op=shared_with_me — never its project, sibling pages, sub-pages, revisions or backlinks. Sharing a page takes the right to govern its project; op=unshare closes it at once; op=list lists the pages you shared one by one; a page is never transferred on its own. Prefer this tool over oto_resource: on the legacy one, omitting resource_type silently targets a datastore namespace, so op=transfer/share act on a DIFFERENT resource than the one you meant. Everything else is identical — op=list: resources you govern (platform admins see all); op=get: owner + shares + metadata (each grant carries a `role`); op=transfer: hand ownership to a user (`new_owner_email`), to one of YOUR orgs (`new_owner_org`, you must be a member) OR to one of YOUR teams (`new_owner_group`, ADR 0049 — scoping a resource to a pôle IS the way to restrict it); a user-owned previous owner keeps editor access (transfer is owner/admin only, never a grantee). ANTI-LOCKOUT: if the transfer would leave YOU unable to ever get the resource back (handing to a third party, or to an org/team you don't administer), it is refused with code `confirm_loss_of_control` — resend with `confirm_transfer=true` to proceed consciously (a platform admin is never blocked and can always recover it). op=share/unshare — ONE unified « Share », two axes (ADR 0048): AUDIENCE (`audience`) = where it goes: `person` (`email`) / `team` (`group_id`, a group of an org you belong to) / `org` (`org_id`, a whole org, client delivery) → a grant; `public`/`secret` → PUBLISH the project (public = listed, secret = unguessable link) with `mcp_tools` (defaults to the already-published set); `private` → unpublish. ROLE (`role`) = what they can do: `viewer` (read), `editor` (write), `manager` (GOVERNANCE — re-share / delete / publish, grantable, but NOT ownership transfer); public/secret force viewer. Legacy `permission` read|write is still accepted (mapped to viewer/editor). KEYS (`credentials`, project share only, same for person/team/org): a recipient works in the project with THEIR OWN keys (`own`, the default) — the owner org's and team's keys are NOT lent. `credentials='inherit'` lends them, bounded by your own rights (you must be a member of the owner org; refused with `inherit_beyond_sharer_rights` otherwise); re-share with `credentials='own'` or unshare to revoke. op=get shows each grant's `credentials`. EXPIRY (`ttl_days`, share to person/team/org only; refused with `ttl_days_grant_only` elsewhere): the share expires after N days — past it the recipient loses access (content, listings, lent keys), with NO reminder before. Omitted on a re-share: an active share keeps its expiry, an expired one is reopened without one; to remove an expiry, unshare then share. With cascade=true the linked tableaux/procedures get the same expiry. op=share returns `expires_at` (null = none); op=get lists each grant's `expires_at` and `expired` — an expired share stays listed, marked, until unshared. DELIVER A FULL PROJECT (#52): share/transfer a project with cascade=true to carry its linked entities in one gesture — linked tableaux get the same share/transfer, linked procedures are share-granted read (readable cross-org via oto_procedure op=get guide_id) or COPIED into the target org on transfer (link re-pointed, source untouched), connector links report `recipient_credential` (the recipient plugs their own key; the project's pre-made identity/instructions overrides travel with it) or `inherited_credential` under credentials=inherit; docs & files follow automatically. Returns a per-entity cascade report. Owner OR org/platform admin governing it; never exposes row content.",
         "tags": [
           "govern"
         ],
@@ -48361,7 +49334,7 @@
             }
           },
           "400": {
-            "description": "`email_required` — share/unshare sans principal : ni `email`, ni `org_id`, ni `group_id` ; `doc_viewer_only` — `share` of a page (`resource_type=\"doc\"`) with a role other than `viewer` — a page is shared read-only; share its project to let someone write ; `credentials_project_share_only` — `credentials` sur autre chose que le partage d'un projet à une personne, une équipe ou une org ; `publication_unsupported` — audience `public`/`secret`/`private` sur autre chose qu'un projet — seul un projet se publie ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "description": "`email_required` — share/unshare sans principal : ni `email`, ni `org_id`, ni `group_id` ; `doc_viewer_only` — `share` of a page (`resource_type=\"doc\"`) with a role other than `viewer` — a page is shared read-only; share its project to let someone write ; `credentials_project_share_only` — `credentials` sur autre chose que le partage d'un projet à une personne, une équipe ou une org ; `ttl_days_grant_only` — `ttl_days` hors du partage d'une ressource à une personne, une équipe ou une org (autre op, ou audience public/secret/private) ; `publication_unsupported` — audience `public`/`secret`/`private` sur autre chose qu'un projet — seul un projet se publie ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
             "content": {
               "application/json": {
                 "schema": {
@@ -48376,6 +49349,7 @@
                             "email_required",
                             "doc_viewer_only",
                             "credentials_project_share_only",
+                            "ttl_days_grant_only",
                             "publication_unsupported",
                             "run_org_mismatch"
                           ]
@@ -48678,6 +49652,20 @@
                     "default": null,
                     "description": "Project share only — which keys the recipient works with. `own` (default): their own keys. `inherit`: also the project owner's org/team keys, bounded by YOUR rights (you must be a member of the owner org). Omitted = unchanged.",
                     "title": "Credentials"
+                  },
+                  "ttl_days": {
+                    "anyOf": [
+                      {
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Share only (person/team/org): the share EXPIRES after this many days (integer ≥ 1) — past it, the recipient loses access. Omitted: an active share keeps its expiry, a new or expired one has none. Nobody is reminded before it expires.",
+                    "title": "Ttl Days"
                   },
                   "confirm_transfer": {
                     "default": false,
@@ -52960,6 +53948,70 @@
         "title": "MemberProviderStatus",
         "type": "object"
       },
+      "Abonnement": {
+        "description": "Un abonnement tel qu'un écran le montre.\n\n⚠️ Ni adresse e-mail, ni organisation du fournisseur, ni rien qui approche\nune session : la sonde les lit, la plateforme n'en garde rien.",
+        "properties": {
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "statut": {
+            "description": "`connected` | `needs_login` | `paused_limit` | `disconnected`.",
+            "title": "Statut",
+            "type": "string"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The plan tier the provider reported, e.g. `max`.",
+            "title": "Plan"
+          },
+          "limit_reset_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "When the plan limit lifts, if the person is waiting on one. Their jobs stay queued until then — none fail.",
+            "title": "Limit Reset At"
+          },
+          "last_ok_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Ok At"
+          },
+          "waiting_jobs": {
+            "default": 0,
+            "description": "How many of your jobs are queued on this subscription right now. While you are signed out, need to reconnect, or wait on a plan limit, they WAIT — none fail — and they resume on their own once you are back.",
+            "title": "Waiting Jobs",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "family",
+          "statut"
+        ],
+        "title": "Abonnement",
+        "type": "object"
+      },
       "GroupActivationRow": {
         "description": "Un connecteur dans le cockpit d'équipe. L'équipe n'a qu'un levier —\ncouper — d'où deux booléens seulement : ce que l'org rend disponible, et ce\nque l'équipe a coupé.",
         "properties": {
@@ -54159,6 +55211,42 @@
             ],
             "default": null,
             "title": "Namespace"
+          },
+          "client_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Name"
+          },
+          "client_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Version"
+          },
+          "token_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Token Kind"
           }
         },
         "required": [
@@ -54189,6 +55277,31 @@
           "errors"
         ],
         "title": "DayStat",
+        "type": "object"
+      },
+      "EmitterStat": {
+        "properties": {
+          "client_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Name"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "calls"
+        ],
+        "title": "EmitterStat",
         "type": "object"
       },
       "ToolStat": {
@@ -54487,6 +55600,42 @@
             ],
             "default": null,
             "title": "Key Mode"
+          },
+          "client_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Name"
+          },
+          "client_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Version"
+          },
+          "token_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Token Kind"
           }
         },
         "required": [
@@ -54847,6 +55996,54 @@
             ],
             "default": null,
             "title": "Result Shape"
+          },
+          "client_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Name"
+          },
+          "client_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Version"
+          },
+          "token_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Token Kind"
+          },
+          "token_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Token Id"
           }
         },
         "required": [
@@ -55047,6 +56244,116 @@
           "id"
         ],
         "title": "OrgSignalRow",
+        "type": "object"
+      },
+      "ViewAsWriteRow": {
+        "description": "Une écriture faite AU NOM d'un membre par un opérateur plateforme : « saisi\npar `operator_email` en tant que `target_email` ». Jamais d'argument ni de secret.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "called_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Called At"
+          },
+          "route": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Route"
+          },
+          "ok": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
+          "operator_sub": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Operator Sub"
+          },
+          "operator_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Operator Email"
+          },
+          "target_sub": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target Sub"
+          },
+          "target_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target Email"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "ViewAsWriteRow",
         "type": "object"
       },
       "ConnectorFailure": {
@@ -56760,6 +58067,23 @@
             ],
             "default": null,
             "title": "Credentials"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expires At"
+          },
+          "expired": {
+            "default": false,
+            "title": "Expired",
+            "type": "boolean"
           }
         },
         "title": "ResourceGrant",
@@ -56890,6 +58214,18 @@
             ],
             "default": null,
             "title": "Credentials"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expires At"
           },
           "cascade": {
             "anyOf": [
@@ -57623,6 +58959,42 @@
             ],
             "default": null,
             "title": "Sentry Event Id"
+          },
+          "client_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Name"
+          },
+          "client_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Client Version"
+          },
+          "token_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Token Kind"
           }
         },
         "required": [
@@ -59550,6 +60922,20 @@
             "default": null,
             "title": "Tool Counts"
           },
+          "abonnement": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Subscription jobs only (`model_family` ending in `_subscription`): what the worker SAW of the requester's plan while running. Shape: `{etat, deconnecte?, fenetres: {<window>: {utilization, resetsAt}}}` — `etat` and the windows are copied from the provider's `rate_limit_event` (`rate_limit_info.status`, `unifiedWindows`), `resetsAt` in epoch seconds. The backend pauses the requester's subscription jobs when a window reaches its threshold, until that window resets. `deconnecte: true` = the program found no valid session: the person must reconnect. Never a credential, never the account's email.",
+            "title": "Abonnement"
+          },
           "valeurs_cliente_reparees": {
             "anyOf": [
               {
@@ -60208,6 +61594,32 @@
         "title": "Trigger",
         "type": "object"
       },
+      "AbandonReason": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The reason the platform recorded when it took the row out of the queue. null: the row was put in the abandon state by a write, not by the platform.",
+            "title": "Reason"
+          },
+          "rows": {
+            "title": "Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "AbandonReason",
+        "type": "object"
+      },
       "Fleet": {
         "description": "Une flotte telle que servie (les colonnes de `_COLS`, db/runner_fleets).",
         "properties": {
@@ -60747,8 +62159,121 @@
         "title": "FleetCard",
         "type": "object"
       },
+      "FleetRows": {
+        "description": "Ce que sont devenues les LIGNES d'une automatisation (oto#77) — lues au\ntableau, par la valeur finale de leur colonne de statut. Les compteurs de\ntravaux n'en disent rien : un travail qui rend sa ligne sans l'écrire est `done`\n(`capabilities/_lignes_de_campagne.py`).",
+        "properties": {
+          "scope": {
+            "description": "`perimeter`: the rows the automation's `row_filter` designates, its status clause removed. `table`: the filter bounds only the status, so these are ALL the rows of the table — this automation's rows cannot be told apart.",
+            "enum": [
+              "perimeter",
+              "table"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "status_column": {
+            "title": "Status Column",
+            "type": "string"
+          },
+          "perimeter": {
+            "additionalProperties": true,
+            "description": "The filter these rows were counted under.",
+            "title": "Perimeter",
+            "type": "object"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Rows per final value of the status column, as written. `(none)` = no value.",
+            "title": "By Status",
+            "type": "object"
+          },
+          "terminal_states": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Terminal States",
+            "type": "array"
+          },
+          "abandon_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Abandon State"
+          },
+          "concluded": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Rows in a terminal state other than the abandon state — whether that means done or discarded is in `by_status`. null: no terminal state is declared.",
+            "title": "Concluded"
+          },
+          "abandoned": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Rows in the abandon state: they FAILED and left the queue. null: the lifecycle declares no abandon state.",
+            "title": "Abandoned"
+          },
+          "open": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Rows not in a terminal state yet. null: no terminal state is declared.",
+            "title": "Open"
+          },
+          "abandon_reasons": {
+            "description": "Why the abandoned rows were abandoned, grouped by reason.",
+            "items": {
+              "$ref": "#/components/schemas/AbandonReason"
+            },
+            "title": "Abandon Reasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scope",
+          "status_column",
+          "perimeter",
+          "total",
+          "by_status",
+          "terminal_states",
+          "abandon_reasons"
+        ],
+        "title": "FleetRows",
+        "type": "object"
+      },
       "FleetState": {
-        "description": "L'avancement d'un passage, agrégé sur ses travaux.\n\n`no_jobs_attached` est DÉCLARÉ plutôt que déduit de compteurs à zéro :\nun zéro qui peut vouloir dire « rien trouvé » ou « personne n'a regardé » est\nle défaut qui a coûté le plus cher sur ce chantier.",
+        "description": "L'avancement d'un passage : ses TRAVAUX, ses RUNS et ses LIGNES — trois\ncomptes qui ne se déduisent pas l'un de l'autre (oto#77).\n\n`no_jobs_attached` est DÉCLARÉ plutôt que déduit de compteurs à zéro :\nun zéro qui peut vouloir dire « rien trouvé » ou « personne n'a regardé » est\nle défaut qui a coûté le plus cher sur ce chantier.",
         "properties": {
           "jobs_total": {
             "title": "Jobs Total",
@@ -60788,6 +62313,7 @@
               }
             ],
             "default": null,
+            "description": "JOBS that ended by themselves. Says nothing about the rows: a job that gives its row back unwritten still ends `done` — read `rows`.",
             "title": "Done"
           },
           "failed": {
@@ -60800,6 +62326,7 @@
               }
             ],
             "default": null,
+            "description": "JOBS that errored (a row never counts here — see `rows.abandoned`).",
             "title": "Failed"
           },
           "abandoned": {
@@ -60812,7 +62339,52 @@
               }
             ],
             "default": null,
+            "description": "JOBS that errored with no attempt left (a row never counts here — see `rows.abandoned`).",
             "title": "Abandoned"
+          },
+          "runs_by_outcome": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Runs of these jobs by the outcome the agent declared at `run_finish` (done, partial, failed, blocked); `open` = not finished, `unknown` = no run start on record.",
+            "title": "Runs By Outcome"
+          },
+          "rows": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FleetRows"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "rows_unavailable": {
+            "anyOf": [
+              {
+                "enum": [
+                  "no_table",
+                  "table_not_found",
+                  "no_status_column"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Rows Unavailable"
           },
           "empty_jobs": {
             "anyOf": [

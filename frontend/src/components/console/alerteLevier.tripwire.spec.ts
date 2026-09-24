@@ -72,6 +72,9 @@ const CLASSEES: Record<string, string> = {
   // Échec d'écriture qui n'est pas un refus traité (réseau, 500) : le brouillon est gardé,
   // « Save » est dans le pied de la même fiche.
   'components/console/RowWriteRefusal.vue#3': 'levier-voisin',
+  // Refus d'un geste de l'abonnement Claude (code refusé, ferme injoignable) : le geste qui
+  // le reprend — « Valider », « Recommencer », « Connecter » — est dans la même carte, au-dessus.
+  'views/console/AccountClaudeView.vue#0': 'levier-voisin',
 }
 const RAISONS = new Set(['informatif', 'levier-voisin'])
 

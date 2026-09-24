@@ -28,6 +28,7 @@
     "profile": "profile",
     "preferences": "preferences",
     "agent": "your agent",
+    "claudeSubscription": "Claude subscription",
     "developers": "developers",
     "teams": "teams",
     "billing": "subscription",
@@ -68,6 +69,7 @@
     "accountPreferences": { "title": "preferences", "crumb": "manage my account" },
     "accountSecurity": { "title": "security", "crumb": "manage my account" },
     "accountAgent": { "title": "your agent", "crumb": "manage my account" },
+    "accountClaude": { "title": "my Claude subscription", "crumb": "manage my account" },
     "accountDevelopers": { "title": "developers", "crumb": "manage my account" },
     "orgContext": { "title": "what the agent sees · org", "crumb": "manage my org" },
     "org": { "title": "org members", "crumb": "manage my org" },
@@ -470,6 +472,53 @@
         "erreur": "The execution carrying run {run} could not be read: {reason}"
       }
     },
+  "modelSub": {
+    "title": "my Claude subscription",
+    "sub": "run your agents on the Claude plan you already pay for (Pro, Max) — “subscription” models: sub:sonnet, sub:opus, sub:haiku.",
+    "state": {
+      "none": "not connected",
+      "connected": "connected",
+      "needs_login": "reconnect needed",
+      "paused_limit": "paused",
+      "disconnected": "disconnected"
+    },
+    "desc": {
+      "none": "No Claude subscription is connected: your agents can't use the “subscription” models.",
+      "connected": "Your agents run on your Claude subscription.",
+      "connectedPlan": "Your agents run on your Claude subscription ({plan} plan).",
+      "needs_login": "Your Claude session expired at Anthropic: sign in again so your agents resume.",
+      "paused": "Your plan's usage limit is reached: your agents resume when it resets.",
+      "pausedUntil": "Your plan's usage limit is reached: your agents are paused until {date}.",
+      "disconnected": "You signed out: your sandbox is kept, reconnecting is a single sign-in."
+    },
+    "lastOk": "last successful run {date}",
+    "waiting": "{n} job is waiting — it will resume on its own. | {n} jobs are waiting — they will resume on their own.",
+    "connect": "Connect my Claude subscription",
+    "reconnect": "Reconnect my Claude subscription",
+    "codeStep": "Sign in at Anthropic in the tab that just opened, click “Authorize”, copy the code shown and paste it here.",
+    "fallback": "The tab didn't open?",
+    "fallbackLink": "Open the Anthropic sign-in",
+    "codePlaceholder": "code shown by Anthropic",
+    "validate": "Confirm",
+    "validating": "Confirming…",
+    "restart": "Start over",
+    "teamNote": "If you pick a Team or Enterprise organization at Anthropic, that organization pays for the usage, not your personal plan.",
+    "trust": "Your Claude session stays in your sandbox: the platform neither sees nor stores it.",
+    "notEnabled": "This option isn't enabled on your account. The oto team enables it on request.",
+    "disconnect": "Sign out",
+    "destroy": "Erase my sandbox",
+    "destroyTitle": "Erase your sandbox?",
+    "destroyMessage": "The sandbox and the Claude session it holds are destroyed. This cannot be undone: coming back means a full sign-in again.",
+    "toastConnected": "Claude subscription connected",
+    "toastDisconnected": "Claude subscription signed out",
+    "toastDestroyed": "sandbox erased",
+    "errors": {
+      "subscription_not_enabled": "This option isn't enabled on your account.",
+      "login_failed": "Anthropic didn't open a session with this code (expired or already used). Click “Start over”.",
+      "farm_unavailable": "The sandbox service isn't responding right now. Try again in a few minutes.",
+      "not_connected": "No Claude subscription is connected on your account."
+    }
+  },
   "errors": {
     "datastore_exists": "a datastore with that name already exists",
     "duplicate_label": "a key with that provider and label already exists",

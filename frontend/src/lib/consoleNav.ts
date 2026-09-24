@@ -116,6 +116,8 @@ export const NAV: NavGroup[] = [
     { path: '/account/preferences', label: 'nav.preferences', icon: 'gear' },
     { path: '/account/security', label: 'nav.security', icon: 'shield' },
     { path: '/account/agent', label: 'nav.agent', icon: 'agent' },
+    // Son abonnement Claude (Pro/Max) branché pour ses agents : palier membre, jamais l'org.
+    { path: '/account/claude', label: 'nav.claudeSubscription', icon: 'bot' },
     { path: '/account/developers', label: 'nav.developers', icon: 'key' },
   ]},
   // ── Niveau équipe RETIRÉ (oto#192, 12/09/2026) : contexte, membres, connecteurs et
@@ -208,6 +210,7 @@ export const PAGE_META: Record<string, { title: string; crumb: string }> = {
   '/account/preferences': { title: 'pageMeta.accountPreferences.title', crumb: 'pageMeta.accountPreferences.crumb' },
   '/account/security': { title: 'pageMeta.accountSecurity.title', crumb: 'pageMeta.accountSecurity.crumb' },
   '/account/agent': { title: 'pageMeta.accountAgent.title', crumb: 'pageMeta.accountAgent.crumb' },
+  '/account/claude': { title: 'pageMeta.accountClaude.title', crumb: 'pageMeta.accountClaude.crumb' },
   '/account/developers': { title: 'pageMeta.accountDevelopers.title', crumb: 'pageMeta.accountDevelopers.crumb' },
   '/org/context': { title: 'pageMeta.orgContext.title', crumb: 'pageMeta.orgContext.crumb' },
   '/org': { title: 'pageMeta.org.title', crumb: 'pageMeta.org.crumb' },

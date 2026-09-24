@@ -93,3 +93,27 @@ niveau USER — `getInitGuide('user')`/`setInitGuide('user', …)`, injecté à 
 après plateforme/org/équipe), carte **cli & api tokens** (`AccountTokensCard.vue`, `getTokens`/`createToken`/
 `deleteToken` — migrés depuis `ConnectorsView`, user-scopés). Pas de préférences/langue
 (aucune infra i18n dans le repo).
+
+### Mon abonnement Claude (`/account/claude`)
+
+`AccountClaudeView.vue`, logique dans `lib/modelSubscription.ts` (`useModelSubscription`), API
+`/api/me/model-subscriptions` (palier **membre** seul : ni l'org ni un admin ne le lit ni ne le
+coupe). Brancher son abonnement Claude (Pro, Max) pour que ses agents tournent dessus — modèles
+`sub:sonnet|opus|haiku` du catalogue runner, famille `claude_subscription`.
+
+- **État** : non connecté (aucune ligne) · connecté (+ palier, ex. `max`) · à reconnecter ·
+  en pause jusqu'à `limit_reset_at` · déconnecté ; `waiting_jobs > 0` se dit (« N travaux
+  attendent »). `statut` est servi en `str` : `statutOf` le resserre et **lève** sur une valeur
+  inconnue.
+- **Connexion, une action à la fois** : « Connecter » → `POST …/login` → l'URL s'ouvre dans un
+  onglet (`noopener`, lien de secours : l'ouverture suit un aller-retour réseau et peut être
+  bloquée) → champ du code affiché par Anthropic → `PUT …/login/code`, dont la réponse EST le
+  nouvel état. « Recommencer » ramène au bouton. Un code refusé (`login_failed`) laisse l'étape
+  ouverte.
+- **Option nominative** : aucune lecture ne dit qui l'a ; le 403 `subscription_not_enabled` au
+  premier geste passe l'écran en « option non ouverte » et retire le bouton.
+- **Retrait** : « Se déconnecter » (garde le bac, statut `disconnected`) ; « Effacer mon bac »
+  (`?destroy=true`, irréversible) après confirmation `usePrompt` — jamais `window.confirm`.
+  Après un retrait l'état est **relu**, pas déduit.
+- Le sélecteur de modèle d'une programmation (`optionsModele`) propose les `sub:*` dès que le
+  catalogue les sert (`served`) : aucun filtre dédié.

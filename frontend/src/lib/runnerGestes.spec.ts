@@ -18,6 +18,7 @@ const LECTURE = droits({ role: 'super_admin', org_role: null, active_org_readonl
 
 const ETAT: RunnerFleetState = {
   jobs_total: 12, pending: 0, claimed: 0, done: 12, failed: 0, abandoned: 0,
+  runs_by_outcome: null, rows: null, rows_unavailable: null,
   empty_jobs: 0, stopped_after_write: 0, reservation_unmeasured: 0,
   usage_tokens: 30_000, heaviest_row_tokens: 4_000, usage_unknown: 0,
   reservable_rows: 0, reservable_rows_unavailable: null, last_finished: '2026-09-13 10:00:00',
