@@ -85,12 +85,19 @@ export function isOrgAdmin(m: OrgRoleHolder): boolean {
 // d'org ou d'automatisation passe donc par l'une de ces deux fonctions, jamais par le rôle
 // seul. La lecture seule se dit une fois, dans la coque (`ConsultOrgBanner`) : un écran omet
 // ses gestes, il ne la répète pas.
-type OrgWriter = { org_role?: string | null; role?: Role; active_org_readonly?: boolean } | null | undefined
+// « Voir en tant que » (oto#212) : `/api/me` rend alors la CIBLE, dont `active_org_readonly`
+// est faux ; c'est `view_as_read_only` qui dit la lecture seule. Le serveur le passe à faux
+// quand l'écriture est acceptée (super_admin + `X-Oto-View-As-Write`) : l'écran relit
+// `/api/me` à l'acceptation et au retour en lecture seule (`ViewAsBanner`), et n'en déduit
+// jamais rien de l'en-tête ni de l'état local.
+type OrgWriter = {
+  org_role?: string | null; role?: Role; active_org_readonly?: boolean; view_as_read_only?: boolean
+} | null | undefined
 
 /** Un geste ouvert à tout membre (quitter l'org, annuler un envoi programmé, arrêter une
- * campagne) : un profil chargé, hors consultation. */
+ * campagne) : un profil chargé, hors consultation et hors « voir en tant que » en lecture. */
 export function canWriteInOrg(m: OrgWriter): boolean {
-  return !!m && m.active_org_readonly !== true
+  return !!m && m.active_org_readonly !== true && m.view_as_read_only !== true
 }
 
 /** Un geste d'admin d'org : le rôle que le serveur tient (`isOrgAdmin`), hors consultation. */

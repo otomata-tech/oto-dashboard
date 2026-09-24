@@ -44,7 +44,7 @@ export interface Droits {
   armer: boolean
 }
 
-type Porteur = Pick<Me, 'role' | 'org_role' | 'active_org_readonly'> | null | undefined
+type Porteur = Pick<Me, 'role' | 'org_role' | 'active_org_readonly' | 'view_as_read_only'> | null | undefined
 
 /** La règle commune des écrans d'org (`useMe`, oto#211), projetée sur une campagne : arrêter
  * s'ouvre à tout membre hors consultation (`canWriteInOrg`) ; armer et relancer à l'admin

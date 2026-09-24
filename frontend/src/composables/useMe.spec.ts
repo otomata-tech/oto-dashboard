@@ -116,3 +116,20 @@ describe("écrire dans l'org active : le rôle ET hors consultation (oto#211)", 
     expect(canAdministerOrg(undefined)).toBe(false)
   })
 })
+
+// oto#212 — « voir en tant que » : `/api/me` rend la CIBLE (`active_org_readonly` faux) et
+// dit la lecture seule par `view_as_read_only`, que le serveur passe à faux quand l'écriture
+// est acceptée. Même règle, aucun second mécanisme.
+describe('écrire en « voir en tant que » : ce que `/api/me` sert (oto#212)', () => {
+  it.each(ROLES)('%s, vue sans écriture acceptée : aucune écriture', (_nom, m) => {
+    const vu = { ...m, active_org_readonly: false, view_as_read_only: true }
+    expect(canWriteInOrg(vu)).toBe(false)
+    expect(canAdministerOrg(vu)).toBe(false)
+  })
+
+  it.each(ROLES)('%s, écriture acceptée (le serveur sert faux) : les droits du rôle', (_nom, m) => {
+    const accepte = { ...m, active_org_readonly: false, view_as_read_only: false }
+    expect(canWriteInOrg(accepte)).toBe(canWriteInOrg(m))
+    expect(canAdministerOrg(accepte)).toBe(canAdministerOrg(m))
+  })
+})

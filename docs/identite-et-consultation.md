@@ -60,9 +60,9 @@ client-filter, monté sous le switcher dans `ConsoleUserMenu`, gaté `isPlatform
 recharge sur `/console` → tout le dashboard rend la vue de ce user (sa maison suit). Bandeau
 permanent `ViewAsBanner.vue` (monté dans `App.vue`) « tu vois en tant que X — quitter ». Entrer
 efface la consultation org/équipe ; pas sur soi-même ; mutations rejetées backend (read-only).
-⚠️ Le serveur ne l'annonce par aucun champ : `/api/me` décrit le compte vu, `active_org_readonly`
-y vaut faux pour un membre, et les gestes du compte vu restent affichés. Le front ne le déduit pas
-(oto#212) : c'est un besoin de contrat backend.
+`/api/me` décrit alors le compte vu, dont `active_org_readonly` vaut faux : c'est
+**`view_as_read_only`** qui annonce la lecture seule (oto#212), et `canWriteInOrg` refuse
+l'écriture sur l'un OU l'autre. Le front ne la déduit ni de l'en-tête ni d'un état local.
 REST-only, zéro effet MCP. ⚠️ **L'état d'un tiers (fiche admin) est calculé contre SON org
 persistée, pas `current_org`** (qui renverrait le contexte du requérant) — cf. backend §ADR 0023.
 
@@ -77,7 +77,11 @@ et en changeant de cible. Le rôle de l'opérateur est **figé à l'entrée** (`
 posé par `AdminUserView`) parce que `/api/me` rend alors la cible : c'est un indice d'affichage,
 le serveur reste l'autorité (403 `view_as_write_forbidden` hors super_admin, 403
 `view_as_read_only` sans acceptation — ce refus rouvre la confirmation, via
-`viewAsWriteRequests`). Une vue posée avant ce lot n'a pas d'`operator` : pas de bouton, il suffit
+`viewAsWriteRequests`). Le **droit d'écrire** de l'écran ne se tire pas de cet état local : à
+l'acceptation comme au retour en lecture seule, le bandeau relit `/api/me`, dont le serveur passe
+`view_as_read_only` à faux quand l'écriture est acceptée (oto#212) ; les gestes (`canWriteInOrg`)
+apparaissent alors. Avec un backend antérieur, le champ reste vrai et les gestes restent masqués
+après acceptation. Une vue posée avant ce lot n'a pas d'`operator` : pas de bouton, il suffit
 de la reprendre depuis la fiche admin.
 
 ## Hub compte (`/account`)

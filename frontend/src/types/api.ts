@@ -318,6 +318,7 @@ export interface Me {
   active_org_logo_url: string | null
   org_role: OrgRole | null
   active_org_readonly?: boolean       // org active consultée EN LECTURE par un opérateur non-membre (ADR 0023)
+  view_as_read_only?: boolean         // « voir en tant que » appliqué SANS écriture acceptée : le serveur refuse toute écriture (oto#212)
   active_org_is_personal?: boolean    // org active = espace perso mono-membre → vocab « solo » (principe 9)
   home_org: number | null            // org MAISON (défaut MCP des nouvelles conversations)
   home_org_name: string | null

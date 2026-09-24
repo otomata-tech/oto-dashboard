@@ -7,17 +7,22 @@
 // explicite ouvre l'écriture au nom de la cible (header `X-Oto-View-As-Write`, cf.
 // `viewOrg.ts`). L'acceptation vit en mémoire : elle tombe au rechargement, en quittant
 // la vue et en changeant de cible. Le serveur reste l'autorité (403 si non super_admin).
+// Le DROIT d'écrire de l'écran ne se tire pas d'ici : à l'acceptation comme au retour en
+// lecture seule, on relit `/api/me`, dont `view_as_read_only` décide (`canWriteInOrg`,
+// oto#212). L'état local ne sert qu'à poser l'en-tête.
 import { ref, watch } from 'vue'
 import {
   acceptViewAsWrite, getViewUser, revokeViewAsWrite, setViewUser,
   viewAsWriteAccepted, viewAsWriteRequests,
 } from '@/lib/viewOrg'
 import { usePrompt } from '@/composables/usePrompt'
+import { useMe } from '@/composables/useMe'
 
 const viewing = ref(getViewUser())
 const writing = ref(viewAsWriteAccepted())
 const canOfferWrite = !!viewing.value?.operator?.superAdmin
 const { confirmAction } = usePrompt()
+const { reload } = useMe()
 
 function quit() {
   setViewUser(null)
@@ -40,11 +45,13 @@ async function askWrite() {
   if (!ok) return
   acceptViewAsWrite()
   writing.value = viewAsWriteAccepted()
+  await reload()
 }
 
-function backToReadOnly() {
+async function backToReadOnly() {
   revokeViewAsWrite()
   writing.value = false
+  await reload()
 }
 
 // Une écriture refusée faute d'acceptation (403 `view_as_read_only`) : on propose le geste.

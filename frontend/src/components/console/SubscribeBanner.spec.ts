@@ -16,9 +16,12 @@ const api = vi.hoisted(() => ({ getBilling: vi.fn() }))
 vi.mock('@/api/console', () => api)
 const { getBilling } = api
 
-type MeLite = { sub: string; org_role: string | null; active_org: number | null; active_org_readonly?: boolean }
+type MeLite = { sub: string; org_role: string | null; active_org: number | null; active_org_readonly?: boolean; view_as_read_only?: boolean }
 const me = ref<MeLite | null>(null)
-vi.mock('@/composables/useMe', () => ({ useMe: () => ({ me }) }))
+vi.mock('@/composables/useMe', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/composables/useMe')>()),
+  useMe: () => ({ me }),
+}))
 
 const LIBRE: BillingStatus = { subscribed: false, plans: [], granted: [] }
 const ABONNEE: BillingStatus = { subscribed: true, plan: 'standard', granted: [] }
@@ -90,6 +93,17 @@ describe('SubscribeBanner — il s\'adresse à qui peut souscrire', () => {
 
   it('un membre simple ne le voit pas — et le statut n\'est même pas demandé', async () => {
     me.value = admin({ org_role: 'member' })
+    getBilling.mockResolvedValue(LIBRE)
+    const { host, unmount } = await mountBanner()
+    expect(host.textContent).not.toContain('abonnement')
+    expect(getBilling).not.toHaveBeenCalled()
+    unmount()
+  })
+
+  // oto#212 : vu « en tant que » un admin d'org, le profil servi a ses rôles, mais le
+  // serveur refuse toute écriture — le levier d'abonnement serait un bouton qui échoue.
+  it('vu « en tant que » un admin d\'org, il ne le voit pas non plus', async () => {
+    me.value = admin({ view_as_read_only: true })
     getBilling.mockResolvedValue(LIBRE)
     const { host, unmount } = await mountBanner()
     expect(host.textContent).not.toContain('abonnement')

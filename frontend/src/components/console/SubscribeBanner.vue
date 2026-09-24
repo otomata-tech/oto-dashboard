@@ -19,7 +19,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getBilling } from '@/api/console'
-import { useMe } from '@/composables/useMe'
+import { useMe, canWriteInOrg } from '@/composables/useMe'
 import { useScopedLink } from '@/composables/useScopedLink'
 import Icon from './Icon.vue'
 import type { BillingStatus } from '@/types/api'
@@ -35,8 +35,9 @@ const loadedFor = ref<string | null>(null)
 // La clé de rafraîchissement : l'org active (un changement d'org = un autre statut).
 const orgKey = computed(() => String(me.value?.active_org ?? me.value?.sub ?? ''))
 const onBilling = computed(() => String(route.meta.section || '') === '/org/billing')
+// Hors consultation ET hors « voir en tant que » : la règle unique d'écriture (oto#211/#212).
 const eligible = computed(() =>
-  !!me.value && me.value.org_role === 'org_admin' && me.value.active_org_readonly !== true)
+  !!me.value && me.value.org_role === 'org_admin' && canWriteInOrg(me.value))
 
 async function load() {
   if (!eligible.value) { status.value = null; return }

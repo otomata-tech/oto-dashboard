@@ -157,9 +157,11 @@ onze composants (panneaux du tiroir, widgets de connexion, marketplace) : chacun
 Un troisième piège : **un contrôle grisé n'est pas un contrôle omis**. L'exposition du membre
 rendait ses trois boutons `disabled` ; sans droit, le panneau rend désormais l'état sur une ligne.
 
-**Ce que la règle ne couvre pas : « voir en tant que ».** Le serveur y refuse toute écriture, mais
-aucun champ servi ne l'annonce : `/api/me` décrit le compte vu. La règle ne se nourrit que de ce que
-le serveur sert ; elle ne déduit rien de l'en-tête envoyé ni du `localStorage` du bandeau. Tant que
-le contrat ne le dit pas, les gestes du compte vu restent affichés.
+**« Voir en tant que » : couvert depuis le 24/09/2026 (oto#212).** Le serveur y refuse toute
+écriture, et `/api/me` décrit le compte vu — ses rôles, `active_org_readonly` faux. Le backend sert
+désormais `view_as_read_only`, seul signal de ce mode ; `canWriteInOrg` lit les deux champs, et
+tout ce qui passe par la règle omet ses gestes. Toujours rien de déduit de l'en-tête envoyé ni du
+`localStorage` du bandeau. ⚠️ Un écran qui lit `active_org_readonly` directement au lieu de la règle
+rate ce mode : c'est ce que faisait le bandeau d'abonnement, corrigé le même jour.
 
 Recensement écran par écran, et sa mesure contre le middleware : `docs/orgs-groupes-invitations.md`.

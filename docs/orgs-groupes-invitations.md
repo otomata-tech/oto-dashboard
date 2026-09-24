@@ -56,7 +56,8 @@ seuls les gestes de campagne en tenaient compte : les écrans `/org/*` offraient
 consulte l'org d'un client des gestes dont chaque clic échouait.
 
 La règle vit à un seul endroit, `composables/useMe.ts` :
-- `canWriteInOrg` — un geste ouvert à tout membre : un profil chargé, hors consultation ;
+- `canWriteInOrg` — un geste ouvert à tout membre : un profil chargé, hors consultation
+  (`active_org_readonly`) et hors « voir en tant que » en lecture (`view_as_read_only`, oto#212) ;
 - `canAdministerOrg` — un geste d'admin d'org : `canWriteInOrg` ET `isOrgAdmin`.
 
 `useOrgScope` les expose (`canWrite`, `canAdminister`) ; `runnerGestes.droits` en est la projection

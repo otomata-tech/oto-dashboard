@@ -204,3 +204,21 @@ describe.each(CAS)('/connectors — %s', (_nom, cas) => {
     expect(presents(cliquables, cas.gestes)).toEqual([])
   })
 })
+
+// oto#212 — « voir en tant que » : `/api/me` rend la CIBLE (`active_org_readonly` faux) ;
+// `view_as_read_only` dit la lecture seule, et vaut faux une fois l'écriture acceptée puis
+// `/api/me` relu. Mêmes gestes, même règle (`canWriteInOrg`).
+describe.each(CAS)('/connectors en « voir en tant que » — %s', (_nom, cas) => {
+  it.each(PORTEURS)('%s : absents sans acceptation, présents après acceptation, présents hors vue',
+    async (_porteur, porteur) => {
+      const vue = await monter(cas, { ...porteur, active_org_readonly: false, view_as_read_only: true })
+      expect(presents(vue.cliquables, cas.gestes)).toEqual([])
+      for (const lu of cas.lectures) expect(vue.texte).toContain(lu)
+
+      const acceptee = await monter(cas, { ...porteur, active_org_readonly: false, view_as_read_only: false })
+      expect(presents(acceptee.cliquables, cas.gestes)).toEqual(cas.gestes)
+
+      const hors = await monter(cas, { ...porteur, active_org_readonly: false })
+      expect(presents(hors.cliquables, cas.gestes)).toEqual(cas.gestes)
+    })
+})
