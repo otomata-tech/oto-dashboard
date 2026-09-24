@@ -12,6 +12,9 @@ import MonitoringStats from './MonitoringStats.vue'
 import Tag from '@/components/console/Tag.vue'
 import ErrLabel from '@/components/console/ErrLabel.vue'
 import type { OrgAdoption, OrgMemberAdoption } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   adoption: OrgAdoption | null
@@ -24,20 +27,20 @@ const members = computed<OrgMemberAdoption[]>(() => props.adoption?.members ?? [
 const kpis = computed(() => {
   const a = props.adoption
   return [
-    { label: 'membres', value: a?.total_members ?? 0, sub: 'dans cette org' },
+    { label: t('monitoringUi.adoption.members'), value: a?.total_members ?? 0, sub: t('monitoringUi.adoption.inOrg') },
     {
-      label: 'actifs', value: a?.active ?? 0,
-      sub: `ont invoqué un outil · ${props.windowDays} j`,
+      label: t('monitoringUi.adoption.active'), value: a?.active ?? 0,
+      sub: t('monitoringUi.adoption.invoked', { n: props.windowDays }),
       tone: a?.active ? 'var(--color-olive-ink)' : undefined,
     },
     {
-      label: 'jamais actifs', value: a?.never_active ?? 0,
-      sub: 'compte ouvert, aucun appel',
+      label: t('monitoringUi.adoption.neverActive'), value: a?.never_active ?? 0,
+      sub: t('monitoringUi.adoption.openNoCall'),
       tone: a?.never_active ? 'var(--color-saffron-ink)' : undefined,
     },
     {
-      label: 'bloqués', value: a?.blocked_by_connector ?? 0,
-      sub: 'un connecteur ne résout pas',
+      label: t('monitoringUi.adoption.blocked'), value: a?.blocked_by_connector ?? 0,
+      sub: t('monitoringUi.adoption.notResolving'),
       tone: a?.blocked_by_connector ? 'var(--color-terra-ink)' : undefined,
     },
   ]
@@ -53,16 +56,15 @@ const who = (m: OrgMemberAdoption) => m.name || m.email || m.sub
   </div>
   <template v-else>
     <MonitoringStats :items="kpis" />
-    <ConsoleCard flush title="adoption par membre">
+    <ConsoleCard flush :title="t('monitoringUi.adoption.title')">
       <p class="helptext" style="padding: 0 14px 8px">
-        seule compte l'activité émise <strong>sous cette org</strong> — un membre actif dans
-        une autre org apparaît ici comme inactif.
+        <i18n-t keypath="monitoringUi.adoption.onlyOrg" tag="span"><template #org><strong>{{ t('monitoringUi.adoption.underOrg') }}</strong></template></i18n-t>
       </p>
       <ConsoleTable :rows="members" :loaded="!!adoption"
-        empty="aucun membre dans cette org.">
+        :empty="t('monitoringUi.adoption.empty')">
         <template #head>
-          <th>membre</th><th>état</th><th class="num">appels</th>
-          <th class="num">erreurs</th><th class="num">dernier appel</th>
+          <th>{{ t('monitoringUi.adoption.member') }}</th><th>{{ t('monitoringUi.adoption.state') }}</th><th class="num">{{ t('monitoringUi.adoption.calls') }}</th>
+          <th class="num">{{ t('monitoringUi.adoption.errors') }}</th><th class="num">{{ t('monitoringUi.adoption.lastCall') }}</th>
         </template>
         <template #row="{ row: m }">
           <tr>
@@ -71,9 +73,9 @@ const who = (m: OrgMemberAdoption) => m.name || m.email || m.sub
               <div v-if="m.name && m.email" class="dim" style="font-size: 11px">{{ m.email }}</div>
             </td>
             <td>
-              <Tag v-if="m.calls" tone="olive">actif</Tag>
-              <Tag v-else-if="m.connector_failures" tone="terra">bloqué</Tag>
-              <Tag v-else tone="saffron">jamais actif</Tag>
+              <Tag v-if="m.calls" tone="olive">{{ t('monitoringUi.adoption.isActive') }}</Tag>
+              <Tag v-else-if="m.connector_failures" tone="terra">{{ t('monitoringUi.adoption.isBlocked') }}</Tag>
+              <Tag v-else tone="saffron">{{ t('monitoringUi.adoption.isNever') }}</Tag>
             </td>
             <td class="num mono">{{ m.calls }}</td>
             <td class="num"><ErrLabel v-if="m.errors">{{ m.errors }}</ErrLabel><span v-else class="dim">—</span></td>
@@ -82,8 +84,7 @@ const who = (m: OrgMemberAdoption) => m.name || m.email || m.sub
         </template>
       </ConsoleTable>
       <p v-if="adoption?.truncated" class="helptext" style="padding: 8px 14px 0">
-        liste limitée aux 500 premiers membres — les compteurs ci-dessus, eux, portent sur
-        tous. Pour l'exhaustif : l'export du journal des accès, onglet « journal ».
+        {{ t('monitoringUi.adoption.truncated') }}
       </p>
     </ConsoleCard>
   </template>

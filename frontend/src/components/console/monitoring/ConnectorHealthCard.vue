@@ -8,6 +8,9 @@ import MonitoringStats from './MonitoringStats.vue'
 import ConsoleTable from '@/components/console/ConsoleTable.vue'
 import ErrLabel from '@/components/console/ErrLabel.vue'
 import type { MonitoringConnectorStats } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   conn: MonitoringConnectorStats | null
@@ -20,8 +23,8 @@ const byProvider = computed(() => props.conn?.by_provider ?? [])
 const kpis = computed(() => {
   const c = props.conn
   return [
-    { label: 'échecs de résolution', value: c?.total_failures ?? 0, sub: `fenêtre ${props.windowDays} j`, tone: c?.total_failures ? 'var(--color-terra-ink)' : undefined },
-    { label: 'connecteurs en échec', value: c?.by_provider.length ?? 0, sub: 'providers distincts' },
+    { label: t('monitoringUi.health.failures'), value: c?.total_failures ?? 0, sub: t('monitoringUi.health.window', { n: props.windowDays }), tone: c?.total_failures ? 'var(--color-terra-ink)' : undefined },
+    { label: t('monitoringUi.health.failing'), value: c?.by_provider.length ?? 0, sub: t('monitoringUi.health.distinct') },
   ]
 })
 </script>
@@ -32,11 +35,11 @@ const kpis = computed(() => {
   </div>
   <template v-else>
     <MonitoringStats :items="kpis" />
-    <ConsoleCard flush title="échecs de résolution de credential">
-      <p class="helptext" style="padding: 0 14px 8px">un échec = un utilisateur a tenté un connecteur sans credential valide (bloqué — souvent un handshake oauth jamais terminé).</p>
-      <ConsoleTable :rows="byProvider" :loaded="!!conn" empty="aucun échec connecteur dans la fenêtre — tout va bien.">
+    <ConsoleCard flush :title="t('monitoringUi.health.title')">
+      <p class="helptext" style="padding: 0 14px 8px">{{ t('monitoringUi.health.help') }}</p>
+      <ConsoleTable :rows="byProvider" :loaded="!!conn" :empty="t('monitoringUi.health.empty')">
         <template #head>
-          <th>connecteur</th><th class="num">échecs</th><th class="num">users</th><th class="num">dernier</th>
+          <th>{{ t('monitoringUi.health.connector') }}</th><th class="num">{{ t('monitoringUi.health.fails') }}</th><th class="num">{{ t('monitoringUi.health.users') }}</th><th class="num">{{ t('monitoringUi.health.last') }}</th>
         </template>
         <template #row="{ row: p }">
           <tr>

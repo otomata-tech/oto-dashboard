@@ -11,6 +11,9 @@ import ConsoleTable from '@/components/console/ConsoleTable.vue'
 import ErrLabel from '@/components/console/ErrLabel.vue'
 import type { MonitoringSummary } from '@/types/api'
 import { toDayBars, fmtMs } from '@/lib/monitoring'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const CallsBarChart = defineAsyncComponent(() => import('@/components/console/CallsBarChart.vue'))
 
@@ -32,9 +35,9 @@ const byUser = computed(() => props.summary?.by_user ?? [])
 const kpis = computed(() => {
   const s = props.summary
   return [
-    { label: 'appels totaux', value: (s?.total_calls ?? 0).toLocaleString('fr-FR'), sub: `fenêtre ${props.windowDays} j` },
-    { label: 'erreurs', value: s?.error_count ?? 0, unit: errRate.value + '%', sub: 'tous appelants confondus', tone: s?.error_count ? 'var(--color-terra-ink)' : undefined },
-    { label: 'utilisateurs actifs', value: s?.active_users ?? 0, sub: 'appelants authentifiés' },
+    { label: t('monitoringUi.calls.total'), value: (s?.total_calls ?? 0).toLocaleString('fr-FR'), sub: t('monitoringUi.calls.window', { n: props.windowDays }) },
+    { label: t('monitoringUi.calls.errors'), value: s?.error_count ?? 0, unit: errRate.value + '%', sub: t('monitoringUi.calls.allCallers'), tone: s?.error_count ? 'var(--color-terra-ink)' : undefined },
+    { label: t('monitoringUi.calls.activeUsers'), value: s?.active_users ?? 0, sub: t('monitoringUi.calls.authCallers') },
   ]
 })
 </script>
@@ -46,38 +49,38 @@ const kpis = computed(() => {
   <template v-else>
     <MonitoringStats :items="kpis" />
 
-    <ConsoleCard :title="`volume · ${bars.length} derniers jours`">
+    <ConsoleCard :title="t('monitoringUi.calls.volume', { n: bars.length })">
       <CallsBarChart :days="bars" :height="96" />
     </ConsoleCard>
 
     <div class="grid2">
-      <ConsoleCard flush title="par outil">
-        <ConsoleTable :rows="byTool" :loaded="!!summary" empty="aucun appel d’outil dans la fenêtre.">
+      <ConsoleCard flush :title="t('monitoringUi.calls.byTool')">
+        <ConsoleTable :rows="byTool" :loaded="!!summary" :empty="t('monitoringUi.calls.noCall')">
           <template #head>
-            <th>outil</th><th class="num">appels</th><th class="num">erreurs</th><th class="num">moy</th><th class="num">p95</th>
+            <th>{{ t('monitoringUi.calls.tool') }}</th><th class="num">{{ t('monitoringUi.calls.calls') }}</th><th class="num">{{ t('monitoringUi.calls.errors') }}</th><th class="num">{{ t('monitoringUi.calls.avg') }}</th><th class="num">{{ t('monitoringUi.calls.p95') }}</th>
           </template>
-          <template #row="{ row: t }">
+          <template #row="{ row: tool }">
             <tr>
-              <td><code class="mono">{{ t.tool_name }}</code></td>
-              <td class="num">{{ t.calls }}</td>
-              <td class="num"><ErrLabel v-if="t.errors">{{ t.errors }}</ErrLabel><span v-else class="dim">0</span></td>
-              <td class="num dim">{{ fmtMs(t.avg_ms) }}</td>
-              <td class="num dim">{{ fmtMs(t.p95_ms ?? null) }}</td>
+              <td><code class="mono">{{ tool.tool_name }}</code></td>
+              <td class="num">{{ tool.calls }}</td>
+              <td class="num"><ErrLabel v-if="tool.errors">{{ tool.errors }}</ErrLabel><span v-else class="dim">0</span></td>
+              <td class="num dim">{{ fmtMs(tool.avg_ms) }}</td>
+              <td class="num dim">{{ fmtMs(tool.p95_ms ?? null) }}</td>
             </tr>
           </template>
         </ConsoleTable>
       </ConsoleCard>
 
-      <ConsoleCard v-if="showUsers" flush title="par appelant">
-        <ConsoleTable :rows="byUser" :loaded="!!summary" empty="aucun appelant dans la fenêtre.">
+      <ConsoleCard v-if="showUsers" flush :title="t('monitoringUi.calls.byCaller')">
+        <ConsoleTable :rows="byUser" :loaded="!!summary" :empty="t('monitoringUi.calls.noCaller')">
           <template #head>
-            <th>appelant</th><th class="num">appels</th><th class="num">erreurs</th>
+            <th>{{ t('monitoringUi.calls.caller') }}</th><th class="num">{{ t('monitoringUi.calls.calls') }}</th><th class="num">{{ t('monitoringUi.calls.errors') }}</th>
           </template>
           <template #row="{ row: u }">
             <tr>
               <td class="dim" style="color: var(--color-ink-soft)">
                 <RouterLink v-if="linkUsers && u.sub" class="linklike" :to="`/platform/users/${u.sub}`">{{ u.email || u.name || u.sub }}</RouterLink>
-                <span v-else>{{ u.email || u.name || 'anonyme (stdio)' }}</span>
+                <span v-else>{{ u.email || u.name || t('monitoringUi.calls.anonymous') }}</span>
               </td>
               <td class="num">{{ u.calls }}</td>
               <td class="num"><ErrLabel v-if="u.errors">{{ u.errors }}</ErrLabel><span v-else class="dim">0</span></td>

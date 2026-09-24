@@ -33,19 +33,22 @@ import type { MonitoringSummary, MonitoringConnectorStats, OrgAdoption, ToolCall
 import { humanize } from '@/lib/errors'
 import { useDeepLink } from '@/composables/useDeepLink'
 import { useOrgScope } from '@/composables/useOrgScope'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const Usage = defineAsyncComponent(() => import('./UsageView.vue'))
 
 const { activeOrgId, loaded: orgLoaded, isOrgAdmin, error: orgError } = useOrgScope()
 
 const TABS = computed<SubTab[]>(() => [
-  { key: 'adoption', label: 'adoption', hint: 'qui dans l’équipe s’en sert' },
-  { key: 'mcp', label: 'outils mcp', hint: 'invocations par l’agent' },
-  { key: 'connecteurs', label: 'connecteurs', hint: 'ce qui bloque tes membres' },
-  { key: 'journal', label: 'journal', hint: 'appels bruts, filtrables, et leur export' },
-  { key: 'usage', label: 'signaux d’usage', hint: 'déroulés, manques, qualité des outils' },
+  { key: 'adoption', label: t('monitoringUi.org.adoption'), hint: t('monitoringUi.org.adoptionHint') },
+  { key: 'mcp', label: t('monitoringUi.org.mcp'), hint: t('monitoringUi.org.mcpHint') },
+  { key: 'connecteurs', label: t('monitoringUi.org.connectors'), hint: t('monitoringUi.org.connectorsHint') },
+  { key: 'journal', label: t('monitoringUi.org.log'), hint: t('monitoringUi.org.logHint') },
+  { key: 'usage', label: t('monitoringUi.org.usage'), hint: t('monitoringUi.org.usageHint') },
 ])
-const VALID = computed(() => new Set(TABS.value.map((t) => t.key)))
+const VALID = computed(() => new Set(TABS.value.map((x) => x.key)))
 
 const dlTab = useDeepLink('tab', (v) => { tab.value = v && VALID.value.has(v) ? v : 'adoption' })
 const tab = ref(VALID.value.has(dlTab.read() ?? '') ? dlTab.read()! : 'adoption')
@@ -134,13 +137,13 @@ watch([activeOrgId, isOrgAdmin], () => { loadStats(); loadCalls() })
   <div class="fadein">
     <p v-if="orgError" class="helptext" style="color: var(--color-terra-ink)">{{ orgError }}</p>
 
-    <ConsoleCard v-if="orgLoaded && activeOrgId == null" title="aucune org active">
-      <div class="helptext">tu n'es dans aucune organisation pour le moment.</div>
+    <ConsoleCard v-if="orgLoaded && activeOrgId == null" :title="t('monitoringUi.org.noOrg')">
+      <div class="helptext">{{ t('monitoringUi.org.noOrgHelp') }}</div>
     </ConsoleCard>
 
-    <ConsoleCard v-else-if="orgLoaded && !isOrgAdmin" title="réservé aux admins de l'org">
+    <ConsoleCard v-else-if="orgLoaded && !isOrgAdmin" :title="t('monitoringUi.org.adminOnly')">
       <div class="helptext">
-        cette page montre l'activité de tous les membres — seul un admin de l'org y accède.
+        {{ t('monitoringUi.org.adminOnlyHelp') }}
       </div>
     </ConsoleCard>
 
@@ -153,7 +156,7 @@ watch([activeOrgId, isOrgAdmin], () => { loadStats(); loadCalls() })
         <div class="mon-head">
           <MonitoringWindowPicker v-model="win" :windows="WINDOWS" />
           <span class="helptext" style="margin: 0">
-            seuls les appels émis sous cette org sont comptés.
+            {{ t('monitoringUi.org.onlyOrg') }}
           </span>
         </div>
 

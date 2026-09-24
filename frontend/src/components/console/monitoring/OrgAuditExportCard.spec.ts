@@ -56,6 +56,7 @@ async function settle() {
 async function monter(comp: object, props: Record<string, unknown> = {}) {
   const host = document.createElement('div')
   document.body.appendChild(host)
+  i18n.global.locale.value = 'fr'
   const app = createApp(h(comp, props)).use(i18n)
   app.mount(host)
   await settle()

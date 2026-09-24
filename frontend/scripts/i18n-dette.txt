@@ -22,16 +22,8 @@ src/components/console/MarkdownEditor.vue 17
 src/components/console/McpEndpointCard.vue 4
 src/components/console/ModeTag.vue 5
 src/components/console/monitoring/ActivationFunnelCard.vue 8
-src/components/console/monitoring/CallDetailPanel.vue 13
-src/components/console/monitoring/CallLogCard.vue 9
-src/components/console/monitoring/CallLogFilters.vue 5
-src/components/console/monitoring/ConnectorHealthCard.vue 7
-src/components/console/monitoring/MonitoringWindowPicker.vue 1
-src/components/console/monitoring/OrgAdoptionCard.vue 14
-src/components/console/monitoring/OrgAuditExportCard.vue 16
 src/components/console/monitoring/RestCallsCard.vue 6
 src/components/console/monitoring/SignalAggCard.vue 1
-src/components/console/monitoring/ToolCallsCard.vue 11
 src/components/console/NameDialog.vue 1
 src/components/console/NamespaceCreateDialog.vue 10
 src/components/console/outreach/OutreachJournal.vue 19
@@ -68,6 +60,5 @@ src/views/console/DoctrineView.vue 32
 src/views/console/DocumentsView.vue 1
 src/views/console/LoginGate.vue 1
 src/views/console/MonitoringView.vue 1
-src/views/console/OrgMonitoringView.vue 5
 src/views/console/SearchView.vue 5
 src/views/console/UsageView.vue 13

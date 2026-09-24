@@ -32,6 +32,9 @@ import { getOrgAuditLogExport } from '@/api/console'
 import { explain } from '@/lib/errors'
 import { saveBlob } from '@/lib/download'
 import type { AuditExport } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ orgId: number }>()
 
@@ -75,9 +78,9 @@ function nomFichier(res: AuditExport, page: number): string {
 }
 
 function emetteur(c: AuditExport['calls'][number]): string {
-  if (!c.client_name) return 'non déclaré'
+  if (!c.client_name) return t('monitoringUi.audit.undeclared')
   const nom = c.client_version ? `${c.client_name} ${c.client_version}` : c.client_name
-  return c.token_kind ? `${nom} · jeton ${c.token_kind}` : nom
+  return c.token_kind ? t('monitoringUi.audit.token', { name: nom, kind: c.token_kind }) : nom
 }
 
 async function exporter(cursor?: string) {
@@ -119,57 +122,55 @@ const fenetre = computed(() => {
   const p = premiere.value
   if (!p) return ''
   const fin = instant(p.until_effectif)
-  return p.since ? `du ${instant(p.since)} au ${fin}` : `tout le journal conservé, jusqu'au ${fin}`
+  return p.since ? t('monitoringUi.audit.window', { since: instant(p.since), until: fin }) : t('monitoringUi.audit.windowAll', { until: fin })
 })
 const listeEmetteurs = computed(() =>
   Object.entries(emetteurs.value).sort((a, b) => b[1] - a[1]))
 </script>
 
 <template>
-  <ConsoleCard title="Exporter le journal des accès"
-    sub="la pièce à produire devant un auditeur : chaque appel d'outil émis sous cette org, sans argument ni secret, avec l'émetteur déclaré.">
+  <ConsoleCard :title="t('monitoringUi.audit.title')"
+    :sub="t('monitoringUi.audit.sub')">
     <div class="ae-form">
       <label class="ae-field">
-        <span>du</span>
+        <span>{{ t('monitoringUi.audit.from_') }}</span>
         <input v-model="du" type="date" class="inp sm" :max="au || undefined" />
       </label>
       <label class="ae-field">
-        <span>au</span>
+        <span>{{ t('monitoringUi.audit.to') }}</span>
         <input v-model="au" type="date" class="inp sm" :min="du || undefined" />
       </label>
       <Btn icon="download" :disabled="busy || periodeInvalide" @click="exporter()">
-        {{ busy && pages === 0 ? 'export…' : 'Exporter (JSON)' }}
+        {{ busy && pages === 0 ? t('monitoringUi.audit.exporting') : t('monitoringUi.audit.export') }}
       </Btn>
     </div>
-    <p v-if="periodeInvalide" class="helptext ae-err">la date de début est postérieure à la date de fin.</p>
+    <p v-if="periodeInvalide" class="helptext ae-err">{{ t('monitoringUi.audit.badPeriod') }}</p>
     <p v-else class="helptext">
-      sans date : tout le journal conservé (90 jours par défaut), jusqu'à l'instant de l'export.
-      Seuls les appels d'outils MCP y figurent — pas les gestes faits dans ce dashboard.
+      {{ t('monitoringUi.audit.noDate') }}
     </p>
 
     <Notice v-if="error" tone="warn">
-      Export impossible : {{ error }}
-      <Btn v-if="curseurRefuse" kind="link" class="ae-fix" @click="exporter()">Recommencer depuis le début</Btn>
+      {{ t('monitoringUi.audit.failed', { error }) }}
+      <Btn v-if="curseurRefuse" kind="link" class="ae-fix" @click="exporter()">{{ t('monitoringUi.audit.restart') }}</Btn>
     </Notice>
 
     <div v-if="premiere" class="ae-bilan">
       <div class="ae-ligne">
-        <Tag :tone="complet ? 'olive' : 'saffron'">{{ complet ? 'complet' : 'tronqué' }}</Tag>
-        <span><b class="mono">{{ recues }}</b> ligne(s) téléchargée(s) sur <b class="mono">{{ premiere.total }}</b>
-          dans la fenêtre, en {{ pages }} fichier(s).</span>
+        <Tag :tone="complet ? 'olive' : 'saffron'">{{ complet ? t('monitoringUi.audit.complete') : t('monitoringUi.audit.truncated') }}</Tag>
+        <i18n-t keypath="monitoringUi.audit.got" tag="span"><template #got><b class="mono">{{ recues }}</b></template><template #total><b class="mono">{{ premiere.total }}</b></template><template #pages>{{ pages }}</template></i18n-t>
       </div>
-      <div class="ae-ligne dim">fenêtre appliquée : {{ fenetre }}.</div>
+      <div class="ae-ligne dim">{{ t('monitoringUi.audit.applied', { window: fenetre }) }}</div>
       <div v-if="suite" class="ae-ligne">
-        <span>il reste {{ premiere.total - recues }} ligne(s) : la suite reprend la même fenêtre, le total ne bouge pas.</span>
+        <span>{{ t('monitoringUi.audit.remaining', { n: premiere.total - recues }) }}</span>
         <Btn kind="mini" icon="download" :disabled="busy" @click="exporter(suite)">
-          {{ busy ? 'export…' : 'Télécharger la suite' }}
+          {{ busy ? t('monitoringUi.audit.exporting') : t('monitoringUi.audit.next') }}
         </Btn>
       </div>
       <div v-else-if="premiere.total === 0" class="ae-ligne dim">
-        aucun appel dans cette fenêtre — au-delà de la rétention, un journal vide ne veut pas dire qu'il ne s'est rien passé.
+        {{ t('monitoringUi.audit.empty') }}
       </div>
       <div v-if="listeEmetteurs.length" class="ae-ligne dim">
-        émetteurs déclarés (par le client, non opposables) :
+        {{ t('monitoringUi.audit.issuers') }}
         <span v-for="([nom, n], i) in listeEmetteurs" :key="nom" class="mono">{{ i ? ' · ' : ' ' }}{{ nom }} ({{ n }})</span>
       </div>
     </div>

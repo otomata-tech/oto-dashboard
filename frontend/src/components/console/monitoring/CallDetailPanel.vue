@@ -13,6 +13,9 @@ import { sentryEventUrl } from '@/lib/sentry'
 import { fmtMs } from '@/lib/monitoring'
 import { fmtDateTime } from '@/types/api'
 import type { ToolCallDetail } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ call: ToolCallDetail | null; loading?: boolean }>()
 const emit = defineEmits<{
@@ -42,7 +45,7 @@ const caller = computed(() => {
       <!-- Bandeau : ce qui s'est passé -->
       <div class="cd-head">
         <code class="mono cd-tool">{{ call.tool }}</code>
-        <Tag :tone="call.ok ? 'olive' : 'terra'">{{ call.ok ? 'ok' : 'erreur' }}</Tag>
+        <Tag :tone="call.ok ? 'olive' : 'terra'">{{ call.ok ? t('monitoringUi.detail.ok') : t('monitoringUi.detail.error') }}</Tag>
         <span class="dim">{{ fmtMs(call.duration_ms) }}</span>
         <span class="dim">{{ fmtDateTime(call.created_at) }}</span>
       </div>
@@ -53,34 +56,34 @@ const caller = computed(() => {
       <!-- Corrélation : cliquer un axe refiltre le journal dessus -->
       <dl class="cd-meta">
         <div>
-          <dt>appelant</dt>
+          <dt>{{ t('monitoringUi.detail.caller') }}</dt>
           <dd>
             <button v-if="call.sub" type="button" class="linklike"
               @click="emit('filter', 'sub', call.sub)">{{ caller }}</button>
-            <span v-else class="dim">anonyme</span>
+            <span v-else class="dim">{{ t('monitoringUi.detail.anonymous') }}</span>
           </dd>
         </div>
         <div>
-          <dt>org de l’appel</dt>
+          <dt>{{ t('monitoringUi.detail.org') }}</dt>
           <dd>
             <span v-if="call.org_id">{{ call.org_name || `#${call.org_id}` }}</span>
-            <span v-else class="dim">hors org</span>
+            <span v-else class="dim">{{ t('monitoringUi.detail.noOrg') }}</span>
           </dd>
         </div>
         <div>
-          <dt>surface cliente</dt>
+          <dt>{{ t('monitoringUi.detail.surface') }}</dt>
           <dd><span v-if="call.client_id" class="mono">{{ call.client_id }}</span><span v-else class="dim">—</span></dd>
         </div>
         <div>
-          <dt>déroulé</dt>
+          <dt>{{ t('monitoringUi.detail.run') }}</dt>
           <dd>
             <button v-if="call.run_id" type="button" class="linklike mono"
               @click="emit('filter', 'run_id', call.run_id)">{{ call.run_id }}</button>
-            <span v-else class="dim">hors run</span>
+            <span v-else class="dim">{{ t('monitoringUi.detail.noRun') }}</span>
           </dd>
         </div>
         <div>
-          <dt>conversation</dt>
+          <dt>{{ t('monitoringUi.detail.conversation') }}</dt>
           <dd>
             <button v-if="call.session_id" type="button" class="linklike mono"
               @click="emit('filter', 'session_id', call.session_id)">{{ call.session_id }}</button>
@@ -88,25 +91,25 @@ const caller = computed(() => {
           </dd>
         </div>
         <div>
-          <dt>traceback</dt>
+          <dt>{{ t('monitoringUi.detail.traceback') }}</dt>
           <dd>
             <a v-if="sentryHref" class="linklike" :href="sentryHref" target="_blank" rel="noopener">
-              voir dans Sentry
+              {{ t('monitoringUi.detail.sentry') }}
             </a>
             <code v-else-if="call.sentry_event_id" class="mono">{{ call.sentry_event_id }}</code>
-            <span v-else class="dim">aucun — pas une erreur de code</span>
+            <span v-else class="dim">{{ t('monitoringUi.detail.noTrace') }}</span>
           </dd>
         </div>
       </dl>
 
       <!-- Arguments tels que journalisés (tronqués à l'écriture) -->
       <div v-if="argsText" class="cd-args">
-        <div class="eyebrow">arguments (tronqués à la journalisation)</div>
+        <div class="eyebrow">{{ t('monitoringUi.detail.args') }}</div>
         <pre class="mono">{{ argsText }}</pre>
       </div>
     </template>
 
-    <p v-else class="dim" style="margin: 0">fiche indisponible.</p>
+    <p v-else class="dim" style="margin: 0">{{ t('monitoringUi.detail.unavailable') }}</p>
   </div>
 </template>
 

@@ -19,6 +19,9 @@ import type { ToolCall, ToolCallDetail } from '@/types/api'
 import { fmtDateTime } from '@/types/api'
 import { fmtMs } from '@/lib/monitoring'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   calls: ToolCall[]
@@ -37,9 +40,9 @@ const emit = defineEmits<{
 }>()
 
 type Filter = 'all' | 'ok' | 'errors'
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'all', label: 'tous' }, { key: 'ok', label: 'ok' }, { key: 'errors', label: 'erreurs' },
-]
+const FILTERS = computed<{ key: Filter; label: string }[]>(() => [
+  { key: 'all', label: t('monitoringUi.log.all') }, { key: 'ok', label: t('monitoringUi.log.ok') }, { key: 'errors', label: t('monitoringUi.log.errors') },
+])
 const filter = ref<Filter>('all')
 const filtered = computed(() =>
   props.filterable
@@ -76,7 +79,7 @@ async function toggle(call: ToolCall) {
 </script>
 
 <template>
-  <ConsoleCard flush :title="title || 'journal d’appels'" :sub="sub">
+  <ConsoleCard flush :title="title || t('monitoringUi.log.title')" :sub="sub">
     <template #actions>
       <slot name="actions">
         <div v-if="filterable" class="seg">
@@ -84,23 +87,23 @@ async function toggle(call: ToolCall) {
             type="button" :class="{ on: filter === f.key }" @click="filter = f.key">{{ f.label }}</button>
         </div>
         <span v-else class="dim" style="font-size: 11.5px">
-          {{ calls.length }} appels · <ErrLabel v-if="errCount">{{ errCount }} err</ErrLabel><span v-else class="dim">0 err</span>
+          {{ t('monitoringUi.log.summary', { n: calls.length }) }} <ErrLabel v-if="errCount">{{ t('monitoringUi.log.err', { n: errCount }) }}</ErrLabel><span v-else class="dim">{{ t('monitoringUi.log.noErr') }}</span>
         </span>
       </slot>
     </template>
     <ConsoleTable :rows="filtered" :busy="busy" :loaded="loaded"
-      :empty="emptyLabel || 'aucun appel dans la fenêtre'">
+      :empty="emptyLabel || t('monitoringUi.log.empty')">
       <template #head>
-        <th style="width: 18px"></th><th>outil</th>
-        <th v-if="showUser">par</th>
-        <th>détail</th><th class="num">durée</th><th class="num">quand</th>
+        <th style="width: 18px"></th><th>{{ t('monitoringUi.log.tool') }}</th>
+        <th v-if="showUser">{{ t('monitoringUi.log.by') }}</th>
+        <th>{{ t('monitoringUi.log.detail') }}</th><th class="num">{{ t('monitoringUi.log.duration') }}</th><th class="num">{{ t('monitoringUi.log.when') }}</th>
       </template>
       <template #row="{ row: c }">
         <tr :class="{ crow: !!loadDetail, sel: openId === c.id }" @click="toggle(c)">
           <td><Dot :tone="c.ok ? 'olive' : 'terra'" :size="7" /></td>
           <td><code class="mono">{{ c.tool_name }}</code></td>
-          <td v-if="showUser" class="dim" style="font-size: 12px">{{ c.email || c.name || c.sub || 'anonyme' }}</td>
-          <td><ErrLabel v-if="c.error">{{ c.error }}</ErrLabel><span v-else class="dim">ok</span></td>
+          <td v-if="showUser" class="dim" style="font-size: 12px">{{ c.email || c.name || c.sub || t('monitoringUi.log.anonymous') }}</td>
+          <td><ErrLabel v-if="c.error">{{ c.error }}</ErrLabel><span v-else class="dim">{{ t('monitoringUi.log.ok') }}</span></td>
           <td class="num dim">{{ fmtMs(c.duration_ms) }}</td>
           <td class="num dim">{{ fmtDateTime(c.called_at) }}</td>
         </tr>

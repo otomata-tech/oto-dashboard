@@ -7,7 +7,10 @@
 // Les champs texte sont débouncés (frappe → une requête, pas une par touche) ; les
 // axes ponctuels (déroulé, conversation) arrivent par clic depuis une fiche d'appel
 // et s'affichent en chips retirables — ils ne se tapent pas à la main.
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 export interface CallFilters {
   tool?: string
@@ -23,12 +26,12 @@ const emit = defineEmits<{ (e: 'update:modelValue', v: CallFilters): void }>()
 
 // Paliers de lenteur : cale la chasse aux gels d'event loop (≥1 s = suspect sur un
 // serveur mono-loop, ≥10 s = ce que loop_watch remonte déjà à Sentry).
-const SLOW = [
-  { v: 0, label: 'toutes durées' },
+const SLOW = computed(() => [
+  { v: 0, label: t('monitoringUi.filters.allDurations') },
   { v: 1000, label: '≥ 1 s' },
   { v: 5000, label: '≥ 5 s' },
   { v: 30000, label: '≥ 30 s' },
-]
+])
 
 const tool = ref(props.modelValue.tool ?? '')
 const sub = ref(props.modelValue.sub ?? '')
@@ -69,9 +72,9 @@ watch(() => props.modelValue, (m) => {
 
 <template>
   <div class="clf">
-    <input v-model="tool" class="inp sm mono" type="search" placeholder="outil (ex. folk_search)" />
-    <input v-model="sub" class="inp sm" type="search" placeholder="appelant (email ou sub)" />
-    <input v-model="errText" class="inp sm" type="search" placeholder="message d’erreur contient…" />
+    <input v-model="tool" class="inp sm mono" type="search" :placeholder="t('monitoringUi.filters.tool')" />
+    <input v-model="sub" class="inp sm" type="search" :placeholder="t('monitoringUi.filters.caller')" />
+    <input v-model="errText" class="inp sm" type="search" :placeholder="t('monitoringUi.filters.error')" />
     <select v-model.number="slow" class="inp sm">
       <option v-for="s in SLOW" :key="s.v" :value="s.v">{{ s.label }}</option>
     </select>
@@ -80,11 +83,11 @@ watch(() => props.modelValue, (m) => {
          sinon le journal reste filtré sans que rien ne le dise. -->
     <button v-if="modelValue.run_id" type="button" class="btn-mini"
       @click="push({ run_id: undefined })">
-      déroulé <code class="mono">{{ modelValue.run_id }}</code> ✕
+      {{ t('monitoringUi.filters.run') }} <code class="mono">{{ modelValue.run_id }}</code> ✕
     </button>
     <button v-if="modelValue.session_id" type="button" class="btn-mini"
       @click="push({ session_id: undefined })">
-      conversation ✕
+      {{ t('monitoringUi.filters.conversation') }}
     </button>
   </div>
 </template>
