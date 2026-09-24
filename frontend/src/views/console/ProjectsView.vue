@@ -5,6 +5,7 @@
 // persistée. Le détail vit sur sa page `/projects/:id`. Consomme oto_project.
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import Icon from '@/components/console/Icon.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
@@ -29,6 +30,7 @@ import { useMe, isPlatformOperator } from '@/composables/useMe'
 
 const router = useRouter()
 const { toast } = useToast()
+const { t } = useI18n()
 const { me } = useMe()
 
 const projects = ref<Project[]>([])
@@ -106,8 +108,8 @@ const sections = computed(() => [
   })),
   {
     key: 'me',
-    label: 'Partagés avec moi',
-    hint: 'Partagés avec toi en personne : ils n’appartiennent à aucune de tes organisations.',
+    label: t('projectsUi.list.sharedWithMe'),
+    hint: t('projectsUi.list.sharedWithMeHint'),
     items: personalShares.value,
   },
 ].filter((s) => s.items.length))
@@ -117,12 +119,11 @@ const listed = computed(() => [...projects.value, ...personalShares.value])
 // Pages partagées seules — lecture sur place (le lecteur n'a souvent QUE la page : son
 // projet lui est fermé, `url` vaut alors null). Avec l'accès au projet, on l'y ouvre.
 const docSections = computed(() => [
-  { key: 'org', label: 'Pages partagées avec cette organisation',
-    hint: 'Une page seule, sans son projet — en lecture.', items: docsOrg.value },
-  { key: 'me', label: 'Pages partagées avec moi',
-    hint: 'Partagées avec toi en personne — en lecture.', items: docsMe.value },
+  { key: 'org', label: t('projectsUi.list.docsOrg'), hint: t('projectsUi.list.docsOrgHint'), items: docsOrg.value },
+  { key: 'me', label: t('projectsUi.list.docsMe'), hint: t('projectsUi.list.docsMeHint'), items: docsMe.value },
 ].filter((s) => s.items.length))
-const VIA: Record<string, string> = { org: 'l’organisation', team: 'ton équipe', person: 'toi' }
+// Clés i18n de « avec qui » une page a été partagée.
+const VIA: Record<string, string> = { org: 'projectsUi.list.via.org', team: 'projectsUi.list.via.team', person: 'projectsUi.list.via.person' }
 const readerOpen = ref(false)
 const reader = ref<{ entry: SharedDoc; doc: Doc | null; error: string | null } | null>(null)
 async function openSharedDoc(entry: SharedDoc) {
@@ -141,11 +142,11 @@ async function openSharedDoc(entry: SharedDoc) {
 type Chip = { tone?: 'saffron' | 'olive' | 'cobalt'; label: string }
 function chipsFor(p: Project): Chip[] {
   const out: Chip[] = []
-  if (p.is_template) out.push({ tone: 'saffron', label: 'modèle' })
-  if (p.mcp_access && p.mcp_access !== 'off') out.push({ tone: 'olive', label: 'mcp live' })
-  if (p.shared) out.push({ tone: 'cobalt', label: 'partagé' })
-  if (p.can_write === false) out.push({ label: 'lecture' })
-  if (p.has_audit) out.push({ tone: 'saffron', label: 'à vérifier' })
+  if (p.is_template) out.push({ tone: 'saffron', label: t('projectsUi.detail.tag.template') })
+  if (p.mcp_access && p.mcp_access !== 'off') out.push({ tone: 'olive', label: t('projectsUi.list.chip.mcpLive') })
+  if (p.shared) out.push({ tone: 'cobalt', label: t('projectsUi.viewer.shared') })
+  if (p.can_write === false) out.push({ label: t('projectsUi.detail.tag.readOnly') })
+  if (p.has_audit) out.push({ tone: 'saffron', label: t('projectsUi.list.chip.toCheck') })
   return out
 }
 function briefSnippet(p: Project): string {
@@ -175,14 +176,15 @@ async function create() {
 async function doCreate(payload: ProjectOwnerPayload) {
   try {
     const p = await createProject(payload.name, '', payload.owner)
-    toast('projet créé')
+    toast(t('projectsUi.list.toast.created'))
     openProject(p.id)
   } catch (e) { toast(humanize(e)); throw e }
 }
-function useTemplate(t: Project) {
+function useTemplate(tpl: Project) {
   nameConfig.value = {
-    title: `Utiliser « ${t.name} »`, description: "Copie ce modèle dans un nouveau projet (l'original reste intact).", initial: t.name, submitLabel: 'Copier',
-    onConfirm: async (name) => { try { const p = await copyProject(t.id, name); toast('projet créé depuis le modèle'); openProject(p.id) } catch (e) { toast(humanize(e)); throw e } },
+    title: t('projectsUi.list.useTemplate.title', { name: tpl.name }), description: t('projectsUi.list.useTemplate.description'),
+    initial: tpl.name, submitLabel: t('projectsUi.list.useTemplate.submit'),
+    onConfirm: async (name) => { try { const p = await copyProject(tpl.id, name); toast(t('projectsUi.list.toast.fromTemplate')); openProject(p.id) } catch (e) { toast(humanize(e)); throw e } },
   }
   nameOpen.value = true
 }
@@ -203,7 +205,7 @@ function toggleArchived() {
 async function unarchive(p: Project) {
   try {
     await unarchiveProject(p.id)
-    toast('projet désarchivé')
+    toast(t('projectsUi.list.toast.unarchived'))
     archived.value = (archived.value ?? []).filter((a) => a.id !== p.id)
     await load()
   } catch (e) { toast(humanize(e)) }
@@ -217,14 +219,14 @@ const hasProjects = computed(() => loaded.value && !error.value && listed.value.
     <TopbarPage>
       <div class="pl-head">
         <div class="pl-head__id">
-          <h1 class="pl-head__t">Projets</h1>
-          <span v-if="hasProjects" class="pl-head__n">{{ listed.length }} projets</span>
+          <h1 class="pl-head__t">{{ $t('projectsUi.list.title') }}</h1>
+          <span v-if="hasProjects" class="pl-head__n">{{ $t('projectsUi.list.count', listed.length) }}</span>
         </div>
-        <div v-if="hasProjects" class="pl-seg" role="group" aria-label="disposition">
-          <button class="pl-seg__b" :class="{ on: layout === 'cards' }" @click="setLayout('cards')">cartes</button>
-          <button class="pl-seg__b" :class="{ on: layout === 'rows' }" @click="setLayout('rows')">tableau</button>
+        <div v-if="hasProjects" class="pl-seg" role="group" :aria-label="$t('projectsUi.list.layout')">
+          <button class="pl-seg__b" :class="{ on: layout === 'cards' }" @click="setLayout('cards')">{{ $t('projectsUi.list.cards') }}</button>
+          <button class="pl-seg__b" :class="{ on: layout === 'rows' }" @click="setLayout('rows')">{{ $t('projectsUi.list.rows') }}</button>
         </div>
-        <button class="pl-new" @click="create"><Icon name="plus" :size="14" /> Nouveau projet</button>
+        <button class="pl-new" @click="create"><Icon name="plus" :size="14" /> {{ $t('projectsUi.list.new') }}</button>
       </div>
     </TopbarPage>
 
@@ -232,9 +234,9 @@ const hasProjects = computed(() => loaded.value && !error.value && listed.value.
     <p v-if="error" class="dim" style="font-size: 13px">{{ error }}</p>
     <p v-else-if="!loaded" class="dim" style="font-size: 13px">{{ $t('common.loading') }}</p>
     <div v-else-if="!listed.length" class="pl-empty">
-      <p class="pl-empty__t">Aucun projet</p>
-      <p class="pl-empty__s">Un projet est un conteneur de travail — un but et ses entités (tableaux, connecteurs, procédures). Partageable, reprenable dans Claude.</p>
-      <button class="pl-new" @click="create"><Icon name="plus" :size="14" /> Créer un projet</button>
+      <p class="pl-empty__t">{{ $t('projectsUi.list.empty') }}</p>
+      <p class="pl-empty__s">{{ $t('projectsUi.list.emptyHint') }}</p>
+      <button class="pl-new" @click="create"><Icon name="plus" :size="14" /> {{ $t('projectsUi.list.create') }}</button>
     </div>
 
     <!-- cartes -->
@@ -258,11 +260,11 @@ const hasProjects = computed(() => loaded.value && !error.value && listed.value.
           <Tag v-for="c in chipsFor(p)" :key="c.label" :tone="c.tone">{{ c.label }}</Tag>
         </div>
         <p v-if="briefSnippet(p)" class="pl-card__brief">{{ briefSnippet(p) }}</p>
-        <p v-else class="pl-card__brief pl-card__brief--empty">pas encore de brief.</p>
+        <p v-else class="pl-card__brief pl-card__brief--empty">{{ $t('projectsUi.list.noBriefYet') }}</p>
         <div class="pl-card__foot">
-          <span>maj {{ fmtDate(p.updated_at) }}</span>
+          <span>{{ $t('projectsUi.list.updated', { date: fmtDate(p.updated_at) }) }}</span>
           <template v-if="p.entity_count != null">
-            <span class="pl-card__sep"></span><span>{{ p.entity_count }} entités</span>
+            <span class="pl-card__sep"></span><span>{{ $t('projectsUi.list.entities', p.entity_count) }}</span>
           </template>
           <span class="pl-card__go"><Icon name="chevron-right" :size="15" /></span>
         </div>
@@ -274,7 +276,7 @@ const hasProjects = computed(() => loaded.value && !error.value && listed.value.
     <!-- tableau dense -->
     <div v-else class="pl-table">
       <div class="pl-row pl-row--head">
-        <span>projet</span><span>état</span><span>maj</span><span class="pl-row__num">entités</span><span></span>
+        <span>{{ $t('projectsUi.list.col.project') }}</span><span>{{ $t('projectsUi.list.col.state') }}</span><span>{{ $t('projectsUi.list.col.updated') }}</span><span class="pl-row__num">{{ $t('projectsUi.list.col.entities') }}</span><span></span>
       </div>
       <button v-for="p in listed" :key="p.id" class="pl-row" @click="openProject(p.id)">
         <span class="pl-row__name"><span class="pl-row__nt"><span v-if="p.icon" class="pl-ico">{{ p.icon }}</span>{{ p.name }}</span><span class="pl-row__owner"
@@ -296,7 +298,7 @@ const hasProjects = computed(() => loaded.value && !error.value && listed.value.
       <div class="pl-table">
         <button v-for="d in s.items" :key="d.id" class="pl-row pl-row--doc" @click="openSharedDoc(d)">
           <span class="pl-row__name"><Icon name="file-text" :size="14" /><span class="pl-row__nt">{{ d.title }}</span></span>
-          <span class="pl-row__owner">{{ d.shared_by ? `par ${d.shared_by}` : '' }}{{ d.via && VIA[d.via] ? ` · avec ${VIA[d.via]}` : '' }}</span>
+          <span class="pl-row__owner">{{ d.shared_by ? $t('projectsUi.list.by', { who: d.shared_by }) : '' }}{{ d.via && VIA[d.via] ? ` · ${$t('projectsUi.list.with', { who: $t(VIA[d.via]!) })}` : '' }}</span>
           <span class="pl-row__maj">{{ fmtDate(d.updated_at) }}</span>
           <span class="pl-row__go"><Icon name="chevron-right" :size="15" /></span>
         </button>
@@ -306,19 +308,19 @@ const hasProjects = computed(() => loaded.value && !error.value && listed.value.
     <!-- modèles -->
     <template v-if="hasProjects && templates.length">
       <div class="pl-tpl-hd">
-        <span class="pl-tpl-hd__k">modèles</span>
+        <span class="pl-tpl-hd__k">{{ $t('projectsUi.list.templates') }}</span>
         <span class="pl-tpl-hd__line"></span>
-        <span class="pl-tpl-hd__s">projets publiés — copie prête à personnaliser</span>
+        <span class="pl-tpl-hd__s">{{ $t('projectsUi.list.templatesHint') }}</span>
       </div>
       <div class="pl-cards">
         <div v-for="t in templates" :key="t.id" class="pl-card pl-card--tpl">
           <div class="pl-card__head">
             <span class="pl-card__name">{{ t.name }}</span>
-            <Tag tone="saffron">modèle</Tag>
+            <Tag tone="saffron">{{ $t('projectsUi.detail.tag.template') }}</Tag>
           </div>
           <p v-if="briefSnippet(t)" class="pl-card__brief">{{ briefSnippet(t) }}</p>
-          <p v-else class="pl-card__brief pl-card__brief--empty">pas de brief.</p>
-          <div><Btn kind="mini" icon="copy" @click="useTemplate(t)">Utiliser ce modèle</Btn></div>
+          <p v-else class="pl-card__brief pl-card__brief--empty">{{ $t('projectsUi.list.noBrief') }}</p>
+          <div><Btn kind="mini" icon="copy" @click="useTemplate(t)">{{ $t('projectsUi.list.useTemplate.button') }}</Btn></div>
         </div>
       </div>
     </template>
@@ -327,17 +329,17 @@ const hasProjects = computed(() => loaded.value && !error.value && listed.value.
     <section v-if="loaded && !error" class="pl-sec pl-arch">
       <button class="pl-arch__toggle" :aria-expanded="archivedOpen" @click="toggleArchived">
         <Icon :name="archivedOpen ? 'chevron-down' : 'chevron-right'" :size="14" />
-        Projets archivés
+        {{ $t('projectsUi.list.archived') }}
       </button>
       <template v-if="archivedOpen">
         <p v-if="archivedError" class="dim" style="font-size: 13px">{{ archivedError }}</p>
         <p v-else-if="archived === null" class="dim" style="font-size: 13px">{{ $t('common.loading') }}</p>
-        <p v-else-if="!archived.length" class="dim" style="font-size: 13px">Aucun projet archivé.</p>
+        <p v-else-if="!archived.length" class="dim" style="font-size: 13px">{{ $t('projectsUi.list.noArchived') }}</p>
         <div v-else class="pl-table">
           <div v-for="p in archived" :key="p.id" class="pl-row pl-row--arch">
             <span class="pl-row__name"><span class="pl-row__nt"><span v-if="p.icon" class="pl-ico">{{ p.icon }}</span>{{ p.name }}</span></span>
-            <span class="pl-row__maj">archivé · {{ fmtDate(p.archived_at) }}</span>
-            <Btn kind="mini" @click="unarchive(p)">Désarchiver</Btn>
+            <span class="pl-row__maj">{{ $t('projectsUi.list.archivedOn', { date: fmtDate(p.archived_at) }) }}</span>
+            <Btn kind="mini" @click="unarchive(p)">{{ $t('projectsUi.list.unarchive') }}</Btn>
           </div>
         </div>
       </template>
@@ -349,7 +351,7 @@ const hasProjects = computed(() => loaded.value && !error.value && listed.value.
         <DialogHeader>
           <DialogTitle>{{ reader?.doc?.title ?? reader?.entry.title }}</DialogTitle>
           <DialogDescription>
-            Page partagée seule, en lecture{{ reader?.entry.shared_by ? ` — par ${reader.entry.shared_by}` : '' }}.
+            {{ reader?.entry.shared_by ? $t('projectsUi.list.readerBy', { who: reader.entry.shared_by }) : $t('projectsUi.list.reader') }}
           </DialogDescription>
         </DialogHeader>
         <p v-if="reader?.error" class="dim" style="font-size: 13px">{{ reader.error }}</p>
@@ -363,7 +365,7 @@ const hasProjects = computed(() => loaded.value && !error.value && listed.value.
     <NameDialog v-if="nameConfig" v-model:open="nameOpen"
       :title="nameConfig.title" :description="nameConfig.description"
       :initial="nameConfig.initial" :submit-label="nameConfig.submitLabel"
-      :on-confirm="nameConfig.onConfirm" placeholder="Prospection Marseille" />
+      :on-confirm="nameConfig.onConfirm" :placeholder="$t('projectsUi.list.namePlaceholder')" />
 
     <!-- Création scopée (ADR 0049) : org / équipe / bibliothèque plateforme. -->
     <ProjectCreateDialog v-model:open="createOpen" :org-name="me?.active_org_name"

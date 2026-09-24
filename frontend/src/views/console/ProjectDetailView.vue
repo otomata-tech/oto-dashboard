@@ -75,17 +75,17 @@ const auditLines = computed<string[]>(() => {
   const a = audit.value
   if (!a) return []
   return [
-    ...a.dead_links.map((d) => `Lien mort — ${d.target_type} « ${d.target_ref} » : ${d.why}`),
-    ...a.unbound_slots.map((u) => `Procédure « ${u.procedure} » : slots déclarés non bindés dans ce projet — ${u.slots.join(', ')}`),
-    ...a.inert_procedures.map((s) => `Procédure « ${s} » liée mais jamais déroulée dans ce projet.`),
+    ...a.dead_links.map((d) => t('projectsUi.detail.audit.dead', { type: d.target_type, ref: d.target_ref, why: d.why })),
+    ...a.unbound_slots.map((u) => t('projectsUi.detail.audit.unbound', { procedure: u.procedure, slots: u.slots.join(', ') })),
+    ...a.inert_procedures.map((s) => t('projectsUi.detail.audit.inert', { procedure: s })),
   ]
 })
 
 // ── en-tête : tags + avatars ──
 const statusTags = computed(() => {
   const out: { tone: 'saffron' | 'cobalt'; label: string }[] = []
-  if (project.value?.is_template) out.push({ tone: 'saffron', label: 'modèle' })
-  if (readOnly.value) out.push({ tone: 'cobalt', label: 'lecture' })
+  if (project.value?.is_template) out.push({ tone: 'saffron', label: t('projectsUi.detail.tag.template') })
+  if (readOnly.value) out.push({ tone: 'cobalt', label: t('projectsUi.detail.tag.readOnly') })
   return out
 })
 
@@ -118,22 +118,22 @@ function linksOf(t: string): ProjectLink[] { return links.value.filter((l) => l.
 
 const railGroups = computed<RailGroup[]>(() => {
   // Pages : accueil (brief) + arbre de docs (top-level puis enfants).
-  const pageItems: RailItem[] = [{ key: 'home', kind: 'page', label: 'Accueil · Brief', home: true, pad: 0 }]
+  const pageItems: RailItem[] = [{ key: 'home', kind: 'page', label: t('projectsUi.detail.rail.home'), home: true, pad: 0 }]
   const top = docs.value.filter((d) => d.parent_id == null)
   for (const d of top) {
     pageItems.push({ key: `doc:${d.id}`, kind: 'page', label: d.title, doc: d, pad: 0, hint: d.description })
     for (const c of docs.value.filter((x) => x.parent_id === d.id))
       pageItems.push({ key: `doc:${c.id}`, kind: 'page', label: c.title, doc: c, parentKey: `doc:${d.id}`, pad: 1, hint: c.description })
   }
-  const mkLink = (t: RailItem['kind'], l: ProjectLink): RailItem => ({
-    key: bindingKey(l), kind: t, label: linkName(l), link: l,
-    railTag: t === 'procedure'
+  const mkLink = (type: RailItem['kind'], l: ProjectLink): RailItem => ({
+    key: bindingKey(l), kind: type, label: linkName(l), link: l,
+    railTag: type === 'procedure'
       ? procRunTag(l.target_ref)
-      : (t === 'connecteur' && l.config?.instructions_md ? { tone: 'olive', label: 'surchargé' } : null),
+      : (type === 'connecteur' && l.config?.instructions_md ? { tone: 'olive', label: t('projectsUi.detail.rail.overridden') } : null),
   })
   const fileItems: RailItem[] = files.value.map((f) => ({
     key: `file:${f.id}`, kind: 'file', label: f.title || f.filename, file: f,
-    railTag: f.public ? { tone: 'cobalt', label: 'public' } : null,
+    railTag: f.public ? { tone: 'cobalt', label: t('projectsUi.viewer.public') } : null,
   }))
   // Connecteurs REQUIS par une procédure mais NON déclarés au projet (ADR 0035/0044) :
   // affichés sous les déclarés, tag « requis ». Ils résolvent via la cascade normale ;
@@ -145,14 +145,14 @@ const railGroups = computed<RailGroup[]>(() => {
     .map(([name, srcs]) => ({
       key: `reqconn:${name}`, kind: 'connecteur' as const, label: name,
       derived: srcs.filter((s) => s !== 'declared'),
-      railTag: { tone: 'cobalt' as const, label: 'requis' },
+      railTag: { tone: 'cobalt' as const, label: t('projectsUi.detail.rail.required') },
     }))
   return [
-    { key: 'pages', label: 'Pages', icon: 'book', kind: 'page', addKind: 'page', items: pageItems },
-    { key: 'tableaux', label: 'Tableaux', icon: 'db', kind: 'tableau', addKind: 'tableau', items: linksOf('tableau').map((l) => mkLink('tableau', l)) },
-    { key: 'connecteurs', label: 'Connecteurs', icon: 'plug', kind: 'connecteur', addKind: 'connecteur', items: [...linksOf('connecteur').map((l) => mkLink('connecteur', l)), ...derivedConnItems] },
-    { key: 'procedures', label: 'Procédures', icon: 'doc', kind: 'procedure', addKind: 'procedure', items: linksOf('procedure').map((l) => mkLink('procedure', l)) },
-    { key: 'files', label: 'Fichiers importés', icon: 'file-text', kind: 'file', addKind: 'file', items: fileItems },
+    { key: 'pages', label: t('projectsUi.detail.rail.pages'), icon: 'book', kind: 'page', addKind: 'page', items: pageItems },
+    { key: 'tableaux', label: t('projectsUi.exposure.tables'), icon: 'db', kind: 'tableau', addKind: 'tableau', items: linksOf('tableau').map((l) => mkLink('tableau', l)) },
+    { key: 'connecteurs', label: t('projectsUi.detail.rail.connectors'), icon: 'plug', kind: 'connecteur', addKind: 'connecteur', items: [...linksOf('connecteur').map((l) => mkLink('connecteur', l)), ...derivedConnItems] },
+    { key: 'procedures', label: t('projectsUi.detail.rail.procedures'), icon: 'doc', kind: 'procedure', addKind: 'procedure', items: linksOf('procedure').map((l) => mkLink('procedure', l)) },
+    { key: 'files', label: t('projectsUi.detail.rail.files'), icon: 'file-text', kind: 'file', addKind: 'file', items: fileItems },
   ]
 })
 // Carte titre→id des pages du projet (résolution des backlinks [[…]], Ship 4).
@@ -211,9 +211,9 @@ const lastRunByProc = computed<Record<string, ProjectRun>>(() => {
 function procRunTag(slug: string): { tone: 'olive' | 'terra' | 'saffron'; label: string } | null {
   const r = lastRunByProc.value[slug]
   if (!r) return null
-  if (!r.outcome) return { tone: 'saffron', label: 'en cours' }
-  if (r.outcome === 'done') return { tone: 'olive', label: 'déroulée' }
-  return { tone: 'terra', label: r.outcome === 'abandoned' ? 'abandonnée' : 'échec' }
+  if (!r.outcome) return { tone: 'saffron', label: t('projectsUi.workQueues.running') }
+  if (r.outcome === 'done') return { tone: 'olive', label: t('projectsUi.detail.run.done') }
+  return { tone: 'terra', label: r.outcome === 'abandoned' ? t('projectsUi.detail.run.abandoned') : t('projectsUi.detail.run.failed') }
 }
 const { scoped } = useScopedLink()
 
@@ -229,21 +229,21 @@ onMounted(async () => { await load(); if (project.value) await selectFromRoute()
 // ── actions d'en-tête ──
 async function saveBrief(value: string) {
   if (!project.value) return
-  try { project.value = { ...project.value, ...(await updateProject(projectId, { brief_md: value })) }; await loadActivity(); toast('brief enregistré') }
+  try { project.value = { ...project.value, ...(await updateProject(projectId, { brief_md: value })) }; await loadActivity(); toast(t('projectsUi.detail.toast.briefSaved')) }
   catch (e) { toast(humanize(e)) }
 }
 async function handoff() {
-  try { const { markdown } = await projectHandoff(projectId); await navigator.clipboard.writeText(markdown); toast('texte copié — colle-le dans Claude pour reprendre le projet') }
+  try { const { markdown } = await projectHandoff(projectId); await navigator.clipboard.writeText(markdown); toast(t('projectsUi.detail.toast.handoff')) }
   catch (e) { toast(humanize(e)) }
 }
 function copy() { menuOpen.value = false; if (project.value) copyOpen.value = true }
 async function exportKb() {
   menuOpen.value = false
-  try { await apiDownload(`/api/me/projects/${projectId}/export`, 'export.zip'); toast('export téléchargé (markdown)') }
+  try { await apiDownload(`/api/me/projects/${projectId}/export`, 'export.zip'); toast(t('projectsUi.detail.toast.exported')) }
   catch (e) { toast(humanize(e)) }
 }
 async function doCopy(name: string) {
-  try { const c = await copyProject(projectId, name); toast('projet copié'); router.push(`/projects/${c.id}`) }
+  try { const c = await copyProject(projectId, name); toast(t('projectsUi.detail.toast.copied')); router.push(`/projects/${c.id}`) }
   catch (e) { toast(humanize(e)); throw e }
 }
 function rename() { menuOpen.value = false; if (project.value) renameOpen.value = true }
@@ -255,20 +255,20 @@ async function setIcon(icon: string) {
 }
 async function doRename(name: string) {
   if (!project.value) return
-  try { project.value = { ...project.value, ...(await updateProject(projectId, { name })) }; await loadActivity(); toast('projet renommé') }
+  try { project.value = { ...project.value, ...(await updateProject(projectId, { name })) }; await loadActivity(); toast(t('projectsUi.detail.toast.renamed')) }
   catch (e) { toast(humanize(e)); throw e }
 }
 async function toggleTemplate() {
   menuOpen.value = false
   if (!project.value) return
   const next = !project.value.is_template
-  try { project.value = { ...project.value, ...(await setProjectTemplate(projectId, next)) }; toast(next ? 'publié comme modèle' : 'retiré des modèles') }
+  try { project.value = { ...project.value, ...(await setProjectTemplate(projectId, next)) }; toast(next ? t('projectsUi.detail.toast.templateOn') : t('projectsUi.detail.toast.templateOff')) }
   catch (e) { toast(humanize(e)) }
 }
 async function archive() {
   menuOpen.value = false
   if (!project.value) return
-  try { if (await archiveWithConfirm(projectId, project.value.name)) { toast('projet archivé'); router.push('/projects') } }
+  try { if (await archiveWithConfirm(projectId, project.value.name)) { toast(t('projectsUi.detail.toast.archived')); router.push('/projects') } }
   catch (e) { toast(humanize(e)) }
 }
 
@@ -336,7 +336,7 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
 <template>
   <div class="pj fadein">
     <div v-if="error" class="pj__msg surface-card"><p class="dim" style="font-size: 13px">{{ error }}</p></div>
-    <div v-else-if="!loaded" class="pj__msg surface-card"><p class="dim" style="font-size: 13px">chargement du projet…</p></div>
+    <div v-else-if="!loaded" class="pj__msg surface-card"><p class="dim" style="font-size: 13px">{{ $t('projectsUi.detail.loading') }}</p></div>
 
     <template v-else-if="project">
       <!-- en-tête : injecté dans le topbar global (fin du double en-tête). claim=true :
@@ -348,38 +348,38 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
         <EmojiPicker v-if="!readOnly" :model-value="project.icon" @update:model-value="setIcon" />
         <span v-else-if="project.icon" class="pj-top__icon">{{ project.icon }}</span>
         <h1 class="pj-top__name" :class="{ 'pj-top__name--edit': !readOnly }"
-          :title="readOnly ? undefined : 'Renommer le projet'"
+          :title="readOnly ? undefined : $t('projectsUi.detail.rename')"
           @click="!readOnly && rename()">{{ project.name }}</h1>
-        <button v-if="!readOnly" class="pj-top__edit" title="Renommer le projet" @click="rename">
+        <button v-if="!readOnly" class="pj-top__edit" :title="$t('projectsUi.detail.rename')" @click="rename">
           <Icon name="pencil" :size="13" />
         </button>
         <div class="pj-top__act">
           <!-- visibilité en clair : la réponse à « est-ce que quelqu'un d'autre le voit ? » -->
           <button v-if="visibility" class="pj-vis" :class="{ 'pj-vis--private': visibility.isPrivate }"
-            :title="`${visibility.detail} — cliquer pour gérer le partage`" @click="shareOpen = true">
+            :title="$t('projectsUi.detail.visibilityHint', { detail: visibility.detail })" @click="shareOpen = true">
             <Icon :name="visibility.isPrivate ? 'shield' : 'users'" :size="13" />
             <span>{{ visibility.label }}</span>
           </button>
           <Tag v-for="t in statusTags" :key="t.label" :tone="t.tone">{{ t.label }}</Tag>
-          <button v-if="grants.length" class="pj-avs" title="Partagé — voir avec qui" @click="shareOpen = true">
+          <button v-if="grants.length" class="pj-avs" :title="$t('projectsUi.detail.sharedWith')" @click="shareOpen = true">
             <span v-for="(a, i) in avatars" :key="i" class="pj-av" :style="{ background: a.bg, color: a.fg }">{{ a.initials }}</span>
             <span v-if="moreCount" class="pj-av pj-av--more">+{{ moreCount }}</span>
           </button>
-          <button class="pj-btn" @click="shareOpen = true"><Icon name="users" :size="15" /> Partager</button>
-          <button class="pj-btn" @click="histOpen = true"><Icon name="activity" :size="15" /> Historique</button>
-          <button class="pj-btn pj-btn--primary" @click="handoff"><Icon name="sparkles" :size="14" /> Reprendre dans Claude</button>
+          <button class="pj-btn" @click="shareOpen = true"><Icon name="users" :size="15" /> {{ $t('projectsUi.detail.share') }}</button>
+          <button class="pj-btn" @click="histOpen = true"><Icon name="activity" :size="15" /> {{ $t('projectsUi.history.title') }}</button>
+          <button class="pj-btn pj-btn--primary" @click="handoff"><Icon name="sparkles" :size="14" /> {{ $t('projectsUi.detail.resume') }}</button>
           <span class="pj-menu">
-            <button class="pj-btn pj-btn--icon" aria-label="plus d'actions" @click="menuOpen = !menuOpen"><Icon name="ellipsis" :size="17" /></button>
+            <button class="pj-btn pj-btn--icon" :aria-label="$t('projectsUi.detail.moreActions')" @click="menuOpen = !menuOpen"><Icon name="ellipsis" :size="17" /></button>
             <template v-if="menuOpen">
               <span class="pj-menu__scrim" @click="menuOpen = false"></span>
               <div class="pj-menu__pop">
-                <button v-if="!readOnly" class="pj-mi" @click="rename"><Icon name="pencil" :size="14" /> Renommer le projet</button>
-                <button class="pj-mi" @click="copy"><Icon name="copy" :size="14" /> Copier le projet</button>
-                <button class="pj-mi" @click="exportKb"><Icon name="download" :size="14" /> Exporter (markdown)</button>
+                <button v-if="!readOnly" class="pj-mi" @click="rename"><Icon name="pencil" :size="14" /> {{ $t('projectsUi.detail.rename') }}</button>
+                <button class="pj-mi" @click="copy"><Icon name="copy" :size="14" /> {{ $t('projectsUi.detail.copy') }}</button>
+                <button class="pj-mi" @click="exportKb"><Icon name="download" :size="14" /> {{ $t('projectsUi.detail.export') }}</button>
                 <template v-if="!readOnly">
-                  <button class="pj-mi" @click="toggleTemplate"><Icon name="sparkles" :size="14" /> {{ project.is_template ? 'Retirer des modèles' : 'Publier comme modèle' }}</button>
+                  <button class="pj-mi" @click="toggleTemplate"><Icon name="sparkles" :size="14" /> {{ project.is_template ? $t('projectsUi.detail.templateOff') : $t('projectsUi.detail.templateOn') }}</button>
                   <div class="pj-mi__sep"></div>
-                  <button class="pj-mi pj-mi--danger" @click="archive"><Icon name="trash-2" :size="14" /> Archiver</button>
+                  <button class="pj-mi pj-mi--danger" @click="archive"><Icon name="trash-2" :size="14" /> {{ $t('projectsUi.detail.archive') }}</button>
                 </template>
               </div>
             </template>
@@ -391,7 +391,7 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
       <section v-if="auditIssues" class="pj-audit">
         <div class="pj-audit__hd">
           <span class="pj-audit__ic"><Icon name="triangle-alert" :size="15" /></span>
-          <span class="pj-audit__t">liens à vérifier</span>
+          <span class="pj-audit__t">{{ $t('projectsUi.detail.audit.title') }}</span>
           <Tag tone="saffron">{{ auditLines.length }}</Tag>
         </div>
         <div class="pj-audit__list">
@@ -424,10 +424,10 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
     <ProjectHistoryDrawer :open="histOpen" :activity="activity" :days="14" @close="histOpen = false" />
     <EntityPickerDialog v-if="addKind" :open="!!addKind" :kind="addKind" :project-id="projectId" :parent-id="addParent"
       @close="addKind = null" @linked="onLinked" @created-doc="onCreatedDoc" @reload-files="onReloadFiles" />
-    <NameDialog v-if="project" v-model:open="copyOpen" title="copier ce projet" label="nom de la copie"
-      :initial="'Copie de ' + project.name" submit-label="copier" :on-confirm="doCopy" />
-    <NameDialog v-if="project" v-model:open="renameOpen" title="renommer le projet" label="nom du projet"
-      :initial="project.name" submit-label="renommer" :on-confirm="doRename" />
+    <NameDialog v-if="project" v-model:open="copyOpen" :title="$t('projectsUi.detail.copyDialog.title')" :label="$t('projectsUi.detail.copyDialog.label')"
+      :initial="$t('projectsUi.detail.copyDialog.initial', { name: project.name })" :submit-label="$t('projectsUi.detail.copyDialog.submit')" :on-confirm="doCopy" />
+    <NameDialog v-if="project" v-model:open="renameOpen" :title="$t('projectsUi.detail.renameDialog.title')" :label="$t('projectsUi.detail.renameDialog.label')"
+      :initial="project.name" :submit-label="$t('projectsUi.detail.renameDialog.submit')" :on-confirm="doRename" />
   </div>
 </template>
 

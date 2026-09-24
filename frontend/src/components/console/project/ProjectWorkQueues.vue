@@ -120,11 +120,11 @@ const visible = computed(() => !loading.value && (lines.value.length > 0 || nonR
 
 <template>
   <div v-if="visible" class="pwq">
-    <div class="card-eb">Files de travail</div>
+    <div class="card-eb">{{ $t('projectsUi.workQueues.title') }}</div>
     <div v-if="lastRun" class="pwq-run">
-      dernier run ·
+      {{ $t('projectsUi.workQueues.lastRun') }} ·
       <Tag :tone="lastRun.outcome ? (OUTCOME_TONE[lastRun.outcome] ?? 'cobalt') : 'cobalt'">
-        {{ lastRun.outcome ?? 'en cours' }}</Tag>
+        {{ lastRun.outcome ?? $t('projectsUi.workQueues.running') }}</Tag>
       <span class="pwq-runlabel">{{ lastRun.label }}</span>
       <span v-if="lastRun.finished_at ?? lastRun.started_at" class="pwq-mute">
         {{ absDate(String(lastRun.finished_at ?? lastRun.started_at)) }}</span>
@@ -135,22 +135,22 @@ const visible = computed(() => !loading.value && (lines.value.length > 0 || nonR
       <span v-for="s in l.states" :key="s" class="pwq-chip"
         :class="{ abandon: !!l.abandonState && s === l.abandonState }"
         :title="s === l.abandonState
-          ? `état d'abandon : la plateforme y verse une ligne à bout de réservations sans écriture`
+          ? $t('projectsUi.workQueues.abandonHint')
           : undefined">
         {{ s }} <b>{{ l.counts[s] ?? 0 }}</b></span>
-      <Tag v-if="l.claimed" tone="cobalt">{{ l.claimed }} sous bail</Tag>
-      <Tag v-if="l.expired" tone="terra" title="le prochain claim recycle ces rows">
-        {{ l.expired }} expiré{{ l.expired > 1 ? 's' : '' }}</Tag>
+      <Tag v-if="l.claimed" tone="cobalt">{{ $t('projectsUi.workQueues.leased', { n: l.claimed }) }}</Tag>
+      <Tag v-if="l.expired" tone="terra" :title="$t('projectsUi.workQueues.expiredHint')">
+        {{ $t('projectsUi.workQueues.expired', l.expired) }}</Tag>
       <Tag v-if="l.atCeiling" tone="terra"
-        title="sortie de la file à la prochaine libération sans écriture">
-        {{ l.atCeiling }} au plafond</Tag>
-      <span v-if="l.ceiling" class="pwq-mute">plafond {{ l.ceiling }}</span>
+        :title="$t('projectsUi.workQueues.atCeilingHint')">
+        {{ $t('projectsUi.workQueues.atCeiling', { n: l.atCeiling }) }}</Tag>
+      <span v-if="l.ceiling" class="pwq-mute">{{ $t('projectsUi.workQueues.ceiling', { n: l.ceiling }) }}</span>
     </div>
     <!-- Ni lien ni compteur : sans identifiant, les deux ne sauraient viser que le
          tableau du LECTEUR. La phrase est celle de la vue du lien (ProjectViewer). -->
     <div v-for="(nom, i) in nonResolus" :key="`sans-id:${i}`" class="pwq-line">
       <span class="pwq-ns">{{ nom }}</span>
-      <span class="pwq-mute">aucun tableau résolu pour ce lien — relie-le à nouveau pour le fixer sur un tableau précis</span>
+      <span class="pwq-mute">{{ $t('projectsUi.workQueues.unresolved') }}</span>
     </div>
   </div>
 </template>

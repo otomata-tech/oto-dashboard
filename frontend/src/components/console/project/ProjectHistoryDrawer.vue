@@ -5,6 +5,7 @@
 // ProjectActivity → dérivé par heuristique de `action` (déroulé/enrichi/collecte → agent ;
 // partagé/publié/édité → humain ; audit → auto).
 import { computed, defineAsyncComponent } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Icon from '@/components/console/Icon.vue'
 import { fmtDate } from '@/types/api'
 import type { ProjectActivity } from '@/types/api'
@@ -12,6 +13,7 @@ const ActivityChart = defineAsyncComponent(() => import('@/components/console/Ac
 
 const props = withDefaults(defineProps<{ open: boolean; activity: ProjectActivity[]; days?: number }>(), { days: 14 })
 const emit = defineEmits<{ close: [] }>()
+const { t } = useI18n()
 
 type Kind = 'agent' | 'human' | 'audit'
 function kindOf(a: ProjectActivity): Kind {
@@ -21,11 +23,13 @@ function kindOf(a: ProjectActivity): Kind {
   return 'human'
 }
 const DOT: Record<Kind, string> = { agent: 'var(--color-olive)', human: 'var(--color-cobalt)', audit: 'var(--color-saffron)' }
-const WHO: Record<Kind, string> = { agent: "l'agent", human: 'un membre', audit: 'Oto (auto)' }
+const WHO: Record<Kind, string> = {
+  agent: 'projectsUi.history.who.agent', human: 'projectsUi.history.who.human', audit: 'projectsUi.history.who.audit',
+}
 // « par X » : l'auteur RÉEL (actor résolu backend) prime ; sinon on retombe sur le libellé
 // dérivé du type d'événement (heuristique) — best-effort, jamais vide.
 function whoOf(a: ProjectActivity, kind: Kind): string {
-  return a.actor?.name || a.actor?.email || WHO[kind]
+  return a.actor?.name || a.actor?.email || t(WHO[kind])
 }
 const rows = computed(() => props.activity.map((a) => {
   const kind = kindOf(a)
@@ -37,31 +41,31 @@ const rows = computed(() => props.activity.map((a) => {
   <Teleport to="body">
   <Transition name="drawer-fade">
     <div v-if="open" class="dr-ov" @mousedown.self="emit('close')">
-      <div class="dr" role="dialog" aria-modal="true" aria-label="historique">
+      <div class="dr" role="dialog" aria-modal="true" :aria-label="t('projectsUi.history.title')">
         <header class="dr__hd">
           <span class="dr__hdic"><Icon name="activity" :size="17" /></span>
-          <strong class="dr__hdl">Historique</strong>
-          <button class="dr__close" aria-label="fermer" @click="emit('close')"><Icon name="x" :size="16" /></button>
+          <strong class="dr__hdl">{{ t('projectsUi.history.title') }}</strong>
+          <button class="dr__close" :aria-label="t('common.close')" @click="emit('close')"><Icon name="x" :size="16" /></button>
         </header>
         <div class="dr__body">
           <div class="dr__secrow">
-            <span class="dr__sec">Activité · {{ days }} jours</span>
-            <span class="dr__count">{{ activity.length }} événements</span>
+            <span class="dr__sec">{{ t('projectsUi.history.activity', { n: days }) }}</span>
+            <span class="dr__count">{{ t('projectsUi.history.count', activity.length) }}</span>
           </div>
           <ActivityChart v-if="activity.length" :activity="activity" :days="days" />
-          <p v-else class="dim" style="font-size: 12.5px; margin: 8px 0 0">aucune activité.</p>
+          <p v-else class="dim" style="font-size: 12.5px; margin: 8px 0 0">{{ t('projectsUi.history.noActivity') }}</p>
 
-          <div class="dr__sec" style="margin: 20px 0 6px">Événements</div>
+          <div class="dr__sec" style="margin: 20px 0 6px">{{ t('projectsUi.history.events') }}</div>
           <div class="dr__events">
             <div v-for="(a, i) in rows" :key="i" class="dr__ev">
               <span class="dr__dot" :style="{ background: DOT[a.kind] }"></span>
               <span class="dr__evtxt">
                 <span class="dr__evline"><strong>{{ a.action }}</strong><span v-if="a.detail" class="dim"> · {{ a.detail }}</span></span>
-                <span class="dr__evwho">par {{ a.who }}</span>
+                <span class="dr__evwho">{{ t('projectsUi.history.by', { who: a.who }) }}</span>
               </span>
               <span class="dr__evt">{{ fmtDate(a.created_at) }}</span>
             </div>
-            <p v-if="!rows.length" class="dim" style="font-size: 12.5px">aucun événement.</p>
+            <p v-if="!rows.length" class="dim" style="font-size: 12.5px">{{ t('projectsUi.history.noEvent') }}</p>
           </div>
         </div>
       </div>

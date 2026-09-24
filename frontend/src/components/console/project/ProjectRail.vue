@@ -102,7 +102,7 @@ const nonEmpty = computed(() => props.groups.filter((g) => g.items.length || g.a
       <div class="rail__hd">
         <span class="rail__hdic"><Icon :name="g.icon" :size="14" /></span>
         <span class="rail__hdl">{{ g.label }}</span>
-        <button v-if="!readOnly" class="rail__add" :aria-label="'ajouter ' + g.label" title="Ajouter"
+        <button v-if="!readOnly" class="rail__add" :aria-label="$t('projectsUi.rail.addTo', { group: g.label })" :title="$t('common.add')"
           @click="emit('add', g.addKind)"><Icon name="plus" :size="12" /></button>
       </div>
       <div class="rail__items">
@@ -119,7 +119,7 @@ const nonEmpty = computed(() => props.groups.filter((g) => g.items.length || g.a
           @drop="onDrop(it)" @dragend="onDragEnd">
           <span v-if="draggable(it)" class="rail__grip" aria-hidden="true"><Icon name="grip" :size="11" /></span>
           <span v-if="hasKids(g, it)" class="rail__chev" :class="{ 'rail__chev--folded': collapsed.has(it.key) }"
-            title="Déplier / replier" @click.stop="toggle(it.key)"><Icon name="chevd" :size="12" /></span>
+            :title="$t('projectsUi.rail.fold')" @click.stop="toggle(it.key)"><Icon name="chevd" :size="12" /></span>
           <span v-if="it.home" class="rail__homeic"><Icon name="house" :size="13" /></span>
           <span class="rail__lbl">{{ it.label }}</span>
           <Tag v-if="it.railTag" :tone="it.railTag.tone">{{ it.railTag.label }}</Tag>

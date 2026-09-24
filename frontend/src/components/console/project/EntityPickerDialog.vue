@@ -4,6 +4,7 @@
 // une VRAIE entité via les sélecteurs réels de ProjectEntities) ou CRÉATION (page → createDoc ;
 // fichier → upload). Réutilise le câblage existant ; émet vers le parent pour rafraîchir.
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Icon from '@/components/console/Icon.vue'
 import Btn from '@/components/console/Btn.vue'
 import Dropzone from '@/components/console/Dropzone.vue'
@@ -25,10 +26,12 @@ const props = defineProps<{
 const emit = defineEmits<{ close: []; linked: []; 'created-doc': [number]; 'reload-files': [] }>()
 
 const { toast } = useToast()
+const { t } = useI18n()
 
 const TITLE: Record<string, string> = {
-  connecteur: 'Lier un connecteur', tableau: 'Lier un tableau', procedure: 'Lier une procédure',
-  doc: 'Lier un document', page: 'Nouvelle page', file: 'Importer un fichier',
+  connecteur: 'projectsUi.picker.title.connector', tableau: 'projectsUi.picker.title.table',
+  procedure: 'projectsUi.picker.title.procedure', doc: 'projectsUi.picker.title.doc',
+  page: 'projectsUi.picker.title.page', file: 'projectsUi.picker.title.file',
 }
 const isSearch = computed(() => ['connecteur', 'tableau', 'procedure', 'doc'].includes(props.kind))
 const isPage = computed(() => props.kind === 'page')
@@ -48,18 +51,18 @@ const identLoading = ref(false)
 const chosenIdentity = ref('')
 
 async function loadOptions() {
-  const t = props.kind as ProjectLinkType
+  const type = props.kind as ProjectLinkType
   loading.value = true
   try {
-    if (t === 'tableau') options.value = (await getNamespaces()).datastores.map((n) => ({ value: String(n.id), label: n.datastore }))
+    if (type === 'tableau') options.value = (await getNamespaces()).datastores.map((n) => ({ value: String(n.id), label: n.datastore }))
     // Un projet définit SON propre toolset : on peut lier un connecteur non installé chez
     // soi (retour JB : le picker le proposait sans le dire). On l'ÉTIQUETTE au lieu de le
     // cacher — d'où getMyConnectors (porte `state`) plutôt que getConnectors.
-    else if (t === 'connecteur') options.value = (await getMyConnectors()).connectors.map((c) => ({
+    else if (type === 'connecteur') options.value = (await getMyConnectors()).connectors.map((c) => ({
       value: c.name, label: c.label || c.name, meta: c.help,
-      note: c.state === 'not_selected' ? 'non installé chez toi' : undefined,
+      note: c.state === 'not_selected' ? t('projectsUi.picker.notInstalled') : undefined,
     }))
-    else if (t === 'procedure') options.value = ((await getDoctrine()).instructions ?? []).map((i) => ({ value: String(i.id), label: i.title }))
+    else if (type === 'procedure') options.value = ((await getDoctrine()).instructions ?? []).map((i) => ({ value: String(i.id), label: i.title }))
     else { const kb = await getKbProject(); options.value = (await listDocs(kb.project_id)).docs.map((d) => ({ value: String(d.id), label: d.title })) }
   } catch (e) { toast(humanize(e)); options.value = [] }
   finally { loading.value = false }
@@ -119,17 +122,17 @@ function confirmConnector() {
 }
 
 async function createPage() {
-  const t = pageTitle.value.trim()
-  if (!t || busy.value) return
+  const titre = pageTitle.value.trim()
+  if (!titre || busy.value) return
   busy.value = true
-  try { const d = await createDoc(props.projectId, t, { parent_id: props.parentId ?? null }); emit('created-doc', d.id); emit('close') }
+  try { const d = await createDoc(props.projectId, titre, { parent_id: props.parentId ?? null }); emit('created-doc', d.id); emit('close') }
   catch (e) { toast(humanize(e)) }
   finally { busy.value = false }
 }
 async function onFile(file: File) {
   if (busy.value) return
   busy.value = true
-  try { await uploadProjectFile(props.projectId, file); toast('fichier importé'); emit('reload-files'); emit('close') }
+  try { await uploadProjectFile(props.projectId, file); toast(t('projectsUi.picker.fileImported')); emit('reload-files'); emit('close') }
   catch (e) { toast(humanize(e)) }
   finally { busy.value = false }
 }
@@ -140,48 +143,48 @@ async function onFile(file: File) {
       <div class="ep" role="dialog" aria-modal="true">
         <header class="ep__hd">
           <span class="ep__hdic"><Icon name="plus" :size="16" /></span>
-          <span class="ep__hdl">{{ TITLE[kind] }}</span>
-          <button class="ep__close" aria-label="fermer" @click="emit('close')"><Icon name="x" :size="15" /></button>
+          <span class="ep__hdl">{{ TITLE[kind] ? t(TITLE[kind]!) : '' }}</span>
+          <button class="ep__close" :aria-label="t('common.close')" @click="emit('close')"><Icon name="x" :size="15" /></button>
         </header>
         <div class="ep__body">
           <!-- recherche + résultats -->
           <template v-if="isSearch && !pickedRef">
-            <input v-model="query" class="ep__in" placeholder="rechercher…" />
+            <input v-model="query" class="ep__in" :placeholder="t('projectsUi.picker.search')" />
             <p v-if="loading" class="dim" style="font-size: 12.5px; padding: 8px 2px">{{ $t('common.loading') }}</p>
-            <p v-else-if="!filtered.length" class="dim" style="font-size: 12.5px; padding: 8px 2px">aucune entité de ce type.</p>
+            <p v-else-if="!filtered.length" class="dim" style="font-size: 12.5px; padding: 8px 2px">{{ t('projectsUi.picker.empty') }}</p>
             <div v-else class="ep__list">
               <button v-for="o in filtered" :key="o.value" class="ep__row" @click="pick(o)">
                 <span class="ep__rowname">{{ o.label }}</span>
                 <span v-if="o.meta" class="ep__rowmeta">{{ o.meta }}</span>
                 <span v-if="o.note" class="ep__rownote">{{ o.note }}</span>
-                <span class="ep__rowcta">Lier</span>
+                <span class="ep__rowcta">{{ t('projectsUi.picker.link') }}</span>
               </button>
             </div>
           </template>
 
           <!-- connecteur : choix d'identité -->
           <template v-else-if="isSearch && pickedRef">
-            <p class="dim" style="font-size: 12.5px; margin: 0 0 10px">Compte à utiliser pour ce connecteur dans le projet — lie N fois pour N comptes.</p>
+            <p class="dim" style="font-size: 12.5px; margin: 0 0 10px">{{ t('projectsUi.picker.identityHint') }}</p>
             <select v-model="chosenIdentity" class="ep__in" :disabled="identLoading" style="margin-bottom: 12px">
-              <option value="">{{ identLoading ? 'chargement…' : '(défaut du compte)' }}</option>
+              <option value="">{{ identLoading ? t('common.loading') : t('projectsUi.picker.defaultIdentity') }}</option>
               <option v-for="idn in identities" :key="idn.id" :value="idn.id">{{ idn.label || idn.id }}{{ idn.channel ? ` · ${idn.channel}` : '' }}</option>
             </select>
             <div style="display: flex; gap: 8px; justify-content: flex-end">
-              <button class="ep__x" @click="pickedRef = ''">Retour</button>
-              <Btn kind="mini" icon="plus" :disabled="busy" @click="confirmConnector">Lier</Btn>
+              <button class="ep__x" @click="pickedRef = ''">{{ t('projectsUi.picker.back') }}</button>
+              <Btn kind="mini" icon="plus" :disabled="busy" @click="confirmConnector">{{ t('projectsUi.picker.link') }}</Btn>
             </div>
           </template>
 
           <!-- création de page -->
           <template v-else-if="isPage">
-            <input v-model="pageTitle" class="ep__in" placeholder="Titre de la page" style="margin-bottom: 12px" @keyup.enter="createPage" />
-            <div style="display: flex; justify-content: flex-end"><Btn kind="mini" icon="plus" :disabled="busy || !pageTitle.trim()" @click="createPage">Créer la page</Btn></div>
+            <input v-model="pageTitle" class="ep__in" :placeholder="t('projectsUi.pageHead.titlePlaceholder')" style="margin-bottom: 12px" @keyup.enter="createPage" />
+            <div style="display: flex; justify-content: flex-end"><Btn kind="mini" icon="plus" :disabled="busy || !pageTitle.trim()" @click="createPage">{{ t('projectsUi.picker.createPage') }}</Btn></div>
           </template>
 
           <!-- import de fichier -->
           <template v-else-if="isFile">
             <Dropzone :busy="busy" :max-size-mb="25" accept=".pdf,.html,.htm,.txt,.md,.csv,.json,image/*"
-              label="déposer / choisir un fichier" hint="PDF, HTML, image… — glisser-déposer ou cliquer · max 25 Mo"
+              :label="t('projectsUi.picker.dropLabel')" :hint="t('projectsUi.picker.dropHint')"
               @select="onFile" @error="toast" />
           </template>
         </div>

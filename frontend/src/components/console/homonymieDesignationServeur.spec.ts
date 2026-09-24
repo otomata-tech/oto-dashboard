@@ -101,6 +101,7 @@ function repondre(corps: unknown) {
 }
 
 beforeEach(() => {
+  i18n.global.locale.value = 'en'
   adresses.length = 0
   document.body.innerHTML = ''
   vi.stubGlobal('fetch', async (url: string) => {
@@ -249,6 +250,7 @@ describe('l affichage intégré dans un projet, sans méta passée', () => {
   })
 
   it('sans identifiant servi, le lien ne monte AUCUN tableau et le dit', async () => {
+    i18n.global.locale.value = 'fr'
     // Le serveur n'a pas su désigner un seul tableau dans la portée du projet : on ne
     // devine pas à sa place — deviner, c'est retomber sur celui du lecteur.
     const item = {

@@ -91,16 +91,6 @@ src/components/console/outreach/OutreachRecipients.vue 20
 src/components/console/Pager.vue 3
 src/components/console/PlatformAccessHint.vue 2
 src/components/console/PlatformFinder.vue 7
-src/components/console/project/DocPageHead.vue 6
-src/components/console/project/EntityPickerDialog.vue 11
-src/components/console/project/ProjectExposureStatus.vue 36
-src/components/console/project/ProjectHistoryDrawer.vue 10
-src/components/console/project/ProjectMcpPublishDialog.vue 20
-src/components/console/project/ProjectRail.vue 2
-src/components/console/project/ProjectShareDialog.vue 53
-src/components/console/project/ProjectUrlPerimeter.vue 5
-src/components/console/project/ProjectViewer.vue 45
-src/components/console/project/ProjectWorkQueues.vue 9
 src/components/console/ProjectCreateDialog.vue 12
 src/components/console/PromptDialog.vue 2
 src/components/console/RowAbandonNotice.vue 3
@@ -150,8 +140,6 @@ src/views/console/OrgMonitoringView.vue 5
 src/views/console/OrgSecurityView.vue 2
 src/views/console/OrgSettingsView.vue 20
 src/views/console/OrgView.vue 12
-src/views/console/ProjectDetailView.vue 18
-src/views/console/ProjectsView.vue 27
 src/views/console/SearchView.vue 5
 src/views/console/UsageView.vue 13
 src/views/console/WelcomeOrg.vue 5

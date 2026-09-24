@@ -52,27 +52,24 @@ async function remove(p: string) {
 
 <template>
   <div class="pup">
-    <div class="pup-eb">Périmètre d'URL</div>
-    <p class="pup-hint">
-      Les outils de recherche écartent (en le comptant) les résultats sous ces motifs ;
-      les outils d'extraction refusent d'y aller.
-    </p>
+    <div class="pup-eb">{{ $t('projectsUi.urlPerimeter.title') }}</div>
+    <p class="pup-hint">{{ $t('projectsUi.urlPerimeter.hint') }}</p>
 
     <div v-if="list.length" class="pup-chips">
       <span v-for="p in list" :key="p" class="pup-chip">
         <span class="pup-chip__txt">{{ p }}</span>
         <button v-if="!readOnly" type="button" class="pup-chip__x" :disabled="saving"
-          :aria-label="`retirer ${p}`" @click="remove(p)">
+          :aria-label="$t('projectsUi.urlPerimeter.remove', { pattern: p })" @click="remove(p)">
           <Icon name="x" :size="11" />
         </button>
       </span>
     </div>
-    <p v-else class="pup-empty">aucune exclusion — tout est atteignable dans ce projet.</p>
+    <p v-else class="pup-empty">{{ $t('projectsUi.urlPerimeter.empty') }}</p>
 
     <form v-if="!readOnly" class="pup-add" @submit.prevent="add">
       <input v-model="draft" class="inp sm pup-in" :disabled="saving"
-        placeholder="linkedin.com/in/, exemple.fr/*…" />
-      <Btn kind="mini" icon="plus" :disabled="saving || !draft.trim()">Ajouter</Btn>
+        :placeholder="$t('projectsUi.urlPerimeter.placeholder')" />
+      <Btn kind="mini" icon="plus" :disabled="saving || !draft.trim()">{{ $t('common.add') }}</Btn>
     </form>
     <p v-if="err" class="pup-err">{{ err }}</p>
   </div>

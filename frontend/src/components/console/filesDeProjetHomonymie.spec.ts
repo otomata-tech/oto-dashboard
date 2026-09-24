@@ -22,6 +22,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createApp, nextTick } from 'vue'
+import { i18n } from '@/lib/i18n'
 
 // ── le monde autour de l'écran (aucun réseau, aucun Logto, aucun routeur réel) ──
 vi.mock('@/composables/useAuth', () => ({
@@ -84,6 +85,8 @@ const repondre = (corps: unknown) =>
   ({ ok: true, status: 200, json: async () => corps }) as unknown as Response
 
 beforeEach(() => {
+  // Les files de travail parlent par i18n ; les attentes sont écrites en français.
+  i18n.global.locale.value = 'fr'
   adresses.length = 0
   document.body.textContent = ''
   vi.stubGlobal('fetch', async (url: string) => {
@@ -124,6 +127,7 @@ async function accueil(tableLinks: Array<Record<string, unknown>>) {
     projectId: 5, projectName: 'p', tableLinks,
   })
   app.component('RouterLink', LIEN_STUB)
+  app.use(i18n)
   app.mount(hote)
   await vider()
   const bloc = hote.querySelector('.pwq')

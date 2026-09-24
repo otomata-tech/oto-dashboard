@@ -4,6 +4,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import ProjectUrlPerimeter from './ProjectUrlPerimeter.vue'
+import { i18n } from '@/lib/i18n'
 import { ApiError } from '@/api'
 
 const updateProject = vi.fn()
@@ -15,7 +16,9 @@ async function mountCard(prefixes: string[], opts: { readOnly?: boolean; onChang
   const app = createApp(ProjectUrlPerimeter, {
     projectId: 42, prefixes, readOnly: opts.readOnly, onChanged: opts.onChanged,
   })
-  app.mount(host)
+  // Les attentes sont écrites en français.
+  i18n.global.locale.value = 'fr'
+  app.use(i18n).mount(host)
   await nextTick()
   return { host, unmount: () => { app.unmount(); host.remove() } }
 }

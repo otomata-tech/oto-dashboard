@@ -699,5 +699,427 @@
     },
     "next": "prochaine {date}",
     "empty": "Aucune automatisation dans cette organisation pour l'instant."
+  },
+  "projectsUi": {
+    "pageHead": {
+      "trail": "fil d'Ariane",
+      "untitled": "Sans titre",
+      "titleLabel": "titre de la page",
+      "rename": "renommer",
+      "modified": "modifié le {date}",
+      "modifiedBy": "modifié le {date} par {author}",
+      "you": "toi",
+      "status": {
+        "pending": "modifications en cours…",
+        "saving": "enregistrement…",
+        "saved": "enregistré",
+        "error": "non enregistré"
+      },
+      "conflict": "cette page a été modifiée ailleurs pendant que tu écrivais : rien n'a été écrasé. copie ton texte si besoin, puis {reload}.",
+      "reload": "recharge la page",
+      "titlePlaceholder": "Titre de la page"
+    },
+    "rail": {
+      "addTo": "ajouter {group}",
+      "fold": "Déplier / replier"
+    },
+    "urlPerimeter": {
+      "title": "Périmètre d'URL",
+      "hint": "Les outils de recherche écartent (en le comptant) les résultats sous ces motifs ; les outils d'extraction refusent d'y aller.",
+      "remove": "retirer {pattern}",
+      "empty": "aucune exclusion — tout est atteignable dans ce projet.",
+      "placeholder": "linkedin.com/in/, exemple.fr/*…"
+    },
+    "workQueues": {
+      "title": "Files de travail",
+      "lastRun": "dernier run",
+      "running": "en cours",
+      "abandonHint": "état d'abandon : la plateforme y verse une ligne à bout de réservations sans écriture",
+      "leased": "{n} sous bail",
+      "expired": "{n} expiré | {n} expirés",
+      "expiredHint": "le prochain claim recycle ces rows",
+      "atCeiling": "{n} au plafond",
+      "atCeilingHint": "sortie de la file à la prochaine libération sans écriture",
+      "ceiling": "plafond {n}",
+      "unresolved": "aucun tableau résolu pour ce lien — relie-le à nouveau pour le fixer sur un tableau précis"
+    },
+    "history": {
+      "title": "Historique",
+      "activity": "Activité · {n} jours",
+      "count": "aucun événement | {n} événement | {n} événements",
+      "noActivity": "aucune activité.",
+      "events": "Événements",
+      "by": "par {who}",
+      "noEvent": "aucun événement.",
+      "who": {
+        "agent": "l'agent",
+        "human": "un membre",
+        "audit": "Oto (auto)"
+      }
+    },
+    "picker": {
+      "title": {
+        "connector": "Lier un connecteur",
+        "table": "Lier un tableau",
+        "procedure": "Lier une procédure",
+        "doc": "Lier un document",
+        "page": "Nouvelle page",
+        "file": "Importer un fichier"
+      },
+      "notInstalled": "non installé chez toi",
+      "fileImported": "fichier importé",
+      "search": "rechercher…",
+      "empty": "aucune entité de ce type.",
+      "link": "Lier",
+      "identityHint": "Compte à utiliser pour ce connecteur dans le projet — lie N fois pour N comptes.",
+      "defaultIdentity": "(défaut du compte)",
+      "back": "Retour",
+      "createPage": "Créer la page",
+      "dropLabel": "déposer / choisir un fichier",
+      "dropHint": "PDF, HTML, image… — glisser-déposer ou cliquer · max 25 Mo"
+    },
+    "exposure": {
+      "pages": "Pages du projet",
+      "readable": "lisibles",
+      "closedPl": "fermées",
+      "pagesClosed": "Fermées : le destinataire de ce lien ne verra {none} de ce projet — seulement le brief.",
+      "noPage": "aucune page",
+      "pagesOpen": "Les invités branchés peuvent lire les pages {scope} — jamais celles du reste de l’org, et jamais en écriture. Relis-les avant d’ouvrir : elles portent souvent des notes internes (arbitrages, contacts, méthode).",
+      "ofThisProject": "de ce projet",
+      "openPages": "Rendre les pages lisibles",
+      "closePages": "Refermer les pages",
+      "tables": "Tableaux",
+      "readWrite": "lecture + écriture",
+      "read": "lecture",
+      "closed": "fermé",
+      "tablesClosed": "Fermé : le destinataire ne verra {none} des {n} tableau lié à ce projet. | Fermé : le destinataire ne verra {none} des {n} tableaux liés à ce projet.",
+      "noneOf": "aucun",
+      "tablesOpen": "Les invités branchés voient le {n} tableau {scope} (data_list_datastores, data_rows) — jamais le reste du datastore de l’org. | Les invités branchés voient les {n} tableaux {scope} (data_list_datastores, data_rows) — jamais le reste du datastore de l’org.",
+      "linkedToProject": "liés à ce projet",
+      "legacy": "Exposition configurée par une version antérieure (des {tools} figurent dans la liste d’outils). Normalise pour t’appuyer sur le réglage ci-dessous.",
+      "normalize": "Normaliser",
+      "exposeRead": "Exposer en lecture",
+      "allowWrite": "Autoriser l’écriture",
+      "backToRead": "Repasser en lecture seule",
+      "closeDatastore": "Fermer le datastore",
+      "noTable": "Aucun tableau n’est lié à ce projet — {link} au projet pour pouvoir l’exposer aux invités branchés.",
+      "linkATable": "lie un tableau"
+    },
+    "mcpPublish": {
+      "title": "Publier en endpoint MCP",
+      "desc": "Un sous-domaine dédié exposant un jeu d’outils figé, à brancher dans Claude/Mistral. En « secret », il est aussi une UI navigable (lecture seule).",
+      "subdomain": "Sous-domaine",
+      "slugPlaceholder": "french-tech-marseille",
+      "slugHint": "→ <slug>.mcp.oto.cx (public/org) ou <slug>.share.oto.cx (secret). Min. 3 car., a-z 0-9 -.",
+      "accessLabel": "Accès",
+      "access": {
+        "anonymous": "Public · sans login, listé dans l’annuaire",
+        "secret": "Secret · URL non devinable, navigable (non listé)",
+        "org": "Org · authentifié (membres de l’org)"
+      },
+      "tools": "Outils exposés",
+      "selected": "{n} sélectionné | {n} sélectionnés",
+      "emptyMeansAll": "Vide = tout le projet visible, lecture seule.",
+      "loadingInventory": "chargement de l’inventaire…",
+      "noTool": "Aucun outil déduit du projet — lie une procédure ou un connecteur au projet, ou ajoute un outil ci-dessous.",
+      "toggleGroup": "tout (dé)sélectionner pour {ns}",
+      "addToolPlaceholder": "ajouter un outil (ex. frenchtech_search)",
+      "recipientSees": "Ce que verra le destinataire",
+      "tablesRead": "Tableaux · lecture",
+      "tablesWrite": "Tableaux · écriture",
+      "publish": "Publier"
+    },
+    "share": {
+      "dialogLabel": "partager",
+      "title": "Partager « {name} »",
+      "ownedBy": "Détenu par {owner}",
+      "loans": "{n} prêt | {n} prêts",
+      "change": "Changer",
+      "ownerNote": "Changer de détenteur change l’audience : toi seul, une personne, une équipe ou toute une org. Le détenteur précédent garde un accès édition. Si tu cèdes hors de ta portée, une confirmation te préviendra que tu ne pourras plus le récupérer seul.",
+      "loansTitle": "Et en plus, ces personnes y ont accès",
+      "loansDesc": "Un prêt {adds} un accès sans changer le détenteur : {reader} (lit) · {editor} (modifie) · {manager} (peut re-partager).",
+      "adds": "ajoute",
+      "reader": "lecteur",
+      "editor": "éditeur",
+      "manager": "gérant",
+      "mode": {
+        "member": "membre de l'org",
+        "team": "équipe",
+        "org": "une de mes orgs",
+        "email": "email libre"
+      },
+      "orgTag": "org",
+      "revoke": "Retirer l'accès",
+      "recipientType": "type de destinataire",
+      "pickMember": "choisir un membre…",
+      "pickTeam": "choisir une équipe…",
+      "pickOrg": "choisir une org…",
+      "emailPlaceholder": "collègue{'@'}exemple.com",
+      "role": "rôle",
+      "invite": "Inviter",
+      "readOnly": "Tu es en lecture seule — gestion réservée au propriétaire.",
+      "publicLink": "Lien public · navigable",
+      "active": "actif",
+      "publicLinkDesc": "Un instantané lecture seule (brief + pages), navigable via une URL secrète non devinable.",
+      "copy": "Copier",
+      "shareWholeProject": "Partager tout le projet",
+      "onePageHint": "pour n'envoyer qu'une page : ouvrez-la, Partager cette page seule.",
+      "endpoint": "Endpoint MCP",
+      "access": {
+        "anonymous": "public · sans login",
+        "secret": "secret · navigable",
+        "org": "org · authentifié"
+      },
+      "endpointDesc": "Publie ce projet comme serveur MCP dédié à brancher dans Claude — sans compte Oto.",
+      "tools": "{n} outil : {tools} | {n} outils : {tools}",
+      "noTools": "aucun outil dédié — tout le projet visible, lecture seule",
+      "guideTitle": "Ce que l’invité lit en se branchant",
+      "written": "écrit",
+      "empty": "vide",
+      "guideDesc": "Le premier message que reçoit son agent : ce que contient ce projet et comment le lire. {notBrief}, qui reste chez toi — écris ici ce que tu assumes de montrer. Sans rien, il se branche sans savoir quoi faire.",
+      "notBrief": "Ce n’est pas le brief du projet",
+      "guidePlaceholder": "ex. Ce vivier liste les entreprises dont l’accord santé/prévoyance n’a pas bougé depuis 24 mois. Une ligne = une entreprise ; `statut` dit où elle en est.",
+      "reconfigure": "Reconfigurer",
+      "projectFallback": "projet #{id}",
+      "unpublish": {
+        "title": "Retirer l’endpoint MCP",
+        "message": "Le sous-domaine deviendra immédiatement inaccessible. Continuer ?"
+      },
+      "toast": {
+        "shared": "partagé",
+        "revoked": "accès retiré",
+        "linkCopied": "lien copié",
+        "urlCopied": "URL copiée",
+        "toolsRequired": "liste d’outils requise pour un endpoint public ou org — seuls les liens « secret » peuvent tout exposer en lecture seule",
+        "publishedUnresolvable": "endpoint publié — {n} outil non résoluble sans login : {tools} | endpoint publié — {n} outils non résolubles sans login : {tools}",
+        "published": "endpoint MCP publié",
+        "unpublished": "endpoint MCP retiré",
+        "dsReadWrite": "datastore : lecture + écriture",
+        "dsRead": "datastore exposé en lecture",
+        "dsClosed": "datastore fermé",
+        "docsOpen": "pages du projet lisibles par les invités",
+        "docsClosed": "pages refermées",
+        "guideSaved": "mode d’emploi enregistré",
+        "guideRemoved": "mode d’emploi retiré",
+        "normalized": "exposition normalisée — datastore piloté par le réglage dédié",
+        "transferred": "transféré"
+      }
+    },
+    "viewer": {
+      "empty": "Sélectionne une page ou une entité dans le rail.",
+      "public": "public",
+      "shared": "partagé",
+      "subpage": "sous-page",
+      "editBrief": "éditer",
+      "briefPlaceholder": "Le but du projet, le contexte, ce que l'agent doit savoir au démarrage…",
+      "subtitlePlaceholder": "Sous-titre (une ligne — aide à repérer la page dans l'arbre et la recherche)",
+      "pageType": "type de page",
+      "contentPlaceholder": "Contenu de la page…",
+      "noContent": "aucun contenu.",
+      "noBrief": "aucun brief — clique « éditer » pour le rédiger.",
+      "emptyPage": "page vide — clique ici pour écrire.",
+      "hideHistory": "Masquer l'historique",
+      "makePrivate": "Rendre privé",
+      "sharePage": "Partager cette page seule",
+      "shareFile": "Partager ce fichier",
+      "citedBy": "Cité par · {n}",
+      "versions": "historique des versions",
+      "noVersion": "aucune version antérieure.",
+      "restoreBtn": "Restaurer",
+      "resolution": "résolution — compte utilisé",
+      "noIdentityPicker": "Ce connecteur n'a pas de sélecteur de compte — il résout la clé perso / d'org / plateforme.",
+      "exposedTools": "outils exposés",
+      "override": "surcharge — instructions pour ce projet",
+      "overridePlaceholder": "ex. n'utiliser que le compte Alexandra pour ce projet…",
+      "connectorSheet": "Voir la fiche du connecteur",
+      "derived": "{required}, pas déclaré au niveau projet. Il résout via la cascade normale (perso > équipe > org > plateforme) — {declare} (via « + » ci-contre) pour lui préconfigurer une identité ou une surcharge.",
+      "derivedRequired": "Requis par une procédure",
+      "derivedDeclare": "déclare-le",
+      "source": "source",
+      "fromProcedure": "procédure · {name}",
+      "unresolvedTable": "Aucun tableau résolu pour ce lien — il a pu être supprimé, ou il désigne son tableau par un nom que ce projet ne sait pas rattacher à un seul. Relie-le à nouveau pour le fixer sur un tableau précis.",
+      "foldDetail": "Replier le détail",
+      "showDetail": "Afficher le détail",
+      "lastRuns": "dernières exécutions",
+      "openSheet": "Ouvrir la fiche complète",
+      "linkedDoc": "Page Documents liée — elle vit dans son projet d'origine.",
+      "openDoc": "Ouvrir le document",
+      "docNotNavigable": "Document non navigable.",
+      "docPreview": "aperçu du document",
+      "preview": "Prévisualiser",
+      "download": "Télécharger",
+      "publicLink": "Lien public",
+      "size": {
+        "label": "taille",
+        "b": "{n} o",
+        "kb": "{n} Ko",
+        "mb": "{n} Mo"
+      },
+      "eyebrow": {
+        "home": "brief · point d'entrée de l'agent",
+        "page": "page",
+        "table": "tableau lié · datastore",
+        "connector": "connecteur · résolution par projet",
+        "procedure": "ce qu'un agent exécute",
+        "doc": "document lié",
+        "file": "fichier importé"
+      },
+      "kind": {
+        "doc": "doc",
+        "note": "note agent",
+        "source": "source"
+      },
+      "leave": {
+        "title": "Quitter sans enregistrer ?",
+        "message": "Les modifications en cours sur cette page seront perdues.",
+        "confirm": "Quitter sans enregistrer"
+      },
+      "deletePage": {
+        "title": "Supprimer la page",
+        "message": "Supprimer « {title} » et ses sous-pages ?"
+      },
+      "restore": {
+        "title": "Restaurer cette version",
+        "message": "Remplacer le contenu actuel par la version du {date} ?"
+      },
+      "deleteFile": {
+        "title": "Supprimer ce fichier ?",
+        "message": "Supprimer « {title} » ?"
+      },
+      "thread": {
+        "loading": "chargement du fil…",
+        "external": "Cette exécution a été menée par un agent externe : son détail vit dans le journal, pas ici.",
+        "placeholder": "continuer ce run — le message s'appose au fil",
+        "continue": "Continuer",
+        "unreadable": "fil illisible (droits ou run purgé)",
+        "appended": "Message apposé — repris au prochain passage du worker.",
+        "appendedNotQueued": "Message apposé au fil ; la reprise n'a pas pu être enfilée (réessaie).",
+        "ownerOnly": "Seul le propriétaire du run peut le continuer.",
+        "refused": "Écriture refusée — le fil n'a pas bougé."
+      },
+      "toast": {
+        "publicCopied": "lien public copié",
+        "publicRemoved": "partage public retiré",
+        "restored": "version restaurée",
+        "overrideSaved": "surcharge enregistrée"
+      }
+    },
+    "detail": {
+      "loading": "chargement du projet…",
+      "rename": "Renommer le projet",
+      "visibilityHint": "{detail} — cliquer pour gérer le partage",
+      "sharedWith": "Partagé — voir avec qui",
+      "share": "Partager",
+      "resume": "Reprendre dans Claude",
+      "moreActions": "plus d'actions",
+      "copy": "Copier le projet",
+      "export": "Exporter (markdown)",
+      "templateOn": "Publier comme modèle",
+      "templateOff": "Retirer des modèles",
+      "archive": "Archiver",
+      "tag": {
+        "template": "modèle",
+        "readOnly": "lecture"
+      },
+      "rail": {
+        "home": "Accueil · Brief",
+        "pages": "Pages",
+        "connectors": "Connecteurs",
+        "procedures": "Procédures",
+        "files": "Fichiers importés",
+        "overridden": "surchargé",
+        "required": "requis"
+      },
+      "run": {
+        "done": "déroulée",
+        "abandoned": "abandonnée",
+        "failed": "échec"
+      },
+      "audit": {
+        "title": "liens à vérifier",
+        "dead": "Lien mort — {type} « {ref} » : {why}",
+        "unbound": "Procédure « {procedure} » : slots déclarés non bindés dans ce projet — {slots}",
+        "inert": "Procédure « {procedure} » liée mais jamais déroulée dans ce projet."
+      },
+      "toast": {
+        "briefSaved": "brief enregistré",
+        "handoff": "texte copié — colle-le dans Claude pour reprendre le projet",
+        "exported": "export téléchargé (markdown)",
+        "copied": "projet copié",
+        "renamed": "projet renommé",
+        "templateOn": "publié comme modèle",
+        "templateOff": "retiré des modèles",
+        "archived": "projet archivé"
+      },
+      "copyDialog": {
+        "title": "copier ce projet",
+        "label": "nom de la copie",
+        "initial": "Copie de {name}",
+        "submit": "copier"
+      },
+      "renameDialog": {
+        "title": "renommer le projet",
+        "label": "nom du projet",
+        "submit": "renommer"
+      }
+    },
+    "list": {
+      "title": "Projets",
+      "count": "{n} projet | {n} projets",
+      "layout": "disposition",
+      "cards": "cartes",
+      "rows": "tableau",
+      "new": "Nouveau projet",
+      "empty": "Aucun projet",
+      "emptyHint": "Un projet est un conteneur de travail — un but et ses entités (tableaux, connecteurs, procédures). Partageable, reprenable dans Claude.",
+      "create": "Créer un projet",
+      "noBriefYet": "pas encore de brief.",
+      "updated": "maj {date}",
+      "entities": "{n} entité | {n} entités",
+      "col": {
+        "project": "projet",
+        "state": "état",
+        "updated": "maj",
+        "entities": "entités"
+      },
+      "by": "par {who}",
+      "with": "avec {who}",
+      "via": {
+        "org": "l’organisation",
+        "team": "ton équipe",
+        "person": "toi"
+      },
+      "templates": "modèles",
+      "templatesHint": "projets publiés — copie prête à personnaliser",
+      "noBrief": "pas de brief.",
+      "archived": "Projets archivés",
+      "noArchived": "Aucun projet archivé.",
+      "archivedOn": "archivé · {date}",
+      "unarchive": "Désarchiver",
+      "reader": "Page partagée seule, en lecture.",
+      "readerBy": "Page partagée seule, en lecture — par {who}.",
+      "namePlaceholder": "Prospection Marseille",
+      "sharedWithMe": "Partagés avec moi",
+      "sharedWithMeHint": "Partagés avec toi en personne : ils n’appartiennent à aucune de tes organisations.",
+      "docsOrg": "Pages partagées avec cette organisation",
+      "docsOrgHint": "Une page seule, sans son projet — en lecture.",
+      "docsMe": "Pages partagées avec moi",
+      "docsMeHint": "Partagées avec toi en personne — en lecture.",
+      "chip": {
+        "mcpLive": "mcp live",
+        "toCheck": "à vérifier"
+      },
+      "useTemplate": {
+        "title": "Utiliser « {name} »",
+        "description": "Copie ce modèle dans un nouveau projet (l'original reste intact).",
+        "submit": "Copier",
+        "button": "Utiliser ce modèle"
+      },
+      "toast": {
+        "created": "projet créé",
+        "fromTemplate": "projet créé depuis le modèle",
+        "unarchived": "projet désarchivé"
+      }
+    }
   }
 }

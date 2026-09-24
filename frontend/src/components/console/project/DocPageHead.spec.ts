@@ -12,6 +12,7 @@ vi.mock('@/composables/useOrgMembers', () => ({
 }))
 
 import DocPageHead from './DocPageHead.vue'
+import { i18n } from '@/lib/i18n'
 import type { Doc } from '@/types/api'
 
 const d = (id: number, parent_id: number | null, title: string) =>
@@ -23,7 +24,9 @@ function monter(props: Record<string, unknown>) {
   const events: Record<string, unknown[]> = {}
   const on = (n: string) => (...a: unknown[]) => { events[n] = a }
   const app = createApp({ render: () => h(DocPageHead as never, { ...props, onRename: on('rename'), onOpenDoc: on('open-doc'), onReload: on('reload') }) })
-  app.mount(host)
+  // Les attentes sont écrites en français.
+  i18n.global.locale.value = 'fr'
+  app.use(i18n).mount(host)
   return { host, events, cleanup: () => { app.unmount(); host.remove() } }
 }
 

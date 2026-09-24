@@ -28,22 +28,22 @@ const emit = defineEmits<{
   <div class="pes">
     <div class="pes__row">
       <Icon name="file-text" :size="14" />
-      <span class="pes__lbl">Pages du projet</span>
-      <Tag v-if="docsExposed" tone="cobalt">lisibles</Tag>
-      <Tag v-else tone="terra">fermées</Tag>
+      <span class="pes__lbl">{{ $t('projectsUi.exposure.pages') }}</span>
+      <Tag v-if="docsExposed" tone="cobalt">{{ $t('projectsUi.exposure.readable') }}</Tag>
+      <Tag v-else tone="terra">{{ $t('projectsUi.exposure.closedPl') }}</Tag>
     </div>
     <div v-if="!docsExposed" class="pes__warn">
       <Icon name="triangle-alert" :size="13" />
-      <span>Fermées : le destinataire de ce lien ne verra <strong>aucune page</strong> de ce projet — seulement le brief.</span>
+      <i18n-t keypath="projectsUi.exposure.pagesClosed" tag="span">
+        <template #none><strong>{{ $t('projectsUi.exposure.noPage') }}</strong></template>
+      </i18n-t>
     </div>
-    <p v-else class="pes__desc">
-      Les invités branchés peuvent lire les pages <strong>de ce projet</strong> — jamais celles du
-      reste de l’org, et jamais en écriture. Relis-les avant d’ouvrir : elles portent souvent des
-      notes internes (arbitrages, contacts, méthode).
-    </p>
+    <i18n-t v-else keypath="projectsUi.exposure.pagesOpen" tag="p" class="pes__desc">
+      <template #scope><strong>{{ $t('projectsUi.exposure.ofThisProject') }}</strong></template>
+    </i18n-t>
     <div v-if="!readOnly" class="pes__act">
-      <Btn v-if="!docsExposed" kind="mini" icon="file-text" :disabled="busy" @click="emit('set-docs', true)">Rendre les pages lisibles</Btn>
-      <Btn v-else kind="mini" :disabled="busy" @click="emit('set-docs', false)">Refermer les pages</Btn>
+      <Btn v-if="!docsExposed" kind="mini" icon="file-text" :disabled="busy" @click="emit('set-docs', true)">{{ $t('projectsUi.exposure.openPages') }}</Btn>
+      <Btn v-else kind="mini" :disabled="busy" @click="emit('set-docs', false)">{{ $t('projectsUi.exposure.closePages') }}</Btn>
     </div>
   </div>
 
@@ -51,32 +51,42 @@ const emit = defineEmits<{
   <div class="pes">
     <div class="pes__row">
       <Icon name="database" :size="14" />
-      <span class="pes__lbl">Tableaux</span>
-      <Tag v-if="dsWritable" tone="olive">lecture + écriture</Tag>
-      <Tag v-else-if="dsExposed" tone="cobalt">lecture</Tag>
-      <Tag v-else tone="terra">fermé</Tag>
+      <span class="pes__lbl">{{ $t('projectsUi.exposure.tables') }}</span>
+      <Tag v-if="dsWritable" tone="olive">{{ $t('projectsUi.exposure.readWrite') }}</Tag>
+      <Tag v-else-if="dsExposed" tone="cobalt">{{ $t('projectsUi.exposure.read') }}</Tag>
+      <Tag v-else tone="terra">{{ $t('projectsUi.exposure.closed') }}</Tag>
     </div>
     <template v-if="tableCount > 0">
       <div v-if="!dsExposed" class="pes__warn">
         <Icon name="triangle-alert" :size="13" />
-        <span>Fermé : le destinataire ne verra <strong>aucun</strong> des {{ tableCount }} tableau{{ tableCount > 1 ? 'x' : '' }} lié{{ tableCount > 1 ? 's' : '' }} à ce projet.</span>
+        <i18n-t keypath="projectsUi.exposure.tablesClosed" tag="span" :plural="tableCount">
+          <template #none><strong>{{ $t('projectsUi.exposure.noneOf') }}</strong></template>
+          <template #n>{{ tableCount }}</template>
+        </i18n-t>
       </div>
-      <p v-else class="pes__desc">Les invités branchés voient les {{ tableCount }} tableau{{ tableCount > 1 ? 'x' : '' }} <strong>liés à ce projet</strong> (data_list_datastores, data_rows) — jamais le reste du datastore de l’org.</p>
+      <i18n-t v-else keypath="projectsUi.exposure.tablesOpen" tag="p" class="pes__desc" :plural="tableCount">
+        <template #n>{{ tableCount }}</template>
+        <template #scope><strong>{{ $t('projectsUi.exposure.linkedToProject') }}</strong></template>
+      </i18n-t>
       <div v-if="dsLegacy" class="pes__warn">
         <Icon name="triangle-alert" :size="13" />
-        <span>Exposition configurée par une version antérieure (des <code>data_*</code> figurent dans la liste d’outils). Normalise pour t’appuyer sur le réglage ci-dessous.</span>
-        <Btn v-if="!readOnly" kind="mini" :disabled="busy" @click="emit('normalize-legacy')">Normaliser</Btn>
+        <i18n-t keypath="projectsUi.exposure.legacy" tag="span">
+          <template #tools><code>{{ 'data_*' }}</code></template>
+        </i18n-t>
+        <Btn v-if="!readOnly" kind="mini" :disabled="busy" @click="emit('normalize-legacy')">{{ $t('projectsUi.exposure.normalize') }}</Btn>
       </div>
       <div v-if="!readOnly" class="pes__act">
-        <Btn v-if="!dsExposed" kind="mini" icon="database" :disabled="busy" @click="emit('set-datastore', { expose: true, write: false })">Exposer en lecture</Btn>
+        <Btn v-if="!dsExposed" kind="mini" icon="database" :disabled="busy" @click="emit('set-datastore', { expose: true, write: false })">{{ $t('projectsUi.exposure.exposeRead') }}</Btn>
         <template v-else>
-          <Btn v-if="!dsWritable" kind="mini" :disabled="busy" @click="emit('set-datastore', { expose: true, write: true })">Autoriser l’écriture</Btn>
-          <Btn v-else kind="mini" :disabled="busy" @click="emit('set-datastore', { expose: true, write: false })">Repasser en lecture seule</Btn>
-          <Btn kind="mini" :disabled="busy" @click="emit('set-datastore', { expose: false, write: false })">Fermer le datastore</Btn>
+          <Btn v-if="!dsWritable" kind="mini" :disabled="busy" @click="emit('set-datastore', { expose: true, write: true })">{{ $t('projectsUi.exposure.allowWrite') }}</Btn>
+          <Btn v-else kind="mini" :disabled="busy" @click="emit('set-datastore', { expose: true, write: false })">{{ $t('projectsUi.exposure.backToRead') }}</Btn>
+          <Btn kind="mini" :disabled="busy" @click="emit('set-datastore', { expose: false, write: false })">{{ $t('projectsUi.exposure.closeDatastore') }}</Btn>
         </template>
       </div>
     </template>
-    <p v-else class="pes__desc">Aucun tableau n’est lié à ce projet — <strong>lie un tableau</strong> au projet pour pouvoir l’exposer aux invités branchés.</p>
+    <i18n-t v-else keypath="projectsUi.exposure.noTable" tag="p" class="pes__desc">
+      <template #link><strong>{{ $t('projectsUi.exposure.linkATable') }}</strong></template>
+    </i18n-t>
   </div>
 </template>
 

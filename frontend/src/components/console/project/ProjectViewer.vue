@@ -5,6 +5,7 @@
 // surcharge connecteur) — même appels API, remontés au parent par events.
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, onBeforeRouteLeave } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import Icon from '@/components/console/Icon.vue'
 import Tag from '@/components/console/Tag.vue'
 import Btn from '@/components/console/Btn.vue'
@@ -77,6 +78,7 @@ function resolveLink(title: string): number | null {
 }
 
 const { toast } = useToast()
+const { t } = useI18n()
 const { confirmAction } = usePrompt()
 
 const item = computed(() => props.item)
@@ -94,16 +96,18 @@ const title = computed(() => {
   if (kind.value === 'file') return item.value?.file?.title || item.value?.file?.filename || ''
   return item.value?.label ?? ''
 })
+// Clés i18n, traduites au calcul de l'en-tête.
 const KIND_EYEBROW: Record<string, string> = {
-  tableau: 'tableau lié · datastore', connecteur: 'connecteur · résolution par projet',
-  procedure: "ce qu'un agent exécute", doc: 'document lié',
-  file: 'fichier importé',
+  tableau: 'projectsUi.viewer.eyebrow.table', connecteur: 'projectsUi.viewer.eyebrow.connector',
+  procedure: 'projectsUi.viewer.eyebrow.procedure', doc: 'projectsUi.viewer.eyebrow.doc',
+  file: 'projectsUi.viewer.eyebrow.file',
 }
 const eyebrow = computed(() => {
-  if (isHome.value) return "brief · point d'entrée de l'agent"
+  if (isHome.value) return t('projectsUi.viewer.eyebrow.home')
   // Chapô (Ship 2) : le sous-titre curé de la page remplace le générique « page ».
-  if (kind.value === 'page') return doc.value?.description || 'page'
-  return KIND_EYEBROW[kind.value] ?? ''
+  if (kind.value === 'page') return doc.value?.description || t('projectsUi.viewer.eyebrow.page')
+  const cle = KIND_EYEBROW[kind.value]
+  return cle ? t(cle) : ''
 })
 
 // ═══════════ PAGE (accueil = brief, ou page Documents) ═══════════
@@ -119,8 +123,10 @@ const docEditing = auto.editing
 const revisions = ref<DocRevision[]>([])
 const showHistory = ref(false)
 const backlinks = ref<{ id: number; project_id: number; title: string }[]>([])
-const KIND_LABEL: Record<DocKind, string> = { doc: 'doc', note: 'note agent', source: 'source' }
-const KIND_OPTIONS = (Object.keys(KIND_LABEL) as DocKind[]).map((value) => ({ value, label: KIND_LABEL[value] }))
+const KIND_LABEL = computed<Record<DocKind, string>>(() =>
+  ({ doc: t('projectsUi.viewer.kind.doc'), note: t('projectsUi.viewer.kind.note'), source: t('projectsUi.viewer.kind.source') }))
+const KIND_OPTIONS = computed(() =>
+  (Object.keys(KIND_LABEL.value) as DocKind[]).map((value) => ({ value, label: KIND_LABEL.value[value] })))
 
 // Resynchronise l'édition quand la sélection CHANGE (clé du rail), pas à chaque
 // recalcul de la référence `item` : le parent recrée l'objet `selItem` (ex. après
@@ -196,7 +202,7 @@ function reloadAfterConflict() { auto.reset(); emit('reload-docs') }
 async function removeDoc() {
   const d = doc.value
   if (!d) return
-  if (!await confirmAction({ title: 'Supprimer la page', danger: true, confirmLabel: 'Supprimer', message: `Supprimer « ${d.title} » et ses sous-pages ?` })) return
+  if (!await confirmAction({ title: t('projectsUi.viewer.deletePage.title'), danger: true, confirmLabel: t('common.delete'), message: t('projectsUi.viewer.deletePage.message', { title: d.title }) })) return
   try { await deleteDoc(d.id); emit('reload-docs'); emit('changed') }
   catch (e) { toast(humanize(e)) }
 }
@@ -205,8 +211,8 @@ async function toggleDocPublic() {
   if (!d) return
   try {
     const r = await setDocPublic(d.id, !d.public)
-    if (r.public && r.public_url) { await navigator.clipboard.writeText(r.public_url).catch(() => {}); toast('lien public copié') }
-    else toast('partage public retiré')
+    if (r.public && r.public_url) { await navigator.clipboard.writeText(r.public_url).catch(() => {}); toast(t('projectsUi.viewer.toast.publicCopied')) }
+    else toast(t('projectsUi.viewer.toast.publicRemoved'))
     emit('reload-docs')
   } catch (e) { toast(humanize(e)) }
 }
@@ -219,8 +225,8 @@ async function toggleHistory() {
 async function restoreRevision(r: DocRevision) {
   const d = doc.value
   if (!d) return
-  if (!await confirmAction({ title: 'Restaurer cette version', message: `Remplacer le contenu actuel par la version du ${fmtDate(r.created_at)} ?` })) return
-  try { await updateDoc(d.id, { title: r.title, body_md: r.body_md }); emit('reload-docs'); emit('changed'); revisions.value = (await getDocRevisions(d.id)).revisions; toast('version restaurée') }
+  if (!await confirmAction({ title: t('projectsUi.viewer.restore.title'), message: t('projectsUi.viewer.restore.message', { date: fmtDate(r.created_at) }) })) return
+  try { await updateDoc(d.id, { title: r.title, body_md: r.body_md }); emit('reload-docs'); emit('changed'); revisions.value = (await getDocRevisions(d.id)).revisions; toast(t('projectsUi.viewer.toast.restored')) }
   catch (e) { toast(humanize(e)) }
 }
 
@@ -254,9 +260,9 @@ onBeforeRouteLeave(async () => {
   if (docEditing.value) await auto.flush()   // une page s'enregistre avant de partir
   if (!isDirty.value) return true
   return await confirmAction({
-    title: 'Quitter sans enregistrer ?',
-    message: 'Les modifications en cours sur cette page seront perdues.',
-    confirmLabel: 'Quitter sans enregistrer',
+    title: t('projectsUi.viewer.leave.title'),
+    message: t('projectsUi.viewer.leave.message'),
+    confirmLabel: t('projectsUi.viewer.leave.confirm'),
     danger: true,
   })
 })
@@ -273,7 +279,7 @@ const identLoading = ref(false)
 const chosenIdentity = ref('')      // identité cible (défaut = celle du binding)
 const identityOpts = computed(() => identities.value.map((idn) => ({
   value: idn.id,
-  label: `${idn.label || idn.id}${idn.channel ? ` · ${idn.channel}` : ''}${idn.granted ? ' · partagé' : ''}`,
+  label: `${idn.label || idn.id}${idn.channel ? ` · ${idn.channel}` : ''}${idn.granted ? ` · ${t('projectsUi.viewer.shared')}` : ''}`,
 })))
 const surcharge = ref('')
 const cfgSaving = ref(false)
@@ -297,7 +303,7 @@ function toggleFil(r: ProjectRun) {
   filMessages.value = []; filErreur.value = null; filLoading.value = true
   getRunThread(r.run_id)
     .then((res) => { filMessages.value = res.messages || [] })
-    .catch(() => { filErreur.value = 'fil illisible (droits ou run purgé)' })
+    .catch(() => { filErreur.value = t('projectsUi.viewer.thread.unreadable') })
     .finally(() => { filLoading.value = false })
 }
 
@@ -317,14 +323,14 @@ function continuerRun(r: ProjectRun) {
         { seq: res.seq, role: 'user', content: { text: texte } }]
       filSaisie.value = ''
       return enqueueRunContinue(r.run_id)
-        .then(() => { filEnvoiNote.value = 'Message apposé — repris au prochain passage du worker.' })
-        .catch(() => { filEnvoiNote.value = 'Message apposé au fil ; la reprise n\'a pas pu être enfilée (réessaie).' })
+        .then(() => { filEnvoiNote.value = t('projectsUi.viewer.thread.appended') })
+        .catch(() => { filEnvoiNote.value = t('projectsUi.viewer.thread.appendedNotQueued') })
     })
     .catch((e) => {
       const msg = String((e as Error)?.message || '')
       filEnvoiNote.value = msg.includes('404') || msg.includes('run_not_found')
-        ? 'Seul le propriétaire du run peut le continuer.'
-        : 'Écriture refusée — le fil n\'a pas bougé.'
+        ? t('projectsUi.viewer.thread.ownerOnly')
+        : t('projectsUi.viewer.thread.refused')
     })
     .finally(() => { filEnvoi.value = false })
 }
@@ -411,7 +417,7 @@ async function saveConnector() {
     }
     await linkProject(props.projectId, 'connecteur', l.target_ref, l.label ?? undefined, l.role ?? undefined,
       { instructions_md: instr }, nextIdentity)
-    emit('reload-links'); emit('changed'); toast('surcharge enregistrée')
+    emit('reload-links'); emit('changed'); toast(t('projectsUi.viewer.toast.overrideSaved'))
   } catch (e) { toast(humanize(e)) }
   finally { cfgSaving.value = false }
 }
@@ -431,24 +437,24 @@ const file = computed(() => item.value?.file ?? null)
 const preview = ref<ProjectFile | null>(null)   // fichier ouvert dans le lightbox AttachmentViewer
 function fmtSize(n?: number | null): string {
   if (!n) return '—'
-  if (n < 1024) return `${n} o`
-  if (n < 1024 * 1024) return `${Math.round(n / 1024)} Ko`
-  return `${(n / (1024 * 1024)).toFixed(1)} Mo`
+  if (n < 1024) return t('projectsUi.viewer.size.b', { n })
+  if (n < 1024 * 1024) return t('projectsUi.viewer.size.kb', { n: Math.round(n / 1024) })
+  return t('projectsUi.viewer.size.mb', { n: (n / (1024 * 1024)).toFixed(1) })
 }
 async function toggleFilePublic() {
   const f = file.value
   if (!f) return
   try {
     const { file: row } = await setProjectFilePublic(props.projectId, f.id, !f.public)
-    if (row.public && row.public_url) { await navigator.clipboard.writeText(row.public_url).catch(() => {}); toast('lien public copié') }
-    else toast('partage public retiré')
+    if (row.public && row.public_url) { await navigator.clipboard.writeText(row.public_url).catch(() => {}); toast(t('projectsUi.viewer.toast.publicCopied')) }
+    else toast(t('projectsUi.viewer.toast.publicRemoved'))
     emit('reload-files')
   } catch (e) { toast(humanize(e)) }
 }
 async function removeFile() {
   const f = file.value
   if (!f) return
-  if (!await confirmAction({ title: 'Supprimer ce fichier ?', danger: true, confirmLabel: 'Supprimer', message: `Supprimer « ${f.title || f.filename} » ?` })) return
+  if (!await confirmAction({ title: t('projectsUi.viewer.deleteFile.title'), danger: true, confirmLabel: t('common.delete'), message: t('projectsUi.viewer.deleteFile.message', { title: f.title || f.filename }) })) return
   try { await deleteProjectFile(props.projectId, f.id); emit('reload-files'); emit('changed') }
   catch (e) { toast(humanize(e)) }
 }
@@ -456,7 +462,7 @@ async function removeFile() {
 
 <template>
   <div class="vw">
-    <p v-if="!item" class="dim vw__empty">Sélectionne une page ou une entité dans le rail.</p>
+    <p v-if="!item" class="dim vw__empty">{{ $t('projectsUi.viewer.empty') }}</p>
 
     <template v-else>
       <!-- en-tête commun -->
@@ -467,14 +473,14 @@ async function removeFile() {
             :docs="docs" :read-only="readOnly" :status="auto.status.value" :error="auto.error.value"
             @open-doc="(id) => emit('open-doc', id)" @rename="(t) => auto.saveTitle(t)" @reload="reloadAfterConflict">
             <Tag v-if="doc.kind !== 'doc'">{{ KIND_LABEL[doc.kind] }}</Tag>
-            <Tag v-if="doc.public" tone="cobalt">public</Tag>
+            <Tag v-if="doc.public" tone="cobalt">{{ $t('projectsUi.viewer.public') }}</Tag>
           </DocPageHead>
           <template v-else>
           <div class="vw__hdrow">
             <h3 class="vw__title">{{ title }}</h3>
             <Tag v-if="kind === 'page' && doc && doc.kind !== 'doc'">{{ KIND_LABEL[doc.kind] }}</Tag>
-            <Tag v-if="kind === 'page' && doc?.public" tone="cobalt">public</Tag>
-            <Tag v-if="link?.cross_project" tone="saffron">partagé</Tag>
+            <Tag v-if="kind === 'page' && doc?.public" tone="cobalt">{{ $t('projectsUi.viewer.public') }}</Tag>
+            <Tag v-if="link?.cross_project" tone="saffron">{{ $t('projectsUi.viewer.shared') }}</Tag>
           </div>
           <div v-if="eyebrow" class="vw__eb">{{ eyebrow }}</div>
           <div v-if="link?.role" class="vw__hint">{{ link.role }}</div>
@@ -483,11 +489,11 @@ async function removeFile() {
         <!-- actions d'en-tête (pages) -->
         <div v-if="kind === 'page'" class="vw__hdact">
           <template v-if="!editing">
-            <button v-if="!isHome && !readOnly" class="vw__x" @click="emit('add-subpage', doc!.id)"><Icon name="plus" :size="12" /> sous-page</button>
-            <button v-if="isHome && !readOnly" class="vw__x" @click="editBrief()"><Icon name="pencil" :size="12" /> éditer</button>
+            <button v-if="!isHome && !readOnly" class="vw__x" @click="emit('add-subpage', doc!.id)"><Icon name="plus" :size="12" /> {{ $t('projectsUi.viewer.subpage') }}</button>
+            <button v-if="isHome && !readOnly" class="vw__x" @click="editBrief()"><Icon name="pencil" :size="12" /> {{ $t('projectsUi.viewer.editBrief') }}</button>
           </template>
           <template v-else>
-            <Btn kind="mini" @click="saveBrief">Enregistrer</Btn><button class="vw__x" @click="cancelBrief">Annuler</button>
+            <Btn kind="mini" @click="saveBrief">{{ $t('common.save') }}</Btn><button class="vw__x" @click="cancelBrief">{{ $t('common.cancel') }}</button>
           </template>
         </div>
       </header>
@@ -497,7 +503,7 @@ async function removeFile() {
         <!-- édition (brief ou doc) -->
         <template v-if="editing && isHome">
           <MarkdownEditor v-model="briefDraft"
-            placeholder="Le but du projet, le contexte, ce que l'agent doit savoir au démarrage…" />
+            :placeholder="$t('projectsUi.viewer.briefPlaceholder')" />
         </template>
         <!-- page en écriture : la zone entière (réglages + éditeur) tient le focus ; en sortir
              enregistre et rend la page. Échap fait de même. -->
@@ -505,10 +511,10 @@ async function removeFile() {
           @focusout="onEditorFocusOut" @keydown.esc="auto.stop()">
           <div class="vw__editopts">
             <input v-model="draft.description" class="vw__descin"
-              placeholder="Sous-titre (une ligne — aide à repérer la page dans l'arbre et la recherche)" />
-            <OtoSelect v-model="draft.kind" :options="KIND_OPTIONS" size="sm" aria-label="type de page" />
+              :placeholder="$t('projectsUi.viewer.subtitlePlaceholder')" />
+            <OtoSelect v-model="draft.kind" :options="KIND_OPTIONS" size="sm" :aria-label="$t('projectsUi.viewer.pageType')" />
           </div>
-          <MarkdownEditor v-model="draft.body_md" placeholder="Contenu de la page…" :focus-at="focusAt" />
+          <MarkdownEditor v-model="draft.body_md" :placeholder="$t('projectsUi.viewer.contentPlaceholder')" :focus-at="focusAt" />
         </div>
 
         <!-- lecture -->
@@ -526,7 +532,7 @@ async function removeFile() {
                 </div>
               </template>
             </template>
-            <p v-else class="dim vw__novalue">{{ readOnly ? 'aucun contenu.' : (isHome ? 'aucun brief — clique « éditer » pour le rédiger.' : 'page vide — clique ici pour écrire.') }}</p>
+            <p v-else class="dim vw__novalue">{{ readOnly ? $t('projectsUi.viewer.noContent') : (isHome ? $t('projectsUi.viewer.noBrief') : $t('projectsUi.viewer.emptyPage')) }}</p>
 
             <!-- Files de travail (home) : supervision dérivée des tableaux liés à
                  cycle de vie — se rend seulement s'il y en a, ou pour dire qu'un lien
@@ -542,15 +548,15 @@ async function removeFile() {
 
           <!-- actions secondaires page (doc) -->
           <div v-if="!isHome && doc" class="vw__pageact">
-            <button class="vw__x" @click="toggleHistory">{{ showHistory ? "Masquer l'historique" : 'Historique' }}</button>
+            <button class="vw__x" @click="toggleHistory">{{ showHistory ? $t('projectsUi.viewer.hideHistory') : $t('projectsUi.history.title') }}</button>
             <!-- Portée dans le libellé, et l'icône de partage des deux autres gestes (#158). -->
-            <button v-if="!readOnly" class="vw__x" @click="toggleDocPublic"><Icon name="ext" :size="12" /> {{ doc.public ? 'Rendre privé' : 'Partager cette page seule' }}</button>
-            <button v-if="!readOnly" class="vw__x vw__x--danger" @click="removeDoc">Supprimer</button>
+            <button v-if="!readOnly" class="vw__x" @click="toggleDocPublic"><Icon name="ext" :size="12" /> {{ doc.public ? $t('projectsUi.viewer.makePrivate') : $t('projectsUi.viewer.sharePage') }}</button>
+            <button v-if="!readOnly" class="vw__x vw__x--danger" @click="removeDoc">{{ $t('common.delete') }}</button>
           </div>
 
           <!-- Cité par (backlinks [[…]], Ship 4) -->
           <div v-if="!isHome && doc && backlinks.length" class="vw__panel">
-            <div class="card-eb" style="margin-bottom: 6px">Cité par · {{ backlinks.length }}</div>
+            <div class="card-eb" style="margin-bottom: 6px">{{ $t('projectsUi.viewer.citedBy', { n: backlinks.length }) }}</div>
             <button v-for="b in backlinks" :key="b.id" class="vw__citedby"
               @click="emit('open-doc', b.id)">
               <Icon name="book" :size="12" /> {{ b.title }}
@@ -559,14 +565,14 @@ async function removeFile() {
 
           <!-- historique -->
           <div v-if="showHistory" class="vw__panel">
-            <div class="card-eb" style="margin-bottom: 6px">historique des versions</div>
-            <p v-if="!revisions.length" class="dim" style="font-size: 12px">aucune version antérieure.</p>
+            <div class="card-eb" style="margin-bottom: 6px">{{ $t('projectsUi.viewer.versions') }}</div>
+            <p v-if="!revisions.length" class="dim" style="font-size: 12px">{{ $t('projectsUi.viewer.noVersion') }}</p>
             <div v-for="r in revisions" :key="r.id" class="vw__rev">
               <div style="flex: 1; min-width: 0">
                 <span style="color: var(--color-ink)">{{ r.title }}</span>
                 <span class="dim" style="font-size: 11px; margin-left: 6px">{{ fmtDate(r.created_at) }}<template v-if="r.edited_by"> · {{ r.edited_by }}</template></span>
               </div>
-              <button v-if="!readOnly" class="vw__x" @click="restoreRevision(r)">Restaurer</button>
+              <button v-if="!readOnly" class="vw__x" @click="restoreRevision(r)">{{ $t('projectsUi.viewer.restoreBtn') }}</button>
             </div>
           </div>
         </template>
@@ -574,43 +580,42 @@ async function removeFile() {
 
       <!-- ═══ CONNECTEUR ═══ -->
       <div v-else-if="kind === 'connecteur' && link" class="vw__block">
-        <div class="vw__sub">résolution — compte utilisé</div>
+        <div class="vw__sub">{{ $t('projectsUi.viewer.resolution') }}</div>
         <OtoSelect v-if="identities.length || identLoading" v-model="chosenIdentity" :options="identityOpts"
-          :none-label="identLoading ? 'chargement…' : '(défaut du compte)'"
+          :none-label="identLoading ? $t('common.loading') : $t('projectsUi.picker.defaultIdentity')"
           :disabled="readOnly || identLoading" trigger-class="w-full max-w-[340px]" />
-        <p v-else class="dim" style="font-size: 12.5px">Ce connecteur n'a pas de sélecteur de compte — il résout la clé perso / d'org / plateforme.</p>
+        <p v-else class="dim" style="font-size: 12.5px">{{ $t('projectsUi.viewer.noIdentityPicker') }}</p>
 
         <template v-if="toolsLoading || connectorTools.length">
-          <div class="vw__sub" style="margin-top: 18px">outils exposés</div>
+          <div class="vw__sub" style="margin-top: 18px">{{ $t('projectsUi.viewer.exposedTools') }}</div>
           <p v-if="toolsLoading" class="dim" style="font-size: 12.5px">{{ $t('common.loading') }}</p>
           <div v-else class="vw__tools">
             <span v-for="t in connectorTools" :key="t.name" class="vw__tool" :title="t.description">{{ t.name }}</span>
           </div>
         </template>
 
-        <div class="vw__sub" style="margin-top: 18px">surcharge — instructions pour ce projet</div>
+        <div class="vw__sub" style="margin-top: 18px">{{ $t('projectsUi.viewer.override') }}</div>
         <textarea v-model="surcharge" class="vw__area" rows="3" :disabled="readOnly"
-          placeholder="ex. n'utiliser que le compte Alexandra pour ce projet…"></textarea>
-        <div v-if="!readOnly" class="vw__editact"><Btn kind="mini" icon="check" :disabled="cfgSaving" @click="saveConnector">Enregistrer</Btn></div>
+          :placeholder="$t('projectsUi.viewer.overridePlaceholder')"></textarea>
+        <div v-if="!readOnly" class="vw__editact"><Btn kind="mini" icon="check" :disabled="cfgSaving" @click="saveConnector">{{ $t('common.save') }}</Btn></div>
 
         <RouterLink class="vw__open" :to="`/connectors?tab=marketplace&connector=${encodeURIComponent(link.target_ref)}`">
-          Voir la fiche du connecteur <Icon name="ext" :size="12" />
+          {{ $t('projectsUi.viewer.connectorSheet') }} <Icon name="ext" :size="12" />
         </RouterLink>
       </div>
 
       <!-- ═══ CONNECTEUR REQUIS PAR UNE PROCÉDURE (non déclaré) ═══ -->
       <div v-else-if="kind === 'connecteur' && item?.derived" class="vw__block">
-        <p class="dim" style="font-size: 13px; line-height: 1.6">
-          <strong>Requis par une procédure</strong>, pas déclaré au niveau projet. Il résout via la
-          cascade normale (perso &gt; équipe &gt; org &gt; plateforme) — <strong>déclare-le</strong>
-          (via « + » ci-contre) pour lui préconfigurer une identité ou une surcharge.
-        </p>
-        <div class="vw__sub" style="margin-top: 14px">source</div>
+        <i18n-t keypath="projectsUi.viewer.derived" tag="p" class="dim" style="font-size: 13px; line-height: 1.6">
+          <template #required><strong>{{ $t('projectsUi.viewer.derivedRequired') }}</strong></template>
+          <template #declare><strong>{{ $t('projectsUi.viewer.derivedDeclare') }}</strong></template>
+        </i18n-t>
+        <div class="vw__sub" style="margin-top: 14px">{{ $t('projectsUi.viewer.source') }}</div>
         <div class="vw__tools">
-          <span v-for="s in item.derived" :key="s" class="vw__tool">{{ s.startsWith('procedure:') ? `procédure · ${s.slice(10)}` : s }}</span>
+          <span v-for="s in item.derived" :key="s" class="vw__tool">{{ s.startsWith('procedure:') ? $t('projectsUi.viewer.fromProcedure', { name: s.slice(10) }) : s }}</span>
         </div>
         <RouterLink class="vw__open" :to="`/connectors?tab=marketplace&connector=${encodeURIComponent(item.label)}`">
-          Voir la fiche du connecteur <Icon name="ext" :size="12" />
+          {{ $t('projectsUi.viewer.connectorSheet') }} <Icon name="ext" :size="12" />
         </RouterLink>
       </div>
 
@@ -622,11 +627,7 @@ async function removeFile() {
            serveur dit qu'il ne sait pas lequel : on ne le devine pas à sa place. -->
       <div v-else-if="kind === 'tableau' && link" class="vw__block">
         <DatastoreTable v-if="link.datastore_id != null" :ns-ref="String(link.datastore_id)" :govern="false" />
-        <p v-else class="dim vw__novalue">
-          Aucun tableau résolu pour ce lien — il a pu être supprimé, ou il désigne son
-          tableau par un nom que ce projet ne sait pas rattacher à un seul. Relie-le à
-          nouveau pour le fixer sur un tableau précis.
-        </p>
+        <p v-else class="dim vw__novalue">{{ $t('projectsUi.viewer.unresolvedTable') }}</p>
       </div>
 
       <!-- ═══ PROCÉDURE (son contenu + ses dernières exécutions) ═══ -->
@@ -640,7 +641,7 @@ async function removeFile() {
           <button type="button" class="vw__procfold" :aria-expanded="procOpen"
                   @click="procOpen = !procOpen">
             <Icon :name="procOpen ? 'chevron-down' : 'chevron-right'" :size="12" />
-            {{ procOpen ? 'Replier le détail' : 'Afficher le détail' }}
+            {{ procOpen ? $t('projectsUi.viewer.foldDetail') : $t('projectsUi.viewer.showDetail') }}
           </button>
           <div v-show="procOpen" class="vw__procbody"><MarkdownView :source="procBody" /></div>
         </template>
@@ -649,22 +650,19 @@ async function removeFile() {
              seul. On n'ajoute NI phrase explicative (qui ferait passer un échec de
              lecture pour un choix de conception) NI case vide. -->
         <template v-if="runs.length">
-          <div class="vw__sub" style="margin-top: 16px">dernières exécutions</div>
+          <div class="vw__sub" style="margin-top: 16px">{{ $t('projectsUi.viewer.lastRuns') }}</div>
           <div class="vw__runs">
             <template v-for="r in runs" :key="r.run_id">
               <button type="button" class="vw__run vw__run--btn" @click="toggleFil(r)">
                 <span class="vw__rundot" :style="{ background: runDot(r.outcome) }"></span>
                 <span class="vw__runt">{{ fmtDate(r.started_at) }}</span>
                 <span class="vw__runl">{{ r.label }}</span>
-                <span class="vw__runo" :class="{ dim: !r.outcome }">{{ r.outcome || 'en cours' }}</span>
+                <span class="vw__runo" :class="{ dim: !r.outcome }">{{ r.outcome || $t('projectsUi.workQueues.running') }}</span>
               </button>
               <div v-if="filOuvert === r.run_id" class="vw__fil">
-                <p v-if="filLoading" class="dim" style="font-size: 12px">chargement du fil…</p>
+                <p v-if="filLoading" class="dim" style="font-size: 12px">{{ $t('projectsUi.viewer.thread.loading') }}</p>
                 <p v-else-if="filErreur" class="dim" style="font-size: 12px">{{ filErreur }}</p>
-                <p v-else-if="!filMessages.length" class="dim" style="font-size: 12px">
-                  Cette exécution a été menée par un agent externe : son détail vit dans le
-                  journal, pas ici.
-                </p>
+                <p v-else-if="!filMessages.length" class="dim" style="font-size: 12px">{{ $t('projectsUi.viewer.thread.external') }}</p>
                 <div v-else class="vw__filmsgs">
                   <div v-for="m in filMessages" :key="m.seq" class="vw__filmsg">
                     <span class="vw__filrole" :data-role="m.role">{{ m.role }}</span>
@@ -674,11 +672,11 @@ async function removeFile() {
                 <form v-if="!filLoading && !filErreur" class="vw__filcont"
                       @submit.prevent="continuerRun(r)">
                   <input v-model="filSaisie" class="inp sm vw__filin" type="text"
-                         placeholder="continuer ce run — le message s'appose au fil"
+                         :placeholder="$t('projectsUi.viewer.thread.placeholder')"
                          :disabled="filEnvoi" />
                   <button class="vw__filbtn" type="submit"
                           :disabled="filEnvoi || !filSaisie.trim()">
-                    {{ filEnvoi ? '…' : 'Continuer' }}
+                    {{ filEnvoi ? '…' : $t('projectsUi.viewer.thread.continue') }}
                   </button>
                 </form>
                 <p v-if="filEnvoiNote" class="dim" style="font-size: 12px; margin: 6px 0 0">
@@ -693,30 +691,30 @@ async function removeFile() {
              une panne alors que la procédure est simplement en attente d'être jouée. -->
         <!-- Le lien vers la fiche complète n'a de sens que si on a PU lire le corps :
              sinon il mène à une page que le même jeton n'ouvrira pas davantage. -->
-        <RouterLink v-if="openHref && procBody" class="vw__open" :to="openHref">Ouvrir la fiche complète <Icon name="ext" :size="12" /></RouterLink>
+        <RouterLink v-if="openHref && procBody" class="vw__open" :to="openHref">{{ $t('projectsUi.viewer.openSheet') }} <Icon name="ext" :size="12" /></RouterLink>
       </div>
 
       <!-- ═══ DOCUMENT lié ═══ -->
       <div v-else-if="kind === 'doc'" class="vw__block">
-        <p class="dim" style="font-size: 13px; line-height: 1.6">Page Documents liée — elle vit dans son projet d'origine.</p>
-        <RouterLink v-if="openHref" class="vw__open" :to="openHref">Ouvrir le document <Icon name="ext" :size="12" /></RouterLink>
-        <p v-else class="dim" style="font-size: 12px">Document non navigable.</p>
+        <p class="dim" style="font-size: 13px; line-height: 1.6">{{ $t('projectsUi.viewer.linkedDoc') }}</p>
+        <RouterLink v-if="openHref" class="vw__open" :to="openHref">{{ $t('projectsUi.viewer.openDoc') }} <Icon name="ext" :size="12" /></RouterLink>
+        <p v-else class="dim" style="font-size: 12px">{{ $t('projectsUi.viewer.docNotNavigable') }}</p>
       </div>
 
       <!-- ═══ FICHIER importé ═══ -->
       <div v-else-if="kind === 'file' && file" class="vw__block" style="max-width: 640px">
         <button class="vw__filebox" type="button" @click="preview = file">
           <Icon name="file-text" :size="26" />
-          <span class="vw__filehint">aperçu du document</span>
+          <span class="vw__filehint">{{ $t('projectsUi.viewer.docPreview') }}</span>
         </button>
         <div v-if="file.description" style="font-size: 13px; color: var(--color-ink-soft); line-height: 1.55; margin-bottom: 10px">{{ file.description }}</div>
-        <div class="vw__filemeta"><span class="vw__filek">taille</span><span>{{ fmtSize(file.size_bytes) }}</span></div>
+        <div class="vw__filemeta"><span class="vw__filek">{{ $t('projectsUi.viewer.size.label') }}</span><span>{{ fmtSize(file.size_bytes) }}</span></div>
         <div class="vw__fileact">
-          <button class="vw__x" @click="preview = file"><Icon name="file-text" :size="12" /> Prévisualiser</button>
-          <a v-if="file.download_url" class="vw__x" :href="file.download_url" target="_blank" rel="noopener"><Icon name="download" :size="12" /> Télécharger</a>
-          <a v-if="file.public && file.public_url" class="vw__x" :href="file.public_url" target="_blank" rel="noopener"><Icon name="ext" :size="12" /> Lien public</a>
-          <button v-if="!readOnly" class="vw__x" @click="toggleFilePublic"><Icon name="ext" :size="12" /> {{ file.public ? 'Rendre privé' : 'Partager ce fichier' }}</button>
-          <button v-if="!readOnly" class="vw__x vw__x--danger" @click="removeFile">Supprimer</button>
+          <button class="vw__x" @click="preview = file"><Icon name="file-text" :size="12" /> {{ $t('projectsUi.viewer.preview') }}</button>
+          <a v-if="file.download_url" class="vw__x" :href="file.download_url" target="_blank" rel="noopener"><Icon name="download" :size="12" /> {{ $t('projectsUi.viewer.download') }}</a>
+          <a v-if="file.public && file.public_url" class="vw__x" :href="file.public_url" target="_blank" rel="noopener"><Icon name="ext" :size="12" /> {{ $t('projectsUi.viewer.publicLink') }}</a>
+          <button v-if="!readOnly" class="vw__x" @click="toggleFilePublic"><Icon name="ext" :size="12" /> {{ file.public ? $t('projectsUi.viewer.makePrivate') : $t('projectsUi.viewer.shareFile') }}</button>
+          <button v-if="!readOnly" class="vw__x vw__x--danger" @click="removeFile">{{ $t('common.delete') }}</button>
         </div>
       </div>
     </template>

@@ -24,9 +24,10 @@ const emit = defineEmits<{
 }>()
 
 const ACCESS_OPTIONS = [
-  { value: 'anonymous', label: 'Public · sans login, listé dans l’annuaire' },
-  { value: 'secret', label: 'Secret · URL non devinable, navigable (non listé)' },
-  { value: 'org', label: 'Org · authentifié (membres de l’org)' },
+  // `label` est une clé i18n, traduite au rendu.
+  { value: 'anonymous', label: 'projectsUi.mcpPublish.access.anonymous' },
+  { value: 'secret', label: 'projectsUi.mcpPublish.access.secret' },
+  { value: 'org', label: 'projectsUi.mcpPublish.access.org' },
 ]
 
 const slug = ref('')
@@ -120,30 +121,28 @@ function submit() {
 <template>
   <Dialog :open="open" @update:open="(v) => { if (!v) emit('close') }">
     <DialogContent v-if="open" :style="{ maxWidth: '560px' }">
-      <DialogTitle>Publier en endpoint MCP</DialogTitle>
-      <p class="pmp-desc">Un sous-domaine dédié exposant un jeu d’outils figé, à brancher dans
-        Claude/Mistral. En « secret », il est aussi une UI navigable (lecture seule).</p>
+      <DialogTitle>{{ $t('projectsUi.mcpPublish.title') }}</DialogTitle>
+      <p class="pmp-desc">{{ $t('projectsUi.mcpPublish.desc') }}</p>
 
-      <label class="pmp-lbl">Sous-domaine</label>
-      <input v-model="slug" class="inp sm" placeholder="french-tech-marseille" />
-      <p class="pmp-hint">→ &lt;slug&gt;.mcp.oto.cx (public/org) ou &lt;slug&gt;.share.oto.cx (secret). Min. 3 car., a-z 0-9 -.</p>
+      <label class="pmp-lbl">{{ $t('projectsUi.mcpPublish.subdomain') }}</label>
+      <input v-model="slug" class="inp sm" :placeholder="$t('projectsUi.mcpPublish.slugPlaceholder')" />
+      <p class="pmp-hint">{{ $t('projectsUi.mcpPublish.slugHint') }}</p>
 
-      <label class="pmp-lbl">Accès</label>
-      <OtoSelect v-model="access" :options="ACCESS_OPTIONS" aria-label="Accès" />
+      <label class="pmp-lbl">{{ $t('projectsUi.mcpPublish.accessLabel') }}</label>
+      <OtoSelect v-model="access" :options="ACCESS_OPTIONS.map((o) => ({ ...o, label: $t(o.label) }))" :aria-label="$t('projectsUi.mcpPublish.accessLabel')" />
 
       <div class="pmp-tools-hd">
-        <label class="pmp-lbl" style="margin:0">Outils exposés</label>
-        <span class="pmp-count mono">{{ checked.size }} sélectionné(s)</span>
+        <label class="pmp-lbl" style="margin:0">{{ $t('projectsUi.mcpPublish.tools') }}</label>
+        <span class="pmp-count mono">{{ $t('projectsUi.mcpPublish.selected', checked.size) }}</span>
       </div>
-      <p v-if="access === 'secret'" class="pmp-hint">Vide = tout le projet visible, lecture seule.</p>
+      <p v-if="access === 'secret'" class="pmp-hint">{{ $t('projectsUi.mcpPublish.emptyMeansAll') }}</p>
 
       <div class="pmp-picker">
-        <p v-if="loading" class="pmp-empty">chargement de l’inventaire…</p>
-        <p v-else-if="!groups.length" class="pmp-empty">Aucun outil déduit du projet — lie une procédure
-          ou un connecteur au projet, ou ajoute un outil ci-dessous.</p>
+        <p v-if="loading" class="pmp-empty">{{ $t('projectsUi.mcpPublish.loadingInventory') }}</p>
+        <p v-else-if="!groups.length" class="pmp-empty">{{ $t('projectsUi.mcpPublish.noTool') }}</p>
         <div v-for="g in groups" :key="g.ns" class="pmp-grp">
           <button type="button" class="pmp-grp-hd" @click="toggleGroup(g.tools)"
-            :aria-label="'tout (dé)sélectionner pour ' + g.ns">
+            :aria-label="$t('projectsUi.mcpPublish.toggleGroup', { ns: g.ns })">
             <span class="pmp-grp-box" :class="{ on: g.tools.every((t) => checked.has(t)) }">
               <Icon v-if="g.tools.every((t) => checked.has(t))" name="check" :size="11" />
             </span>
@@ -158,31 +157,31 @@ function submit() {
       </div>
 
       <div class="pmp-add">
-        <input v-model="extra" class="inp sm" placeholder="ajouter un outil (ex. frenchtech_search)"
+        <input v-model="extra" class="inp sm" :placeholder="$t('projectsUi.mcpPublish.addToolPlaceholder')"
           @keyup.enter="addExtra" />
-        <Btn kind="mini" icon="plus" :disabled="!extra.trim()" @click="addExtra">Ajouter</Btn>
+        <Btn kind="mini" icon="plus" :disabled="!extra.trim()" @click="addExtra">{{ $t('common.add') }}</Btn>
       </div>
 
       <!-- Ce que verra le destinataire (issue #131) : visible AU MOMENT de publier, pas
            seulement après coup dans l'écran de partage. `secret` uniquement (backend). -->
       <template v-if="access === 'secret'">
-        <label class="pmp-lbl">Ce que verra le destinataire</label>
+        <label class="pmp-lbl">{{ $t('projectsUi.mcpPublish.recipientSees') }}</label>
         <div class="pmp-exp">
           <label class="pmp-exp-row">
             <input type="checkbox" :checked="exposeDocs" @change="toggleDocs" />
-            <span class="pmp-exp-txt"><strong>Pages du projet</strong> — {{ exposureRows.docs.sentence }}</span>
+            <span class="pmp-exp-txt"><strong>{{ $t('projectsUi.exposure.pages') }}</strong> — {{ exposureRows.docs.sentence }}</span>
           </label>
           <label class="pmp-exp-row" :class="{ 'pmp-exp-row--off': !!exposureRows.datastoreRead.disabledReason }">
             <input type="checkbox" :checked="exposeDsRead" :disabled="!!exposureRows.datastoreRead.disabledReason" @change="toggleDsRead" />
             <span class="pmp-exp-txt">
-              <strong>Tableaux · lecture</strong> — {{ exposureRows.datastoreRead.sentence }}
+              <strong>{{ $t('projectsUi.mcpPublish.tablesRead') }}</strong> — {{ exposureRows.datastoreRead.sentence }}
               <em v-if="exposureRows.datastoreRead.disabledReason" class="pmp-exp-why">({{ exposureRows.datastoreRead.disabledReason }})</em>
             </span>
           </label>
           <label class="pmp-exp-row" :class="{ 'pmp-exp-row--off': !!exposureRows.datastoreWrite.disabledReason }">
             <input type="checkbox" :checked="exposeDsWrite" :disabled="!!exposureRows.datastoreWrite.disabledReason" @change="toggleDsWrite" />
             <span class="pmp-exp-txt">
-              <strong>Tableaux · écriture</strong> — {{ exposureRows.datastoreWrite.sentence }}
+              <strong>{{ $t('projectsUi.mcpPublish.tablesWrite') }}</strong> — {{ exposureRows.datastoreWrite.sentence }}
               <em v-if="exposureRows.datastoreWrite.disabledReason" class="pmp-exp-why">({{ exposureRows.datastoreWrite.disabledReason }})</em>
             </span>
           </label>
@@ -190,8 +189,8 @@ function submit() {
       </template>
 
       <div class="pmp-actions">
-        <Btn :disabled="!canPublish" @click="submit">Publier</Btn>
-        <button class="pmp-x" @click="emit('close')">Annuler</button>
+        <Btn :disabled="!canPublish" @click="submit">{{ $t('projectsUi.mcpPublish.publish') }}</Btn>
+        <button class="pmp-x" @click="emit('close')">{{ $t('common.cancel') }}</button>
       </div>
     </DialogContent>
   </Dialog>

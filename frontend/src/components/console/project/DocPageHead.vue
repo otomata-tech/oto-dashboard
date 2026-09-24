@@ -7,6 +7,7 @@
 // « toi » si c'est le lecteur, sinon par `accountLabel` (nom, adresse, identifiant). Absent
 // (page déplacée depuis, écrivain inconnu) : la date seule, jamais un nom deviné.
 import { computed, nextTick, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Doc } from '@/types/api'
 import { fmtDay } from '@/types/api'
 import type { SaveStatus } from '@/composables/useDocAutosave'
@@ -23,6 +24,7 @@ const props = defineProps<{
   error?: string | null
 }>()
 const emit = defineEmits<{ 'open-doc': [id: number]; rename: [title: string]; reload: [] }>()
+const { t } = useI18n()
 
 // Les pages parentes, de la plus haute à la plus proche (bornées : un cycle en base ne
 // doit pas figer l'écran).
@@ -44,12 +46,12 @@ const members = useOrgMembers()
 const author = computed(() => {
   const sub = props.doc.updated_by
   if (!sub) return null
-  return sub === me.value?.sub ? 'toi' : accountLabel(sub, members.value)
+  return sub === me.value?.sub ? t('projectsUi.pageHead.you') : accountLabel(sub, members.value)
 })
 
 const STATUS: Record<SaveStatus, string> = {
-  idle: '', pending: 'modifications en cours…', saving: 'enregistrement…', saved: 'enregistré',
-  error: 'non enregistré', conflict: '',
+  idle: '', pending: 'projectsUi.pageHead.status.pending', saving: 'projectsUi.pageHead.status.saving',
+  saved: 'projectsUi.pageHead.status.saved', error: 'projectsUi.pageHead.status.error', conflict: '',
 }
 
 const renaming = ref(false)
@@ -65,40 +67,41 @@ async function startRename() {
 function commit() {
   if (!renaming.value) return
   renaming.value = false
-  const t = draft.value.trim()
-  if (t && t !== props.doc.title) emit('rename', t)
+  const titre = draft.value.trim()
+  if (titre && titre !== props.doc.title) emit('rename', titre)
 }
 </script>
 
 <template>
   <div class="dph">
-    <nav class="dph__trail" aria-label="fil d'Ariane">
+    <nav class="dph__trail" :aria-label="t('projectsUi.pageHead.trail')">
       <span>{{ projectName }}</span>
       <template v-for="d in trail" :key="d.id">
         <span class="dph__sep">›</span>
-        <button class="dph__crumb" @click="emit('open-doc', d.id)">{{ d.title || 'Sans titre' }}</button>
+        <button class="dph__crumb" @click="emit('open-doc', d.id)">{{ d.title || t('projectsUi.pageHead.untitled') }}</button>
       </template>
     </nav>
     <div class="dph__row">
-      <input v-if="renaming" ref="input" v-model="draft" class="dph__titlein" aria-label="titre de la page"
+      <input v-if="renaming" ref="input" v-model="draft" class="dph__titlein" :aria-label="t('projectsUi.pageHead.titleLabel')"
         @keydown.enter.prevent="commit" @keydown.esc="renaming = false" @blur="commit" />
       <h3 v-else class="dph__title" :class="{ 'dph__title--edit': !readOnly }"
-        :title="readOnly ? undefined : 'renommer'" @click="startRename">{{ doc.title || 'Sans titre' }}</h3>
+        :title="readOnly ? undefined : t('projectsUi.pageHead.rename')" @click="startRename">{{ doc.title || t('projectsUi.pageHead.untitled') }}</h3>
       <slot />
     </div>
     <div v-if="doc.description" class="dph__eb">{{ doc.description }}</div>
     <div class="dph__meta">
-      <span v-if="doc.updated_at">modifié le {{ fmtDay(doc.updated_at) }}<template v-if="author"> par {{ author }}</template></span>
+      <span v-if="doc.updated_at">{{ author
+        ? t('projectsUi.pageHead.modifiedBy', { date: fmtDay(doc.updated_at), author })
+        : t('projectsUi.pageHead.modified', { date: fmtDay(doc.updated_at) }) }}</span>
       <span v-if="status && STATUS[status]" class="dph__st" :class="`dph__st--${status}`">
-        · {{ STATUS[status] }}<template v-if="status === 'error' && error"> — {{ error }}</template>
+        · {{ t(STATUS[status]) }}<template v-if="status === 'error' && error"> — {{ error }}</template>
       </span>
     </div>
     <!-- Conflit : le levier est dans la phrase. Recharger jette le brouillon, qui reste
          affiché d'ici là pour être copié. -->
-    <p v-if="status === 'conflict'" class="dph__conflict">
-      cette page a été modifiée ailleurs pendant que tu écrivais : rien n'a été écrasé.
-      copie ton texte si besoin, puis <button class="dph__crumb" @click="emit('reload')">recharge la page</button>.
-    </p>
+    <i18n-t v-if="status === 'conflict'" keypath="projectsUi.pageHead.conflict" tag="p" class="dph__conflict">
+      <template #reload><button class="dph__crumb" @click="emit('reload')">{{ t('projectsUi.pageHead.reload') }}</button></template>
+    </i18n-t>
   </div>
 </template>
 

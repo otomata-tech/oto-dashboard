@@ -4,6 +4,7 @@
 // URL secrète non devinable) · Endpoint MCP (publish) · Transférer la propriété. Absorbe l'ancienne carte
 // « Endpoint MCP & partage » + le bouton Transférer. Réutilise le câblage existant.
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Icon from '@/components/console/Icon.vue'
 import Btn from '@/components/console/Btn.vue'
 import Tag from '@/components/console/Tag.vue'
@@ -30,6 +31,7 @@ const props = defineProps<{ open: boolean; project: Project; grants: NamespaceSh
 const emit = defineEmits<{ close: []; changed: []; 'reload-project': [] }>()
 
 const { toast } = useToast()
+const { t } = useI18n()
 const { me } = useMe()
 const { confirmAction } = usePrompt()
 const { transfer: runTransfer } = useTransferOwnership()
@@ -65,12 +67,12 @@ const members = ref<OrgMember[]>([]); const groups = ref<GroupListItem[]>([]); c
 const busy = ref(false)
 
 // Options des selects (DS OtoSelect) — dérivées des listes chargées.
-const MODE_OPTIONS: { value: Mode; label: string }[] = [
-  { value: 'member', label: "membre de l'org" },
-  { value: 'team', label: 'équipe' },
-  { value: 'org', label: 'une de mes orgs' },
-  { value: 'email', label: 'email libre' },
-]
+const MODE_OPTIONS = computed<{ value: Mode; label: string }[]>(() => [
+  { value: 'member', label: t('projectsUi.share.mode.member') },
+  { value: 'team', label: t('projectsUi.share.mode.team') },
+  { value: 'org', label: t('projectsUi.share.mode.org') },
+  { value: 'email', label: t('projectsUi.share.mode.email') },
+])
 const memberOpts = computed(() => members.value.map((m) => ({ value: m.sub, label: m.name || m.email || m.sub })))
 const teamOpts = computed(() => groups.value.map((g) => ({ value: String(g.group_id), label: g.name })))
 const orgOpts = computed(() => myOrgs.value.map((o) => ({ value: String(o.id), label: o.name })))
@@ -105,7 +107,7 @@ async function addPrincipal() {
   busy.value = true
   try {
     await shareResource('project', String(projectId.value), principal.value, role.value)
-    toast('partagé'); memberSub.value = ''; groupId.value = ''; orgId.value = ''; email.value = ''
+    toast(t('projectsUi.share.toast.shared')); memberSub.value = ''; groupId.value = ''; orgId.value = ''; email.value = ''
     emit('changed')
   } catch (e) { toast(humanize(e)) }
   finally { busy.value = false }
@@ -118,7 +120,7 @@ function principalOf(g: NamespaceShare): SharePrincipal | null {
 async function revoke(g: NamespaceShare) {
   const p = principalOf(g)
   if (!p) return
-  try { await unshareResource('project', String(projectId.value), p); toast('accès retiré'); emit('changed') }
+  try { await unshareResource('project', String(projectId.value), p); toast(t('projectsUi.share.toast.revoked')); emit('changed') }
   catch (e) { toast(humanize(e)) }
 }
 function initials(g: NamespaceShare): string {
@@ -130,7 +132,7 @@ function initials(g: NamespaceShare): string {
 const shareUrl = computed(() =>
   props.project.mcp_access === 'secret' && props.project.mcp_slug
     ? `https://${props.project.mcp_slug}.share.oto.cx` : null)
-async function copyShareUrl() { if (shareUrl.value) { await navigator.clipboard.writeText(shareUrl.value).catch(() => {}); toast('lien copié') } }
+async function copyShareUrl() { if (shareUrl.value) { await navigator.clipboard.writeText(shareUrl.value).catch(() => {}); toast(t('projectsUi.share.toast.linkCopied')) } }
 
 // ── Endpoint MCP ──
 const mcpBusy = ref(false)
@@ -138,7 +140,7 @@ const mcpConnectUrl = computed(() =>
   shareUrl.value ? `${shareUrl.value}/mcp` : (props.project.mcp_url ?? null))
 const mcpActive = computed(() => !!props.project.mcp_access && props.project.mcp_access !== 'off')
 const mcpAccess = computed(() => props.project.mcp_access)
-async function copyMcp() { if (mcpConnectUrl.value) { await navigator.clipboard.writeText(mcpConnectUrl.value).catch(() => {}); toast('URL copiée') } }
+async function copyMcp() { if (mcpConnectUrl.value) { await navigator.clipboard.writeText(mcpConnectUrl.value).catch(() => {}); toast(t('projectsUi.share.toast.urlCopied')) } }
 // Défaut de sous-domaine : `slugify(org)-slugify(projet)` (marque l'org, unique par
 // projet) — évite d'imposer un slug vide « requis » que l'utilisateur doit inventer.
 function defaultSlug(): string {
@@ -168,7 +170,7 @@ async function onEndpointPublish(v: {
   exposeDocs: boolean; exposeDatastore: boolean; exposeDatastoreWrite: boolean
 }) {
   if (!v.tools.length && v.access !== 'secret') {
-    toast('liste d’outils requise pour un endpoint public ou org — seuls les liens « secret » peuvent tout exposer en lecture seule')
+    toast(t('projectsUi.share.toast.toolsRequired'))
     return
   }
   endpointOpen.value = false
@@ -190,15 +192,17 @@ async function doPublish(
       mcp_expose_datastore_write: expose?.datastoreWrite ?? false,
     })
     const unresolvable = updated.mcp_unresolvable_tools ?? []
-    toast(unresolvable.length ? `endpoint publié — ${unresolvable.length} outil(s) non résoluble(s) sans login : ${unresolvable.join(', ')}` : 'endpoint MCP publié')
+    toast(unresolvable.length
+      ? t('projectsUi.share.toast.publishedUnresolvable', { n: unresolvable.length, tools: unresolvable.join(', ') }, unresolvable.length)
+      : t('projectsUi.share.toast.published'))
     emit('reload-project')
   } catch (e) { toast(humanize(e)) }
   finally { mcpBusy.value = false }
 }
 async function unpublishMcp() {
-  if (!await confirmAction({ title: 'Retirer l’endpoint MCP', message: 'Le sous-domaine deviendra immédiatement inaccessible. Continuer ?', confirmLabel: 'Retirer', danger: true })) return
+  if (!await confirmAction({ title: t('projectsUi.share.unpublish.title'), message: t('projectsUi.share.unpublish.message'), confirmLabel: t('common.remove'), danger: true })) return
   mcpBusy.value = true
-  try { await unpublishProjectMcp(projectId.value); toast('endpoint MCP retiré'); emit('reload-project') }
+  try { await unpublishProjectMcp(projectId.value); toast(t('projectsUi.share.toast.unpublished')); emit('reload-project') }
   catch (e) { toast(humanize(e)) }
   finally { mcpBusy.value = false }
 }
@@ -248,17 +252,17 @@ async function republish(changes: Partial<{ mcp_expose_datastore: boolean; mcp_e
 
 async function setDatastore(expose: boolean, write: boolean) {
   await republish({ mcp_expose_datastore: expose, mcp_expose_datastore_write: write },
-    expose ? (write ? 'datastore : lecture + écriture' : 'datastore exposé en lecture') : 'datastore fermé')
+    expose ? (write ? t('projectsUi.share.toast.dsReadWrite') : t('projectsUi.share.toast.dsRead')) : t('projectsUi.share.toast.dsClosed'))
 }
 
 async function setDocs(expose: boolean) {
   await republish({ mcp_expose_docs: expose },
-    expose ? 'pages du projet lisibles par les invités' : 'pages refermées')
+    expose ? t('projectsUi.share.toast.docsOpen') : t('projectsUi.share.toast.docsClosed'))
 }
 
 async function saveGuide() {
   await republish({ mcp_instructions_md: guideDraft.value },
-    guideDraft.value.trim() ? 'mode d’emploi enregistré' : 'mode d’emploi retiré')
+    guideDraft.value.trim() ? t('projectsUi.share.toast.guideSaved') : t('projectsUi.share.toast.guideRemoved'))
 }
 // Normalise un endpoint legacy : retire les data_* de la liste d'outils, expose via le
 // flag. Une liste résultante VIDE est OK en `secret` (= tout navigable, lecture seule).
@@ -272,7 +276,7 @@ async function normalizeLegacy() {
       mcp_expose_datastore: true, mcp_expose_datastore_write: dsWritable.value,
       mcp_expose_docs: docsExposed.value,
     })
-    toast('exposition normalisée — datastore piloté par le réglage dédié')
+    toast(t('projectsUi.share.toast.normalized'))
     emit('reload-project')
   } catch (e) { toast(humanize(e)) }
   finally { mcpBusy.value = false }
@@ -281,19 +285,19 @@ async function normalizeLegacy() {
 // ── Changer de détenteur ── (flux + garde-fou anti-lockout centralisés dans le composable)
 async function transfer() {
   try {
-    const ok = await runTransfer('project', projectId.value, props.project.name || `projet #${projectId.value}`, { allowTeams: true })
-    if (ok) { toast('transféré'); emit('reload-project'); emit('changed'); emit('close') }
+    const ok = await runTransfer('project', projectId.value, props.project.name || t('projectsUi.share.projectFallback', { id: projectId.value }), { allowTeams: true })
+    if (ok) { toast(t('projectsUi.share.toast.transferred')); emit('reload-project'); emit('changed'); emit('close') }
   } catch (e) { toast(humanize(e)) }
 }
 </script>
 
 <template>
   <ModalOverlay :open="open" @close="emit('close')">
-      <div class="sd" role="dialog" aria-modal="true" aria-label="partager">
+      <div class="sd" role="dialog" aria-modal="true" :aria-label="t('projectsUi.share.dialogLabel')">
         <header class="sd__hd">
           <span class="sd__hdic"><Icon name="users" :size="17" /></span>
-          <strong class="sd__hdl">Partager « {{ project.name }} »</strong>
-          <button class="sd__close" aria-label="fermer" @click="emit('close')"><Icon name="x" :size="16" /></button>
+          <strong class="sd__hdl">{{ t('projectsUi.share.title', { name: project.name }) }}</strong>
+          <button class="sd__close" :aria-label="t('common.close')" @click="emit('close')"><Icon name="x" :size="16" /></button>
         </header>
         <div class="sd__body">
           <!-- Qui voit ? (audience) — la réponse d'abord, en clair et dans les mêmes
@@ -309,57 +313,58 @@ async function transfer() {
                reléguée en bas, séparée de la question qu'elle règle. -->
           <div class="sd__owner">
             <Icon name="circle-user" :size="15" />
-            <span>Détenu par <strong>{{ ownerLabel }}</strong></span>
-            <Tag v-if="grants.length" tone="cobalt">{{ grants.length }} prêt{{ grants.length > 1 ? 's' : '' }}</Tag>
-            <Btn v-if="!readOnly" kind="mini" class="sd__ownerbtn" @click="transfer">Changer</Btn>
+            <i18n-t keypath="projectsUi.share.ownedBy" tag="span"><template #owner><strong>{{ ownerLabel }}</strong></template></i18n-t>
+            <Tag v-if="grants.length" tone="cobalt">{{ t('projectsUi.share.loans', grants.length) }}</Tag>
+            <Btn v-if="!readOnly" kind="mini" class="sd__ownerbtn" @click="transfer">{{ t('projectsUi.share.change') }}</Btn>
           </div>
-          <p v-if="!readOnly" class="sd__desc sd__ownernote">
-            Changer de détenteur change l’audience : toi seul, une personne, une équipe ou toute
-            une org. Le détenteur précédent garde un accès édition. Si tu cèdes hors de ta portée,
-            une confirmation te préviendra que tu ne pourras plus le récupérer seul.
-          </p>
+          <p v-if="!readOnly" class="sd__desc sd__ownernote">{{ t('projectsUi.share.ownerNote') }}</p>
 
           <!-- Prêts (axe ADDITIF) -->
           <section>
-            <div class="sd__sec"><Icon name="users" :size="16" /><span>Et en plus, ces personnes y ont accès</span></div>
-            <p class="sd__desc">Un prêt <em>ajoute</em> un accès sans changer le détenteur : <strong>lecteur</strong> (lit) · <strong>éditeur</strong> (modifie) · <strong>gérant</strong> (peut re-partager).</p>
+            <div class="sd__sec"><Icon name="users" :size="16" /><span>{{ t('projectsUi.share.loansTitle') }}</span></div>
+            <i18n-t keypath="projectsUi.share.loansDesc" tag="p" class="sd__desc">
+              <template #adds><em>{{ t('projectsUi.share.adds') }}</em></template>
+              <template #reader><strong>{{ t('projectsUi.share.reader') }}</strong></template>
+              <template #editor><strong>{{ t('projectsUi.share.editor') }}</strong></template>
+              <template #manager><strong>{{ t('projectsUi.share.manager') }}</strong></template>
+            </i18n-t>
             <div v-if="grants.length" class="sd__grants">
               <div v-for="g in grants" :key="(g.principal_type || 'user') + (g.principal_id || g.email || '')" class="sd__grant">
                 <span class="sd__av">{{ initials(g) }}</span>
                 <span class="sd__gname">{{ g.label || g.email || g.principal_id }}</span>
-                <Tag v-if="g.principal_type === 'group'" tone="saffron">équipe</Tag>
-                <Tag v-else-if="g.principal_type === 'org'" tone="terra">org</Tag>
+                <Tag v-if="g.principal_type === 'group'" tone="saffron">{{ t('projectsUi.share.mode.team') }}</Tag>
+                <Tag v-else-if="g.principal_type === 'org'" tone="terra">{{ t('projectsUi.share.orgTag') }}</Tag>
                 <Tag :tone="roleTone(g.role, g.permission)">{{ roleLabel(g.role, g.permission) }}</Tag>
-                <button v-if="!readOnly && principalOf(g)" class="sd__rev" title="Retirer l'accès" @click="revoke(g)"><Icon name="x" :size="13" /></button>
+                <button v-if="!readOnly && principalOf(g)" class="sd__rev" :title="t('projectsUi.share.revoke')" @click="revoke(g)"><Icon name="x" :size="13" /></button>
               </div>
             </div>
             <div v-if="!readOnly" class="sd__add">
-              <OtoSelect v-model="mode" :options="MODE_OPTIONS" aria-label="type de destinataire" />
-              <OtoSelect v-if="mode === 'member'" v-model="memberSub" :options="memberOpts" grow placeholder="choisir un membre…" />
-              <OtoSelect v-else-if="mode === 'team'" v-model="groupId" :options="teamOpts" grow placeholder="choisir une équipe…" />
-              <OtoSelect v-else-if="mode === 'org'" v-model="orgId" :options="orgOpts" grow placeholder="choisir une org…" />
-              <input v-else v-model="email" class="sd__in sd__grow" type="email" placeholder="collègue@exemple.com" @keyup.enter="addPrincipal" />
-              <OtoSelect v-model="role" :options="ROLE_OPTIONS" aria-label="rôle" />
-              <Btn kind="mini" icon="plus" :disabled="busy || !principal" @click="addPrincipal">Inviter</Btn>
+              <OtoSelect v-model="mode" :options="MODE_OPTIONS" :aria-label="t('projectsUi.share.recipientType')" />
+              <OtoSelect v-if="mode === 'member'" v-model="memberSub" :options="memberOpts" grow :placeholder="t('projectsUi.share.pickMember')" />
+              <OtoSelect v-else-if="mode === 'team'" v-model="groupId" :options="teamOpts" grow :placeholder="t('projectsUi.share.pickTeam')" />
+              <OtoSelect v-else-if="mode === 'org'" v-model="orgId" :options="orgOpts" grow :placeholder="t('projectsUi.share.pickOrg')" />
+              <input v-else v-model="email" class="sd__in sd__grow" type="email" :placeholder="t('projectsUi.share.emailPlaceholder')" @keyup.enter="addPrincipal" />
+              <OtoSelect v-model="role" :options="ROLE_OPTIONS" :aria-label="t('projectsUi.share.role')" />
+              <Btn kind="mini" icon="plus" :disabled="busy || !principal" @click="addPrincipal">{{ t('projectsUi.share.invite') }}</Btn>
             </div>
-            <p v-else class="dim sd__ro">Tu es en lecture seule — gestion réservée au propriétaire.</p>
+            <p v-else class="dim sd__ro">{{ t('projectsUi.share.readOnly') }}</p>
           </section>
 
           <div class="sd__hr"></div>
 
           <!-- Lien public navigable (accès « secret ») -->
           <section>
-            <div class="sd__sec"><Icon name="ext" :size="16" /><span>Lien public · navigable</span><Tag v-if="shareUrl" tone="olive">actif</Tag></div>
-            <p class="sd__desc">Un instantané lecture seule (brief + pages), navigable via une URL secrète non devinable.</p>
+            <div class="sd__sec"><Icon name="ext" :size="16" /><span>{{ t('projectsUi.share.publicLink') }}</span><Tag v-if="shareUrl" tone="olive">{{ t('projectsUi.share.active') }}</Tag></div>
+            <p class="sd__desc">{{ t('projectsUi.share.publicLinkDesc') }}</p>
             <div v-if="shareUrl" class="sd__linkrow">
               <input class="sd__url" :value="shareUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
-              <Btn kind="mini" icon="copy" @click="copyShareUrl">Copier</Btn>
+              <Btn kind="mini" icon="copy" @click="copyShareUrl">{{ t('projectsUi.share.copy') }}</Btn>
             </div>
             <!-- Le libellé dit la PORTÉE (#158) : « Partager par lien public » ici et « Partager
                  par lien » sur une page se lisaient pareil et faisaient deux choses — un
                  utilisateur a exposé un projet entier en croyant envoyer une page. -->
-            <Btn v-else-if="!readOnly" kind="mini" icon="external-link" @click="publishPublicLink()">Partager tout le projet</Btn>
-            <p v-if="!shareUrl && !readOnly" class="sd__desc" style="margin: 8px 0 0">pour n'envoyer qu'une page : ouvrez-la, Partager cette page seule.</p>
+            <Btn v-else-if="!readOnly" kind="mini" icon="external-link" @click="publishPublicLink()">{{ t('projectsUi.share.shareWholeProject') }}</Btn>
+            <p v-if="!shareUrl && !readOnly" class="sd__desc" style="margin: 8px 0 0">{{ t('projectsUi.share.onePageHint') }}</p>
 
             <!-- Ce que verra le destinataire (issue #131) : pages puis tableaux — visible dès
                  que le lien « secret » est actif, quel que soit le chemin qui l'a créé (un
@@ -377,46 +382,44 @@ async function transfer() {
 
           <!-- Endpoint MCP -->
           <section>
-            <div class="sd__sec"><Icon name="plug" :size="16" /><span>Endpoint MCP</span>
-              <Tag v-if="mcpAccess === 'anonymous'" tone="olive">public · sans login</Tag>
-              <Tag v-else-if="mcpAccess === 'secret'" tone="cobalt">secret · navigable</Tag>
-              <Tag v-else-if="mcpAccess === 'org'" tone="saffron">org · authentifié</Tag>
+            <div class="sd__sec"><Icon name="plug" :size="16" /><span>{{ t('projectsUi.share.endpoint') }}</span>
+              <Tag v-if="mcpAccess === 'anonymous'" tone="olive">{{ t('projectsUi.share.access.anonymous') }}</Tag>
+              <Tag v-else-if="mcpAccess === 'secret'" tone="cobalt">{{ t('projectsUi.share.access.secret') }}</Tag>
+              <Tag v-else-if="mcpAccess === 'org'" tone="saffron">{{ t('projectsUi.share.access.org') }}</Tag>
             </div>
-            <p class="sd__desc">Publie ce projet comme serveur MCP dédié à brancher dans Claude — sans compte Oto.</p>
+            <p class="sd__desc">{{ t('projectsUi.share.endpointDesc') }}</p>
             <template v-if="mcpActive && mcpConnectUrl">
               <div class="sd__linkrow">
                 <input class="sd__url" :value="mcpConnectUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
-                <Btn kind="mini" icon="copy" @click="copyMcp">Copier</Btn>
+                <Btn kind="mini" icon="copy" @click="copyMcp">{{ t('projectsUi.share.copy') }}</Btn>
               </div>
-              <p v-if="project.mcp_tools?.length" class="sd__tools">{{ project.mcp_tools.length }} outil(s) : {{ project.mcp_tools.join(', ') }}</p>
-              <p v-else class="sd__tools">aucun outil dédié — tout le projet visible, lecture seule</p>
+              <p v-if="project.mcp_tools?.length" class="sd__tools">{{ t('projectsUi.share.tools', { n: project.mcp_tools.length, tools: project.mcp_tools.join(', ') }, project.mcp_tools.length) }}</p>
+              <p v-else class="sd__tools">{{ t('projectsUi.share.noTools') }}</p>
 
               <!-- Mode d'emploi servi à l'invité au branchement (#309) -->
               <div v-if="dsSecret" class="sd__ds">
                 <div class="sd__dsrow">
                   <Icon name="book" :size="14" />
-                  <span class="sd__dslbl">Ce que l’invité lit en se branchant</span>
-                  <Tag v-if="project.mcp_instructions_md" tone="olive">écrit</Tag>
-                  <Tag v-else tone="terra">vide</Tag>
+                  <span class="sd__dslbl">{{ t('projectsUi.share.guideTitle') }}</span>
+                  <Tag v-if="project.mcp_instructions_md" tone="olive">{{ t('projectsUi.share.written') }}</Tag>
+                  <Tag v-else tone="terra">{{ t('projectsUi.share.empty') }}</Tag>
                 </div>
-                <p class="sd__desc">
-                  Le premier message que reçoit son agent : ce que contient ce projet et comment le lire.
-                  <strong>Ce n’est pas le brief du projet</strong>, qui reste chez toi — écris ici ce que tu
-                  assumes de montrer. Sans rien, il se branche sans savoir quoi faire.
-                </p>
+                <i18n-t keypath="projectsUi.share.guideDesc" tag="p" class="sd__desc">
+                  <template #notBrief><strong>{{ t('projectsUi.share.notBrief') }}</strong></template>
+                </i18n-t>
                 <textarea v-model="guideDraft" class="sd__area" rows="4" :disabled="readOnly || mcpBusy"
-                  placeholder="ex. Ce vivier liste les entreprises dont l’accord santé/prévoyance n’a pas bougé depuis 24 mois. Une ligne = une entreprise ; `statut` dit où elle en est."></textarea>
+                  :placeholder="t('projectsUi.share.guidePlaceholder')"></textarea>
                 <div v-if="!readOnly" class="sd__mcpact">
-                  <Btn kind="mini" icon="check" :disabled="mcpBusy || !guideDirty" @click="saveGuide">Enregistrer</Btn>
+                  <Btn kind="mini" icon="check" :disabled="mcpBusy || !guideDirty" @click="saveGuide">{{ t('common.save') }}</Btn>
                 </div>
               </div>
 
               <div v-if="!readOnly" class="sd__mcpact">
-                <Btn kind="mini" :disabled="mcpBusy" @click="endpointOpen = true">Reconfigurer</Btn>
-                <Btn kind="danger" :disabled="mcpBusy" @click="unpublishMcp">Retirer</Btn>
+                <Btn kind="mini" :disabled="mcpBusy" @click="endpointOpen = true">{{ t('projectsUi.share.reconfigure') }}</Btn>
+                <Btn kind="danger" :disabled="mcpBusy" @click="unpublishMcp">{{ t('common.remove') }}</Btn>
               </div>
             </template>
-            <Btn v-else-if="!readOnly" kind="mini" icon="plug" :disabled="mcpBusy" @click="endpointOpen = true">Publier en endpoint MCP</Btn>
+            <Btn v-else-if="!readOnly" kind="mini" icon="plug" :disabled="mcpBusy" @click="endpointOpen = true">{{ t('projectsUi.mcpPublish.title') }}</Btn>
           </section>
 
         </div>
