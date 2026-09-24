@@ -72,6 +72,7 @@ L'écran omet ses gestes, jamais grisés, et ne la répète pas ; ses lectures r
 | `/org/settings` | modifier, déposer ou retirer le logo, supprimer | `PATCH /api/orgs/{id}`, `POST`/`DELETE …/logo`, `DELETE /api/orgs/{id}` | `canAdminister` |
 | `/org/settings` | quitter | `DELETE /api/me/orgs/{id}/membership` | `canWrite` ; sans geste, la « zone danger » disparaît |
 | `/org/security` | activer ou désactiver le MFA | `PUT /api/orgs/{id}/mfa` | `canAdminister` |
+| `/org/security` | exporter le journal des accès (lecture, CSV ou JSON) | `GET /api/orgs/{id}/audit-log/export` | `isOrgAdmin` (une lecture, `ORG_ADMIN_OF`) |
 | `/org/connectors` | disponibilité, clé d'org, autoriser | `PUT`/`DELETE …/connectors/{p}/activation`, `PUT`/`DELETE …/secrets/{p}`, `POST /api/me/connectors/{p}/connect` | `canAdministerOrg` (`useOrgAdapter`) |
 | `/org/connectors` | tester | `POST /api/me/connectors/{p}/verify`, sans `op` | `canWriteInOrg` (`canVerify` du levier) |
 | `/org/connectors` | annuler un envoi programmé | `DELETE /api/orgs/{id}/scheduled-emails/{eid}` (`ORG_MEMBER_OF`) | `canWriteInOrg` |
@@ -235,3 +236,21 @@ lien porte l'invitation.
 → `acceptInvite({token})`, avec copy adaptée au scope (`InvitePreview.scope`/`group_name`
 → « rejoindre l'équipe X / oto » — une invitation d'équipe émise ailleurs s'accepte toujours ici).
 Backend : `oto-backend/docs/rest-api.md` §invitations + `capabilities/{orgs,groups,platform}_invites.py`.
+
+
+## Export du journal des accès (oto#269, 24/09/2026)
+
+`/org/security` porte l'export COMPLET du journal des accès de l'org (`OrgAuditComplianceCard.vue`,
+`lib/auditExport.ts`) : la pièce qu'un admin d'org produit devant un auditeur ou un délégué à la
+protection des données. Période optionnelle (du / au, vide = tout ce qui est conservé, 90 jours).
+L'export **parcourt toutes les pages** servies (1 000 lignes au plus chacune) : la première fixe
+la fenêtre, les suivantes ne passent que le curseur, qui la porte (le serveur refuse les deux
+ensemble). Puis il **vérifie** que les lignes reçues valent le `total` annoncé et le dit :
+« export complet », avec la fenêtre réellement appliquée (`until_effectif`), ou « incomplet, ne
+le produis pas tel quel ». CSV (colonnes du journal, sans arguments ni secrets) ou JSON (la pièce
+entière : fenêtre, total, complétude, lignes). Le nom du fichier dit la fenêtre. Ce que la pièce
+ne couvre pas, et que la carte dit : les gestes faits dans le tableau de bord, et au-delà de la
+rétention. Les deux exports gardés (décision d'Alexis, 24/09/2026) partagent l'appel
+(`getOrgAuditLogExport`), les types (`AuditExport`, `AuditCall`) et la sortie de fichier
+(`saveBlob`) : `/org/monitoring` sert la réponse brute page par page, `/org/security` la pièce
+entière vérifiée.

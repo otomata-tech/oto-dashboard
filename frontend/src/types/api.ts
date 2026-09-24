@@ -1882,6 +1882,15 @@ export function fmtDay(iso: string | null | undefined): string | null {
   return d.getDate() === 1 ? s.replace(/^1\b/, '1er') : s
 }
 
+/** Date FRANÇAISE et heure — « 24 septembre 2026 à 17 h 02 ». Pour une borne qu'on
+ *  produit en preuve (fenêtre d'un export), l'heure fait partie de l'information. */
+export function fmtDayTime(iso: string | null | undefined): string | null {
+  if (!iso) return null
+  const d = parseTs(iso)
+  const h = `${d.getHours()} h ${String(d.getMinutes()).padStart(2, '0')}`
+  return `${fmtDay(iso)} à ${h}`
+}
+
 // ── Runner : campagnes et présence (oto#205) ────────────────────────────────
 // Dérivés du document servi (prod v1.276.0). Les flottes vivaient dans
 // `api.attendu.ts` tant que seule la préprod les servait ; `armed_at`, `stopping_at`
