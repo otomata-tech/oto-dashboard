@@ -7,6 +7,9 @@
 import { computed } from 'vue'
 import Avatar from './Avatar.vue'
 import type { ConnectorMeta } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   meta?: ConnectorMeta | null
@@ -27,7 +30,7 @@ const subtitle = computed(() =>
   <div class="ci">
     <Avatar :src="logoUrl" :name="label" :size="size" shape="square" />
     <div class="ci-txt">
-      <div class="ci-name">{{ label }}<span v-if="recommended" class="tag saffron ci-reco">recommended</span></div>
+      <div class="ci-name">{{ label }}<span v-if="recommended" class="tag saffron ci-reco">{{ t('accountUi.connectors.recommended') }}</span></div>
       <div class="ci-sub">{{ subtitle }}</div>
     </div>
   </div>

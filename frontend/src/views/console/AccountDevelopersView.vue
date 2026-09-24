@@ -6,20 +6,22 @@
 import AccountTokensCard from '@/components/console/AccountTokensCard.vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Icon from '@/components/console/Icon.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 </script>
 
 <template>
   <div class="content-inner narrow fadein">
-    <ConsoleCard title="documentation" sub="la référence de l'API et les concepts">
-      <p class="helptext">
-        <strong>docs.oto.cx</strong> porte deux entrées : la <strong>référence REST</strong>,
-        dérivée du serveur — elle ne peut pas mentir sur ce qui existe —, et les
-        <strong>concepts</strong>, qui disent ce que chaque objet garantit et ce sur quoi
-        on peut compter en l'utilisant.
-      </p>
+    <ConsoleCard :title="t('accountUi.docs.title')" :sub="t('accountUi.docs.sub')">
+      <i18n-t keypath="accountUi.docs.body" tag="p" class="helptext">
+        <template #site><strong>docs.oto.cx</strong></template>
+        <template #rest><strong>{{ t('accountUi.docs.rest') }}</strong></template>
+        <template #concepts><strong>{{ t('accountUi.docs.concepts') }}</strong></template>
+      </i18n-t>
       <a class="doclink" href="https://docs.oto.cx" target="_blank" rel="noopener">
         <Icon name="code" :size="13" />
-        ouvrir docs.oto.cx
+        {{ t('accountUi.docs.open') }}
       </a>
     </ConsoleCard>
     <AccountTokensCard />

@@ -14,6 +14,9 @@ import { getGuides, getGuide, setGuide, deleteGuide } from '@/api/console'
 import type { Guide, GuideScope } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   scope: GuideScope
@@ -32,7 +35,7 @@ const busy = ref(false)
 const confirming = ref<string | null>(null)     // slug en attente de confirmation de suppression
 const openInherited = ref<Set<string>>(new Set()) // corps hérités dépliés (lecture seule)
 const inheritedBody = ref<Record<string, string>>({})
-const SCOPE_LABEL: Record<string, string> = { platform: 'plateforme', org: 'org', user: 'perso' }
+const portee = (scope: string) => (['platform', 'org', 'user'].includes(scope) ? t(`contextUi.guides.scope.${scope}`) : scope)
 
 // Éditeur inline : slug ciblé ('' = création), + brouillon. `creating` = slug libre.
 const editing = ref<string | null>(null)
@@ -80,13 +83,13 @@ async function save() {
   const d = draft.value
   const slug = d.slug.trim()
   if (creating.value && !SLUG_RE.test(slug)) {
-    toast('slug invalide — minuscules, chiffres, tirets (ex. cadence-outreach).'); return
+    toast(t('contextUi.guides.badSlug')); return
   }
-  if (!d.body_md.trim()) { toast('le corps du guide est vide.'); return }
+  if (!d.body_md.trim()) { toast(t('contextUi.guides.emptyBody')); return }
   busy.value = true
   try {
     await setGuide(props.scope, slug, d.body_md, d.title.trim(), d.description.trim())
-    toast(creating.value ? 'guide créé' : 'guide mis à jour')
+    toast(creating.value ? t('contextUi.guides.created') : t('contextUi.guides.updated'))
     cancelEdit()
     await load()
   } catch (e) { toast(humanize(e)) }
@@ -97,7 +100,7 @@ async function remove(g: Guide) {
   busy.value = true
   try {
     await deleteGuide(props.scope, g.slug)
-    toast('guide supprimé')
+    toast(t('contextUi.guides.deleted'))
     confirming.value = null
     await load()
   } catch (e) { toast(humanize(e)) }
@@ -120,24 +123,24 @@ async function toggleInherited(g: Guide) {
 <template>
   <ConsoleCard :title="title" :sub="sub">
     <template v-if="canEdit && !editing" #actions>
-      <Btn kind="mini" icon="plus" @click="startCreate">Nouveau guide</Btn>
+      <Btn kind="mini" icon="plus" @click="startCreate">{{ t('contextUi.guides.new') }}</Btn>
     </template>
 
-    <p v-if="!loaded" class="dim-note">{{ $t('common.loading') }}</p>
+    <p v-if="!loaded" class="dim-note">{{ t('common.loading') }}</p>
     <p v-else-if="error" class="dim-note" style="color: var(--color-terra-ink)">{{ error }}</p>
 
     <template v-else>
       <!-- Éditeur inline (création ou édition) -->
       <div v-if="editing" class="gd-editor">
-        <input v-if="creating" v-model="draft.slug" class="gd-inp" placeholder="slug (ex. cadence-outreach)" />
+        <input v-if="creating" v-model="draft.slug" class="gd-inp" :placeholder="t('contextUi.guides.slugPlaceholder')" />
         <div v-else class="gd-slugfixed"><code>{{ draft.slug }}</code></div>
-        <input v-model="draft.title" class="gd-inp" placeholder="titre lisible" />
-        <input v-model="draft.description" class="gd-inp" placeholder="description courte (aide l'agent à choisir)" />
+        <input v-model="draft.title" class="gd-inp" :placeholder="t('contextUi.guides.titlePlaceholder')" />
+        <input v-model="draft.description" class="gd-inp" :placeholder="t('contextUi.guides.descPlaceholder')" />
         <textarea v-model="draft.body_md" rows="10" class="gd-inp gd-body"
-          placeholder="markdown — le how-to que l'agent charge quand il en a besoin." />
+          :placeholder="t('contextUi.guides.bodyPlaceholder')" />
         <div class="gd-actions">
-          <Btn kind="mini" :disabled="busy" @click="cancelEdit">Annuler</Btn>
-          <Btn :disabled="busy" @click="save">{{ creating ? 'Créer' : 'Enregistrer' }}</Btn>
+          <Btn kind="mini" :disabled="busy" @click="cancelEdit">{{ t('common.cancel') }}</Btn>
+          <Btn :disabled="busy" @click="save">{{ creating ? t('contextUi.guides.create') : t('common.save') }}</Btn>
         </div>
       </div>
 
@@ -150,34 +153,32 @@ async function toggleInherited(g: Guide) {
           </div>
           <template v-if="canEdit">
             <template v-if="confirming === g.slug">
-              <span class="dim-note">supprimer ?</span>
-              <Btn kind="mini" :disabled="busy" @click="remove(g)">Oui</Btn>
-              <Btn kind="mini" :disabled="busy" @click="confirming = null">Non</Btn>
+              <span class="dim-note">{{ t('contextUi.guides.confirmDelete') }}</span>
+              <Btn kind="mini" :disabled="busy" @click="remove(g)">{{ t('contextUi.guides.yes') }}</Btn>
+              <Btn kind="mini" :disabled="busy" @click="confirming = null">{{ t('contextUi.guides.no') }}</Btn>
             </template>
             <template v-else>
-              <Btn kind="mini" :disabled="busy" @click="startEdit(g)">Éditer</Btn>
-              <Btn kind="mini" :disabled="busy" @click="confirming = g.slug">Supprimer</Btn>
+              <Btn kind="mini" :disabled="busy" @click="startEdit(g)">{{ t('contextUi.readme.edit') }}</Btn>
+              <Btn kind="mini" :disabled="busy" @click="confirming = g.slug">{{ t('common.delete') }}</Btn>
             </template>
           </template>
         </div>
       </div>
       <p v-else-if="!editing" class="dim-note">
-        aucun guide {{ scope === 'platform' ? 'plateforme' : scope === 'org' ? "d'org" : 'perso' }} —
-        un how-to que l'agent charge à la demande
-        (waterfall d'enrichissement, cadence d'outreach, diagnostic d'un connecteur…).
-        {{ canEdit ? '' : "seul un admin d'org peut en créer." }}
+        {{ t(`contextUi.guides.empty.${scope}`) }}
+        {{ canEdit ? '' : t('contextUi.guides.adminOnly') }}
       </p>
 
       <!-- Guides hérités (plateforme + org pour la carte user), référence lecture seule.
            L'agent les charge aussi à la demande — tu ne les édites pas ici. -->
       <div v-if="inherited.length" class="gd-platform">
-        <div class="gd-plat-head">hérités · lecture seule · chargés aussi par ton agent</div>
+        <div class="gd-plat-head">{{ t('contextUi.guides.inherited') }}</div>
         <div v-for="g in inherited" :key="inheritedKey(g)" class="gd-plat-row">
           <div class="gd-plat-line" @click="toggleInherited(g)">
             <Icon name="chevd" :size="12" class="gd-chev" :class="{ open: openInherited.has(inheritedKey(g)) }" />
             <span class="gd-title">{{ g.title || g.slug }}</span>
             <code class="gd-slug">{{ g.slug }}</code>
-            <span class="gd-plat-scope">{{ SCOPE_LABEL[g.scope] || g.scope }}</span>
+            <span class="gd-plat-scope">{{ portee(g.scope) }}</span>
             <span v-if="g.description" class="dim-note gd-plat-desc">{{ g.description }}</span>
           </div>
           <!-- Rendu, pas brut : un guide est de la doc (titres, tableaux symptôme →

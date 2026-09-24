@@ -82,6 +82,8 @@ const ligne = (host: HTMLElement, outil: string) =>
   [...host.querySelectorAll('.tool-row')].find((r) => texte(r.querySelector('.tool-name')) === outil)
 
 beforeEach(() => {
+  // Les libellés attendus sont ceux de l'écran en français.
+  i18n.global.locale.value = 'fr'
   vi.clearAllMocks()
   me.value = { sub: 'u-1', home_org: 42, home_org_name: 'Acme' }
   api.getAgentContext.mockResolvedValue({

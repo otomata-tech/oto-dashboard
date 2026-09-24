@@ -1330,5 +1330,334 @@
       },
       "created": "tableau « {name} » créé"
     }
+  },
+  "accountUi": {
+    "tokens": {
+      "copyFailed": "copie impossible — sélectionne et copie à la main",
+      "revokeTitle": "révoquer le token",
+      "revoke": "Révoquer",
+      "revokeMessage": "révoquer « {label} » ?",
+      "revoked": "token révoqué",
+      "title": "tokens cli & api",
+      "sub": "tokens longue durée pour la cli oto et les environnements de ci.",
+      "new": "Nouveau token",
+      "col": {
+        "label": "libellé",
+        "scope": "portée",
+        "expires": "expire",
+        "created": "créé",
+        "lastUsed": "dernier usage"
+      },
+      "wholeOrg": "toute l'org",
+      "scopeCount": "{tables}, {projects}",
+      "tables": "{n} tableau | {n} tableau | {n} tableaux",
+      "projects": "{n} projet | {n} projet | {n} projets",
+      "never": "jamais",
+      "neverUsed": "jamais",
+      "empty": "aucun token pour l'instant",
+      "newTitle": "nouveau token cli",
+      "newDesc": "token longue durée pour la cli oto et les environnements de ci.",
+      "labelPlaceholder": "ex. cli, ci",
+      "labelHint": "pour reconnaître ce token dans la liste.",
+      "org": "organisation",
+      "personalSpace": "mon espace personnel",
+      "nothingInOrg": "aucun tableau ni projet dans cette organisation.",
+      "read": "lecture",
+      "write": "écriture",
+      "allRights": "rien de coché ⇒ ce jeton aura {all} dans cette organisation. Coche ce dont l'intégration a besoin, et rien de plus.",
+      "allRightsStrong": "tous tes droits",
+      "ttl": "expire après (jours)",
+      "ttlPlaceholder": "laisser vide = jamais",
+      "ttlHint": "vide ⇒ le jeton n'expire pas, et rien ne te le rappellera ensuite.",
+      "creating": "création…",
+      "create": "créer",
+      "revealTitle": "copie ce token maintenant",
+      "revealDesc": "il n'est affiché qu'une fois — range-le dans ton gestionnaire de secrets.",
+      "copied": "copié ✓",
+      "copy": "copier",
+      "done": "terminé"
+    },
+    "security": {
+      "factor": {
+        "Totp": "application authenticator",
+        "WebAuthn": "passkey",
+        "BackupCode": "codes de secours",
+        "EmailVerificationCode": "code email",
+        "PhoneVerificationCode": "code SMS"
+      },
+      "totpAdded": "authenticator ajouté",
+      "backupDesc": "note-les maintenant et garde-les en lieu sûr — ils ne seront plus affichés. ils remplacent tout lot précédent.",
+      "codes": "codes",
+      "noted": "c'est noté",
+      "renameTitle": "renommer le facteur",
+      "rename": "renommer",
+      "renameBtn": "Renommer",
+      "removeTitle": "retirer ce facteur",
+      "remove": "Retirer",
+      "removeMessage": "retirer « {name} » ? tu ne pourras plus l'utiliser pour te connecter.",
+      "removed": "facteur retiré",
+      "title": "sécurité · 2FA",
+      "sub": "facteurs de double authentification de ton compte (passkey, application, codes de secours).",
+      "addTotpBtn": "App authenticator",
+      "backupBtn": "Codes de secours",
+      "reconnect": "reconnecte-toi une fois (se déconnecter puis se reconnecter) pour activer la gestion 2FA — ton compte doit accorder une nouvelle autorisation.",
+      "totpHead": "ajouter une application authenticator",
+      "totpHelp": "scanne le QR (ou saisis la clé) dans ton app (Google Authenticator, 1Password…), puis entre le code à 6 chiffres.",
+      "qrAlt": "QR TOTP",
+      "verify": "Vérifier",
+      "col": {
+        "factor": "facteur",
+        "name": "nom",
+        "added": "ajouté",
+        "lastUsed": "dernier usage"
+      },
+      "remaining": "{n} restant | {n} restant | {n} restants",
+      "empty": "aucun facteur 2FA — ajoute une app authenticator, ou une passkey à la prochaine connexion.",
+      "login": "connexion",
+      "passkeyHint": "la {passkey} se configure à la {login} (écran « configurer le MFA ») ; elle apparaît ensuite ici, où tu peux la renommer ou la retirer."
+    },
+    "share": {
+      "joinOrg": "rejoins une org pour partager un compte",
+      "member": "membre de ton org active",
+      "orEmail": "ou email (hors org)",
+      "email": "email de la personne",
+      "emailPlaceholder": "personne{'@'}exemple.com",
+      "grantTitle": "{channel} — autoriser quelqu'un à opérer ton compte",
+      "grantDesc": "la personne autorisée pourra agir SOUS ton identité sur ce canal (messages, actions), même hors de tes orgs. révocable à tout moment, effet immédiat.",
+      "grant": "autoriser",
+      "needWho": "indique un membre ou un email",
+      "granted": "accès autorisé",
+      "revokeTitle": "révoquer {who}",
+      "revokeMessage": "révoquer l'autorisation de {who} d'opérer ton compte {channel} ? effet immédiat sur son prochain appel.",
+      "revoked": "autorisation révoquée",
+      "alsoBy": "opéré aussi par",
+      "grantBtn": "Autoriser quelqu'un",
+      "canOperate": "peut opérer ce compte",
+      "since": "depuis {date}"
+    },
+    "docs": {
+      "title": "documentation",
+      "sub": "la référence de l'API et les concepts",
+      "body": "{site} porte deux entrées : la {rest}, dérivée du serveur — elle ne peut pas mentir sur ce qui existe —, et les {concepts}, qui disent ce que chaque objet garantit et ce sur quoi on peut compter en l'utilisant.",
+      "rest": "référence REST",
+      "concepts": "concepts",
+      "open": "ouvrir docs.oto.cx"
+    },
+    "connectors": {
+      "recommended": "recommandé"
+    },
+    "oauth": {
+      "revokeTitle": "révoquer le compte google",
+      "revokeMessage": "révoquer {email} ? les outils qui s'en servent perdront l'accès.",
+      "revoked": "autorisation révoquée",
+      "default": "par défaut",
+      "granted": "accordé {date}",
+      "empty": "aucun compte lié pour l'instant — lie-en un pour débloquer les outils du connecteur.",
+      "link": "Lier un compte"
+    },
+    "shared": {
+      "source": {
+        "org": "la clé de {org}",
+        "yourOrg": "la clé de ton org",
+        "namedTeam": "la clé de ton équipe ({team})",
+        "team": "la clé de ton équipe",
+        "shared": "une clé partagée"
+      },
+      "state": {
+        "active": "actif",
+        "paused": "masqué",
+        "not_selected": "non installé"
+      },
+      "title": "connecteurs partagés",
+      "sub": "ce que tu peux utiliser sans poser ta propre clé — fourni par ton organisation ou ton équipe. ta clé perso, si tu en ajoutes une, prime toujours.",
+      "teamKey": "clé d'équipe",
+      "orgKey": "clé d'org",
+      "resolvedBy": "résolu par {source}",
+      "emptyTitle": "aucun connecteur partagé",
+      "empty": "ton org ou ton équipe ne fournit pas (encore) de clé partagée. en attendant, connecte tes propres clés depuis {link}.",
+      "myConnectors": "mes connecteurs"
+    }
+  },
+  "contextUi": {
+    "noOrg": {
+      "title": "aucune org active",
+      "body": "tu n'es encore membre d'aucune organisation."
+    },
+    "layers": {
+      "nature": {
+        "platform": "socle plateforme",
+        "catalog": "dérivé · catalogue des connecteurs",
+        "context": "dérivé · résolu à chaque session",
+        "profile": "entretenue par ton agent",
+        "org": "écrite par un admin de ton org",
+        "group": "écrite par ton chef d’équipe",
+        "user": "ta prose, injectée après le reste"
+      },
+      "ghost": {
+        "org": "readme de ton org",
+        "profile": "ta fiche",
+        "user": "ta note"
+      },
+      "total": "{n} caractères injectés à chaque conversation",
+      "empty": "vide",
+      "chars": "{n} c.",
+      "writeOrg": "Écrire côté org →",
+      "viewEdit": "Voir / éditer →",
+      "nothing": "rien pour l'instant — cette couche n'est pas injectée."
+    },
+    "readme": {
+      "emptyPublish": "readme vide — rien à publier",
+      "published": "agent readme publié — injecté aux prochaines sessions",
+      "edit": "Éditer",
+      "write": "Écrire",
+      "placeholder": "markdown libre — injecté au début de chaque session.",
+      "publish": "Publier",
+      "injected": "injecté à chaque session",
+      "updated": "maj {date}",
+      "nothing": "rien d'écrit — l'agent démarre sans ce niveau de readme.",
+      "nothingHint": "écris ici ce qu’il doit toujours savoir : contexte, règles, ton."
+    },
+    "preview": {
+      "title": "ce que voit ton agent",
+      "sub": "le contexte qu'oto injecte à ton Claude à chaque session — instructions, readme, outils visibles.",
+      "open": "ouvrir →",
+      "orgReadmeSet": "readme org · défini",
+      "orgReadmeEmpty": "readme org · vide",
+      "team": "équipe : {team}",
+      "procedures": "{n} procédure | {n} procédure | {n} procédures",
+      "tools": "{n} outil visible | {n} outil visible | {n} outils visibles",
+      "unavailable": "contexte indisponible pour le moment."
+    },
+    "profile": {
+      "saved": "profil mis à jour — relu à chaque session",
+      "title": "situation avec oto",
+      "sub": "ce que ton agent sait de toi (métier, objectifs, CRM, ton) — relu à chaque session. l'agent l'entretient au fil de l'eau ; tu peux l'éditer ici.",
+      "edit": "éditer",
+      "fill": "remplir",
+      "addPlaceholder": "ajouter un champ (ex. langue)",
+      "addField": "＋ champ",
+      "filled": "{n} champ renseigné | {n} champ renseigné | {n} champs renseignés",
+      "nothing": "rien de renseigné — l'agent démarre sans contexte sur toi. remplis-la, ou laisse l'agent la compléter au fil des conversations."
+    },
+    "guides": {
+      "scope": {
+        "platform": "plateforme",
+        "org": "org",
+        "user": "perso"
+      },
+      "badSlug": "slug invalide — minuscules, chiffres, tirets (ex. cadence-outreach).",
+      "emptyBody": "le corps du guide est vide.",
+      "created": "guide créé",
+      "updated": "guide mis à jour",
+      "deleted": "guide supprimé",
+      "new": "Nouveau guide",
+      "slugPlaceholder": "slug (ex. cadence-outreach)",
+      "titlePlaceholder": "titre lisible",
+      "descPlaceholder": "description courte (aide l'agent à choisir)",
+      "bodyPlaceholder": "markdown — le how-to que l'agent charge quand il en a besoin.",
+      "create": "Créer",
+      "confirmDelete": "supprimer ?",
+      "yes": "Oui",
+      "no": "Non",
+      "empty": {
+        "platform": "aucun guide plateforme — un how-to que l'agent charge à la demande (waterfall d'enrichissement, cadence d'outreach, diagnostic d'un connecteur…).",
+        "org": "aucun guide d'org — un how-to que l'agent charge à la demande (waterfall d'enrichissement, cadence d'outreach, diagnostic d'un connecteur…).",
+        "user": "aucun guide perso — un how-to que l'agent charge à la demande (waterfall d'enrichissement, cadence d'outreach, diagnostic d'un connecteur…)."
+      },
+      "adminOnly": "seul un admin d'org peut en créer.",
+      "inherited": "hérités · lecture seule · chargés aussi par ton agent"
+    },
+    "agent": {
+      "title": "contexte de l'agent",
+      "sub": "exactement ce que ton Claude reçoit d'oto à la connexion : instructions de la plateforme, agent readme cumulés, et les outils visibles sous ton org active. lecture seule.",
+      "serverTitle": "instructions serveur",
+      "serverSub": "injectées au handshake MCP. posture + bootstrap + boucle d'usage + catalogue de namespaces dérivé du registre.",
+      "static": "plateforme · statique",
+      "hide": "Masquer",
+      "showFull": "Voir le texte intégral",
+      "chars": "{n} caractère | {n} caractère | {n} caractères",
+      "readmeTitle": "agent readme & procédures",
+      "readmeSub": "les readme cumulés (org → équipe → toi), injectés à chaque session, + les procédures de ton org (chargées à la demande). readme org : /org · readme perso : ci-dessus · procédures : /procedures.",
+      "noOrg": "aucune org active → ton agent démarre généraliste, sans readme d'org.",
+      "procedures": "Les procédures →",
+      "col": {
+        "title": "titre",
+        "scope": "portée",
+        "visible": "visibles"
+      },
+      "nothing": "rien d'écrit pour l'instant — l'agent ne reçoit que les instructions plateforme + les outils.",
+      "toolsTitle": "outils visibles",
+      "toolsSub": "les outils que ton agent voit RÉELLEMENT sous ton org active (après activation des connecteurs + tes réglages) — ton sous-ensemble effectif du catalogue.",
+      "visibleHidden": "{visible} visibles · {hidden} masqués",
+      "toolsUnavailable": "calcul de visibilité indisponible."
+    },
+    "view": {
+      "lead": "l'anatomie exacte de ce que ton Claude reçoit d'oto au démarrage de chaque conversation — couche par couche, avec le poids de chacune. clique une couche pour lire son contenu et l'éditer.",
+      "profileSub": "ce que ton agent sait de toi (métier, objectifs, CRM, ton). il la remplit au fil des conversations ; tu peux la corriger ici.",
+      "noteSub": "ta prose libre — préférences, contexte, ton. injectée à chaque session, après les couches d'org et d'équipe.",
+      "notePlaceholder": "ex. je préfère des réponses courtes ; mes clients sont des PME ; signe mes emails « Alexis ».",
+      "onDemandTitle": "ce qu'il va chercher au besoin",
+      "onDemand": "des how-to qu'il {notKept} mais qu'il ouvre quand la tâche le demande (via {tool}) — zéro poids sur les conversations qui n'en ont pas besoin.",
+      "notKept": "ne garde pas en tête",
+      "yourGuides": "tes guides",
+      "canDoTitle": "ce qu'il peut faire",
+      "canDo": "les outils visibles pour ton agent. déplie un namespace pour voir ses outils.",
+      "visibleMasked": "{visible} visibles · {masked} masqués par toi",
+      "toolsUnavailable": "la liste exacte des outils de ton agent n'a pas pu être calculée pour le moment.",
+      "protected": "protégé",
+      "maskedByYou": "masqué par toi",
+      "maskedHint": "un outil peut rester masqué si son connecteur n'est pas activé pour l'org — {link}.",
+      "manageConnections": "gérer les connexions",
+      "homeTitle": "org par défaut",
+      "homeSub": "l'org sous laquelle ton agent agit par défaut dans une nouvelle conversation — recompose toutes les couches ci-dessus.",
+      "homeNone": "aucune · généraliste",
+      "homeNoneOption": "aucune (agent généraliste)",
+      "saving": "enregistrement…"
+    },
+    "org": {
+      "title": "ce que voit l'agent · socle de l'org",
+      "lead": "le contexte garanti à {every} de {org} : la prose de l'org, celle des équipes, et les connecteurs mis à disposition. l'artefact exact d'un membre dépend aussi de son équipe et de ses préférences.",
+      "every": "tout membre",
+      "yourOrg": "ton org",
+      "noOrg": "aucune org active.",
+      "readmeTitle": "readme de l'org",
+      "readmeSub": "la prose de l'org (contexte métier, règles, vocabulaire) injectée au début de chaque session de chaque membre — avant l'équipe et l'utilisateur. variables : {vars}.",
+      "readmePlaceholder": "ex. nous vendons des audits RGPD à des ETI ; toujours vérifier le SIREN via fr_get avant d'écrire au CRM.",
+      "teamTitle": "readme d'équipe",
+      "teamSub": "chaque équipe peut ajouter sa prose, injectée après celle de l'org pour ses membres. édition par équipe.",
+      "manageTeams": "Gérer les équipes →",
+      "noTeam": "aucune équipe — l'org n'a pas d'équipe pour l'instant.",
+      "members": "{n} membre | {n} membre | {n} membres",
+      "guidesTitle": "guides de l'org",
+      "guidesSub": "des how-to que l'agent de chaque membre charge à la demande (via oto_guide) — pas injectés à chaque session comme le readme. réservé aux admins d'org.",
+      "connectorsTitle": "connecteurs mis à disposition",
+      "connectorsSub": "les connecteurs activés pour l'org — leurs outils sont disponibles aux membres (chacun affine sa visibilité). la baseline de toolset définit ce qui est visible par défaut.",
+      "manageConnectors": "Gérer connecteurs & baseline →",
+      "noConnector": "aucun connecteur activé pour l'org."
+    },
+    "platform": {
+      "block": {
+        "secret_sauce": {
+          "title": "bloc A · secret sauce",
+          "sub": "posture + boucle d’usage + catalogue de namespaces (dérivé, ajouté automatiquement). toujours injecté, en tête du contexte de chaque agent."
+        }
+      },
+      "alwaysInjected": "toujours injecté",
+      "saved": "bloc « {block} » enregistré",
+      "title": "ce que voit l'agent · tronc plateforme",
+      "lead": "les instructions serveur injectées à {all} les sessions de tous les utilisateurs, avant tout readme d'org. inviolables par les orgs. + les guides on-demand et les masters de connecteurs qui bornent ce que chaque org peut activer.",
+      "all": "toutes",
+      "seed": "défaut (jamais édité)",
+      "edited": "édité",
+      "updatedBy": "maj par {who}",
+      "restore": "Rétablir le défaut",
+      "saving": "Enregistrement…",
+      "guidesTitle": "guides plateforme",
+      "guidesSub": "how-to chargés à la demande par l'agent (oto_guide), servis à TOUS les comptes. distincts des blocs injectés ci-dessus : l'agent les lit quand la tâche le demande.",
+      "mastersTitle": "masters de connecteurs",
+      "mastersSub": "l'interrupteur global par connecteur : ce qui est disponible à toute la plateforme (chaque org active ensuite dans cette limite).",
+      "manageMasters": "Gérer les masters →",
+      "mastersHint": "l'activation master + la clé plateforme se gèrent dans le cockpit connecteurs plateforme."
+    }
   }
 }

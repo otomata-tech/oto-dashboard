@@ -11,6 +11,9 @@ import Tag from './Tag.vue'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   title: string
@@ -49,11 +52,11 @@ function edit() {
 }
 async function saveDraft() {
   const b = draft.value.trim()
-  if (!b && !props.allowEmpty) { toast('readme vide — rien à publier'); return }
+  if (!b && !props.allowEmpty) { toast(t('contextUi.readme.emptyPublish')); return }
   busy.value = true
   try {
     await props.save(b)
-    toast('agent readme publié — injecté aux prochaines sessions')
+    toast(t('contextUi.readme.published'))
     editing.value = false
     await reload()
   } catch (e) { toast(humanize(e)) }
@@ -64,29 +67,29 @@ async function saveDraft() {
 <template>
   <ConsoleCard :title="title" :sub="sub">
     <template v-if="canEdit && !editing" #actions>
-      <Btn kind="mini" icon="pen" @click="edit">{{ body ? 'Éditer' : 'Écrire' }}</Btn>
+      <Btn kind="mini" icon="pen" @click="edit">{{ body ? t('contextUi.readme.edit') : t('contextUi.readme.write') }}</Btn>
     </template>
 
-    <p v-if="!loaded" class="dim-note">{{ $t('common.loading') }}</p>
+    <p v-if="!loaded" class="dim-note">{{ t('common.loading') }}</p>
 
     <template v-else-if="editing">
       <textarea v-model="draft" rows="10" class="rd-edit"
-        :placeholder="placeholder || 'markdown libre — injecté au début de chaque session.'" />
+        :placeholder="placeholder || t('contextUi.readme.placeholder')" />
       <div class="rd-actions">
-        <Btn kind="mini" :disabled="busy" @click="editing = false">Annuler</Btn>
-        <Btn :disabled="busy" @click="saveDraft">Publier</Btn>
+        <Btn kind="mini" :disabled="busy" @click="editing = false">{{ t('common.cancel') }}</Btn>
+        <Btn :disabled="busy" @click="saveDraft">{{ t('contextUi.readme.publish') }}</Btn>
       </div>
     </template>
 
     <template v-else>
       <div class="rd-meta">
-        <Tag :tone="body ? 'olive' : undefined">{{ body ? 'injecté à chaque session' : 'vide' }}</Tag>
-        <span v-if="updatedAt" class="dim-note">maj {{ fmtDate(updatedAt) }}</span>
+        <Tag :tone="body ? 'olive' : undefined">{{ body ? t('contextUi.readme.injected') : t('contextUi.layers.empty') }}</Tag>
+        <span v-if="updatedAt" class="dim-note">{{ t('contextUi.readme.updated', { date: fmtDate(updatedAt) }) }}</span>
       </div>
       <pre v-if="body" class="rd-body">{{ body }}</pre>
       <p v-else class="dim-note">
-        rien d'écrit — l'agent démarre sans ce niveau de readme.
-        {{ canEdit ? 'écris ici ce qu’il doit toujours savoir : contexte, règles, ton.' : '' }}
+        {{ t('contextUi.readme.nothing') }}
+        {{ canEdit ? t('contextUi.readme.nothingHint') : '' }}
       </p>
     </template>
   </ConsoleCard>

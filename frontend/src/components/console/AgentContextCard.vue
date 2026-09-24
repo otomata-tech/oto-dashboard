@@ -11,6 +11,9 @@ import Btn from './Btn.vue'
 import { getAgentContext } from '@/api/console'
 import type { AgentContext } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const ctx = ref<AgentContext | null>(null)
 const loaded = ref(false)
@@ -37,26 +40,25 @@ onMounted(load)
 </script>
 
 <template>
-  <ConsoleCard title="agent context" flush
-    sub="exactement ce que ton Claude reçoit d'oto à la connexion : instructions de la plateforme, agent readme cumulés, et les outils visibles sous ton org active. lecture seule.">
+  <ConsoleCard :title="t('contextUi.agent.title')" flush :sub="t('contextUi.agent.sub')">
     <p v-if="error" class="dim" style="font-size: 13px; padding: 0 16px 12px">{{ error }}</p>
-    <p v-else-if="!loaded" class="dim" style="font-size: 13px; padding: 0 16px 12px">{{ $t('common.loading') }}</p>
+    <p v-else-if="!loaded" class="dim" style="font-size: 13px; padding: 0 16px 12px">{{ t('common.loading') }}</p>
 
     <template v-else-if="ctx">
       <!-- Couche 1 — instructions serveur (plateforme, statique) -->
       <section class="ctx-layer">
         <header class="ctx-head">
           <div>
-            <div class="ctx-title">server instructions</div>
-            <div class="ctx-sub">injectées au handshake MCP. posture + bootstrap + boucle d'usage + catalogue de namespaces dérivé du registre.</div>
+            <div class="ctx-title">{{ t('contextUi.agent.serverTitle') }}</div>
+            <div class="ctx-sub">{{ t('contextUi.agent.serverSub') }}</div>
           </div>
-          <Tag tone="cobalt">plateforme · statique</Tag>
+          <Tag tone="cobalt">{{ t('contextUi.agent.static') }}</Tag>
         </header>
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px">
           <Btn kind="mini" @click="showInstructions = !showInstructions">
-            {{ showInstructions ? 'Masquer' : 'Voir le texte intégral' }}
+            {{ showInstructions ? t('contextUi.agent.hide') : t('contextUi.agent.showFull') }}
           </Btn>
-          <span class="dim" style="font-size: 12px">{{ ctx.instructions.length }} caractères</span>
+          <span class="dim" style="font-size: 12px">{{ t('contextUi.agent.chars', ctx.instructions.length) }}</span>
         </div>
         <pre v-if="showInstructions" class="ctx-pre">{{ ctx.instructions }}</pre>
       </section>
@@ -65,25 +67,25 @@ onMounted(load)
       <section class="ctx-layer">
         <header class="ctx-head">
           <div>
-            <div class="ctx-title">agent readme & procédures</div>
-            <div class="ctx-sub">les readme cumulés (org → équipe → toi), injectés à chaque session, + les procédures de ton org (chargées à la demande). readme org : /org · readme perso : ci-dessus · procédures : /procedures.</div>
+            <div class="ctx-title">{{ t('contextUi.agent.readmeTitle') }}</div>
+            <div class="ctx-sub">{{ t('contextUi.agent.readmeSub') }}</div>
           </div>
-          <Tag tone="olive">{{ doctrine?.org || 'aucune org active' }}</Tag>
+          <Tag tone="olive">{{ doctrine?.org || t('contextUi.noOrg.title') }}</Tag>
         </header>
         <div v-if="!doctrine?.org_id" class="dim" style="font-size: 13px">
-          aucune org active → ton agent démarre généraliste, sans readme d'org.
+          {{ t('contextUi.agent.noOrg') }}
         </div>
         <template v-else>
           <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px">
             <Tag :tone="hasBaseDoctrine ? 'olive' : undefined">
-              readme org · {{ hasBaseDoctrine ? 'défini' : 'vide' }}
+              {{ hasBaseDoctrine ? t('contextUi.preview.orgReadmeSet') : t('contextUi.preview.orgReadmeEmpty') }}
             </Tag>
-            <Tag tone="cobalt">{{ namedDoctrines.length }} procédure(s)</Tag>
-            <Tag v-if="doctrine?.group" tone="saffron">équipe : {{ doctrine.group }}</Tag>
-            <RouterLink to="/procedures"><Btn kind="mini">Les procédures →</Btn></RouterLink>
+            <Tag tone="cobalt">{{ t('contextUi.preview.procedures', namedDoctrines.length) }}</Tag>
+            <Tag v-if="doctrine?.group" tone="saffron">{{ t('contextUi.preview.team', { team: doctrine.group }) }}</Tag>
+            <RouterLink to="/procedures"><Btn kind="mini">{{ t('contextUi.agent.procedures') }}</Btn></RouterLink>
           </div>
           <table v-if="namedDoctrines.length" class="tbl">
-            <thead><tr><th>slug</th><th>titre</th><th>portée</th></tr></thead>
+            <thead><tr><th>slug</th><th>{{ t('contextUi.agent.col.title') }}</th><th>{{ t('contextUi.agent.col.scope') }}</th></tr></thead>
             <tbody>
               <tr v-for="d in namedDoctrines" :key="d.scope + d.slug">
                 <td style="font-weight: 600; color: var(--color-ink)">{{ d.slug }}</td>
@@ -93,7 +95,7 @@ onMounted(load)
             </tbody>
           </table>
           <p v-else-if="!hasBaseDoctrine" class="dim" style="font-size: 13px">
-            rien d'écrit pour l'instant — l'agent ne reçoit que les instructions plateforme + les outils.
+            {{ t('contextUi.agent.nothing') }}
           </p>
         </template>
       </section>
@@ -102,22 +104,22 @@ onMounted(load)
       <section class="ctx-layer">
         <header class="ctx-head">
           <div>
-            <div class="ctx-title">visible tools</div>
-            <div class="ctx-sub">les outils que ton agent voit RÉELLEMENT sous ton org active (après activation des connecteurs + tes réglages) — ton sous-ensemble effectif du catalogue.</div>
+            <div class="ctx-title">{{ t('contextUi.agent.toolsTitle') }}</div>
+            <div class="ctx-sub">{{ t('contextUi.agent.toolsSub') }}</div>
           </div>
           <Tag v-if="tools?.available" tone="olive">
-            {{ tools.total_visible }} visibles · {{ tools.total_hidden }} masqués
+            {{ t('contextUi.agent.visibleHidden', { visible: tools.total_visible, hidden: tools.total_hidden }) }}
           </Tag>
         </header>
-        <p v-if="!tools?.available" class="dim" style="font-size: 13px">calcul de visibilité indisponible.</p>
+        <p v-if="!tools?.available" class="dim" style="font-size: 13px">{{ t('contextUi.agent.toolsUnavailable') }}</p>
         <table v-else class="tbl">
-          <thead><tr><th>namespace</th><th style="width: 120px">visibles</th><th style="width: 90px"></th></tr></thead>
+          <thead><tr><th>namespace</th><th style="width: 120px">{{ t('contextUi.agent.col.visible') }}</th><th style="width: 90px"></th></tr></thead>
           <tbody>
             <tr v-for="n in nsRows" :key="n.namespace">
               <td style="font-weight: 600; color: var(--color-ink)">{{ n.namespace }}_*</td>
               <td>{{ n.visible }} / {{ n.total }}</td>
               <td style="text-align: right">
-                <Tag :tone="n.visible > 0 ? 'olive' : undefined">{{ n.visible > 0 ? 'actif' : 'masqué' }}</Tag>
+                <Tag :tone="n.visible > 0 ? 'olive' : undefined">{{ n.visible > 0 ? t('accountUi.shared.state.active') : t('accountUi.shared.state.paused') }}</Tag>
               </td>
             </tr>
           </tbody>

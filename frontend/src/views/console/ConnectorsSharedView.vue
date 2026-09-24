@@ -15,6 +15,9 @@ import { useMe } from '@/composables/useMe'
 import { getMyConnectors } from '@/api/console'
 import type { MyConnector, ConnectorState } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const router = useRouter()
 const { me } = useMe()
@@ -38,15 +41,16 @@ const shared = computed(() =>
     .filter((c) => { const m = modeOf(c.name); return m === 'org' || m === 'group' })
     .sort((a, b) => a.label.localeCompare(b.label)))
 
-const SOURCE_LABEL: Record<string, string> = {
-  org: `la clé de ${me.value?.active_org_name || 'ton org'}`,
-  group: `la clé de ton équipe${me.value?.active_group_name ? ` (${me.value.active_group_name})` : ''}`,
+function sourceLabel(name: string): string {
+  const mode = modeOf(name)
+  if (mode === 'org') return me.value?.active_org_name
+    ? t('accountUi.shared.source.org', { org: me.value.active_org_name }) : t('accountUi.shared.source.yourOrg')
+  if (mode === 'group') return me.value?.active_group_name
+    ? t('accountUi.shared.source.namedTeam', { team: me.value.active_group_name }) : t('accountUi.shared.source.team')
+  return t('accountUi.shared.source.shared')
 }
-const sourceLabel = (name: string) => SOURCE_LABEL[modeOf(name) ?? ''] ?? 'une clé partagée'
 
-const STATE_LABEL: Record<ConnectorState, string> = {
-  active: 'actif', paused: 'masqué', not_selected: 'non installé',
-}
+const etat = (s: ConnectorState) => t(`accountUi.shared.state.${s}`)
 // Fiche de présentation (marketplace) — même geste que les cartes user/org/plateforme.
 const ficheTo = (c: MyConnector) =>
   `/connectors?tab=marketplace&connector=${encodeURIComponent(c.name)}`
@@ -54,8 +58,7 @@ const ficheTo = (c: MyConnector) =>
 
 <template>
   <div class="content-inner">
-    <ConsoleCard title="connecteurs partagés"
-      sub="ce que tu peux utiliser sans poser ta propre clé — fourni par ton organisation ou ton équipe. ta clé perso, si tu en ajoutes une, prime toujours.">
+    <ConsoleCard :title="t('accountUi.shared.title')" :sub="t('accountUi.shared.sub')">
       <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
       <!-- Tuiles = MÊME shell que les cartes user/org/plateforme (ADR 0024 §3) ;
@@ -66,25 +69,25 @@ const ficheTo = (c: MyConnector) =>
           fill :to="ficheTo(c)">
           <template #header-right>
             <Tag :tone="modeOf(c.name) === 'group' ? 'cobalt' : 'olive'">
-              {{ modeOf(c.name) === 'group' ? 'team key' : 'org key' }}
+              {{ modeOf(c.name) === 'group' ? t('accountUi.shared.teamKey') : t('accountUi.shared.orgKey') }}
             </Tag>
           </template>
           <ConnectorTileBody :description="c.help" :meta="c">
             <template #footer>
-              <span class="sh-src">résolu par <strong>{{ sourceLabel(c.name) }}</strong></span>
-              <span class="sh-state" :class="c.state">{{ STATE_LABEL[c.state] }}</span>
+              <i18n-t keypath="accountUi.shared.resolvedBy" tag="span" class="sh-src">
+                <template #source><strong>{{ sourceLabel(c.name) }}</strong></template>
+              </i18n-t>
+              <span class="sh-state" :class="c.state">{{ etat(c.state) }}</span>
             </template>
           </ConnectorTileBody>
         </ConnectorCardShell>
       </div>
 
       <div v-else-if="loaded && !error" class="state-empty" style="margin-top: 24px">
-        <h3>aucun connecteur partagé</h3>
-        <p>
-          ton org ou ton équipe ne fournit pas (encore) de clé partagée. en attendant, connecte
-          tes propres clés depuis
-          <a href="#" @click.prevent="router.push('/connectors')">mes connecteurs</a>.
-        </p>
+        <h3>{{ t('accountUi.shared.emptyTitle') }}</h3>
+        <i18n-t keypath="accountUi.shared.empty" tag="p">
+          <template #link><a href="#" @click.prevent="router.push('/connectors')">{{ t('accountUi.shared.myConnectors') }}</a></template>
+        </i18n-t>
       </div>
     </ConsoleCard>
   </div>

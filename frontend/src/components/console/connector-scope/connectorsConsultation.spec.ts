@@ -106,7 +106,7 @@ const CAS: [string, Cas][] = [
     charger: () => import('../ConnectorOAuthAccounts.vue'),
     avant: () => api.getGoogleStatus.mockResolvedValue({ accounts: [
       { email: 'a@acme.test', is_default: true, scopes: ['gmail'], granted_at: '2026-09-01' }] }),
-    gestes: ['Revoke', 'Link account'], lectures: ['a@acme.test'] }],
+    gestes: ['Révoquer', 'Lier un compte'], lectures: ['a@acme.test'] }],
   ['MCP fédéré — connecté', {
     charger: () => import('../ConnectorFederatedWidget.vue'),
     props: () => ({ connector: ATLASSIAN }),
@@ -179,6 +179,8 @@ const presents = (cliquables: string[], gestes: string[]) =>
   gestes.filter((g) => cliquables.some((c) => c.includes(g)))
 
 beforeEach(() => {
+  // Les libellés attendus sont ceux de l'écran en français.
+  i18n.global.locale.value = 'fr'
   vi.clearAllMocks()
   api.getOrgConnectorActivation.mockResolvedValue({ connectors: [] })
   api.getConnectorInstances.mockResolvedValue({ instances: [] })

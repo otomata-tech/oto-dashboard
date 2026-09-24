@@ -15,16 +15,14 @@ import { getPlatformInstructions, setPlatformInstruction } from '@/api/console'
 import type { PlatformInstrBlock } from '@/types/api'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { toast } = useToast()
 
-const META: Record<string, { title: string; sub: string; tag: string }> = {
-  secret_sauce: {
-    title: 'bloc A · secret sauce',
-    sub: 'posture + boucle d’usage + catalogue de namespaces (dérivé, ajouté automatiquement). toujours injecté, en tête du contexte de chaque agent.',
-    tag: 'toujours injecté',
-  },
-}
+// Les blocs que l'écran sait nommer ; un bloc inconnu se montre sous sa clé.
+const BLOCS_CONNUS = new Set(['secret_sauce'])
 
 const blocks = ref<PlatformInstrBlock[]>([])
 const loaded = ref(false)
@@ -34,7 +32,12 @@ const draft = reactive<Record<string, string>>({})
 const saving = reactive<Record<string, boolean>>({})
 
 function meta(key: string) {
-  return META[key] ?? { title: key, sub: '', tag: '' }
+  if (!BLOCS_CONNUS.has(key)) return { title: key, sub: '', tag: '' }
+  return {
+    title: t(`contextUi.platform.block.${key}.title`),
+    sub: t(`contextUi.platform.block.${key}.sub`),
+    tag: t('contextUi.platform.alwaysInjected'),
+  }
 }
 function dirty(b: PlatformInstrBlock): boolean {
   return (draft[b.key] ?? '') !== b.body_md
@@ -63,7 +66,7 @@ async function save(b: PlatformInstrBlock) {
     const i = blocks.value.findIndex((x) => x.key === b.key)
     if (i >= 0) blocks.value[i] = updated
     draft[b.key] = updated.body_md
-    toast(`bloc « ${meta(b.key).title} » enregistré`)
+    toast(t('contextUi.platform.saved', { block: meta(b.key).title }))
   } catch (e) {
     toast(humanize(e))
   } finally {
@@ -84,35 +87,33 @@ onMounted(load)
 <template>
   <div class="content-inner fadein">
     <header class="ctx-intro">
-      <h2 class="ctx-h1">ce que voit l'agent · tronc plateforme</h2>
-      <p class="ctx-lead">
-        les instructions serveur injectées à <strong>toutes</strong> les sessions de tous les
-        utilisateurs, avant tout readme d'org. inviolables par les orgs. + les guides on-demand
-        et les masters de connecteurs qui bornent ce que chaque org peut activer.
-      </p>
+      <h2 class="ctx-h1">{{ t('contextUi.platform.title') }}</h2>
+      <i18n-t keypath="contextUi.platform.lead" tag="p" class="ctx-lead">
+        <template #all><strong>{{ t('contextUi.platform.all') }}</strong></template>
+      </i18n-t>
     </header>
 
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
-    <p v-else-if="!loaded" class="helptext">{{ $t('common.loading') }}</p>
+    <p v-else-if="!loaded" class="helptext">{{ t('common.loading') }}</p>
 
     <template v-else>
       <ConsoleCard v-for="b in blocks" :key="b.key" :title="meta(b.key).title" :sub="meta(b.key).sub">
         <template #actions>
           <Tag tone="saffron">{{ meta(b.key).tag }}</Tag>
-          <Tag :tone="b.is_seed ? undefined : 'olive'">{{ b.is_seed ? 'défaut (jamais édité)' : 'édité' }}</Tag>
+          <Tag :tone="b.is_seed ? undefined : 'olive'">{{ b.is_seed ? t('contextUi.platform.seed') : t('contextUi.platform.edited') }}</Tag>
         </template>
 
         <textarea v-model="draft[b.key]" class="instr-area" spellcheck="false"></textarea>
 
         <div class="instr-bar">
           <span class="dim" style="font-size: 12px">
-            {{ (draft[b.key] ?? '').length }} caractères<template v-if="b.updated_by"> · maj par {{ b.updated_by }}</template>
+            {{ t('contextUi.agent.chars', (draft[b.key] ?? '').length) }}<template v-if="b.updated_by"> · {{ t('contextUi.platform.updatedBy', { who: b.updated_by }) }}</template>
           </span>
           <span style="flex: 1"></span>
-          <Btn v-if="!isDefault(b)" kind="mini" @click="restoreDefault(b)">Rétablir le défaut</Btn>
-          <Btn v-if="dirty(b)" kind="mini" @click="revert(b)">Annuler</Btn>
+          <Btn v-if="!isDefault(b)" kind="mini" @click="restoreDefault(b)">{{ t('contextUi.platform.restore') }}</Btn>
+          <Btn v-if="dirty(b)" kind="mini" @click="revert(b)">{{ t('common.cancel') }}</Btn>
           <Btn :disabled="!dirty(b) || saving[b.key]" @click="save(b)">
-            {{ saving[b.key] ? 'Enregistrement…' : 'Enregistrer' }}
+            {{ saving[b.key] ? t('contextUi.platform.saving') : t('common.save') }}
           </Btn>
         </div>
       </ConsoleCard>
@@ -120,15 +121,13 @@ onMounted(load)
       <!-- Guides plateforme on-demand (ADR 0042, tout-DB) : les how-to que TOUT agent
            peut charger via oto_guide. Éditables ici (platform_admin, le backend l'impose) ;
            les fichiers guides/*.md du repo ne sont que les seeds du premier boot. -->
-      <GuidesCard scope="platform" :can-edit="true" title="guides plateforme"
-        sub="how-to chargés à la demande par l'agent (oto_guide), servis à TOUS les comptes. distincts des blocs injectés ci-dessus : l'agent les lit quand la tâche le demande." />
+      <GuidesCard scope="platform" :can-edit="true" :title="t('contextUi.platform.guidesTitle')" :sub="t('contextUi.platform.guidesSub')" />
 
-      <ConsoleCard title="masters de connecteurs" flush
-        sub="l'interrupteur global par connecteur : ce qui est disponible à toute la plateforme (chaque org active ensuite dans cette limite).">
+      <ConsoleCard :title="t('contextUi.platform.mastersTitle')" flush :sub="t('contextUi.platform.mastersSub')">
         <template #actions>
-          <RouterLink to="/platform/connectors"><Btn kind="mini">Gérer les masters →</Btn></RouterLink>
+          <RouterLink to="/platform/connectors"><Btn kind="mini">{{ t('contextUi.platform.manageMasters') }}</Btn></RouterLink>
         </template>
-        <p class="helptext">l'activation master + la clé plateforme se gèrent dans le cockpit connecteurs plateforme.</p>
+        <p class="helptext">{{ t('contextUi.platform.mastersHint') }}</p>
       </ConsoleCard>
     </template>
   </div>

@@ -14,6 +14,9 @@ import {
 } from '@/lib/account'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
@@ -30,13 +33,9 @@ const totp = ref<{ secret: string; secretQrCode?: string } | null>(null)
 const totpCode = ref('')
 const busy = ref(false)
 
-const LABEL: Record<string, string> = {
-  Totp: 'application authenticator',
-  WebAuthn: 'passkey',
-  BackupCode: 'codes de secours',
-  EmailVerificationCode: 'code email',
-  PhoneVerificationCode: 'code SMS',
-}
+const FACTEURS = ['Totp', 'WebAuthn', 'BackupCode', 'EmailVerificationCode', 'PhoneVerificationCode']
+/** Le nom d'un type de facteur ; un type inconnu se montre tel quel. */
+const libelle = (type: string) => (FACTEURS.includes(type) ? t(`accountUi.security.factor.${type}`) : type)
 
 async function reload() {
   loading.value = true
@@ -73,7 +72,7 @@ async function confirmTotp() {
   try {
     await bindTotp(totp.value.secret, totpCode.value.trim())
     totp.value = null
-    toast('authenticator ajouté')
+    toast(t('accountUi.security.totpAdded'))
     await reload()
   } catch (e) { toast(humanize(e)) } finally { busy.value = false }
 }
@@ -83,10 +82,10 @@ async function backupCodes() {
   try {
     const { codes } = await generateBackupCodes()
     openForm({
-      title: 'codes de secours',
-      description: 'note-les maintenant et garde-les en lieu sûr — ils ne seront plus affichés. ils remplacent tout lot précédent.',
-      fields: [{ key: 'codes', label: 'codes', initial: (codes || []).join('\n'), type: 'textarea' }],
-      submitLabel: 'c\'est noté',
+      title: t('accountUi.security.factor.BackupCode'),
+      description: t('accountUi.security.backupDesc'),
+      fields: [{ key: 'codes', label: t('accountUi.security.codes'), initial: (codes || []).join('\n'), type: 'textarea' }],
+      submitLabel: t('accountUi.security.noted'),
       onConfirm: async () => { await reload() },
     })
   } catch (e) { toast(humanize(e)) } finally { busy.value = false }
@@ -94,9 +93,9 @@ async function backupCodes() {
 
 function rename(f: MfaFactor) {
   openForm({
-    title: 'renommer le facteur',
-    fields: [{ key: 'name', label: 'nom', initial: f.name || '' }],
-    submitLabel: 'renommer',
+    title: t('accountUi.security.renameTitle'),
+    fields: [{ key: 'name', label: t('accountUi.security.col.name'), initial: f.name || '' }],
+    submitLabel: t('accountUi.security.rename'),
     onConfirm: async (v) => {
       try { await renameFactor(f.id, v.name || ''); await reload() } catch (e) { toast(humanize(e)); throw e }
     },
@@ -104,62 +103,63 @@ function rename(f: MfaFactor) {
 }
 
 async function remove(f: MfaFactor) {
-  if (!await confirmAction({ title: 'retirer ce facteur', danger: true, confirmLabel: 'Retirer', message: `retirer « ${f.name || LABEL[f.type] || f.type} » ? tu ne pourras plus l'utiliser pour te connecter.` })) return
-  try { await deleteFactor(f.id); toast('facteur retiré'); await reload() } catch (e) { toast(humanize(e)) }
+  if (!await confirmAction({ title: t('accountUi.security.removeTitle'), danger: true, confirmLabel: t('accountUi.security.remove'), message: t('accountUi.security.removeMessage', { name: f.name || libelle(f.type) }) })) return
+  try { await deleteFactor(f.id); toast(t('accountUi.security.removed')); await reload() } catch (e) { toast(humanize(e)) }
 }
 
 onMounted(reload)
 </script>
 
 <template>
-  <ConsoleCard id="security" title="sécurité · 2FA" flush
-    sub="facteurs de double authentification de ton compte (passkey, application, codes de secours).">
+  <ConsoleCard id="security" :title="t('accountUi.security.title')" flush :sub="t('accountUi.security.sub')">
     <template #actions>
-      <Btn kind="mini" icon="plus" :disabled="busy || needsReconnect" @click="startTotp">App authenticator</Btn>
-      <Btn kind="mini" :disabled="busy || needsReconnect" @click="backupCodes">Codes de secours</Btn>
+      <Btn kind="mini" icon="plus" :disabled="busy || needsReconnect" @click="startTotp">{{ t('accountUi.security.addTotpBtn') }}</Btn>
+      <Btn kind="mini" :disabled="busy || needsReconnect" @click="backupCodes">{{ t('accountUi.security.backupBtn') }}</Btn>
     </template>
 
     <p v-if="needsReconnect" class="helptext" style="padding: 8px 2px">
-      reconnecte-toi une fois (se déconnecter puis se reconnecter) pour activer la gestion 2FA —
-      ton compte doit accorder une nouvelle autorisation.
+      {{ t('accountUi.security.reconnect') }}
     </p>
 
     <!-- Setup TOTP inline -->
     <div v-if="totp" class="totp-setup">
-      <div class="totp-head">ajouter une application authenticator</div>
-      <p class="helptext">scanne le QR (ou saisis la clé) dans ton app (Google Authenticator, 1Password…), puis entre le code à 6 chiffres.</p>
-      <img v-if="totp.secretQrCode" :src="totp.secretQrCode" alt="QR TOTP" class="totp-qr" />
+      <div class="totp-head">{{ t('accountUi.security.totpHead') }}</div>
+      <p class="helptext">{{ t('accountUi.security.totpHelp') }}</p>
+      <img v-if="totp.secretQrCode" :src="totp.secretQrCode" :alt="t('accountUi.security.qrAlt')" class="totp-qr" />
       <code class="totp-secret">{{ totp.secret }}</code>
       <div class="totp-verify">
         <input v-model="totpCode" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" maxlength="6" />
-        <Btn :disabled="busy || totpCode.length < 6" @click="confirmTotp">Vérifier</Btn>
-        <Btn kind="ghost" :disabled="busy" @click="totp = null">Annuler</Btn>
+        <Btn :disabled="busy || totpCode.length < 6" @click="confirmTotp">{{ t('accountUi.security.verify') }}</Btn>
+        <Btn kind="ghost" :disabled="busy" @click="totp = null">{{ t('common.cancel') }}</Btn>
       </div>
     </div>
 
     <table v-if="!needsReconnect" class="tbl">
-      <thead><tr><th>facteur</th><th>nom</th><th>ajouté</th><th>dernier usage</th><th style="width: 90px"></th></tr></thead>
+      <thead><tr><th>{{ t('accountUi.security.col.factor') }}</th><th>{{ t('accountUi.security.col.name') }}</th><th>{{ t('accountUi.security.col.added') }}</th><th>{{ t('accountUi.security.col.lastUsed') }}</th><th style="width: 90px"></th></tr></thead>
       <tbody>
         <tr v-for="f in factors" :key="f.id">
-          <td><Tag :tone="f.type === 'WebAuthn' ? 'olive' : f.type === 'BackupCode' ? 'ink' : 'saffron'">{{ LABEL[f.type] || f.type }}</Tag></td>
+          <td><Tag :tone="f.type === 'WebAuthn' ? 'olive' : f.type === 'BackupCode' ? 'ink' : 'saffron'">{{ libelle(f.type) }}</Tag></td>
           <td style="color: var(--color-ink)">
-            {{ f.name || (f.type === 'BackupCode' && f.remainCodes != null ? `${f.remainCodes} restants` : '—') }}
+            {{ f.name || (f.type === 'BackupCode' && f.remainCodes != null ? t('accountUi.security.remaining', f.remainCodes) : '—') }}
           </td>
           <td class="dim">{{ fmtDate(f.createdAt) }}</td>
-          <td class="dim">{{ fmtDate(f.lastUsedAt) ?? 'jamais' }}</td>
+          <td class="dim">{{ fmtDate(f.lastUsedAt) ?? t('accountUi.tokens.never') }}</td>
           <td style="text-align: right; white-space: nowrap">
-            <Btn v-if="f.type !== 'BackupCode'" kind="mini" @click="rename(f)">Renommer</Btn>
-            <Btn kind="danger" @click="remove(f)">Retirer</Btn>
+            <Btn v-if="f.type !== 'BackupCode'" kind="mini" @click="rename(f)">{{ t('accountUi.security.renameBtn') }}</Btn>
+            <Btn kind="danger" @click="remove(f)">{{ t('accountUi.security.remove') }}</Btn>
           </td>
         </tr>
         <tr v-if="!loading && !factors.length">
-          <td colspan="5" class="dim" style="text-align: center; padding: 16px">aucun facteur 2FA — ajoute une app authenticator, ou une passkey à la prochaine connexion.</td>
+          <td colspan="5" class="dim" style="text-align: center; padding: 16px">{{ t('accountUi.security.empty') }}</td>
         </tr>
       </tbody>
     </table>
 
     <p v-if="!needsReconnect" class="helptext" style="padding: 10px 2px 0">
-      la <strong>passkey</strong> se configure à la <strong>connexion</strong> (écran « configurer le MFA ») ; elle apparaît ensuite ici, où tu peux la renommer ou la retirer.
+      <i18n-t keypath="accountUi.security.passkeyHint" tag="span">
+        <template #passkey><strong>{{ t('accountUi.security.factor.WebAuthn') }}</strong></template>
+        <template #login><strong>{{ t('accountUi.security.login') }}</strong></template>
+      </i18n-t>
     </p>
 
     <FormDialog v-if="formDialog" v-model:open="formDialogOpen"

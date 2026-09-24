@@ -8,6 +8,9 @@ import ConsoleCard from './ConsoleCard.vue'
 import Tag from './Tag.vue'
 import { getAgentContext } from '@/api/console'
 import type { AgentContext } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const ctx = ref<AgentContext | null>(null)
 const doctrine = computed(() => ctx.value?.doctrine ?? null)
@@ -20,18 +23,17 @@ onMounted(async () => {
 </script>
 
 <template>
-  <ConsoleCard title="ce que voit ton agent"
-    sub="le contexte qu'oto injecte à ton Claude à chaque session — instructions, readme, outils visibles.">
+  <ConsoleCard :title="t('contextUi.preview.title')" :sub="t('contextUi.preview.sub')">
     <template #actions>
-      <RouterLink class="linklike" to="/context">ouvrir →</RouterLink>
+      <RouterLink class="linklike" to="/context">{{ t('contextUi.preview.open') }}</RouterLink>
     </template>
     <div v-if="ctx" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
-      <Tag :tone="doctrine?.org ? 'olive' : undefined">{{ doctrine?.org || 'aucune org active' }}</Tag>
-      <Tag :tone="hasOrgReadme ? 'olive' : undefined">readme org · {{ hasOrgReadme ? 'défini' : 'vide' }}</Tag>
-      <Tag v-if="doctrine?.group" tone="saffron">équipe : {{ doctrine.group }}</Tag>
-      <Tag tone="cobalt">{{ (doctrine?.doctrines?.length ?? 0) }} procédure(s)</Tag>
-      <Tag v-if="tools?.available" tone="olive">{{ tools.total_visible }} outils visibles</Tag>
+      <Tag :tone="doctrine?.org ? 'olive' : undefined">{{ doctrine?.org || t('contextUi.noOrg.title') }}</Tag>
+      <Tag :tone="hasOrgReadme ? 'olive' : undefined">{{ hasOrgReadme ? t('contextUi.preview.orgReadmeSet') : t('contextUi.preview.orgReadmeEmpty') }}</Tag>
+      <Tag v-if="doctrine?.group" tone="saffron">{{ t('contextUi.preview.team', { team: doctrine.group }) }}</Tag>
+      <Tag tone="cobalt">{{ t('contextUi.preview.procedures', doctrine?.doctrines?.length ?? 0) }}</Tag>
+      <Tag v-if="tools?.available" tone="olive">{{ t('contextUi.preview.tools', tools.total_visible ?? 0) }}</Tag>
     </div>
-    <p v-else class="helptext">contexte indisponible pour le moment.</p>
+    <p v-else class="helptext">{{ t('contextUi.preview.unavailable') }}</p>
   </ConsoleCard>
 </template>

@@ -19,6 +19,9 @@ import { porteeDepuis, schemaLabel } from './tokenScope'
 import type { ApiToken, Org, DatastoreEntry, Project } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // Tokens CLI/API = identité du compte (/api/me/tokens, user-scoped) → ils vivent
 // dans le hub compte, pas dans les connecteurs (qui sont org-scopés).
@@ -110,12 +113,12 @@ async function copyToken() {
   try {
     await navigator.clipboard.writeText(revealed.value)
     copied.value = true
-  } catch { toast('copie impossible — sélectionne et copie à la main') }
+  } catch { toast(t('accountUi.tokens.copyFailed')) }
 }
 
-async function revokeToken(t: ApiToken) {
-  if (!await confirmAction({ title: 'revoke token', danger: true, confirmLabel: 'Revoke', message: `revoke "${t.label}"?` })) return
-  try { await deleteToken(t.id); toast('token revoked'); await reload() } catch (e) { toast(humanize(e)) }
+async function revokeToken(tok: ApiToken) {
+  if (!await confirmAction({ title: t('accountUi.tokens.revokeTitle'), danger: true, confirmLabel: t('accountUi.tokens.revoke'), message: t('accountUi.tokens.revokeMessage', { label: tok.label }) })) return
+  try { await deleteToken(tok.id); toast(t('accountUi.tokens.revoked')); await reload() } catch (e) { toast(humanize(e)) }
 }
 
 onMounted(async () => {
@@ -128,28 +131,29 @@ onMounted(async () => {
 </script>
 
 <template>
-  <ConsoleCard id="tokens" title="cli & api tokens" flush
-    sub="long-lived tokens for the oto cli and ci environments.">
-    <template #actions><Btn kind="mini" icon="plus" @click="createOpen = true">New token</Btn></template>
+  <ConsoleCard id="tokens" :title="t('accountUi.tokens.title')" flush :sub="t('accountUi.tokens.sub')">
+    <template #actions><Btn kind="mini" icon="plus" @click="createOpen = true">{{ t('accountUi.tokens.new') }}</Btn></template>
     <table class="tbl">
-      <thead><tr><th>label</th><th>portée</th><th>expire</th><th>created</th><th>last used</th><th style="width: 80px"></th></tr></thead>
+      <thead><tr><th>{{ t('accountUi.tokens.col.label') }}</th><th>{{ t('accountUi.tokens.col.scope') }}</th><th>{{ t('accountUi.tokens.col.expires') }}</th><th>{{ t('accountUi.tokens.col.created') }}</th><th>{{ t('accountUi.tokens.col.lastUsed') }}</th><th style="width: 80px"></th></tr></thead>
       <tbody>
-        <tr v-for="t in tokens" :key="t.id">
-          <td style="font-weight: 600; color: var(--color-ink)">{{ t.label }}</td>
+        <tr v-for="tok in tokens" :key="tok.id">
+          <td style="font-weight: 600; color: var(--color-ink)">{{ tok.label }}</td>
           <!-- ⚠️ Un jeton sans portée ouvre TOUTE l'organisation : c'est le fait que
                cet écran taisait, et qui a fait partir 35 tableaux chez un tiers. Il se
                lit d'un coup d'œil dans la liste, pas seulement à la création. -->
           <td>
-            <span v-if="!t.scopes" class="tout-org">toute l'org</span>
-            <span v-else class="dim">{{ Object.keys((t.scopes as any).namespaces ?? {}).length }} tableau(x),
-              {{ Object.keys((t.scopes as any).projects ?? {}).length }} projet(s)</span>
+            <span v-if="!tok.scopes" class="tout-org">{{ t('accountUi.tokens.wholeOrg') }}</span>
+            <span v-else class="dim">{{ t('accountUi.tokens.scopeCount', {
+              tables: t('accountUi.tokens.tables', Object.keys((tok.scopes as any).namespaces ?? {}).length),
+              projects: t('accountUi.tokens.projects', Object.keys((tok.scopes as any).projects ?? {}).length),
+            }) }}</span>
           </td>
-          <td class="dim">{{ fmtDate(t.expires_at) ?? 'jamais' }}</td>
-          <td class="dim">{{ fmtDate(t.created_at) }}</td>
-          <td class="dim">{{ fmtDate(t.last_used_at) ?? 'never' }}</td>
-          <td style="text-align: right"><Btn kind="danger" @click="revokeToken(t)">Revoke</Btn></td>
+          <td class="dim">{{ fmtDate(tok.expires_at) ?? t('accountUi.tokens.never') }}</td>
+          <td class="dim">{{ fmtDate(tok.created_at) }}</td>
+          <td class="dim">{{ fmtDate(tok.last_used_at) ?? t('accountUi.tokens.neverUsed') }}</td>
+          <td style="text-align: right"><Btn kind="danger" @click="revokeToken(tok)">{{ t('accountUi.tokens.revoke') }}</Btn></td>
         </tr>
-        <tr v-if="!tokens.length"><td colspan="6" class="dim" style="text-align: center; padding: 16px">no tokens yet</td></tr>
+        <tr v-if="!tokens.length"><td colspan="6" class="dim" style="text-align: center; padding: 16px">{{ t('accountUi.tokens.empty') }}</td></tr>
       </tbody>
     </table>
 
@@ -157,17 +161,17 @@ onMounted(async () => {
     <Dialog :open="createOpen" @update:open="createOpen = $event">
       <DialogContent class="sm:max-w-[420px]">
         <DialogHeader>
-          <DialogTitle>new cli token</DialogTitle>
-          <DialogDescription>long-lived token for the oto cli and ci environments.</DialogDescription>
+          <DialogTitle>{{ t('accountUi.tokens.newTitle') }}</DialogTitle>
+          <DialogDescription>{{ t('accountUi.tokens.newDesc') }}</DialogDescription>
         </DialogHeader>
         <form class="grid gap-4" @submit.prevent="submitCreate">
           <FormField v-slot="{ componentField }" name="label">
             <FormItem>
-              <FormLabel>label</FormLabel>
+              <FormLabel>{{ t('accountUi.tokens.col.label') }}</FormLabel>
               <FormControl>
-                <Input type="text" placeholder="e.g. cli, ci" autocomplete="off" v-bind="componentField" />
+                <Input type="text" :placeholder="t('accountUi.tokens.labelPlaceholder')" autocomplete="off" v-bind="componentField" />
               </FormControl>
-              <FormDescription>pour reconnaître ce token dans la liste.</FormDescription>
+              <FormDescription>{{ t('accountUi.tokens.labelHint') }}</FormDescription>
               <FormMessage />
             </FormItem>
           </FormField>
@@ -175,27 +179,27 @@ onMounted(async () => {
           <!-- L'ORG décide où naît le jeton : elle pose `X-Oto-Org` sur la création,
                et c'est elle qui détermine quels tableaux sont proposés en dessous. -->
           <div class="grid gap-1">
-            <label class="lbl" for="tok-org">organisation</label>
+            <label class="lbl" for="tok-org">{{ t('accountUi.tokens.org') }}</label>
             <select id="tok-org" v-model="orgId" class="sel">
-              <option :value="null">mon espace personnel</option>
+              <option :value="null">{{ t('accountUi.tokens.personalSpace') }}</option>
               <option v-for="o in orgs" :key="o.id" :value="o.id">{{ o.name }}</option>
             </select>
           </div>
 
           <div v-if="orgId" class="grid gap-1">
-            <label class="lbl">portée</label>
-            <p v-if="chargePortee" class="dim">{{ $t('common.loading') }}</p>
+            <label class="lbl">{{ t('accountUi.tokens.col.scope') }}</label>
+            <p v-if="chargePortee" class="dim">{{ t('common.loading') }}</p>
             <template v-else>
               <p v-if="!datastores.length && !projects.length" class="dim">
-                aucun tableau ni projet dans cette organisation.
+                {{ t('accountUi.tokens.nothingInOrg') }}
               </p>
               <div v-else class="portee">
                 <div v-for="n in datastores" :key="n.datastore" class="ligne">
                   <span class="nom">{{ n.datastore }}</span>
                   <select v-model="nsRights[n.datastore]" class="sel mini">
                     <option :value="undefined">—</option>
-                    <option value="read">lecture</option>
-                    <option value="write">écriture</option>
+                    <option value="read">{{ t('accountUi.tokens.read') }}</option>
+                    <option value="write">{{ t('accountUi.tokens.write') }}</option>
                   </select>
                 </div>
                 <div v-for="p in projects" :key="p.id" class="ligne">
@@ -204,35 +208,36 @@ onMounted(async () => {
                     :checked="!!projRead[String(p.id)]"
                     @change="(e: Event) => (e.target as HTMLInputElement).checked
                       ? (projRead[String(p.id)] = true) : delete projRead[String(p.id)]" />
-                    lecture</label>
+                    {{ t('accountUi.tokens.read') }}</label>
                 </div>
               </div>
             </template>
             <!-- ⚠️ Dit AVANT de créer, pas après : c'est le moment où la personne peut
                  encore choisir autrement. Le mot exact du backend, pas un euphémisme. -->
             <p v-if="!porteeChoisie()" class="avert">
-              rien de coché ⇒ ce jeton aura <strong>tous tes droits</strong> dans cette
-              organisation. Coche ce dont l'intégration a besoin, et rien de plus.
+              <i18n-t keypath="accountUi.tokens.allRights" tag="span">
+                <template #all><strong>{{ t('accountUi.tokens.allRightsStrong') }}</strong></template>
+              </i18n-t>
             </p>
           </div>
 
           <FormField v-slot="{ componentField }" name="ttl_days">
             <FormItem>
-              <FormLabel>expire après (jours)</FormLabel>
+              <FormLabel>{{ t('accountUi.tokens.ttl') }}</FormLabel>
               <FormControl>
-                <Input type="number" min="1" placeholder="laisser vide = jamais"
+                <Input type="number" min="1" :placeholder="t('accountUi.tokens.ttlPlaceholder')"
                        autocomplete="off" v-bind="componentField" />
               </FormControl>
               <FormDescription>
-                vide ⇒ le jeton n'expire pas, et rien ne te le rappellera ensuite.
+                {{ t('accountUi.tokens.ttlHint') }}
               </FormDescription>
               <FormMessage />
             </FormItem>
           </FormField>
 
           <DialogFooter>
-            <Button type="button" variant="ghost" :disabled="isSubmitting" @click="createOpen = false">annuler</Button>
-            <Button type="submit" :disabled="isSubmitting">{{ isSubmitting ? 'création…' : 'créer' }}</Button>
+            <Button type="button" variant="ghost" :disabled="isSubmitting" @click="createOpen = false">{{ t('common.cancel') }}</Button>
+            <Button type="submit" :disabled="isSubmitting">{{ isSubmitting ? t('accountUi.tokens.creating') : t('accountUi.tokens.create') }}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -242,15 +247,15 @@ onMounted(async () => {
     <Dialog :open="revealed !== null" @update:open="onRevealOpen">
       <DialogContent class="sm:max-w-[460px]">
         <DialogHeader>
-          <DialogTitle>copie ce token maintenant</DialogTitle>
-          <DialogDescription>il n'est affiché qu'une fois — range-le dans ton gestionnaire de secrets.</DialogDescription>
+          <DialogTitle>{{ t('accountUi.tokens.revealTitle') }}</DialogTitle>
+          <DialogDescription>{{ t('accountUi.tokens.revealDesc') }}</DialogDescription>
         </DialogHeader>
         <div class="flex items-center gap-2">
           <Input :model-value="revealed ?? ''" readonly class="font-mono text-[12px]" @focus="(e: FocusEvent) => (e.target as HTMLInputElement).select()" />
-          <Button type="button" variant="outline" @click="copyToken">{{ copied ? 'copié ✓' : 'copier' }}</Button>
+          <Button type="button" variant="outline" @click="copyToken">{{ copied ? t('accountUi.tokens.copied') : t('accountUi.tokens.copy') }}</Button>
         </div>
         <DialogFooter>
-          <Button type="button" @click="onRevealOpen(false)">terminé</Button>
+          <Button type="button" @click="onRevealOpen(false)">{{ t('accountUi.tokens.done') }}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

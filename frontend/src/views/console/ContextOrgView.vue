@@ -18,6 +18,9 @@ import {
 } from '@/api/console'
 import type { GroupListItem, OrgConnectorActivation } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { me } = useMe()
 const activeOrgId = computed(() => me.value?.active_org ?? null)
@@ -54,53 +57,49 @@ onMounted(load)
 <template>
   <div class="content-inner fadein">
     <header class="ctx-intro">
-      <h2 class="ctx-h1">ce que voit l'agent · socle de l'org</h2>
-      <p class="ctx-lead">
-        le contexte garanti à <strong>tout membre</strong> de {{ orgName || 'ton org' }} : la prose
-        de l'org, celle des équipes, et les connecteurs mis à disposition. l'artefact exact d'un
-        membre dépend aussi de son équipe et de ses préférences.
-      </p>
+      <h2 class="ctx-h1">{{ t('contextUi.org.title') }}</h2>
+      <i18n-t keypath="contextUi.org.lead" tag="p" class="ctx-lead">
+        <template #every><strong>{{ t('contextUi.org.every') }}</strong></template>
+        <template #org>{{ orgName || t('contextUi.org.yourOrg') }}</template>
+      </i18n-t>
     </header>
 
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
-    <p v-else-if="activeOrgId == null" class="helptext">aucune org active.</p>
+    <p v-else-if="activeOrgId == null" class="helptext">{{ t('contextUi.org.noOrg') }}</p>
 
     <template v-else>
       <!-- readme org (éditable) -->
-      <AgentReadmeCard title="readme de l'org"
-        sub="la prose de l'org (contexte métier, règles, vocabulaire) injectée au début de chaque session de chaque membre — avant l'équipe et l'utilisateur. variables : {{org}} {{user}} {{équipe}} {{connecteurs_actifs}}."
+      <AgentReadmeCard :title="t('contextUi.org.readmeTitle')"
+        :sub="t('contextUi.org.readmeSub', { vars: '{{org}} {{user}} {{équipe}} {{connecteurs_actifs}}' })"
         :can-edit="isOrgAdmin"
-        placeholder="ex. nous vendons des audits RGPD à des ETI ; toujours vérifier le SIREN via fr_get avant d'écrire au CRM."
+        :placeholder="t('contextUi.org.readmePlaceholder')"
         :load="loadOrgReadme" :save="saveOrgReadme" />
 
       <!-- readme d'équipe -->
-      <ConsoleCard title="readme d'équipe" flush
-        sub="chaque équipe peut ajouter sa prose, injectée après celle de l'org pour ses membres. édition par équipe.">
+      <ConsoleCard :title="t('contextUi.org.teamTitle')" flush :sub="t('contextUi.org.teamSub')">
         <template #actions>
-          <RouterLink to="/org/teams"><Btn kind="mini">Gérer les équipes →</Btn></RouterLink>
+          <RouterLink to="/org/teams"><Btn kind="mini">{{ t('contextUi.org.manageTeams') }}</Btn></RouterLink>
         </template>
-        <p v-if="!loaded" class="helptext">{{ $t('common.loading') }}</p>
-        <div v-else-if="!groups.length" class="helptext">aucune équipe — l'org n'a pas d'équipe pour l'instant.</div>
+        <p v-if="!loaded" class="helptext">{{ t('common.loading') }}</p>
+        <div v-else-if="!groups.length" class="helptext">{{ t('contextUi.org.noTeam') }}</div>
         <div v-else class="rowlist">
           <div v-for="g in groups" :key="g.id" class="rowitem" style="gap: 10px">
             <Tag tone="saffron">{{ g.name }}</Tag>
-            <span style="font-size: 12px; color: var(--color-faint)">{{ g.member_count }} membre(s)</span>
+            <span style="font-size: 12px; color: var(--color-faint)">{{ t('contextUi.org.members', g.member_count ?? 0) }}</span>
           </div>
         </div>
       </ConsoleCard>
 
       <!-- guides ON-DEMAND de l'org (pendant du readme : chargés à la demande) -->
-      <GuidesCard scope="org" :can-edit="isOrgAdmin" title="guides de l'org"
-        sub="des how-to que l'agent de chaque membre charge à la demande (via oto_guide) — pas injectés à chaque session comme le readme. réservé aux admins d'org." />
+      <GuidesCard scope="org" :can-edit="isOrgAdmin" :title="t('contextUi.org.guidesTitle')" :sub="t('contextUi.org.guidesSub')" />
 
       <!-- connecteurs activés (socle d'outils) -->
-      <ConsoleCard title="connecteurs mis à disposition" flush
-        sub="les connecteurs activés pour l'org — leurs outils sont disponibles aux membres (chacun affine sa visibilité). la baseline de toolset définit ce qui est visible par défaut.">
+      <ConsoleCard :title="t('contextUi.org.connectorsTitle')" flush :sub="t('contextUi.org.connectorsSub')">
         <template #actions>
-          <RouterLink to="/org/connectors"><Btn kind="mini">Gérer connecteurs & baseline →</Btn></RouterLink>
+          <RouterLink to="/org/connectors"><Btn kind="mini">{{ t('contextUi.org.manageConnectors') }}</Btn></RouterLink>
         </template>
-        <p v-if="!loaded" class="helptext">{{ $t('common.loading') }}</p>
-        <div v-else-if="!activeConnectors.length" class="helptext">aucun connecteur activé pour l'org.</div>
+        <p v-if="!loaded" class="helptext">{{ t('common.loading') }}</p>
+        <div v-else-if="!activeConnectors.length" class="helptext">{{ t('contextUi.org.noConnector') }}</div>
         <div v-else style="display: flex; flex-wrap: wrap; gap: 8px">
           <Tag v-for="c in activeConnectors" :key="c.connector" tone="olive">{{ c.label || c.connector }}</Tag>
         </div>

@@ -22,6 +22,9 @@ import { toolsSeenView } from '@/lib/agentToolbox'
 import { useToast } from '@/composables/useToast'
 import { useMe } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { toast } = useToast()
 const { me, reload: reloadMe } = useMe()
@@ -90,54 +93,49 @@ onMounted(load)
 <template>
   <div class="content-inner fadein">
     <header class="ctx-intro">
-      <h2 class="ctx-h1">ce que voit ton agent</h2>
-      <p class="ctx-lead">
-        l'anatomie exacte de ce que ton Claude reçoit d'oto au démarrage de chaque conversation —
-        couche par couche, avec le poids de chacune. clique une couche pour lire son contenu et l'éditer.
-      </p>
+      <h2 class="ctx-h1">{{ t('contextUi.preview.title') }}</h2>
+      <p class="ctx-lead">{{ t('contextUi.view.lead') }}</p>
     </header>
 
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
-    <p v-else-if="!loaded" class="helptext">{{ $t('common.loading') }}</p>
+    <p v-else-if="!loaded" class="helptext">{{ t('common.loading') }}</p>
 
     <template v-else-if="ctx">
       <!-- ══ HERO : la pile des couches injectées ══ -->
       <ContextLayerStack :layers="ctx.layers ?? []">
         <template #profile-editor>
-          <ContextProfileCard title="ta fiche"
-            sub="ce que ton agent sait de toi (métier, objectifs, CRM, ton). il la remplit au fil des conversations ; tu peux la corriger ici." />
+          <ContextProfileCard :title="t('contextUi.layers.ghost.profile')" :sub="t('contextUi.view.profileSub')" />
         </template>
         <template #user-editor>
-          <AgentReadmeCard title="ta note"
-            sub="ta prose libre — préférences, contexte, ton. injectée à chaque session, après les couches d'org et d'équipe."
+          <AgentReadmeCard :title="t('contextUi.layers.ghost.user')" :sub="t('contextUi.view.noteSub')"
             :can-edit="true" allow-empty
-            placeholder="ex. je préfère des réponses courtes ; mes clients sont des PME ; signe mes emails « Alexis »."
+            :placeholder="t('contextUi.view.notePlaceholder')"
             :load="loadMyNote" :save="saveMyNote" />
         </template>
       </ContextLayerStack>
 
       <!-- ══ CE QU'IL VA CHERCHER AU BESOIN ══ -->
       <div class="sec">
-        <h3 class="sec-t">ce qu'il va chercher au besoin</h3>
-        <p class="sec-s">
-          des how-to qu'il <strong>ne garde pas en tête</strong> mais qu'il ouvre quand la tâche le demande
-          (via <code>oto_guide</code>) — zéro poids sur les conversations qui n'en ont pas besoin.
-        </p>
+        <h3 class="sec-t">{{ t('contextUi.view.onDemandTitle') }}</h3>
+        <i18n-t keypath="contextUi.view.onDemand" tag="p" class="sec-s">
+          <template #notKept><strong>{{ t('contextUi.view.notKept') }}</strong></template>
+          <template #tool><code>oto_guide</code></template>
+        </i18n-t>
       </div>
-      <GuidesCard scope="user" :can-edit="true" title="tes guides" sub="" />
+      <GuidesCard scope="user" :can-edit="true" :title="t('contextUi.view.yourGuides')" sub="" />
 
       <!-- ══ CE QU'IL PEUT FAIRE ══ -->
       <div class="sec">
-        <h3 class="sec-t">ce qu'il peut faire</h3>
-        <p class="sec-s">les outils visibles pour ton agent. déplie un namespace pour voir ses outils.</p>
+        <h3 class="sec-t">{{ t('contextUi.view.canDoTitle') }}</h3>
+        <p class="sec-s">{{ t('contextUi.view.canDo') }}</p>
       </div>
       <ConsoleCard flush>
         <template v-if="view" #actions>
-          <Tag tone="olive">{{ view.visible }} visibles · {{ view.maskedByYou }} masqués par toi</Tag>
+          <Tag tone="olive">{{ t('contextUi.view.visibleMasked', { visible: view.visible, masked: view.maskedByYou }) }}</Tag>
         </template>
         <!-- Vue non dérivable ≠ « aucun outil » : on le dit, sans compteur. -->
         <p v-if="toolboxError" class="helptext" style="color: var(--color-terra-ink)">{{ toolboxError }}</p>
-        <p v-else-if="!view" class="helptext">la liste exacte des outils de ton agent n'a pas pu être calculée pour le moment.</p>
+        <p v-else-if="!view" class="helptext">{{ t('contextUi.view.toolsUnavailable') }}</p>
         <div v-else class="ns-list">
           <div v-for="g in view.groups" :key="g.namespace" class="ns-block">
             <div class="ns-head" @click="toggleExpand(g.namespace)">
@@ -146,32 +144,32 @@ onMounted(load)
               <Tag :tone="g.visible > 0 ? 'olive' : undefined">{{ g.visible }} / {{ g.tools.length }}</Tag>
             </div>
             <div v-if="expanded.has(g.namespace)" class="tool-list">
-              <div v-for="t in g.tools" :key="t.name" class="tool-row">
-                <code class="tool-name">{{ t.name }}</code>
-                <span class="tool-desc">{{ t.description || '—' }}</span>
-                <Tag v-if="t.protected" tone="cobalt">protégé</Tag>
-                <Tag v-else-if="!t.visible">masqué par toi</Tag>
+              <div v-for="outil in g.tools" :key="outil.name" class="tool-row">
+                <code class="tool-name">{{ outil.name }}</code>
+                <span class="tool-desc">{{ outil.description || '—' }}</span>
+                <Tag v-if="outil.protected" tone="cobalt">{{ t('contextUi.view.protected') }}</Tag>
+                <Tag v-else-if="!outil.visible">{{ t('contextUi.view.maskedByYou') }}</Tag>
               </div>
             </div>
           </div>
         </div>
         <p class="helptext" style="margin-top: 12px">
-          un outil peut rester masqué si son connecteur n'est pas activé pour l'org —
-          <RouterLink to="/connectors" class="linklike">gérer les connexions</RouterLink>.
+          <i18n-t keypath="contextUi.view.maskedHint" tag="span">
+            <template #link><RouterLink to="/connectors" class="linklike">{{ t('contextUi.view.manageConnections') }}</RouterLink></template>
+          </i18n-t>
         </p>
       </ConsoleCard>
 
       <!-- ══ RÉGLAGE : org par défaut — n'a de sens qu'avec un CHOIX (≥2 orgs) ══ -->
-      <ConsoleCard v-if="orgs.length > 1" title="org par défaut"
-        sub="l'org sous laquelle ton agent agit par défaut dans une nouvelle conversation — recompose toutes les couches ci-dessus.">
+      <ConsoleCard v-if="orgs.length > 1" :title="t('contextUi.view.homeTitle')" :sub="t('contextUi.view.homeSub')">
         <template #actions>
-          <Tag :tone="me?.home_org ? 'olive' : undefined">{{ me?.home_org_name || 'aucune · généraliste' }}</Tag>
+          <Tag :tone="me?.home_org ? 'olive' : undefined">{{ me?.home_org_name || t('contextUi.view.homeNone') }}</Tag>
         </template>
         <div class="home-row">
           <OtoSelect :model-value="String(me?.home_org ?? '')" @update:model-value="onHomeChange"
             :options="orgs.map((o) => ({ value: String(o.id), label: o.name }))"
-            none-label="aucune (agent généraliste)" :disabled="savingHome" trigger-class="min-w-[14rem]" />
-          <span v-if="savingHome" class="dim" style="font-size: 12px">enregistrement…</span>
+            :none-label="t('contextUi.view.homeNoneOption')" :disabled="savingHome" trigger-class="min-w-[14rem]" />
+          <span v-if="savingHome" class="dim" style="font-size: 12px">{{ t('contextUi.view.saving') }}</span>
         </div>
       </ConsoleCard>
     </template>

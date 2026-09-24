@@ -1330,5 +1330,334 @@
       },
       "created": "datastore \"{name}\" created"
     }
+  },
+  "accountUi": {
+    "tokens": {
+      "copyFailed": "copy failed — select and copy by hand",
+      "revokeTitle": "revoke token",
+      "revoke": "Revoke",
+      "revokeMessage": "revoke \"{label}\"?",
+      "revoked": "token revoked",
+      "title": "cli & api tokens",
+      "sub": "long-lived tokens for the oto cli and ci environments.",
+      "new": "New token",
+      "col": {
+        "label": "label",
+        "scope": "scope",
+        "expires": "expires",
+        "created": "created",
+        "lastUsed": "last used"
+      },
+      "wholeOrg": "whole org",
+      "scopeCount": "{tables}, {projects}",
+      "tables": "{n} tables | {n} table | {n} tables",
+      "projects": "{n} projects | {n} project | {n} projects",
+      "never": "never",
+      "neverUsed": "never",
+      "empty": "no tokens yet",
+      "newTitle": "new cli token",
+      "newDesc": "long-lived token for the oto cli and ci environments.",
+      "labelPlaceholder": "e.g. cli, ci",
+      "labelHint": "to recognize this token in the list.",
+      "org": "organization",
+      "personalSpace": "my personal space",
+      "nothingInOrg": "no table or project in this organization.",
+      "read": "read",
+      "write": "write",
+      "allRights": "nothing checked ⇒ this token will have {all} in this organization. Check what the integration needs, and nothing more.",
+      "allRightsStrong": "all your rights",
+      "ttl": "expires after (days)",
+      "ttlPlaceholder": "leave empty = never",
+      "ttlHint": "empty ⇒ the token never expires, and nothing will remind you later.",
+      "creating": "creating…",
+      "create": "create",
+      "revealTitle": "copy this token now",
+      "revealDesc": "it is shown only once — store it in your secrets manager.",
+      "copied": "copied ✓",
+      "copy": "copy",
+      "done": "done"
+    },
+    "security": {
+      "factor": {
+        "Totp": "authenticator app",
+        "WebAuthn": "passkey",
+        "BackupCode": "backup codes",
+        "EmailVerificationCode": "email code",
+        "PhoneVerificationCode": "SMS code"
+      },
+      "totpAdded": "authenticator added",
+      "backupDesc": "write them down now and keep them somewhere safe — they will not be shown again. they replace any previous set.",
+      "codes": "codes",
+      "noted": "noted",
+      "renameTitle": "rename the factor",
+      "rename": "rename",
+      "renameBtn": "Rename",
+      "removeTitle": "remove this factor",
+      "remove": "Remove",
+      "removeMessage": "remove \"{name}\"? you will no longer be able to sign in with it.",
+      "removed": "factor removed",
+      "title": "security · 2FA",
+      "sub": "your account's two-factor authentication factors (passkey, app, backup codes).",
+      "addTotpBtn": "Authenticator app",
+      "backupBtn": "Backup codes",
+      "reconnect": "sign in again once (sign out then back in) to enable 2FA management — your account needs to grant a new permission.",
+      "totpHead": "add an authenticator app",
+      "totpHelp": "scan the QR code (or type the key) in your app (Google Authenticator, 1Password…), then enter the 6-digit code.",
+      "qrAlt": "TOTP QR code",
+      "verify": "Verify",
+      "col": {
+        "factor": "factor",
+        "name": "name",
+        "added": "added",
+        "lastUsed": "last used"
+      },
+      "remaining": "{n} left | {n} left | {n} left",
+      "empty": "no 2FA factor — add an authenticator app, or a passkey at your next sign-in.",
+      "login": "sign-in",
+      "passkeyHint": "the {passkey} is set up at {login} (the “set up MFA” screen); it then shows up here, where you can rename or remove it."
+    },
+    "share": {
+      "joinOrg": "join an org to share an account",
+      "member": "member of your active org",
+      "orEmail": "or email (outside the org)",
+      "email": "the person's email",
+      "emailPlaceholder": "person{'@'}example.com",
+      "grantTitle": "{channel} — allow someone to operate your account",
+      "grantDesc": "the allowed person will be able to act UNDER your identity on this channel (messages, actions), even outside your orgs. revocable at any time, immediate effect.",
+      "grant": "allow",
+      "needWho": "pick a member or an email",
+      "granted": "access granted",
+      "revokeTitle": "revoke {who}",
+      "revokeMessage": "revoke {who}'s permission to operate your {channel} account? takes effect on their next call.",
+      "revoked": "permission revoked",
+      "alsoBy": "also operated by",
+      "grantBtn": "Allow someone",
+      "canOperate": "can operate this account",
+      "since": "since {date}"
+    },
+    "docs": {
+      "title": "documentation",
+      "sub": "the API reference and the concepts",
+      "body": "{site} has two entry points: the {rest}, derived from the server — it cannot lie about what exists —, and the {concepts}, which say what each object guarantees and what you can rely on when using it.",
+      "rest": "REST reference",
+      "concepts": "concepts",
+      "open": "open docs.oto.cx"
+    },
+    "connectors": {
+      "recommended": "recommended"
+    },
+    "oauth": {
+      "revokeTitle": "revoke google account",
+      "revokeMessage": "revoke {email}? tools using it will lose access.",
+      "revoked": "grant revoked",
+      "default": "default",
+      "granted": "granted {date}",
+      "empty": "no account linked yet — link one to unlock the connector's tools.",
+      "link": "Link account"
+    },
+    "shared": {
+      "source": {
+        "org": "{org}'s key",
+        "yourOrg": "your org's key",
+        "namedTeam": "your team's key ({team})",
+        "team": "your team's key",
+        "shared": "a shared key"
+      },
+      "state": {
+        "active": "active",
+        "paused": "hidden",
+        "not_selected": "not installed"
+      },
+      "title": "shared connectors",
+      "sub": "what you can use without adding your own key — provided by your organization or your team. your personal key, if you add one, always wins.",
+      "teamKey": "team key",
+      "orgKey": "org key",
+      "resolvedBy": "resolved by {source}",
+      "emptyTitle": "no shared connector",
+      "empty": "your org or your team does not provide a shared key (yet). in the meantime, connect your own keys from {link}.",
+      "myConnectors": "my connectors"
+    }
+  },
+  "contextUi": {
+    "noOrg": {
+      "title": "no active org",
+      "body": "you're not in an organization yet."
+    },
+    "layers": {
+      "nature": {
+        "platform": "platform base",
+        "catalog": "derived · connector catalog",
+        "context": "derived · resolved at each session",
+        "profile": "kept by your agent",
+        "org": "written by an admin of your org",
+        "group": "written by your team lead",
+        "user": "your prose, injected after the rest"
+      },
+      "ghost": {
+        "org": "your org's readme",
+        "profile": "your profile",
+        "user": "your note"
+      },
+      "total": "{n} characters injected into each conversation",
+      "empty": "empty",
+      "chars": "{n} ch.",
+      "writeOrg": "Write on the org side →",
+      "viewEdit": "View / edit →",
+      "nothing": "nothing yet — this layer is not injected."
+    },
+    "readme": {
+      "emptyPublish": "empty readme — nothing to publish",
+      "published": "agent readme published — injected into the next sessions",
+      "edit": "Edit",
+      "write": "Write",
+      "placeholder": "free markdown — injected at the start of each session.",
+      "publish": "Publish",
+      "injected": "injected into each session",
+      "updated": "updated {date}",
+      "nothing": "nothing written — the agent starts without this readme level.",
+      "nothingHint": "write here what it must always know: context, rules, tone."
+    },
+    "preview": {
+      "title": "what your agent sees",
+      "sub": "the context oto injects into your Claude at each session — instructions, readme, visible tools.",
+      "open": "open →",
+      "orgReadmeSet": "org readme · set",
+      "orgReadmeEmpty": "org readme · empty",
+      "team": "team: {team}",
+      "procedures": "{n} procedures | {n} procedure | {n} procedures",
+      "tools": "{n} visible tools | {n} visible tool | {n} visible tools",
+      "unavailable": "context unavailable for now."
+    },
+    "profile": {
+      "saved": "profile updated — read again at each session",
+      "title": "your situation with oto",
+      "sub": "what your agent knows about you (job, goals, CRM, tone) — read at each session. the agent keeps it up to date as it goes; you can edit it here.",
+      "edit": "edit",
+      "fill": "fill in",
+      "addPlaceholder": "add a field (e.g. language)",
+      "addField": "＋ field",
+      "filled": "{n} fields filled | {n} field filled | {n} fields filled",
+      "nothing": "nothing filled in — the agent starts with no context about you. fill it in, or let the agent complete it over conversations."
+    },
+    "guides": {
+      "scope": {
+        "platform": "platform",
+        "org": "org",
+        "user": "personal"
+      },
+      "badSlug": "invalid slug — lowercase letters, digits, dashes (e.g. outreach-cadence).",
+      "emptyBody": "the guide body is empty.",
+      "created": "guide created",
+      "updated": "guide updated",
+      "deleted": "guide deleted",
+      "new": "New guide",
+      "slugPlaceholder": "slug (e.g. outreach-cadence)",
+      "titlePlaceholder": "readable title",
+      "descPlaceholder": "short description (helps the agent choose)",
+      "bodyPlaceholder": "markdown — the how-to the agent loads when it needs it.",
+      "create": "Create",
+      "confirmDelete": "delete?",
+      "yes": "Yes",
+      "no": "No",
+      "empty": {
+        "platform": "no platform guide — a how-to the agent loads on demand (enrichment waterfall, outreach cadence, connector diagnosis…).",
+        "org": "no org guide — a how-to the agent loads on demand (enrichment waterfall, outreach cadence, connector diagnosis…).",
+        "user": "no personal guide — a how-to the agent loads on demand (enrichment waterfall, outreach cadence, connector diagnosis…)."
+      },
+      "adminOnly": "only an org admin can create one.",
+      "inherited": "inherited · read-only · also loaded by your agent"
+    },
+    "agent": {
+      "title": "agent context",
+      "sub": "exactly what your Claude receives from oto when it connects: platform instructions, cumulated agent readmes, and the tools visible under your active org. read-only.",
+      "serverTitle": "server instructions",
+      "serverSub": "injected at the MCP handshake. posture + bootstrap + usage loop + namespace catalog derived from the registry.",
+      "static": "platform · static",
+      "hide": "Hide",
+      "showFull": "See the full text",
+      "chars": "{n} characters | {n} character | {n} characters",
+      "readmeTitle": "agent readme & procedures",
+      "readmeSub": "the cumulated readmes (org → team → you), injected at each session, + your org's procedures (loaded on demand). org readme: /org · personal readme: above · procedures: /procedures.",
+      "noOrg": "no active org → your agent starts as a generalist, with no org readme.",
+      "procedures": "Procedures →",
+      "col": {
+        "title": "title",
+        "scope": "scope",
+        "visible": "visible"
+      },
+      "nothing": "nothing written yet — the agent only receives the platform instructions + the tools.",
+      "toolsTitle": "visible tools",
+      "toolsSub": "the tools your agent ACTUALLY sees under your active org (after connector activation + your settings) — your effective subset of the catalog.",
+      "visibleHidden": "{visible} visible · {hidden} hidden",
+      "toolsUnavailable": "visibility computation unavailable."
+    },
+    "view": {
+      "lead": "the exact anatomy of what your Claude receives from oto at the start of each conversation — layer by layer, with the weight of each. click a layer to read and edit its content.",
+      "profileSub": "what your agent knows about you (job, goals, CRM, tone). it fills it in over conversations; you can correct it here.",
+      "noteSub": "your free prose — preferences, context, tone. injected at each session, after the org and team layers.",
+      "notePlaceholder": "e.g. I prefer short answers; my clients are SMBs; sign my emails “Alexis”.",
+      "onDemandTitle": "what it fetches when needed",
+      "onDemand": "how-tos it {notKept} but opens when the task calls for it (via {tool}) — zero weight on conversations that do not need them.",
+      "notKept": "doesn't keep in mind",
+      "yourGuides": "your guides",
+      "canDoTitle": "what it can do",
+      "canDo": "the tools visible to your agent. expand a namespace to see its tools.",
+      "visibleMasked": "{visible} visible · {masked} hidden by you",
+      "toolsUnavailable": "your agent's exact tool list could not be computed for now.",
+      "protected": "protected",
+      "maskedByYou": "hidden by you",
+      "maskedHint": "a tool can stay hidden if its connector is not enabled for the org — {link}.",
+      "manageConnections": "manage connections",
+      "homeTitle": "default org",
+      "homeSub": "the org your agent acts under by default in a new conversation — it recomposes all the layers above.",
+      "homeNone": "none · generalist",
+      "homeNoneOption": "none (generalist agent)",
+      "saving": "saving…"
+    },
+    "org": {
+      "title": "what the agent sees · org base",
+      "lead": "the context guaranteed to {every} of {org}: the org's prose, the teams' prose, and the connectors made available. a member's exact artifact also depends on their team and preferences.",
+      "every": "every member",
+      "yourOrg": "your org",
+      "noOrg": "no active org.",
+      "readmeTitle": "the org's readme",
+      "readmeSub": "the org's prose (business context, rules, vocabulary) injected at the start of each member's every session — before the team and the user. variables: {vars}.",
+      "readmePlaceholder": "e.g. we sell GDPR audits to mid-sized companies; always check the SIREN via fr_get before writing to the CRM.",
+      "teamTitle": "team readme",
+      "teamSub": "each team can add its prose, injected after the org's for its members. edited per team.",
+      "manageTeams": "Manage teams →",
+      "noTeam": "no team — the org has no team yet.",
+      "members": "{n} members | {n} member | {n} members",
+      "guidesTitle": "org guides",
+      "guidesSub": "how-tos each member's agent loads on demand (via oto_guide) — not injected at every session like the readme. org admins only.",
+      "connectorsTitle": "connectors made available",
+      "connectorsSub": "the connectors enabled for the org — their tools are available to members (each refines their visibility). the toolset baseline defines what is visible by default.",
+      "manageConnectors": "Manage connectors & baseline →",
+      "noConnector": "no connector enabled for the org."
+    },
+    "platform": {
+      "block": {
+        "secret_sauce": {
+          "title": "block A · secret sauce",
+          "sub": "posture + usage loop + namespace catalog (derived, added automatically). always injected, at the top of every agent’s context."
+        }
+      },
+      "alwaysInjected": "always injected",
+      "saved": "block “{block}” saved",
+      "title": "what the agent sees · platform trunk",
+      "lead": "the server instructions injected into {all} sessions of all users, before any org readme. orgs cannot override them. + the on-demand guides and the connector masters that bound what each org can enable.",
+      "all": "all",
+      "seed": "default (never edited)",
+      "edited": "edited",
+      "updatedBy": "updated by {who}",
+      "restore": "Restore the default",
+      "saving": "Saving…",
+      "guidesTitle": "platform guides",
+      "guidesSub": "how-tos loaded on demand by the agent (oto_guide), served to ALL accounts. distinct from the blocks injected above: the agent reads them when the task calls for it.",
+      "mastersTitle": "connector masters",
+      "mastersSub": "the global switch per connector: what is available to the whole platform (each org then enables within that limit).",
+      "manageMasters": "Manage masters →",
+      "mastersHint": "master activation + the platform key are managed in the platform connectors cockpit."
+    }
   }
 }

@@ -17,6 +17,9 @@ import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
 import { fmtDate } from '@/types/api'
 import type { GoogleOauthStatus } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
@@ -34,8 +37,8 @@ async function link() {
   catch (e) { toast(humanize(e)) }
 }
 async function revoke(email: string) {
-  if (!await confirmAction({ title: 'revoke google account', danger: true, confirmLabel: 'Revoke', message: `revoke ${email}? tools using it will lose access.` })) return
-  try { await revokeGoogle(email); toast('grant revoked'); await refresh() }
+  if (!await confirmAction({ title: t('accountUi.oauth.revokeTitle'), danger: true, confirmLabel: t('accountUi.tokens.revoke'), message: t('accountUi.oauth.revokeMessage', { email }) })) return
+  try { await revokeGoogle(email); toast(t('accountUi.oauth.revoked')); await refresh() }
   catch (e) { toast(humanize(e)) }
 }
 </script>
@@ -46,14 +49,14 @@ async function revoke(email: string) {
       <div v-for="g in status.accounts" :key="g.email || ''" class="oa-row">
         <Dot tone="olive" :size="8" />
         <div class="oa-id">
-          <div class="oa-email">{{ g.email }} <Tag v-if="g.is_default" tone="saffron">default</Tag></div>
-          <div class="oa-scopes">{{ g.scopes.join(' · ') }} · granted {{ fmtDate(g.granted_at) ?? '—' }}</div>
+          <div class="oa-email">{{ g.email }} <Tag v-if="g.is_default" tone="saffron">{{ t('accountUi.oauth.default') }}</Tag></div>
+          <div class="oa-scopes">{{ g.scopes.join(' · ') }} · {{ t('accountUi.oauth.granted', { date: fmtDate(g.granted_at) ?? '—' }) }}</div>
         </div>
-        <Btn v-if="canWrite" kind="danger" @click="revoke(g.email!)">Revoke</Btn>
+        <Btn v-if="canWrite" kind="danger" @click="revoke(g.email!)">{{ t('accountUi.tokens.revoke') }}</Btn>
       </div>
     </div>
-    <span v-else-if="!loading" class="dim oa-empty">no account linked yet — link one to unlock the connector's tools.</span>
-    <Btn v-if="canWrite" kind="mini" icon="plus" class="oa-add" @click="link">Link account</Btn>
+    <span v-else-if="!loading" class="dim oa-empty">{{ t('accountUi.oauth.empty') }}</span>
+    <Btn v-if="canWrite" kind="mini" icon="plus" class="oa-add" @click="link">{{ t('accountUi.oauth.link') }}</Btn>
   </div>
 </template>
 

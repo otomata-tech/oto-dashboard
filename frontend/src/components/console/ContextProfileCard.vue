@@ -11,11 +11,11 @@ import { getProfile, setProfile } from '@/api/console'
 import type { AccountProfile } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
+import { useI18n } from 'vue-i18n'
 
-const props = withDefaults(defineProps<{ title?: string; sub?: string }>(), {
-  title: 'situation avec oto',
-  sub: 'ce que ton agent sait de toi (métier, objectifs, CRM, ton) — relu à chaque session. l\'agent l\'entretient au fil de l\'eau ; tu peux l\'éditer ici.',
-})
+const { t } = useI18n()
+
+const props = defineProps<{ title?: string; sub?: string }>()
 
 const { toast } = useToast()
 
@@ -66,7 +66,7 @@ async function save() {
   busy.value = true
   try {
     data.value = await setProfile(draft.value)
-    toast('profil mis à jour — relu à chaque session')
+    toast(t('contextUi.profile.saved'))
     editing.value = false
   } catch (e) { toast(humanize(e)) }
   finally { busy.value = false }
@@ -81,12 +81,12 @@ const draftRows = computed(() =>
 </script>
 
 <template>
-  <ConsoleCard :title="props.title" :sub="props.sub">
+  <ConsoleCard :title="props.title ?? t('contextUi.profile.title')" :sub="props.sub ?? t('contextUi.profile.sub')">
     <template v-if="loaded && !editing" #actions>
-      <Btn kind="mini" icon="pen" @click="edit">{{ filledCount ? 'éditer' : 'remplir' }}</Btn>
+      <Btn kind="mini" icon="pen" @click="edit">{{ filledCount ? t('contextUi.profile.edit') : t('contextUi.profile.fill') }}</Btn>
     </template>
 
-    <p v-if="!loaded" class="dim" style="font-size: 13px">{{ $t('common.loading') }}</p>
+    <p v-if="!loaded" class="dim" style="font-size: 13px">{{ t('common.loading') }}</p>
 
     <!-- Édition -->
     <template v-else-if="editing">
@@ -97,19 +97,19 @@ const draftRows = computed(() =>
         </div>
       </div>
       <div class="pf-add">
-        <input v-model="newKey" class="pf-input" placeholder="ajouter un champ (ex. langue)" @keyup.enter="addField" />
-        <Btn kind="mini" @click="addField">＋ champ</Btn>
+        <input v-model="newKey" class="pf-input" :placeholder="t('contextUi.profile.addPlaceholder')" @keyup.enter="addField" />
+        <Btn kind="mini" @click="addField">{{ t('contextUi.profile.addField') }}</Btn>
       </div>
       <div class="pf-actions">
-        <Btn kind="mini" :disabled="busy" @click="editing = false">annuler</Btn>
-        <Btn :disabled="busy" @click="save">enregistrer</Btn>
+        <Btn kind="mini" :disabled="busy" @click="editing = false">{{ t('common.cancel') }}</Btn>
+        <Btn :disabled="busy" @click="save">{{ t('common.save') }}</Btn>
       </div>
     </template>
 
     <!-- Lecture -->
     <template v-else>
       <div class="pf-meta">
-        <Tag :tone="filledCount ? 'olive' : undefined">{{ filledCount ? `${filledCount} champ(s) renseigné(s)` : 'vide' }}</Tag>
+        <Tag :tone="filledCount ? 'olive' : undefined">{{ filledCount ? t('contextUi.profile.filled', filledCount) : t('contextUi.layers.empty') }}</Tag>
       </div>
       <div v-if="filledCount" class="pf-list">
         <div v-for="r in rows.filter((x) => x.value.trim())" :key="r.key" class="pf-row">
@@ -118,8 +118,7 @@ const draftRows = computed(() =>
         </div>
       </div>
       <p v-else class="dim" style="font-size: 13px">
-        rien de renseigné — l'agent démarre sans contexte sur toi. remplis-la, ou laisse l'agent
-        la compléter au fil des conversations.
+        {{ t('contextUi.profile.nothing') }}
       </p>
     </template>
   </ConsoleCard>

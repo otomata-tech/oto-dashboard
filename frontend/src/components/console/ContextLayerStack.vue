@@ -11,10 +11,13 @@ import Icon from './Icon.vue'
 import Tag from './Tag.vue'
 import Btn from './Btn.vue'
 import type { ContextLayer } from '@/types/api'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   layers: ContextLayer[]
 }>()
+
+const { t, locale } = useI18n()
 
 const open = ref<Set<string>>(new Set())
 function toggle(key: string) {
@@ -27,15 +30,17 @@ function toggle(key: string) {
 // Couches dont l'expansion rend un ÉDITEUR (slot) au lieu du dump du body.
 const EDITABLE = new Set(['user', 'profile'])
 
-const META: Record<string, { tone?: 'olive' | 'saffron' | 'cobalt'; nature: string; edit?: string }> = {
-  platform: { nature: 'socle plateforme', tone: 'cobalt' },
-  catalog: { nature: 'dérivé · catalogue des connecteurs', tone: 'cobalt' },
-  context: { nature: 'dérivé · résolu à chaque session', tone: 'cobalt' },
-  profile: { nature: 'entretenue par ton agent' },
-  org: { nature: 'écrite par un admin de ton org', tone: 'olive', edit: '/org/context' },
-  group: { nature: 'écrite par ton chef d’équipe', tone: 'saffron' },
-  user: { nature: 'ta prose, injectée après le reste' },
+const META: Record<string, { tone?: 'olive' | 'saffron' | 'cobalt'; edit?: string }> = {
+  platform: { tone: 'cobalt' },
+  catalog: { tone: 'cobalt' },
+  context: { tone: 'cobalt' },
+  profile: {},
+  org: { tone: 'olive', edit: '/org/context' },
+  group: { tone: 'saffron' },
+  user: {},
 }
+/** Qui écrit la couche, et comment elle vit. Une couche inconnue n'a pas de badge. */
+const nature = (key: string) => (key in META ? t(`contextUi.layers.nature.${key}`) : '')
 
 const total = computed(() => props.layers.reduce((n, l) => n + l.chars, 0))
 const maxChars = computed(() => Math.max(...props.layers.map((l) => l.chars), 1))
@@ -48,20 +53,22 @@ const rows = computed<Row[]>(() => {
   const has = (k: string) => out.some((l) => l.key === k)
   const ghost = (key: Row['key'], label: string) =>
     out.push({ key, label, body: '', chars: 0, ghost: true })
-  if (!has('org')) ghost('org', 'readme de ton org')
-  if (!has('profile')) ghost('profile', 'ta fiche')
-  if (!has('user')) ghost('user', 'ta note')
+  if (!has('org')) ghost('org', t('contextUi.layers.ghost.org'))
+  if (!has('profile')) ghost('profile', t('contextUi.layers.ghost.profile'))
+  if (!has('user')) ghost('user', t('contextUi.layers.ghost.user'))
   return out
 })
 
-const fmt = (n: number) => n.toLocaleString('fr-FR')
+const fmt = (n: number) => n.toLocaleString(locale.value)
 const pct = (l: Row) => Math.max(1.5, (l.chars / maxChars.value) * 100)
 </script>
 
 <template>
   <div class="stack">
     <div class="stack-head">
-      <span class="stack-total"><strong>{{ fmt(total) }}</strong> caractères injectés à chaque conversation</span>
+      <i18n-t keypath="contextUi.layers.total" tag="span" class="stack-total">
+        <template #n><strong>{{ fmt(total) }}</strong></template>
+      </i18n-t>
     </div>
     <div v-for="l in rows" :key="l.key" class="layer" :class="{ open: open.has(l.key), ghost: l.ghost }">
       <button class="layer-row" @click="toggle(l.key)">
@@ -71,14 +78,14 @@ const pct = (l: Row) => Math.max(1.5, (l.chars / maxChars.value) * 100)
           <span class="layer-bar" :class="`bar-${META[l.key]?.tone ?? 'ink'}`"
             :style="{ width: l.ghost ? '0' : pct(l) + '%' }" />
         </span>
-        <span class="layer-chars">{{ l.ghost ? 'vide' : fmt(l.chars) + ' c.' }}</span>
+        <span class="layer-chars">{{ l.ghost ? t('contextUi.layers.empty') : t('contextUi.layers.chars', { n: fmt(l.chars) }) }}</span>
         <Icon v-if="META[l.key]?.edit || EDITABLE.has(l.key)" name="pencil" :size="12" class="layer-pen" />
       </button>
       <div v-if="open.has(l.key)" class="layer-body">
         <div class="layer-meta">
-          <Tag :tone="META[l.key]?.tone">{{ META[l.key]?.nature }}</Tag>
+          <Tag :tone="META[l.key]?.tone">{{ nature(l.key) }}</Tag>
           <RouterLink v-if="META[l.key]?.edit" :to="META[l.key]!.edit!">
-            <Btn kind="mini">{{ l.ghost ? 'Écrire côté org →' : 'Voir / éditer →' }}</Btn>
+            <Btn kind="mini">{{ l.ghost ? t('contextUi.layers.writeOrg') : t('contextUi.layers.viewEdit') }}</Btn>
           </RouterLink>
         </div>
         <!-- couches ÉDITABLES in-situ : l'éditeur remplace le dump (c'est la source
@@ -86,7 +93,7 @@ const pct = (l: Row) => Math.max(1.5, (l.chars / maxChars.value) * 100)
         <slot v-if="l.key === 'user'" name="user-editor" />
         <slot v-else-if="l.key === 'profile'" name="profile-editor" />
         <pre v-if="!EDITABLE.has(l.key) && !l.ghost" class="layer-pre">{{ l.body }}</pre>
-        <p v-else-if="!EDITABLE.has(l.key)" class="helptext">rien pour l'instant — cette couche n'est pas injectée.</p>
+        <p v-else-if="!EDITABLE.has(l.key)" class="helptext">{{ t('contextUi.layers.nothing') }}</p>
       </div>
     </div>
   </div>

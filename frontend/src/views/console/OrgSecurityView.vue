@@ -7,6 +7,9 @@ import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import OrgMfaCard from '@/components/console/OrgMfaCard.vue'
 import OrgAuditComplianceCard from '@/components/console/OrgAuditComplianceCard.vue'
 import { useOrgScope } from '@/composables/useOrgScope'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // La bascule suit `canAdminister` : le rôle, hors consultation (oto#211).
 const { activeOrgId, error, loaded, canAdminister, isOrgAdmin } = useOrgScope()
@@ -16,8 +19,8 @@ const { activeOrgId, error, loaded, canAdminister, isOrgAdmin } = useOrgScope()
   <div class="content-inner fadein">
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
-    <ConsoleCard v-if="loaded && activeOrgId == null" title="no active org">
-      <div class="helptext">you're not in an organization yet.</div>
+    <ConsoleCard v-if="loaded && activeOrgId == null" :title="t('contextUi.noOrg.title')">
+      <div class="helptext">{{ t('contextUi.noOrg.body') }}</div>
     </ConsoleCard>
 
     <template v-else-if="activeOrgId != null">
