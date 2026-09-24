@@ -850,7 +850,7 @@ export interface DatastoreField {
   // d'édition et le rendu en découlent. Sans type déclaré, on retombe sur la
   // détection par la valeur (`cellKind`) — jamais sur la LONGUEUR (cf. RowDrawer).
   type?: 'text' | 'number' | 'date' | 'datetime' | 'bool' | 'json' | 'object' | 'list'
-    | 'url' | 'email' | 'enum'
+    | 'url' | 'email' | 'phone' | 'enum'
   options?: string[]            // type=enum : valeurs proposées (select)
   // Largeur DÉCLARÉE dans la fiche : 'full' = pleine ligne, 'half' = demi-colonne.
   // Absente ⇒ dérivée du type (note/json/url longs en pleine ligne). Rend le layout

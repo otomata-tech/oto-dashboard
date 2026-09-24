@@ -154,7 +154,7 @@ function isLong(key: string): boolean {
 // (non destructif : un champ compact + un lien « ouvrir »), le reste gardant le
 // repli historique texte/zone.
 type Widget = 'lifecycle' | 'bool' | 'number' | 'enum' | 'date' | 'datetime'
-  | 'url' | 'email' | 'textarea' | 'text'
+  | 'url' | 'email' | 'phone' | 'textarea' | 'text'
 
 function widgetOf(d: FieldDesc): Widget {
   if (isLifecycleStatus(d)) return 'lifecycle'
@@ -166,6 +166,7 @@ function widgetOf(d: FieldDesc): Widget {
     case 'datetime': return 'datetime'
     case 'url': return 'url'
     case 'email': return 'email'
+    case 'phone': return 'phone'
   }
   if (cellKind(scalars.value[d.key]) === 'url') return 'url'
   return isLong(d.key) ? 'textarea' : 'text'
@@ -198,6 +199,11 @@ function dateHint(d: FieldDesc): string {
 function urlOf(key: string): string | null {
   const v = props.row?.[key]
   return cellKind(v) === 'url' ? String(v) : null
+}
+/** Le lien d'appel d'un champ `phone` : la forme compacte, séparateurs retirés. */
+function telOf(key: string): string | undefined {
+  const v = (scalars.value[key] ?? '').replace(/[^+0-9]/g, '')
+  return v ? `tel:${v}` : undefined
 }
 function readVal(key: string): string {
   return scalarDraft(props.row?.[key]) || '—'
@@ -349,6 +355,14 @@ function applyTransition(state: string) {
               </div>
               <input v-else-if="widgetOf(d) === 'email'" v-model="scalars[d.key]" class="rd-input"
                 type="email" :placeholder="d.label" />
+              <!-- `phone` (oto#103) : clavier téléphonique, et le lien d'appel sur la forme
+                   compacte (séparateurs retirés, comme la validation du serveur). -->
+              <div v-else-if="widgetOf(d) === 'phone'" class="rd-url">
+                <input v-model="scalars[d.key]" class="rd-input" type="tel" autocomplete="tel"
+                  :placeholder="d.label" />
+                <a v-if="telOf(d.key)" :href="telOf(d.key)" class="rd-open" :title="t('rowEditor.call')">
+                  <Icon name="ext" :size="13" /></a>
+              </div>
               <textarea v-else-if="widgetOf(d) === 'textarea'" v-model="scalars[d.key]" class="rd-input rd-area" rows="4" />
               <template v-else>
                 <input v-model="scalars[d.key]" class="rd-input" :placeholder="d.label" />
