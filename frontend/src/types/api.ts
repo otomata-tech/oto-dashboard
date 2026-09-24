@@ -28,7 +28,7 @@
 import type { components, operations } from './api.generated'
 // ⚠️ Ce qu'un lot backend OUVERT sert et que l'OpenAPI en ligne ignore encore —
 // écrit à la main, à part, pour qu'une régénération ne l'efface pas. Cf. le fichier.
-import type { BailDeLaLigne } from './api.attendu'
+import type { BailDeLaLigne, EmetteurDeclare } from './api.attendu'
 
 /** La réponse 200 (application/json) d'une opération du document OpenAPI. */
 export type ApiOut<K extends keyof operations> = operations[K]['responses'] extends {
@@ -1569,6 +1569,14 @@ export type OrgAdoption = ApiOut<'org_monitoring_adoption_get'>
 export type MonitoringUserStat = components['schemas']['UserStat']
 export type MonitoringDayStat = components['schemas']['DayStat']
 export type MonitoringSummary = ApiOut<'org_monitoring_summary_get'>
+
+// Journal des accès d'une org, pièce de conformité (`GET /api/orgs/{id}/audit-log/export`,
+// `ORG_ADMIN_OF`). Il dit sa propre complétude : `total` (la fenêtre), `count` (cette page),
+// `truncated`, `next_cursor`, `until_effectif` (la borne haute réellement appliquée).
+// L'émetteur déclaré de chaque ligne (oto#187) n'est pas encore dans le snapshot : cf.
+// `api.attendu.ts` ④.
+export type AuditCall = components['schemas']['AuditCall'] & EmetteurDeclare
+export type AuditExport = Omit<ApiOut<'org_audit_log_export_get'>, 'calls'> & { calls: AuditCall[] }
 
 // ── usage / déroulés de doctrine (ADR 0017) ──
 export type DoctrineRun = components['schemas']['RunRow']

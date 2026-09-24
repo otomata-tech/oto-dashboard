@@ -24,6 +24,7 @@ import ToolCallsCard from '@/components/console/monitoring/ToolCallsCard.vue'
 import ConnectorHealthCard from '@/components/console/monitoring/ConnectorHealthCard.vue'
 import CallLogCard from '@/components/console/monitoring/CallLogCard.vue'
 import CallLogFilters, { type CallFilters } from '@/components/console/monitoring/CallLogFilters.vue'
+import OrgAuditExportCard from '@/components/console/monitoring/OrgAuditExportCard.vue'
 import {
   getOrgAdoption, getOrgMonitoringSummary, getOrgMonitoringConnectors,
   getOrgMonitoringCalls, getOrgMonitoringCall,
@@ -41,7 +42,7 @@ const TABS = computed<SubTab[]>(() => [
   { key: 'adoption', label: 'adoption', hint: 'qui dans l’équipe s’en sert' },
   { key: 'mcp', label: 'outils mcp', hint: 'invocations par l’agent' },
   { key: 'connecteurs', label: 'connecteurs', hint: 'ce qui bloque tes membres' },
-  { key: 'journal', label: 'journal', hint: 'appels bruts, filtrables' },
+  { key: 'journal', label: 'journal', hint: 'appels bruts, filtrables, et leur export' },
   { key: 'usage', label: 'signaux d’usage', hint: 'déroulés, manques, qualité des outils' },
 ])
 const VALID = computed(() => new Set(TABS.value.map((t) => t.key)))
@@ -164,6 +165,9 @@ watch([activeOrgId, isOrgAdmin], () => { loadStats(); loadCalls() })
         <Usage v-else-if="tab === 'usage'" :key="activeOrgId ?? 0" :window-days="win" :org-id="activeOrgId" />
 
         <template v-else-if="tab === 'journal'">
+          <!-- L'export attestable du journal (oto#269) : même lecture ORG_ADMIN_OF que
+               tout cet écran, déjà gardé par `isOrgAdmin` ci-dessus. -->
+          <OrgAuditExportCard :org-id="activeOrgId" />
           <CallLogFilters v-model="filters" />
           <CallLogCard :calls="calls" :loaded="callsLoaded" :busy="callsBusy" filterable show-user
             :load-detail="loadCallDetail"

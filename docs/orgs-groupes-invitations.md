@@ -89,6 +89,10 @@ Hors du tableau, sans changement :
 - `/org/context` (`ContextOrgView`) lit `org_role === 'org_admin'`, que le serveur sert `null` en
   consultation : ses gestes y sont déjà absents. Le défaut inverse (super_admin) reste hors lot.
 - `/org/monitoring` n'écrit rien ; ses lectures (`ORG_ADMIN_OF`) restent gardées par `isOrgAdmin`.
+  L'export du journal des accès (onglet « journal », `OrgAuditExportCard`, oto#269) en est une :
+  `GET /api/orgs/{id}/audit-log/export`, servi aussi en consultation. Le fichier est la réponse
+  servie (JSON : `total`, `truncated`, `until_effectif`, émetteur déclaré), une page par fichier ;
+  tronqué, la suite part avec le seul `next_cursor`. Tests : `OrgAuditExportCard.spec.ts`.
 - `ConsoleIdentity` n'affiche que l'identité.
 
 ⚠️ **Deux cas où l'écran et le serveur divergent, non traités** :

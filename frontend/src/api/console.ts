@@ -11,7 +11,7 @@ import type {
   DoctrineBundle, Guide, GuideById, GuideScope,
   GoogleOauthStatus, GroupConnectorActivation, GroupDetail, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LinkedProcedure, Locale, Me, MonitoringSummary,
-  MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption,
+  MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption, AuditExport,
   ColumnFilter, DatastoreRow, DatastoreEntry, SharedDatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, RewritableRow, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallDetail, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   ConnectorOAuthStatus, ConnectorOAuthDisconnected, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
@@ -1218,6 +1218,18 @@ export const getOrgMonitoringCalls = (orgId: number, params: {
 // donc devinable, le backend ne confirme pas son existence.
 export const getOrgMonitoringCall = (orgId: number, id: number) =>
   api<{ call: ToolCallDetail }>(`/api/orgs/${orgId}/monitoring/calls/${id}`)
+
+// Journal des accès d'une org (`capabilities/audit_log.py`, `ORG_ADMIN_OF`). Une page à la
+// fois : la première avec la fenêtre (`since`/`until`, ISO, bornes incluses, facultatives),
+// les suivantes avec le SEUL `cursor` rendu par la précédente — il porte la fenêtre, et
+// repasser `since`/`until` avec lui est refusé (`400 window_with_cursor`).
+export const getOrgAuditLogExport = (orgId: number,
+  params: { since?: string; until?: string } | { cursor: string }) => {
+  const q = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) if (v) q.set(k, v)
+  const qs = q.toString()
+  return api<AuditExport>(`/api/orgs/${orgId}/audit-log/export${qs ? `?${qs}` : ''}`)
+}
 
 // ── usage / déroulés (ADR 0017, admin) ──
 export const getUsageRuns = () => api<{ runs: DoctrineRun[] }>('/api/admin/usage/runs')

@@ -3,6 +3,7 @@
 // APLATIE en texte lisible — pas sérialisée en JSON brut dans la cellule
 // (oto-dashboard#137 : `[{"nom":"…","email":"…"}]` dans une cellule n'est pas un
 // livrable, c'était juste vrai tant que toute cellule portait un scalaire).
+import { saveBlob } from './download'
 
 /** Rend une valeur composite lisible : items séparés par « | », champs d'un item
  * par « , », chaque champ en `clé: valeur` — récursif pour une liste imbriquée. */
@@ -30,13 +31,5 @@ export function rowsToCsv(rows: Array<Record<string, unknown>>, columns: string[
 }
 
 export function downloadCsv(filename: string, content: string): void {
-  const blob = new Blob(['\ufeff' + content], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
+  saveBlob(filename, new Blob(['\ufeff' + content], { type: 'text/csv;charset=utf-8' }))
 }

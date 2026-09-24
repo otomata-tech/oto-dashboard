@@ -113,3 +113,17 @@ import type { BillingIdentityInput, BillingIdentityView } from './api'
 
 export type AdminBillingIdentityView = BillingIdentityView & { pennylane_customer_id: number | null }
 export type AdminBillingIdentityInput = BillingIdentityInput & { pennylane_customer_id?: number | null }
+
+// ── ④ L'émetteur déclaré d'une ligne du journal d'accès (otomata-tech/oto#187) ──
+// Servi par oto-backend `c03fa8fd` (tag v1.348.0) sur `AuditCall`
+// (`GET /api/orgs/{id}/audit-log/export`) — le snapshot OpenAPI commité date de
+// v1.341.0 et ne le porte pas encore. Le logiciel client que la session a nommé à son
+// `initialize`, et le mode de jeton (`user` | `delegation` ; `null` = session OAuth).
+// ⚠️ DÉCLARÉ par le client : lisible, jamais opposable. `null` partout = ligne
+// antérieure au lot. Au prochain `npm run api:refresh`, remplacer par le type généré
+// et supprimer ce bloc.
+export interface EmetteurDeclare {
+  client_name?: string | null
+  client_version?: string | null
+  token_kind?: string | null
+}

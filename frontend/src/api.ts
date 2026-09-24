@@ -1,6 +1,7 @@
 import { useAuth } from '@/composables/useAuth'
 import { getViewUser, requestViewAsWrite, viewHeaders } from '@/lib/viewOrg'
 import { beginBusy, endBusy } from '@/lib/busy'
+import { saveBlob } from '@/lib/download'
 
 // Un refus REST tel que le backend le rend : `error` (jeton machine), `detail`
 // (la phrase écrite pour être lue telle quelle) et `details` — la forme STRUCTURÉE
@@ -90,14 +91,7 @@ export async function apiDownload(path: string, fallbackName = 'export.zip'): Pr
   const blob = await resp.blob()
   const cd = resp.headers.get('Content-Disposition') || ''
   const m = cd.match(/filename="?([^"]+)"?/)
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = m?.[1] ?? fallbackName
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
+  saveBlob(m?.[1] ?? fallbackName, blob)
 }
 
 // Upload multipart (avatar / logo) : FormData champ `file`, PAS de Content-Type

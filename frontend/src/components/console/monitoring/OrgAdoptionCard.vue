@@ -83,7 +83,7 @@ const who = (m: OrgMemberAdoption) => m.name || m.email || m.sub
       </ConsoleTable>
       <p v-if="adoption?.truncated" class="helptext" style="padding: 8px 14px 0">
         liste limitée aux 500 premiers membres — les compteurs ci-dessus, eux, portent sur
-        tous. Pour l'exhaustif : l'export du journal d'audit.
+        tous. Pour l'exhaustif : l'export du journal des accès, onglet « journal ».
       </p>
     </ConsoleCard>
   </template>
