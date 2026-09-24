@@ -102,7 +102,7 @@ describe('InvitationsCard — 409 already_member / already_invited (oto-dashboar
       { invitation: { id: 42, created_at: '2026-09-01', expires_at: '2026-09-10' } },
     ))
     inviteMember.mockResolvedValueOnce({
-      ok: true, email: 'a@b.invalid', role: 'org_member', code: 'c', invite_url: 'https://x', emailed: true,
+      ok: true, email: 'a@b.invalid', role: 'org_member', invite_url: 'https://x', emailed: true,
     })
     const { host, cleanup } = await mountCard()
     await openAndSubmit(host, 'a@b.invalid')

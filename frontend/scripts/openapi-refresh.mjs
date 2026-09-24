@@ -14,7 +14,7 @@
  * mieux qu'un snapshot tronqué, et un contrat ne se devine pas.
  */
 import { readFileSync, writeFileSync } from "node:fs";
-import { PROVENANCE, SNAPSHOT, TARGET, render, sha256, warnDuplicates } from "./openapi-types.mjs";
+import { PROVENANCE, SNAPSHOT, TARGET, render, sha256 } from "./openapi-types.mjs";
 
 const BASE = (process.env.OTO_MCP_BASE ?? "https://mcp.oto.cx").replace(/\/$/, "");
 const URL_ = process.env.OTO_OPENAPI_URL ?? `${BASE}/api/openapi.json`;
@@ -56,7 +56,6 @@ writeFileSync(
     2,
   ) + "\n",
 );
-warnDuplicates(doc);
 writeFileSync(TARGET, render(doc));
 
 console.log(

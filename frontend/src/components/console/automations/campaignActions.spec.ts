@@ -52,8 +52,10 @@ const flotte = (over: Partial<RunnerFleet> = {}): RunnerFleet => ({
   created_at: '2026-09-13 07:00:00', ...over,
 } as RunnerFleet)
 const ETAT: RunnerFleetState = {
-  jobs_total: 40, pending: 2, claimed: 3, done: 35, failed: 0, abandoned: 0, usage_tokens: 90_000,
-  heaviest_row_tokens: 4_000, last_finished: '2026-09-13 11:58:00', no_jobs_attached: false,
+  jobs_total: 40, pending: 2, claimed: 3, done: 35, failed: 0, abandoned: 0,
+  empty_jobs: 0, stopped_after_write: 0, reservation_unmeasured: 0, usage_tokens: 90_000,
+  heaviest_row_tokens: 4_000, usage_unknown: 0, reservable_rows: 0, reservable_rows_unavailable: null,
+  last_finished: '2026-09-13 11:58:00', no_jobs_attached: false,
 }
 const VIERGE: RunnerFleetState = {
   ...ETAT, jobs_total: 0, pending: 0, claimed: 0, done: 0, usage_tokens: 0,

@@ -122,22 +122,14 @@ oto-backend#695 puis #719) — servis requis sur `GET /api/me/instructions` et
 `mcp.oto.ninja`. Son repli vivait dans `src/lib/instructionRights.ts`, supprimé par oto#192
 (12/09/2026) : plus aucun écran n'écrit de procédure. L'alias reste, porté par `DoctrineBundle`.
 
-## Un défaut du document qu'il faut connaître
+## Un défaut du document, corrigé côté backend
 
-Le document servi **viole l'unicité des `operationId`** : `me_guides_get_get` et
-`me_guides_set_put` sont portés chacun par trois chemins (`/api/me/…`, `/api/orgs/{id}/…`,
-`/api/groups/{id}/…`). Or `operations` est un objet indexé par cet identifiant : le
-générateur produit alors un fichier **qui ne compile pas** (TS2300 + TS2717), et l'erreur
-apparaît à 8 000 lignes de sa cause.
-
-`scripts/openapi-types.mjs` ne choisit pas de gagnant : il **retire l'`operationId` des
-occurrences en conflit**, ce qui fait typer ces opérations directement sous `paths[…]`
-(chacune avec ses vrais paramètres — rien n'est perdu, rien n'est arbitré), et il annonce
-la normalisation à chaque exécution. Elle redeviendra un no-op le jour où le backend
-nommera ces opérations distinctement. **C'est là qu'est le correctif.**
-
-Conséquence pratique : `npx openapi-typescript openapi/oto-openapi.json` à la main ne
-produit PAS le fichier commité. L'entrée est `npm run api:gen`.
+Le document a longtemps violé l'unicité des `operationId` (`me_guides_get_get` et
+`me_guides_set_put`, chacun porté par trois chemins) : `scripts/openapi-types.mjs`
+retirait alors l'`operationId` des occurrences en conflit pour que le générateur produise
+un fichier qui compile. oto-backend#436 nomme désormais ces opérations distinctement — le
+document servi n'a plus de doublon (vérifié au rafraîchissement du 2026-09-24) — et ce
+contournement a été retiré du normaliseur.
 
 ## État mesuré au 2026-08-27
 

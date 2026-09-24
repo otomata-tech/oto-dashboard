@@ -49,7 +49,9 @@ const flotte = (over: Partial<RunnerFleet>): RunnerFleet => ({
 
 const ETAT: RunnerFleetState = {
   jobs_total: 1840, pending: 12, claimed: 3, done: 1790, failed: 35, abandoned: 4,
-  usage_tokens: 5_400_000, heaviest_row_tokens: 21_000, last_finished: '2026-09-13 09:12:00',
+  empty_jobs: 0, stopped_after_write: 0, reservation_unmeasured: 0,
+  usage_tokens: 5_400_000, heaviest_row_tokens: 21_000, usage_unknown: 0,
+  reservable_rows: 0, reservable_rows_unavailable: null, last_finished: '2026-09-13 09:12:00',
   no_jobs_attached: false,
 }
 

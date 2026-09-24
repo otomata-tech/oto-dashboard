@@ -47,53 +47,6 @@ export function sha256(text) {
   return createHash("sha256").update(text).digest("hex");
 }
 
-/** Un `operationId` dupliqué n'est pas un détail cosmétique : la surface typée est
- *  indexée dessus, donc un chemin écrase l'autre — silencieusement. On ne peut pas le
- *  corriger ici (c'est le backend qui nomme ses opérations), mais on refuse de le
- *  laisser passer sans le dire. */
-export function duplicateOperationIds(doc) {
-  const seen = new Map();
-  for (const [path, verbs] of Object.entries(doc.paths ?? {})) {
-    for (const [verb, op] of Object.entries(verbs)) {
-      if (typeof op !== "object" || op === null || Array.isArray(op) || !op.operationId) continue;
-      seen.set(op.operationId, [...(seen.get(op.operationId) ?? []), `${verb.toUpperCase()} ${path}`]);
-    }
-  }
-  return [...seen].filter(([, at]) => at.length > 1);
-}
-
-export function warnDuplicates(doc) {
-  const dups = duplicateOperationIds(doc);
-  if (!dups.length) return;
-  console.warn(`[api:types] ${dups.length} \`operationId\` dupliqués dans le document servi — les`);
-  console.warn("            opérations concernées sont typées sous `paths`, pas sous `operations` :");
-  for (const [id, at] of dups) console.warn(`            ${id} : ${at.join(" · ")}`);
-}
-
-/** Le document servi viole l'unicité des `operationId` (deux capacités servies à trois
- *  scopes réutilisent le même identifiant). Or `operations` est un objet indexé par cet
- *  identifiant : le générateur produit alors un fichier qui NE COMPILE PAS (TS2300 /
- *  TS2717), et l'ambiguïté ne se voit qu'au typecheck, très loin de sa cause.
- *
- *  On ne l'invente pas et on ne choisit pas de gagnant : on RETIRE l'`operationId` des
- *  occurrences en conflit. openapi-typescript type alors ces opérations directement sous
- *  `paths[...]`, chacune avec ses vrais paramètres — rien n'est perdu, rien n'est
- *  arbitré. La normalisation est annoncée à chaque exécution, et redevient un no-op le
- *  jour où le backend nomme ces opérations distinctement (c'est là qu'est le correctif).
- */
-export function normalize(doc) {
-  const dups = new Set(duplicateOperationIds(doc).map(([id]) => id));
-  if (!dups.size) return doc;
-  const copy = structuredClone(doc);
-  for (const verbs of Object.values(copy.paths ?? {})) {
-    for (const op of Object.values(verbs)) {
-      if (typeof op !== "object" || op === null || Array.isArray(op)) continue;
-      if (dups.has(op.operationId)) delete op.operationId;
-    }
-  }
-  return copy;
-}
-
 /** Génère via le binaire d'openapi-typescript (son entrée supportée), pas via son API
  *  interne : le contrat de sortie est celui de l'outil, et rien de ce qu'on écrit ici
  *  ne peut le faire diverger d'une exécution manuelle de la CLI. */
@@ -102,7 +55,7 @@ export function render(doc) {
   const input = resolve(dir, "openapi.json");
   const out = resolve(dir, "api.generated.ts");
   try {
-    writeFileSync(input, JSON.stringify(normalize(doc)));
+    writeFileSync(input, JSON.stringify(doc));
     execFileSync(process.execPath, [CLI, input, "-o", out], { stdio: ["ignore", "ignore", "inherit"] });
     return BANNER + readFileSync(out, "utf8");
   } finally {
@@ -122,7 +75,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   }
   const doc = JSON.parse(raw);
-  warnDuplicates(doc);
   const generated = render(doc);
 
   if (!process.argv.includes("--check")) {

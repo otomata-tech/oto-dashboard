@@ -21,7 +21,10 @@ function flotte(over: Partial<RunnerFleet> = {}): RunnerFleet {
 function etat(over: Partial<RunnerFleetState> = {}): RunnerFleetState {
   return {
     jobs_total: 0, pending: 0, claimed: 0, done: 0, failed: 0, abandoned: 0,
-    usage_tokens: 0, heaviest_row_tokens: null, last_finished: null, no_jobs_attached: true,
+    empty_jobs: null, stopped_after_write: null, reservation_unmeasured: null,
+    usage_tokens: 0, heaviest_row_tokens: null, usage_unknown: null,
+    reservable_rows: null, reservable_rows_unavailable: null,
+    last_finished: null, no_jobs_attached: true,
     ...over,
   }
 }
