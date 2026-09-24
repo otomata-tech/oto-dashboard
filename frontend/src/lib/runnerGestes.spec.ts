@@ -7,7 +7,7 @@ import { ApiError } from '@/api'
 import type { RunnerTrigger } from '@/api/console'
 import type { RunnerFleet, RunnerFleetState } from '@/types/api'
 import {
-  apresReglage, borneAtteinte, champsModifies, droits, fuseauxProposes, fusionnerLecture,
+  apresReglage, borneAtteinte, champsModifies, droits, fuseauxProposes,
   gestesCampagne, modeleDeclencheur, MOTIF_ECHECS_CONSECUTIFS, optionsModele, refusServi,
   reglageInitial, type Droits, type Empechement, type GesteCampagne,
 } from './runnerGestes'
@@ -87,21 +87,6 @@ describe('gestesCampagne — statut × état × droits', () => {
 
   it('sans borne déclarée, jamais atteinte', () => {
     expect(borneAtteinte({ max_rows: null }, { jobs_total: 1_000_000 })).toBe(false)
-  })
-})
-
-describe('fusionnerLecture', () => {
-  const x = (id: number, status: string) => ({ id, status } as RunnerFleet)
-
-  it('une campagne écrite après le départ de la lecture garde l’état affiché', () => {
-    const affichees = [x(1, 'armed'), x(2, 'running')]
-    const lues = [x(1, 'stopped'), x(2, 'stopping'), x(3, 'draft')]
-    expect(fusionnerLecture(affichees, lues, (id) => id === 1))
-      .toEqual([x(1, 'armed'), x(2, 'stopping'), x(3, 'draft')])
-  })
-
-  it('une disparition servie reste une disparition', () => {
-    expect(fusionnerLecture([x(1, 'armed')], [], () => true)).toEqual([])
   })
 })
 

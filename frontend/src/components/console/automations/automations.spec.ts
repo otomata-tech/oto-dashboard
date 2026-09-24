@@ -2,14 +2,13 @@
 // fonctions pures ne peuvent pas prouver seules — ce que l'écran affiche d'une réponse
 // servie, et ce qu'il fait d'une erreur.
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { createApp, nextTick, type Component } from 'vue'
-import { createMemoryHistory, createRouter } from 'vue-router'
+import { createApp, h, nextTick, type Component } from 'vue'
+import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 import { i18n } from '@/lib/i18n'
-import { ApiError } from '@/api'
 import type { RunnerFleet, RunnerFleetState, RunnerJob } from '@/api/console'
 
 const api = vi.hoisted(() => ({
-  listRunnerFleets: vi.fn(), getRunnerFleetState: vi.fn(), listRunnerJobs: vi.fn(),
+  listRunnerFleets: vi.fn(), getRunnerFleet: vi.fn(), getRunnerFleetState: vi.fn(), listRunnerJobs: vi.fn(),
   launchRunnerFleet: vi.fn(), stopRunnerFleet: vi.fn(),
   listRunnerTriggers: vi.fn(), updateRunnerTrigger: vi.fn(), deleteRunnerTrigger: vi.fn(),
   getConnectorInstances: vi.fn(),
@@ -35,6 +34,28 @@ async function monter(C: Component, props: Record<string, unknown> = {}) {
   app.use(router)
   app.use(i18n)
   app.component('RouterLink', { props: ['to'], template: '<a :href="to"><slot /></a>' })
+  app.mount(hote)
+  await vider()
+  return hote
+}
+
+/** La fiche d'une campagne, montée à son adresse : c'est là que vivent ses compteurs depuis
+ * que la liste des campagnes est fondue dans l'entrée de l'espace (24/09/2026). */
+async function monterFiche(fleet: RunnerFleet) {
+  api.getRunnerFleet.mockResolvedValue({ fleet })
+  if (!api.listRunnerJobs.getMockImplementation()) api.listRunnerJobs.mockResolvedValue({ jobs: [], total: 0, next_cursor: null })
+  const C = (await import('@/views/console/automations/CampaignView.vue')).default
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/automations/campaigns/:id', component: C }, { path: '/:rest(.*)*', component: { render: () => null } }],
+  })
+  await router.push(`/automations/campaigns/${fleet.id}`)
+  await router.isReady()
+  const hote = document.createElement('div')
+  document.body.appendChild(hote)
+  const app = createApp({ render: () => h(RouterView) })
+  app.use(router)
+  app.use(i18n)
   app.mount(hote)
   await vider()
   return hote
@@ -71,12 +92,12 @@ beforeEach(() => {
 describe('une campagne : les compteurs de TOUTE la campagne', () => {
   it('affiche les compteurs servis par op=state, pas ceux d’une fenêtre de travaux', async () => {
     api.getRunnerFleetState.mockResolvedValue({ fleet: flotte({}), state: ETAT })
-    const C = (await import('./CampaignCard.vue')).default
-    const hote = await monter(C, { fleet: flotte({}), ouverteParDefaut: true })
+    const hote = await monterFiche(flotte({}))
 
     expect(api.getRunnerFleetState).toHaveBeenCalledWith(7)
-    // Aucune liste de travaux n'est lue pour compter.
-    expect(api.listRunnerJobs).not.toHaveBeenCalled()
+    // Les travaux ne sont lus que pour l'historique, sous le filtre de la campagne : l'historique
+    // servi est vide, et les compteurs disent quand même 1 840 — ils viennent de `op=state`.
+    for (const [filtre] of api.listRunnerJobs.mock.calls) expect(filtre).toEqual({ fleet_id: 7 })
     const paires = [...hote.querySelectorAll('[data-test="compteurs"] > div')]
       .map((d) => `${d.querySelector('dt')!.textContent!.trim()} ${d.querySelector('dd')!.textContent!.trim()}`)
     expect(paires).toEqual(['terminées 1790', 'en file 12', 'en vol 3', 'en échec 35', 'dont abandonnées 4', 'total 1840'])
@@ -88,18 +109,13 @@ describe('une campagne : les compteurs de TOUTE la campagne', () => {
     expect(hote.textContent).toContain('en cours')
   })
 
-  it('une carte fermée ne lit rien avant son ouverture', async () => {
-    api.getRunnerFleetState.mockResolvedValue({ fleet: flotte({}), state: ETAT })
-    const C = (await import('./CampaignCard.vue')).default
-    const hote = await monter(C, { fleet: flotte({ status: 'draft' }), ouverteParDefaut: false })
-    expect(api.getRunnerFleetState).not.toHaveBeenCalled()
-    expect(hote.textContent).toContain('non armée')
-    ;(hote.querySelector('button') as HTMLButtonElement).click()
-    await vider()
+  it('une campagne `draft` qui porte des travaux se dit historique, pas brouillon', async () => {
+    const brouillon = flotte({ status: 'draft' })
+    api.getRunnerFleetState.mockResolvedValue({ fleet: brouillon, state: ETAT })
+    const hote = await monterFiche(brouillon)
     expect(api.getRunnerFleetState).toHaveBeenCalledTimes(1)
-    // Lue, la flotte `draft` qui porte des travaux se dit historique.
-    expect(hote.textContent).toContain('historique')
-    expect(hote.textContent).not.toContain('brouillon')
+    expect(hote.querySelector('[data-test="statut"]')!.textContent).toContain('historique')
+    expect(hote.querySelector('[data-test="statut"]')!.textContent).not.toContain('brouillon')
   })
 })
 
@@ -115,8 +131,7 @@ describe('une campagne : les compteurs de TOUTE la campagne', () => {
 describe('une campagne : ce que les champs déclarés ne disent pas', () => {
   it('le parallélisme se lit sur les travaux en vol, jamais sur `workers` déclaré', async () => {
     api.getRunnerFleetState.mockResolvedValue({ fleet: flotte({}), state: ETAT })
-    const C = (await import('./CampaignCard.vue')).default
-    const hote = await monter(C, { fleet: flotte({ workers: 97 }), ouverteParDefaut: true })
+    const hote = await monterFiche(flotte({ workers: 97 }))
     const texte = hote.textContent ?? ''
     expect(texte).not.toContain('97')
     expect(texte.toLowerCase()).not.toMatch(/parall/)
@@ -127,8 +142,7 @@ describe('une campagne : ce que les champs déclarés ne disent pas', () => {
 
   it('`max_rows` n’est jamais dit en lignes — il ne s’affiche pas', async () => {
     api.getRunnerFleetState.mockResolvedValue({ fleet: flotte({}), state: ETAT })
-    const C = (await import('./CampaignCard.vue')).default
-    const hote = await monter(C, { fleet: flotte({ max_rows: 4321 }), ouverteParDefaut: true })
+    const hote = await monterFiche(flotte({ max_rows: 4321 }))
     expect(hote.textContent).not.toContain('4321')
   })
 
@@ -137,51 +151,6 @@ describe('une campagne : ce que les champs déclarés ne disent pas', () => {
       const copie = JSON.stringify((i18n.global.getLocaleMessage(langue) as Record<string, unknown>).automations)
       expect(copie.toLowerCase(), langue).not.toMatch(/parall|lignes visées|rows targeted|max_rows/)
     }
-  })
-})
-
-describe('la section des campagnes', () => {
-  it('le 403 bêta dit « non activées », sans rouge et sans panne', async () => {
-    api.listRunnerFleets.mockRejectedValue(new ApiError(403, 'beta_required', 'les passages sont en bêta'))
-    const C = (await import('./CampaignsSection.vue')).default
-    const hote = await monter(C)
-    expect(hote.textContent).toContain('Campagnes non activées pour cette organisation.')
-    expect(hote.querySelector('[role="alert"]')).toBeNull()
-  })
-
-  it('un AUTRE 403 reste une erreur — le silence ne vaut que pour la bêta', async () => {
-    api.listRunnerFleets.mockRejectedValue(new ApiError(403, 'forbidden'))
-    const C = (await import('./CampaignsSection.vue')).default
-    const hote = await monter(C)
-    expect(hote.textContent).not.toContain('non activées')
-    expect(hote.querySelector('[role="alert"]')).not.toBeNull()
-  })
-
-  it('l’erreur d’une carte reste dans la carte, et s’efface à la lecture suivante', async () => {
-    // `op=state` rend la MÊME flotte que la liste : la carte la remonte à la section, qui la
-    // remplace (lot 2) — une doublure qui rendrait une autre flotte renommerait la carte.
-    const liste = [flotte({ id: 1, label: 'en-panne' }), flotte({ id: 2, label: 'saine' })]
-    api.listRunnerFleets.mockResolvedValue({ fleets: liste })
-    api.getRunnerFleetState.mockImplementation(async (id: number) => {
-      if (id === 1) throw new ApiError(500, 'boom')
-      return { fleet: liste.find((f) => f.id === id), state: ETAT }
-    })
-    const C = (await import('./CampaignsSection.vue')).default
-    const hote = await monter(C)
-
-    expect(hote.querySelectorAll('li.cc')).toHaveLength(2)
-    const carte = (nom: string) => [...hote.querySelectorAll('li.cc')]
-      .find((c) => c.querySelector('.cc-name')?.textContent === nom)!
-    expect(carte('en-panne').textContent).toContain('Compteurs illisibles')
-    expect(carte('saine').textContent).not.toContain('Compteurs illisibles')
-    expect(carte('saine').textContent).toContain('1790')
-
-    api.getRunnerFleetState.mockResolvedValue({ fleet: liste[0], state: ETAT })
-    const tete = carte('en-panne').querySelector('button') as HTMLButtonElement
-    tete.click(); await vider()
-    tete.click(); await vider()
-    expect(carte('en-panne').textContent).not.toContain('Compteurs illisibles')
-    expect(carte('en-panne').textContent).toContain('1790')
   })
 })
 

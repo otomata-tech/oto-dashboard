@@ -5,55 +5,28 @@
 //   • les programmations qui perdent des occurrences (lues avec la présence du runner, par
 //     la page : `triggers op=list`) ;
 //   • les dernières exécutions en échec (`jobs op=list status=failed`, total servi).
-// Chaque bloc lit son propre contrat et garde son erreur.
-import { computed, onMounted, ref, watch } from 'vue'
+// Les campagnes sont lues par la page (`useCampagnes`), partagées avec la liste des
+// automatisations ; chaque bloc garde son erreur.
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ConsoleCard from '../ConsoleCard.vue'
 import Tag from '../Tag.vue'
 import RunnerJobList from './RunnerJobList.vue'
-import { ApiError } from '@/api'
-import { listRunnerFleets, type RunnerFleet, type RunnerJobsFiltre, type RunnerTrigger } from '@/api/console'
-import { inscrireRafraichissement, useMaintenant } from '@/composables/useRafraichissement'
+import type { RunnerFleet, RunnerJobsFiltre, RunnerTrigger } from '@/api/console'
+import type { Campagnes } from '@/composables/useCampagnes'
+import { useMaintenant } from '@/composables/useRafraichissement'
 import { nomProgrammation } from '@/lib/automationsEspace'
 import { absDate } from '@/lib/cellRender'
-import { humanize } from '@/lib/errors'
 import { armeeSansTravail, estVivante, libelleCampagne, nomCampagne } from '@/lib/runnerFleets'
 import { duree } from '@/lib/runnerJobs'
 
-const props = defineProps<{ triggers: RunnerTrigger[]; triggersLus: boolean; triggersErreur: string | null }>()
-const emit = defineEmits<{ vivante: [oui: boolean] }>()
+const props = defineProps<{
+  triggers: RunnerTrigger[]; triggersLus: boolean; triggersErreur: string | null; campagnes: Campagnes
+}>()
 const { t } = useI18n()
 const maintenant = useMaintenant()
 
-const fleets = ref<RunnerFleet[]>([])
-const lu = ref(false)
-const erreur = ref<string | null>(null)
-const betaAbsente = ref(false)
-
-let demande = 0
-async function charger() {
-  const n = ++demande
-  try {
-    const res = await listRunnerFleets()
-    if (n !== demande) return
-    fleets.value = res.fleets
-    erreur.value = null
-    betaAbsente.value = false
-  } catch (e) {
-    if (n !== demande) return
-    if (e instanceof ApiError && e.status === 403 && e.code === 'beta_required') {
-      betaAbsente.value = true
-      fleets.value = []
-      erreur.value = null
-    } else {
-      erreur.value = humanize(e)
-    }
-  } finally {
-    lu.value = true
-  }
-}
-
-const vivantes = computed(() => fleets.value.filter(estVivante))
+const vivantes = computed(() => props.campagnes.fleets.filter(estVivante))
 const enPerte = computed(() => props.triggers.filter((tr) => (tr.expired_count ?? 0) > 0))
 const ECHECS: RunnerJobsFiltre = { status: 'failed' }
 
@@ -66,9 +39,6 @@ function sansTravail(f: RunnerFleet): string | null {
   return ms === null ? null : t('automations.campaign.armedIdle', { duration: duree(ms) })
 }
 
-watch(() => vivantes.value.length > 0, (oui) => emit('vivante', oui), { immediate: true })
-onMounted(charger)
-inscrireRafraichissement(charger)
 </script>
 
 <template>
@@ -76,11 +46,11 @@ inscrireRafraichissement(charger)
     <div class="card-body ws">
       <section class="ws-bloc" data-test="vivantes">
         <h4 class="ws-t">{{ t('automations.watch.live') }}</h4>
-        <p v-if="betaAbsente" class="ws-mute" data-test="beta">{{ t('automations.campaigns.betaOff') }}</p>
+        <p v-if="campagnes.betaAbsente" class="ws-mute" data-test="beta">{{ t('automations.campaigns.betaOff') }}</p>
         <template v-else>
-          <p v-if="erreur" class="ws-err" role="alert">{{ t('automations.campaigns.error', { reason: erreur }) }}</p>
-          <p v-if="!lu" class="ws-mute">{{ t('common.loading') }}</p>
-          <p v-else-if="!vivantes.length && !erreur" class="ws-mute">{{ t('automations.watch.liveEmpty') }}</p>
+          <p v-if="campagnes.erreur" class="ws-err" role="alert">{{ t('automations.campaigns.error', { reason: campagnes.erreur }) }}</p>
+          <p v-if="!campagnes.lu" class="ws-mute">{{ t('common.loading') }}</p>
+          <p v-else-if="!vivantes.length && !campagnes.erreur" class="ws-mute">{{ t('automations.watch.liveEmpty') }}</p>
           <ul v-if="vivantes.length" class="ws-list">
             <li v-for="f in vivantes" :key="f.id" class="ws-item">
               <RouterLink :to="`/automations/campaigns/${f.id}`" class="ws-name">{{ nomCampagne(f) }}</RouterLink>

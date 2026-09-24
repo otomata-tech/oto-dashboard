@@ -48,7 +48,7 @@ const {
     const lu = lecture.objet.value
     if (lu) lecture.appliquer(lecture.jeton(), { ...lu, trigger })
   },
-  surSupprime: () => { void router.replace('/automations/schedules') },
+  surSupprime: () => { void router.replace('/automations') },
   relire: () => lecture.lire(),
 })
 

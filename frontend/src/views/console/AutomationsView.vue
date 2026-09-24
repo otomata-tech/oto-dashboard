@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // /automations — l'ESPACE Automatisations (oto#214). Page unique refondue par oto#205, c'est
-// désormais une entrée et des pages adressables sous une navigation persistante :
-// Campagnes · Programmations · Exécutions.
+// désormais des pages adressables sous une navigation persistante à deux rubriques :
+// Automatisations (l'entrée : programmations et campagnes en une liste) · Exécutions.
 //
 // L'espace tient ce qui est commun à ses pages :
 //   • l'en-tête : le fil d'Ariane, la navigation (`SubTabs`), le bouton « Rafraîchir » ;
@@ -19,18 +19,14 @@ import { fournirRafraichissement } from '@/composables/useRafraichissement'
 import { filDAriane, pageDe, RUBRIQUES, rubriqueDe, type PageEspace } from '@/lib/automationsEspace'
 import AutomationsHomeView from './automations/AutomationsHomeView.vue'
 import CampaignView from './automations/CampaignView.vue'
-import CampaignsView from './automations/CampaignsView.vue'
 import ExecutionView from './automations/ExecutionView.vue'
 import ExecutionsView from './automations/ExecutionsView.vue'
 import ScheduleSettingsView from './automations/ScheduleSettingsView.vue'
 import ScheduleView from './automations/ScheduleView.vue'
-import SchedulesView from './automations/SchedulesView.vue'
 
 const PAGES: Record<PageEspace, Component> = {
   accueil: AutomationsHomeView,
-  campagnes: CampaignsView,
   campagne: CampaignView,
-  programmations: SchedulesView,
   programmation: ScheduleView,
   reglages: ScheduleSettingsView,
   executions: ExecutionsView,
@@ -68,7 +64,7 @@ function aller(cle: string) {
       </template>
     </nav>
     <div class="ae-barre">
-      <SubTabs :tabs="onglets" :model-value="rubrique ?? ''" :aria-label="t('automations.space.label')"
+      <SubTabs :tabs="onglets" :model-value="rubrique" :aria-label="t('automations.space.label')"
         data-test="navigation" @update:model-value="aller" />
       <Btn kind="mini" :disabled="enCours" :aria-busy="enCours" data-test="rafraichir" @click="toutCharger">
         {{ enCours ? t('automations.refreshing') : t('automations.refresh') }}</Btn>

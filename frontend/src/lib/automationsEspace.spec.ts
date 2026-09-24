@@ -3,7 +3,7 @@
 // règles pures qu'ils supposent.
 import { describe, expect, it } from 'vitest'
 import {
-  affichesDeQuery, detailEspace, filDAriane, filtreCampagnes, filtresExecutions, garderCampagne,
+  affichesDeQuery, ANCIENNES_LISTES, detailEspace, filDAriane, filtresExecutions,
   historiqueDe, idDAdresse, META_ESPACE, pageDe, PAGES_ESPACE, programmationDe, queryAvecFiltre,
   rubriqueDe,
 } from './automationsEspace'
@@ -36,20 +36,28 @@ describe('les pages de l’espace', () => {
     expect(pageDe('project')).toBe('accueil')
   })
 
-  it('la navigation surligne la rubrique d’une page de détail', () => {
-    expect(rubriqueDe('accueil')).toBeNull()
-    expect(rubriqueDe('campagne')).toBe('campagnes')
-    expect(rubriqueDe('reglages')).toBe('programmations')
+  it('deux rubriques : les automatisations (l’entrée et les fiches) et les exécutions', () => {
+    expect(rubriqueDe('accueil')).toBe('automatisations')
+    expect(rubriqueDe('campagne')).toBe('automatisations')
+    expect(rubriqueDe('programmation')).toBe('automatisations')
+    expect(rubriqueDe('reglages')).toBe('automatisations')
+    expect(rubriqueDe('executions')).toBe('executions')
     expect(rubriqueDe('execution')).toBe('executions')
   })
 
-  it('le fil mène à chaque page parente, jamais à la page courante', () => {
+  it('les anciennes listes ne sont plus des pages : leurs adresses sont redirigées', () => {
+    for (const path of ANCIENNES_LISTES) expect(PAGES_ESPACE.some((p) => p.path === path)).toBe(false)
+  })
+
+  it('le fil mène à chaque page parente, jamais à la page courante, et la racine une fois', () => {
     expect(filDAriane('accueil', null).map((m) => m.to)).toEqual([null])
-    expect(filDAriane('campagnes', null).map((m) => m.to)).toEqual(['/automations', null])
-    expect(filDAriane('campagne', '7').map((m) => m.to)).toEqual(['/automations', '/automations/campaigns', null])
+    expect(filDAriane('campagne', '7').map((m) => m.to)).toEqual(['/automations', null])
+    expect(filDAriane('programmation', '3').map((m) => m.to)).toEqual(['/automations', null])
     const reglages = filDAriane('reglages', '3')
-    expect(reglages.map((m) => m.to)).toEqual(['/automations', '/automations/schedules', '/automations/schedules/3', null])
-    expect(reglages[2]!.params).toEqual({ id: '3' })
+    expect(reglages.map((m) => m.to)).toEqual(['/automations', '/automations/schedules/3', null])
+    expect(reglages[1]!.params).toEqual({ id: '3' })
+    expect(filDAriane('executions', null).map((m) => m.to)).toEqual(['/automations', null])
+    expect(filDAriane('execution', '9').map((m) => m.to)).toEqual(['/automations', '/automations/executions', null])
   })
 })
 
@@ -77,15 +85,6 @@ describe('ce qu’une adresse porte', () => {
     expect(affichesDeQuery({ shown: '75' })).toBe(75)
     expect(affichesDeQuery({ shown: 'beaucoup' })).toBeNull()
     expect(affichesDeQuery({})).toBeNull()
-  })
-
-  it('le filtre des campagnes, sur la liste COMPLÈTE', () => {
-    expect(filtreCampagnes({ status: 'live' })).toEqual({ valeur: 'live', ignores: [] })
-    expect(filtreCampagnes({ status: 'running' })).toEqual({ valeur: null, ignores: ['status=running'] })
-    const vivantes = ['armed', 'running', 'stopping', 'stopped', 'draft'].filter((s) => garderCampagne({ status: s }, 'live'))
-    expect(vivantes).toEqual(['armed', 'running', 'stopping'])
-    expect(garderCampagne({ status: 'stopped' }, 'stopped')).toBe(true)
-    expect(garderCampagne({ status: 'draft' }, null)).toBe(true)
   })
 })
 

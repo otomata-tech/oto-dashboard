@@ -76,6 +76,13 @@ describe('régler un déclencheur', () => {
     expect(api.updateRunnerTrigger).toHaveBeenCalledWith(1, { cron: '0 9 * * *' })
   })
 
+  it('une ligne webhook dit son genre et ce qu’elle a reçu, jamais un cron', async () => {
+    const hote = await monter([webhook({ id: 1, deliveries_24h: 3, deliveries_refused_24h: 1 })])
+    expect(sel(hote, 'genre')!.textContent!.trim()).toBe('webhook')
+    expect(sel(hote, 'recues')!.textContent).toContain('3 livraisons sur 24 h, dont 1 refusée')
+    expect(hote.textContent).not.toContain('Europe/Paris')
+  })
+
   it('un webhook ne propose ni horaire ni fuseau : seul son modèle se règle', async () => {
     const hote = await monter([webhook({ id: 1 })])
     await cliquer(sel(hote, 'regler'))

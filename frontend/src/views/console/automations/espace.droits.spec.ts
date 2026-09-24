@@ -139,14 +139,14 @@ describe('une programmation : ce que le serveur sert, sans garde admin', () => {
     expect(m.router.currentRoute.value.path).toBe('/automations/schedules/3')
   })
 
-  it('supprimer, confirmé sur place, mène à la liste', async () => {
+  it('supprimer, confirmé sur place, mène à la liste des automatisations', async () => {
     servirMonde(bouchons)
     api.deleteRunnerTrigger.mockResolvedValue({ ok: true })
     const m = await ouvrir('/automations/schedules/3/settings')
     await cliquer(sel(m, 'supprimer'))
     await naviguer(m.router, () => (sel(m, 'confirmer') as HTMLElement).click())
     expect(api.deleteRunnerTrigger).toHaveBeenCalledWith(3)
-    expect(m.router.currentRoute.value.path).toBe('/automations/schedules')
+    expect(m.router.currentRoute.value.path).toBe('/automations')
   })
 
   it('aucun texte ne réserve les réglages à un admin : cette décision n’est pas servie', async () => {

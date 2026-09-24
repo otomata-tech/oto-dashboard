@@ -15,7 +15,7 @@ import { ApiError } from '@/api'
 import type {
   RunnerDelivery, RunnerFleet, RunnerFleetState, RunnerJob, RunnerJobsFiltre, RunnerJobsPage, RunnerTrigger,
 } from '@/api/console'
-import { detailEspace, PAGES_ESPACE, SECTION } from '@/lib/automationsEspace'
+import { ANCIENNES_LISTES, detailEspace, PAGES_ESPACE, SECTION } from '@/lib/automationsEspace'
 import { i18n } from '@/lib/i18n'
 // Import STATIQUE : le graphe de l'espace se charge à la collecte du fichier, pas dans le
 // premier test — sous charge, un import à froid dans un test dépassait ses 5 s (13/09/2026).
@@ -158,6 +158,8 @@ export function routeurEspace(): Router {
       ...PAGES_ESPACE.map((p) => ({
         path: p.path, component: VIDE, meta: { section: SECTION, detail: detailEspace(p.page) },
       })),
+      // Comme le vrai routeur : les anciennes listes mènent à l'entrée.
+      ...ANCIENNES_LISTES.map((path) => ({ path, redirect: SECTION })),
       { path: '/procedures/:id', component: VIDE },
       { path: '/connectors', component: VIDE },
       { path: '/data/:id', component: VIDE },

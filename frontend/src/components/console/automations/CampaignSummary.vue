@@ -1,10 +1,8 @@
 <script setup lang="ts">
 // Ce qu'on sait d'UNE campagne ouverte (oto#205) — ses gestes, l'alerte « armée sans premier
 // travail », et les compteurs de TOUTE la campagne (`op=state`), jamais ceux d'une fenêtre de
-// travaux. Extrait de `CampaignCard` par oto#214 pour servir la carte de la liste ET la page
-// de la campagne, qui lisent l'état par `useLectureCampagne`.
-//
-// Le slot `travaux` ne s'offre que lorsque la campagne porte des travaux.
+// travaux. Monté sur la fiche d'une campagne, qui lit l'état par `useLectureCampagne` (la
+// carte de l'ancienne liste des campagnes est partie le 24/09/2026).
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Notice from '../Notice.vue'
@@ -64,7 +62,6 @@ const jetonsCampagne = computed(() => {
           <dd>{{ etat.last_finished ? absDate(etat.last_finished) : t('automations.campaign.none') }}</dd>
         </div>
       </dl>
-      <slot name="travaux" />
     </template>
   </div>
 </template>

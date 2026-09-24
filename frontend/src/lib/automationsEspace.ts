@@ -7,28 +7,29 @@
 // `meta.detail`. Ce module en est la SEULE liste : le routeur, la barre du haut et les
 // tests la lisent.
 import type { LocationQuery, LocationQueryRaw } from 'vue-router'
-import type { RunnerFleet, RunnerJob, RunnerJobsFiltre } from '@/api/console'
-import { estVivante } from './runnerFleets'
+import type { RunnerJob, RunnerJobsFiltre } from '@/api/console'
 
 export const SECTION = '/automations'
 
 export type PageEspace =
-  | 'accueil' | 'campagnes' | 'campagne' | 'programmations' | 'programmation'
-  | 'reglages' | 'executions' | 'execution'
+  | 'accueil' | 'campagne' | 'programmation' | 'reglages' | 'executions' | 'execution'
 
 interface PageRoutee { page: Exclude<PageEspace, 'accueil'>; path: string; meta: string }
 
 /** Les pages sous l'entrée. `meta` nomme leurs clés `pageMeta.*`. Les segments d'URL sont
- * anglais, comme tout le routeur (`/projects/:id`, `/data/:id/item/:rowId`). */
+ * anglais, comme tout le routeur (`/projects/:id`, `/data/:id/item/:rowId`). Les anciennes
+ * listes `/automations/campaigns` et `/automations/schedules` sont des redirections vers
+ * l'entrée (`ANCIENNES_LISTES`) : campagnes et programmations y forment une seule liste. */
 export const PAGES_ESPACE: readonly PageRoutee[] = [
-  { page: 'campagnes', path: '/automations/campaigns', meta: 'automationsCampaigns' },
   { page: 'campagne', path: '/automations/campaigns/:id', meta: 'automationsCampaign' },
-  { page: 'programmations', path: '/automations/schedules', meta: 'automationsSchedules' },
   { page: 'programmation', path: '/automations/schedules/:id', meta: 'automationsSchedule' },
   { page: 'reglages', path: '/automations/schedules/:id/settings', meta: 'automationsScheduleSettings' },
   { page: 'executions', path: '/automations/executions', meta: 'automationsExecutions' },
   { page: 'execution', path: '/automations/executions/:id', meta: 'automationsExecution' },
 ]
+
+/** Les adresses publiées des anciennes listes, redirigées vers l'entrée (24/09/2026). */
+export const ANCIENNES_LISTES = ['/automations/campaigns', '/automations/schedules'] as const
 
 export const detailEspace = (page: PageEspace): string => `automations-${page}`
 
@@ -47,40 +48,40 @@ export const META_ESPACE: Record<string, { title: string; crumb: string }> = Obj
 )
 
 // ── La navigation de l'espace ───────────────────────────────────────────────
-export type Rubrique = 'campagnes' | 'programmations' | 'executions'
+// Deux rubriques (24/09/2026, décision d'Alexis inspirée de Tulina) : les automatisations —
+// programmations et campagnes, une seule liste sur l'entrée — et leurs exécutions.
+export type Rubrique = 'automatisations' | 'executions'
 
 export const RUBRIQUES: ReadonlyArray<{ cle: Rubrique; path: string; label: string }> = [
-  { cle: 'campagnes', path: '/automations/campaigns', label: 'automations.space.nav.campaigns' },
-  { cle: 'programmations', path: '/automations/schedules', label: 'automations.space.nav.schedules' },
+  { cle: 'automatisations', path: SECTION, label: 'automations.space.root' },
   { cle: 'executions', path: '/automations/executions', label: 'automations.space.nav.executions' },
 ]
 
-const RUBRIQUE_DE: Record<PageEspace, Rubrique | null> = {
-  accueil: null,
-  campagnes: 'campagnes', campagne: 'campagnes',
-  programmations: 'programmations', programmation: 'programmations', reglages: 'programmations',
-  executions: 'executions', execution: 'executions',
+const RUBRIQUE_DE: Record<PageEspace, Rubrique> = {
+  accueil: 'automatisations', campagne: 'automatisations', programmation: 'automatisations',
+  reglages: 'automatisations', executions: 'executions', execution: 'executions',
 }
-export const rubriqueDe = (page: PageEspace): Rubrique | null => RUBRIQUE_DE[page]
+export const rubriqueDe = (page: PageEspace): Rubrique => RUBRIQUE_DE[page]
 
 export interface Maillon { label: string; params: Record<string, string>; to: string | null }
 
 /** Le fil d'Ariane d'une page : chaque maillon mène à sa page, sauf le dernier. L'objet se
- * nomme par l'identifiant de son adresse — la page, elle, affiche son nom. */
+ * nomme par l'identifiant de son adresse — la page, elle, affiche son nom. La rubrique des
+ * automatisations EST la racine : elle n'y apparaît qu'une fois. */
 export function filDAriane(page: PageEspace, id: string | null): Maillon[] {
   const m = (label: string, to: string | null, params: Record<string, string> = {}): Maillon =>
     ({ label, params, to })
-  const rubrique = RUBRIQUES.find((r) => r.cle === rubriqueDe(page))
-  if (!rubrique) return [m('automations.space.root', null)]
   const racine = m('automations.space.root', SECTION)
-  if (page === rubrique.cle) return [racine, m(rubrique.label, null)]
-  const objet = { id: id ?? '' }
-  if (page !== 'reglages') return [racine, m(rubrique.label, rubrique.path), m('automations.space.crumbId', null, objet)]
-  return [
-    racine, m(rubrique.label, rubrique.path),
-    m('automations.space.crumbId', `${rubrique.path}/${id ?? ''}`, objet),
-    m('automations.space.settings', null),
-  ]
+  const objet = m('automations.space.crumbId', null, { id: id ?? '' })
+  const executions = 'automations.space.nav.executions'
+  switch (page) {
+    case 'accueil': return [m('automations.space.root', null)]
+    case 'campagne': case 'programmation': return [racine, objet]
+    case 'reglages':
+      return [racine, { ...objet, to: `/automations/schedules/${id ?? ''}` }, m('automations.space.settings', null)]
+    case 'executions': return [racine, m(executions, null)]
+    case 'execution': return [racine, m(executions, '/automations/executions'), objet]
+  }
 }
 
 // ── Ce qu'une adresse porte ─────────────────────────────────────────────────
@@ -146,24 +147,6 @@ export const TAILLE_PAGE = 25
 /** Combien de lignes l'URL dit avoir déroulé (`?shown=`) ; `null` sans valeur lisible. */
 export function affichesDeQuery(q: LocationQuery): number | null {
   return idDAdresse(un(q.shown))
-}
-
-// ── Les campagnes ───────────────────────────────────────────────────────────
-export const FILTRES_CAMPAGNE = ['live', 'stopped', 'draft'] as const
-export type FiltreCampagne = (typeof FILTRES_CAMPAGNE)[number]
-
-export function filtreCampagnes(q: LocationQuery): LectureUrl<FiltreCampagne | null> {
-  const brut = un(q.status)
-  if (brut === null) return { valeur: null, ignores: [] }
-  const f = FILTRES_CAMPAGNE.find((x) => x === brut)
-  return f ? { valeur: f, ignores: [] } : { valeur: null, ignores: [`status=${brut}`] }
-}
-
-/** `fleets op=list` rend TOUTES les campagnes de l'org (aucune pagination servie) : ce filtre
- * s'applique à la liste complète, jamais à une fenêtre. */
-export function garderCampagne(f: Pick<RunnerFleet, 'status'>, filtre: FiltreCampagne | null): boolean {
-  if (filtre === null) return true
-  return filtre === 'live' ? estVivante(f) : f.status === filtre
 }
 
 // ── Les programmations ──────────────────────────────────────────────────────

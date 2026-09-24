@@ -6,7 +6,8 @@
 //   • « exécution », jamais « travail » ni « job » au sens d'exécution ;
 //   • « agent » ne désigne jamais une procédure ni une campagne.
 //
-// Ce que le contrôle PARCOURT : (1) toutes les valeurs de `automations.*` et
+// Ce que le contrôle PARCOURT : (1) toutes les valeurs de `automations.*` (et des blocs
+// `automationsWebhook`, `automationsList`, `automationsFilters`) et
 // `pageMeta.automations*`, en français — et leur pendant anglais, sous les mots anglais ;
 // (2) le texte des gabarits des pages et des composants de l'espace, leurs attributs lus
 // (`aria-label`, `title`, `placeholder`), et les chaînes littérales de leurs expressions et de
@@ -63,7 +64,7 @@ function valeurs(dict: unknown, chemin = ''): Array<[string, string]> {
   return Object.entries(dict as Record<string, unknown>).flatMap(([k, v]) => valeurs(v, chemin ? `${chemin}.${k}` : k))
 }
 const copieDe = (dict: Record<string, unknown>): Array<[string, string]> =>
-  valeurs(dict).filter(([cle]) => cle.startsWith('automations.') || cle.startsWith('pageMeta.automations'))
+  valeurs(dict).filter(([cle]) => cle.startsWith('automations') || cle.startsWith('pageMeta.automations'))
 
 // Exception nommée par son SENS : la CITATION d'un libellé d'interface tierce. Le lexique porte
 // sur nos objets, pas sur l'écran d'un tiers : celui des routines Anthropic dit « trigger », en
@@ -154,7 +155,9 @@ function fautesDesSources(lire: (f: string) => string = (f) => readFileSync(f, '
 
 describe('lexique de l’espace Automatisations — ce qui est parcouru', () => {
   it('parcourt bien les pages, les composants et la copie (garde contre un zéro vide)', () => {
-    expect(PARCOURUES.length).toBeGreaterThanOrEqual(24)
+    // 22 fichiers depuis le 24/09/2026 : les listes des campagnes et des programmations sont
+    // fondues dans l'entrée (quatre fichiers retirés, `AutomationsList` ajouté, `WebhookDeliveries`).
+    expect(PARCOURUES.length).toBeGreaterThanOrEqual(22)
     const textes = PARCOURUES.flatMap((f) => textesDeLaVue(readFileSync(f, 'utf8')))
     // 211 textes mesurés le 13/09/2026 (dont 116 dans la fiche d'une exécution) : la plupart des
     // pages parlent par clés i18n, parcourues par le dictionnaire. Un effondrement de ce compte

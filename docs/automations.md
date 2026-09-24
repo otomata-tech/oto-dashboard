@@ -3,9 +3,13 @@
 Les agents qui tournent **pour** l'org, sans elle. Refondu par **oto#205** : le lot 1
 (13/09/2026) porte la **lecture juste** ; le lot 2 les **gestes** (armer, relancer, arrêter une
 campagne ; régler et supprimer un déclencheur) ; la vue d'ensemble du coût est le lot 3.
-**oto#214** (13/09/2026) en fait un **espace** : une entrée et des pages adressables, sous une
-navigation persistante **Campagnes · Programmations · Exécutions** — comprendre ce qui va se
-lancer, régler ce qui est réglable, comprendre ce qui a eu lieu. Aucune écriture nouvelle.
+**oto#214** (13/09/2026) en fait un **espace** : une entrée et des pages adressables —
+comprendre ce qui va se lancer, régler ce qui est réglable, comprendre ce qui a eu lieu. Aucune
+écriture nouvelle. **Depuis le 24/09/2026** (décision d'Alexis, inspirée du front de Tulina :
+une campagne n'est pas une rubrique à part), la navigation n'a plus que deux rubriques,
+**Automatisations · Exécutions** : l'entrée porte UNE liste des programmations (horaire et
+webhook) et des campagnes, chaque ligne menant à sa fiche, où vivent ses gestes. Les anciennes
+listes `/automations/campaigns` et `/automations/schedules` redirigent vers l'entrée.
 
 Usages, par priorité (Alexis, 13/09) : **suivre une campagne**, **piloter**, **vue d'ensemble**.
 
@@ -47,10 +51,8 @@ navigation, le fil d'Ariane et les tests la lisent. La vue d'espace
 
 | adresse | page | ce qu'elle lit |
 |---|---|---|
-| `/automations` | `AutomationsHomeView` — runner, « à surveiller », routines ; l'ancien `?run=` | `triggers op=list` (présence + pertes), `fleets op=list` (vivantes), `jobs op=list status=failed limit=5`, instances du connecteur `routine` |
-| `/automations/campaigns[?status=live\|stopped\|draft]` | `CampaignsView` — la liste des lots 1-2, filtrée | `fleets op=list` (complète, sans pagination : le filtre ne porte pas sur une fenêtre) |
+| `/automations` | `AutomationsHomeView` — runner, « à surveiller », la liste des automatisations (`AutomationsList`), routines ; l'ancien `?run=` | `triggers op=list` (présence + pertes) et `fleets op=list` (`useCampagnes`), lus UNE fois chacun et partagés par « à surveiller » et la liste ; `jobs op=list status=failed limit=5`, instances du connecteur `routine` |
 | `/automations/campaigns/:id[?shown=N]` | `CampaignView` — identité en lecture, gestes, compteurs, historique | `fleets op=get`, `fleets op=state`, `jobs op=list fleet_id=` |
-| `/automations/schedules` | `SchedulesView` — la carte des programmations, telle quelle | `triggers op=list` |
 | `/automations/schedules/:id[?shown=N]` | `ScheduleView` — activation, horaire en mots, fuseau, modèle, prochaine exécution, pertes, historique ; un webhook remplace horaire, fuseau et prochaine exécution par l'adresse à donner à la source, ses livraisons sur 24 h, sa file et ses 50 dernières livraisons (`WebhookDeliveries`) | `triggers op=get` (avec `runner`), `jobs op=list trigger_id=`, `triggers op=deliveries` (webhook) |
 | `/automations/schedules/:id/settings` | `ScheduleSettingsView` — interrupteur, formulaire, suppression, sans rien y ajouter | `triggers op=get` ; gestes `op=update`, `op=delete` |
 | `/automations/executions[?source=&status=&campaign=&schedule=&shown=N]` | `ExecutionsView` — suivi transverse ; `schedule` est le lien « voir dans le suivi » d'une programmation | `jobs op=list` sous les filtres servis ; `fleets op=list` et `triggers op=list` pour nommer les filtres par campagne et par programmation |
@@ -80,9 +82,10 @@ navigation, le fil d'Ariane et les tests la lisent. La vue d'espace
 | section | composant | ce qu'elle lit |
 |---|---|---|
 | Runner | `components/console/automations/RunnerPresenceBanner.vue` | le bloc `runner` de `runner.triggers op=list`, lu par l'entrée avec la liste (`useProgrammations`) — la présence est une propriété de l'org, servie là |
-| Campagnes | `automations/CampaignsSection.vue` + `CampaignCard.vue` + `CampaignSummary.vue` + `CampaignActions.vue` | `runner.fleets op=list`, puis `op=state` par carte **ouverte** (`useLectureCampagne`) ; gestes `op=launch` / `op=stop` |
+| Automatisations | `automations/AutomationsList.vue` | rien : programmations et campagnes lues par la page. Une ligne par objet (nom → fiche, genre, légende, état) ; actives d'abord ; campagnes illisibles ou programmations illisibles dites dans la liste sans seconde alerte, bêta absente sans rouge |
+| Une campagne (sa fiche) | `CampaignSummary.vue` + `CampaignActions.vue` | `runner.fleets op=state` (`useLectureCampagne`) ; gestes `op=launch` / `op=stop` |
 | Travaux d'une campagne | `automations/RunnerJobList.vue` | `runner.jobs op=list` paginé, filtre `fleet_id` ; chaque ligne mène à la page de son exécution |
-| Déclencheurs | `components/console/RunnerTriggersCard.vue` + `automations/TriggerRow.vue` + `automations/TriggerSettingsForm.vue` | `runner.triggers op=list` ; gestes `op=update` (partiel) et `op=delete` (`useGestesDeclencheur`) ; la même carte est montée sur la fiche d'une procédure |
+| Déclencheurs d'une procédure | `components/console/RunnerTriggersCard.vue` + `automations/TriggerRow.vue` + `automations/TriggerSettingsForm.vue` | `runner.triggers op=list procedure=` ; gestes `op=update` (partiel) et `op=delete` (`useGestesDeclencheur`) ; montée sur la fiche d'une procédure (plus dans l'espace depuis le 24/09/2026) |
 | À surveiller | `automations/WatchSection.vue` | voir l'entrée, ci-dessus |
 | Routines Claude Code | `automations/RoutinesSection.vue` | les instances du connecteur `routine` |
 
@@ -92,11 +95,12 @@ exécution.
 ## Ce qui est partagé, et où
 
 - **`lib/runnerFleets.ts`** — une campagne : `libelleCampagne` (statut → clé i18n + ton),
-  `repartir` (vivantes / récentes / anciennes), `armeeSansTravail`, `compteurs`.
+  `repartir` (vivantes / récentes / anciennes : l'ordre des campagnes dans la liste),
+  `armeeSansTravail`, `compteurs`.
 - **`lib/runnerJobs.ts`** — un travail : `libelleTravail`, `coutTravail` (connu / inconnu),
   `modeleTravail`, `jetons`, `instant` (dates UTC), `bail`, la lecture du `result`.
 - **`lib/runnerGestes.ts`** — les gestes : `droits`, `gestesCampagne` (statut × état × droits),
-  `borneAtteinte` (R1), `MOTIF_ECHECS_CONSECUTIFS` (R2), `fusionnerLecture`, `refusServi` ; pour un
+  `borneAtteinte` (R1), `MOTIF_ECHECS_CONSECUTIFS` (R2), `refusServi` ; pour un
   déclencheur, `reglageInitial`, `champsModifies`, `apresReglage`, `modeleDeclencheur`,
   `optionsModele`, `fuseauxProposes`.
 - **`composables/useGesteObserve.ts`** — un geste en quatre temps : confirmation, envoi,
@@ -110,12 +114,13 @@ exécution.
   de l'historique d'un objet), `nomProgrammation`, `programmationDe`.
 - **`composables/useLectureParId.ts`** + **`automations/ObjetAdresse.vue`** — lire l'objet
   qu'une adresse désigne, et en dire l'issue.
-- **`composables/useLectureCampagne.ts`** — les compteurs d'une campagne (`op=state`), pour la
-  carte comme pour la page ; **`automations/CampaignSummary.vue`** — leur rendu, avec les gestes.
+- **`composables/useLectureCampagne.ts`** — les compteurs d'une campagne (`op=state`) sur sa
+  fiche ; **`automations/CampaignSummary.vue`** — leur rendu, avec les gestes.
 - **`composables/useGestesDeclencheur.ts`** — l'interrupteur et la suppression d'une
   programmation, pour la ligne comme pour la page des réglages.
 - **`composables/useProgrammations.ts`** — la liste des programmations et la présence du runner,
-  en une lecture. **`composables/useAffichesUrl.ts`** — `?shown=`.
+  en une lecture. **`composables/useCampagnes.ts`** — les campagnes de l'org, une lecture pour
+  l'entrée (bêta absente dite sans erreur). **`composables/useAffichesUrl.ts`** — `?shown=`.
 
 Toute la copie neuve vit sous `automations.*` dans `locales/fr.json` et `locales/en.json`.
 Les chaînes plus anciennes de la fiche, de la carte des déclencheurs et d'une ligne de
@@ -190,9 +195,9 @@ Fixées par la session flotte dans oto#205.
   `not_launchable`).
 - **Rien d'autre ne se règle** : ni cible, ni modèle, ni `workers`, ni plafond ;
   `budget_max_tokens` n'est pas affiché ; le motif d'arrêt n'est pas saisi.
-- ⚠️ **Une seule liste à clés** dans `CampaignsSection.vue` : une campagne relancée change de
-  groupe, et deux listes démonteraient sa carte en pleine observation. ⚠️ Une campagne écrite
-  par une carte n'est pas écrasée par une lecture de la liste partie avant (`fusionnerLecture`).
+- Les gestes d'une campagne ne vivent que sur sa fiche (depuis le 24/09/2026) : la garde de la
+  liste à clés et `fusionnerLecture`, qui protégeaient une carte observée dans la liste, sont
+  partis avec elle.
 
 `lib/runnerGestes.spec.ts` tient la table. `automations/campaignActions.spec.ts` tient la garde
 (ni « arrêtée » ni « en cours », en fr comme en en, avant la relecture qui les sert), sa
@@ -231,13 +236,14 @@ contre-épreuve par un mutant simulé en mémoire, la fenêtre d'observation, le
 `automations/triggerRow.spec.ts` tient ces règles, montées dans la carte ;
 `lib/runnerGestes.spec.ts` tient ce que le formulaire envoie.
 
-## Ordre et repli des campagnes
+## Ordre de la liste des automatisations
 
-Les **vivantes** (`armed`, `running`, `stopping`) d'abord, puis les **récentes** (un changement
-d'état déclaré dans les 7 derniers jours : armement, démarrage, demande d'arrêt, arrêt,
-création), puis un repli « N campagnes anciennes » à compteur vrai. Les cartes vivantes et
-récentes s'ouvrent seules ; une carte repliée ne lit son `op=state` qu'à l'ouverture. Une
-campagne sans aucune date lisible va au repli : on ne la prétend pas récente.
+Les **actives** d'abord (programmation activée, campagne vivante `armed`/`running`/`stopping`),
+puis les autres. Dans chaque groupe, les programmations dans l'ordre servi, puis les campagnes
+rangées par `repartir` : vivantes, **récentes** (un changement d'état déclaré dans les 7
+derniers jours), anciennes ; la plus récemment basculée en tête. Plus de repli ni de lecture
+d'`op=state` dans la liste : l'état d'une campagne s'y dit par son statut servi, ses compteurs
+sur sa fiche.
 
 ## Rafraîchissement
 

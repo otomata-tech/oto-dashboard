@@ -1,4 +1,6 @@
-// /automations, lot 2 d'oto#205 : les GESTES d'une campagne, montés dans la section.
+// /automations, lot 2 d'oto#205 : les GESTES d'une campagne, montés sur SA FICHE
+// (`/automations/campaigns/:id`, le seul endroit où ils vivent depuis que la liste des
+// campagnes est fondue dans l'entrée de l'espace, 24/09/2026).
 //
 // Ce qui se prouve ici et nulle part ailleurs : l'écran n'affiche un ABOUTISSEMENT
 // (« en cours », « arrêtée ») que sur une relecture qui le sert — jamais sur la réponse
@@ -6,13 +8,14 @@
 // fenêtre d'observation ; la contre-épreuve allume un mutant qui affiche l'intention, et
 // la garde doit alors le voir (sur un checkout partagé, la mutation se simule en mémoire).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApp, nextTick, ref } from 'vue'
+import { createApp, h, nextTick, ref } from 'vue'
+import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 import { ApiError } from '@/api'
 import type { RunnerFleet, RunnerFleetState } from '@/api/console'
 import { i18n } from '@/lib/i18n'
 
 const api = vi.hoisted(() => ({
-  listRunnerFleets: vi.fn(), getRunnerFleetState: vi.fn(), launchRunnerFleet: vi.fn(),
+  listRunnerFleets: vi.fn(), getRunnerFleet: vi.fn(), getRunnerFleetState: vi.fn(), launchRunnerFleet: vi.fn(),
   stopRunnerFleet: vi.fn(), listRunnerJobs: vi.fn(),
 }))
 vi.mock('@/api/console', () => api)
@@ -78,18 +81,45 @@ function servir(fleets: RunnerFleet[], etat: (fl: RunnerFleet) => RunnerFleetSta
   })
 }
 
-async function monterSection() {
-  const C = (await import('./CampaignsSection.vue')).default
+/** La fiche d'une campagne du monde servi (`listRunnerFleets`), montée à son adresse : la
+ * première du monde, ou celle qu'on nomme. `op=get` rend la campagne telle que le monde la
+ * sert au moment de l'ouverture. */
+async function monterFiche(id?: number) {
+  const { fleets } = await api.listRunnerFleets() as { fleets: RunnerFleet[] }
+  const vise = id ?? fleets[0]!.id
+  api.getRunnerFleet.mockImplementation(async (x: number) => ({ fleet: fleets.find((f) => f.id === x)! }))
+  if (!api.listRunnerJobs.getMockImplementation()) api.listRunnerJobs.mockResolvedValue({ jobs: [], total: 0, next_cursor: null })
+  const C = (await import('@/views/console/automations/CampaignView.vue')).default
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/automations/campaigns/:id', component: C },
+      { path: '/:rest(.*)*', component: { render: () => null } },
+    ],
+  })
+  await router.push(`/automations/campaigns/${vise}`)
+  await router.isReady()
   const hote = document.createElement('div')
   document.body.appendChild(hote)
-  const app = createApp(C)
+  const app = createApp({ render: () => h(RouterView) })
+  app.use(router)
   app.use(i18n)
-  // Chaque carte mène à la page de sa campagne (oto#214).
-  app.component('RouterLink', { props: ['to'], template: '<a :href="to"><slot /></a>' })
   app.mount(hote)
   demonter = () => app.unmount()
   await vider()
   return hote
+}
+
+/** Les gestes offerts sur la fiche de chaque campagne du monde, fiche après fiche. */
+async function gestesDuMonde(fleets: RunnerFleet[]) {
+  const vus: string[] = []
+  for (const f of fleets) {
+    vus.push(...gestes(await monterFiche(f.id)))
+    demonter?.()
+    demonter = null
+    document.body.replaceChildren()
+  }
+  return vus
 }
 
 const gestes = (hote: HTMLElement) =>
@@ -128,7 +158,7 @@ async function scenarioArret(interdit: string, n = 4) {
       state: { ...ETAT, claimed: 0, pending: 0 } }
   })
   api.stopRunnerFleet.mockResolvedValue({ fleet: flotte({ status: 'stopping', stopping_at: '2026-09-13 11:59:50' }) })
-  const hote = await monterSection()
+  const hote = await monterFiche()
   return observer(hote, 'arreter', interdit, n)
 }
 
@@ -144,7 +174,7 @@ async function scenarioArmement(interdit: string, n = 4) {
       state: { ...VIERGE, jobs_total: 1, claimed: 1, no_jobs_attached: false } }
   })
   api.launchRunnerFleet.mockResolvedValue({ fleet: ARMEE, budget_max_tokens: null })
-  const hote = await monterSection()
+  const hote = await monterFiche()
   return observer(hote, 'armer', interdit, n)
 }
 
@@ -196,7 +226,7 @@ describe('témoin = relecture observée', () => {
     me.value = MEMBRE
     servir([flotte()])
     api.stopRunnerFleet.mockResolvedValue({ fleet: flotte({ status: 'stopping', stopping_at: '2026-09-13 11:59:30' }) })
-    const hote = await monterSection()
+    const hote = await monterFiche()
     await cliquer(hote, '[data-test="geste-arreter"]')
     await cliquer(hote, '[data-test="confirmer"]')
     const texte = hote.textContent ?? ''
@@ -209,7 +239,7 @@ describe('témoin = relecture observée', () => {
   it('la réponse `armed` s’affiche : c’est un fait écrit par le serveur', async () => {
     servir([BROUILLON], () => VIERGE)
     api.launchRunnerFleet.mockResolvedValue({ fleet: ARMEE, budget_max_tokens: 900_000 })
-    const hote = await monterSection()
+    const hote = await monterFiche()
     await cliquer(hote, '[data-test="geste-armer"]')
     await cliquer(hote, '[data-test="confirmer"]')
     expect(hote.textContent).toContain('armée, en attente de la première exécution')
@@ -222,7 +252,7 @@ describe('la fenêtre d’observation', () => {
   it('relit toutes les 5 s pendant 60 s après un armement, puis rend la main', async () => {
     servir([BROUILLON], () => VIERGE)
     api.launchRunnerFleet.mockResolvedValue({ fleet: ARMEE, budget_max_tokens: null })
-    const hote = await monterSection()
+    const hote = await monterFiche()
     await cliquer(hote, '[data-test="geste-armer"]')
     await cliquer(hote, '[data-test="confirmer"]')
     const avant = lectures()
@@ -236,7 +266,7 @@ describe('la fenêtre d’observation', () => {
     me.value = MEMBRE
     servir([flotte()])
     api.stopRunnerFleet.mockResolvedValue({ fleet: flotte({ status: 'stopping' }) })
-    const hote = await monterSection()
+    const hote = await monterFiche()
     await cliquer(hote, '[data-test="geste-arreter"]')
     await cliquer(hote, '[data-test="confirmer"]')
     const avant = lectures()
@@ -249,7 +279,7 @@ describe('la fenêtre d’observation', () => {
   it('onglet caché : aucune relecture ne part', async () => {
     servir([BROUILLON], () => VIERGE)
     api.launchRunnerFleet.mockResolvedValue({ fleet: ARMEE, budget_max_tokens: null })
-    const hote = await monterSection()
+    const hote = await monterFiche()
     await cliquer(hote, '[data-test="geste-armer"]')
     await cliquer(hote, '[data-test="confirmer"]')
     const avant = lectures()
@@ -267,7 +297,7 @@ describe('la fenêtre d’observation', () => {
   it('démontage : plus rien ne part', async () => {
     servir([BROUILLON], () => VIERGE)
     api.launchRunnerFleet.mockResolvedValue({ fleet: ARMEE, budget_max_tokens: null })
-    const hote = await monterSection()
+    const hote = await monterFiche()
     await cliquer(hote, '[data-test="geste-armer"]')
     await cliquer(hote, '[data-test="confirmer"]')
     const avant = lectures()
@@ -283,7 +313,7 @@ describe('les refus, tels que servis', () => {
     servir([ARRETEE])
     const detail = "ce passage est `running` — on n'arme que ce qui ne tourne pas. Arrête-le d'abord, ou déclare une autre flotte."
     api.launchRunnerFleet.mockRejectedValue(new ApiError(409, 'not_launchable', detail))
-    const hote = await monterSection()
+    const hote = await monterFiche()
     await cliquer(hote, '[data-test="geste-relancer"]')
     const avant = lectures()
     await cliquer(hote, '[data-test="confirmer"]')
@@ -299,7 +329,7 @@ describe('les refus, tels que servis', () => {
   ])('%i %s : affiché tel quel, sans relecture', async (status, code, detail) => {
     servir([ARRETEE])
     api.launchRunnerFleet.mockRejectedValue(new ApiError(status, code, detail))
-    const hote = await monterSection()
+    const hote = await monterFiche()
     await cliquer(hote, '[data-test="geste-relancer"]')
     const avant = lectures()
     await cliquer(hote, '[data-test="confirmer"]')
@@ -323,38 +353,37 @@ describe('qui voit quel geste', () => {
   it('un membre ne voit ni Armer ni Relancer, mais voit Arrêter', async () => {
     me.value = MEMBRE
     servir(MONDE, etatDe)
-    const hote = await monterSection()
-    expect(gestes(hote)).toEqual(['Arrêter'])
+    expect(await gestesDuMonde(MONDE)).toEqual(['Arrêter'])
+    const hote = await monterFiche(3)
     expect(hote.querySelector('[data-test="empechement"]')).toBeNull()
   })
 
   it('le même monde vu par un admin d’org : les trois gestes', async () => {
     servir(MONDE, etatDe)
-    const hote = await monterSection()
-    expect(gestes(hote).sort()).toEqual(['Armer', 'Arrêter', 'Relancer'])
+    expect((await gestesDuMonde(MONDE)).sort()).toEqual(['Armer', 'Arrêter', 'Relancer'])
   })
 
   it('l’admin plateforme membre de l’org : Arrêter seulement (oto#210)', async () => {
     me.value = { sub: 'op', role: 'admin', org_role: 'org_member' }
     servir(MONDE, etatDe)
-    expect(gestes(await monterSection())).toEqual(['Arrêter'])
+    expect(await gestesDuMonde(MONDE)).toEqual(['Arrêter'])
   })
 
   it('consultation en lecture seule : aucun geste', async () => {
     me.value = { sub: 'sa', role: 'super_admin', org_role: null, active_org_readonly: true }
     servir(MONDE, etatDe)
-    expect(gestes(await monterSection())).toEqual([])
+    expect(await gestesDuMonde(MONDE)).toEqual([])
   })
 
   it('un brouillon dont l’état n’est pas lu ne propose rien', async () => {
     api.listRunnerFleets.mockResolvedValue({ fleets: [BROUILLON] })
     api.getRunnerFleetState.mockImplementation(() => new Promise(() => {}))
-    expect(gestes(await monterSection())).toEqual([])
+    expect(gestes(await monterFiche())).toEqual([])
   })
 
   it('`stopping` : aucun geste', async () => {
     servir([flotte({ status: 'stopping', stopping_at: '2026-09-13 11:00:00' })])
-    expect(gestes(await monterSection())).toEqual([])
+    expect(gestes(await monterFiche())).toEqual([])
   })
 })
 
@@ -367,7 +396,7 @@ describe('pas de relance qui ne produirait rien : le levier est nommé', () => {
     ['R2 échecs consécutifs', flotte({ ...ARRETEE, stop_reason: 'max_consecutive_failures' }), ETAT, 'Pas de relance : arrêtée pour échecs consécutifs'],
   ])('%s', async (_nom, fl, etat, phrase) => {
     servir([fl], () => etat)
-    const hote = await monterSection()
+    const hote = await monterFiche()
     expect(gestes(hote)).toEqual([])
     const empechement = hote.querySelector('[data-test="empechement"]')!.textContent!
     expect(empechement).toContain(phrase)
@@ -379,7 +408,7 @@ describe('pas de relance qui ne produirait rien : le levier est nommé', () => {
 describe('la confirmation sur place', () => {
   it('Armer rappelle ce qui ne change plus ; Annuler n’envoie rien', async () => {
     servir([BROUILLON], () => VIERGE)
-    const hote = await monterSection()
+    const hote = await monterFiche()
     await cliquer(hote, '[data-test="geste-armer"]')
     expect(hote.textContent).toContain('Armer « veille » ? Procédure, tableau et modèle ne se changent plus.')
     await cliquer(hote, '[data-test="annuler"]')
@@ -389,14 +418,14 @@ describe('la confirmation sur place', () => {
 
   it('Relancer rappelle la même chose', async () => {
     servir([ARRETEE])
-    const hote = await monterSection()
+    const hote = await monterFiche()
     await cliquer(hote, '[data-test="geste-relancer"]')
     expect(hote.textContent).toContain('Relancer « relance » ? Procédure, tableau et modèle ne se changent plus.')
   })
 
   it('Arrêter dit que les travaux en vol continuent, et dépensent', async () => {
     servir([flotte()])
-    const hote = await monterSection()
+    const hote = await monterFiche()
     await cliquer(hote, '[data-test="geste-arreter"]')
     expect(hote.textContent).toContain("Demander l'arrêt ? Les exécutions en vol continuent, et dépensent, jusqu'à leur fin.")
     expect(api.stopRunnerFleet).not.toHaveBeenCalled()

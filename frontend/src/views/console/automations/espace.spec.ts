@@ -50,14 +50,12 @@ describe('chaque page s’ouvre par son adresse, et se recharge à l’identique
       expect(api.listRunnerTriggers).toHaveBeenCalledWith(undefined)
       expect(api.listRunnerFleets).toHaveBeenCalled()
       expect(api.listRunnerJobs).toHaveBeenCalledWith({ status: 'failed' }, { limit: 5 })
-    }, 'À surveiller'],
-    ['/automations/campaigns', () => expect(api.listRunnerFleets).toHaveBeenCalled(), 'relance'],
+    }, 'Programmations et campagnes'],
     ['/automations/campaigns/7', () => {
       expect(api.getRunnerFleet).toHaveBeenCalledWith(7)
       expect(api.getRunnerFleetState).toHaveBeenCalledWith(7)
       expect(api.listRunnerJobs).toHaveBeenCalledWith({ fleet_id: 7 }, { limit: 25 })
     }, 'Historique des exécutions'],
-    ['/automations/schedules', () => expect(api.listRunnerTriggers).toHaveBeenCalledWith(undefined), 'Veille du matin'],
     ['/automations/schedules/3', () => {
       expect(api.getRunnerTrigger).toHaveBeenCalledWith(3)
       expect(api.listRunnerJobs).toHaveBeenCalledWith({ trigger_id: 3 }, { limit: 25 })
@@ -84,14 +82,15 @@ describe('chaque page s’ouvre par son adresse, et se recharge à l’identique
   it('la navigation surligne la rubrique, le fil mène aux pages parentes, un onglet mène à sa liste', async () => {
     servirMonde(bouchons)
     const m = await ouvrir('/automations/schedules/3/settings')
-    expect(texte(m, '[data-test="navigation"] [aria-selected="true"]').trim()).toBe('Programmations')
+    expect(texte(m, '[data-test="navigation"] [aria-selected="true"]').trim()).toBe('Automatisations')
     const fil = m.hote.querySelector('[data-test="fil"]')!
     expect([...fil.querySelectorAll('a')].map((a) => a.getAttribute('href')))
-      .toEqual(['/automations', '/automations/schedules', '/automations/schedules/3'])
+      .toEqual(['/automations', '/automations/schedules/3'])
     expect(fil.textContent).toContain('Réglages')
 
     const onglets = m.hote.querySelectorAll('[data-test="navigation"] [role="tab"]')
-    await naviguer(m.router, () => (onglets[2] as HTMLElement).click())
+    expect([...onglets].map((o) => o.textContent?.trim())).toEqual(['Automatisations', 'Exécutions'])
+    await naviguer(m.router, () => (onglets[1] as HTMLElement).click())
     expect(m.router.currentRoute.value.path).toBe('/automations/executions')
     expect(texte(m, '[data-test="navigation"] [aria-selected="true"]').trim()).toBe('Exécutions')
   })
@@ -131,29 +130,76 @@ describe('le retour navigateur garde filtres et pagination', () => {
     expect(api.listRunnerJobs).toHaveBeenCalledWith({ source: 'scheduled' }, { limit: 25 })
     expect(m.hote.querySelectorAll('li[data-job]')).toHaveLength(2)
   })
+})
 
-  it('campagnes : le filtre de statut vit dans l’URL ; un inconnu se dit ignoré', async () => {
-    const ilYaUneHeure = new Date(Date.now() - 3_600_000).toISOString().replace('T', ' ').slice(0, 19)
+describe('une seule liste : programmations et campagnes (24/09/2026)', () => {
+  const lignes = (m: Monte) => [...m.hote.querySelectorAll('[data-test="automatisations"] li')]
+  const noms = (m: Monte) => lignes(m).map((li) => li.querySelector('a')!.textContent!.trim())
+
+  it('chaque ligne dit son genre et mène à sa fiche ; les actives d’abord', async () => {
     servirMonde(bouchons, {
+      triggers: [
+        programmation({ id: 4, label: 'Coupée', enabled: false }),
+        programmation(),
+        webhook(),
+      ],
       fleets: [
-        flotte({ id: 7, label: 'vivante' }),
-        // Arrêtée IL Y A une heure, pas à une date fixe : passé `RECENTE_JOURS`, une campagne
-        // arrêtée se replie hors du filtre, et une date écrite en dur a fait rougir le tronc
-        // le 21/09/2026, sept jours après avoir été vraie.
-        flotte({ id: 9, label: 'finie', status: 'stopped', stopped_at: ilYaUneHeure, stop_reason: 'fin' }),
+        flotte({ id: 8, label: 'finie', status: 'stopped', stop_reason: 'fin', stopped_at: '2026-09-13 10:00:00' }),
+        flotte(),
       ],
     })
-    const noms = (m: Monte) => [...m.hote.querySelectorAll('.cc-name')].map((n) => n.textContent)
-    const m = await ouvrir('/automations/campaigns?status=stopped')
-    expect(noms(m)).toEqual(['finie'])
-    await naviguer(m.router, () => m.router.push('/automations/campaigns?status=live'))
-    expect(noms(m)).toEqual(['vivante'])
-    await naviguer(m.router, () => m.router.back())
-    expect(noms(m)).toEqual(['finie'])
+    const m = await ouvrir('/automations')
+    expect(noms(m)).toEqual(['Veille du matin', 'Nouveau lead', 'relance', 'Coupée', 'finie'])
+    const genres = lignes(m).map((li) => li.querySelector('[data-test="genre"]')!.textContent!.trim())
+    expect(genres).toEqual(['programmation', 'webhook', 'campagne', 'programmation', 'campagne'])
+    expect(lignes(m).map((li) => li.querySelector('a')!.getAttribute('href'))).toEqual([
+      '/automations/schedules/3', '/automations/schedules/5', '/automations/campaigns/7',
+      '/automations/schedules/4', '/automations/campaigns/8',
+    ])
+    expect(lignes(m)[0]!.textContent).toContain('tous les jours à 8 h')
+    expect(lignes(m)[1]!.textContent).toContain('12 livraisons sur 24 h')
+    expect(lignes(m)[3]!.textContent).toContain('coupée')
+    // Une seule lecture de chaque contrat, partagée avec « à surveiller ».
+    expect(api.listRunnerFleets).toHaveBeenCalledTimes(1)
+    expect(api.listRunnerTriggers).toHaveBeenCalledTimes(1)
+  })
 
-    const inconnu = await ouvrir('/automations/campaigns?status=running')
-    expect(texte(inconnu, '[data-test="ignores"]')).toContain('status=running')
-    expect(noms(inconnu)).toEqual(['vivante', 'finie'])
+  it('sans la bêta : les programmations seules, sans rouge', async () => {
+    servirMonde(bouchons)
+    api.listRunnerFleets.mockRejectedValue(new ApiError(403, 'beta_required', 'les passages d’agents sont en bêta'))
+    const m = await ouvrir('/automations')
+    expect(noms(m)).toEqual(['Veille du matin'])
+    expect(m.hote.querySelector('[role="alert"]')).toBeNull()
+  })
+
+  it('campagnes illisibles : dit dans la liste, sans seconde alerte ; les programmations restent', async () => {
+    servirMonde(bouchons)
+    api.listRunnerFleets.mockRejectedValue(new ApiError(500, 'boom'))
+    const m = await ouvrir('/automations')
+    expect(texte(m, '[data-test="erreur-campagnes"]')).toContain('Campagnes illisibles')
+    expect(noms(m)).toEqual(['Veille du matin'])
+    expect(m.hote.querySelectorAll('[role="alert"]')).toHaveLength(1)
+  })
+
+  it('un AUTRE 403 reste une erreur : le silence ne vaut que pour la bêta', async () => {
+    servirMonde(bouchons)
+    api.listRunnerFleets.mockRejectedValue(new ApiError(403, 'forbidden'))
+    const m = await ouvrir('/automations')
+    expect(m.hote.textContent).not.toContain('non activées')
+    expect(texte(m, '[data-test="erreur-campagnes"]')).toContain('Campagnes illisibles')
+  })
+
+  it('rien à lister : une phrase', async () => {
+    servirMonde(bouchons, { triggers: [], fleets: [] })
+    const m = await ouvrir('/automations')
+    expect(texte(m, '[data-test="aucune"]')).toContain('Aucune automatisation')
+  })
+
+  it.each(['/automations/campaigns', '/automations/schedules'])('l’ancienne adresse %s mène à la liste', async (url) => {
+    servirMonde(bouchons)
+    const m = await ouvrir(url)
+    expect(m.router.currentRoute.value.fullPath).toBe('/automations')
+    expect(noms(m)).toEqual(['Veille du matin', 'relance'])
   })
 })
 
@@ -199,7 +245,7 @@ describe('une adresse n’affiche que l’objet qu’elle désigne', () => {
 })
 
 describe('la bêta absente ne rougit rien', () => {
-  it.each(['/automations', '/automations/campaigns', '/automations/campaigns/7', '/automations/executions'])(
+  it.each(['/automations', '/automations/campaigns/7', '/automations/executions'])(
     '%s', async (url) => {
       servirMonde(bouchons)
       const beta = new ApiError(403, 'beta_required', 'les passages d’agents sont en bêta')
@@ -324,10 +370,11 @@ describe('une programmation webhook se lit par ce qu’elle reçoit (oto#214)', 
 
   it('dans la liste : son genre et ce qu’il a reçu, pas un cron', async () => {
     servirMonde(bouchons, { triggers: [webhook({ deliveries_24h: 0, deliveries_refused_24h: 0 })] })
-    const m = await ouvrir('/automations/schedules')
-    expect(texte(m, '[data-test="genre"]')).toBe('webhook')
-    expect(texte(m, '[data-test="recues"]')).toContain('aucune livraison sur 24 h')
-    expect(m.hote.textContent).not.toContain('Europe/Paris')
+    const m = await ouvrir('/automations')
+    const ligne = m.hote.querySelector('[data-test="automatisations"] li[data-ligne="t5"]')!
+    expect(ligne.querySelector('[data-test="genre"]')!.textContent!.trim()).toBe('webhook')
+    expect(ligne.textContent).toContain('aucune livraison sur 24 h')
+    expect(ligne.textContent).not.toContain('Europe/Paris')
   })
 })
 

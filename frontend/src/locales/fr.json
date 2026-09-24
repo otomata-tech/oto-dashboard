@@ -56,9 +56,7 @@
     "connectors": { "title": "connecteurs", "crumb": "espace de travail" },
     "procedures": { "title": "procédures", "crumb": "espace de travail" },
     "automations": { "title": "automatisations", "crumb": "espace de travail" },
-    "automationsCampaigns": { "title": "campagnes", "crumb": "automatisations" },
     "automationsCampaign": { "title": "campagne", "crumb": "automatisations" },
-    "automationsSchedules": { "title": "programmations", "crumb": "automatisations" },
     "automationsSchedule": { "title": "programmation", "crumb": "automatisations" },
     "automationsScheduleSettings": { "title": "réglages d'une programmation", "crumb": "automatisations" },
     "automationsExecutions": { "title": "exécutions", "crumb": "automatisations" },
@@ -254,22 +252,8 @@
         "error": "Présence du runner illisible : {reason}"
       },
       "campaigns": {
-        "title": "Campagnes",
-        "sub": "Chaque campagne, comptée sur l'ensemble de ses exécutions.",
-        "empty": "Aucune campagne déclarée.",
         "betaOff": "Campagnes non activées pour cette organisation.",
-        "error": "Campagnes illisibles : {reason}",
-        "older": "{n} campagne ancienne | {n} campagnes anciennes",
-        "olderHint": "sans changement d'état depuis {days} jours",
-        "open": "page de la campagne",
-        "filteredEmpty": "Aucune campagne sous ce filtre.",
-        "filter": {
-          "label": "Statut",
-          "all": "toutes",
-          "live": "vivantes",
-          "stopped": "arrêtées",
-          "draft": "non armées"
-        }
+        "error": "Campagnes illisibles : {reason}"
       },
       "campaign": {
         "status": {
@@ -334,8 +318,6 @@
         "label": "Navigation de l'espace Automatisations",
         "crumbLabel": "Fil d'Ariane",
         "nav": {
-          "campaigns": "Campagnes",
-          "schedules": "Programmations",
           "executions": "Exécutions"
         },
         "crumbId": "#{id}",
@@ -693,7 +675,7 @@
     },
     "deliveries": {
       "title": "Livraisons reçues",
-      "sub": "Les 50 dernières, de la plus récente à la plus ancienne. Le résultat est celui de la réception ; l'exécution dit ce que le travail est devenu.",
+      "sub": "Les 50 dernières, de la plus récente à la plus ancienne. Le résultat est celui de la réception ; l'état de l'exécution dit ce qu'elle est devenue.",
       "empty": "Aucune livraison reçue pour l'instant.",
       "error": "Impossible de lire les livraisons : {reason}",
       "execution": "exécution #{id}",
@@ -706,5 +688,16 @@
     "scheduleLabel": "Programmation",
     "allSchedules": "toutes les programmations",
     "schedulesError": "Impossible de lire les programmations : {reason}"
+  },
+  "automationsList": {
+    "title": "Programmations et campagnes",
+    "sub": "Toutes les automatisations de l'organisation, les actives d'abord. Chaque nom mène à sa fiche, où se trouvent ses gestes.",
+    "kind": {
+      "schedule": "programmation",
+      "webhook": "webhook",
+      "campaign": "campagne"
+    },
+    "next": "prochaine {date}",
+    "empty": "Aucune automatisation dans cette organisation pour l'instant."
   }
 }

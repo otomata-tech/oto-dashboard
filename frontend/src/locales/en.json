@@ -56,9 +56,7 @@
     "connectors": { "title": "connectors", "crumb": "workspace" },
     "procedures": { "title": "procedures", "crumb": "workspace" },
     "automations": { "title": "automations", "crumb": "workspace" },
-    "automationsCampaigns": { "title": "campaigns", "crumb": "automations" },
     "automationsCampaign": { "title": "campaign", "crumb": "automations" },
-    "automationsSchedules": { "title": "schedules", "crumb": "automations" },
     "automationsSchedule": { "title": "schedule", "crumb": "automations" },
     "automationsScheduleSettings": { "title": "schedule settings", "crumb": "automations" },
     "automationsExecutions": { "title": "executions", "crumb": "automations" },
@@ -254,22 +252,8 @@
         "error": "Runner presence unreadable: {reason}"
       },
       "campaigns": {
-        "title": "Campaigns",
-        "sub": "Each campaign, counted over all of its executions.",
-        "empty": "No campaign declared.",
         "betaOff": "Campaigns are not enabled for this organization.",
-        "error": "Campaigns unreadable: {reason}",
-        "older": "{n} older campaign | {n} older campaigns",
-        "olderHint": "no state change in {days} days",
-        "open": "campaign page",
-        "filteredEmpty": "No campaign under this filter.",
-        "filter": {
-          "label": "Status",
-          "all": "all",
-          "live": "live",
-          "stopped": "stopped",
-          "draft": "not armed"
-        }
+        "error": "Campaigns unreadable: {reason}"
       },
       "campaign": {
         "status": {
@@ -334,8 +318,6 @@
         "label": "Automations space navigation",
         "crumbLabel": "Breadcrumb",
         "nav": {
-          "campaigns": "Campaigns",
-          "schedules": "Schedules",
           "executions": "Executions"
         },
         "crumbId": "#{id}",
@@ -673,7 +655,7 @@
   },
   "automationsWebhook": {
     "kind": "webhook",
-    "trigger": "trigger",
+    "trigger": "starts",
     "triggerValue": "on each delivery from the source",
     "received": "received",
     "received24h": "no delivery in 24 h | {n} delivery in 24 h | {n} deliveries in 24 h",
@@ -693,7 +675,7 @@
     },
     "deliveries": {
       "title": "Deliveries received",
-      "sub": "The last 50, newest first. The outcome is the one at reception; the execution tells what the job became.",
+      "sub": "The last 50, newest first. The outcome is the one at reception; the execution's status tells what became of it.",
       "empty": "No delivery received yet.",
       "error": "Cannot read the deliveries: {reason}",
       "execution": "execution #{id}",
@@ -706,5 +688,16 @@
     "scheduleLabel": "Schedule",
     "allSchedules": "all schedules",
     "schedulesError": "Cannot read the schedules: {reason}"
+  },
+  "automationsList": {
+    "title": "Schedules and campaigns",
+    "sub": "All of the organization's automations, active ones first. Each name leads to its page, where its actions are.",
+    "kind": {
+      "schedule": "schedule",
+      "webhook": "webhook",
+      "campaign": "campaign"
+    },
+    "next": "next {date}",
+    "empty": "No automation in this organization yet."
   }
 }

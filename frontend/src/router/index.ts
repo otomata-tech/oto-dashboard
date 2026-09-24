@@ -2,7 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw, type RouteMeta } f
 import ConsoleLayout from '../views/console/ConsoleLayout.vue'
 import InviteAcceptView from '../views/InviteAcceptView.vue'
 import { NAV, type NavLevel } from '@/lib/consoleNav'
-import { detailEspace, PAGES_ESPACE, SECTION as SECTION_AUTOMATIONS } from '@/lib/automationsEspace'
+import { ANCIENNES_LISTES, detailEspace, PAGES_ESPACE, SECTION as SECTION_AUTOMATIONS } from '@/lib/automationsEspace'
 import {
   currentViewOrg, setViewOrgId, currentViewGroup, setViewGroupId, consultRedirectPath,
 } from '@/lib/viewOrg'
@@ -136,6 +136,9 @@ const router = createRouter({
     // vue d'espace choisit par `meta.detail`. `:id` n'est pas contraint : une adresse sans
     // identifiant se DIT, au lieu de retomber en silence sur l'aperçu.
     ...PAGES_ESPACE.flatMap((p) => detailRoutes(p.path, detailEspace(p.page), SECTION_AUTOMATIONS)),
+    // Les anciennes listes (campagnes, programmations) : une seule liste sur l'entrée depuis le
+    // 24/09/2026. Leurs adresses publiées y mènent.
+    ...ANCIENNES_LISTES.map((path) => ({ path, redirect: SECTION_AUTOMATIONS })),
     // Détail d'une équipe (membres seuls, cf. TeamDetailView) — le scope d'équipe complet
     // (contexte, connecteurs, procédures, invitation) reste hors dashboard depuis oto#192 ;
     // seule la gestion des membres est revenue (besoin réel, 18/09/2026).

@@ -105,19 +105,6 @@ export function borneAtteinte(
   return typeof f.max_rows === 'number' && etat.jobs_total >= f.max_rows
 }
 
-/** Une lecture de la liste partie AVANT qu'une carte n'écrive une campagne ne remplace
- * pas cette campagne : elle rendrait un état plus ancien que celui qu'on affiche. Tout le
- * reste — les autres campagnes, l'ordre, les apparitions, les disparitions — vient de la
- * lecture. */
-export function fusionnerLecture(
-  affichees: RunnerFleet[],
-  lues: RunnerFleet[],
-  ecriteApresLecture: (id: number) => boolean,
-): RunnerFleet[] {
-  const parId = new Map(affichees.map((f) => [f.id, f]))
-  return lues.map((f) => (ecriteApresLecture(f.id) ? (parId.get(f.id) ?? f) : f))
-}
-
 export interface Refus {
   /** Le code servi (`not_launchable`…) ; `null` sans réponse du serveur (réseau). */
   code: string | null
