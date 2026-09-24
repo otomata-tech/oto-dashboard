@@ -408,6 +408,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/datastore/namespaces/{namespace}/rows/{row_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Déprécié : utilisez /api/datastores/{datastore}/rows/{row_id}/history (retrait le 08/11/2026)
+         * @deprecated
+         * @description Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/rows/{row_id}/history` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.
+         */
+        get: operations["get_api_datastore_namespaces_namespace_rows_row_id_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/datastore/namespaces/{namespace}/rows/{row_id}/release": {
         parameters: {
             query?: never;
@@ -806,6 +827,26 @@ export interface paths {
          * @description Réserve une ligne nommée d'un tableau (409 si déjà sous bail d'un autre).
          */
         post: operations["me_datastore_claim_row_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/datastores/{datastore}/rows/{row_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the revision history of ONE datastore row: every write, newest first, with the values before and after (`diff: {column: {avant, apres}}`), who wrote it (`acteur`), under which
+         * @description Read the revision history of ONE datastore row: every write, newest first, with the values before and after (`diff: {column: {avant, apres}}`), who wrote it (`acteur`), under which run (`run_id`), through which face (`source`: import, agent, console, api, upload, system) and in which gesture (`geste_id`). `champ` keeps only the revisions touching that column. Page with `limit` and `before_id` (= the previous `next_before_id`). ⚠️ Coverage: the journal only holds writes made since it went live on 2026-09-24. A row with NO revision is NOT a row that was never modified: it may simply not have been written since. `coverage.insert_recorded: false` means the row predates the journal and its history starts mid-life. A deleted row keeps its history, readable only by whoever governs the table (`row_deleted: true`); deleting is not itself a revision.
+         */
+        get: operations["me_datastore_row_history_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -9476,7 +9517,7 @@ export interface components {
             row_title: string | null;
             /**
              * Fields
-             * @description Les NOMS des champs touchés par l'écriture — **jamais leurs valeurs**. Bornés à 50 noms, chacun tronqué à 64 caractères : le journal dit ce qui a changé, il n'est pas une copie de la donnée. `[]` sur un geste qui ne touche aucun champ (une lecture) et sur les lignes antérieures à ce relevé. ⚠️ **Le delta n'est pas servi** : pour savoir ce que valait une colonne avant, il y a `from_status`/`to_status` sur le statut, et rien pour les autres champs — c'est un choix, pas un oubli (un journal qui porterait les deux états serait un second domicile pour une donnée qui en a déjà un).
+             * @description Les NOMS des champs touchés par l'écriture, relevés dans les arguments de l'appel. Bornés à 50 noms, chacun tronqué à 64 caractères. `[]` sur un geste qui ne touche aucun champ (une lecture) et sur les lignes antérieures à ce relevé. Les VALEURS avant et après ne sont pas ici : elles sont dans `revisions` (journal des révisions, oto#273), sur le parcours d'une ligne.
              * @default []
              */
             fields: string[];
@@ -9490,6 +9531,32 @@ export interface components {
              * @default null
              */
             to_status: string | null;
+            /**
+             * Geste Id
+             * @description Le geste : `call_uid` de l'appel, le même que le `geste_id` des révisions qu'il a écrites.
+             * @default null
+             */
+            geste_id: string | null;
+            /**
+             * Source
+             * @description Sur une écriture : la face selon le journal (`import`, `agent`, `console`, `api`, `upload`, `system`). `null` sur ce que le journal ne voit pas (lecture, réservation, refus) et sur le parcours d'un tableau entier.
+             * @default null
+             */
+            source: string | null;
+            /**
+             * Acteur
+             * @description Sur une écriture : l'acteur selon le journal — un sub, ou `service:<nom>`.
+             * @default null
+             */
+            acteur: string | null;
+            /**
+             * Revisions
+             * @description Parcours d'une ligne seulement : les révisions de CETTE ligne que ce geste a écrites, plus récente d'abord — `{id, rev, at, acteur, run_id, source, geste_id, diff: {colonne: {avant, apres}}}`, valeurs comprises (la forme de `GET …/rows/{row_id}/history`). `[]` sur une lecture, une réservation, un refus, et sur une écriture antérieure au journal (2026-09-24). `kind='revision'` = une écriture qu'aucun appel journalisé ne porte (upload signé, travail de fond, écriture hors serveur, ou antérieure à l'estampille).
+             * @default []
+             */
+            revisions: {
+                [key: string]: unknown;
+            }[];
         };
         /**
          * Share
@@ -9684,6 +9751,82 @@ export interface components {
             _claimed_run: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /** Coverage */
+        Coverage: {
+            /**
+             * Journal Since
+             * @description Le jour de mise en service du journal. Rien de ce qui a été écrit avant n'y figure.
+             */
+            journal_since: string;
+            /**
+             * Insert Recorded
+             * @description Vrai si le journal contient une insertion de cette ligne (`rev` 0). Faux : la ligne existait avant le journal, son historique commence en cours de vie.
+             */
+            insert_recorded: boolean;
+            /**
+             * First Revision At
+             * @description heure locale serveur, sans offset — `YYYY-MM-DD HH:MM:SS`, à ne pas parser comme de l'ISO UTC
+             * @default null
+             */
+            first_revision_at: string | null;
+            /**
+             * Total Revisions
+             * @description Toutes colonnes confondues, y compris celles masquées aux agents.
+             */
+            total_revisions: number;
+            /** Note */
+            note: string;
+        };
+        /** Revision */
+        Revision: {
+            /**
+             * Id
+             * @description Identifiant de la révision dans le journal, monotone.
+             */
+            id: number;
+            /**
+             * Rev
+             * @description La révision de la ligne après cette écriture. 0 = insertion ; elle revient si la ligne a été supprimée puis recréée sous le même `row_id`.
+             */
+            rev: number;
+            /**
+             * At
+             * @description heure locale serveur, sans offset — `YYYY-MM-DD HH:MM:SS`, à ne pas parser comme de l'ISO UTC
+             * @default null
+             */
+            at: string | null;
+            /**
+             * Acteur
+             * @description Qui a écrit : le sub du porteur réel, `service:<nom>` pour un travail de fond, `null` quand le serveur ne le sait pas.
+             * @default null
+             */
+            acteur: string | null;
+            /**
+             * Run Id
+             * @description Le run qui portait l'écriture.
+             * @default null
+             */
+            run_id: string | null;
+            /**
+             * Source
+             * @description `import`, `agent`, `console`, `api`, `upload` ou `system` ; `null` = écrit hors du serveur (SQL à la main, migration).
+             * @default null
+             */
+            source: string | null;
+            /**
+             * Geste Id
+             * @description Le geste : le `call_uid` de l'appel d'outil ou de la requête REST, le `jti` d'un upload signé. Toutes les lignes d'un même lot le partagent.
+             * @default null
+             */
+            geste_id: string | null;
+            /**
+             * Diff
+             * @description `{colonne: {avant, apres}}`, valeurs entières (couches comprises). Un côté absent n'a pas sa clé : `{apres}` seul = ajoutée, `{avant}` seul = retirée.
+             */
+            diff: {
+                [key: string]: unknown;
+            };
         };
         /**
          * Job
@@ -10541,9 +10684,10 @@ export interface components {
             rows: components["schemas"]["FleetRows"] | null;
             /**
              * Rows Unavailable
+             * @description Why `rows` is null: `no_table` (no target), `table_not_found` (the table is gone or out of the declarer's reach), `table_ambiguous` (a pass declared before its table was kept by id, whose name no longer designates one table), `no_status_column`.
              * @default null
              */
-            rows_unavailable: ("no_table" | "table_not_found" | "no_status_column") | null;
+            rows_unavailable: ("no_table" | "table_not_found" | "table_ambiguous" | "no_status_column") | null;
             /**
              * Empty Jobs
              * @description Finished jobs that called `data_claim_next` and got no row.
@@ -11545,6 +11689,30 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Redirection permanente vers /api/datastores/{datastore}/rows/{row_id}/claim */
+            308: {
+                headers: {
+                    Location?: string;
+                    /** @description date de retrait (JJ/MM/AAAA) */
+                    Sunset?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_api_datastore_namespaces_namespace_rows_row_id_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+                row_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirection permanente vers /api/datastores/{datastore}/rows/{row_id}/history */
             308: {
                 headers: {
                     Location?: string;
@@ -13826,6 +13994,123 @@ export interface operations {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
                         error?: "row_claimed" | "row_outside_claimable" | "run_closed";
+                    };
+                };
+            };
+        };
+    };
+    me_datastore_row_history_get: {
+        parameters: {
+            query?: {
+                champ?: string | null;
+                limit?: number;
+                before_id?: number | null;
+            };
+            header?: {
+                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
+                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
+            };
+            path: {
+                datastore: string;
+                row_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Datastore
+                         * @default null
+                         */
+                        datastore: string | null;
+                        /**
+                         * Ns Id
+                         * @description The table's NUMBER — the form to pass as `datastore` from here on. A name still resolves (same visibility check, no retirement date set), it is being retired, not broken. `null` only when no table was resolved.
+                         * @default null
+                         */
+                        ns_id: number | null;
+                        /** Row Id */
+                        row_id: string;
+                        /**
+                         * Row Deleted
+                         * @description La ligne n'existe plus : son historique reste lisible par qui gouverne le tableau.
+                         */
+                        row_deleted: boolean;
+                        /**
+                         * Champ
+                         * @default null
+                         */
+                        champ: string | null;
+                        coverage: components["schemas"]["Coverage"];
+                        /** Revisions */
+                        revisions: components["schemas"]["Revision"][];
+                        /**
+                         * Next Before Id
+                         * @description À repasser en `before_id` pour lire la page suivante (plus ancienne). `null` = rien de plus ancien.
+                         * @default null
+                         */
+                        next_before_id: number | null;
+                    };
+                };
+            };
+            /** @description `jeton_mal_place` — `datastore` ou `row_id` porte un jeton à sa mauvaise place (`slot:` sur l'identifiant de ligne, par exemple) : le message dit la conduite qui aboutit ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "jeton_mal_place" | "run_org_mismatch";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `datastore_not_found` — le tableau ne se voit pas depuis l'org de l'appel ; `row_not_found` — aucune ligne de cet `_id` dans ce tableau ; une ligne SUPPRIMÉE ne se lit que par qui gouverne le tableau, et seulement si le journal en a des révisions ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "datastore_not_found" | "row_not_found" | "run_not_found";
+                    };
+                };
+            };
+            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "run_closed";
                     };
                 };
             };
@@ -26640,7 +26925,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `farm_unavailable` — la destruction du bac a échoué : rien n'est effacé */
+            /** @description `farm_unavailable` — la destruction du sandbox a échoué : rien n'est effacé */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -26748,7 +27033,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `farm_unavailable` — la ferme des bacs ne répond pas */
+            /** @description `farm_unavailable` — la ferme des sandboxes ne répond pas */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -26892,7 +27177,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `farm_unavailable` — la ferme des bacs ne répond pas */
+            /** @description `farm_unavailable` — la ferme des sandboxes ne répond pas */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -28640,6 +28925,7 @@ export interface operations {
                     tools?: string[] | null;
                     /**
                      * Namespace
+                     * @description create: the target table, by id or name. Resolved ONCE, at declaration, in the declarer's scope, and kept as the table's id — served back in `namespace`. A name that several tables carry at the same rank is refused (`datastore_ambigu`).
                      * @default null
                      */
                     namespace?: string | null;
@@ -28800,7 +29086,7 @@ export interface operations {
                     "application/json": components["schemas"]["Erreur"];
                 };
             };
-            /** @description `fleet_not_found` — automatisation inconnue dans l'org du porteur ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
+            /** @description `datastore_not_found` — `create` sur un `namespace` qu'aucun tableau de la portée du déclarant ne porte ; `fleet_not_found` — automatisation inconnue dans l'org du porteur ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -28808,11 +29094,11 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
-                        error?: "fleet_not_found" | "run_not_found";
+                        error?: "datastore_not_found" | "fleet_not_found" | "run_not_found";
                     };
                 };
             };
-            /** @description `not_launchable` — `launch` d'une automatisation déjà armée ou en cours ; `not_stoppable` — `stop` d'une automatisation ni armée ni en cours ; `not_takeable` — `take` d'une automatisation ni `armed` ni `running` ; `held_by_other` — `take` d'une automatisation `running` qu'un AUTRE ordonnanceur tient : deux ordonnanceurs doubleraient ses exécutions ; `not_the_holder` — `beat`/`ack_stop` par un ordonnanceur qui ne tient pas (ou plus) l'automatisation ; `nothing_to_acknowledge` — `ack_stop` sans arrêt en cours ; `run_closed` — le run de `X-Oto-Run` est clos */
+            /** @description `datastore_ambigu` — `create` sur un nom que plusieurs tableaux portent au même rang de la portée du déclarant, ou `launch` d'une automatisation d'avant #1067 dont le nom ne désigne plus un seul tableau ; `not_launchable` — `launch` d'une automatisation déjà armée ou en cours ; `not_stoppable` — `stop` d'une automatisation ni armée ni en cours ; `not_takeable` — `take` d'une automatisation ni `armed` ni `running` ; `held_by_other` — `take` d'une automatisation `running` qu'un AUTRE ordonnanceur tient : deux ordonnanceurs doubleraient ses exécutions ; `not_the_holder` — `beat`/`ack_stop` par un ordonnanceur qui ne tient pas (ou plus) l'automatisation ; `nothing_to_acknowledge` — `ack_stop` sans arrêt en cours ; `run_closed` — le run de `X-Oto-Run` est clos */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -28820,7 +29106,7 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
-                        error?: "not_launchable" | "not_stoppable" | "not_takeable" | "held_by_other" | "not_the_holder" | "nothing_to_acknowledge" | "run_closed";
+                        error?: "datastore_ambigu" | "not_launchable" | "not_stoppable" | "not_takeable" | "held_by_other" | "not_the_holder" | "nothing_to_acknowledge" | "run_closed";
                     };
                 };
             };

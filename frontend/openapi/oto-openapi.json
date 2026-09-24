@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Oto REST API",
-    "version": "v1.350.0+f69eb235",
+    "version": "v1.355.0+f7b3b0d8",
     "description": "API REST de la plateforme Oto. Deux faces servent le même métier (ADR 0009) : le\nMCP (`/mcp`, JWT Logto) et ce REST. Ce document est **dérivé du serveur** à chaque\nrequête — il décrit ce qui tourne, pas une intention.\n\n**Authentification** — `Authorization: Bearer <jeton>`, sous deux formes :\n\n- **JWT Logto** (session interactive : dashboard, connecteur MCP) ;\n- **jeton API** `oto_…` (intégration programmatique), émis depuis une session\n  interactive — un jeton ne peut ni lister, ni créer, ni révoquer de jeton.\n\n**Portée d'un jeton** — un jeton API peut être **porté** à sa création\n(`POST /api/me/tokens` avec `scopes`) : il n'ouvre alors QUE les tableaux nommés,\nen lecture ou écriture, et rien d'autre de l'organisation. C'est la forme à confier\nà une intégration tierce. Hors portée : `403 token_scope_forbidden`.\n\n**Verbe dans le corps** — les surfaces consolidées (projets, pages, procédures,\nressources…) exposent un seul chemin dont le corps porte le verbe : `{\"op\": \"list\"}`.\nLes valeurs possibles sont dans l'énuméré `op` du schéma de la requête.\n\n**Contexte d'organisation** — en-tête optionnel `X-Oto-Org` (et `X-Oto-Group`) pour\ntravailler dans une organisation précise ; par défaut, l'organisation maison.\n\n**Erreurs** — une seule enveloppe, le composant `Erreur` : `error` (jeton machine\nstable, la clé sur laquelle un client décide), `detail` (la phrase, actionnable) et\nparfois `details` (forme structurée). Les 4xx listés sur une opération sont ceux\nqu'elle DÉCLARE, chacun rejoué par un test ; la liste n'est pas exhaustive : tout\nappel peut rendre `400 invalid_input` / `unknown_fields` / `invalid_json` /\n`invalid_body` (validation de la requête par l'adaptateur), `401` et `403`.\n"
   },
   "paths": {
@@ -1519,6 +1519,58 @@
         "responses": {
           "308": {
             "description": "Redirection permanente vers /api/datastores/{datastore}/rows/{row_id}/claim",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Sunset": {
+                "description": "date de retrait (JJ/MM/AAAA)",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datastore/namespaces/{namespace}/rows/{row_id}/history": {
+      "get": {
+        "operationId": "get_api_datastore_namespaces_namespace_rows_row_id_history",
+        "summary": "Déprécié : utilisez /api/datastores/{datastore}/rows/{row_id}/history (retrait le 08/11/2026)",
+        "description": "Ancien chemin, conservé le temps du préavis. Il répond **308** vers `/api/datastores/{datastore}/rows/{row_id}/history` — même méthode, même corps, query string reportée — et **cesse de répondre au premier tag posé à partir du 08/11/2026**. Bascule sur le nouveau chemin : il sert déjà, à l'identique.",
+        "deprecated": true,
+        "tags": [
+          "_deprecated"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "row_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "308": {
+            "description": "Redirection permanente vers /api/datastores/{datastore}/rows/{row_id}/history",
             "headers": {
               "Location": {
                 "schema": {
@@ -6127,6 +6179,273 @@
             }
           }
         }
+      }
+    },
+    "/api/datastores/{datastore}/rows/{row_id}/history": {
+      "get": {
+        "operationId": "me_datastore_row_history_get",
+        "summary": "Read the revision history of ONE datastore row: every write, newest first, with the values before and after (`diff: {column: {avant, apres}}`), who wrote it (`acteur`), under which",
+        "description": "Read the revision history of ONE datastore row: every write, newest first, with the values before and after (`diff: {column: {avant, apres}}`), who wrote it (`acteur`), under which run (`run_id`), through which face (`source`: import, agent, console, api, upload, system) and in which gesture (`geste_id`). `champ` keeps only the revisions touching that column. Page with `limit` and `before_id` (= the previous `next_before_id`). ⚠️ Coverage: the journal only holds writes made since it went live on 2026-09-24. A row with NO revision is NOT a row that was never modified: it may simply not have been written since. `coverage.insert_recorded: false` means the row predates the journal and its history starts mid-life. A deleted row keeps its history, readable only by whoever governs the table (`row_deleted: true`); deleting is not itself a revision.",
+        "tags": [
+          "datastore"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "datastore": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Datastore"
+                    },
+                    "ns_id": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "The table's NUMBER — the form to pass as `datastore` from here on. A name still resolves (same visibility check, no retirement date set), it is being retired, not broken. `null` only when no table was resolved.",
+                      "title": "Ns Id"
+                    },
+                    "row_id": {
+                      "title": "Row Id",
+                      "type": "string"
+                    },
+                    "row_deleted": {
+                      "description": "La ligne n'existe plus : son historique reste lisible par qui gouverne le tableau.",
+                      "title": "Row Deleted",
+                      "type": "boolean"
+                    },
+                    "champ": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Champ"
+                    },
+                    "coverage": {
+                      "$ref": "#/components/schemas/Coverage"
+                    },
+                    "revisions": {
+                      "items": {
+                        "$ref": "#/components/schemas/Revision"
+                      },
+                      "title": "Revisions",
+                      "type": "array"
+                    },
+                    "next_before_id": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "À repasser en `before_id` pour lire la page suivante (plus ancienne). `null` = rien de plus ancien.",
+                      "title": "Next Before Id"
+                    }
+                  },
+                  "required": [
+                    "row_id",
+                    "row_deleted",
+                    "coverage",
+                    "revisions"
+                  ],
+                  "title": "RowHistory",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`jeton_mal_place` — `datastore` ou `row_id` porte un jeton à sa mauvaise place (`slot:` sur l'identifiant de ligne, par exemple) : le message dit la conduite qui aboutit ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "jeton_mal_place",
+                            "run_org_mismatch"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "jeton absent ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "refus d'autorisation (ou hors portée du jeton)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`datastore_not_found` — le tableau ne se voit pas depuis l'org de l'appel ; `row_not_found` — aucune ligne de cet `_id` dans ce tableau ; une ligne SUPPRIMÉE ne se lit que par qui gouverne le tableau, et seulement si le journal en a des révisions ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "datastore_not_found",
+                            "row_not_found",
+                            "run_not_found"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`run_closed` — le run de `X-Oto-Run` est clos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_closed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "datastore",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Datastore",
+              "type": "string"
+            }
+          },
+          {
+            "name": "row_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Row Id",
+              "type": "string"
+            }
+          },
+          {
+            "name": "champ",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Ne garder que les révisions qui touchent cette colonne, et ne rendre que sa partie du diff.",
+              "title": "Champ"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Révisions par page, la plus récente d'abord (200 au plus).",
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "name": "before_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Lire la page suivante : l'`next_before_id` de la réponse précédente. Omis = à partir de la révision la plus récente.",
+              "title": "Before Id"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/XOtoRun"
+          }
+        ]
       }
     },
     "/api/datastores/{datastore}/rows/{row_id}/release": {
@@ -30066,7 +30385,7 @@
             }
           },
           "502": {
-            "description": "`farm_unavailable` — la destruction du bac a échoué : rien n'est effacé",
+            "description": "`farm_unavailable` — la destruction du sandbox a échoué : rien n'est effacé",
             "content": {
               "application/json": {
                 "schema": {
@@ -30243,7 +30562,7 @@
             }
           },
           "502": {
-            "description": "`farm_unavailable` — la ferme des bacs ne répond pas",
+            "description": "`farm_unavailable` — la ferme des sandboxes ne répond pas",
             "content": {
               "application/json": {
                 "schema": {
@@ -30508,7 +30827,7 @@
             }
           },
           "502": {
-            "description": "`farm_unavailable` — la ferme des bacs ne répond pas",
+            "description": "`farm_unavailable` — la ferme des sandboxes ne répond pas",
             "content": {
               "application/json": {
                 "schema": {
@@ -34064,7 +34383,7 @@
             }
           },
           "404": {
-            "description": "`fleet_not_found` — automatisation inconnue dans l'org du porteur ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
+            "description": "`datastore_not_found` — `create` sur un `namespace` qu'aucun tableau de la portée du déclarant ne porte ; `fleet_not_found` — automatisation inconnue dans l'org du porteur ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
             "content": {
               "application/json": {
                 "schema": {
@@ -34076,6 +34395,7 @@
                       "properties": {
                         "error": {
                           "enum": [
+                            "datastore_not_found",
                             "fleet_not_found",
                             "run_not_found"
                           ]
@@ -34088,7 +34408,7 @@
             }
           },
           "409": {
-            "description": "`not_launchable` — `launch` d'une automatisation déjà armée ou en cours ; `not_stoppable` — `stop` d'une automatisation ni armée ni en cours ; `not_takeable` — `take` d'une automatisation ni `armed` ni `running` ; `held_by_other` — `take` d'une automatisation `running` qu'un AUTRE ordonnanceur tient : deux ordonnanceurs doubleraient ses exécutions ; `not_the_holder` — `beat`/`ack_stop` par un ordonnanceur qui ne tient pas (ou plus) l'automatisation ; `nothing_to_acknowledge` — `ack_stop` sans arrêt en cours ; `run_closed` — le run de `X-Oto-Run` est clos",
+            "description": "`datastore_ambigu` — `create` sur un nom que plusieurs tableaux portent au même rang de la portée du déclarant, ou `launch` d'une automatisation d'avant #1067 dont le nom ne désigne plus un seul tableau ; `not_launchable` — `launch` d'une automatisation déjà armée ou en cours ; `not_stoppable` — `stop` d'une automatisation ni armée ni en cours ; `not_takeable` — `take` d'une automatisation ni `armed` ni `running` ; `held_by_other` — `take` d'une automatisation `running` qu'un AUTRE ordonnanceur tient : deux ordonnanceurs doubleraient ses exécutions ; `not_the_holder` — `beat`/`ack_stop` par un ordonnanceur qui ne tient pas (ou plus) l'automatisation ; `nothing_to_acknowledge` — `ack_stop` sans arrêt en cours ; `run_closed` — le run de `X-Oto-Run` est clos",
             "content": {
               "application/json": {
                 "schema": {
@@ -34100,6 +34420,7 @@
                       "properties": {
                         "error": {
                           "enum": [
+                            "datastore_ambigu",
                             "not_launchable",
                             "not_stoppable",
                             "not_takeable",
@@ -34218,6 +34539,7 @@
                       }
                     ],
                     "default": null,
+                    "description": "create: the target table, by id or name. Resolved ONCE, at declaration, in the declarer's scope, and kept as the table's id — served back in `namespace`. A name that several tables carry at the same rank is refused (`datastore_ambigu`).",
                     "title": "Namespace"
                   },
                   "row_filter": {
@@ -60132,7 +60454,7 @@
           },
           "fields": {
             "default": [],
-            "description": "Les NOMS des champs touchés par l'écriture — **jamais leurs valeurs**. Bornés à 50 noms, chacun tronqué à 64 caractères : le journal dit ce qui a changé, il n'est pas une copie de la donnée. `[]` sur un geste qui ne touche aucun champ (une lecture) et sur les lignes antérieures à ce relevé. ⚠️ **Le delta n'est pas servi** : pour savoir ce que valait une colonne avant, il y a `from_status`/`to_status` sur le statut, et rien pour les autres champs — c'est un choix, pas un oubli (un journal qui porterait les deux états serait un second domicile pour une donnée qui en a déjà un).",
+            "description": "Les NOMS des champs touchés par l'écriture, relevés dans les arguments de l'appel. Bornés à 50 noms, chacun tronqué à 64 caractères. `[]` sur un geste qui ne touche aucun champ (une lecture) et sur les lignes antérieures à ce relevé. Les VALEURS avant et après ne sont pas ici : elles sont dans `revisions` (journal des révisions, oto#273), sur le parcours d'une ligne.",
             "items": {
               "type": "string"
             },
@@ -60162,6 +60484,55 @@
             ],
             "default": null,
             "title": "To Status"
+          },
+          "geste_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Le geste : `call_uid` de l'appel, le même que le `geste_id` des révisions qu'il a écrites.",
+            "title": "Geste Id"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Sur une écriture : la face selon le journal (`import`, `agent`, `console`, `api`, `upload`, `system`). `null` sur ce que le journal ne voit pas (lecture, réservation, refus) et sur le parcours d'un tableau entier.",
+            "title": "Source"
+          },
+          "acteur": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Sur une écriture : l'acteur selon le journal — un sub, ou `service:<nom>`.",
+            "title": "Acteur"
+          },
+          "revisions": {
+            "default": [],
+            "description": "Parcours d'une ligne seulement : les révisions de CETTE ligne que ce geste a écrites, plus récente d'abord — `{id, rev, at, acteur, run_id, source, geste_id, diff: {colonne: {avant, apres}}}`, valeurs comprises (la forme de `GET …/rows/{row_id}/history`). `[]` sur une lecture, une réservation, un refus, et sur une écriture antérieure au journal (2026-09-24). `kind='revision'` = une écriture qu'aucun appel journalisé ne porte (upload signé, travail de fond, écriture hors serveur, ou antérieure à l'estampille).",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Revisions",
+            "type": "array"
           }
         },
         "title": "ActivityEntry",
@@ -60587,6 +60958,142 @@
           "_id"
         ],
         "title": "Row",
+        "type": "object"
+      },
+      "Coverage": {
+        "properties": {
+          "journal_since": {
+            "description": "Le jour de mise en service du journal. Rien de ce qui a été écrit avant n'y figure.",
+            "title": "Journal Since",
+            "type": "string"
+          },
+          "insert_recorded": {
+            "description": "Vrai si le journal contient une insertion de cette ligne (`rev` 0). Faux : la ligne existait avant le journal, son historique commence en cours de vie.",
+            "title": "Insert Recorded",
+            "type": "boolean"
+          },
+          "first_revision_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "heure locale serveur, sans offset — `YYYY-MM-DD HH:MM:SS`, à ne pas parser comme de l'ISO UTC",
+            "title": "First Revision At"
+          },
+          "total_revisions": {
+            "description": "Toutes colonnes confondues, y compris celles masquées aux agents.",
+            "title": "Total Revisions",
+            "type": "integer"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "journal_since",
+          "insert_recorded",
+          "total_revisions",
+          "note"
+        ],
+        "title": "Coverage",
+        "type": "object"
+      },
+      "Revision": {
+        "properties": {
+          "id": {
+            "description": "Identifiant de la révision dans le journal, monotone.",
+            "title": "Id",
+            "type": "integer"
+          },
+          "rev": {
+            "description": "La révision de la ligne après cette écriture. 0 = insertion ; elle revient si la ligne a été supprimée puis recréée sous le même `row_id`.",
+            "title": "Rev",
+            "type": "integer"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "heure locale serveur, sans offset — `YYYY-MM-DD HH:MM:SS`, à ne pas parser comme de l'ISO UTC",
+            "title": "At"
+          },
+          "acteur": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Qui a écrit : le sub du porteur réel, `service:<nom>` pour un travail de fond, `null` quand le serveur ne le sait pas.",
+            "title": "Acteur"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Le run qui portait l'écriture.",
+            "title": "Run Id"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "`import`, `agent`, `console`, `api`, `upload` ou `system` ; `null` = écrit hors du serveur (SQL à la main, migration).",
+            "title": "Source"
+          },
+          "geste_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Le geste : le `call_uid` de l'appel d'outil ou de la requête REST, le `jti` d'un upload signé. Toutes les lignes d'un même lot le partagent.",
+            "title": "Geste Id"
+          },
+          "diff": {
+            "additionalProperties": true,
+            "description": "`{colonne: {avant, apres}}`, valeurs entières (couches comprises). Un côté absent n'a pas sa clé : `{apres}` seul = ajoutée, `{avant}` seul = retirée.",
+            "title": "Diff",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "rev",
+          "diff"
+        ],
+        "title": "Revision",
         "type": "object"
       },
       "Job": {
@@ -62375,6 +62882,7 @@
                 "enum": [
                   "no_table",
                   "table_not_found",
+                  "table_ambiguous",
                   "no_status_column"
                 ],
                 "type": "string"
@@ -62384,6 +62892,7 @@
               }
             ],
             "default": null,
+            "description": "Why `rows` is null: `no_table` (no target), `table_not_found` (the table is gone or out of the declarer's reach), `table_ambiguous` (a pass declared before its table was kept by id, whose name no longer designates one table), `no_status_column`.",
             "title": "Rows Unavailable"
           },
           "empty_jobs": {
