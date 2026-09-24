@@ -10,6 +10,9 @@ import { useMe } from '@/composables/useMe'
 import { connectorVerdict } from '@/lib/connectorVerdict'
 import type { MyConnector } from '@/types/api'
 import type { DotTone } from '@/lib/consoleTypes'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ connector: MyConnector }>()
 const { me } = useMe()
@@ -47,13 +50,13 @@ const why = ref(false)
       <Dot :tone="verdict.dot" />
       <span class="vl-phrase" :class="verdict.dot">{{ verdict.phrase }}</span>
     </div>
-    <button class="vl-why" @click="why = !why">{{ why ? 'Masquer' : 'Pourquoi ?' }}</button>
+    <button class="vl-why" @click="why = !why">{{ why ? t('connectorsUi.verdict.hide') : t('connectorsUi.verdict.why') }}</button>
 
     <div v-if="why" class="vl-diag">
-      <span class="spill"><Dot tone="olive" />disponibilité</span>
-      <span class="spill"><Dot :tone="connTone" />connexion<span v-if="source" class="dim"> · {{ source }}</span></span>
+      <span class="spill"><Dot tone="olive" />{{ t('connectorsUi.verdict.availability') }}</span>
+      <span class="spill"><Dot :tone="connTone" />{{ t('connectorsUi.verdict.connection') }}<span v-if="source" class="dim"> · {{ source }}</span></span>
       <span class="spill">
-        <Dot :tone="optTone" />option<span v-if="!optionRequired" class="dim"> · n/a</span>
+        <Dot :tone="optTone" />{{ t('connectorsUi.verdict.option') }}<span v-if="!optionRequired" class="dim">{{ t('connectorsUi.verdict.na') }}</span>
         <span v-else class="dim"> · {{ optionRequired }}</span>
       </span>
     </div>

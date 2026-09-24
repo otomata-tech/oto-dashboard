@@ -111,12 +111,12 @@ const CAS: [string, Cas][] = [
     charger: () => import('../ConnectorFederatedWidget.vue'),
     props: () => ({ connector: ATLASSIAN }),
     avant: () => api.getFederatedStatus.mockResolvedValue({ connected: true, set_at: '2026-09-01' }),
-    gestes: ['Disconnect'], lectures: ['login délégué'] }],
+    gestes: ['Déconnecter'], lectures: ['login délégué'] }],
   ['MCP fédéré — à connecter', {
     charger: () => import('../ConnectorFederatedWidget.vue'),
     props: () => ({ connector: ATLASSIAN }),
     avant: () => api.getFederatedStatus.mockResolvedValue({ connected: false }),
-    gestes: ['Connect'], lectures: ['not connected'] }],
+    gestes: ['Connecter'], lectures: ['non connecté'] }],
   ['session navigateur', {
     charger: () => import('../ConnectorSessionWidget.vue'),
     props: () => ({ connector: BREVO }),

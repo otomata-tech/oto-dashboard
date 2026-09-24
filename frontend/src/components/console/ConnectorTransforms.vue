@@ -9,6 +9,9 @@ import { computed } from 'vue'
 import Tag from './Tag.vue'
 import { useFieldFilters } from '@/composables/useFieldFilters'
 import type { ConnectorFieldSchema, FieldActionSchema, FieldRule } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   service: string
@@ -46,41 +49,41 @@ const rows = computed<ConnectorFieldSchema[]>(() => {
   <div class="ct">
     <div class="ct-head">
       <span class="ct-prov">
-        <Tag v-if="customized" tone="saffron">{{ scopeNote === 'personal' ? 'personnalisé' : 'politique org' }}</Tag>
-        <Tag v-else-if="rules.length" tone="cobalt">défaut serveur</Tag>
-        <span v-else class="dim">aucune rédaction</span>
+        <Tag v-if="customized" tone="saffron">{{ scopeNote === 'personal' ? t('connectorsUi.transforms.personalized') : t('connectorsUi.transforms.orgPolicy') }}</Tag>
+        <Tag v-else-if="rules.length" tone="cobalt">{{ t('connectorsUi.transforms.serverDefault') }}</Tag>
+        <span v-else class="dim">{{ t('connectorsUi.transforms.noRedaction') }}</span>
       </span>
     </div>
 
     <p v-if="scopeNote === 'personal'" class="dim ct-note">
-      ce connecteur ne transmettra pas ces champs à ton agent.
+      {{ t('connectorsUi.transforms.personal') }}
     </p>
     <p v-else-if="scopeNote === 'org-wide'" class="dim ct-note">
-      s'applique à toute ton org — ce n'est pas un réglage perso.
+      {{ t('connectorsUi.transforms.orgWide') }}
     </p>
     <p v-else-if="scopeNote === 'readonly'" class="dim ct-note">
-      défini par ton org — lecture seule.
+      {{ t('connectorsUi.transforms.readonly') }}
     </p>
     <p v-if="orgId == null" class="dim ct-note">
-      la rédaction dépend de l'organisation active — sélectionne une org active.
+      {{ t('connectorsUi.transforms.noOrg') }}
     </p>
-    <p v-else-if="!rows.length" class="dim ct-note">schéma inconnu pour ce connecteur.</p>
+    <p v-else-if="!rows.length" class="dim ct-note">{{ t('connectorsUi.transforms.unknownSchema') }}</p>
 
     <table v-if="rows.length" class="tbl ct-tbl">
-      <thead><tr><th>champ</th><th>traitement</th></tr></thead>
+      <thead><tr><th>{{ t('connectorsUi.transforms.field') }}</th><th>{{ t('connectorsUi.transforms.treatment') }}</th></tr></thead>
       <tbody>
         <tr v-for="f in rows" :key="f.name">
           <td class="ct-field">
             <code class="mono">{{ f.name }}</code>
             <span v-if="f.label && f.label !== f.name" class="dim ct-label">{{ f.label }}</span>
-            <Tag v-if="f.sensitive" tone="terra">sensible</Tag>
+            <Tag v-if="f.sensitive" tone="terra">{{ t('connectorsUi.transforms.sensitive') }}</Tag>
           </td>
           <td>
             <template v-if="ruleFor(f.name)">
               <Tag tone="ink">{{ actionLabel(actionSchema, ruleFor(f.name)!.action) }}</Tag>
               <span class="dim ct-opt">{{ ruleSummary(ruleFor(f.name)!) }}</span>
             </template>
-            <span v-else class="dim">en clair</span>
+            <span v-else class="dim">{{ t('connectorsUi.transforms.plain') }}</span>
           </td>
         </tr>
       </tbody>

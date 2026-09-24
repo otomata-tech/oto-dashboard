@@ -20,6 +20,9 @@ import { useScope } from '@/composables/useScope'
 import { useDeepLink } from '@/composables/useDeepLink'
 import { pickAdapter } from './registry'
 import type { CredentialDialogSpec, ScopeCtx } from './adapter'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
@@ -141,10 +144,10 @@ onMounted(async () => {
     :category-values="adapter.categoryValues?.()" :selectable="adapter.hasDrawer"
     v-model:selected-key="selectedKey">
     <template v-if="adapter.lenses" #controls>
-      <OtoSelect v-model="lensKey" :options="lensOptions" placeholder="Statut" aria-label="Statut" size="sm" />
+      <OtoSelect v-model="lensKey" :options="lensOptions" :placeholder="t('connectorsUi.scope.status')" :aria-label="t('connectorsUi.scope.status')" size="sm" />
     </template>
     <template #head>
-      <th style="width: 42%">connecteur</th>
+      <th style="width: 42%">{{ t('connectorsUi.scope.connector') }}</th>
       <th v-for="col in adapter.columns" :key="col.key" :style="col.width ? { width: col.width } : undefined">{{ col.label }}</th>
       <th v-if="adapter.hasDrawer" style="width: 22px"></th>
     </template>

@@ -5,6 +5,9 @@
 // la même identité visuelle. Porte le chrome (logo + nom + badges + en-tête droit) et
 // le conteneur de corps ; chaque consommateur peint SON corps dans le slot par défaut.
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   label: string
@@ -27,7 +30,7 @@ const monogram = computed(() => (props.label || '?').charAt(0).toUpperCase())
     <header class="cc-head">
       <!-- Logo = cible de clic vers la fiche (grande zone découvrable) quand `to`. -->
       <RouterLink v-if="to" :to="to" class="cc-logo cc-logolink"
-        title="ouvrir la fiche du connecteur" @click.stop>
+        :title="t('connectorsUi.card.open')" @click.stop>
         <img v-if="logoUrl" :src="logoUrl" :alt="label" loading="lazy" />
         <span v-else class="cc-mono">{{ monogram }}</span>
       </RouterLink>
@@ -38,7 +41,7 @@ const monogram = computed(() => (props.label || '?').charAt(0).toUpperCase())
       <div class="cc-id">
         <div class="cc-name">
           <RouterLink v-if="to" :to="to" class="cc-namelink"
-            title="ouvrir la fiche du connecteur" @click.stop>{{ label }}<span class="cc-open" aria-hidden="true">›</span></RouterLink>
+            :title="t('connectorsUi.card.open')" @click.stop>{{ label }}<span class="cc-open" aria-hidden="true">›</span></RouterLink>
           <template v-else>{{ label }}</template>
           <slot name="badges" />
         </div>

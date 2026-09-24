@@ -18,6 +18,9 @@ import { accountLabel } from '@/lib/accountLabel'
 import type { ConnectionLever } from './adapter'
 import type { ConnectorInstance, MyConnector, OrgMember } from '@/types/api'
 import type { DotTone } from '@/lib/consoleTypes'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ connector: MyConnector; lever: ConnectionLever<MyConnector> }>()
 // Combien de clés la pile a réellement trouvées. Le parent en a besoin pour nommer son
@@ -83,19 +86,19 @@ function accountSuffix(i: ConnectorInstance): string {
   return i.account ? ` (${accountNoun.value} « ${i.account} »)` : ''
 }
 function levelName(i: ConnectorInstance): string {
-  if (i.via === 'shared_with_me') return `Prêtée par ${i.owner.label || 'un pair'}`
-  if (i.via === 'personal_cross_org') return 'Ta clé — suit ton compte (autre org)'
+  if (i.via === 'shared_with_me') return t('connectorsUi.keyStack.lentBy', { who: i.owner.label || t('connectorsUi.keyStack.aPeer') })
+  if (i.via === 'personal_cross_org') return t('connectorsUi.keyStack.crossOrg')
   switch (i.level) {
-    case 'member': return 'Ta clé'
+    case 'member': return t('connectorsUi.keyStack.yours')
     // En solo, une clé de niveau org/équipe (rare dans un espace perso) reste « ta clé ».
-    case 'group': return isPersonal.value ? 'Ta clé' : `Clé de l’équipe ${i.owner.label || ''}`.trim()
-    case 'org': return isPersonal.value ? 'Ta clé' : `Clé de ton org${i.owner.label ? ` ${i.owner.label}` : ''}`
+    case 'group': return isPersonal.value ? t('connectorsUi.keyStack.yours') : t('connectorsUi.keyStack.team', { name: i.owner.label || '' }).trim()
+    case 'org': return isPersonal.value ? t('connectorsUi.keyStack.yours') : t('connectorsUi.keyStack.org', { name: i.owner.label || '' }).trim()
     // Jamais « ta clé », même en solo (principe 9 : l'org, c'est toi — mais un tenant
     // ne l'est pas). Non modifiable ici : le tenant se pose/retire depuis SA propre
     // surface admin (oto-backend#603/#604), jamais depuis la pile d'une org membre —
     // et sans action dans `.ks-actions` ci-dessous puisqu'elle ne cible que `member`.
-    case 'tenant': return `Clé de ton tenant${i.owner.label ? ` ${i.owner.label}` : ''}`
-    case 'platform': return 'Clé oto'
+    case 'tenant': return t('connectorsUi.keyStack.tenant', { name: i.owner.label || '' }).trim()
+    case 'platform': return t('connectorsUi.keyStack.platform')
     default: return i.name
   }
 }
@@ -103,12 +106,12 @@ function levelName(i: ConnectorInstance): string {
 // mais n'est jamais lue par la cascade — cf. `lib/keyStack`.
 const activeGroup = computed<number | null>(() => me.value?.active_group ?? null)
 const stateOf = (i: ConnectorInstance): RowState => rowState(i, effective.value, activeGroup.value)
-const STATE_LABEL: Record<RowState, string> = {
-  used: 'utilisée',
-  reserve: 'en réserve — prendrait le relais',
-  suspended: 'mise de côté',
-  inactive_team: 'inactive — autre équipe',
-}
+const STATE_LABEL = computed<Record<RowState, string>>(() => ({
+  used: t('connectorsUi.keyStack.used'),
+  reserve: t('connectorsUi.keyStack.reserve'),
+  suspended: t('connectorsUi.keyStack.suspended'),
+  inactive_team: t('connectorsUi.keyStack.inactiveTeam'),
+}))
 const STATE_TONE: Record<RowState, DotTone> = {
   used: 'olive', reserve: 'faint', suspended: 'faint', inactive_team: 'faint',
 }
@@ -131,24 +134,23 @@ const memberRow = computed(() => rows.value.find((i) => i.level === 'member' && 
 const relayInstance = computed(() => relayOf(rows.value, memberRow.value, activeGroup.value))
 const relay = computed(() => relayFor(rows.value, memberRow.value, activeGroup.value))
 // Mot du fournisseur pour un compte (registre) — « compte » à défaut.
-const accountNoun = computed(() => c.value.auth?.account_noun || 'compte')
+const accountNoun = computed(() => c.value.auth?.account_noun || t('connectorsUi.keyStack.accountNoun'))
 // Note du dialog de retrait (CDC P8, « les dialogs disent la vérité ») : l'état de santé
 // vient EN PREMIER, c'est lui qui justifie souvent le retrait — retirer une clé morte
 // n'est pas une perte, et l'utilisateur doit le savoir avant de renoncer.
 const relayNote = computed(() => {
   const ko = healthKo.value
-    ? `Son dernier test a échoué${healthReason.value ? ` (${healthReason.value})` : ''}. `
+    ? (healthReason.value ? t('connectorsUi.keyStack.lastTestFailedWhy', { reason: healthReason.value }) : t('connectorsUi.keyStack.lastTestFailed'))
     : ''
   const r = relay.value
   if (r.kind === 'instance')
-    return ko + `${levelName(r.instance)}${accountSuffix(r.instance)} prendra le relais.`
+    return ko + t('connectorsUi.keyStack.relayInstance', { name: `${levelName(r.instance)}${accountSuffix(r.instance)}` })
   // Multi-compte : plusieurs clés restent au même niveau, et la cascade n'en choisit
   // aucune d'office — le dire, plutôt qu'en désigner une au hasard ou annoncer une
   // perte qui n'aura pas lieu.
   if (r.kind === 'ambiguous')
-    return ko + `Il te restera ${r.count} ${accountNoun.value}s — ton agent devra `
-      + 'préciser lequel utiliser, ou tu en désignes un par défaut.'
-  return ko + 'Aucune clé ne prendra le relais — ton agent perdra ce connecteur.'
+    return ko + t('connectorsUi.keyStack.relayAmbiguous', { n: r.count, noun: accountNoun.value })
+  return ko + t('connectorsUi.keyStack.relayNone')
 })
 const hasSuspended = computed(() => instances.value.some((i) => i.suspended))
 const hasSpecial = computed(() => instances.value.some((i) => i.via === 'shared_with_me' || i.via === 'personal_cross_org'))
@@ -164,7 +166,7 @@ const contextLabel = computed(() => {
   const org = me.value?.active_org_name
   const grp = me.value?.active_group_name
   if (!org) return ''
-  return grp ? `clés pour ${org} · équipe ${grp}` : `clés pour ${org}`
+  return grp ? t('connectorsUi.keyStack.contextTeam', { org, team: grp }) : t('connectorsUi.keyStack.context', { org })
 })
 
 function fmtDate(s?: string | null): string {
@@ -173,7 +175,7 @@ function fmtDate(s?: string | null): string {
   return d.length === 3 ? `${d[2]}/${d[1]}` : s
 }
 function meta(i: ConnectorInstance): string {
-  const who = i.set_by ? `posée par ${accountLabel(i.set_by, orgMembers.value)}` : 'posée'
+  const who = i.set_by ? t('connectorsUi.keyStack.setBy', { who: accountLabel(i.set_by, orgMembers.value) }) : t('connectorsUi.keyStack.set')
   const when = i.set_at ? ` · ${fmtDate(i.set_at)}` : ''
   return who + when
 }
@@ -185,7 +187,7 @@ async function test() {
   testing.value = true
   try {
     const r = await props.lever.verify(c.value)
-    toast(r.ok ? '✓ connexion OK' : `✗ ${r.error ?? 'échec'}`)
+    toast(r.ok ? t('connectorsUi.keyStack.testOk') : t('connectorsUi.keyStack.testKo', { error: r.error ?? t('connectorsUi.keyStack.failed') }))
   } catch (e) { toast(humanize(e)) } finally { testing.value = false }
 }
 
@@ -197,13 +199,13 @@ async function toggleSuspend(i: ConnectorInstance) {
   // comme filet une clé d'équipe inactive ou un prêt nominatif — ni l'un ni l'autre ne
   // résout, et la garde laissait alors l'agent perdre le connecteur en le niant.
   if (next && !relayOf(rows.value, i, activeGroup.value)) {
-    toast('Rien ne prendrait le relais — ton agent perdrait ce connecteur.')
+    toast(t('connectorsUi.keyStack.noRelay'))
     return
   }
   busy.value = true
   try {
     await suspendInstance(c.value.name, next, i.account || '')
-    toast(next ? 'Clé suspendue — la clé du dessous prend le relais.' : 'Clé réactivée.')
+    toast(next ? t('connectorsUi.keyStack.suspendedToast') : t('connectorsUi.keyStack.reactivated'))
     await Promise.all([load(), reloadMe()])
   } catch (e) { toast(humanize(e)) } finally { busy.value = false }
 }
@@ -218,19 +220,19 @@ async function toggleSuspend(i: ConnectorInstance) {
       <div v-if="rows[0]" class="ks-line">
         <Dot :tone="toneOf(rows[0])" />
         <span class="ks-name">{{ levelName(rows[0]) }}{{ accountSuffix(rows[0]) }}</span>
-        <span v-if="koOn(rows[0])" class="ks-ko">{{ healthReason || 'connexion KO' }}</span>
+        <span v-if="koOn(rows[0])" class="ks-ko">{{ healthReason || t('connectorsUi.keyStack.connectionKo') }}</span>
         <span v-else class="ks-meta">{{ meta(rows[0]) }}</span>
       </div>
       <div v-else class="ks-line">
-        <Dot tone="saffron" /><span class="ks-name">Aucune clé</span>
+        <Dot tone="saffron" /><span class="ks-name">{{ t('connectorsUi.keyStack.none') }}</span>
       </div>
-      <button v-if="rows.length" class="ks-toggle" @click="open = true">D’où vient la clé ?</button>
+      <button v-if="rows.length" class="ks-toggle" @click="open = true">{{ t('connectorsUi.keyStack.whereFrom') }}</button>
     </template>
 
     <template v-else>
       <!-- Pile dépliée. -->
       <div v-if="contextLabel" class="ks-context mono">{{ contextLabel }}</div>
-      <div v-if="!rows.length" class="helptext">aucune clé posée à un niveau qui te concerne.</div>
+      <div v-if="!rows.length" class="helptext">{{ t('connectorsUi.keyStack.noneHere') }}</div>
       <ul class="ks-stack">
         <li v-for="i in rows" :key="i.ref" class="ks-row" :class="[stateOf(i), { ko: koOn(i) }]">
           <div class="ks-row-head">
@@ -238,25 +240,25 @@ async function toggleSuspend(i: ConnectorInstance) {
             <span class="ks-name">{{ levelName(i) }}{{ accountSuffix(i) }}</span>
             <!-- Santé (erreur réelle) prime sur l'état de cascade : une clé « utilisée »
                  mais KO doit se lire comme cassée, pas comme opérationnelle. -->
-            <span v-if="koOn(i)" class="ks-tag ko">connexion KO — reconnecte</span>
+            <span v-if="koOn(i)" class="ks-tag ko">{{ t('connectorsUi.keyStack.koReconnect') }}</span>
             <span v-else class="ks-tag" :class="stateOf(i)">{{ STATE_LABEL[stateOf(i)] }}</span>
           </div>
           <div v-if="koOn(i) && healthReason" class="ks-row-meta ks-ko">{{ healthReason }}</div>
           <div class="ks-row-meta">{{ meta(i) }}</div>
           <div v-if="canWrite && i.level === 'member' && i.via !== 'shared_with_me'" class="ks-actions">
             <template v-if="i.suspended">
-              <Btn kind="mini" :disabled="busy" @click="toggleSuspend(i)">Réactiver</Btn>
+              <Btn kind="mini" :disabled="busy" @click="toggleSuspend(i)">{{ t('connectorsUi.keyStack.reactivate') }}</Btn>
             </template>
             <template v-else>
-              <Btn v-if="connector.verifiable && lever.verify" kind="mini" :disabled="testing" @click="test">Tester</Btn>
-              <Btn kind="mini" @click="lever.configureKey(connector)">Remplacer</Btn>
-              <Btn kind="danger" @click="lever.removeKey(connector, relayNote)">Retirer</Btn>
-              <Btn kind="mini" :disabled="busy" @click="toggleSuspend(i)">Suspendre</Btn>
+              <Btn v-if="connector.verifiable && lever.verify" kind="mini" :disabled="testing" @click="test">{{ t('connectorsUi.keyStack.test') }}</Btn>
+              <Btn kind="mini" @click="lever.configureKey(connector)">{{ t('connectorsUi.keyStack.replace') }}</Btn>
+              <Btn kind="danger" @click="lever.removeKey(connector, relayNote)">{{ t('common.remove') }}</Btn>
+              <Btn kind="mini" :disabled="busy" @click="toggleSuspend(i)">{{ t('connectorsUi.keyStack.suspend') }}</Btn>
             </template>
           </div>
         </li>
       </ul>
-      <button v-if="!autoOpen" class="ks-toggle" @click="open = false">réduire</button>
+      <button v-if="!autoOpen" class="ks-toggle" @click="open = false">{{ t('connectorsUi.keyStack.collapse') }}</button>
     </template>
   </div>
 </template>

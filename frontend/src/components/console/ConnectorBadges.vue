@@ -7,6 +7,9 @@
 import Tag from './Tag.vue'
 import { authChip } from '@/lib/connectorAuth'
 import type { ConnectorMeta } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 withDefaults(defineProps<{
   meta?: ConnectorMeta | null
@@ -19,12 +22,12 @@ withDefaults(defineProps<{
     <Tag v-if="meta.category" tone="ink">{{ meta.category }}</Tag>
     <Tag v-if="showAuth" tone="cobalt">{{ authChip(meta.auth) }}</Tag>
     <Tag v-if="meta.family === 'federated'" tone="saffron"
-      title="mcp fédéré — login délégué, outils proxifiés sous gouvernance oto">fédéré</Tag>
+      :title="t('connectorsUi.badges.federatedTitle')">{{ t('connectorsUi.badges.federated') }}</Tag>
     <Tag v-if="meta.free_tier" tone="olive"
-      :title="`clé plateforme oto offerte — ${meta.free_tier.daily_quota}/jour gratuits par utilisateur, sans poser ta clé`">
-      gratuit · {{ meta.free_tier.daily_quota }}/j</Tag>
+      :title="t('connectorsUi.badges.freeTitle', { n: meta.free_tier.daily_quota })">
+      {{ t('connectorsUi.badges.free', { n: meta.free_tier.daily_quota }) }}</Tag>
     <span v-if="meta.availability === 'platform_granted'" class="cb-flag"
-      title="visible seulement pour les orgs à qui la plateforme l'a accordé">grant-only</span>
+      :title="t('connectorsUi.badges.grantTitle')">{{ t('connectorsUi.badges.grantOnly') }}</span>
   </template>
 </template>
 

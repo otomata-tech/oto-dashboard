@@ -13,6 +13,9 @@ import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
 import type { MyConnector } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 type Scope = 'member' | 'org' | 'group'
 const props = defineProps<{ open: boolean; connector: MyConnector }>()
@@ -36,14 +39,14 @@ const maximized = ref(false)
 const scope = ref<Scope>('member')
 const scopeOptions = computed(() => {
   const opts: { value: Scope; label: string; hint: string }[] = [
-    { value: 'member', label: 'Pour moi', hint: 'session privée à ton compte' },
+    { value: 'member', label: t('connectorsUi.sessionConnect.forMe'), hint: t('connectorsUi.sessionConnect.forMeHint') },
   ]
   if (!props.connector.auth_modes?.includes('byo_org')) return opts
   const isOrgAdmin = me.value?.org_role === 'org_admin'
   if (me.value?.active_group != null && (me.value?.group_role === 'group_admin' || isOrgAdmin))
-    opts.push({ value: 'group', label: 'Mon équipe', hint: `partagée avec ${me.value?.active_group_name || 'ton équipe'}` })
+    opts.push({ value: 'group', label: t('connectorsUi.sessionConnect.myTeam'), hint: t('connectorsUi.sessionConnect.sharedWith', { who: me.value?.active_group_name || t('connectorsUi.sessionConnect.yourTeam') }) })
   if (isOrgAdmin)
-    opts.push({ value: 'org', label: 'Mon org', hint: `partagée avec ${me.value?.active_org_name || 'ton org'}` })
+    opts.push({ value: 'org', label: t('connectorsUi.sessionConnect.myOrg'), hint: t('connectorsUi.sessionConnect.sharedWith', { who: me.value?.active_org_name || t('connectorsUi.sessionConnect.yourOrg') }) })
   return opts
 })
 const scopeHint = computed(() => scopeOptions.value.find((o) => o.value === scope.value)?.hint || '')
@@ -72,11 +75,11 @@ async function verify() {
       context_id: ctxId.value, session_id: sessId.value, scope: scope.value,
     })
     if (connected) {
-      toast(`${props.connector.label} connecté`)
+      toast(t('connectorsUi.sessionConnect.connected', { name: props.connector.label }))
       emit('connected')
       emit('close')
     } else {
-      toast('pas encore connecté — termine le login dans la fenêtre puis réessaie')
+      toast(t('connectorsUi.sessionConnect.notYet'))
     }
   } catch (e) {
     toast(humanize(e))
@@ -96,16 +99,15 @@ watch(() => props.open, (o) => {
        (reka, téléporté). Sans Teleport, à --z-modal égal elle passerait dessous (cf.
        règle DS dans console.css). -->
   <ModalOverlay :open="open" @close="emit('close')">
-      <div class="modal" :class="{ max: maximized }" role="dialog" aria-modal="true" :aria-label="`connect ${connector.label}`">
+      <div class="modal" :class="{ max: maximized }" role="dialog" aria-modal="true" :aria-label="t('connectorsUi.sessionConnect.aria', { name: connector.label })">
         <header class="cs-head">
           <div class="cs-head-txt">
-            <h3 class="modal-title">connecter {{ connector.label }}</h3>
-            <p class="modal-desc">connecte-toi dans la fenêtre ci-dessous (mot de passe, SSO,
-              captcha…), puis clique « vérifier ». {{ scope === 'member'
-                ? 'Ta session reste privée à ton compte.'
-                : `Session ${scopeHint}.` }}</p>
+            <h3 class="modal-title">{{ t('connectorsUi.sessionConnect.title', { name: connector.label }) }}</h3>
+            <p class="modal-desc">{{ t('connectorsUi.sessionConnect.desc') }} {{ scope === 'member'
+                ? t('connectorsUi.sessionConnect.private')
+                : t('connectorsUi.sessionConnect.sessionHint', { hint: scopeHint }) }}</p>
             <div v-if="scopeOptions.length > 1" class="cs-scope">
-              <span class="cs-scope-lbl dim">configurer&nbsp;:</span>
+              <span class="cs-scope-lbl dim">{{ t('connectorsUi.sessionConnect.configure') }}</span>
               <div class="cs-seg" role="tablist">
                 <button v-for="o in scopeOptions" :key="o.value" class="cs-seg-btn"
                   :class="{ on: scope === o.value }" :title="o.hint" role="tab"
@@ -113,30 +115,30 @@ watch(() => props.open, (o) => {
               </div>
             </div>
           </div>
-          <button class="cs-close" :aria-label="maximized ? 'réduire' : 'agrandir'"
-            :title="maximized ? 'réduire' : 'agrandir'" @click="maximized = !maximized">
+          <button class="cs-close" :aria-label="maximized ? t('connectorsUi.sessionConnect.collapse') : t('connectorsUi.sessionConnect.expand')"
+            :title="maximized ? t('connectorsUi.sessionConnect.collapse') : t('connectorsUi.sessionConnect.expand')" @click="maximized = !maximized">
             <Icon :name="maximized ? 'minimize' : 'maximize'" :size="15" />
           </button>
-          <button class="cs-close" aria-label="fermer" @click="emit('close')">
+          <button class="cs-close" :aria-label="t('connectorsUi.sessionConnect.close')" @click="emit('close')">
             <Icon name="close" :size="15" />
           </button>
         </header>
 
         <div class="cs-body">
-          <div v-if="loading" class="cs-state dim">ouverture du navigateur distant…</div>
+          <div v-if="loading" class="cs-state dim">{{ t('connectorsUi.sessionConnect.opening') }}</div>
           <div v-else-if="error" class="cs-state">
             <p class="cs-err">{{ error }}</p>
-            <Btn kind="mini" @click="begin">Réessayer</Btn>
+            <Btn kind="mini" @click="begin">{{ t('common.retry') }}</Btn>
           </div>
           <iframe v-else-if="liveUrl" :src="liveUrl" class="cs-frame"
             allow="clipboard-read; clipboard-write" sandbox="allow-same-origin allow-scripts allow-forms allow-popups" />
         </div>
 
         <footer class="cs-foot">
-          <span class="dim" style="flex: 1; font-size: 12px">la session expire après ~15 min d'inactivité</span>
-          <Btn kind="ghost" @click="emit('close')">Annuler</Btn>
+          <span class="dim" style="flex: 1; font-size: 12px">{{ t('connectorsUi.sessionConnect.expires') }}</span>
+          <Btn kind="ghost" @click="emit('close')">{{ t('common.cancel') }}</Btn>
           <Btn :disabled="!liveUrl || verifying" @click="verify">
-            {{ verifying ? 'Vérification…' : 'Vérifier' }}
+            {{ verifying ? t('connectorsUi.sessionConnect.verifying') : t('connectorsUi.sessionConnect.verify') }}
           </Btn>
         </footer>
       </div>

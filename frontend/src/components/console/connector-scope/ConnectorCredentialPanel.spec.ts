@@ -14,13 +14,15 @@ const api = vi.hoisted(() => ({
 vi.mock('@/api/console', () => api)
 
 import ConnectorCredentialPanel from './ConnectorCredentialPanel.vue'
+import { i18n } from '@/lib/i18n'
 import { useMe } from '@/composables/useMe'
 import type { Me } from '@/types/api'
 
 function monter(lever: Record<string, unknown>) {
   const host = document.createElement('div')
   const app = createApp({ render: () => h(ConnectorCredentialPanel as never, { lever, row: {} }) })
-  app.mount(host)
+  i18n.global.locale.value = 'fr'
+  app.use(i18n).mount(host)
   const boutons = [...host.querySelectorAll('button')].map((b) => b.textContent?.trim() ?? '')
   const texte = host.textContent ?? ''
   app.unmount()
@@ -71,7 +73,8 @@ describe('ConnectorCredentialPanel — comptes nommés au palier org', () => {
   async function monterAvec(lever: Record<string, unknown>, meta: unknown) {
     const host = document.createElement('div')
     const app = createApp({ render: () => h(ConnectorCredentialPanel as never, { lever, row: {}, meta }) })
-    app.mount(host)
+    i18n.global.locale.value = 'fr'
+    app.use(i18n).mount(host)
     for (let i = 0; i < 5; i++) { await new Promise((r) => setTimeout(r, 0)); await nextTick() }
     const boutons = [...host.querySelectorAll('button')].map((b) => b.textContent?.trim() ?? '')
     app.unmount()

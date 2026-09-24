@@ -18,6 +18,9 @@ import { getOrgEmailSettings, listScheduledEmails, cancelScheduledEmail } from '
 import type { EmailSettingsBundle, ScheduledEmail } from '@/types/api'
 import { fmtDateTime } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
@@ -49,10 +52,10 @@ function setSchedFilter(f: SchedFilter) { schedFilter.value = f; loadScheduled()
 async function cancelScheduled(eid: number) {
   if (activeOrgId.value == null) return
   if (!await confirmAction({
-    title: "annuler l'envoi", danger: true, confirmLabel: "Annuler l'envoi",
-    message: 'cet email programmé ne partira pas. confirmer ?',
+    title: t('connectorsUi.org.cancelTitle'), danger: true, confirmLabel: t('connectorsUi.org.cancelConfirm'),
+    message: t('connectorsUi.org.cancelMessage'),
   })) return
-  try { await cancelScheduledEmail(activeOrgId.value, eid); toast('envoi annulé'); await loadScheduled() }
+  try { await cancelScheduledEmail(activeOrgId.value, eid); toast(t('connectorsUi.org.cancelled')); await loadScheduled() }
   catch (e) { toast(humanize(e)) }
 }
 
@@ -65,15 +68,15 @@ onMounted(async () => {
 
 <template>
   <div class="content-inner fadein">
-    <ConsoleCard v-if="me && activeOrgId == null" title="aucune org active">
-      <div class="helptext">la gouvernance des connecteurs se règle au niveau d'une organisation — sélectionne ou crée-en une.</div>
+    <ConsoleCard v-if="me && activeOrgId == null" :title="t('connectorsUi.org.noOrg')">
+      <div class="helptext">{{ t('connectorsUi.org.noOrgHelp') }}</div>
     </ConsoleCard>
 
     <template v-else-if="activeOrgId != null">
       <ConnectorScopeView />
 
-      <ConsoleCard v-if="hasEmailSenders" title="envois programmés"
-        sub="emails différés (programmés ou retenus par la fenêtre calme)">
+      <ConsoleCard v-if="hasEmailSenders" :title="t('connectorsUi.org.scheduled')"
+        :sub="t('connectorsUi.org.scheduledSub')">
         <template #actions>
           <div class="seg">
             <button v-for="f in SCHED_FILTERS" :key="f" :class="{ on: schedFilter === f }" @click="setSchedFilter(f)">{{ f }}</button>
@@ -82,16 +85,16 @@ onMounted(async () => {
         <div v-if="schedLoaded && scheduled.length" class="rowlist">
           <div v-for="m in scheduled" :key="m.id" class="rowitem">
             <div class="oc-sched-txt">
-              <span class="oc-sched-subj">{{ m.subject || '(sans objet)' }}</span>
+              <span class="oc-sched-subj">{{ m.subject || t('connectorsUi.org.noSubject') }}</span>
               <span class="oc-dim">{{ m.to_email || '—' }} · {{ fmtDateTime(m.scheduled_at) }}</span>
             </div>
             <span class="oc-spacer" />
             <Tag :tone="m.status === 'failed' ? 'terra' : m.status === 'sent' ? 'olive' : 'saffron'">{{ m.status }}</Tag>
-            <Btn v-if="canWrite && m.status === 'pending'" kind="danger" @click="cancelScheduled(m.id)">Annuler</Btn>
+            <Btn v-if="canWrite && m.status === 'pending'" kind="danger" @click="cancelScheduled(m.id)">{{ t('connectorsUi.org.cancel') }}</Btn>
           </div>
         </div>
         <p v-else-if="schedLoaded" class="helptext" style="padding: 6px 0">
-          {{ schedFilter === 'pending' ? 'rien de programmé pour le moment.' : 'aucun email dans ce filtre.' }}
+          {{ schedFilter === 'pending' ? t('connectorsUi.org.nothingScheduled') : t('connectorsUi.org.noneInFilter') }}
         </p>
       </ConsoleCard>
     </template>

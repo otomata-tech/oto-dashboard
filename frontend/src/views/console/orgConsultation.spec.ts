@@ -86,6 +86,7 @@ const presents = (cliquables: string[], gestes: string[]) =>
 
 beforeEach(() => {
   vi.clearAllMocks()
+  i18n.global.locale.value = 'fr'
   api.getOrg.mockResolvedValue({
     org: { id: 42, name: 'ACME', personal: false, logo_custom: true, logo_url: 'https://logo.invalid/a.png',
       description: 'la maison', my_role: null },

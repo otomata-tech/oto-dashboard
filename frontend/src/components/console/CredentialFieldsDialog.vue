@@ -22,6 +22,9 @@ import {
 } from '@/lib/credentialForm'
 import DocSections from '@/components/console/DocSections.vue'
 import type { CredentialField, DocSection, VerifyResult } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   open: boolean
@@ -70,7 +73,7 @@ const emit = defineEmits<{ (e: 'update:open', value: boolean): void }>()
 // touché arrive `undefined` (pas '') à vee-validate → sans `.optional()`, zod
 // répondait son « Required » par défaut sur un champ pourtant optionnel.
 // Le mot du fournisseur, servi par le registre — « compte » si rien n'est déclaré.
-const noun = computed(() => props.accountNoun || 'compte')
+const noun = computed(() => props.accountNoun || t('connectorsUi.credentials.account'))
 const asksAccount = computed(() => props.accountMode === 'new')
 // Clé réservée du formulaire : ne peut pas entrer en collision avec un champ de
 // credential, qui vient du registre et n'a jamais ce nom.
@@ -128,13 +131,13 @@ const schema = computed(() =>
         // sur `f.required` est ce qui a produit « laisse vide pour conserver » ET
         // « requis » en rouge sur le même champ.
         requiredAtInput(f, kept.value)
-          ? z.string().trim().min(1, 'requis')
+          ? z.string().trim().min(1, t('connectorsUi.credentials.required'))
           : z.string().trim().optional().default(''),
       ]),
       ...(asksAccount.value
-        ? [[ACCOUNT_KEY, z.string().trim().min(1, 'requis').refine(
+        ? [[ACCOUNT_KEY, z.string().trim().min(1, t('connectorsUi.credentials.required')).refine(
             (v: string) => !(props.accountNames ?? []).includes(v),
-            `ce ${noun.value} existe déjà`)]]
+            t('connectorsUi.credentials.exists', { noun: noun.value }))]]
         : []),
     ])).refine(
       // Le nom du compte ne compte pas comme un champ renseigné : sans identifiant,
@@ -144,7 +147,7 @@ const schema = computed(() =>
       // change qu'une URL ».
       (v) => props.existing
         || visible.value.some((f) => ((v as Record<string, string>)[f.name] ?? '').length > 0),
-      { message: 'renseigne au moins un champ', path: [visible.value[0]?.name ?? ''] },
+      { message: t('connectorsUi.credentials.atLeastOne'), path: [visible.value[0]?.name ?? ''] },
     ),
   ),
 )
@@ -180,28 +183,28 @@ const showHowto = ref(false)
 const scope = computed(() => props.scope ?? 'member')
 
 const title = computed(() => {
-  if (props.accountMode === 'new') return `ajouter un ${noun.value} ${props.label}`
+  if (props.accountMode === 'new') return t('connectorsUi.credentials.titleNew', { noun: noun.value, label: props.label })
   if (props.accountMode === 'fixed') return `${props.label} · ${props.account}`
-  if (scope.value === 'org') return `clé d'org ${props.label}`
-  if (scope.value === 'group') return `clé d'équipe ${props.label}`
-  return props.single ? `clé api ${props.label}` : `connecter ${props.label}`
+  if (scope.value === 'org') return t('connectorsUi.credentials.titleOrg', { label: props.label })
+  if (scope.value === 'group') return t('connectorsUi.credentials.titleGroup', { label: props.label })
+  return props.single ? t('connectorsUi.credentials.titleKey', { label: props.label }) : t('connectorsUi.credentials.titleConnect', { label: props.label })
 })
 const description = computed(() => {
   if (props.accountMode === 'new')
-    return `un second jeu d'identifiants ${props.label}, sous son propre nom — tu choisiras lequel sert par défaut, et ton agent peut viser l'autre à l'appel.`
+    return t('connectorsUi.credentials.descNew', { label: props.label })
   if (props.accountMode === 'fixed')
-    return `remplace les identifiants de ce ${noun.value} — le reste ne bouge pas.`
+    return t('connectorsUi.credentials.descFixed', { noun: noun.value })
   // ⚠️ Une clé partagée n'est PAS « la tienne, scopée à l'org » : elle sert à tous
   // les membres, dont ceux qui n'ont posé aucune clé. Le dire ici, c'est-à-dire
   // avant de valider — l'écran ne le disait nulle part, et sur « mes connecteurs »
   // rien ne distinguait le geste de la pose d'une clé personnelle.
   if (scope.value === 'org')
-    return `la clé ${props.label} de ton org — stockée chiffrée, elle sert à TOUS tes membres qui n'ont pas la leur.`
+    return t('connectorsUi.credentials.descOrg', { label: props.label })
   if (scope.value === 'group')
-    return `la clé ${props.label} de ton équipe — stockée chiffrée, elle sert à tous ses membres qui n'ont pas la leur, et cède devant une clé personnelle.`
+    return t('connectorsUi.credentials.descGroup', { label: props.label })
   return props.single
-    ? `ta clé ${props.label} — stockée chiffrée, scopée à l'org courante ; elle y prime sur la clé d'org et de plateforme.`
-    : `tes identifiants ${props.label} — stockés chiffrés, scopés à l'org courante, utilisés pour agir en ton nom.`
+    ? t('connectorsUi.credentials.descKey', { label: props.label })
+    : t('connectorsUi.credentials.descFields', { label: props.label })
 })
 
 const submit = handleSubmit(async (values) => {
@@ -249,7 +252,7 @@ const submit = handleSubmit(async (values) => {
 
       <div v-if="howto.length" class="cfd-howto">
         <button type="button" class="cfd-toggle" @click="showHowto = !showHowto">
-          {{ showHowto ? '▾' : '▸' }} où trouver ces identifiants ?
+          {{ showHowto ? '▾' : '▸' }} {{ t('connectorsUi.credentials.howto') }}
         </button>
         <DocSections v-if="showHowto" :sections="howto" />
       </div>
@@ -258,17 +261,17 @@ const submit = handleSubmit(async (values) => {
            l'utilisateur croit devoir retrouver un secret qu'aucune surface ne rend —
            c'est ce qui a fait renoncer à un repointage d'adresse. -->
       <p v-if="existing" class="cfd-note">
-        les champs non secrets sont pré-remplis. laisse un champ secret vide pour le conserver tel quel.
+        {{ t('connectorsUi.credentials.existing') }}
       </p>
 
       <form class="cfd-form" :class="{ 'cfd-form--wide': wide }" @submit.prevent="submit">
         <FormField v-if="asksAccount" v-slot="{ componentField }" :name="ACCOUNT_KEY">
           <FormItem class="cfd-row">
-            <FormLabel>nom du {{ noun }}</FormLabel>
+            <FormLabel>{{ t('connectorsUi.credentials.accountName', { noun }) }}</FormLabel>
             <div class="cfd-ctl">
               <FormControl>
                 <Input type="text" autocomplete="off"
-                       :placeholder="`comment tu appelles ce ${noun}`" v-bind="componentField" />
+                       :placeholder="t('connectorsUi.credentials.accountPlaceholder', { noun })" v-bind="componentField" />
               </FormControl>
               <FormMessage />
             </div>
@@ -283,14 +286,14 @@ const submit = handleSubmit(async (values) => {
           <hr v-if="f.name === fieldDiscriminator" class="cfd-sep" />
           <FormField v-slot="{ componentField }" :name="f.name">
             <FormItem class="cfd-row">
-              <FormLabel>{{ f.label.toLowerCase() }}<span v-if="f.required === false" class="cfd-opt"> · optionnel</span></FormLabel>
+              <FormLabel>{{ f.label.toLowerCase() }}<span v-if="f.required === false" class="cfd-opt">{{ t('connectorsUi.credentials.optional') }}</span></FormLabel>
               <div class="cfd-ctl">
                 <!-- Jeu FERMÉ de valeurs déclaré par le connecteur : un select, pas un
                      champ libre — une faute de frappe y était acceptée puis refusée au
                      premier appel réel. -->
                 <Select v-if="f.choices?.length" v-bind="componentField">
                   <FormControl>
-                    <SelectTrigger class="w-full"><SelectValue placeholder="choisir" /></SelectTrigger>
+                    <SelectTrigger class="w-full"><SelectValue :placeholder="t('connectorsUi.credentials.choose')" /></SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     <SelectItem v-for="opt in f.choices" :key="opt" :value="opt">{{ opt }}</SelectItem>
@@ -300,7 +303,7 @@ const submit = handleSubmit(async (values) => {
                   <Input
                     :type="f.secret ? 'password' : 'text'"
                     autocomplete="off"
-                    :placeholder="secretPlaceholder(f, kept.has(f.name)) || (single ? `colle ta clé ${label}` : '')"
+                    :placeholder="secretPlaceholder(f, kept.has(f.name)) || (single ? t('connectorsUi.credentials.pasteKey', { label }) : '')"
                     v-bind="componentField"
                   />
                 </FormControl>
@@ -315,18 +318,18 @@ const submit = handleSubmit(async (values) => {
 
         <!-- La section du discriminant dit ce qu'elle attend, même quand elle est vide. -->
         <p v-if="discriminatorField && !picked" class="cfd-hint cfd-hint--section">
-          choisis « {{ discriminatorField.label.toLowerCase() }} » pour voir les champs à renseigner.
+          {{ t('connectorsUi.credentials.pickFirst', { field: discriminatorField.label.toLowerCase() }) }}
         </p>
         <p v-else-if="discriminatorField && !modeFields.length" class="cfd-hint cfd-hint--section">
-          rien d'autre à renseigner pour « {{ picked }} ».
+          {{ t('connectorsUi.credentials.nothingElse', { mode: picked }) }}
         </p>
 
         <p v-if="testRes && !testRes.ok" class="cfd-error">✗ {{ testRes.error }}</p>
 
         <DialogFooter>
-          <Button type="button" variant="ghost" :disabled="isSubmitting || testing" @click="emit('update:open', false)">annuler</Button>
+          <Button type="button" variant="ghost" :disabled="isSubmitting || testing" @click="emit('update:open', false)">{{ t('connectorsUi.credentials.cancel') }}</Button>
           <Button type="submit" :disabled="isSubmitting || testing">
-            {{ testing ? 'test…' : (isSubmitting ? '…' : (accountMode === 'new' ? 'ajouter' : (single ? 'enregistrer' : 'connecter'))) }}
+            {{ testing ? t('connectorsUi.credentials.testing') : (isSubmitting ? '…' : (accountMode === 'new' ? t('connectorsUi.credentials.add') : (single ? t('connectorsUi.credentials.save') : t('connectorsUi.credentials.connect')))) }}
           </Button>
         </DialogFooter>
       </form>

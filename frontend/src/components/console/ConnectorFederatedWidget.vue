@@ -17,6 +17,9 @@ import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
 import { fmtDate } from '@/types/api'
 import type { ConnectorOAuthStatus, MyConnector } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ connector: MyConnector }>()
 const { toast } = useToast()
@@ -47,8 +50,8 @@ async function link() {
   catch (e) { toast(humanize(e)) }
 }
 async function drop() {
-  if (!await confirmAction({ title: `disconnect ${props.connector.label}`, danger: true, confirmLabel: 'Disconnect', message: `disconnect your ${props.connector.label}? its tools will disappear from your session.` })) return
-  try { await disconnectFederated(props.connector.name); toast(`${props.connector.label} disconnected`); await refresh() }
+  if (!await confirmAction({ title: t('connectorsUi.federated.dropTitle', { name: props.connector.label }), danger: true, confirmLabel: t('connectorsUi.federated.disconnect'), message: t('connectorsUi.federated.dropMessage', { name: props.connector.label }) })) return
+  try { await disconnectFederated(props.connector.name); toast(t('connectorsUi.federated.dropped', { name: props.connector.label })); await refresh() }
   catch (e) { toast(humanize(e)) }
 }
 </script>
@@ -59,15 +62,15 @@ async function drop() {
       <Dot :tone="rejected ? 'terra' : connected ? 'olive' : 'faint'" :size="8" />
       <span class="fw-status dim">
         {{ rejected
-          ? `connexion rejetée par le fournisseur${status?.health_reason ? ` (${status.health_reason})` : ''} — reconnecte-toi`
+          ? (status?.health_reason ? t('connectorsUi.federated.rejectedWhy', { reason: status.health_reason }) : t('connectorsUi.federated.rejected'))
           : connected
-            ? `connected ${fmtDate(status?.set_at) ?? ''} · login délégué (mcp fédéré)`
-            : 'not connected — login delegated to the provider (mcp fédéré)' }}
+            ? t('connectorsUi.federated.connected', { date: fmtDate(status?.set_at) ?? '' })
+            : t('connectorsUi.federated.notConnected') }}
       </span>
       <template v-if="canWrite">
-        <Btn v-if="rejected" kind="mini" @click="link">Reconnect</Btn>
-        <Btn v-else-if="connected" kind="danger" @click="drop">Disconnect</Btn>
-        <Btn v-else-if="!loading" kind="mini" @click="link">Connect</Btn>
+        <Btn v-if="rejected" kind="mini" @click="link">{{ t('connectorsUi.federated.reconnect') }}</Btn>
+        <Btn v-else-if="connected" kind="danger" @click="drop">{{ t('connectorsUi.federated.disconnect') }}</Btn>
+        <Btn v-else-if="!loading" kind="mini" @click="link">{{ t('connectorsUi.federated.connect') }}</Btn>
       </template>
     </div>
     <DocSections v-if="docs.length" :sections="docs" />

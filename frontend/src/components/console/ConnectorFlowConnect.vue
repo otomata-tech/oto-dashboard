@@ -15,6 +15,9 @@ import { startConnectorFlow } from '@/api/console'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
 import type { MyConnector, ProviderStatus } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   connector: MyConnector
@@ -72,12 +75,10 @@ async function start() {
       <Dot tone="saffron" />{{ status?.pending_action }}
     </p>
     <p v-else-if="appReady" class="helptext" style="margin: 0 0 12px">
-      rien à créer : l'application est déjà en place. choisis ta région, autorise oto,
-      et c'est fait — c'est l'autorisation qui produit le jeton.
+      {{ t('connectorsUi.flow.appReady') }}
     </p>
     <p v-else class="helptext" style="margin: 0 0 12px">
-      pose d'abord les identifiants de l'application sur la fiche, puis autorise oto —
-      c'est l'autorisation qui produit le jeton, il ne se colle pas à la main.
+      {{ t('connectorsUi.flow.appFirst') }}
     </p>
 
     <div v-for="p in flow.params" :key="p.name" class="cfc-field">
@@ -91,7 +92,7 @@ async function start() {
 
     <div class="cfc-actions">
       <Btn kind="mini" :disabled="busy" @click="start">
-        {{ busy ? 'ouverture…' : flow.label }}
+        {{ busy ? t('connectorsUi.flow.opening') : flow.label }}
       </Btn>
     </div>
 
@@ -103,21 +104,21 @@ async function start() {
          L'URL de retour est DÉRIVÉE par le backend (elle vivait en prose dans la doc, avec
          le domaine de prod écrit à la main — donc fausse depuis la preprod). -->
     <details class="cfc-own" :open="!appReady">
-      <summary>{{ appReady ? 'utiliser ma propre application' : 'identifiants de l’application' }}</summary>
+      <summary>{{ appReady ? t('connectorsUi.flow.ownApp') : t('connectorsUi.flow.appCreds') }}</summary>
 
       <div v-if="flow.callback_url" class="cfc-cb">
-        <label>URL de retour à enregistrer dans l'application</label>
+        <label>{{ t('connectorsUi.flow.callback') }}</label>
         <div class="cfc-cb-row">
           <code>{{ flow.callback_url }}</code>
           <Btn kind="mini" variant="ghost" @click="copierCallback">
-            {{ copie ? 'copiée' : 'copier' }}
+            {{ copie ? t('connectorsUi.flow.copied') : t('connectorsUi.flow.copy') }}
           </Btn>
         </div>
-        <span class="helptext">au caractère près — un espace ou un slash final en trop suffit à faire échouer l'autorisation</span>
+        <span class="helptext">{{ t('connectorsUi.flow.exact') }}</span>
       </div>
 
       <div class="cfc-actions">
-        <Btn kind="mini" variant="ghost" @click="configure">identifiants de l'application</Btn>
+        <Btn kind="mini" variant="ghost" @click="configure">{{ t('connectorsUi.flow.appCredsBtn') }}</Btn>
       </div>
     </details>
   </div>

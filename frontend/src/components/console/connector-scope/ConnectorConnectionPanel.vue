@@ -24,6 +24,9 @@ import { connectWidgetKind } from '@/lib/connectorConnect'
 import { poseScope } from '@/lib/credentialScope'
 import type { ConnectorMode } from '@/lib/consoleTypes'
 import type { MyConnector, OrgConnectorActivation } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ connector: MyConnector; lever: ConnectionLever<MyConnector> }>()
 const { me } = useMe()
@@ -52,12 +55,12 @@ const isRemote = computed(() => connKind.value === 'remote')
 const nFields = computed(() => (c.value.credential_fields ?? []).length)
 const authLabel = computed(() => {
   switch (c.value.auth.method) {
-    case 'secret': return nFields.value > 1 ? `${nFields.value} champs` : 'clé api'
-    case 'oauth': return c.value.auth.cardinality === 'multi_account' ? 'oauth · multi' : 'oauth'
-    case 'cookie': return 'session'
-    case 'hosted': return 'compte hébergé'
-    case 'remote': return 'pont d\'org'
-    default: return 'open data'
+    case 'secret': return nFields.value > 1 ? t('connectorsUi.connection.auth.fields', { n: nFields.value }) : t('connectorsUi.connection.auth.apiKey')
+    case 'oauth': return c.value.auth.cardinality === 'multi_account' ? t('connectorsUi.connection.auth.oauthMulti') : t('connectorsUi.connection.auth.oauth')
+    case 'cookie': return t('connectorsUi.connection.auth.session')
+    case 'hosted': return t('connectorsUi.connection.auth.hosted')
+    case 'remote': return t('connectorsUi.connection.auth.remote')
+    default: return t('connectorsUi.connection.auth.open')
   }
 })
 // À quel palier la clé de ce connecteur se pose (lu sur `auth_modes`, cf.
@@ -76,17 +79,17 @@ const canPoseKey = computed(() => canWrite.value
 const authExplain = computed(() => {
   switch (c.value.auth.method) {
     case 'secret': return orgKeyOnly.value
-      ? `un identifiant posé POUR TON ORG — ce connecteur n'a pas de clé personnelle : la même clé sert tous tes membres.`
+      ? t('connectorsUi.connection.explain.orgOnly')
       : nFields.value > 1
-        ? `un identifiant à ${nFields.value} champs, collé une fois — stocké chiffré et scopé à cette org.`
-        : 'une clé API unique, collée une fois — stockée chiffrée et scopée à cette org.'
+        ? t('connectorsUi.connection.explain.fields', { n: nFields.value })
+        : t('connectorsUi.connection.explain.key')
     case 'oauth': return c.value.auth.cardinality === 'multi_account'
-      ? 'autorise un ou plusieurs comptes en OAuth — aucune clé à copier.'
-      : 'une autorisation OAuth ponctuelle en ton nom — aucune clé à copier.'
-    case 'cookie': return 'ta session connectée, capturée une fois via une fenêtre de login hébergée.'
-    case 'hosted': return 'un pont de compte hébergé — relie ton compte ici, la clé d\'accès se résout en cascade.'
-    case 'remote': return 'un pont distant dont l\'identifiant est posé par ton org — rien à configurer en tant que membre.'
-    default: return 'open data — aucun identifiant, les outils fonctionnent directement.'
+      ? t('connectorsUi.connection.explain.oauthMulti')
+      : t('connectorsUi.connection.explain.oauth')
+    case 'cookie': return t('connectorsUi.connection.explain.cookie')
+    case 'hosted': return t('connectorsUi.connection.explain.hosted')
+    case 'remote': return t('connectorsUi.connection.explain.remote')
+    default: return t('connectorsUi.connection.explain.open')
   }
 })
 
@@ -128,38 +131,38 @@ const otherKeys = ref(0)
 // ⚠️ « Poser ma clé » ne peut pas s'écrire là où aucune clé personnelle n'existe :
 // le geste pose celle de l'org, et le bouton doit le dire AVANT le formulaire.
 const keyCta = computed(() => (orgKeyOnly.value
-  ? "Poser la clé de l'org"
-  : otherKeys.value > 0 ? 'Poser ma clé' : `Connecter ${c.value.label}`))
+  ? t('connectorsUi.connection.cta.org')
+  : otherKeys.value > 0 ? t('connectorsUi.connection.cta.mine') : t('connectorsUi.connection.cta.connect', { name: c.value.label })))
 </script>
 
 <template>
   <div>
     <!-- verdict (lot 2 B4) : la phrase d'abord, le diagnostic 3 couches déplié à « Pourquoi ? » -->
     <div class="dr-block">
-      <div class="eyebrow" style="margin-bottom: 9px">état pour toi</div>
+      <div class="eyebrow" style="margin-bottom: 9px">{{ t('connectorsUi.connection.stateForYou') }}</div>
       <ConnectorVerdictLine :connector="c" />
     </div>
 
     <!-- côté org (org_admin) -->
     <div v-if="nominalOrgAdmin && orgAct" class="dr-block">
-      <div class="eyebrow" style="margin-bottom: 9px">côté org · {{ me?.active_org_name || 'ton org' }}</div>
+      <div class="eyebrow" style="margin-bottom: 9px">{{ t('connectorsUi.connection.orgSide', { org: me?.active_org_name || t('connectorsUi.connection.yourOrg') }) }}</div>
       <div class="statrow">
-        <span class="spill"><Dot :tone="orgAct.effective ? 'olive' : 'faint'" />{{ orgAct.effective ? 'disponible pour tes membres' : 'coupé pour tes membres' }}</span>
-        <span v-if="orgAct.paid_option" class="spill"><Dot :tone="orgAct.subscribed ? 'olive' : 'saffron'" />option {{ orgAct.paid_option }}</span>
+        <span class="spill"><Dot :tone="orgAct.effective ? 'olive' : 'faint'" />{{ orgAct.effective ? t('connectorsUi.connection.availableMembers') : t('connectorsUi.connection.offMembers') }}</span>
+        <span v-if="orgAct.paid_option" class="spill"><Dot :tone="orgAct.subscribed ? 'olive' : 'saffron'" />{{ t('connectorsUi.connection.option', { name: orgAct.paid_option }) }}</span>
       </div>
-      <p class="helptext" style="margin: 9px 0 0"><RouterLink to="/org/connectors" class="org-link">gérer la disponibilité, l'accès et la clé d'org →</RouterLink></p>
+      <p class="helptext" style="margin: 9px 0 0"><RouterLink to="/org/connectors" class="org-link">{{ t('connectorsUi.connection.manageOrg') }}</RouterLink></p>
     </div>
 
     <!-- connexion -->
     <div class="dr-block">
-      <div class="eyebrow" style="margin-bottom: 8px">connexion · {{ authLabel }}</div>
+      <div class="eyebrow" style="margin-bottom: 8px">{{ t('connectorsUi.connection.connection', { mode: authLabel }) }}</div>
       <p class="helptext" style="margin: 0 0 14px">{{ authExplain }}</p>
 
       <div v-if="needsKey" class="dr-box">
         <!-- KeyStack (lot 2 B2) : la clé effective en une ligne, dépliable en pile de
              provenance (« la plus proche gagne »), avec suspension réversible (B7). -->
         <ConnectorKeyStack :connector="c" :lever="lever" @keys="(n) => otherKeys = n" />
-        <Quota v-if="status?.quota_daily" style="margin-top: 12px" :used="status.quota_used_today" :total="status.quota_daily" label="quota du jour" />
+        <Quota v-if="status?.quota_daily" style="margin-top: 12px" :used="status.quota_used_today" :total="status.quota_daily" :label="t('connectorsUi.connection.dailyQuota')" />
         <!-- Un connecteur à FLUX porte ses propres actions dans l'encart ci-dessous
              (dont « identifiants de l'application ») : deux boutons concurrents
              rendaient le geste illisible. Dérivé du descripteur, plus d'un nom.
@@ -174,13 +177,13 @@ const keyCta = computed(() => (orgKeyOnly.value
              confondre, et annoncer un vide de plus serait du bruit. -->
         <div v-if="!keyConfigured && !flow && (canWrite || (otherKeys > 0 && !orgKeyOnly))"
              class="dr-mine" :class="{ split: otherKeys > 0 && !orgKeyOnly }">
-          <span v-if="otherKeys > 0 && !orgKeyOnly" class="dr-mine-lbl"><Dot tone="saffron" />ta clé — aucune</span>
+          <span v-if="otherKeys > 0 && !orgKeyOnly" class="dr-mine-lbl"><Dot tone="saffron" />{{ t('connectorsUi.connection.yourKeyNone') }}</span>
           <!-- Clé d'org sans clé personnelle possible : le bouton n'est offert qu'à
                qui peut réellement poser. Un membre voyait ici « Connecter HTTP », et
                le serveur refusait la pose après toute la saisie. En consultation, ni
                geste ni renvoi : la coque dit la lecture seule (oto#212). -->
           <Btn v-if="canPoseKey" kind="mini" @click="lever.configureKey(c)">{{ keyCta }}</Btn>
-          <span v-else-if="canWrite" class="dr-mine-lbl"><Dot tone="faint" />clé d'org — un admin de ton org la pose</span>
+          <span v-else-if="canWrite" class="dr-mine-lbl"><Dot tone="faint" />{{ t('connectorsUi.connection.orgKeyByAdmin') }}</span>
         </div>
         <!-- Geste de connexion déclaré (consentement OAuth…) : il COEXISTE avec le
              formulaire de champs, il ne le remplace pas — pour ces connecteurs on pose
@@ -204,20 +207,20 @@ const keyCta = computed(() => (orgKeyOnly.value
       <ConnectorHostedWidget v-else-if="connKind === 'unipile'" />
 
       <div v-else-if="isRemote" class="dr-box dashed">
-        <div style="display: flex; align-items: center; gap: 9px"><Dot tone="cobalt" /><span style="font-size: 12.5px; font-weight: 600">pont d'org — provisionné par ton org</span></div>
-        <p class="helptext" style="margin: 8px 0 0">l'admin de ton org pose l'identifiant machine ; les membres l'utilisent, en lecture seule.</p>
+        <div style="display: flex; align-items: center; gap: 9px"><Dot tone="cobalt" /><span style="font-size: 12.5px; font-weight: 600">{{ t('connectorsUi.connection.remoteTitle') }}</span></div>
+        <p class="helptext" style="margin: 8px 0 0">{{ t('connectorsUi.connection.remoteHelp') }}</p>
       </div>
       <div v-else-if="isOpenData" class="dr-box dashed">
-        <div style="display: flex; align-items: center; gap: 9px"><Dot tone="cobalt" /><span style="font-size: 12.5px; font-weight: 600">open data — aucun identifiant requis</span></div>
-        <p class="helptext" style="margin: 8px 0 0">les outils fonctionnent directement. passe l'exposition en <strong>actif</strong> et ton agent peut les appeler immédiatement.</p>
+        <div style="display: flex; align-items: center; gap: 9px"><Dot tone="cobalt" /><span style="font-size: 12.5px; font-weight: 600">{{ t('connectorsUi.connection.openTitle') }}</span></div>
+        <p class="helptext" style="margin: 8px 0 0"><i18n-t keypath="connectorsUi.connection.openHelp" tag="span"><template #active><strong>{{ t('connectorsUi.connection.active') }}</strong></template></i18n-t></p>
       </div>
 
       <div v-else-if="connKind === 'unknown'" class="dr-box dashed">
-        <div style="display: flex; align-items: center; gap: 9px"><Dot tone="terra" /><span style="font-size: 12.5px; font-weight: 600">mode de connexion non reconnu</span></div>
-        <p class="helptext" style="margin: 8px 0 0">ce connecteur annonce une méthode d'authentification (<code>{{ c.auth.method }}</code>) que cette version du dashboard ne sait pas afficher — il est probablement plus récent que l'interface. Ton agent peut le connecter en conversation ; recharge la page plus tard, ou signale-le.</p>
+        <div style="display: flex; align-items: center; gap: 9px"><Dot tone="terra" /><span style="font-size: 12.5px; font-weight: 600">{{ t('connectorsUi.connection.unknownTitle') }}</span></div>
+        <p class="helptext" style="margin: 8px 0 0"><i18n-t keypath="connectorsUi.connection.unknownHelp" tag="span"><template #method><code>{{ c.auth.method }}</code></template></i18n-t></p>
       </div>
 
-      <p v-if="docRefCount > 0" class="helptext" style="margin-top: 14px; color: var(--color-mute)">↳ référencé par <strong style="color: var(--color-ink-soft)">{{ docRefCount }}</strong> procédure{{ docRefCount > 1 ? 's' : '' }} — connecte-le pour les exécuter.</p>
+      <p v-if="docRefCount > 0" class="helptext" style="margin-top: 14px; color: var(--color-mute)"><i18n-t keypath="connectorsUi.connection.referencedBy" tag="span" :plural="docRefCount"><template #n><strong style="color: var(--color-ink-soft)">{{ docRefCount }}</strong></template></i18n-t></p>
     </div>
   </div>
 </template>

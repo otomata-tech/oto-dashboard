@@ -8,6 +8,9 @@
 import { onMounted, onBeforeUnmount } from 'vue'
 import Avatar from './Avatar.vue'
 import Icon from './Icon.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 defineProps<{
   label: string
@@ -23,7 +26,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 <template>
   <aside class="cmp" role="complementary" :aria-label="label">
-    <button class="cmp-x" type="button" aria-label="Fermer" @click="emit('close')"><Icon name="close" :size="16" /></button>
+    <button class="cmp-x" type="button" :aria-label="t('common.close')" @click="emit('close')"><Icon name="close" :size="16" /></button>
 
     <!-- header -->
     <div class="cm-head">

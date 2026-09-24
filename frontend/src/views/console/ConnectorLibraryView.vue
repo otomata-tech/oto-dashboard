@@ -18,6 +18,9 @@ import { useMe, canWriteInOrg } from '@/composables/useMe'
 import { getMyConnectors, getToolRegistry, selectConnector } from '@/api/console'
 import type { MyConnector, ToolRegistryEntry } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const catalog = ref<MyConnector[]>([])
 const registry = ref<ToolRegistryEntry[]>([])
@@ -111,12 +114,12 @@ const filtered = computed(() => {
       :busy="busy === selected.name" @back="closeDetail" @install="install(selected)" />
 
     <template v-else>
-      <ConsoleCard title="connector library" flush
-        sub="browse every connector oto can drive — search, open a card for its tools & setup, then install.">
+      <ConsoleCard :title="t('connectorsUi.libraryView.title')" flush
+        :sub="t('connectorsUi.libraryView.sub')">
         <template #actions>
-          <SearchToggle v-model="q" placeholder="search connectors, tools, publishers…" />
+          <SearchToggle v-model="q" :placeholder="t('connectorsUi.libraryView.search')" />
           <OtoSelect v-if="categoryOptions.length > 1" v-model="category" :options="categoryOptions"
-            none-label="tous les types" placeholder="Type" aria-label="Type" size="sm" />
+            :none-label="t('connectorsUi.libraryView.allTypes')" :placeholder="t('connectorsUi.libraryView.type')" :aria-label="t('connectorsUi.libraryView.type')" size="sm" />
         </template>
       </ConsoleCard>
 
@@ -131,16 +134,16 @@ const filtered = computed(() => {
           <ConnectorTileBody :description="c.description || c.help" :meta="c" clamp>
             <template #footer>
               <span class="lib-count dim">
-                {{ toolsOf(c).length ? `${toolsOf(c).length} outils` : c.namespaces.join(' ') }}
+                {{ toolsOf(c).length ? t('connectorsUi.libraryView.tools', { n: toolsOf(c).length }) : c.namespaces.join(' ') }}
               </span>
               <div class="lib-actions">
-                <span class="lib-more">détails →</span>
+                <span class="lib-more">{{ t('connectorsUi.libraryView.details') }}</span>
                 <template v-if="c.state === 'not_selected'">
                   <Btn v-if="canWrite" kind="mini" :disabled="busy === c.name" @click.stop="install(c)">
-                    {{ busy === c.name ? '…' : 'Install' }}
+                    {{ busy === c.name ? '…' : t('connectorsUi.libraryView.install') }}
                   </Btn>
                 </template>
-                <RouterLink v-else to="/connectors" class="lib-installed" @click.stop>installed →</RouterLink>
+                <RouterLink v-else to="/connectors" class="lib-installed" @click.stop>{{ t('connectorsUi.libraryView.installed') }}</RouterLink>
               </div>
             </template>
           </ConnectorTileBody>
@@ -148,8 +151,8 @@ const filtered = computed(() => {
       </div>
 
       <div v-else-if="loaded && !error" class="state-empty" style="margin-top: 40px">
-        <h3>no connector matches</h3>
-        <p>try a different search or clear the type filter.</p>
+        <h3>{{ t('connectorsUi.libraryView.noMatch') }}</h3>
+        <p>{{ t('connectorsUi.libraryView.noMatchHelp') }}</p>
       </div>
     </template>
   </div>

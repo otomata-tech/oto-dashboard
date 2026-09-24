@@ -9,6 +9,9 @@ import {
 } from '@/components/ui/dialog'
 import { getToolDetail } from '@/api/console'
 import type { ToolDetail, ToolParamSchema } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ name: string | null }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -24,11 +27,11 @@ interface Param { name: string; schema: ToolParamSchema; required: boolean; kind
 // Type effectif d'un paramètre (un Optional[str] arrive en anyOf string|null).
 function paramKind(p: ToolParamSchema): string {
   if (p.enum && p.enum.length) return 'enum'
-  let t = p.type
-  if (!t && p.anyOf) t = p.anyOf.find((x) => x.type && x.type !== 'null')?.type
-  if (t === 'array') return 'array'
-  if (t === 'boolean') return 'boolean'
-  if (t === 'integer' || t === 'number') return 'number'
+  let ty = p.type
+  if (!ty && p.anyOf) ty = p.anyOf.find((x) => x.type && x.type !== 'null')?.type
+  if (ty === 'array') return 'array'
+  if (ty === 'boolean') return 'boolean'
+  if (ty === 'integer' || ty === 'number') return 'number'
   return 'string'
 }
 
@@ -75,23 +78,23 @@ function onOpenChange(v: boolean) { if (!v) emit('close') }
       <div v-else-if="detail" class="tld-body">
         <!-- ce que fait l'outil (docstring complète = contrat LLM) -->
         <p v-if="detail.description" class="tld-desc">{{ detail.description }}</p>
-        <p v-else class="tld-note">pas de description.</p>
+        <p v-else class="tld-note">{{ t('connectorsUi.library.noDescription') }}</p>
 
         <!-- paramètres -->
         <section v-if="params.length" class="tld-panel">
-          <h4>paramètres</h4>
+          <h4>{{ t('connectorsUi.library.params') }}</h4>
           <div class="tld-fields">
             <div v-for="p in params" :key="p.name" class="tld-field">
               <span class="tld-field-head">
                 <code class="mono tld-field-name">{{ p.name }}</code>
                 <span class="tld-field-type">{{ p.kind }}</span>
-                <span v-if="p.required" class="tld-req">requis</span>
+                <span v-if="p.required" class="tld-req">{{ t('connectorsUi.library.required') }}</span>
               </span>
               <span v-if="p.schema.description" class="tld-field-help">{{ p.schema.description }}</span>
             </div>
           </div>
         </section>
-        <p v-else class="tld-note">aucun paramètre.</p>
+        <p v-else class="tld-note">{{ t('connectorsUi.library.noParams') }}</p>
       </div>
     </DialogScrollContent>
   </Dialog>

@@ -13,6 +13,9 @@ import { computed, ref } from 'vue'
 import ConsoleCard from './ConsoleCard.vue'
 import OtoSelect from './OtoSelect.vue'
 import SearchToggle from './SearchToggle.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   items: T[]                          // DÉJÀ pré-filtré par la lentille propre à la surface
@@ -66,7 +69,7 @@ function onSelect(i: T) {
     <template #actions>
       <SearchToggle v-model="q" :placeholder="searchPlaceholder" />
       <OtoSelect v-if="categoryOptions.length > 1" v-model="category" :options="categoryOptions"
-        none-label="tous les types" placeholder="Type" aria-label="Type" size="sm" />
+        :none-label="t('connectorsUi.libraryView.allTypes')" :placeholder="t('connectorsUi.libraryView.type')" :aria-label="t('connectorsUi.libraryView.type')" size="sm" />
       <slot name="controls" />
     </template>
 
@@ -83,7 +86,7 @@ function onSelect(i: T) {
     </table>
 
     <slot name="empty" v-if="!shown.length">
-      <p class="helptext" style="text-align: center; padding: 18px">no connector matches your filters.</p>
+      <p class="helptext" style="text-align: center; padding: 18px">{{ t('connectorsUi.libraryView.noMatchFilters') }}</p>
     </slot>
 
     <slot name="footer" />

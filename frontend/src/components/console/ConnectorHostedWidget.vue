@@ -18,6 +18,9 @@ import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
 import { fmtDate } from '@/types/api'
 import type { UnipileStatus, ConnectorIdentity, AccountGrant } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // Clé perso, connexion des canaux, compte piloté : des écritures, refusées en consultation
 // (oto#212). L'état des canaux et des comptes reste lu.
@@ -31,14 +34,14 @@ const identities = ref<ConnectorIdentity[]>([])
 const myGrants = ref<AccountGrant[]>([])   // grants accordés PAR moi (#55, face owner)
 const loading = ref(true)
 
-const channels = [
-  { key: 'linkedin', label: 'linkedin', desc: 'recherche, scrape et messages en ton nom' },
-  { key: 'whatsapp', label: 'whatsapp', desc: 'lire et envoyer des messages en ton nom' },
-  { key: 'telegram', label: 'telegram', desc: 'lire et envoyer des messages en ton nom' },
-  { key: 'instagram', label: 'instagram', desc: 'lire et envoyer des DM en ton nom' },
-  { key: 'messenger', label: 'messenger', desc: 'lire et envoyer des messages en ton nom' },
-  { key: 'twitter', label: 'x / twitter', desc: 'lire et envoyer des DM en ton nom' },
-] as const
+const channels = computed(() => [
+  { key: 'linkedin', label: 'linkedin', desc: t('connectorsUi.hosted.channel.search') },
+  { key: 'whatsapp', label: 'whatsapp', desc: t('connectorsUi.hosted.channel.messages') },
+  { key: 'telegram', label: 'telegram', desc: t('connectorsUi.hosted.channel.messages') },
+  { key: 'instagram', label: 'instagram', desc: t('connectorsUi.hosted.channel.dm') },
+  { key: 'messenger', label: 'messenger', desc: t('connectorsUi.hosted.channel.messages') },
+  { key: 'twitter', label: 'x / twitter', desc: t('connectorsUi.hosted.channel.dm') },
+] as const)
 
 async function refresh() {
   unipile.value = await getUnipileStatus().catch(() => null)
@@ -68,7 +71,7 @@ const ownerLabel = (i: ConnectorIdentity) => {
   return i.owner.org_name ? `${who} · ${i.owner.org_name}` : who
 }
 async function pick(id: string) {
-  try { await setConnectorIdentity('unipile', id); toast('compte sélectionné'); await refresh() }
+  try { await setConnectorIdentity('unipile', id); toast(t('connectorsUi.hosted.accountSelected')); await refresh() }
   catch (e) { toast(humanize(e)) }
 }
 
@@ -76,7 +79,7 @@ async function go(channel: string, premium?: string) {
   const out = await connectUnipile(channel, premium)
   if (out.adopted) {
     // compte déjà connecté dans une autre org (même clé plateforme) → lié ici sans wizard
-    toast(`${out.account_name || 'compte'} activé pour cette org`)
+    toast(t('connectorsUi.hosted.adopted', { name: out.account_name || t('connectorsUi.hosted.account') }))
     await refresh()
     return
   }
@@ -92,19 +95,17 @@ async function link(channel: string) {
     return
   }
   const fields: FormDialogField[] = [
-    { key: 'product', label: 'produit LinkedIn', type: 'select', initial: 'classic',
+    { key: 'product', label: t('connectorsUi.hosted.product'), type: 'select', initial: 'classic',
       options: [
-        { value: 'classic', label: 'Classique (par défaut)' },
+        { value: 'classic', label: t('connectorsUi.hosted.classic') },
         { value: 'recruiter', label: 'Recruiter' },
         { value: 'sales_navigator', label: 'Sales Navigator' },
       ] },
   ]
   openForm({
-    title: 'connecter mon LinkedIn',
-    description: "Ne choisis Recruiter ou Sales Navigator que si tu as le siège LinkedIn " +
-      "correspondant : un seul des deux, et en changer impose de reconnecter le compte. " +
-      "Ces produits proposent aussi la connexion par cookies, recommandée par Unipile.",
-    fields, submitLabel: 'continuer',
+    title: t('connectorsUi.hosted.linkTitle'),
+    description: t('connectorsUi.hosted.linkDesc'),
+    fields, submitLabel: t('connectorsUi.hosted.proceed'),
     onConfirm: async (v) => {
       const p = String(v.product || 'classic')
       try { await go(channel, p === 'classic' ? undefined : p) }
@@ -113,8 +114,8 @@ async function link(channel: string) {
   })
 }
 async function drop(channel: string) {
-  if (!await confirmAction({ title: `déconnecter ${channel} (unipile)`, danger: true, confirmLabel: 'Déconnecter', message: `déconnecter ton ${channel} ? les outils unipile cesseront d'agir en ton nom sur ce canal.` })) return
-  try { await disconnectUnipile(channel); toast(`${channel} déconnecté`); await refresh() } catch (e) { toast(humanize(e)) }
+  if (!await confirmAction({ title: t('connectorsUi.hosted.dropTitle', { channel }), danger: true, confirmLabel: t('connectorsUi.hosted.disconnect'), message: t('connectorsUi.hosted.dropMessage', { channel }) })) return
+  try { await disconnectUnipile(channel); toast(t('connectorsUi.hosted.dropped', { channel })); await refresh() } catch (e) { toast(humanize(e)) }
 }
 
 // ── ma clé Unipile perso (BYO member) + version d'API ──────────────────────
@@ -123,44 +124,44 @@ async function drop(channel: string) {
 // (une clé v2 = compte Unipile v2 dédié). C'est le « switch v1/v2 depuis mon compte ».
 const modeLabel = computed(() => {
   const m = unipile.value?.mode
-  return m === 'user' ? 'ta clé perso' : m === 'group' ? "la clé d'équipe" : m === 'org' ? "la clé d'org"
-    : m === 'platform' ? 'la clé plateforme oto' : '—'
+  return m === 'user' ? t('connectorsUi.hosted.modeUser') : m === 'group' ? t('connectorsUi.hosted.modeGroup') : m === 'org' ? t('connectorsUi.hosted.modeOrg')
+    : m === 'platform' ? t('connectorsUi.hosted.modePlatform') : '—'
 })
 function editMyKey() {
   const fields: FormDialogField[] = [
-    { key: 'key', label: 'ta clé Unipile', type: 'password', required: true, placeholder: 'colle ta clé Unipile' },
+    { key: 'key', label: t('connectorsUi.hosted.keyLabel'), type: 'password', required: true, placeholder: t('connectorsUi.hosted.keyPlaceholder') },
   ]
   openForm({
-    title: 'ma clé Unipile (perso)',
-    description: "ta clé personnelle Unipile, scopée à l'org courante — elle prime sur la clé d'org. stockée chiffrée.",
-    fields, submitLabel: 'enregistrer',
+    title: t('connectorsUi.hosted.keyTitle'),
+    description: t('connectorsUi.hosted.keyDesc'),
+    fields, submitLabel: t('connectorsUi.hosted.save'),
     onConfirm: async (v) => {
       try {
         await setCredential('unipile', { key: String(v.key ?? '') })
-        toast('clé perso enregistrée'); await refresh()
+        toast(t('connectorsUi.hosted.keySaved')); await refresh()
       } catch (e) { toast(humanize(e)); throw e }
     },
   })
 }
 async function dropMyKey() {
-  if (!await confirmAction({ title: 'retirer ma clé Unipile perso', danger: true, confirmLabel: 'Retirer',
-    message: "retirer ta clé perso ? tu repasseras sur la clé d'org / plateforme." })) return
-  try { await deleteApiKey('unipile'); toast('clé perso retirée'); await refresh() } catch (e) { toast(humanize(e)) }
+  if (!await confirmAction({ title: t('connectorsUi.hosted.dropKeyTitle'), danger: true, confirmLabel: t('common.remove'),
+    message: t('connectorsUi.hosted.dropKeyMessage') })) return
+  try { await deleteApiKey('unipile'); toast(t('connectorsUi.hosted.keyDropped')); await refresh() } catch (e) { toast(humanize(e)) }
 }
 </script>
 
 <template>
   <div class="hw">
     <div class="hw-head">
-      <span class="dim hw-sub">login hébergé (sans cookie/extension) ; les outils agissent ensuite en ton nom.</span>
-      <Tag v-if="!loading && !unipile?.subscribed" tone="saffron">demande l'activation à un admin</Tag>
+      <span class="dim hw-sub">{{ t('connectorsUi.hosted.intro') }}</span>
+      <Tag v-if="!loading && !unipile?.subscribed" tone="saffron">{{ t('connectorsUi.hosted.askAdmin') }}</Tag>
     </div>
     <!-- Ma clé Unipile (perso) — prime sur la clé d'org. -->
     <div v-if="!loading" class="hw-mykey">
-      <span class="dim hw-mykey-lbl">résout via {{ modeLabel }}</span>
+      <span class="dim hw-mykey-lbl">{{ t('connectorsUi.hosted.resolves', { mode: modeLabel }) }}</span>
       <template v-if="canWrite">
-        <Btn kind="mini" @click="editMyKey">{{ unipile?.mode === 'user' ? 'changer ma clé' : 'poser ma clé' }}</Btn>
-        <Btn v-if="unipile?.mode === 'user'" kind="danger" @click="dropMyKey">retirer</Btn>
+        <Btn kind="mini" @click="editMyKey">{{ unipile?.mode === 'user' ? t('connectorsUi.hosted.changeKey') : t('connectorsUi.hosted.setKey') }}</Btn>
+        <Btn v-if="unipile?.mode === 'user'" kind="danger" @click="dropMyKey">{{ t('connectorsUi.hosted.remove') }}</Btn>
       </template>
     </div>
     <div v-for="c in channels" :key="c.key" class="hw-channel">
@@ -168,22 +169,22 @@ async function dropMyKey() {
         <Dot :tone="unipile?.channels?.[c.key]?.connected ? 'olive' : (unipile?.subscribed ? 'saffron' : 'faint')" :size="8" />
         <div class="hw-id">
           <div class="hw-name">{{ c.label }}
-            <Tag tone="cobalt">hébergé</Tag>
-            <Tag v-if="unipile?.channels?.[c.key]?.connected" tone="olive">connecté</Tag>
+            <Tag tone="cobalt">{{ t('connectorsUi.hosted.hostedTag') }}</Tag>
+            <Tag v-if="unipile?.channels?.[c.key]?.connected" tone="olive">{{ t('connectorsUi.hosted.connected') }}</Tag>
           </div>
           <div class="hw-desc">
             {{ !unipile?.subscribed
-              ? 'option non activée — demande à un admin (ou ajoute ta propre clé unipile)'
+              ? t('connectorsUi.hosted.notSubscribed')
               : (unipile?.channels?.[c.key]?.connected
-                ? `connecté le ${fmtDate(unipile?.channels?.[c.key]?.connected_at ?? null) ?? ''} · ${c.desc}`
+                ? t('connectorsUi.hosted.connectedOn', { date: fmtDate(unipile?.channels?.[c.key]?.connected_at ?? null) ?? '', desc: c.desc })
                 : (unipile?.elsewhere?.[c.key]
-                  ? `${unipile.elsewhere[c.key]?.account_name || 'ton compte'} est connecté dans une autre de tes orgs — « Connecter » l'active ici`
-                  : `relie ton ${c.label} pour commencer`)) }}
+                  ? t('connectorsUi.hosted.elsewhere', { name: unipile.elsewhere[c.key]?.account_name || t('connectorsUi.hosted.yourAccount') })
+                  : t('connectorsUi.hosted.linkYour', { channel: c.label }))) }}
           </div>
         </div>
         <template v-if="unipile?.subscribed && canWrite">
-          <Btn v-if="unipile?.channels?.[c.key]?.connected" kind="danger" @click="drop(c.key)">Déconnecter</Btn>
-          <Btn v-else kind="mini" @click="link(c.key)">Connecter</Btn>
+          <Btn v-if="unipile?.channels?.[c.key]?.connected" kind="danger" @click="drop(c.key)">{{ t('connectorsUi.hosted.disconnect') }}</Btn>
+          <Btn v-else kind="mini" @click="link(c.key)">{{ t('connectorsUi.hosted.connect') }}</Btn>
         </template>
       </div>
       <!-- BYO : la clé porte plusieurs comptes → choisir lequel piloter (ADR 0024).
@@ -192,11 +193,11 @@ async function dropMyKey() {
         <div v-for="idn in idsFor(c.key)" :key="idn.id" class="hw-acct">
           <Dot :tone="idn.is_default ? 'olive' : 'faint'" :size="7" />
           <span class="hw-acct-name">{{ idn.label || idn.id }}
-            <Tag v-if="idn.is_default" tone="saffron">actif</Tag>
-            <Tag v-if="idn.granted" tone="cobalt">partagé par {{ ownerLabel(idn) }}</Tag>
+            <Tag v-if="idn.is_default" tone="saffron">{{ t('connectorsUi.hosted.active') }}</Tag>
+            <Tag v-if="idn.granted" tone="cobalt">{{ t('connectorsUi.hosted.sharedBy', { who: ownerLabel(idn) }) }}</Tag>
             <span v-if="idn.status && idn.status.toUpperCase() !== 'OK'" class="dim hw-acct-st">· {{ idn.status }}</span>
           </span>
-          <Btn v-if="canWrite && !idn.is_default" kind="mini" @click="pick(idn.id)">Utiliser ce compte</Btn>
+          <Btn v-if="canWrite && !idn.is_default" kind="mini" @click="pick(idn.id)">{{ t('connectorsUi.hosted.useAccount') }}</Btn>
         </div>
       </div>
       <!-- #55 face propriétaire : autoriser/révoquer des membres à opérer CE compte -->

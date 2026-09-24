@@ -6,6 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import CredentialFieldsDialog from './CredentialFieldsDialog.vue'
+import { i18n } from '@/lib/i18n'
 
 const FIELDS = [
   { name: 'bot_token', label: 'Bot token', secret: true, required: false },
@@ -18,7 +19,8 @@ function mountDialog(props: Record<string, unknown>) {
   const app = createApp(CredentialFieldsDialog, {
     open: true, label: 'Slack', fields: FIELDS, ...props,
   })
-  app.mount(host)
+  i18n.global.locale.value = 'fr'
+  app.use(i18n).mount(host)
   return {
     app,
     // Le contenu du Dialog est téléporté dans body — on cherche large.

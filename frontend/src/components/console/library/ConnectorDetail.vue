@@ -13,6 +13,9 @@ import ConnectorToolDialog from '@/components/console/library/ConnectorToolDialo
 import { authExplain, authModesExplain } from '@/lib/connectorAuth'
 import { useMe, canWriteInOrg } from '@/composables/useMe'
 import type { DocSection, MyConnector, ToolRegistryEntry } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   connector: MyConnector
@@ -46,14 +49,14 @@ const openTool = ref<string | null>(null)
 <template>
   <ConsoleCard flush :title="c.label" :sub="c.help || undefined">
     <template #actions>
-      <Btn kind="mini" @click="emit('back')">← Back</Btn>
-      <a v-if="c.href" :href="c.href" target="_blank" rel="noopener" class="cd-site">↗ site éditeur</a>
+      <Btn kind="mini" @click="emit('back')">{{ t('connectorsUi.library.back') }}</Btn>
+      <a v-if="c.href" :href="c.href" target="_blank" rel="noopener" class="cd-site">{{ t('connectorsUi.library.site') }}</a>
       <template v-if="!installed">
         <Btn v-if="canWrite" kind="mini" :disabled="busy" @click="emit('install')">
-          {{ busy ? '…' : 'Installer' }}
+          {{ busy ? '…' : t('connectorsUi.library.install') }}
         </Btn>
       </template>
-      <RouterLink v-else to="/connectors" class="cd-installed">installé →</RouterLink>
+      <RouterLink v-else to="/connectors" class="cd-installed">{{ t('connectorsUi.library.installed') }}</RouterLink>
     </template>
 
     <div class="card-body">
@@ -74,7 +77,7 @@ const openTool = ref<string | null>(null)
       <div class="cd-cols">
         <!-- connexion & configuration -->
         <section class="cd-panel">
-          <h4>connexion & configuration</h4>
+          <h4>{{ t('connectorsUi.library.setup') }}</h4>
           <p class="cd-auth">{{ authExplain(c) }}</p>
           <div v-if="fields.length" class="cd-fields">
             <div v-for="f in fields" :key="f.name" class="cd-field">
@@ -87,39 +90,38 @@ const openTool = ref<string | null>(null)
             </div>
           </div>
           <template v-if="keyProviders.length">
-            <div class="cd-sub">la clé peut venir de :</div>
+            <div class="cd-sub">{{ t('connectorsUi.library.keyFrom') }}</div>
             <ul class="cd-modes">
               <li v-for="m in keyProviders" :key="m">{{ m }}</li>
             </ul>
           </template>
           <p v-if="c.personal_session" class="cd-note">
-            session strictement personnelle — jamais partagée avec ton org.
+            {{ t('connectorsUi.library.personal') }}
           </p>
         </section>
 
         <!-- outils exposés à l'agent — cliquer un outil ouvre sa fiche + banc de test -->
         <section class="cd-panel">
-          <h4>outils <span class="dim">{{ sortedTools.length || '' }}</span></h4>
+          <h4>{{ t('connectorsUi.library.tools') }} <span class="dim">{{ sortedTools.length || '' }}</span></h4>
           <div v-if="sortedTools.length" class="cd-tools">
-            <button v-for="t in sortedTools" :key="t.name" type="button" class="cd-tool"
-              @click="openTool = t.name">
+            <button v-for="tool in sortedTools" :key="tool.name" type="button" class="cd-tool"
+              @click="openTool = tool.name">
               <span class="cd-tool-top">
-                <code class="mono cd-tool-name">{{ t.name }}</code>
-                <span class="cd-tool-more">détails →</span>
+                <code class="mono cd-tool-name">{{ tool.name }}</code>
+                <span class="cd-tool-more">{{ t('connectorsUi.library.details') }}</span>
               </span>
-              <span class="cd-tool-desc">{{ t.description || '—' }}</span>
+              <span class="cd-tool-desc">{{ tool.description || '—' }}</span>
             </button>
           </div>
           <p v-else class="cd-note">
-            les outils de ce connecteur ne sont pas chargés sur cette instance
-            (namespaces : <code class="mono">{{ c.namespaces.join(', ') }}</code>).
+            <i18n-t keypath="connectorsUi.library.notLoaded" tag="span"><template #ns><code class="mono">{{ c.namespaces.join(', ') }}</code></template></i18n-t>
           </p>
         </section>
       </div>
 
       <!-- doc « how-to » complète (usage, prérequis, setup, notes) -->
       <section v-if="docs.length" class="cd-panel cd-docs">
-        <h4>guide</h4>
+        <h4>{{ t('connectorsUi.library.guide') }}</h4>
         <DocSections :sections="docs" />
       </section>
     </div>

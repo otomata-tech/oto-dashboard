@@ -22,6 +22,9 @@ import { usePrompt } from '@/composables/usePrompt'
 import { humanize } from '@/lib/errors'
 import { fmtDate } from '@/types/api'
 import type { ConnectorIdentity, MyConnector } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ connector: MyConnector }>()
 const { me, reload } = useMe()
@@ -44,11 +47,11 @@ const sessions = computed(() => {
   const s = status.value
   const rows: { scope: Scope; label: string; setAt: string | null }[] = []
   if (s?.session_set_at || s?.user_key_configured)
-    rows.push({ scope: 'member', label: 'toi', setAt: s?.session_set_at ?? null })
+    rows.push({ scope: 'member', label: t('connectorsUi.session.you'), setAt: s?.session_set_at ?? null })
   if (s?.group_session_set_at)
-    rows.push({ scope: 'group', label: me.value?.active_group_name || 'ton équipe', setAt: s.group_session_set_at })
+    rows.push({ scope: 'group', label: me.value?.active_group_name || t('connectorsUi.session.yourTeam'), setAt: s.group_session_set_at })
   if (s?.org_session_set_at)
-    rows.push({ scope: 'org', label: me.value?.active_org_name || 'ton org', setAt: s.org_session_set_at })
+    rows.push({ scope: 'org', label: me.value?.active_org_name || t('connectorsUi.session.yourOrg'), setAt: s.org_session_set_at })
   return rows
 })
 
@@ -68,15 +71,15 @@ async function openPicker() {
 async function pick(id: string) {
   try {
     await setConnectorIdentity(props.connector.name, id)
-    toast('cible définie')
+    toast(t('connectorsUi.session.targetSet'))
     picking.value = false
     await reload()
   } catch (e) { toast(humanize(e)) }
 }
 
 async function drop(scope: Scope, who: string) {
-  if (!await confirmAction({ title: `déconnecter ${props.connector.label}`, danger: true, confirmLabel: 'Déconnecter', message: `déconnecter la session ${props.connector.label} pour ${who} ?` })) return
-  try { await deleteApiKey(props.connector.name, scope); toast('session retirée'); await reload() } catch (e) { toast(humanize(e)) }
+  if (!await confirmAction({ title: t('connectorsUi.session.dropTitle', { name: props.connector.label }), danger: true, confirmLabel: t('connectorsUi.session.disconnect'), message: t('connectorsUi.session.dropMessage', { name: props.connector.label, who }) })) return
+  try { await deleteApiKey(props.connector.name, scope); toast(t('connectorsUi.session.dropped')); await reload() } catch (e) { toast(humanize(e)) }
 }
 </script>
 
@@ -84,18 +87,18 @@ async function drop(scope: Scope, who: string) {
   <div class="sw">
     <div v-if="!sessions.length" class="sw-row">
       <Dot tone="faint" :size="8" />
-      <span class="sw-status dim">aucune session — connecte-toi pour te loguer via un navigateur distant</span>
-      <Btn v-if="canWrite" kind="mini" @click="connecting = true">Connecter</Btn>
+      <span class="sw-status dim">{{ t('connectorsUi.session.none') }}</span>
+      <Btn v-if="canWrite" kind="mini" @click="connecting = true">{{ t('connectorsUi.session.connect') }}</Btn>
     </div>
     <template v-else>
       <div v-for="s in sessions" :key="s.scope" class="sw-row">
         <Dot tone="olive" :size="8" />
-        <span class="sw-status dim">session · {{ s.label }} — posée le {{ fmtDate(s.setAt) ?? '' }}</span>
-        <Btn v-if="canWrite" kind="danger" @click="drop(s.scope, s.label)">Déconnecter</Btn>
+        <span class="sw-status dim">{{ t('connectorsUi.session.row', { who: s.label, date: fmtDate(s.setAt) ?? '' }) }}</span>
+        <Btn v-if="canWrite" kind="danger" @click="drop(s.scope, s.label)">{{ t('connectorsUi.session.disconnect') }}</Btn>
       </div>
       <div v-if="shareable && canWrite" class="sw-row sw-add">
-        <span class="sw-status dim">connecter un autre niveau (toi, équipe, org)</span>
-        <Btn kind="mini" @click="connecting = true">Connecter</Btn>
+        <span class="sw-status dim">{{ t('connectorsUi.session.otherLevel') }}</span>
+        <Btn kind="mini" @click="connecting = true">{{ t('connectorsUi.session.connect') }}</Btn>
       </div>
     </template>
 
@@ -103,21 +106,21 @@ async function drop(scope: Scope, who: string) {
     <div v-if="configured && connector.identities" class="sw-row sw-target">
       <Dot :tone="target ? 'olive' : 'saffron'" :size="7" />
       <span class="sw-status dim">
-        {{ target ? `cible : ${target}` : 'aucune cible par défaut — choisis le client sur lequel travailler' }}
+        {{ target ? t('connectorsUi.session.target', { target }) : t('connectorsUi.session.noTarget') }}
       </span>
-      <Btn v-if="canWrite" kind="mini" :disabled="loadingIds" @click="openPicker">{{ target ? 'Changer' : 'Choisir' }}</Btn>
+      <Btn v-if="canWrite" kind="mini" :disabled="loadingIds" @click="openPicker">{{ target ? t('connectorsUi.session.change') : t('connectorsUi.session.choose') }}</Btn>
     </div>
     <div v-if="picking" class="sw-picker">
-      <span v-if="loadingIds" class="dim sw-load">chargement… (ouvre la session distante, ~10s)</span>
+      <span v-if="loadingIds" class="dim sw-load">{{ t('connectorsUi.session.loadingRemote') }}</span>
       <template v-else>
         <div v-for="idn in identities" :key="idn.id" class="sw-acct">
           <Dot :tone="idn.is_default ? 'olive' : 'faint'" :size="7" />
           <span class="sw-acct-name">{{ idn.label || idn.id }}
-            <Tag v-if="idn.is_default" tone="saffron">actif</Tag>
+            <Tag v-if="idn.is_default" tone="saffron">{{ t('connectorsUi.session.active') }}</Tag>
           </span>
-          <Btn v-if="!idn.is_default" kind="mini" @click="pick(idn.id)">Utiliser</Btn>
+          <Btn v-if="!idn.is_default" kind="mini" @click="pick(idn.id)">{{ t('connectorsUi.session.use') }}</Btn>
         </div>
-        <span v-if="!identities.length" class="dim sw-load">rien à choisir — reconnecte ta session</span>
+        <span v-if="!identities.length" class="dim sw-load">{{ t('connectorsUi.session.nothing') }}</span>
       </template>
     </div>
 

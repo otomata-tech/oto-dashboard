@@ -10,6 +10,9 @@ import Dot from '@/components/console/Dot.vue'
 import Btn from '@/components/console/Btn.vue'
 import ConnectorKeyAccounts from '@/components/console/ConnectorKeyAccounts.vue'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ lever: CredentialLever<R>; row: R; meta?: ConnectorMeta }>()
 const emit = defineEmits<{ changed: [] }>()
@@ -82,11 +85,11 @@ async function test() {
     <template v-if="items">
       <div v-for="it in items" :key="it.key" class="ccp-item">
         <span class="ccp-item-lbl"><Dot tone="cobalt" /> {{ it.label }}<span v-if="it.sub" class="ccp-sub"> · {{ it.sub }}</span></span>
-        <Btn v-if="canEdit && lever.removeItem" kind="danger" @click="lever.removeItem(row, it.key)">Retirer</Btn>
+        <Btn v-if="canEdit && lever.removeItem" kind="danger" @click="lever.removeItem(row, it.key)">{{ t('common.remove') }}</Btn>
       </div>
-      <div v-if="!items.length" class="ccp-state dim">aucune clé</div>
-      <div v-if="canEdit" class="ccp-actions"><Btn kind="mini" icon="plus" @click="lever.edit(row)">Ajouter une clé</Btn></div>
-      <div v-else class="helptext" style="margin-top: 8px">lecture seule.</div>
+      <div v-if="!items.length" class="ccp-state dim">{{ t('connectorsUi.credential.noKey') }}</div>
+      <div v-if="canEdit" class="ccp-actions"><Btn kind="mini" icon="plus" @click="lever.edit(row)">{{ t('connectorsUi.credential.addKey') }}</Btn></div>
+      <div v-else class="helptext" style="margin-top: 8px">{{ t('connectorsUi.credential.readOnly') }}</div>
     </template>
 
     <!-- single-instance : team/org/user -->
@@ -94,26 +97,22 @@ async function test() {
       <div v-if="s.present" class="ccp-state"><Dot tone="olive" /> {{ s.label }}<span v-if="s.sub" class="ccp-sub"> · {{ s.sub }}</span></div>
       <div v-else class="ccp-state dim">{{ s.label }}</div>
       <div v-if="canEdit || canTest" class="ccp-actions">
-        <Btn v-if="singleGestures" kind="mini" :icon="s.present ? undefined : 'plus'" @click="lever.edit(row)">{{ s.present ? 'Renouveler' : 'Ajouter une clé' }}</Btn>
-        <Btn v-if="singleGestures && s.present && lever.remove" kind="danger" @click="lever.remove(row)">Retirer</Btn>
-        <Btn v-if="canTest" kind="mini" :disabled="testing" @click="test">{{ testing ? 'test…' : 'tester' }}</Btn>
+        <Btn v-if="singleGestures" kind="mini" :icon="s.present ? undefined : 'plus'" @click="lever.edit(row)">{{ s.present ? t('connectorsUi.credential.renew') : t('connectorsUi.credential.addKey') }}</Btn>
+        <Btn v-if="singleGestures && s.present && lever.remove" kind="danger" @click="lever.remove(row)">{{ t('common.remove') }}</Btn>
+        <Btn v-if="canTest" kind="mini" :disabled="testing" @click="test">{{ testing ? t('connectorsUi.credential.testing') : t('connectorsUi.credential.test') }}</Btn>
         <Btn v-if="canEdit && connectCta?.available(row)" kind="mini" :disabled="connecting"
-             @click="connect">{{ connecting ? 'ouverture…' : connectCta.label(row) }}</Btn>
+             @click="connect">{{ connecting ? t('connectorsUi.credential.opening') : connectCta.label(row) }}</Btn>
       </div>
       <p v-if="testRes" class="ccp-test" :style="{ color: testRes.ok ? 'var(--color-olive)' : 'var(--color-terra-ink)' }">
-        {{ testRes.ok ? '✓ connexion OK' : `✗ ${testRes.error}` }}
+        {{ testRes.ok ? t('connectorsUi.credential.ok') : `✗ ${testRes.error}` }}
       </p>
       <p v-if="canEdit && connectCta?.available(row)" class="helptext" style="margin-top: 8px">
-        c'est l'autorisation qui produit le jeton, il ne se colle pas à la main. Elle sera
-        rangée à ce niveau, donc partagée avec tous les membres — et elle agira au nom du
-        compte avec lequel tu te connectes chez le fournisseur. Préfère un compte de
-        service à un compte personnel : les actions lui seront attribuées, et la connexion
-        survivra au départ de son titulaire. La redonner permet d'en changer.
+        {{ t('connectorsUi.credential.oauthHelp') }}
       </p>
       <ConnectorKeyAccounts v-if="accountsAt && meta" :connector="meta" :scope="accountsAt"
                             :add="addAccount" :verify="verifyAccount"
                             @named="(n) => namedAccounts = n" @changed="emit('changed')" />
-      <div v-if="!canEdit && !canTest" class="helptext" style="margin-top: 8px">lecture seule.</div>
+      <div v-if="!canEdit && !canTest" class="helptext" style="margin-top: 8px">{{ t('connectorsUi.credential.readOnly') }}</div>
     </template>
   </section>
 </template>
