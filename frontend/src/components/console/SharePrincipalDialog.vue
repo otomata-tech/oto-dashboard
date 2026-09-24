@@ -19,6 +19,9 @@ import type { GroupListItem, NamespaceShare, Org, OrgMember, SharePrincipal } fr
 import { humanize } from '@/lib/errors'
 import { ROLE_OPTIONS, roleLabel, roleTone, type ResourceRole } from '@/lib/resourceRole'
 import OtoSelect from '@/components/console/OtoSelect.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   open: boolean
@@ -50,13 +53,8 @@ const groups = ref<GroupListItem[]>([])
 const myOrgs = ref<Org[]>([])
 
 // Options des selects (DS OtoSelect).
-const MODE_OPTIONS: { value: Mode; label: string }[] = [
-  { value: 'member', label: "membre de l'org" },
-  { value: 'team', label: 'équipe' },
-  { value: 'org', label: 'une de mes orgs' },
-  { value: 'orgid', label: 'org cliente (id)' },
-  { value: 'email', label: 'email libre' },
-]
+const MODES: Mode[] = ['member', 'team', 'org', 'orgid', 'email']
+const MODE_OPTIONS = computed(() => MODES.map((value) => ({ value, label: t(`dataUi.share.mode.${value}`) })))
 const memberOpts = computed(() => members.value.map((m) => ({ value: m.sub, label: m.name || m.email || m.sub })))
 const teamOpts = computed(() => groups.value.map((g) => ({ value: String(g.group_id), label: g.name })))
 const orgOpts = computed(() => myOrgs.value.map((o) => ({ value: String(o.id), label: o.name })))
@@ -111,7 +109,7 @@ async function add() {
   busy.value = true
   try {
     await shareResource(props.resourceType, props.resourceId, principal.value, role.value)
-    toast('partagé')
+    toast(t('dataUi.share.shared'))
     memberSub.value = ''; groupId.value = ''; orgId.value = ''; orgIdFree.value = ''; email.value = ''
     await refreshGrants()
     emit('changed')
@@ -130,7 +128,7 @@ async function revoke(g: NamespaceShare) {
   if (!p) return
   try {
     await unshareResource(props.resourceType, props.resourceId, p)
-    toast('accès retiré')
+    toast(t('dataUi.share.revoked'))
     await refreshGrants()
     emit('changed')
   } catch (e) { toast(humanize(e)) }
@@ -138,46 +136,46 @@ async function revoke(g: NamespaceShare) {
 
 const who = (g: NamespaceShare) => g.label || g.email || g.principal_id || '—'
 const kindLabel = (g: NamespaceShare) =>
-  g.principal_type === 'group' ? 'équipe' : g.principal_type === 'org' ? 'org' : 'membre'
+  t(`dataUi.share.kind.${g.principal_type === 'group' ? 'team' : g.principal_type === 'org' ? 'org' : 'member'}`)
 </script>
 
 <template>
   <ModalOverlay :open="open" @close="emit('close')">
-      <div class="modal" role="dialog" aria-modal="true" aria-label="partager">
+      <div class="modal" role="dialog" aria-modal="true" :aria-label="t('dataUi.table.share')">
         <header class="sp-head">
           <div class="sp-head-txt">
-            <h3 class="modal-title">partager</h3>
+            <h3 class="modal-title">{{ t('dataUi.table.share') }}</h3>
             <p v-if="resourceLabel" class="modal-desc">{{ resourceLabel }}</p>
           </div>
-          <button class="sp-close" aria-label="fermer" @click="emit('close')">
+          <button class="sp-close" :aria-label="t('common.close')" @click="emit('close')">
             <Icon name="close" :size="15" />
           </button>
         </header>
 
         <div class="sp-body">
           <div class="sp-add">
-            <OtoSelect v-model="mode" :options="MODE_OPTIONS" aria-label="type de destinataire" />
+            <OtoSelect v-model="mode" :options="MODE_OPTIONS" :aria-label="t('dataUi.share.recipientType')" />
 
-            <OtoSelect v-if="mode === 'member'" v-model="memberSub" :options="memberOpts" grow placeholder="choisir un membre…" />
-            <OtoSelect v-else-if="mode === 'team'" v-model="groupId" :options="teamOpts" grow placeholder="choisir une équipe…" />
-            <OtoSelect v-else-if="mode === 'org'" v-model="orgId" :options="orgOpts" grow placeholder="choisir une org…" />
+            <OtoSelect v-if="mode === 'member'" v-model="memberSub" :options="memberOpts" grow :placeholder="t('dataUi.share.pickMember')" />
+            <OtoSelect v-else-if="mode === 'team'" v-model="groupId" :options="teamOpts" grow :placeholder="t('dataUi.share.pickTeam')" />
+            <OtoSelect v-else-if="mode === 'org'" v-model="orgId" :options="orgOpts" grow :placeholder="t('dataUi.share.pickOrg')" />
             <input v-else-if="mode === 'orgid'" v-model="orgIdFree" class="inp sp-grow"
-              inputmode="numeric" placeholder="id de l'org destinataire" @keyup.enter="add" />
+              inputmode="numeric" :placeholder="t('dataUi.share.orgIdPlaceholder')" @keyup.enter="add" />
             <input v-else v-model="email" class="inp sp-grow" type="email"
-              placeholder="collègue@exemple.com" @keyup.enter="add" />
+              :placeholder="t('dataUi.share.emailPlaceholder')" @keyup.enter="add" />
 
-            <OtoSelect v-if="roleChoices.length > 1" v-model="role" :options="roleChoices" aria-label="rôle" />
-            <Btn kind="mini" icon="plus" :disabled="busy || !principal" @click="add">Partager</Btn>
+            <OtoSelect v-if="roleChoices.length > 1" v-model="role" :options="roleChoices" :aria-label="t('dataUi.share.role')" />
+            <Btn kind="mini" icon="plus" :disabled="busy || !principal" @click="add">{{ t('dataUi.share.submit') }}</Btn>
           </div>
           <p v-if="mode === 'team' && !groups.length && !loading" class="dim sp-hint">
-            aucune équipe dans ton org active — crée un groupe dans « groupes ».
+            {{ t('dataUi.share.noTeam') }}
           </p>
           <p v-if="mode === 'orgid'" class="dim sp-hint">
-            livraison client : donne l'accès à une org dont tu n'es pas membre, par son id.
+            {{ t('dataUi.share.orgIdHint') }}
           </p>
 
           <div class="sp-list">
-            <div v-if="loading" class="dim" style="padding: 8px 0">{{ $t('common.loading') }}</div>
+            <div v-if="loading" class="dim" style="padding: 8px 0">{{ t('common.loading') }}</div>
             <div v-for="g in grants" :key="(g.principal_type || 'user') + (g.principal_id || g.email || '')" class="sp-item">
               <span class="sp-who">{{ who(g) }}</span>
               <Tag :tone="g.principal_type === 'group' ? 'saffron' : g.principal_type === 'org' ? 'terra' : 'ink'">
@@ -187,14 +185,14 @@ const kindLabel = (g: NamespaceShare) =>
               <Btn v-if="principalOf(g)" kind="danger" icon="trash" @click="revoke(g)" />
             </div>
             <div v-if="!loading && !grants.length" class="dim" style="padding: 8px 0">
-              pas encore partagé — choisis un membre, une équipe ou une org.
+              {{ t('dataUi.share.none') }}
             </div>
           </div>
         </div>
 
         <footer class="sp-foot">
           <span style="flex: 1" />
-          <Btn kind="ghost" @click="emit('close')">Fermer</Btn>
+          <Btn kind="ghost" @click="emit('close')">{{ t('common.close') }}</Btn>
         </footer>
       </div>
   </ModalOverlay>

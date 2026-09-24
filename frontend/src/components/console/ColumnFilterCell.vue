@@ -5,6 +5,9 @@
 import { computed } from 'vue'
 import type { FilterOp } from '@/types/api'
 import { OPS_BY_KIND, opLabel, opNeedsValue, type ColFilterState, type FilterKind } from '@/lib/datastoreFilters'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ field: string; kind: FilterKind; modelValue: ColFilterState }>()
 const emit = defineEmits<{ (e: 'update:modelValue', v: ColFilterState): void }>()
@@ -24,15 +27,15 @@ function setValue(value: string) { emit('update:modelValue', { op: props.modelVa
 
 <template>
   <div class="cfc" :class="{ on: active }">
-    <select class="inp sm cfc-op" :value="modelValue.op" :title="`filtre ${field}`"
+    <select class="inp sm cfc-op" :value="modelValue.op" :title="t('dataUi.filter.title', { field })"
       @change="setOp(($event.target as HTMLSelectElement).value as FilterOp)">
       <option v-for="op in ops" :key="op" :value="op">{{ opLabel(op, kind) }}</option>
     </select>
     <select v-if="needsValue && kind === 'bool'" class="inp sm cfc-val" :value="modelValue.value"
       @change="setValue(($event.target as HTMLSelectElement).value)">
       <option value="">…</option>
-      <option value="true">vrai</option>
-      <option value="false">faux</option>
+      <option value="true">{{ t('dataUi.filter.true') }}</option>
+      <option value="false">{{ t('dataUi.filter.false') }}</option>
     </select>
     <input v-else-if="needsValue" class="inp sm cfc-val" :class="{ wide: inputType === 'date' }"
       :type="inputType" :value="modelValue.value" placeholder="…"

@@ -11,6 +11,9 @@ import Tag from '@/components/console/Tag.vue'
 import type { DatastoreRow, DatastoreSchema, DatastoreField } from '@/types/api'
 import { champTitre } from '../../lib/datastoreTitle'
 import { abandonVerdict, claimBudget } from '@/lib/datastoreClaims'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ rows: DatastoreRow[]; schema: DatastoreSchema }>()
 const emit = defineEmits<{ open: [row: DatastoreRow] }>()
@@ -109,11 +112,11 @@ function itemsOf(row: DatastoreRow, f: DatastoreField): unknown[] {
       <header class="ds-card__head">
         <h4 class="ds-card__title">{{ titleOf(row) }}</h4>
         <Tag v-if="present(row, statusF)" tone="saffron">{{ fmt(row[statusF!.key]) }}</Tag>
-        <Tag v-if="row._claimed_by" tone="cobalt" :title="`bail de traitement (file de travail) jusqu'à ${row._claimed_until ?? '?'}`">
-          en cours · {{ row._claimed_by }}
+        <Tag v-if="row._claimed_by" tone="cobalt" :title="t('dataUi.cards.leaseUntil', { date: row._claimed_until ?? '?' })">
+          {{ t('dataUi.cards.inProgress', { who: row._claimed_by }) }}
         </Tag>
         <Tag v-if="fileOf(row)?.budget" :tone="fileOf(row)!.budget!.atCeiling ? 'terra' : undefined"
-          :title="`${fileOf(row)!.budget!.claims} réservation${fileOf(row)!.budget!.claims > 1 ? 's' : ''} sans écriture depuis la dernière écriture réussie`">
+          :title="t('dataUi.claims.sinceWrite', fileOf(row)!.budget!.claims)">
           {{ fileOf(row)!.budget!.label }}
         </Tag>
         <Tag v-for="f in badgeF" :key="f.key" v-show="present(row, f)" tone="cobalt">{{ fmt(row[f.key]) }}</Tag>

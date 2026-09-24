@@ -112,8 +112,8 @@ watch(() => [props.open, props.row?._id, props.isNew, props.readOnly], () => {
 
 function addField() {
   openForm({
-    title: 'add field',
-    fields: [{ key: 'value', label: 'field name', required: true, placeholder: 'e.g. status' }],
+    title: t('dataUi.drawer.addField'),
+    fields: [{ key: 'value', label: t('dataUi.drawer.fieldName'), required: true, placeholder: t('dataUi.drawer.fieldPlaceholder') }],
     onConfirm: async (v) => {
       const name = v.value
       if (!name || name.startsWith('_') || name in scalars.value || name in composites.value) return
@@ -262,7 +262,7 @@ function applyTransition(state: string) {
 
 <template>
   <ModalOverlay :open="open" @close="emit('close')">
-      <div class="modal" role="dialog" aria-modal="true" aria-label="row detail">
+      <div class="modal" role="dialog" aria-modal="true" :aria-label="t('dataUi.drawer.detail')">
         <header class="rd-head">
           <div class="rd-head-txt">
             <!-- le field role=title EST le titre de la fiche -->
@@ -275,20 +275,21 @@ function applyTransition(state: string) {
               <h3 v-else class="modal-title">{{ scalars[titleDesc.key] || '—' }}</h3>
               <p v-if="erreurDe(titleDesc.key)" class="rd-err" role="alert">{{ erreurDe(titleDesc.key) }}</p>
             </template>
-            <h3 v-else class="modal-title">{{ isNew ? 'new row' : 'row detail' }}</h3>
+            <h3 v-else class="modal-title">{{ isNew ? t('dataUi.drawer.newRow') : t('dataUi.drawer.detail') }}</h3>
             <p v-if="!isNew" class="modal-desc mono">{{ row?._id ?? '' }}</p>
           </div>
           <Tag v-if="currentStatus" tone="saffron">{{ currentStatus }}</Tag>
           <Tag v-if="row?._claimed_by" tone="cobalt"
-            :title="`bail de traitement jusqu'à ${row?._claimed_until ?? '?'}`">
-            en cours · {{ row._claimed_by }}
+            :title="t('dataUi.drawer.leaseUntil', { date: row?._claimed_until ?? '?' })">
+            {{ t('dataUi.cards.inProgress', { who: row._claimed_by }) }}
           </Tag>
           <Tag v-if="budget" :tone="budget.atCeiling ? 'terra' : undefined"
-            :title="`${budget.claims} réservation${budget.claims > 1 ? 's' : ''} sans écriture`
-              + (budget.max ? ` — plafond ${budget.max}` : '')">
+            :title="budget.max
+              ? t('dataUi.drawer.claimsMax', { count: t('dataUi.claims.count', budget.claims), max: budget.max })
+              : t('dataUi.claims.count', budget.claims)">
             {{ budget.label }}
           </Tag>
-          <button class="rd-close" aria-label="fermer" @click="emit('close')">
+          <button class="rd-close" :aria-label="t('common.close')" @click="emit('close')">
             <Icon name="close" :size="15" />
           </button>
         </header>
@@ -299,10 +300,10 @@ function applyTransition(state: string) {
 
         <!-- transitions du cycle de vie, sous l'en-tête (l'état courant est le chip) -->
         <div v-if="transitions.length" class="rd-lifecycle">
-          <Btn v-for="t in transitions" :key="t" kind="mini"
-            :title="terminalStates.has(t) ? 'état terminal (fin de traitement)' : undefined"
-            @click="applyTransition(t)">→ {{ t }}<template v-if="terminalStates.has(t)"> ◼</template></Btn>
-          <Btn v-if="row?._claimed_by && !readOnly" kind="mini" @click="emit('release')">Libérer le bail</Btn>
+          <Btn v-for="etat in transitions" :key="etat" kind="mini"
+            :title="terminalStates.has(etat) ? t('dataUi.drawer.terminal') : undefined"
+            @click="applyTransition(etat)">→ {{ etat }}<template v-if="terminalStates.has(etat)"> ◼</template></Btn>
+          <Btn v-if="row?._claimed_by && !readOnly" kind="mini" @click="emit('release')">{{ t('dataUi.drawer.release') }}</Btn>
         </div>
 
         <!-- une écriture refusée : le brouillon reste, rien n'est renvoyé d'ici (oto#213) -->
@@ -323,8 +324,8 @@ function applyTransition(state: string) {
               :class="{ wide: editable && isWide(d) }">
               <div class="rd-label-row">
                 <label class="rd-label">{{ d.label }}<span v-if="d.required" class="rd-req"
-                    title="champ requis">*</span><span v-else-if="d.requiredWhen" class="rd-req rd-req--soft"
-                    :title="`requis quand ${reqWhenLabel(d)}`">*</span></label>
+                    :title="t('dataUi.drawer.required')">*</span><span v-else-if="d.requiredWhen" class="rd-req rd-req--soft"
+                    :title="t('dataUi.drawer.requiredWhen', { when: reqWhenLabel(d) })">*</span></label>
                 <VideAssumeToggle v-if="editable && accepteVide(d)" :model-value="!!empties[d.key]"
                   @update:model-value="basculerVide(d.key, $event)" />
               </div>
@@ -351,7 +352,7 @@ function applyTransition(state: string) {
               <div v-else-if="widgetOf(d) === 'url'" class="rd-url">
                 <input v-model="scalars[d.key]" class="rd-input" type="url" :placeholder="d.label" />
                 <a v-if="scalars[d.key]" :href="scalars[d.key]" target="_blank" rel="noopener"
-                  class="rd-open" title="Ouvrir le lien"><Icon name="ext" :size="13" /></a>
+                  class="rd-open" :title="t('dataUi.drawer.openLink')"><Icon name="ext" :size="13" /></a>
               </div>
               <input v-else-if="widgetOf(d) === 'email'" v-model="scalars[d.key]" class="rd-input"
                 type="email" :placeholder="d.label" />
@@ -377,7 +378,7 @@ function applyTransition(state: string) {
           <!-- sous-records déclarés : sections structurées -->
           <div v-for="d in compositeFields" :key="d.key" class="rd-field rd-section" :data-field="d.key">
             <label class="rd-label">{{ d.label }}<span v-if="d.required" class="rd-req"
-                title="champ requis">*</span></label>
+                :title="t('dataUi.drawer.required')">*</span></label>
             <p v-if="!editable" class="rd-readval">{{ readVal(d.key) }}</p>
             <SubRecordEditor v-else-if="composites[d.key]" :field="d.field!" :erreurs="erreursDeColonne(d.key, erreurAttendue)"
               :model-value="composites[d.key]!" @update:model-value="composites[d.key] = $event" />
@@ -388,8 +389,8 @@ function applyTransition(state: string) {
           <div v-for="d in longFields" :key="d.key" class="rd-field rd-section" :data-field="d.key">
             <div class="rd-label-row">
               <label class="rd-label">{{ d.label }}<span v-if="d.required" class="rd-req"
-                  title="champ requis">*</span><span v-else-if="d.requiredWhen" class="rd-req rd-req--soft"
-                  :title="`requis quand ${reqWhenLabel(d)}`">*</span></label>
+                  :title="t('dataUi.drawer.required')">*</span><span v-else-if="d.requiredWhen" class="rd-req rd-req--soft"
+                  :title="t('dataUi.drawer.requiredWhen', { when: reqWhenLabel(d) })">*</span></label>
               <VideAssumeToggle v-if="editable && accepteVide(d)" :model-value="!!empties[d.key]"
                 @update:model-value="basculerVide(d.key, $event)" />
             </div>
@@ -400,36 +401,35 @@ function applyTransition(state: string) {
             <p v-if="erreurDe(d.key)" class="rd-err" role="alert">{{ erreurDe(d.key) }}</p>
           </div>
 
-          <p v-if="!editFields.length" class="dim" style="padding: 8px 0">no fields yet — add one below.</p>
+          <p v-if="!editFields.length" class="dim" style="padding: 8px 0">{{ t('dataUi.drawer.noFields') }}</p>
 
           <!-- historique de la fiche : ses trois états sont rendus (RowActivityList) -->
           <div v-if="!isNew && datastore" class="rd-activity">
-            <span class="rd-label">historique de la fiche</span>
+            <span class="rd-label">{{ t('dataUi.drawer.history') }}</span>
             <RowActivityList :datastore="datastore" :row-id="row?._id ?? null" />
           </div>
 
           <div v-if="!isNew && row?._updated_at" class="rd-meta dim mono">
-            updated {{ absDate(String(row._updated_at)) }}
-            <template v-if="row?._claimed_by"> · bail
-              jusqu'à {{ absDate(String(row._claimed_until ?? '?')) }}</template>
+            {{ t('dataUi.drawer.updated', { date: absDate(String(row._updated_at)) }) }}
+            <template v-if="row?._claimed_by"> · {{ t('dataUi.queue.until', { date: absDate(String(row._claimed_until ?? '?')) }) }}</template>
             <!-- ⚠️ « sans run » est un FAIT — bail pris à la main, ou par un agent
                  qui n'a pas passé son run — pas une donnée manquante. -->
             <template v-if="bail?.porteur === 'run'"> ·
               <RouterLink class="rd-run" :to="`/automations?run=${encodeURIComponent(bail.run!)}`"
-                :title="`run ${bail.run}`">voir le travail qui la tient</RouterLink>
+                :title="t('dataUi.queue.run', { run: bail.run })">{{ t('dataUi.drawer.seeRun') }}</RouterLink>
             </template>
-            <template v-else-if="bail?.porteur === 'sans-run'"> · bail pris sans run</template>
+            <template v-else-if="bail?.porteur === 'sans-run'"> · {{ t('dataUi.queue.noRun') }}</template>
           </div>
         </div>
 
         <footer class="rd-foot">
-          <Btn v-if="editable" kind="mini" icon="plus" @click="addField">Field</Btn>
+          <Btn v-if="editable" kind="mini" icon="plus" @click="addField">{{ t('dataUi.drawer.field') }}</Btn>
           <span class="rd-spacer" />
-          <Btn v-if="!readOnly && !isNew" kind="danger" icon="trash" @click="emit('delete')">Delete</Btn>
-          <Btn kind="ghost" @click="emit('close')">{{ readOnly ? 'Close' : 'Cancel' }}</Btn>
+          <Btn v-if="!readOnly && !isNew" kind="danger" icon="trash" @click="emit('delete')">{{ t('common.delete') }}</Btn>
+          <Btn kind="ghost" @click="emit('close')">{{ readOnly ? t('common.close') : t('common.cancel') }}</Btn>
           <!-- un conflit se tranche AVANT de réenregistrer : aucun renvoi tant qu'il est ouvert -->
           <Btn v-if="!readOnly" kind="mini" icon="check" :disabled="!editable || envoi || refus?.sorte === 'conflit'"
-            @click="save">Save</Btn>
+            @click="save">{{ t('common.save') }}</Btn>
         </footer>
 
         <FormDialog v-if="formDialog" v-model:open="formDialogOpen"

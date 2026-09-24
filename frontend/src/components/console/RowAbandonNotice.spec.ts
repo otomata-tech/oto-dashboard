@@ -7,14 +7,17 @@ import { createSSRApp, h } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import RowAbandonNotice from './RowAbandonNotice.vue'
 import type { AbandonVerdict } from '@/lib/datastoreClaims'
+import { i18n } from '@/lib/i18n'
 
 // La chaîne littérale du serveur (`_MOTIF` d'oto-backend), accord au singulier compris.
 const MOTIF = 'abandonnée après 1 réservations sans écriture, plafond 1'
 
-const render = (verdict: AbandonVerdict, canWrite: boolean) =>
-  renderToString(createSSRApp({
+const render = (verdict: AbandonVerdict, canWrite: boolean) => {
+  i18n.global.locale.value = 'fr'
+  return renderToString(createSSRApp({
     render: () => h(RowAbandonNotice, { verdict, canWrite }),
-  }))
+  }).use(i18n))
+}
 
 describe('RowAbandonNotice', () => {
   it('affiche le motif du serveur sans le retoucher', async () => {

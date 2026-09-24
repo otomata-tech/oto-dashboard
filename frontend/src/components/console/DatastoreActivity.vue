@@ -44,33 +44,29 @@ defineExpose({ load })
 <template>
   <section class="da">
     <header class="da-head">
-      <span class="da-title">dernières actions</span>
+      <span class="da-title">{{ t('dataUi.activity.title') }}</span>
       <span class="da-spacer" />
-      <Btn kind="mini" icon="refresh" :disabled="loading" @click="load">actualiser</Btn>
+      <Btn kind="mini" icon="refresh" :disabled="loading" @click="load">{{ t('dataUi.activity.refresh') }}</Btn>
     </header>
 
-    <OtoLoading v-if="loading && !entries.length" label="chargement…" />
+    <OtoLoading v-if="loading && !entries.length" :label="t('common.loading')" />
     <p v-else-if="error" class="helptext da-err">{{ error }}</p>
-    <p v-else-if="!entries.length" class="dim da-empty">
-      aucune action enregistrée sur ce tableau.
-    </p>
+    <p v-else-if="!entries.length" class="dim da-empty">{{ t('dataUi.activity.empty') }}</p>
     <ul v-else class="da-list">
       <li v-for="(a, i) in entries" :key="i" :class="{ err: !a.ok }">
         <span class="da-when mono dim" :title="absDate(whenOf(a))">{{ relDate(whenOf(a)) }}</span>
         <Tag :tone="originTone(a)">{{ originLabel(a, t) }}</Tag>
-        <button v-if="a.row_id" class="da-row" :title="`ouvrir la fiche ${a.row_id}`"
+        <button v-if="a.row_id" class="da-row" :title="t('dataUi.activity.openRow', { id: a.row_id })"
           @click="emit('open', a.row_id!)">{{ rowLabelOf(a) }}</button>
-        <span v-else class="dim da-norow">tout le tableau</span>
+        <span v-else class="dim da-norow">{{ t('dataUi.activity.wholeTable') }}</span>
         <ActivityChange :entry="a" />
         <span class="da-who dim">{{ actorOf(a) }}</span>
         <code v-if="a.tool" class="mono da-tool">{{ a.tool }}</code>
-        <span v-if="!a.ok" class="da-fail" :title="a.error ?? undefined">échec</span>
+        <span v-if="!a.ok" class="da-fail" :title="a.error ?? undefined">{{ t('dataUi.activity.failed') }}</span>
       </li>
     </ul>
 
-    <p v-if="retention" class="da-note dim">
-      journal de travail (rétention ~{{ retention }} j), pas un audit permanent.
-    </p>
+    <p v-if="retention" class="da-note dim">{{ t('dataUi.activity.retention', { days: retention }) }}</p>
   </section>
 </template>
 

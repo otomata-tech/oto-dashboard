@@ -37,6 +37,9 @@ import { userFields, visibleColumns } from '@/lib/datastoreColumns'
 import { filtersFromParam, filtersToParam } from '@/lib/datastoreFilters'
 import type { LifecycleIntent } from '@/lib/datastoreLifecycle'
 import { cleTitre } from '../../lib/datastoreTitle'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   // Réf du tableau (id BIGSERIAL en texte, ou nom) — le lien projet porte le nom.
@@ -178,7 +181,7 @@ async function onRelease(rowId: string) {
   if (!n) return
   try {
     await releaseRowClaim(n, rowId)
-    toast('bail libéré')
+    toast(t('dataUi.table.released'))
     closeDrawer()
     await Promise.all([fetchQueue(), fetchRows()])
   } catch (e) { toast(humanize(e)) }
@@ -334,7 +337,7 @@ async function openFromRoute() {
     const row = rows.value.find((r) => r._id === id) ?? await getNamespaceRow(n, id)
     drawerRow.value = row; drawerNew.value = false; drawerOpen.value = true
   } catch {
-    toast('fiche introuvable — elle a probablement été supprimée')
+    toast(t('dataUi.table.rowGone'))
     if (routeRowId.value) void router.replace({ path: itemBasePath.value, query: route.query })
   }
 }
@@ -369,21 +372,21 @@ const { announceTransition } = useTransitionUndo({
 // révision, refus traités sur place) et remonte par `saved`. Ne passent ici que l'ajout
 // et les transitions de cycle de vie.
 async function onSaved() {
-  toast('row saved')
+  toast(t('dataUi.table.saved'))
   closeDrawer(); await refreshAll()
 }
 async function onSave(payload: Record<string, unknown>, transition?: LifecycleIntent) {
   const n = dsRef.value
   if (!n) return
   try {
-    if (drawerNew.value) { await appendNamespaceRow(n, payload); toast('row added') }
+    if (drawerNew.value) { await appendNamespaceRow(n, payload); toast(t('dataUi.table.added')) }
     else if (drawerRow.value) {
       const row = drawerRow.value
       await updateNamespaceRow(n, row._id, payload)
       // Une transition de cycle de vie se confirme en NOMMANT la ligne et l'état
       // d'avant — puis en proposant le retour quand le graphe l'autorise.
       if (transition) announceTransition(n, row, transition)
-      else toast('row saved')
+      else toast(t('dataUi.table.saved'))
     }
     closeDrawer(); await refreshAll()
   } catch (e) { toast(humanize(e)) }
@@ -393,7 +396,7 @@ async function onDelete() {
   if (!n || !drawerRow.value) return
   const id = drawerRow.value._id
   if (!await confirmAction({ title: 'delete row?', message: 'this row is permanently removed.', confirmLabel: 'delete', danger: true })) return
-  try { await deleteNamespaceRow(n, id); toast('row deleted'); closeDrawer(); await refreshAll() }
+  try { await deleteNamespaceRow(n, id); toast(t('dataUi.table.deleted')); closeDrawer(); await refreshAll() }
   catch (e) { toast(humanize(e)) }
 }
 
@@ -430,7 +433,7 @@ async function exportCsv() {
     }
     const exportCols = visibleColumns(userFields(all), meta.value?.schema, cols.value)
     downloadCsv(`${nom}.csv`, rowsToCsv(all as Record<string, unknown>[], exportCols))
-    toast(`${all.length} row${all.length === 1 ? '' : 's'} exported`)
+    toast(t('dataUi.table.exported', all.length))
   } catch (e) { toast(humanize(e)) }
   finally { exporting.value = false }
 }
@@ -442,15 +445,15 @@ async function removeNamespace() {
   const n = dsRef.value
   const nom = name.value
   if (!n || !nom) return
-  if (!await confirmAction({ title: `delete "${nom}"?`, message: 'the datastore and all its rows are removed. this cannot be undone.', confirmLabel: 'delete', danger: true })) return
-  try { await deleteNamespace(n); toast(`datastore "${nom}" deleted`); emit('deleted') }
+  if (!await confirmAction({ title: t('dataUi.table.deleteTitle', { name: nom }), message: t('dataUi.table.deleteMessage'), confirmLabel: t('common.delete'), danger: true })) return
+  try { await deleteNamespace(n); toast(t('dataUi.table.deletedTable', { name: nom })); emit('deleted') }
   catch (e) { toast(humanize(e)) }
 }
 async function doRename(next: string) {
   const n = dsRef.value
   // Le doublon qu'on écarte est un doublon de NOM : c'est lui que l'utilisateur a tapé.
   if (!n || next === name.value) return
-  try { await renameNamespace(n, next); toast(`renamed to "${next}"`); await resolveMeta(); await fetchRows(); emit('changed') }
+  try { await renameNamespace(n, next); toast(t('dataUi.table.renamed', { name: next })); await resolveMeta(); await fetchRows(); emit('changed') }
   catch (e) { toast(humanize(e)); throw e }
 }
 async function transfer() {
@@ -459,32 +462,32 @@ async function transfer() {
   // Chemin unique `oto_resource` (par id du tableau) — garde-fou anti-lockout inclus.
   try {
     const ok = await runTransfer('datastore_namespace', id, name.value ?? `#${id}`, { allowTeams: true })
-    if (ok) { toast('transféré (tu gardes l\'accès en écriture)'); await resolveMeta(); await fetchRows(); emit('changed') }
+    if (ok) { toast(t('dataUi.table.transferred')); await resolveMeta(); await fetchRows(); emit('changed') }
   } catch (e) { toast(humanize(e)) }
 }
 </script>
 
 <template>
   <ConsoleCard v-if="meta" :title="name || ''" flush
-    :sub="rowsLoading ? 'chargement…' : `${total} ligne${total === 1 ? '' : 's'}`">
+    :sub="rowsLoading ? t('common.loading') : t('dataUi.list.rows', total)">
     <template #actions>
-      <Tag v-if="readOnly" tone="saffron">lecture seule</Tag>
-      <Btn v-if="isTyped" kind="mini" @click="cardView = !cardView">{{ cardView ? 'vue table' : 'vue fiches' }}</Btn>
+      <Tag v-if="readOnly" tone="saffron">{{ t('dataUi.table.readOnly') }}</Tag>
+      <Btn v-if="isTyped" kind="mini" @click="cardView = !cardView">{{ cardView ? t('dataUi.table.tableView') : t('dataUi.table.cardView') }}</Btn>
       <Btn kind="mini" icon="chart" @click="activityOpen = !activityOpen">
-        {{ activityOpen ? 'masquer l\'activité' : 'activité' }}
+        {{ activityOpen ? t('dataUi.table.hideActivity') : t('dataUi.table.activity') }}
       </Btn>
-      <Btn kind="mini" icon="doc" :disabled="exporting || !total" @click="exportCsv">{{ exporting ? 'export en cours…' : 'export csv' }}</Btn>
-      <Btn v-if="!readOnly" kind="mini" icon="plus" @click="openNew">ajouter une ligne</Btn>
+      <Btn kind="mini" icon="doc" :disabled="exporting || !total" @click="exportCsv">{{ exporting ? t('dataUi.table.exporting') : t('dataUi.table.exportCsv') }}</Btn>
+      <Btn v-if="!readOnly" kind="mini" icon="plus" @click="openNew">{{ t('dataUi.table.addRow') }}</Btn>
       <template v-if="canGovern">
-        <Btn kind="mini" icon="users" @click="shareOpen = true">partager</Btn>
-        <Btn kind="mini" icon="pen" @click="renameOpen = true">renommer</Btn>
-        <Btn kind="mini" icon="ext" @click="transfer">transférer</Btn>
-        <Btn kind="danger" icon="trash" @click="removeNamespace">supprimer</Btn>
+        <Btn kind="mini" icon="users" @click="shareOpen = true">{{ t('dataUi.table.share') }}</Btn>
+        <Btn kind="mini" icon="pen" @click="renameOpen = true">{{ t('dataUi.table.rename') }}</Btn>
+        <Btn kind="mini" icon="ext" @click="transfer">{{ t('dataUi.table.transfer') }}</Btn>
+        <Btn kind="danger" icon="trash" @click="removeNamespace">{{ t('dataUi.table.delete') }}</Btn>
       </template>
     </template>
 
     <div v-if="meta.schema?.fields?.length" class="ds-schema">
-      <span class="dim" style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em">schéma typé</span>
+      <span class="dim" style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em">{{ t('dataUi.table.typedSchema') }}</span>
       <span v-for="f in meta.schema.fields" :key="f.key" class="ds-field">
         <code class="mono">{{ f.label || f.key }}</code>
         <span v-if="f.role" class="ds-role">{{ f.role }}</span>
@@ -507,8 +510,9 @@ async function transfer() {
 
     <p v-if="rowsError" class="helptext" style="color: var(--color-terra-ink); padding: 12px 16px">{{ rowsError }}</p>
     <div v-else-if="!rowsLoading && !total && !search && !filters.length" class="dim" style="text-align: center; padding: 24px">
-      aucune ligne pour l'instant — ajoutes-en une ci-dessus, ou tes agents en ajoutent avec
-      <code style="font-size: 11px">data_write("{{ name }}", row)</code>.
+      <i18n-t keypath="dataUi.table.emptyHint" tag="span">
+        <template #call><code style="font-size: 11px">data_write("{{ name }}", row)</code></template>
+      </i18n-t>
     </div>
     <template v-else-if="isTyped && cardView">
       <!-- La vue fiches porte les MÊMES verbes serveur que la table (recherche, tri,
@@ -520,17 +524,17 @@ async function transfer() {
         @update:search="onSearch" @update:sort="onSort" @update:filters="onFilters" />
       <DatastoreCards :rows="rows" :schema="meta.schema!" @open="openRow" />
       <p v-if="!rows.length" class="dim ds-empty">
-        <OtoLoading v-if="rowsLoading" label="chargement…" style="justify-content: center" />
+        <OtoLoading v-if="rowsLoading" :label="t('common.loading')" style="justify-content: center" />
         <template v-else-if="search || filters.length">
-          aucune fiche ne correspond —
-          <button class="linklike" @click="clearSearchAndFilters">effacer la recherche et les filtres</button>
+          {{ t('dataUi.table.noCardMatch') }} —
+          <button class="linklike" @click="clearSearchAndFilters">{{ t('dataUi.list.clearAll') }}</button>
         </template>
-        <template v-else>aucune fiche.</template>
+        <template v-else>{{ t('dataUi.table.noCard') }}</template>
       </p>
       <div v-if="pageCount > 1" class="ds-pager">
-        <button class="pj-x" :disabled="page <= 0" @click="onPage(page - 1)">‹ préc.</button>
-        <span class="dim" style="font-size: 12px">page {{ page + 1 }} / {{ pageCount }}</span>
-        <button class="pj-x" :disabled="page >= pageCount - 1" @click="onPage(page + 1)">suiv. ›</button>
+        <button class="pj-x" :disabled="page <= 0" @click="onPage(page - 1)">{{ t('dataUi.list.prev') }}</button>
+        <span class="dim" style="font-size: 12px">{{ t('dataUi.list.page', { page: page + 1, count: pageCount }) }}</span>
+        <button class="pj-x" :disabled="page >= pageCount - 1" @click="onPage(page + 1)">{{ t('dataUi.list.next') }}</button>
       </div>
     </template>
     <DataTable v-else :rows="rows" :total="total" :page="page" :page-size="pageSize"
@@ -548,8 +552,8 @@ async function transfer() {
     <SharePrincipalDialog :open="shareOpen" resource-type="datastore_namespace"
       :resource-id="String(meta.id)" :resource-label="name ?? undefined"
       @close="shareOpen = false" @changed="emit('changed')" />
-    <NameDialog v-model:open="renameOpen" title="renommer le tableau" label="nouveau nom"
-      :initial="name ?? ''" submit-label="renommer" :on-confirm="doRename" />
+    <NameDialog v-model:open="renameOpen" :title="t('dataUi.table.renameTitle')" :label="t('dataUi.table.newName')"
+      :initial="name ?? ''" :submit-label="t('dataUi.table.rename')" :on-confirm="doRename" />
   </ConsoleCard>
 
   <p v-else-if="rowsError" class="helptext" style="color: var(--color-terra-ink)">
@@ -557,7 +561,7 @@ async function transfer() {
     <!-- Sortie du cul-de-sac (R10.1) : le tableau n'est pas résolvable ICI (autre org,
          renommé), mais la section Données liste ceux auxquels on a bien accès. Inutile
          de le proposer quand on y est déjà. -->
-    <RouterLink v-if="notFound && !inDataSection" to="/data" class="ds-erroract">ouvrir dans Données</RouterLink>
+    <RouterLink v-if="notFound && !inDataSection" to="/data" class="ds-erroract">{{ t('dataUi.table.openInData') }}</RouterLink>
   </p>
 </template>
 

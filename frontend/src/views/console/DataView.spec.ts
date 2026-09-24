@@ -158,7 +158,7 @@ describe('DataView — chaque ligne dit à qui elle est', () => {
       entree({ id: 4, datastore: 'partage', ...RECU }),
     ])
     // Le personnel passe SOUS l'org (arbitrage oto#160) : l'ordre change, pas les badges.
-    expect(badges).toEqual([['org'], ['team'], ['shared · read'], ['personnel']])
+    expect(badges).toEqual([['org'], ['équipe'], ['partagé · read'], ['personnel']])
     unmount()
   })
 
@@ -260,7 +260,7 @@ describe('DataView — la ligne de contexte dit pourquoi la liste ressemble à �
   it('se tait sur une liste VIDE — l\'état vide de la carte parle déjà', async () => {
     const { contexte, host, unmount } = await monterListe([])
     expect(contexte).toBeNull()
-    expect(host.textContent).toContain('create one')
+    expect(host.textContent).toContain('crées-en un')
     unmount()
   })
 })
@@ -329,7 +329,7 @@ describe('DataView — le personnel est rangé à part, replié, et s\'annonce (
     const { plan, contexte, host, unmount } = await monterListe([])
     expect(plan()).toEqual([])
     expect(contexte).toBeNull()
-    expect(host.textContent).toContain('create one')
+    expect(host.textContent).toContain('crées-en un')
     unmount()
   })
 
@@ -452,7 +452,7 @@ describe('DataView — « partagé avec moi » : ce qu\'aucune liste ne rendait 
     expect(plan()).toEqual(['[partagé avec moi 1 replié]', 'chantier-julien (caché)'])
     // « no datastores yet » sous une section qui en montre un serait la contradiction
     // même qu'on retire de cet écran.
-    expect(host.textContent).not.toContain('create one')
+    expect(host.textContent).not.toContain('crées-en un')
     unmount()
   })
 

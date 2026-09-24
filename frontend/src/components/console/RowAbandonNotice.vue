@@ -8,19 +8,21 @@
 // déclarée au cycle de vie, elle rouvre la file mais laisse le statut sur l'état
 // d'abandon — la plateforme y verse la ligne, elle ne s'autorise pas à l'en sortir.
 import type { AbandonVerdict } from '@/lib/datastoreClaims'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 defineProps<{ verdict: AbandonVerdict; canWrite?: boolean }>()
 </script>
 
 <template>
   <div class="rab">
-    <span class="rab-head">sortie de la file</span>
+    <span class="rab-head">{{ t('dataUi.abandon.head') }}</span>
     <p class="rab-why">{{ verdict.reason }}</p>
     <p v-if="canWrite" class="rab-fix">
-      Une écriture réussie sur cette ligne efface ce motif et la remet dans la file.
+      {{ t('dataUi.abandon.fix') }}
       <template v-if="!verdict.reopens.length">
-        Le cycle de vie ne déclare aucun retour depuis cet état : le statut, lui, restera
-        celui de l'abandon.
+        {{ t('dataUi.abandon.noReturn') }}
       </template>
     </p>
   </div>

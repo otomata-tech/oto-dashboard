@@ -22,6 +22,9 @@ import type { DatastoreLifecycle, DatastoreRow } from '@/types/api'
 import { absDate } from '@/lib/cellRender'
 import { bailLigne } from '@/lib/bailDeLigne'
 import { abandonState, claimBudget, type ClaimBudget } from '@/lib/datastoreClaims'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   rows: DatastoreRow[]
@@ -44,21 +47,22 @@ const etatAbandon = computed(() => abandonState(props.lifecycle))
 // L'instant est lu une fois pour toutes les lignes : sans instant commun, deux lignes
 // du même bandeau se compareraient à deux « maintenant » différents.
 const items = computed(() => {
-  const t = Date.now()
+  const maintenant = Date.now()
   return props.rows.map((row) => ({
     row,
     title: titleOf(row),
-    bail: bailLigne(row, t),
+    bail: bailLigne(row, maintenant),
     budget: claimBudget(row, props.lifecycle),
   }))
 })
 const atCeiling = computed(() => items.value.filter((i) => i.budget?.atCeiling).length)
 
 function budgetTitle(b: ClaimBudget): string {
-  const compte = `${b.claims} réservation${b.claims > 1 ? 's' : ''} sans écriture`
-  if (!b.atCeiling) return `${compte} — une écriture réussie remet le compteur à zéro`
-  return `${compte} : plafond atteint — à la libération, la ligne quitte la file`
-    + (etatAbandon.value ? ` et passe en « ${etatAbandon.value} »` : '')
+  const compte = t('dataUi.claims.count', b.claims)
+  if (!b.atCeiling) return t('dataUi.claims.resets', { count: compte })
+  return etatAbandon.value
+    ? t('dataUi.claims.ceilingTo', { count: compte, state: etatAbandon.value })
+    : t('dataUi.claims.ceiling', { count: compte })
 }
 </script>
 
@@ -67,11 +71,8 @@ function budgetTitle(b: ClaimBudget): string {
     <!-- Le plafond lui-même est annoncé par la barre de statuts (propriété du tableau) :
          ici on porte ce que la file en FAIT — où chaque ligne en est, et lesquelles
          sont à un cheveu d'en sortir. -->
-    <span class="dsq-head">file de travail · {{ rows.length }} en cours</span>
-    <span v-if="atCeiling" class="dsq-warn">
-      {{ atCeiling }} ligne{{ atCeiling > 1 ? 's' : '' }} au plafond — sortie de la file à la
-      prochaine libération sans écriture.
-    </span>
+    <span class="dsq-head">{{ t('dataUi.queue.head', { n: rows.length }) }}</span>
+    <span v-if="atCeiling" class="dsq-warn">{{ t('dataUi.queue.atCeiling', atCeiling) }}</span>
     <div v-for="it in items" :key="it.row._id" class="dsq-item">
       <button class="dsq-title" :title="it.row._id" @click="emit('open', it.row)">{{ it.title }}</button>
       <Tag tone="cobalt">{{ it.row._claimed_by }}</Tag>
@@ -82,17 +83,15 @@ function budgetTitle(b: ClaimBudget): string {
            c'est un bail pris à la main, ou par un agent qui n'a pas passé son run. -->
       <RouterLink
         v-if="it.bail.porteur === 'run'"
-        class="dsq-run" :title="`run ${it.bail.run}`"
+        class="dsq-run" :title="t('dataUi.queue.run', { run: it.bail.run })"
         :to="`/automations?run=${encodeURIComponent(it.bail.run!)}`"
-      >ouvrir le travail</RouterLink>
-      <span v-else-if="it.bail.porteur === 'sans-run'" class="dsq-lease">
-        bail pris sans run
-      </span>
+      >{{ t('dataUi.queue.openRun') }}</RouterLink>
+      <span v-else-if="it.bail.porteur === 'sans-run'" class="dsq-lease">{{ t('dataUi.queue.noRun') }}</span>
       <Tag v-if="it.bail.etat === 'expire'" tone="terra"
-        title="le prochain claim recycle cette row">bail expiré</Tag>
-      <span v-else class="dsq-lease">bail jusqu'à {{ absDate(String(it.row._claimed_until ?? '')) }}</span>
-      <Btn v-if="canWrite" kind="mini" title="libération forcée (sans garde de worker)"
-        @click="emit('release', it.row._id)">Libérer</Btn>
+        :title="t('dataUi.queue.expiredHint')">{{ t('dataUi.queue.expired') }}</Tag>
+      <span v-else class="dsq-lease">{{ t('dataUi.queue.until', { date: absDate(String(it.row._claimed_until ?? '')) }) }}</span>
+      <Btn v-if="canWrite" kind="mini" :title="t('dataUi.queue.releaseHint')"
+        @click="emit('release', it.row._id)">{{ t('dataUi.queue.release') }}</Btn>
     </div>
   </div>
 </template>

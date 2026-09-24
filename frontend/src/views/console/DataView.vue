@@ -103,8 +103,8 @@ const groupes = computed<{
   cle: string; libelle: string | null; lignes: SharedDatastoreEntry[]; replieParDefaut: boolean
 }[]>(() => [
   { cle: 'org', libelle: null, lignes: deLorg.value, replieParDefaut: false },
-  { cle: 'perso', libelle: 'personnel', lignes: personnels.value, replieParDefaut: !horsOrg.value },
-  { cle: 'recus', libelle: 'partagé avec moi', lignes: recus.value, replieParDefaut: !horsOrg.value },
+  { cle: 'perso', libelle: t('dataUi.view.personal'), lignes: personnels.value, replieParDefaut: !horsOrg.value },
+  { cle: 'recus', libelle: t('dataUi.view.sharedWithMe'), lignes: recus.value, replieParDefaut: !horsOrg.value },
 ].filter((g) => g.lignes.length))
 // Le geste de l'utilisateur prime sur le défaut : `ouvert` ne retient que ce qu'il a fait.
 const ouvert = ref<Record<string, boolean>>({})
@@ -134,23 +134,24 @@ watch(current, (c) => {
 const contexte = computed(() => {
   const nom = orgSansTableau.value
   if (!nom) return null
-  const aPart = [
-    personnels.value.length ? 'tes tableaux personnels' : null,
-    recus.value.length ? 'les tableaux partagés avec toi' : null,
-  ].filter(Boolean).join(' et ')
+  const perso = personnels.value.length > 0
+  const recu = recus.value.length > 0
+  const aPart = perso && recu ? t('dataUi.view.apart.both')
+    : perso ? t('dataUi.view.apart.personal') : recu ? t('dataUi.view.apart.received') : null
   if (!deLorg.value.length)
-    return aPart ? `aucun tableau dans ${nom} — ${aPart} sont rangés à part, ci-dessous.` : null
-  return `aucun tableau dans ${nom} — ceux ci-dessous lui sont partagés`
-    + `${aPart ? ` ; ${aPart} sont rangés à part` : ''}.`
+    return aPart ? t('dataUi.view.context.noneBelow', { org: nom, apart: aPart }) : null
+  return aPart
+    ? t('dataUi.view.context.sharedToOrgApart', { org: nom, apart: aPart })
+    : t('dataUi.view.context.sharedToOrg', { org: nom })
 })
 
 // L'appartenance d'un tableau en UN mot : le badge d'une ligne, l'indice d'un candidat
 // homonyme (oto#203). Un tableau d'un AUTRE utilisateur reçu par partage reste `shared`.
 function appartenance(ns: SharedDatastoreEntry): string | null {
-  if (ns.owner_type === 'org') return 'org'
-  if (ns.owner_type === 'group') return 'team'
-  if (ns.shared) return `shared · ${ns.permission || 'read'}`
-  return ns.is_personal ? 'personnel' : null
+  if (ns.owner_type === 'org') return t('dataUi.view.owner.org')
+  if (ns.owner_type === 'group') return t('dataUi.view.owner.team')
+  if (ns.shared) return t('dataUi.view.owner.shared', { permission: ns.permission || 'read' })
+  return ns.is_personal ? t('dataUi.view.owner.personal') : null
 }
 
 // Sélection pilotée par le CHEMIN `/data/:id` (id stable au renommage, ADR 0032) —
@@ -232,7 +233,7 @@ async function doCreate(payload: { name: string; scope: 'user' | 'org' }) {
   const owner = payload.scope === 'org' && activeOrg ? { type: 'org', id: activeOrg } : undefined
   try {
     await createNamespace(payload.name, owner)
-    toast(`datastore "${payload.name}" created`)
+    toast(t('dataUi.view.created', { name: payload.name }))
     await load()
     const created = datastores.value.find((n) => n.datastore === payload.name)
     if (created) open(created.id)
@@ -252,10 +253,9 @@ async function onNsDeleted() {
 
     <div class="data-layout">
       <!-- liste des tableaux -->
-      <ConsoleCard title="datastores" flush
-        sub="tabular storage your agents read &amp; write through data_* tools.">
+      <ConsoleCard :title="t('dataUi.view.title')" flush :sub="t('dataUi.view.sub')">
         <template #actions>
-          <Btn kind="mini" icon="plus" @click="createOpen = true">new</Btn>
+          <Btn kind="mini" icon="plus" @click="createOpen = true">{{ t('dataUi.view.new') }}</Btn>
         </template>
         <!-- Ce qui manquait le 10/09 n'était pas « à qui sont ces tableaux » — les badges
              le disent — mais POURQUOI la liste ressemble à ça. On dit l'absence d'abord,
@@ -279,7 +279,7 @@ async function onNsDeleted() {
                    chose qu'un tableau reçu ne dit pas de lui-même — d'où on l'a. -->
               <button v-for="ns in g.lignes" :key="ns.id"
                 class="rowitem ns-item" :class="{ active: ns.id === selectedId }"
-                :title="ns.shared_by ? `partagé par ${ns.shared_by}` : undefined"
+                :title="ns.shared_by ? t('dataUi.view.sharedBy', { who: ns.shared_by }) : undefined"
                 @click="open(ns.id)">
                 <code class="mono" style="font-weight: 600">{{ ns.datastore }}</code>
                 <!-- UN groupe calé à droite, et l'appartenance EN DERNIER : les badges étaient
@@ -297,7 +297,7 @@ async function onNsDeleted() {
                      owner_type='user' ET owner_id=mon sub — un tableau d'un AUTRE utilisateur
                      reçu par partage reste donc sur la branche `shared`. -->
                 <span class="ns-tags">
-                  <Tag v-if="ns.schema?.fields?.length" tone="olive">typé</Tag>
+                  <Tag v-if="ns.schema?.fields?.length" tone="olive">{{ t('dataUi.view.typed') }}</Tag>
                   <Tag v-if="appartenance(ns)" tone="cobalt">{{ appartenance(ns) }}</Tag>
                 </span>
               </button>
@@ -307,7 +307,7 @@ async function onNsDeleted() {
                « aucun tableau » sous une section qui en montre un serait la contradiction
                qu'on vient de retirer d'ailleurs. -->
           <div v-if="loaded && !toutes.length" class="dim" style="text-align: center; padding: 16px">
-            no datastores yet — create one to let your agents store rows.
+            {{ t('dataUi.view.empty') }}
           </div>
         </div>
       </ConsoleCard>
@@ -326,50 +326,57 @@ async function onNsDeleted() {
            suppression, ou aucun droit du tout. Le remède reste adressé à qui peut
            l'appliquer — changer d'org, ou demander : le destinataire ne peut ni se
            re-partager le tableau ni s'en transférer la propriété. -->
-      <ConsoleCard v-else-if="introuvable" title="tableau introuvable ici">
-        <div class="helptext">
-          ce tableau n'apparaît pas dans le contexte où tu es. il appartient peut-être à une
-          <strong>autre organisation</strong> — cette liste ne montre que celle où tu
-          navigues, essaie d'en changer. sinon il a été supprimé, ou rien ne t'y donne
-          accès : demande à son propriétaire de te le partager, à toi, à ton organisation
-          ou à ton équipe.
-        </div>
+      <ConsoleCard v-else-if="introuvable" :title="t('dataUi.view.notFoundTitle')">
+        <i18n-t keypath="dataUi.view.notFound" tag="div" class="helptext">
+          <template #other><strong>{{ t('dataUi.view.otherOrg') }}</strong></template>
+        </i18n-t>
       </ConsoleCard>
-      <ConsoleCard v-else title="pick a datastore">
-        <div class="helptext">select a datastore on the left to view its rows.</div>
+      <ConsoleCard v-else :title="t('dataUi.view.pickTitle')">
+        <div class="helptext">{{ t('dataUi.view.pick') }}</div>
       </ConsoleCard>
     </div>
 
-    <ConsoleCard title="how agents use this">
+    <ConsoleCard :title="t('dataUi.view.howTitle')">
       <div class="helptext" style="font-size: 12.5px; line-height: 1.65; margin-bottom: 10px">
-        schema-free tables your agents read and write in plain language — no columns to define
-        upfront, new fields just appear as they're written.
+        {{ t('dataUi.view.howIntro') }}
       </div>
       <dl class="ds-verbs">
         <div>
-          <dt>write</dt>
-          <dd><code>data_write(ns, row)</code> appends a row · pass an <code>id</code> to update
-            only the fields you give · new keys auto-create their columns.</dd>
+          <dt>{{ t('dataUi.view.verbs.write') }}</dt>
+          <i18n-t keypath="dataUi.view.verbs.writeDesc" tag="dd">
+            <template #call><code>data_write(ns, row)</code></template>
+            <template #id><code>id</code></template>
+          </i18n-t>
         </div>
         <div>
-          <dt>read</dt>
-          <dd><code>data_rows(ns, filter)</code> lists rows (exact-match filter + limit), or fetches
-            one by <code>id</code>.</dd>
+          <dt>{{ t('dataUi.view.verbs.read') }}</dt>
+          <i18n-t keypath="dataUi.view.verbs.readDesc" tag="dd">
+            <template #call><code>data_rows(ns, filter)</code></template>
+            <template #id><code>id</code></template>
+          </i18n-t>
         </div>
         <div>
-          <dt>organize</dt>
-          <dd><code>data_create_datastore</code> / <code>data_list_datastores</code> manage tables ·
-            <code>data_set_schema</code> turns a flat table into typed cards.</dd>
+          <dt>{{ t('dataUi.view.verbs.organize') }}</dt>
+          <i18n-t keypath="dataUi.view.verbs.organizeDesc" tag="dd">
+            <template #create><code>data_create_datastore</code></template>
+            <template #list><code>data_list_datastores</code></template>
+            <template #schema><code>data_set_schema</code></template>
+          </i18n-t>
         </div>
         <div>
-          <dt>share</dt>
-          <dd><code>data_share(ns, email, read|write)</code> gives a teammate access under their own
-            account · <code>data_delete_row</code> / <code>data_delete_datastore</code> clean up.</dd>
+          <dt>{{ t('dataUi.view.verbs.share') }}</dt>
+          <i18n-t keypath="dataUi.view.verbs.shareDesc" tag="dd">
+            <template #call><code>data_share(ns, email, read|write)</code></template>
+            <template #row><code>data_delete_row</code></template>
+            <template #table><code>data_delete_datastore</code></template>
+          </i18n-t>
         </div>
         <div>
-          <dt>see it</dt>
-          <dd><code>data_app</code> renders a sortable table right in the chat ·
-            <code>data_url</code> links back to this page.</dd>
+          <dt>{{ t('dataUi.view.verbs.see') }}</dt>
+          <i18n-t keypath="dataUi.view.verbs.seeDesc" tag="dd">
+            <template #app><code>data_app</code></template>
+            <template #url><code>data_url</code></template>
+          </i18n-t>
         </div>
       </dl>
     </ConsoleCard>

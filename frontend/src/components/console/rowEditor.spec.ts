@@ -226,7 +226,7 @@ describe('la fiche relit la ligne, et n’écrit que la différence', () => {
   it('ouverture : relecture réinscriptible ; aller-retour sans modification = AUCUN PATCH', async () => {
     const emis = await monter()
     expect(relectures()).toHaveLength(1)
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     expect(patches()).toEqual([])
     expect(emis.close).toBe(1)
     intactes([])
@@ -235,7 +235,7 @@ describe('la fiche relit la ligne, et n’écrit que la différence', () => {
   it('une modification : UNE colonne, sur la révision lue ; marqueurs et couches des autres intacts', async () => {
     const emis = await monter()
     taper(champ('siret').querySelector('input'), '456')
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     expect(patches()).toHaveLength(1)
     expect(patches()[0]!.query).toBe('expected_revision=7')
     expect(patches()[0]!.corps).toEqual({ siret: '456' })
@@ -247,7 +247,7 @@ describe('la fiche relit la ligne, et n’écrit que la différence', () => {
   it('modifier la valeur d’une case qui porte un comment et un link les garde intacts', async () => {
     await monter()
     taper(champ('ville').querySelector('input'), 'Lyon')
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     expect(patches()[0]!.corps).toEqual({ ville: { valeur: 'Lyon', comment: 'siège', link: 'https://annuaire/paris' } })
     expect(store.ligne.ville).toEqual({ valeur: 'Lyon', comment: 'siège', link: 'https://annuaire/paris' })
     intactes(['ville'])
@@ -258,7 +258,7 @@ describe('la fiche relit la ligne, et n’écrit que la différence', () => {
     taper(cellule('contacts', 0, 'nom').querySelector('input'), 'Alicia')
     await nextTick()
     await cliquer(q('[data-field="contacts"] [data-item="2"] .sre-x'))
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     expect(Object.keys(patches()[0]!.corps!)).toEqual(['contacts'])
     expect(store.ligne.contacts).toEqual([
       { email: 'a@x.fr', nom: 'Alicia', fonction: 'DG' },
@@ -272,7 +272,7 @@ describe('vider, et le vide assumé', () => {
   it('vider un champ non requis envoie null, jamais "" ni @clear', async () => {
     await monter()
     taper(champ('pays').querySelector('input'), '')
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     expect(patches()[0]!.corps).toEqual({ pays: null })
     expect('pays' in store.ligne).toBe(false)
     intactes(['pays'])
@@ -283,7 +283,7 @@ describe('vider, et le vide assumé', () => {
     taper(champ('idcc').querySelector('textarea'), '')
     taper(champ('meta').querySelector('input, textarea'), '')
     taper(champ('siege').querySelector('input'), '')
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     expect(patches()[0]!.corps).toEqual({ idcc: null, meta: null, siege: { rue: null } })
     expect('idcc' in store.ligne).toBe(false)
     expect('meta' in store.ligne).toBe(false)
@@ -294,7 +294,7 @@ describe('vider, et le vide assumé', () => {
   it('vider une liste de sous-records en retirant tous ses éléments : null', async () => {
     await monter()
     for (let i = 0; i < 3; i++) await cliquer(q('[data-field="contacts"] [data-item="0"] .sre-x'))
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     expect(patches()[0]!.corps).toEqual({ contacts: null })
     expect('contacts' in store.ligne).toBe(false)
     intactes(['contacts'])
@@ -303,7 +303,7 @@ describe('vider, et le vide assumé', () => {
   it('vider une case qui porte un comment et un link : null NU, la case part entière, rien d’orphelin', async () => {
     await monter()
     taper(champ('ville').querySelector('input'), '')
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     expect(patches()[0]!.corps).toEqual({ ville: null })
     expect('ville' in store.ligne).toBe(false)
     intactes(['ville'])
@@ -312,7 +312,7 @@ describe('vider, et le vide assumé', () => {
   it('vider une cellule d’élément qui porte un comment : null NU dans l’élément', async () => {
     await monter()
     taper(cellule('contacts', 2, 'email').querySelector('input'), '')
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     expect((patches()[0]!.corps!.contacts as Ligne[])[2]!.email).toBeNull()
     expect((store.ligne.contacts as Ligne[])[2]).toEqual({ nom: 'Chloé', fonction: '' })
     intactes(['contacts'])
@@ -321,7 +321,7 @@ describe('vider, et le vide assumé', () => {
   it('vider un champ requis : 400 rattaché au champ, rien d’écrit, pas de fausse réussite', async () => {
     const emis = await monter()
     taper(champ('siret').querySelector('input'), '')
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     expect(patches()[0]!.corps).toEqual({ siret: null })
     expect(champ('siret').querySelector('[role="alert"]')?.textContent).toContain('refus du store : row_invalid')
     expect(champ('pays').querySelector('[role="alert"]')).toBeNull()
@@ -333,7 +333,7 @@ describe('vider, et le vide assumé', () => {
   it('refus d’un élément de liste sans expected_column : en tête de fiche, jamais deviné depuis la phrase', async () => {
     const emis = await monter()
     taper(cellule('contacts', 0, 'nom').querySelector('input'), '')
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     expect(patches()).toHaveLength(1)
     expect((patches()[0]!.corps!.contacts as Ligne[])[0]!.nom).toBeNull()
     // la phrase du serveur NOMME `contacts[0].nom` : aucun champ ne doit s'en saisir
@@ -347,7 +347,7 @@ describe('vider, et le vide assumé', () => {
   it('activer « vide assumé » envoie @empty', async () => {
     await monter()
     await cliquer(champ('pays').querySelector('.vat'))
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     expect(patches()[0]!.corps).toEqual({ pays: '@empty' })
     expect(store.ligne.pays).toEqual({ valeur: '@empty' })
   })
@@ -357,7 +357,7 @@ describe('vider, et le vide assumé', () => {
     const bascule = champ('effectif').querySelector('.vat')!
     expect(bascule.getAttribute('aria-pressed')).toBe('true')   // lu : {"valeur":"@empty"}
     await cliquer(bascule)
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     expect(patches()[0]!.corps).toEqual({ effectif: null })
     expect('effectif' in store.ligne).toBe(false)
   })
@@ -379,7 +379,7 @@ describe('les refus : le brouillon reste, rien n’est renvoyé', () => {
     store.ligne = { ...store.ligne, ville: 'Marseille' }   // le tiers écrit AVANT la frappe
     store.rev = 8
     taper(champ('ville').querySelector('input'), 'Lyon')
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     await vider()
     expect(patches()).toHaveLength(1)
     expect(relectures()).toHaveLength(2)
@@ -388,7 +388,7 @@ describe('les refus : le brouillon reste, rien n’est renvoyé', () => {
     const conflit = q('[data-col="ville"]')!
     expect(conflit.textContent).toContain('Marseille')
     expect(conflit.textContent).toContain('Lyon')
-    expect((bouton('Save') as HTMLButtonElement).disabled).toBe(true)
+    expect((bouton('Enregistrer') as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('la personne tranche puis réenregistre : sa colonne seule, sur la révision relue, le reste du tiers gardé', async () => {
@@ -396,13 +396,13 @@ describe('les refus : le brouillon reste, rien n’est renvoyé', () => {
     store.ligne = { ...store.ligne, ville: 'Marseille', idcc: ['9999'] }
     store.rev = 8
     taper(champ('ville').querySelector('input'), 'Lyon')
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     const reprendre = bouton('reprendre sur la version relue') as HTMLButtonElement
     expect(reprendre.disabled).toBe(true)          // rien n'est tranché
     await cliquer(bouton('garder mon brouillon', q('[data-col="ville"]')!))
     await cliquer(reprendre)
     expect(patches()).toHaveLength(1)              // reprendre n'envoie rien
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     expect(patches()).toHaveLength(2)
     expect(patches()[1]!.query).toBe('expected_revision=8')
     expect(patches()[1]!.corps).toEqual({ ville: 'Lyon' })
@@ -413,7 +413,7 @@ describe('les refus : le brouillon reste, rien n’est renvoyé', () => {
     const emis = await monter()
     store.reservee = true
     taper(champ('ville').querySelector('input'), 'Lyon')
-    await cliquer(bouton('Save'))
+    await cliquer(bouton('Enregistrer'))
     await vider()
     expect(patches()).toHaveLength(1)
     expect(document.body.textContent).toContain('cette ligne est réservée par un traitement en cours')
@@ -426,6 +426,6 @@ describe('les refus : le brouillon reste, rien n’est renvoyé', () => {
     await monter()
     expect(champ('ville').querySelector('input')).toBeNull()
     expect(document.body.textContent).toContain('le serveur n\'a pas servi la révision de cette ligne')
-    expect((bouton('Save') as HTMLButtonElement).disabled).toBe(true)
+    expect((bouton('Enregistrer') as HTMLButtonElement).disabled).toBe(true)
   })
 })

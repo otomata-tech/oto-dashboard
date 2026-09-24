@@ -6,6 +6,8 @@
 // Le plafond de réservations (oto-backend#433) se lit ICI aussi : sans lui, l'état
 // d'abandon passait pour un état métier comme un autre, et son compteur montait sans
 // que rien ne dise que c'est la PLATEFORME qui y verse les lignes.
+import { useI18n } from 'vue-i18n'
+
 const props = defineProps<{
   states: string[]
   counts: Record<string, number>
@@ -15,24 +17,24 @@ const props = defineProps<{
   maxClaims?: number | null      // lifecycle.max_claims — le plafond déclaré
 }>()
 const emit = defineEmits<{ select: [state: string | null] }>()
+const { t } = useI18n()
 
 function toggle(state: string) {
   emit('select', props.active === state ? null : state)
 }
 function chipTitle(state: string): string {
-  const filtre = props.active === state ? 'lever le filtre' : `filtrer : ${state}`
+  const filtre = props.active === state ? t('dataUi.status.clear') : t('dataUi.status.filter', { state })
   if (state !== props.abandonState) return filtre
-  const plafond = props.maxClaims
-    ? ` après ${props.maxClaims} réservations sans écriture`
-    : ' à bout de réservations sans écriture'
-  return `état d'abandon : la plateforme y verse une ligne${plafond} — ${filtre}`
+  return props.maxClaims
+    ? t('dataUi.status.abandonAfter', { n: props.maxClaims, filter: filtre })
+    : t('dataUi.status.abandonExhausted', { filter: filtre })
 }
 </script>
 
 <template>
   <div class="dsb">
     <button class="dsb-chip" :class="{ on: active === null }" @click="emit('select', null)">
-      tous <span class="dsb-n">{{ total }}</span>
+      {{ t('dataUi.status.all') }} <span class="dsb-n">{{ total }}</span>
     </button>
     <button v-for="s in states" :key="s" class="dsb-chip"
       :class="{ on: active === s, abandon: !!abandonState && s === abandonState }"
@@ -40,7 +42,7 @@ function chipTitle(state: string): string {
       {{ s }} <span class="dsb-n">{{ counts[s] ?? 0 }}</span>
     </button>
     <span v-if="maxClaims" class="dsb-ceiling">
-      plafond {{ maxClaims }} réservations sans écriture
+      {{ t('dataUi.status.ceiling', { n: maxClaims }) }}
     </span>
   </div>
 </template>

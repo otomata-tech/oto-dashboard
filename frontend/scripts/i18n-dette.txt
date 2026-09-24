@@ -20,7 +20,6 @@ src/components/console/billing/BillingPaymentsCard.vue 6
 src/components/console/billing/BillingPending.vue 5
 src/components/console/billing/BillingPriceCard.vue 5
 src/components/console/billing/BillingUsageCard.vue 8
-src/components/console/ColumnFilterCell.vue 2
 src/components/console/connector-scope/ConnectorAboutPanel.vue 1
 src/components/console/connector-scope/ConnectorConnectionPanel.vue 20
 src/components/console/connector-scope/ConnectorCredentialPanel.vue 7
@@ -52,13 +51,7 @@ src/components/console/ContextPreviewCard.vue 8
 src/components/console/ContextProfileCard.vue 5
 src/components/console/CopyField.vue 1
 src/components/console/CredentialFieldsDialog.vue 9
-src/components/console/DatastoreActivity.vue 8
-src/components/console/DatastoreCards.vue 1
-src/components/console/DatastoreQueueBar.vue 11
-src/components/console/DatastoreStatusBar.vue 3
-src/components/console/DatastoreTable.vue 21
-src/components/console/DatastoreToolbar.vue 3
-src/components/console/DataTable.vue 18
+src/components/console/DatastoreTable.vue 2
 src/components/console/doctrine/ReferencedTools.vue 5
 src/components/console/doctrine/ToolChip.vue 1
 src/components/console/doctrine/UsageCard.vue 6
@@ -93,15 +86,11 @@ src/components/console/PlatformAccessHint.vue 2
 src/components/console/PlatformFinder.vue 7
 src/components/console/ProjectCreateDialog.vue 12
 src/components/console/PromptDialog.vue 2
-src/components/console/RowAbandonNotice.vue 3
-src/components/console/RowActivityList.vue 3
-src/components/console/RowDrawer.vue 17
 src/components/console/RunnerJobDetail.vue 29
 src/components/console/RunnerTriggersCard.vue 1
 src/components/console/SearchOverlay.vue 5
 src/components/console/SecurityCard.vue 22
 src/components/console/SessionExpired.vue 5
-src/components/console/SharePrincipalDialog.vue 15
 src/components/console/SidebarProjectTree.vue 4
 src/components/console/SidebarSpaces.vue 2
 src/components/console/StateError.vue 5
@@ -129,7 +118,7 @@ src/views/console/ConnectorsSharedView.vue 6
 src/views/console/ContextOrgView.vue 20
 src/views/console/ContextPlatformView.vue 14
 src/views/console/ContextView.vue 27
-src/views/console/DataView.vue 39
+src/views/console/DataView.vue 12
 src/views/console/DoctrineView.vue 32
 src/views/console/DocumentsView.vue 1
 src/views/console/GroupsView.vue 16

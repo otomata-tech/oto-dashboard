@@ -14,6 +14,9 @@ import {
   type ColFilterState, type FilterKind,
 } from '@/lib/datastoreFilters'
 import { userFields, defaultColumns } from '@/lib/datastoreColumns'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // Grille SERVER-DRIVEN : tri/pagination/recherche/filtres côté API (le parent fetch).
 // Ce composant n'affiche que la page courante et émet les changements.
@@ -113,7 +116,7 @@ function colWidthClass(col: string): string {
 
 const pageCount = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)))
 const rangeText = computed(() => {
-  if (!props.total) return '0 rows'
+  if (!props.total) return t('dataUi.list.rows', 0)
   const from = props.page * props.pageSize + 1
   const to = Math.min(props.total, (props.page + 1) * props.pageSize)
   return `${from}–${to} / ${props.total}`
@@ -137,8 +140,9 @@ function toggleSort(col: string) {
   else emit('update:sort', DEFAULT_SORT, 'desc')
 }
 function sortTitle(col: string): string {
-  if (props.sortField !== col) return `trier par ${header(col)}`
-  return props.sortDir === 'desc' ? 'tri croissant' : (col === DEFAULT_SORT ? 'inverser' : 'annuler le tri')
+  if (props.sortField !== col) return t('dataUi.list.sortByCol', { col: header(col) })
+  if (props.sortDir === 'desc') return t('dataUi.list.sortAsc')
+  return col === DEFAULT_SORT ? t('dataUi.list.sortReverse') : t('dataUi.list.sortCancel')
 }
 function cellVal(row: DatastoreRow, col: string): unknown { return row[col] }
 
@@ -208,19 +212,19 @@ watch(() => props.filters, (f) => {
 <template>
   <div class="dt">
     <div class="dt-bar">
-      <DatastoreSearchBar :model-value="search" placeholder="search…"
+      <DatastoreSearchBar :model-value="search" :placeholder="t('dataUi.toolbar.search')"
         @update:model-value="(q: string) => emit('update:search', q)" />
       <button class="dt-filter-toggle" :class="{ on: showFilters || activeFilterCount }"
-        :title="showFilters ? 'hide column filters' : 'filter by column'"
+        :title="showFilters ? t('dataUi.list.hideFilters') : t('dataUi.list.showFilters')"
         @click="showFilters = !showFilters">
-        filters<span v-if="activeFilterCount" class="dt-filter-badge">{{ activeFilterCount }}</span>
+        {{ t('dataUi.list.filters') }}<span v-if="activeFilterCount" class="dt-filter-badge">{{ activeFilterCount }}</span>
       </button>
-      <button v-if="activeFilterCount" class="dt-filter-clear" @click="clearFilters">Clear</button>
+      <button v-if="activeFilterCount" class="dt-filter-clear" @click="clearFilters">{{ t('dataUi.list.clear') }}</button>
       <!-- sélecteur de colonnes : ce qui est masqué par défaut reste accessible ici -->
       <span v-if="fields.length" class="dt-cols">
         <button class="dt-filter-toggle" :class="{ on: colsOpen || hiddenCount > 0 }"
-          title="Choisir les colonnes affichées" @click="colsOpen = !colsOpen">
-          colonnes<span v-if="hiddenCount > 0" class="dt-filter-badge">{{ shownFields.length }}/{{ fields.length }}</span>
+          :title="t('dataUi.list.columnsHint')" @click="colsOpen = !colsOpen">
+          {{ t('dataUi.list.columns') }}<span v-if="hiddenCount > 0" class="dt-filter-badge">{{ shownFields.length }}/{{ fields.length }}</span>
         </button>
         <template v-if="colsOpen">
           <span class="dt-cols__scrim" @click="colsOpen = false"></span>
@@ -229,7 +233,7 @@ watch(() => props.filters, (f) => {
               <input type="checkbox" :checked="isShown(k)" @change="toggleCol(k)" />
               <span>{{ header(k) }}</span>
             </label>
-            <div class="dt-cols__sep">dates système</div>
+            <div class="dt-cols__sep">{{ t('dataUi.list.systemDates') }}</div>
             <label v-for="k in META_DATE_FIELDS" :key="k" class="dt-cols__item">
               <input type="checkbox" :checked="isMetaShown(k)" @change="toggleMeta(k)" />
               <span>{{ metaFieldLabel(k) }}</span>
@@ -237,12 +241,12 @@ watch(() => props.filters, (f) => {
             <!-- « Enregistrer comme vue par défaut » (écrire `hidden` au schéma) a quitté le
                  dashboard (oto#192) : le choix de colonnes est un rendu local, dans l'URL. -->
             <button v-if="chosenCols" class="dt-cols__reset" @click="emit('update:cols', null)">
-              Rétablir les colonnes du schéma
+              {{ t('dataUi.list.resetColumns') }}
             </button>
           </div>
         </template>
       </span>
-      <span class="dim dt-count">{{ total }} row{{ total === 1 ? '' : 's' }}</span>
+      <span class="dim dt-count">{{ t('dataUi.list.rows', total) }}</span>
     </div>
 
     <FilterChips :chips="chips" class="dt-chips" @remove="removeChip" />
@@ -287,12 +291,12 @@ watch(() => props.filters, (f) => {
           </tr>
           <tr v-if="!rows.length">
             <td :colspan="columns.length" class="dim" style="text-align: center; padding: 16px">
-              <OtoLoading v-if="loading" label="chargement…" style="justify-content: center" />
+              <OtoLoading v-if="loading" :label="t('common.loading')" style="justify-content: center" />
               <template v-else-if="search || filters.length">
-                no rows match —
-                <button class="dt-clear-inline" @click="clearAll">Clear filters &amp; search</button>
+                {{ t('dataUi.list.noMatch') }} —
+                <button class="dt-clear-inline" @click="clearAll">{{ t('dataUi.list.clearAll') }}</button>
               </template>
-              <template v-else>no rows match.</template>
+              <template v-else>{{ t('dataUi.list.empty') }}</template>
             </td>
           </tr>
         </tbody>
@@ -302,18 +306,18 @@ watch(() => props.filters, (f) => {
     <div v-if="total" class="dt-pager">
       <span class="dim dt-range">{{ rangeText }}</span>
       <div v-if="pageCount > 1" class="dt-pager-nav">
-        <Btn kind="ghost" :disabled="page <= 0" title="première page" @click="emit('update:page', 0)">«</Btn>
-        <Btn kind="ghost" :disabled="page <= 0" @click="emit('update:page', page - 1)">‹ Prev</Btn>
-        <span class="dim">page {{ page + 1 }} / {{ pageCount }}</span>
-        <Btn kind="ghost" :disabled="page >= pageCount - 1" @click="emit('update:page', page + 1)">Next ›</Btn>
-        <Btn kind="ghost" :disabled="page >= pageCount - 1" title="dernière page"
+        <Btn kind="ghost" :disabled="page <= 0" :title="t('dataUi.list.firstPage')" @click="emit('update:page', 0)">«</Btn>
+        <Btn kind="ghost" :disabled="page <= 0" @click="emit('update:page', page - 1)">{{ t('dataUi.list.prev') }}</Btn>
+        <span class="dim">{{ t('dataUi.list.page', { page: page + 1, count: pageCount }) }}</span>
+        <Btn kind="ghost" :disabled="page >= pageCount - 1" @click="emit('update:page', page + 1)">{{ t('dataUi.list.next') }}</Btn>
+        <Btn kind="ghost" :disabled="page >= pageCount - 1" :title="t('dataUi.list.lastPage')"
           @click="emit('update:page', pageCount - 1)">»</Btn>
       </div>
       <label class="dim dt-psize">
         <OtoSelect :model-value="String(pageSize)" size="sm"
           @update:model-value="(v: string) => emit('update:pageSize', Number(v))"
           :options="PAGE_SIZES.map((s) => ({ value: String(s), label: String(s) }))" />
-        / page
+        {{ t('dataUi.list.perPage') }}
       </label>
     </div>
   </div>

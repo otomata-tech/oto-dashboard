@@ -142,6 +142,8 @@ const vider = async () => {
 async function monterSurLeRecu() {
   const hote = document.createElement('div')
   document.body.appendChild(hote)
+  // Les libellés cliqués ci-dessous sont ceux de l'écran en français.
+  i18n.global.locale.value = 'fr'
   createApp(DatastoreTable, { nsRef: String(RECU.id), nsMeta: RECU }).use(i18n).mount(hote)
   await vider()
   return hote
@@ -226,6 +228,6 @@ describe('la désignation du tableau, site par site', () => {
     // de suppression : ils portent le nom, et le correctif ne doit pas les toucher.
     expect(SRC).toContain(':title="name || \'\'"')
     expect(SRC).toContain('downloadCsv(`${nom}.csv`')
-    expect(SRC).toContain('title: `delete "${nom}"?`')
+    expect(SRC).toContain("title: t('dataUi.table.deleteTitle', { name: nom })")
   })
 })

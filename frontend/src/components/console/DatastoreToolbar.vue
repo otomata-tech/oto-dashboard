@@ -15,6 +15,9 @@ import {
   buildFilters, defaultOp, filterChipLabel, columnFilterKind, metaFieldLabel,
   META_DATE_FIELDS, type ColFilterState,
 } from '@/lib/datastoreFilters'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   search: string
@@ -46,7 +49,7 @@ function toggleDir() {
   emit('update:sort', currentSort.value, props.sortDir === 'desc' ? 'asc' : 'desc')
 }
 const dirTitle = computed(() =>
-  props.sortDir === 'desc' ? 'décroissant — cliquer pour croissant' : 'croissant — cliquer pour décroissant')
+  props.sortDir === 'desc' ? t('dataUi.toolbar.desc') : t('dataUi.toolbar.asc'))
 
 // Recherche : local + debounce (mêmes 300 ms que la vue table).
 const searchLocal = ref(props.search)
@@ -97,14 +100,14 @@ function removeChip(field: string) {
     <div class="dsb-row">
       <div class="dsb-search">
         <Icon name="search" :size="14" />
-        <input v-model="searchLocal" class="dsb-search-input" placeholder="rechercher…"
+        <input v-model="searchLocal" class="dsb-search-input" :placeholder="t('dataUi.toolbar.search')"
           @keydown.esc="searchLocal = ''" />
       </div>
 
       <label class="dsb-ctl">
-        <span class="dsb-lbl">trier par</span>
+        <span class="dsb-lbl">{{ t('dataUi.toolbar.sortBy') }}</span>
         <OtoSelect :model-value="currentSort" size="sm" :options="sortOptions"
-          aria-label="champ de tri" @update:model-value="onSortField" />
+          :aria-label="t('dataUi.toolbar.sortField')" @update:model-value="onSortField" />
         <button class="dsb-dir" :title="dirTitle" @click="toggleDir">
           {{ sortDir === 'desc' ? '↓' : '↑' }}
         </button>

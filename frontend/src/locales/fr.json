@@ -1122,5 +1122,213 @@
         "unarchived": "projet désarchivé"
       }
     }
+  },
+  "dataUi": {
+    "filter": {
+      "title": "filtre {field}",
+      "true": "vrai",
+      "false": "faux"
+    },
+    "activity": {
+      "title": "dernières actions",
+      "refresh": "actualiser",
+      "empty": "aucune action enregistrée sur ce tableau.",
+      "openRow": "ouvrir la fiche {id}",
+      "wholeTable": "tout le tableau",
+      "failed": "échec",
+      "retention": "journal de travail (rétention ~{days} j), pas un audit permanent.",
+      "unavailable": "historique indisponible pour le moment."
+    },
+    "abandon": {
+      "head": "sortie de la file",
+      "fix": "Une écriture réussie sur cette ligne efface ce motif et la remet dans la file.",
+      "noReturn": "Le cycle de vie ne déclare aucun retour depuis cet état : le statut, lui, restera celui de l'abandon."
+    },
+    "claims": {
+      "count": "{n} réservation sans écriture | {n} réservations sans écriture",
+      "resets": "{count} — une écriture réussie remet le compteur à zéro",
+      "ceiling": "{count} : plafond atteint — à la libération, la ligne quitte la file",
+      "ceilingTo": "{count} : plafond atteint — à la libération, la ligne quitte la file et passe en « {state} »",
+      "sinceWrite": "{n} réservation sans écriture depuis la dernière écriture réussie | {n} réservations sans écriture depuis la dernière écriture réussie"
+    },
+    "queue": {
+      "head": "file de travail · {n} en cours",
+      "atCeiling": "{n} ligne au plafond — sortie de la file à la prochaine libération sans écriture. | {n} lignes au plafond — sortie de la file à la prochaine libération sans écriture.",
+      "run": "run {run}",
+      "openRun": "ouvrir le travail",
+      "noRun": "bail pris sans run",
+      "expiredHint": "le prochain claim recycle cette row",
+      "expired": "bail expiré",
+      "until": "bail jusqu'à {date}",
+      "releaseHint": "libération forcée (sans garde de worker)",
+      "release": "Libérer"
+    },
+    "cards": {
+      "leaseUntil": "bail de traitement (file de travail) jusqu'à {date}",
+      "inProgress": "en cours · {who}"
+    },
+    "status": {
+      "clear": "lever le filtre",
+      "filter": "filtrer : {state}",
+      "abandonAfter": "état d'abandon : la plateforme y verse une ligne après {n} réservations sans écriture — {filter}",
+      "abandonExhausted": "état d'abandon : la plateforme y verse une ligne à bout de réservations sans écriture — {filter}",
+      "all": "tous",
+      "ceiling": "plafond {n} réservations sans écriture"
+    },
+    "toolbar": {
+      "desc": "décroissant — cliquer pour croissant",
+      "asc": "croissant — cliquer pour décroissant",
+      "search": "rechercher…",
+      "sortBy": "trier par",
+      "sortField": "champ de tri"
+    },
+    "list": {
+      "rows": "{n} ligne | {n} ligne | {n} lignes",
+      "sortByCol": "trier par {col}",
+      "sortAsc": "tri croissant",
+      "sortReverse": "inverser",
+      "sortCancel": "annuler le tri",
+      "hideFilters": "masquer les filtres par colonne",
+      "showFilters": "filtrer par colonne",
+      "filters": "filtres",
+      "clear": "Effacer",
+      "columnsHint": "Choisir les colonnes affichées",
+      "columns": "colonnes",
+      "systemDates": "dates système",
+      "resetColumns": "Rétablir les colonnes du schéma",
+      "noMatch": "aucune ligne ne correspond",
+      "clearAll": "effacer la recherche et les filtres",
+      "empty": "aucune ligne.",
+      "firstPage": "première page",
+      "lastPage": "dernière page",
+      "prev": "‹ préc.",
+      "next": "suiv. ›",
+      "page": "page {page} / {count}",
+      "perPage": "/ page"
+    },
+    "table": {
+      "released": "bail libéré",
+      "rowGone": "fiche introuvable — elle a probablement été supprimée",
+      "saved": "ligne enregistrée",
+      "added": "ligne ajoutée",
+      "deleted": "ligne supprimée",
+      "exported": "{n} ligne exportée | {n} ligne exportée | {n} lignes exportées",
+      "deleteTitle": "supprimer « {name} » ?",
+      "deleteMessage": "le tableau et toutes ses lignes sont supprimés. c'est définitif.",
+      "deletedTable": "tableau « {name} » supprimé",
+      "renamed": "renommé en « {name} »",
+      "transferred": "transféré (tu gardes l'accès en écriture)",
+      "readOnly": "lecture seule",
+      "tableView": "vue table",
+      "cardView": "vue fiches",
+      "hideActivity": "masquer l'activité",
+      "activity": "activité",
+      "exporting": "export en cours…",
+      "exportCsv": "export csv",
+      "addRow": "ajouter une ligne",
+      "share": "partager",
+      "rename": "renommer",
+      "transfer": "transférer",
+      "delete": "supprimer",
+      "typedSchema": "schéma typé",
+      "emptyHint": "aucune ligne pour l'instant — ajoutes-en une ci-dessus, ou tes agents en ajoutent avec {call}.",
+      "noCardMatch": "aucune fiche ne correspond",
+      "noCard": "aucune fiche.",
+      "renameTitle": "renommer le tableau",
+      "newName": "nouveau nom",
+      "openInData": "ouvrir dans Données"
+    },
+    "drawer": {
+      "required": "champ requis",
+      "requiredWhen": "requis quand {when}",
+      "detail": "détail de la ligne",
+      "newRow": "nouvelle ligne",
+      "leaseUntil": "bail de traitement jusqu'à {date}",
+      "claimsMax": "{count} — plafond {max}",
+      "terminal": "état terminal (fin de traitement)",
+      "release": "Libérer le bail",
+      "openLink": "Ouvrir le lien",
+      "noFields": "aucun champ pour l'instant — ajoutes-en un ci-dessous.",
+      "history": "historique de la fiche",
+      "updated": "modifiée {date}",
+      "seeRun": "voir le travail qui la tient",
+      "field": "Champ",
+      "addField": "ajouter un champ",
+      "fieldName": "nom du champ",
+      "fieldPlaceholder": "ex. statut"
+    },
+    "share": {
+      "mode": {
+        "member": "membre de l'org",
+        "team": "équipe",
+        "org": "une de mes orgs",
+        "orgid": "org cliente (id)",
+        "email": "email libre"
+      },
+      "shared": "partagé",
+      "revoked": "accès retiré",
+      "kind": {
+        "team": "équipe",
+        "org": "org",
+        "member": "membre"
+      },
+      "recipientType": "type de destinataire",
+      "pickMember": "choisir un membre…",
+      "pickTeam": "choisir une équipe…",
+      "pickOrg": "choisir une org…",
+      "orgIdPlaceholder": "id de l'org destinataire",
+      "emailPlaceholder": "collègue{'@'}exemple.com",
+      "role": "rôle",
+      "submit": "Partager",
+      "noTeam": "aucune équipe dans ton org active — crée un groupe dans « groupes ».",
+      "orgIdHint": "livraison client : donne l'accès à une org dont tu n'es pas membre, par son id.",
+      "none": "pas encore partagé — choisis un membre, une équipe ou une org."
+    },
+    "view": {
+      "personal": "personnel",
+      "sharedWithMe": "partagé avec moi",
+      "apart": {
+        "both": "tes tableaux personnels et les tableaux partagés avec toi",
+        "personal": "tes tableaux personnels",
+        "received": "les tableaux partagés avec toi"
+      },
+      "context": {
+        "noneBelow": "aucun tableau dans {org} — {apart} sont rangés à part, ci-dessous.",
+        "sharedToOrg": "aucun tableau dans {org} — ceux ci-dessous lui sont partagés.",
+        "sharedToOrgApart": "aucun tableau dans {org} — ceux ci-dessous lui sont partagés ; {apart} sont rangés à part."
+      },
+      "owner": {
+        "org": "org",
+        "team": "équipe",
+        "shared": "partagé · {permission}",
+        "personal": "personnel"
+      },
+      "title": "tableaux",
+      "sub": "stockage en tableaux que tes agents lisent et écrivent avec les outils data_*.",
+      "new": "nouveau",
+      "sharedBy": "partagé par {who}",
+      "typed": "typé",
+      "empty": "aucun tableau pour l'instant — crées-en un pour que tes agents y rangent des lignes.",
+      "notFoundTitle": "tableau introuvable ici",
+      "notFound": "ce tableau n'apparaît pas dans le contexte où tu es. il appartient peut-être à une {other} — cette liste ne montre que celle où tu navigues, essaie d'en changer. sinon il a été supprimé, ou rien ne t'y donne accès : demande à son propriétaire de te le partager, à toi, à ton organisation ou à ton équipe.",
+      "otherOrg": "autre organisation",
+      "pickTitle": "choisis un tableau",
+      "pick": "choisis un tableau à gauche pour voir ses lignes.",
+      "howTitle": "comment les agents s'en servent",
+      "howIntro": "des tableaux sans schéma que tes agents lisent et écrivent en langage naturel — aucune colonne à définir d'avance, les nouveaux champs apparaissent dès qu'ils sont écrits.",
+      "verbs": {
+        "write": "écrire",
+        "writeDesc": "{call} ajoute une ligne · passe un {id} pour ne modifier que les champs donnés · une nouvelle clé crée sa colonne.",
+        "read": "lire",
+        "readDesc": "{call} liste les lignes (filtre exact + limite), ou en lit une par son {id}.",
+        "organize": "organiser",
+        "organizeDesc": "{create} / {list} gèrent les tableaux · {schema} transforme un tableau plat en fiches typées.",
+        "share": "partager",
+        "shareDesc": "{call} donne l'accès à un collègue sous son propre compte · {row} / {table} font le ménage.",
+        "see": "voir",
+        "seeDesc": "{app} affiche un tableau triable dans la conversation · {url} renvoie vers cette page."
+      },
+      "created": "tableau « {name} » créé"
+    }
   }
 }

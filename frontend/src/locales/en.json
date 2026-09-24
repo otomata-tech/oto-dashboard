@@ -1122,5 +1122,213 @@
         "unarchived": "project unarchived"
       }
     }
+  },
+  "dataUi": {
+    "filter": {
+      "title": "filter {field}",
+      "true": "true",
+      "false": "false"
+    },
+    "activity": {
+      "title": "latest actions",
+      "refresh": "refresh",
+      "empty": "no action recorded on this table.",
+      "openRow": "open record {id}",
+      "wholeTable": "whole table",
+      "failed": "failed",
+      "retention": "working log (kept ~{days} days), not a permanent audit.",
+      "unavailable": "history unavailable for now."
+    },
+    "abandon": {
+      "head": "out of the queue",
+      "fix": "A successful write on this row clears this reason and puts it back in the queue.",
+      "noReturn": "The lifecycle declares no way back from this state: the status itself will stay the abandoned one."
+    },
+    "claims": {
+      "count": "{n} claim without a write | {n} claims without a write",
+      "resets": "{count} — a successful write resets the counter",
+      "ceiling": "{count}: ceiling reached — on release, the row leaves the queue",
+      "ceilingTo": "{count}: ceiling reached — on release, the row leaves the queue and moves to “{state}”",
+      "sinceWrite": "{n} claim without a write since the last successful write | {n} claims without a write since the last successful write"
+    },
+    "queue": {
+      "head": "work queue · {n} in progress",
+      "atCeiling": "{n} row at the ceiling — it leaves the queue at the next release without a write. | {n} rows at the ceiling — they leave the queue at the next release without a write.",
+      "run": "run {run}",
+      "openRun": "open the job",
+      "noRun": "lease taken without a run",
+      "expiredHint": "the next claim recycles this row",
+      "expired": "lease expired",
+      "until": "lease until {date}",
+      "releaseHint": "forced release (no worker guard)",
+      "release": "Release"
+    },
+    "cards": {
+      "leaseUntil": "processing lease (work queue) until {date}",
+      "inProgress": "in progress · {who}"
+    },
+    "status": {
+      "clear": "clear the filter",
+      "filter": "filter: {state}",
+      "abandonAfter": "abandon state: the platform moves a row here after {n} claims without a write — {filter}",
+      "abandonExhausted": "abandon state: the platform moves a row here once it runs out of claims without a write — {filter}",
+      "all": "all",
+      "ceiling": "ceiling {n} claims without a write"
+    },
+    "toolbar": {
+      "desc": "descending — click for ascending",
+      "asc": "ascending — click for descending",
+      "search": "search…",
+      "sortBy": "sort by",
+      "sortField": "sort field"
+    },
+    "list": {
+      "rows": "{n} rows | {n} row | {n} rows",
+      "sortByCol": "sort by {col}",
+      "sortAsc": "sort ascending",
+      "sortReverse": "reverse",
+      "sortCancel": "cancel sorting",
+      "hideFilters": "hide column filters",
+      "showFilters": "filter by column",
+      "filters": "filters",
+      "clear": "Clear",
+      "columnsHint": "Choose the displayed columns",
+      "columns": "columns",
+      "systemDates": "system dates",
+      "resetColumns": "Restore the schema columns",
+      "noMatch": "no rows match",
+      "clearAll": "Clear filters & search",
+      "empty": "no rows match.",
+      "firstPage": "first page",
+      "lastPage": "last page",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "page": "page {page} / {count}",
+      "perPage": "/ page"
+    },
+    "table": {
+      "released": "lease released",
+      "rowGone": "record not found — it was probably deleted",
+      "saved": "row saved",
+      "added": "row added",
+      "deleted": "row deleted",
+      "exported": "{n} rows exported | {n} row exported | {n} rows exported",
+      "deleteTitle": "delete \"{name}\"?",
+      "deleteMessage": "the datastore and all its rows are removed. this cannot be undone.",
+      "deletedTable": "datastore \"{name}\" deleted",
+      "renamed": "renamed to \"{name}\"",
+      "transferred": "transferred (you keep write access)",
+      "readOnly": "read-only",
+      "tableView": "table view",
+      "cardView": "card view",
+      "hideActivity": "hide activity",
+      "activity": "activity",
+      "exporting": "exporting…",
+      "exportCsv": "export csv",
+      "addRow": "add a row",
+      "share": "share",
+      "rename": "rename",
+      "transfer": "transfer",
+      "delete": "delete",
+      "typedSchema": "typed schema",
+      "emptyHint": "no rows yet — add one above, or your agents add some with {call}.",
+      "noCardMatch": "no record matches",
+      "noCard": "no records.",
+      "renameTitle": "rename the table",
+      "newName": "new name",
+      "openInData": "open in Data"
+    },
+    "drawer": {
+      "required": "required field",
+      "requiredWhen": "required when {when}",
+      "detail": "row detail",
+      "newRow": "new row",
+      "leaseUntil": "processing lease until {date}",
+      "claimsMax": "{count} — ceiling {max}",
+      "terminal": "terminal state (end of processing)",
+      "release": "Release the lease",
+      "openLink": "Open the link",
+      "noFields": "no fields yet — add one below.",
+      "history": "record history",
+      "updated": "updated {date}",
+      "seeRun": "see the job holding it",
+      "field": "Field",
+      "addField": "add field",
+      "fieldName": "field name",
+      "fieldPlaceholder": "e.g. status"
+    },
+    "share": {
+      "mode": {
+        "member": "org member",
+        "team": "team",
+        "org": "one of my orgs",
+        "orgid": "client org (id)",
+        "email": "any email"
+      },
+      "shared": "shared",
+      "revoked": "access removed",
+      "kind": {
+        "team": "team",
+        "org": "org",
+        "member": "member"
+      },
+      "recipientType": "recipient type",
+      "pickMember": "choose a member…",
+      "pickTeam": "choose a team…",
+      "pickOrg": "choose an org…",
+      "orgIdPlaceholder": "recipient org id",
+      "emailPlaceholder": "colleague{'@'}example.com",
+      "role": "role",
+      "submit": "Share",
+      "noTeam": "no team in your active org — create a group in “groups”.",
+      "orgIdHint": "client delivery: give access to an org you are not a member of, by its id.",
+      "none": "not shared yet — choose a member, a team or an org."
+    },
+    "view": {
+      "personal": "personal",
+      "sharedWithMe": "shared with me",
+      "apart": {
+        "both": "your personal tables and the tables shared with you",
+        "personal": "your personal tables",
+        "received": "the tables shared with you"
+      },
+      "context": {
+        "noneBelow": "no table in {org} — {apart} are listed separately, below.",
+        "sharedToOrg": "no table in {org} — the ones below are shared with it.",
+        "sharedToOrgApart": "no table in {org} — the ones below are shared with it; {apart} are listed separately."
+      },
+      "owner": {
+        "org": "org",
+        "team": "team",
+        "shared": "shared · {permission}",
+        "personal": "personal"
+      },
+      "title": "datastores",
+      "sub": "tabular storage your agents read & write through data_* tools.",
+      "new": "new",
+      "sharedBy": "shared by {who}",
+      "typed": "typed",
+      "empty": "no datastores yet — create one to let your agents store rows.",
+      "notFoundTitle": "table not found here",
+      "notFound": "this table does not appear in your current context. it may belong to {other} — this list only shows the one you are browsing, try switching. otherwise it was deleted, or nothing gives you access: ask its owner to share it with you, your organization or your team.",
+      "otherOrg": "another organization",
+      "pickTitle": "pick a datastore",
+      "pick": "select a datastore on the left to view its rows.",
+      "howTitle": "how agents use this",
+      "howIntro": "schema-free tables your agents read and write in plain language — no columns to define upfront, new fields just appear as they're written.",
+      "verbs": {
+        "write": "write",
+        "writeDesc": "{call} appends a row · pass an {id} to update only the fields you give · new keys auto-create their columns.",
+        "read": "read",
+        "readDesc": "{call} lists rows (exact-match filter + limit), or fetches one by {id}.",
+        "organize": "organize",
+        "organizeDesc": "{create} / {list} manage tables · {schema} turns a flat table into typed cards.",
+        "share": "share",
+        "shareDesc": "{call} gives a teammate access under their own account · {row} / {table} clean up.",
+        "see": "see it",
+        "seeDesc": "{app} renders a sortable table right in the chat · {url} links back to this page."
+      },
+      "created": "datastore \"{name}\" created"
+    }
   }
 }

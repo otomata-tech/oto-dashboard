@@ -33,9 +33,7 @@ watch(() => props.rowId, async (rowId) => {
 </script>
 
 <template>
-  <p v-if="activityFailed" class="dim rd-activity-state">
-    historique indisponible pour le moment.
-  </p>
+  <p v-if="activityFailed" class="dim rd-activity-state">{{ t('dataUi.activity.unavailable') }}</p>
   <p v-else-if="activity && !activity.length" class="dim rd-activity-state" data-test="activity-empty">
     {{ t('rowActivity.emptyRow') }}
   </p>
@@ -47,12 +45,12 @@ watch(() => props.rowId, async (rowId) => {
       <span class="dim">{{ actorOf(a) }}</span>
       <span v-if="a.doctrine" class="dim">· {{ a.doctrine }}</span>
       <code v-if="a.tool" class="mono rd-activity-tool">{{ a.tool }}</code>
-      <span v-if="!a.ok" class="rd-activity-err" :title="a.error ?? undefined">échec</span>
+      <span v-if="!a.ok" class="rd-activity-err" :title="a.error ?? undefined">{{ t('dataUi.activity.failed') }}</span>
     </li>
   </ul>
   <p v-else class="dim rd-activity-state">{{ $t('common.loading') }}</p>
   <p v-if="activity && activity.length" class="rd-activity-note dim">
-    journal de travail (rétention ~30 j), pas un audit permanent.
+    {{ t('dataUi.activity.retention', { days: 30 }) }}
   </p>
 </template>
 
