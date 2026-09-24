@@ -16,11 +16,12 @@ const api = vi.hoisted(() => ({
 vi.mock('@/api/console', () => api)
 
 import UsageView from './UsageView.vue'
+import { i18n } from '@/lib/i18n'
 
 async function monter(props: Record<string, unknown>) {
   const host = document.createElement('div')
   const app = createApp({ render: () => h(UsageView as never, props) })
-  app.mount(host)
+  app.use(i18n).mount(host)
   for (let i = 0; i < 4; i++) { await new Promise((r) => setTimeout(r, 0)); await nextTick() }
   return app
 }

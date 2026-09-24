@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { createApp, h, nextTick } from 'vue'
 import ConsoleTable from './ConsoleTable.vue'
 import SortTh from './SortTh.vue'
+import { i18n } from '@/lib/i18n'
 
 type Row = { name: string; n: number | null }
 const ROWS: Row[] = [{ name: 'Céleste', n: 3 }, { name: 'bob', n: null }, { name: 'Alice', n: 10 }]
@@ -18,7 +19,7 @@ async function monter() {
     head: ({ sort }: { sort: unknown }) => [h(SortTh as never, { k: 'nom', sort }, () => 'nom'), h(SortTh as never, { k: 'n', sort }, () => 'n')],
     row: ({ row }: { row: Row }) => h('tr', [h('td', row.name)]),
   }) })
-  app.mount(host)
+  app.use(i18n).mount(host)
   await nextTick()
   const noms = () => [...host.querySelectorAll('tbody td')].map((td) => td.textContent)
   return { host, noms, app }

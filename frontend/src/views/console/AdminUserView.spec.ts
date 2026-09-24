@@ -12,6 +12,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { usePrompt } from '@/composables/usePrompt'
+import { i18n } from '@/lib/i18n'
 
 const sent: { path: string; method: string }[] = []
 
@@ -78,7 +79,7 @@ async function mountView() {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const app = createApp(View)
-  app.use(router)
+  app.use(router).use(i18n)
   app.mount(host)
   await settle()
   return { host, router, unmount: () => { app.unmount(); host.remove() } }
