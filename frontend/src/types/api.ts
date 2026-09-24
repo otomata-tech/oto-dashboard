@@ -944,10 +944,33 @@ export interface RewritableRow extends DatastoreRow {
 // Les champs enrichis (`row_id`/`row_title`/`fields`/`from_status`/`to_status`)
 // valent null/[] sur les lignes journalisées AVANT l'élargissement (aucune
 // migration de données) — l'affichage doit rester lisible sans eux.
+// M3 (oto#273) : le parcours d'une ligne lit le JOURNAL DES RÉVISIONS. Quatre champs
+// FACULTATIFS (absents d'un backend antérieur) : `geste_id`, `source`, `acteur`,
+// `revisions` — les valeurs avant/après que ce geste a écrites. `kind='revision'`
+// (`tool: null`) = une écriture qu'aucun appel ne porte (upload, formules, maintenance).
+// Le journal ne couvre que les écritures faites depuis le 24/09/2026.
+export type RowWriteSource = 'import' | 'agent' | 'console' | 'api' | 'upload' | 'system'
+
+// Une colonne dans un diff de révision : une clé ABSENTE d'un côté n'y existait pas
+// (`{apres}` = ajout, `{avant}` = retrait) ; `null` est une valeur. Valeur ENTIÈRE,
+// couches comprises.
+export interface RevisionColumnDiff { avant?: unknown; apres?: unknown }
+
+export interface RowRevision {
+  id?: number
+  rev: number
+  at: string
+  acteur: string | null
+  run_id?: string | null
+  source: RowWriteSource | null
+  geste_id: string | null
+  diff: Record<string, RevisionColumnDiff> | null
+}
+
 export interface RowActivityEntry {
   created_at: string
-  kind: 'rest' | 'mcp'
-  tool: string
+  kind: 'rest' | 'mcp' | 'revision'
+  tool: string | null
   ok: boolean
   error: string | null
   sub: string | null
@@ -961,6 +984,11 @@ export interface RowActivityEntry {
   fields: string[]
   from_status: string | null
   to_status: string | null
+  geste_id?: string | null
+  source?: RowWriteSource | null
+  acteur?: string | null
+  // plus récente d'abord
+  revisions?: RowRevision[]
 }
 
 // Filtre par colonne de la vue tableau datastore (oto-dashboard#18). Combinés AND,

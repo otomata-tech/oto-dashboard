@@ -664,5 +664,10 @@
     "linkPh": "link (source, evidence…)",
     "linkLabel": "link",
     "open": "+ comment or link"
+  },
+  "rowActivity": {
+    "emptyRow": "nothing in this record's history. The value log only covers writes made since 2026-09-24: anything earlier is not in it.",
+    "origin": { "console": "console", "agent": "agent", "import": "import", "api": "API", "upload": "file", "system": "system", "unknown": "no call" },
+    "value": { "absent": "(absent)", "null": "null", "withNote": "+ note", "withLink": "+ link" }
   }
 }

@@ -7,17 +7,20 @@
 // ouvrir quoi que ce soit. Un geste de console et un appel d'agent se distinguent
 // au badge d'origine.
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Tag from './Tag.vue'
+import ActivityChange from './ActivityChange.vue'
 import Btn from './Btn.vue'
 import OtoLoading from './OtoLoading.vue'
 import { getNamespaceActivity } from '@/api/console'
 import type { RowActivityEntry } from '@/types/api'
 import { absDate, relDate } from '@/lib/cellRender'
-import { actorOf, changeOf, originLabel, originTone, rowLabelOf, whenOf } from '@/lib/rowActivity'
+import { actorOf, originLabel, originTone, rowLabelOf, whenOf } from '@/lib/rowActivity'
 import { humanize } from '@/lib/errors'
 
 const props = defineProps<{ datastore: string }>()
 const emit = defineEmits<{ open: [rowId: string] }>()
+const { t } = useI18n()
 
 const entries = ref<RowActivityEntry[]>([])
 const retention = ref<number | null>(null)
@@ -54,13 +57,13 @@ defineExpose({ load })
     <ul v-else class="da-list">
       <li v-for="(a, i) in entries" :key="i" :class="{ err: !a.ok }">
         <span class="da-when mono dim" :title="absDate(whenOf(a))">{{ relDate(whenOf(a)) }}</span>
-        <Tag :tone="originTone(a)">{{ originLabel(a) }}</Tag>
+        <Tag :tone="originTone(a)">{{ originLabel(a, t) }}</Tag>
         <button v-if="a.row_id" class="da-row" :title="`ouvrir la fiche ${a.row_id}`"
           @click="emit('open', a.row_id!)">{{ rowLabelOf(a) }}</button>
         <span v-else class="dim da-norow">tout le tableau</span>
-        <span v-if="changeOf(a)" class="da-change">{{ changeOf(a) }}</span>
+        <ActivityChange :entry="a" />
         <span class="da-who dim">{{ actorOf(a) }}</span>
-        <code class="mono da-tool">{{ a.tool }}</code>
+        <code v-if="a.tool" class="mono da-tool">{{ a.tool }}</code>
         <span v-if="!a.ok" class="da-fail" :title="a.error ?? undefined">échec</span>
       </li>
     </ul>
@@ -92,10 +95,6 @@ defineExpose({ load })
 }
 .da-row:hover { text-decoration: underline; }
 .da-norow { font-size: 11.5px; }
-.da-change {
-  font-size: 11.5px; color: var(--color-ink);
-  background: var(--color-paper-2); border-radius: var(--radius-md); padding: 1px 7px;
-}
 .da-who { font-size: 11.5px; }
 .da-tool { font-size: 10.5px; color: var(--color-faint); margin-left: auto; }
 .da-fail { font-size: 10px; color: var(--color-terra-ink); border: 1px solid currentColor; border-radius: var(--radius-pill); padding: 0 6px; }

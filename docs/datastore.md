@@ -283,6 +283,29 @@ de vie, qui écrivent toujours leur seule colonne sans précondition de révisio
 Bancs : `lib/rowDraft.spec.ts` (pur), `components/console/rowEditor.spec.ts` (monté contre
 un faux store à compare-and-set, qui juge l'état du store et les requêtes parties).
 
+## Le parcours d'une ligne lit le journal des révisions (oto#273, M3)
+
+`…/rows/{id}/activity` sert, en plus des champs d'appel, quatre champs **facultatifs** —
+`geste_id`, `source`, `acteur`, `revisions` (`[{rev, at, acteur, source, geste_id, diff:
+{colonne: {avant?, apres?}}}]`, plus récente d'abord) — et une entrée `kind: 'revision'`
+(`tool: null`) pour une écriture qu'aucun appel ne porte (upload, formules, maintenance).
+
+- **Origine** (`lib/rowActivity.ts`, `originOf`/`originLabel`/`originTone`) : `source` fait
+  foi (`console` cobalt, `agent` olive, `import`/`upload` saffron, `api`/`system` ink).
+  Sans elle, l'ancienne règle (`rest` = console, `mcp` = agent) ; une `revision` sans
+  source est « hors appel », jamais « agent ». Une source inconnue du front s'affiche brute.
+- **Changement** (`components/console/ActivityChange.vue`, `valueChangesOf`) : avec
+  `revisions`, une pastille par colonne « avant → après » — `valeur` déballée, `comment`/
+  `link` en infobulle (+ note / + lien), listes à trois éléments puis `+N`, texte borné à
+  60 caractères (entier en infobulle), `@empty` = « vide assumé », clé absente = « (absent) ».
+  Un geste de plusieurs révisions : l'avant de la plus ancienne, l'après de la plus récente.
+  Sans `revisions` (backend antérieur, lecture) : transition d'état ou noms de colonnes.
+  Partagé par `RowActivityList` et `DatastoreActivity`.
+- **Le vide** dit que le journal des valeurs ne couvre que les écritures faites depuis le
+  24/09/2026 : une fiche sans entrée n'est pas une fiche jamais modifiée.
+
+Bancs : `lib/rowActivity.spec.ts` (pur), `components/console/RowActivityList.spec.ts` (monté).
+
 ## La file de travail d'un tableau, et le run qui tient une ligne
 
 Le bandeau de supervision (`DatastoreQueueBar.vue`, ADR 0046 D) liste les lignes **sous

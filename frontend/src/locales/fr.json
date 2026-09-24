@@ -664,5 +664,10 @@
     "linkPh": "lien (source, preuve…)",
     "linkLabel": "lien",
     "open": "+ commentaire ou lien"
+  },
+  "rowActivity": {
+    "emptyRow": "rien dans le parcours de cette fiche. Le journal des valeurs ne couvre que les écritures faites depuis le 24/09/2026 : ce qui précède n'y figure pas.",
+    "origin": { "console": "console", "agent": "agent", "import": "import", "api": "API", "upload": "fichier", "system": "système", "unknown": "hors appel" },
+    "value": { "absent": "(absent)", "null": "null", "withNote": "+ note", "withLink": "+ lien" }
   }
 }
