@@ -213,6 +213,54 @@ describe('les cases renvoyées intactes', () => {
     const b = brouillonDeLigne(champs(ligne), ligne)
     elements(b, 'contacts')[0]!.textes.nom = 'muté'
     expect((ligne.contacts as Ligne[])[0]!.nom).toBe('Alice')
-    expect(elementSaisi(undefined)).toEqual({ lu: undefined, textes: {}, vides: {} })
+    expect(elementSaisi(undefined)).toEqual({ lu: undefined, textes: {}, vides: {}, couches: {} })
+  })
+})
+
+// Couches d'une case (oto#216) : le commentaire et le lien s'éditent ; l'écriture ne part que
+// pour la colonne touchée, avec la valeur relue inchangée ; une couche vidée est omise.
+describe('les couches d’une case (oto#216)', () => {
+  const champsSimples = [{ key: 'ville', label: 'ville', type: 'text', declared: true, field: { key: 'ville', type: 'text' } }] as never
+
+  it('modifier seulement le commentaire : une colonne, valeur et lien relus inchangés, sans origine', () => {
+    const lu = { ville: { valeur: 'Paris', comment: 'siège', link: 'https://x.fr', origine: 'sirene' }, autre: 'garde' }
+    const b = brouillonDeLigne(champsSimples, lu)
+    b.couches.ville = { comment: 'siège social', link: 'https://x.fr' }
+    expect(correctif(champsSimples, lu, b)).toEqual({ ville: { valeur: 'Paris', comment: 'siège social', link: 'https://x.fr' } })
+  })
+
+  it('vider un commentaire l’omet : écrit sans lui, il tombe', () => {
+    const lu = { ville: { valeur: 'Paris', comment: 'siège' } }
+    const b = brouillonDeLigne(champsSimples, lu)
+    b.couches.ville = { comment: '', link: '' }
+    expect(correctif(champsSimples, lu, b)).toEqual({ ville: { valeur: 'Paris' } })
+  })
+
+  it('ajouter un lien à une case nue l’enveloppe', () => {
+    const lu = { ville: 'Paris' }
+    const b = brouillonDeLigne(champsSimples, lu)
+    b.couches.ville = { comment: '', link: 'https://annuaire.fr' }
+    expect(correctif(champsSimples, lu, b)).toEqual({ ville: { valeur: 'Paris', link: 'https://annuaire.fr' } })
+  })
+
+  it('aucune modification : rien ne part', () => {
+    const lu = { ville: { valeur: 'Paris', comment: 'siège' } }
+    expect(correctif(champsSimples, lu, brouillonDeLigne(champsSimples, lu))).toEqual({})
+  })
+
+  it('pas de couche sur une case vide', () => {
+    const lu = {}
+    const b = brouillonDeLigne(champsSimples, lu)
+    b.couches.ville = { comment: 'note', link: '' }
+    expect(correctif(champsSimples, lu, b)).toEqual({})
+  })
+
+  it('dans un élément de liste : la cellule part avec sa couche, l’élément reste entier', () => {
+    const ligne = LUE()
+    const b = brouillonDeLigne(champs(ligne), ligne)
+    const e = elements(b, 'contacts')[0]!
+    e.couches = { ...e.couches, nom: { comment: 'vu au salon', link: '' } }
+    const c = correctif(champs(ligne), ligne, b) as Record<string, Ligne[]>
+    expect((c.contacts as Ligne[])[0]!.nom).toEqual({ valeur: 'Alice', comment: 'vu au salon' })
   })
 })

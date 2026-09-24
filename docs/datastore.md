@@ -265,6 +265,15 @@ Désormais, pour une ligne existante et modifiable (`composables/useRowEditor.ts
     gabarit ; la fiche (`erreursDe`) retrouve l'élément — par son identité dans la saisie
     s'il le faut — et `SubRecordEditor` affiche « à corriger : attendu <gabarit> » sous le
     sous-champ exact. Sans charge, le repli en tête de fiche reste.
+- **Couches d'une case** (oto#216, 24/09/2026) : le commentaire et le lien d'une case
+  s'éditent dans la fiche (`CellLayers.vue`), sur une colonne comme dans une cellule d'élément
+  de liste ; l'origine se lit, jamais ne s'écrit. Le brouillon porte `couches` par case
+  (`lib/rowDraft.ts`) ; modifier seulement un commentaire envoie cette seule colonne, avec la
+  valeur relue inchangée et l'autre couche telle quelle (`caseAvecCouches`, `lib/rowCells.ts`).
+  Une couche vidée est **omise** — écrite sans elle, elle tombe (contrat oto#204), sans
+  marqueur à inventer. Pas de couche sur une case vide ; une valeur effacée part en `null` nu,
+  couches comprises. Après un conflit, garder son brouillon ne reprend ses couches que si la
+  personne les a modifiées : sinon celles de la version relue restent (`rowConflict.ts`).
   - `row_invalid` et `row_locked` sont rendus par `POST rows` et `PATCH rows/{id}` mais
     ne sont pas déclarés dans l'OpenAPI : ils se lisent dans l'enveloppe générique
     `{error, detail, details}` (`ApiError`), sans type servi.

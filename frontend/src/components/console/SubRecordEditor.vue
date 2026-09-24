@@ -14,6 +14,8 @@ import { computed } from 'vue'
 import Btn from './Btn.vue'
 import Icon from './Icon.vue'
 import VideAssumeToggle from './VideAssumeToggle.vue'
+import CellLayers from './CellLayers.vue'
+import type { Couches } from '@/lib/rowCells'
 import type { DatastoreField } from '@/types/api'
 import { subFieldsOf } from '@/lib/datastoreForm'
 import {
@@ -61,6 +63,10 @@ function setItemEmpty(idx: number, key: string, actif: boolean) {
   if (!e) return
   replace(idx, { ...e, textes: actif ? { ...e.textes, [key]: '' } : e.textes, vides: { ...e.vides, [key]: actif } })
 }
+function setItemLayers(idx: number, key: string, c: Couches) {
+  const e = items.value[idx]
+  if (e) replace(idx, { ...e, couches: { ...e.couches, [key]: c } })
+}
 function addItem() {
   const m = props.modelValue
   if (m.sorte === 'elements') emit('update:modelValue', { sorte: 'elements', elements: [...m.elements, elementSaisi(undefined)] })
@@ -104,6 +110,9 @@ function onScalarText(e: Event) {
               @input="setItemField(i, k.key, ($event.target as HTMLInputElement).value)" />
             <VideAssumeToggle v-if="accepteVideSousChamp(field, k.key)" :model-value="!!item.vides[k.key]"
               @update:model-value="setItemEmpty(i, k.key, $event)" />
+            <!-- couches de la cellule (oto#216) : sur un élément relu, pas sur un élément neuf -->
+            <CellLayers v-if="item.lu !== undefined" class="sre-layers" :model-value="item.couches[k.key]"
+              editable @update:model-value="setItemLayers(i, k.key, $event)" />
             <p v-if="erreurs?.[i]?.[k.key]" class="sre-err" role="alert">{{ erreurs[i]![k.key] }}</p>
           </div>
         </template>
@@ -132,6 +141,7 @@ function onScalarText(e: Event) {
 .sre-k { font-size: 10.5px; color: var(--color-mute); }
 .sre-req { color: var(--color-terra-ink); margin-left: 2px; }
 .sre-cell { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.sre-layers { flex-basis: 100%; }
 .sre-err { flex-basis: 100%; margin: 0; font-size: 11px; color: var(--color-terra-ink); }
 .sre-inp {
   width: 100%; min-width: 0; font: inherit; font-size: 12px; padding: 3px 6px;

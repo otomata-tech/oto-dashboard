@@ -15,6 +15,7 @@ import Tag from './Tag.vue'
 import OtoSelect from './OtoSelect.vue'
 import FormDialog from './FormDialog.vue'
 import SubRecordEditor from './SubRecordEditor.vue'
+import CellLayers from './CellLayers.vue'
 import ModalOverlay from './ModalOverlay.vue'
 import RowAbandonNotice from './RowAbandonNotice.vue'
 import RowActivityList from './RowActivityList.vue'
@@ -61,7 +62,8 @@ const {
   scalars, empties, composites, champs: editFields, basculerVide,
   etat, echecLecture, refus, echecEcriture, echecRelecture, envoi,
   ouvrir, rouvrir, fermer, aAjouter, enregistrer, relire,
-  choix, opposees, tranche, choisir, reprendre, refusDuChamp, refusHorsChamp, fautesDeColonne,
+  choix, opposees, tranche, choisir, reprendre, refusDuChamp, refusHorsChamp, erreursDeColonne,
+  couches, origineDe,
 } = useRowEditor({
   schema: () => props.schema,
   ligne: () => props.row,
@@ -136,26 +138,9 @@ function erreurDe(cle: string): string | null {
   return r.chemin && r.chemin !== cle ? `${r.chemin} — ${raison}` : raison
 }
 
-/** Les fautes d'une colonne composite, par élément puis par sous-champ (oto#219). Un élément
- * désigné par son identité (`[clé, valeur]`) est retrouvé dans la saisie ; un objet (pas une
- * liste) n'a qu'un élément, le rang 0. */
-function erreursDe(cle: string): Record<number, Record<string, string>> {
-  const out: Record<number, Record<string, string>> = {}
-  const saisie = composites.value[cle]
-  for (const f of fautesDeColonne(cle)) {
-    if (!f.champ) continue
-    let rang = f.element
-    if (rang == null && f.identite && saisie?.sorte === 'elements') {
-      const [k, v] = f.identite
-      const i = saisie.elements.findIndex((e) => (e.textes[k] ?? '') === v)
-      rang = i >= 0 ? i : null
-    }
-    if (rang == null && saisie?.sorte === 'objet') rang = 0
-    if (rang == null) continue
-    ;(out[rang] ??= {})[f.champ] = f.attendu ? t('rowEditor.expected', { attendu: f.attendu }) : t('rowEditor.invalidField')
-  }
-  return out
-}
+const erreurAttendue = (a: string | null) => (a ? t('rowEditor.expected', { attendu: a }) : t('rowEditor.invalidField'))
+const aDesCouches = (cle: string) => (editable.value && !props.isNew) // couches (oto#216) : ligne relue, ou existantes
+  || !!(couches.value[cle]?.comment || couches.value[cle]?.link || origineDe(cle))
 
 function isLong(key: string): boolean {
   const v = scalars.value[key] ?? ''
@@ -370,6 +355,7 @@ function applyTransition(state: string) {
                 <!-- valeur ISO non déclarée `date` : on la rend lisible sans la modifier -->
                 <span v-if="dateHint(d)" class="rd-hint">{{ dateHint(d) }}</span>
               </template>
+              <CellLayers v-if="aDesCouches(d.key)" v-model="couches[d.key]" :editable="editable" :origine="origineDe(d.key)" />
               <p v-if="erreurDe(d.key)" class="rd-err" role="alert">{{ erreurDe(d.key) }}</p>
             </div>
           </div>
@@ -379,7 +365,7 @@ function applyTransition(state: string) {
             <label class="rd-label">{{ d.label }}<span v-if="d.required" class="rd-req"
                 title="champ requis">*</span></label>
             <p v-if="!editable" class="rd-readval">{{ readVal(d.key) }}</p>
-            <SubRecordEditor v-else-if="composites[d.key]" :field="d.field!" :erreurs="erreursDe(d.key)"
+            <SubRecordEditor v-else-if="composites[d.key]" :field="d.field!" :erreurs="erreursDeColonne(d.key, erreurAttendue)"
               :model-value="composites[d.key]!" @update:model-value="composites[d.key] = $event" />
             <p v-if="erreurDe(d.key)" class="rd-err" role="alert">{{ erreurDe(d.key) }}</p>
           </div>
@@ -396,6 +382,7 @@ function applyTransition(state: string) {
             <p v-if="!editable" class="rd-readval">{{ readVal(d.key) }}</p>
             <textarea v-else v-model="scalars[d.key]" class="rd-input rd-area" rows="4"
               :placeholder="d.label" />
+            <CellLayers v-if="aDesCouches(d.key)" v-model="couches[d.key]" :editable="editable" :origine="origineDe(d.key)" />
             <p v-if="erreurDe(d.key)" class="rd-err" role="alert">{{ erreurDe(d.key) }}</p>
           </div>
 

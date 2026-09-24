@@ -20,8 +20,11 @@
 //      sauf son attribut d'identité (`of.key`). Retirer le vide assumé sans valeur = `null`.
 import type { DatastoreField } from '@/types/api'
 import {
-  VIDE_ASSUME, avecCouches, caseIntacte, copie, estVideAssume, valeurDe,
+  VIDE_ASSUME, avecCouches, caseAvecCouches, caseIntacte, copie, couchesDe, estVideAssume,
+  memesCouches, valeurDe, type Couches,
 } from './rowCells'
+
+const SANS_COUCHES: Couches = { comment: '', link: '' }
 import { isComposite, isSubRecordList, payloadValue, scalarDraft, type FieldDesc } from './datastoreForm'
 
 /** Saisie d'un élément de liste (ou d'un objet) : un texte et un vide assumé par sous-champ. */
@@ -29,6 +32,7 @@ export interface ElementSaisi {
   lu: unknown                        // l'élément tel que relu ; `undefined` = ajouté dans l'éditeur
   textes: Record<string, string>
   vides: Record<string, boolean>
+  couches: Record<string, Couches>   // par sous-champ (oto#216)
 }
 export type CompositeSaisi =
   | { sorte: 'elements'; elements: ElementSaisi[] }  // liste de sous-records
@@ -38,6 +42,7 @@ export interface Brouillon {
   scalaires: Record<string, string>
   vides: Record<string, boolean>
   composites: Record<string, CompositeSaisi>
+  couches: Record<string, Couches>                // commentaire et lien d'une case (oto#216)
 }
 
 const estRecord = (v: unknown): v is Record<string, unknown> =>
@@ -64,13 +69,15 @@ function texteSousCase(v: unknown): string {
 export function elementSaisi(lu: unknown): ElementSaisi {
   const textes: Record<string, string> = {}
   const vides: Record<string, boolean> = {}
+  const couches: Record<string, Couches> = {}
   if (estRecord(lu)) {
     for (const [k, v] of Object.entries(lu)) {
       textes[k] = texteSousCase(v)
       if (estVideAssume(v)) vides[k] = true
+      couches[k] = couchesDe(v)
     }
   }
-  return { lu: copie(lu), textes, vides }
+  return { lu: copie(lu), textes, vides, couches }
 }
 
 export function compositeSaisi(f: DatastoreField, cellule: unknown): CompositeSaisi {
@@ -88,6 +95,7 @@ export function poserColonne(b: Brouillon, d: FieldDesc, cellule: unknown): void
     return
   }
   const vide = estVideAssume(cellule)
+  b.couches[d.key] = couchesDe(cellule)
   b.scalaires[d.key] = vide ? '' : scalarDraft(valeurDe(cellule))
   if (vide) b.vides[d.key] = true
   else delete b.vides[d.key]
@@ -102,7 +110,7 @@ export function recopierColonne(vers: Brouillon, depuis: Brouillon, cle: string)
 }
 
 export function brouillonDeLigne(champs: FieldDesc[], ligne: Record<string, unknown> | null): Brouillon {
-  const b: Brouillon = { scalaires: {}, vides: {}, composites: {} }
+  const b: Brouillon = { scalaires: {}, vides: {}, composites: {}, couches: {} }
   for (const d of champs) poserColonne(b, d, ligne?.[d.key])
   return b
 }
@@ -135,10 +143,17 @@ export function ecritureElement(e: ElementSaisi, videAccepte: (sousCle: string) 
     if (c !== undefined) out[k] = c
   }
   const ref = elementSaisi(e.lu)
-  for (const k of new Set([...Object.keys(e.textes), ...Object.keys(e.vides)])) {
+  for (const k of new Set([...Object.keys(e.textes), ...Object.keys(e.vides), ...Object.keys(e.couches ?? {})])) {
     const apres = forme(e.textes[k], e.vides[k])
-    if (memeForme(forme(ref.textes[k], ref.vides[k]), apres)) continue
-    out[k] = avecCouches(lu[k], ecritureSaisie(apres, videAccepte(k), (t) => t))
+    const inchangee = memeForme(forme(ref.textes[k], ref.vides[k]), apres)
+    const coucheBouge = !memesCouches(ref.couches[k], e.couches?.[k])
+    if (inchangee && !coucheBouge) continue
+    const valeur = inchangee ? valeurDe(lu[k]) : ecritureSaisie(apres, videAccepte(k), (t) => t)
+    // Une couche ne se pose pas sur une case sans valeur : rien à décrire (oto#216).
+    if (inchangee && valeur == null) continue
+    out[k] = coucheBouge
+      ? caseAvecCouches(lu[k], valeur ?? null, e.couches?.[k] ?? SANS_COUCHES)
+      : avecCouches(lu[k], valeur)
   }
   return out
 }
@@ -161,8 +176,16 @@ function changement(d: FieldDesc, lue: unknown, avant: Brouillon, apres: Brouill
   }
   const fa = forme(avant.scalaires[d.key], avant.vides[d.key])
   const fb = forme(apres.scalaires[d.key], apres.vides[d.key])
-  if (memeForme(fa, fb)) return null
-  return { valeur: avecCouches(lue, ecritureSaisie(fb, accepteVideColonne(d), (t) => payloadValue(d, t))) }
+  const inchangee = memeForme(fa, fb)
+  // Le commentaire ou le lien a bougé (oto#216) : la case part AVEC la valeur relue,
+  // inchangée — modifier seulement un commentaire n'envoie que cette colonne.
+  const coucheBouge = !memesCouches(avant.couches[d.key], apres.couches[d.key])
+  if (inchangee && !coucheBouge) return null
+  const valeur = inchangee ? valeurDe(lue) : ecritureSaisie(fb, accepteVideColonne(d), (t) => payloadValue(d, t))
+  if (inchangee && valeur == null) return null   // pas de couche sur une case vide
+  return { valeur: coucheBouge
+    ? caseAvecCouches(lue, valeur ?? null, apres.couches[d.key] ?? SANS_COUCHES)
+    : avecCouches(lue, valeur) }
 }
 
 /** Le corps d'une écriture : les SEULES colonnes dont la saisie diffère de la ligne relue.

@@ -56,6 +56,35 @@ export function avecCouches(lue: unknown, valeur: unknown): unknown {
   return out
 }
 
+/** Les couches ÉDITABLES d'une case (oto#216) : son commentaire et son lien, en texte.
+ * `origine` n'en fait pas partie — elle se lit, elle ne s'écrit pas. */
+export interface Couches { comment: string; link: string }
+
+export function couchesDe(v: unknown): Couches {
+  if (!estEnveloppee(v)) return { comment: '', link: '' }
+  return { comment: v.comment == null ? '' : String(v.comment), link: v.link == null ? '' : String(v.link) }
+}
+
+export const memesCouches = (a?: Couches, b?: Couches): boolean =>
+  (a?.comment ?? '').trim() === (b?.comment ?? '').trim() && (a?.link ?? '').trim() === (b?.link ?? '').trim()
+
+/**
+ * La case écrite avec les couches SAISIES (oto#216) : la valeur, puis `comment` et `link`
+ * tels que saisis. Une couche vidée est OMISE — écrite sans elle, elle tombe (contrat
+ * oto#204 étape 2) : c'est le geste « retirer le commentaire », sans marqueur à inventer.
+ * `origine` n'est jamais renvoyée. Une valeur effacée part en `null` nu, couches comprises
+ * (oto#140). Sans aucune couche, une case lue nue repart nue.
+ */
+export function caseAvecCouches(lue: unknown, valeur: unknown, c: Couches): unknown {
+  if (valeur === null) return null
+  const out: Record<string, unknown> = estEnveloppee(lue) ? copie(lue) : {}
+  delete out.origine; delete out.comment; delete out.link
+  out.valeur = valeur
+  if (c.comment.trim()) out.comment = c.comment.trim()
+  if (c.link.trim()) out.link = c.link.trim()
+  return Object.keys(out).length === 1 && !estEnveloppee(lue) ? valeur : out
+}
+
 /**
  * Une case qu'on renvoie SANS l'avoir touchée : la même que la lecture, moins `origine`,
  * que l'écran ne renvoie jamais. Si la couche retirée ne laisse qu'une valeur `null`, on

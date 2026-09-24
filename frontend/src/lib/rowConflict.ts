@@ -6,6 +6,7 @@
 // nouvelle révision, et seule la différence avec la version relue part.
 import type { FieldDesc } from './datastoreForm'
 import { brouillonDeLigne, correctif, recopierColonne, type Brouillon } from './rowDraft'
+import { couchesDe, memesCouches } from './rowCells'
 
 /** `les-deux` : modifiée ailleurs ET dans le brouillon — la personne doit trancher.
  * `ailleurs` : modifiée ailleurs seulement — la version relue sera reprise.
@@ -54,8 +55,14 @@ export function reprendreBrouillon(
 ): Brouillon {
   const neuf = brouillonDeLigne(champs, relue)
   for (const c of colonnesOpposees(champs, lu, relue, courant)) {
-    if (c.opposition === 'brouillon' || (c.opposition === 'les-deux' && choix[c.cle] === 'brouillon'))
+    if (c.opposition === 'brouillon' || (c.opposition === 'les-deux' && choix[c.cle] === 'brouillon')) {
       recopierColonne(neuf, courant, c.cle)
+      // Les couches (oto#216) ne suivent le brouillon que si la personne les a MODIFIÉES :
+      // sinon celles de la version relue restent — un tiers qui a retiré un commentaire ne
+      // le voit pas revenir parce qu'on a gardé sa propre valeur.
+      if (!memesCouches(courant.couches[c.cle], couchesDe(lu[c.cle])) && courant.couches[c.cle])
+        neuf.couches[c.cle] = courant.couches[c.cle]!
+    }
   }
   return neuf
 }

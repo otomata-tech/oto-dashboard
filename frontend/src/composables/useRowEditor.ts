@@ -11,6 +11,7 @@ import type { DatastoreRow, DatastoreSchema, RewritableRow } from '@/types/api'
 import { explain } from '@/lib/errors'
 import { formFields } from '@/lib/datastoreForm'
 import { brouillonDeLigne, correctif, type Brouillon, type CompositeSaisi } from '@/lib/rowDraft'
+import { estEnveloppee, type Couches } from '@/lib/rowCells'
 import { refusDeLigne, type RefusDeLigne } from '@/lib/rowRefusal'
 import { colonnesOpposees, conflitTranche, reprendreBrouillon, type Choix } from '@/lib/rowConflict'
 
@@ -29,8 +30,9 @@ export function useRowEditor(src: SourceDuFormulaire) {
   const scalars = ref<Record<string, string>>({})
   const empties = ref<Record<string, boolean>>({})
   const composites = ref<Record<string, CompositeSaisi>>({})
+  const couches = ref<Record<string, Couches>>({})     // commentaire et lien d'une case (oto#216)
   const brouillon = (): Brouillon =>
-    ({ scalaires: scalars.value, vides: empties.value, composites: composites.value })
+    ({ scalaires: scalars.value, vides: empties.value, composites: composites.value, couches: couches.value })
   const champsDe = (ligne: Ligne | null) =>
     formFields(src.schema(), ligne, src.connues(), src.ajoutees(), src.sansCouches())
 
@@ -38,6 +40,7 @@ export function useRowEditor(src: SourceDuFormulaire) {
     scalars.value = b.scalaires
     empties.value = b.vides
     composites.value = b.composites
+    couches.value = b.couches
   }
   const poserLigne = (ligne: Ligne | null) => poser(brouillonDeLigne(champsDe(ligne), ligne))
 
@@ -178,9 +181,31 @@ export function useRowEditor(src: SourceDuFormulaire) {
   const refusInvalide = computed(() => (refus.value?.sorte === 'invalide' ? refus.value : null))
   const refusDuChamp = (cle: string) =>
     (refusInvalide.value?.colonne === cle ? refusInvalide.value : null)
-  /** Les champs fautifs de CETTE colonne, jusqu'aux sous-champs de ses éléments (oto#219). */
-  const fautesDeColonne = (cle: string) =>
-    (refusInvalide.value?.fautes ?? []).filter((f) => f.colonne === cle)
+  /** Les fautes d'une colonne composite, par élément puis par sous-champ (oto#219). Un élément
+   * désigné par son identité (`[clé, valeur]`) est retrouvé dans la saisie ; un objet (pas une
+   * liste) n'a qu'un élément, le rang 0. `message` rend le texte à afficher. */
+  function erreursDeColonne(cle: string, message: (attendu: string | null) => string):
+    Record<number, Record<string, string>> {
+    const out: Record<number, Record<string, string>> = {}
+    const saisie = composites.value[cle]
+    for (const f of refusInvalide.value?.fautes ?? []) {
+      if (f.colonne !== cle || !f.champ) continue
+      let rang = f.element
+      if (rang == null && f.identite && saisie?.sorte === 'elements') {
+        const [k, v] = f.identite
+        const i = saisie.elements.findIndex((e) => (e.textes[k] ?? '') === v)
+        rang = i >= 0 ? i : null
+      }
+      if (rang == null && saisie?.sorte === 'objet') rang = 0
+      if (rang != null) (out[rang] ??= {})[f.champ] = message(f.attendu)
+    }
+    return out
+  }
+  /** L'origine d'une case relue : elle se LIT, elle ne s'écrit jamais (oto#216). */
+  const origineDe = (cle: string): string | null => {
+    const c = lu.value?.[cle]
+    return estEnveloppee(c) && c.origine != null ? String(c.origine) : null
+  }
   /** Un refus qu'aucun champ affiché ne peut porter se dit en tête de la fiche. */
   const refusHorsChamp = computed(() =>
     !!refusInvalide.value && !champs.value.some((d) => d.key === refusInvalide.value?.colonne))
@@ -189,6 +214,7 @@ export function useRowEditor(src: SourceDuFormulaire) {
     scalars, empties, composites, champs, basculerVide,
     lu, etat, echecLecture, refus, echecEcriture, echecRelecture, envoi,
     ouvrir, rouvrir, fermer, aAjouter, enregistrer, relire,
-    choix, opposees, tranche, choisir, reprendre, refusDuChamp, refusHorsChamp, fautesDeColonne,
+    choix, opposees, tranche, choisir, reprendre, refusDuChamp, refusHorsChamp, erreursDeColonne,
+    couches, origineDe,
   }
 }
