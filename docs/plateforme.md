@@ -14,6 +14,22 @@ description: >-
 > La carte garde le résumé + le pointeur ; le détail (inventaires d'écrans, historique
 > des refontes, incidents datés et leurs leçons) vit ici.
 
+## Admin plateforme : listes, fiches reliées, commerce à part (24/09/2026)
+
+- **Listes** : utilisateurs et organisations passent par `ConsoleTable` avec recherche et tri
+  intégrés (voir `DESIGN.md` §Tables). Utilisateurs : les derniers inscrits en tête, colonne
+  « inscrit le », chargement visible. Organisations : le filtre maison est retiré ;
+  `PlatformFinder` reste au-dessus, il trouve aussi un **compte** pour « voir en tant que ».
+- **Fiches reliées** (`EntityRef`) : membres d'une org → fiche du compte ; organisations d'un
+  compte → fiche de l'org ; tenants (orgs, comptes) et sièges Unipile (propriétaire, org) →
+  leurs fiches. Avant, passer d'une fiche à l'autre obligeait à revenir à la liste.
+- **Fiche d'une org** : profil et accès plateforme en tête, puis les membres ; le **plan et
+  l'identité de facturation** sont sortis dans `AdminOrgCommerce.vue`, en bas, sous la rubrique
+  « commerce ». C'est le point de coupe prévu par le chantier du front unique (§6) et l'ADR
+  0070 : le cœur d'une instance ne connaît ni plan ni facture.
+- Reste en l'état : la copy des cartes partagées (invitations) en anglais, et la relance
+  (`/platform/outreach`), qui relève entière du commerce.
+
 ## Object-browser admin (ADR 0030)
 
 **Object-browser admin (ADR 0030).** `/platform/objects` (`AdminObjectsView`) = projection

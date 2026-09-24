@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EntityRef from '@/components/console/EntityRef.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { onClickOutside } from '@vueuse/core'
@@ -237,7 +238,7 @@ async function toggleOrgRole(o: AdminUserOrg) {
           <div v-for="o in detail.orgs" :key="o.org_id" class="rowitem" style="gap: 10px">
             <Dot :tone="o.is_active ? 'saffron' : 'faint'" :size="8" />
             <div style="flex: 1; min-width: 0">
-              <span style="font-weight: 600; font-size: 13px">{{ o.name }}</span>
+              <span style="font-weight: 600; font-size: 13px"><EntityRef kind="org" :id="o.org_id" :label="o.name" /></span>
               <Tag :tone="o.org_role === 'org_admin' ? 'ink' : undefined" style="margin-left: 8px">{{ o.org_role === 'org_admin' ? 'org admin' : 'membre' }}</Tag>
             </div>
             <Tag v-if="o.is_active" tone="saffron">active</Tag>

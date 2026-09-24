@@ -2,13 +2,14 @@
 // Liste des orgs (admin plateforme) — LISTE SEULE : cliquer une org ouvre sa fiche
 // en sous-page /platform/orgs/:id (AdminOrgView, meta.detail='admin-org'). Fin du
 // master-détail empilé (refonte /platform 2026-07-23).
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Stat from '@/components/console/Stat.vue'
 import Btn from '@/components/console/Btn.vue'
 import Avatar from '@/components/console/Avatar.vue'
 import ConsoleTable from '@/components/console/ConsoleTable.vue'
+import SortTh from '@/components/console/SortTh.vue'
 import PlatformFinder from '@/components/console/PlatformFinder.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
 import { useToast } from '@/composables/useToast'
@@ -22,11 +23,11 @@ const { formDialog, formDialogOpen, openForm } = useFormDialog()
 const router = useRouter()
 const orgs = ref<AdminOrgSummary[]>([])
 const error = ref<string | null>(null)
-const q = ref('')
-
-const filtered = computed(() =>
-  orgs.value.filter((o) => !q.value || o.name.toLowerCase().includes(q.value.toLowerCase())),
-)
+const loaded = ref(false)
+// Recherche et tri : portés par ConsoleTable (le filtre maison d'à côté est retiré).
+// `PlatformFinder`, au-dessus, reste : il trouve aussi un COMPTE pour « voir en tant que ».
+const searchOf = (o: AdminOrgSummary) => `${o.name} ${o.domain ?? ''}`
+const sorts = { nom: (o: AdminOrgSummary) => o.name, membres: (o: AdminOrgSummary) => o.member_count }
 function open(id: number) {
   router.push(`/platform/orgs/${id}`)
 }
@@ -34,6 +35,7 @@ function open(id: number) {
 onMounted(async () => {
   try { orgs.value = (await getAdminOrgs()).orgs }
   catch (e) { error.value = humanize(e) }
+  finally { loaded.value = true }
 })
 
 function newOrg() {
@@ -66,12 +68,14 @@ function newOrg() {
     <ConsoleCard flush title="organisations"
       sub="périmètres partagés : les membres héritent des clés d'org, du readme agent, des procédures et des entitlements. clique une org pour la gérer.">
       <template #actions>
-        <input v-model="q" class="inp sm" placeholder="filtrer par nom…" style="width: 200px" />
         <Btn kind="mini" icon="plus" @click="newOrg">Nouvelle org</Btn>
       </template>
-      <ConsoleTable :rows="filtered" empty="aucune organisation">
-        <template #head>
-          <th>org</th><th class="num">membres</th><th style="width: 70px"></th>
+      <ConsoleTable :rows="orgs" :busy="!loaded" :loaded="loaded" empty="aucune organisation"
+        :search="searchOf" search-placeholder="nom ou domaine…"
+        :sorts="sorts" :default-sort="{ key: 'nom', dir: 'asc' }">
+        <template #head="{ sort }">
+          <SortTh k="nom" :sort="sort">org</SortTh><SortTh k="membres" :sort="sort" num>membres</SortTh>
+          <th style="width: 70px"></th>
         </template>
         <template #row="{ row: o }">
           <tr style="cursor: pointer" @click="open(o.id)">

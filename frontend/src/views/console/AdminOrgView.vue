@@ -2,6 +2,7 @@
 // Fiche org (admin plateforme) — vraie SOUS-PAGE /platform/orgs/:id (résolue par
 // ConsoleLayout via meta.detail='admin-org', même patron que la fiche user), fin du
 // master-détail empilé sous la liste (refonte /platform 2026-07-23).
+import EntityRef from '@/components/console/EntityRef.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
@@ -12,6 +13,7 @@ import Avatar from '@/components/console/Avatar.vue'
 import Dropzone from '@/components/console/Dropzone.vue'
 import PlatformAccessHint from '@/components/console/PlatformAccessHint.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
+import AdminOrgCommerce from '@/components/console/AdminOrgCommerce.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
@@ -19,11 +21,8 @@ import { useMe, isSuperAdmin, isPlatformOperator } from '@/composables/useMe'
 import {
   getAdminOrg, archiveAdminOrg, addAdminOrgMember, setAdminOrgMemberRole,
   removeAdminOrgMember, updateOrg, uploadOrgLogo, deleteOrgLogo,
-  adminSetPlan, getPlans, getAdminBillingIdentity, setAdminBillingIdentity,
 } from '@/api/console'
-import type { BillingPlan, OrgDetail, OrgMember, OrgRole } from '@/types/api'
-import type { AdminBillingIdentityView } from '@/types/api.attendu'
-import { fmtDate } from '@/types/api'
+import type { OrgDetail, OrgMember, OrgRole } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { validateImage, IMAGE_ACCEPT_ATTR } from '@/lib/imageUpload'
 
@@ -36,7 +35,6 @@ const router = useRouter()
 
 const orgId = computed(() => Number(route.params.id))
 const detail = ref<OrgDetail | null>(null)
-const plans = ref<BillingPlan[]>([])
 const logoBusy = ref(false)
 const error = ref<string | null>(null)
 
@@ -58,12 +56,7 @@ async function refresh() { detail.value = await getAdminOrg(orgId.value) }
 async function loadAll() {
   error.value = null
   try {
-    const [, pk] = await Promise.all([
-      refresh(),
-      getPlans().catch(() => ({ plans: [] })),
-      refreshBillingIdentity(),
-    ])
-    plans.value = pk.plans
+    await refresh()
   } catch (e) { error.value = humanize(e) }
 }
 onMounted(loadAll)
@@ -193,107 +186,6 @@ async function leaveOrg() {
   catch (e) { toast(humanize(e)) }
 }
 
-// ── plan / abonnement (ADR 0043) ─────────────────────────────────────────────
-// Le plan pilote l'entitlement (options + plafond messagerie). `admin_set_plan`
-// force un plan COMP (sans PSP, jamais facturé) ; on ne touche JAMAIS un
-// abonnement payant depuis ici (le backend refuse admin_clear_plan dessus).
-const billing = computed(() => detail.value?.billing ?? null)
-const isCompPlan = computed(() => billing.value?.comp === true)
-const isPaidPlan = computed(() => billing.value?.subscribed === true && billing.value?.comp === false)
-
-function fmtAmount(p: BillingPlan): string {
-  if (p.amount == null) return 'sur devis'
-  return `${(p.amount / 100).toLocaleString('fr-FR')} €/${p.interval === 'year' ? 'an' : 'mois'}`
-}
-const currentPlanMeta = computed(() =>
-  billing.value?.plan ? plans.value.find((p) => p.plan === billing.value?.plan) ?? null : null)
-
-function forcePlan() {
-  if (!plans.value.length) { toast('catalogue de plans indisponible'); return }
-  openForm({
-    title: 'forcer un plan (comp)',
-    description: 'ouvre l\'entitlement du plan (options + plafond messagerie) immédiatement, sans paiement ni PSP. écrase l\'abonnement existant.',
-    submitLabel: 'forcer le plan',
-    fields: [
-      { key: 'plan', label: 'plan', type: 'select', required: true,
-        initial: billing.value?.plan,
-        options: plans.value.map((p) => ({ value: p.plan, label: `${p.label} · ${fmtAmount(p)}` })) },
-    ],
-    onConfirm: async (v) => {
-      try { await adminSetPlan(orgId.value, v.plan ?? ''); toast('plan forcé (comp)'); await refresh() }
-      catch (e) { toast(humanize(e)); throw e }
-    },
-  })
-}
-async function clearPlan() {
-  if (!await confirmAction({ title: 'retirer le plan comp', danger: true, confirmLabel: 'Retirer',
-    message: 'retirer l\'abonnement comp de l\'org ? l\'entitlement du plan (options + plafond messagerie) tombe aussitôt.' })) return
-  try { await adminSetPlan(orgId.value, null); toast('plan retiré'); await refresh() }
-  catch (e) { toast(humanize(e)) }
-}
-
-// ── identité de facturation + client Pennylane (#917) ────────────────────────
-// Le client Pennylane d'une org n'est jamais rapproché ni créé par le code : un
-// admin plateforme le DÉSIGNE ici, à la main, sur la fiche de facturation. La fiche
-// part ENTIÈRE (le serveur remplace, il ne fusionne pas) : le formulaire est
-// prérempli et reposte tout, un id vide RETIRE la désignation. La carte n'apparaît
-// qu'à un opérateur plateforme (le backend rend 403 sinon) ; « billing » désactivé
-// = 404 sur la route, la carte se tait.
-const billingIdentity = ref<AdminBillingIdentityView | null>(null)
-const billingIdentityError = ref<string | null>(null)
-async function refreshBillingIdentity() {
-  if (!isOperator.value) return
-  billingIdentityError.value = null
-  try { billingIdentity.value = await getAdminBillingIdentity(orgId.value) }
-  catch (e) { billingIdentity.value = null; billingIdentityError.value = humanize(e) }
-}
-const identityLines = computed(() => {
-  const i = billingIdentity.value?.identity
-  if (!i) return []
-  return [i.address_line, i.address_line2, [i.postal_code, i.city].filter(Boolean).join(' ')]
-    .filter((s): s is string => !!s && s.trim() !== '')
-})
-function editBillingIdentity() {
-  const i = billingIdentity.value?.identity
-  const current = billingIdentity.value?.pennylane_customer_id
-  openForm({
-    title: 'identité de facturation',
-    description: 'la fiche part entière : un champ vidé est effacé. l\'id Pennylane est celui de l\'URL de la fiche client chez Pennylane — vide = aucun client désigné, donc aucune facture émise.',
-    submitLabel: 'enregistrer',
-    fields: [
-      { key: 'legal_name', label: 'raison sociale', required: true, initial: i?.legal_name ?? detail.value?.org.name },
-      { key: 'country_code', label: 'pays (ISO-2)', required: true, initial: i?.country_code ?? 'FR', placeholder: 'FR' },
-      { key: 'vat_number', label: 'n° TVA intracom', initial: i?.vat_number ?? '', placeholder: 'FR12345678901' },
-      { key: 'address_line', label: 'adresse', required: true, initial: i?.address_line ?? '' },
-      { key: 'address_line2', label: 'complément d\'adresse', initial: i?.address_line2 ?? '' },
-      { key: 'postal_code', label: 'code postal', required: true, initial: i?.postal_code ?? '' },
-      { key: 'city', label: 'ville', required: true, initial: i?.city ?? '' },
-      { key: 'billing_email', label: 'e-mail de facturation', initial: i?.billing_email ?? '' },
-      { key: 'pennylane_customer_id', label: 'id client Pennylane', initial: current != null ? String(current) : '',
-        hint: 'nombre entier, tel qu\'il apparaît dans l\'URL de la fiche client chez Pennylane.' },
-    ],
-    onConfirm: async (v) => {
-      const raw = (v.pennylane_customer_id ?? '').trim()
-      if (raw !== '' && !/^\d+$/.test(raw)) { toast('id client Pennylane : un nombre entier attendu'); throw new Error('invalid_pennylane_customer_id') }
-      const blank = (s?: string) => { const t = (s ?? '').trim(); return t === '' ? null : t }
-      try {
-        billingIdentity.value = await setAdminBillingIdentity(orgId.value, {
-          legal_name: (v.legal_name ?? '').trim(),
-          country_code: (v.country_code ?? '').trim(),
-          vat_number: blank(v.vat_number),
-          address_line: (v.address_line ?? '').trim(),
-          address_line2: blank(v.address_line2),
-          postal_code: (v.postal_code ?? '').trim(),
-          city: (v.city ?? '').trim(),
-          billing_email: blank(v.billing_email),
-          pennylane_customer_id: raw === '' ? null : Number(raw),
-        })
-        toast('identité de facturation enregistrée')
-      } catch (e) { toast(humanize(e)); throw e }
-    },
-  })
-}
-
 // ── accès plateforme aux connecteurs (ADR 0044 §H) — LECTURE SEULE ───────────
 // L'octroi (clé plateforme + option) est connecteur-centrique : il se gère sur la
 // carte du connecteur (/platform/connectors → « Gérer l'accès »), plus ici. On se
@@ -357,60 +249,20 @@ const orgOptions = computed(() => detail.value?.option_comps ?? [])
           </div>
         </ConsoleCard>
 
-        <!-- Plan / abonnement : forcer un plan comp (entitlement immédiat, sans PSP). -->
-        <ConsoleCard title="plan / abonnement" sub="le plan ouvre l'entitlement (options + plafond messagerie). « comp » = forcé par un admin, jamais facturé.">
-          <template v-if="canWrite" #actions>
-            <Btn kind="mini" icon="pen" @click="forcePlan">{{ billing?.subscribed ? 'changer' : 'forcer un plan' }}</Btn>
+
+        <!-- Accès plateforme : à côté du profil — ce que la plateforme ouvre à cette org. -->
+        <ConsoleCard title="accès plateforme aux connecteurs">
+          <template #sub>
+            connecteurs que la plateforme a ouverts à cette org (clé + option). <PlatformAccessHint />
           </template>
           <div class="rowlist">
-            <div v-if="billing?.subscribed" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
-              <div style="min-width: 0; flex: 1">
-                <div style="font-weight: 600; font-size: 15px; color: var(--color-ink)">
-                  {{ billing.label || currentPlanMeta?.label || billing.plan }}
-                </div>
-                <div class="helptext" style="margin: 2px 0 0">
-                  <span v-if="currentPlanMeta">{{ fmtAmount(currentPlanMeta) }}</span>
-                  <span v-if="billing.current_period_end"> · échéance {{ fmtDate(billing.current_period_end) }}</span>
-                </div>
-              </div>
-              <Tag :tone="isCompPlan ? 'saffron' : 'olive'">{{ isCompPlan ? 'comp' : (billing.method === 'sepa' ? 'sepa' : 'payé') }}</Tag>
-              <Tag v-if="billing.status && billing.status !== 'active'" tone="terra">{{ billing.status }}</Tag>
+            <div v-for="opt in orgOptions" :key="opt" class="rowitem" style="gap: 12px">
+              <div style="min-width: 0; flex: 1; font-weight: 600; color: var(--color-ink)">{{ opt }}</div>
+              <Tag tone="olive">ouvert (comp)</Tag>
             </div>
-            <div v-else class="helptext" style="margin: 0">aucun plan — l'org est sur la gratuité (pas d'options débloquées par un plan).</div>
-
-            <div v-if="canWrite && isCompPlan" style="border-top: 1px solid var(--color-hair); padding-top: 12px; display: flex; justify-content: flex-end">
-              <Btn kind="danger" @click="clearPlan">Retirer le plan comp</Btn>
+            <div v-if="!orgOptions.length" class="helptext" style="margin: 0">
+              aucun accès plateforme spécifique — l'org utilise les connecteurs en libre-service et ses propres clés.
             </div>
-            <div v-else-if="isPaidPlan" class="helptext" style="border-top: 1px solid var(--color-hair); padding-top: 12px; margin: 0">
-              abonnement payant — la résiliation passe par l'org (facturation), pas par l'admin.
-            </div>
-          </div>
-        </ConsoleCard>
-
-        <!-- Identité de facturation + client Pennylane (#917) : posé à la main, jamais rapproché. -->
-        <ConsoleCard v-if="isOperator && !billingIdentityError" title="identité de facturation"
-          sub="qui est facturé, et sous quel client Pennylane. l'id se pose ici, à la main — le code ne rapproche ni ne crée jamais de client chez le comptable.">
-          <template #actions>
-            <Btn kind="mini" icon="pen" @click="editBillingIdentity">{{ billingIdentity?.identity ? 'modifier' : 'renseigner' }}</Btn>
-          </template>
-          <div class="rowlist">
-            <div v-if="billingIdentity?.identity" style="display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap">
-              <div style="min-width: 0; flex: 1">
-                <div style="font-weight: 600; font-size: 15px; color: var(--color-ink)">{{ billingIdentity.identity.legal_name }}</div>
-                <div class="helptext" style="margin: 2px 0 0">
-                  <span v-for="(l, idx) in identityLines" :key="idx">{{ idx ? ' · ' : '' }}{{ l }}</span>
-                  <span v-if="identityLines.length"> · </span>{{ billingIdentity.identity.country_code }}
-                  <span v-if="billingIdentity.identity.vat_number"> · TVA {{ billingIdentity.identity.vat_number }}</span>
-                  <span v-if="billingIdentity.identity.billing_email"> · {{ billingIdentity.identity.billing_email }}</span>
-                </div>
-                <div v-if="billingIdentity.missing.length" class="helptext" style="margin: 4px 0 0; color: var(--color-terra)">
-                  incomplète : {{ billingIdentity.missing.join(', ') }}
-                </div>
-              </div>
-              <Tag v-if="billingIdentity.pennylane_customer_id != null" tone="olive">pennylane #{{ billingIdentity.pennylane_customer_id }}</Tag>
-              <Tag v-else tone="terra">aucun client pennylane</Tag>
-            </div>
-            <div v-else class="helptext" style="margin: 0">aucune identité de facturation — rien ne peut être facturé à cette org tant qu'elle manque.</div>
           </div>
         </ConsoleCard>
       </div>
@@ -427,7 +279,7 @@ const orgOptions = computed(() => detail.value?.option_comps ?? [])
           <tbody>
             <tr v-for="m in detail.members" :key="m.sub">
               <td>
-                <div style="font-weight: 600; color: var(--color-ink)">{{ m.name || m.email }}</div>
+                <div style="font-weight: 600; color: var(--color-ink)"><EntityRef kind="user" :id="m.sub" :label="m.name || m.email" /></div>
                 <div style="font-size: 11px; color: var(--color-faint)">{{ m.email }}</div>
               </td>
               <td><Tag v-if="m.role === 'org_admin'" tone="ink">admin</Tag><Tag v-else>membre</Tag></td>
@@ -442,20 +294,11 @@ const orgOptions = computed(() => detail.value?.option_comps ?? [])
         </table>
       </ConsoleCard>
 
-      <ConsoleCard title="accès plateforme aux connecteurs">
-        <template #sub>
-          connecteurs que la plateforme a ouverts à cette org (clé + option). <PlatformAccessHint />
-        </template>
-        <div class="rowlist">
-          <div v-for="opt in orgOptions" :key="opt" class="rowitem" style="gap: 12px">
-            <div style="min-width: 0; flex: 1; font-weight: 600; color: var(--color-ink)">{{ opt }}</div>
-            <Tag tone="olive">ouvert (comp)</Tag>
-          </div>
-          <div v-if="!orgOptions.length" class="helptext" style="margin: 0">
-            aucun accès plateforme spécifique — l'org utilise les connecteurs en libre-service et ses propres clés.
-          </div>
-        </div>
-      </ConsoleCard>
+
+      <!-- Commerce (plan, facturation) : à part, en dernier — le cœur d'une instance n'en a pas. -->
+      <div class="eyebrow" style="margin: 26px 0 8px">commerce — plan et facturation</div>
+      <AdminOrgCommerce :org-id="orgId" :org-name="detail.org.name" :billing="detail.billing"
+        :can-write="canWrite" :is-operator="isOperator" @changed="refresh" />
     </template>
 
     <FormDialog v-if="formDialog" v-model:open="formDialogOpen"

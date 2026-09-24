@@ -3,6 +3,7 @@
 // la coquille unifiée `ConnectorScopeView` (scope=platform : master switch + clé
 // plateforme) + les cartes propres au scope (ordre de résolution + audit des sièges
 // unipile, super_admin). Les leviers vivent dans `usePlatformAdapter`.
+import EntityRef from '@/components/console/EntityRef.vue'
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
@@ -82,10 +83,11 @@ async function release(seat: UnipileSeat) {
             <td>
               <div style="font-size: 12.5px"
                 :style="{ color: s.state === 'bound' ? 'var(--color-ink)' : 'var(--color-terra-ink)' }">
-                {{ s.owner_email || 'aucun compte oto' }}
+                <EntityRef v-if="s.owner_sub" kind="user" :id="s.owner_sub" :label="s.owner_email" />
+                <template v-else>{{ s.owner_email || 'aucun compte oto' }}</template>
               </div>
               <div class="dim" style="font-size: 11px">
-                {{ STATE_LABEL[s.state] }}<template v-if="s.org_name"> · {{ s.org_name }}</template>
+                {{ STATE_LABEL[s.state] }}<template v-if="s.org_name"> · <EntityRef kind="org" :id="s.org_id" :label="s.org_name" /></template>
               </div>
             </td>
             <td style="font-size: 11px"

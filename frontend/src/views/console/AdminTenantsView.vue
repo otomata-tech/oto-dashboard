@@ -18,6 +18,7 @@
 // ⚠️ Les colonnes « orgs » et « comptes » viennent de DEUX sources indépendantes
 // (`orgs.tenant_id` d'un côté, la qualification du sub de l'autre) que rien ne tient
 // ensemble : `orgs_desalignees` mesure leur écart, et la fiche en donne l'adresse.
+import EntityRef from '@/components/console/EntityRef.vue'
 import { computed, onMounted, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import ConsoleTable from '@/components/console/ConsoleTable.vue'
@@ -302,7 +303,7 @@ onMounted(async () => {
               <template #row="{ row: o }">
                 <tr>
                   <td>
-                    {{ o.name }}
+                    <EntityRef kind="org" :id="o.id" :label="o.name" />
                     <Tag v-if="o.personal" tone="cobalt" style="margin-left: 6px">perso</Tag>
                     <Tag v-if="o.archived_at" tone="saffron" style="margin-left: 6px">archivée</Tag>
                     <div v-if="o.front_brand" class="helptext">front : {{ o.front_brand }}</div>
@@ -323,7 +324,7 @@ onMounted(async () => {
               <template #row="{ row: c }">
                 <tr>
                   <td>
-                    <div>{{ c.email ?? c.name ?? '—' }}</div>
+                    <div><EntityRef kind="user" :id="c.sub" :label="c.email ?? c.name" /></div>
                     <code class="mono dim">{{ c.sub }}</code>
                   </td>
                   <td class="num">{{ c.appels }}</td>
