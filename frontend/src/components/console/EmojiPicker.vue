@@ -5,6 +5,9 @@
 // l'usage réel (nommer un dossier de travail d'un coup d'œil).
 import { ref, watch } from 'vue'
 import Icon from './Icon.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ modelValue?: string | null }>()
 const emit = defineEmits<{ 'update:modelValue': [string] }>()
@@ -48,12 +51,12 @@ function applyCustom() {
             :class="{ on: e === modelValue }" @click="pick(e)">{{ e }}</button>
         </div>
         <div class="ep__custom">
-          <input v-model="custom" class="ep__input" maxlength="8" placeholder="ou colle un emoji"
+          <input v-model="custom" class="ep__input" maxlength="8" :placeholder="t('workUi.emoji.paste')"
             @keyup.enter="applyCustom" />
-          <button type="button" class="ep__ok" @click="applyCustom">OK</button>
+          <button type="button" class="ep__ok" @click="applyCustom">{{ t('workUi.emoji.ok') }}</button>
         </div>
         <button v-if="modelValue" type="button" class="ep__clear" @click="pick('')">
-          Retirer l’icône
+          {{ t('workUi.emoji.clear') }}
         </button>
       </div>
     </template>

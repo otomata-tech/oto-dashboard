@@ -13,6 +13,9 @@ import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessa
 import { Input } from '@/components/ui/input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   open: boolean
@@ -23,8 +26,8 @@ const emit = defineEmits<{ (e: 'update:open', value: boolean): void }>()
 
 const schema = toTypedSchema(
   z.object({
-    name: z.string().trim().min(1, 'Nom requis').max(60, 'Trop long (max 60 caractères)')
-      .regex(/^[a-zA-Z0-9][a-zA-Z0-9 _-]*$/, 'Lettres, chiffres, espaces, - et _ seulement'),
+    name: z.string().trim().min(1, t('workUi.create.nameRequired')).max(60, t('workUi.create.tooLong', { n: 60 }))
+      .regex(/^[a-zA-Z0-9][a-zA-Z0-9 _-]*$/, t('workUi.create.nameChars')),
     scope: z.enum(['user', 'org']),
   }),
 )
@@ -50,16 +53,16 @@ const submit = handleSubmit(async (values) => {
   <Dialog :open="open" @update:open="emit('update:open', $event)">
     <DialogContent class="sm:max-w-[420px]">
       <DialogHeader>
-        <DialogTitle>nouveau namespace</DialogTitle>
-        <DialogDescription>stockage tabulaire lu &amp; écrit par tes agents via les outils data_*.</DialogDescription>
+        <DialogTitle>{{ t('workUi.create.nsTitle') }}</DialogTitle>
+        <DialogDescription>{{ t('workUi.create.nsDesc') }}</DialogDescription>
       </DialogHeader>
 
       <form class="grid gap-4" @submit.prevent="submit">
         <FormField v-slot="{ componentField }" name="name">
           <FormItem>
-            <FormLabel>nom</FormLabel>
+            <FormLabel>{{ t('workUi.create.name') }}</FormLabel>
             <FormControl>
-              <Input type="text" placeholder="e.g. prospects-q3" autocomplete="off" v-bind="componentField" />
+              <Input type="text" :placeholder="t('workUi.create.nsPh')" autocomplete="off" v-bind="componentField" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -67,26 +70,26 @@ const submit = handleSubmit(async (values) => {
 
         <FormField v-if="orgName" v-slot="{ componentField }" name="scope">
           <FormItem>
-            <FormLabel>propriétaire</FormLabel>
+            <FormLabel>{{ t('workUi.create.owner') }}</FormLabel>
             <Select v-bind="componentField">
               <FormControl>
                 <SelectTrigger class="w-full">
-                  <SelectValue placeholder="Choisir un scope" />
+                  <SelectValue :placeholder="t('workUi.create.scopePh')" />
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value="user">personnel (moi seul)</SelectItem>
-                <SelectItem value="org">classeur d'org ({{ orgName }})</SelectItem>
+                <SelectItem value="user">{{ t('workUi.create.personal') }}</SelectItem>
+                <SelectItem value="org">{{ t('workUi.create.orgBinder', { name: orgName }) }}</SelectItem>
               </SelectContent>
             </Select>
-            <FormDescription>un classeur d'org est partagé avec l'équipe active.</FormDescription>
+            <FormDescription>{{ t('workUi.create.nsHelp') }}</FormDescription>
             <FormMessage />
           </FormItem>
         </FormField>
 
         <DialogFooter>
-          <Button type="button" variant="ghost" :disabled="isSubmitting" @click="emit('update:open', false)">annuler</Button>
-          <Button type="submit" :disabled="isSubmitting">{{ isSubmitting ? 'création…' : 'créer' }}</Button>
+          <Button type="button" variant="ghost" :disabled="isSubmitting" @click="emit('update:open', false)">{{ t('workUi.create.cancel') }}</Button>
+          <Button type="submit" :disabled="isSubmitting">{{ isSubmitting ? t('workUi.create.creating') : t('workUi.create.create') }}</Button>
         </DialogFooter>
       </form>
     </DialogContent>

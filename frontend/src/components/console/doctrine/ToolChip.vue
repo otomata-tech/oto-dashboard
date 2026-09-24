@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { resolveTool, type ToolReg } from './tools'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ name: string; reg: ToolReg }>()
 const r = computed(() => resolveTool(props.reg, props.name))
@@ -10,7 +13,7 @@ const r = computed(() => resolveTool(props.reg, props.name))
   <span class="oto-chip" :class="`oto-chip--${r.state}`">
     <span class="oto-chip__dot" />
     <span>{{ name }}</span>
-    <span v-if="r.state === 'fed'" class="oto-chip__fed">féd</span>
+    <span v-if="r.state === 'fed'" class="oto-chip__fed">{{ t('workUi.refs.fedShort') }}</span>
     <span class="oto-tip">
       <span>
         <span class="oto-tip__name">{{ name }}</span>

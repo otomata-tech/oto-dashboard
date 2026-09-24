@@ -9,6 +9,9 @@ import { EditorContent, useEditor } from '@tiptap/vue-3'
 import Icon from './Icon.vue'
 import { usePrompt } from '@/composables/usePrompt'
 import { mdeExtensions } from '@/lib/mdeExtensions'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // `focusAt` : ouvrir l'éditeur AVEC le curseur (édition en place d'une page) — dans le bloc
 // dont le texte est `text`, après `offset` caractères ; bloc introuvable (ex. un lien [[…]],
@@ -67,41 +70,41 @@ async function toggleLink() {
 
 <template>
   <div class="mde">
-    <div class="mde__bar" role="toolbar" aria-label="mise en forme">
-      <button type="button" class="mde__b" :class="{ on: active('bold') }" title="gras (Ctrl+B)"
+    <div class="mde__bar" role="toolbar" :aria-label="t('workUi.editor.toolbar')">
+      <button type="button" class="mde__b" :class="{ on: active('bold') }" :title="t('workUi.editor.bold')"
         @click="editor?.chain().focus().toggleBold().run()"><Icon name="bold" :size="14" /></button>
-      <button type="button" class="mde__b" :class="{ on: active('italic') }" title="italique (Ctrl+I)"
+      <button type="button" class="mde__b" :class="{ on: active('italic') }" :title="t('workUi.editor.italic')"
         @click="editor?.chain().focus().toggleItalic().run()"><Icon name="italic" :size="14" /></button>
-      <button type="button" class="mde__b" :class="{ on: active('strike') }" title="barré"
+      <button type="button" class="mde__b" :class="{ on: active('strike') }" :title="t('workUi.editor.strike')"
         @click="editor?.chain().focus().toggleStrike().run()"><Icon name="strikethrough" :size="14" /></button>
-      <button type="button" class="mde__b" :class="{ on: active('code') }" title="code inline"
+      <button type="button" class="mde__b" :class="{ on: active('code') }" :title="t('workUi.editor.code')"
         @click="editor?.chain().focus().toggleCode().run()"><Icon name="code" :size="14" /></button>
       <span class="mde__sep"></span>
       <button v-for="lv in [1, 2, 3]" :key="lv" type="button" class="mde__b mde__b--txt"
-        :class="{ on: active('heading', { level: lv }) }" :title="`titre ${lv}`"
+        :class="{ on: active('heading', { level: lv }) }" :title="t('workUi.editor.heading', { n: lv })"
         @click="editor?.chain().focus().toggleHeading({ level: lv as 1 | 2 | 3 }).run()">H{{ lv }}</button>
       <span class="mde__sep"></span>
-      <button type="button" class="mde__b" :class="{ on: active('bulletList') }" title="liste à puces"
+      <button type="button" class="mde__b" :class="{ on: active('bulletList') }" :title="t('workUi.editor.bullets')"
         @click="editor?.chain().focus().toggleBulletList().run()"><Icon name="list" :size="14" /></button>
-      <button type="button" class="mde__b" :class="{ on: active('orderedList') }" title="liste numérotée"
+      <button type="button" class="mde__b" :class="{ on: active('orderedList') }" :title="t('workUi.editor.ordered')"
         @click="editor?.chain().focus().toggleOrderedList().run()"><Icon name="list-ordered" :size="14" /></button>
-      <button type="button" class="mde__b" :class="{ on: active('blockquote') }" title="citation"
+      <button type="button" class="mde__b" :class="{ on: active('blockquote') }" :title="t('workUi.editor.quote')"
         @click="editor?.chain().focus().toggleBlockquote().run()"><Icon name="text-quote" :size="14" /></button>
-      <button type="button" class="mde__b" :class="{ on: active('codeBlock') }" title="bloc de code"
+      <button type="button" class="mde__b" :class="{ on: active('codeBlock') }" :title="t('workUi.editor.codeBlock')"
         @click="editor?.chain().focus().toggleCodeBlock().run()"><Icon name="doc" :size="14" /></button>
       <span class="mde__sep"></span>
-      <button type="button" class="mde__b" :class="{ on: active('link') }" title="lien"
+      <button type="button" class="mde__b" :class="{ on: active('link') }" :title="t('workUi.editor.link')"
         @click="toggleLink"><Icon name="link" :size="14" /></button>
-      <button v-if="!active('table')" type="button" class="mde__b" title="insérer un tableau"
+      <button v-if="!active('table')" type="button" class="mde__b" :title="t('workUi.editor.table')"
         @click="editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()"><Icon name="table" :size="14" /></button>
       <!-- contextuel : dans un tableau -->
       <template v-else>
-        <button type="button" class="mde__b mde__b--txt" title="ajouter une ligne"
-          @click="editor?.chain().focus().addRowAfter().run()">+ ligne</button>
-        <button type="button" class="mde__b mde__b--txt" title="ajouter une colonne"
-          @click="editor?.chain().focus().addColumnAfter().run()">+ col</button>
-        <button type="button" class="mde__b mde__b--txt mde__b--danger" title="supprimer le tableau"
-          @click="editor?.chain().focus().deleteTable().run()">suppr. tableau</button>
+        <button type="button" class="mde__b mde__b--txt" :title="t('workUi.editor.addRow')"
+          @click="editor?.chain().focus().addRowAfter().run()">{{ t('workUi.editor.row') }}</button>
+        <button type="button" class="mde__b mde__b--txt" :title="t('workUi.editor.addCol')"
+          @click="editor?.chain().focus().addColumnAfter().run()">{{ t('workUi.editor.col') }}</button>
+        <button type="button" class="mde__b mde__b--txt mde__b--danger" :title="t('workUi.editor.delTable')"
+          @click="editor?.chain().focus().deleteTable().run()">{{ t('workUi.editor.delTableShort') }}</button>
       </template>
     </div>
     <EditorContent :editor="editor" class="mde__body" />

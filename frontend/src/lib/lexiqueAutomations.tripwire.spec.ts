@@ -7,7 +7,8 @@
 //   • « agent » ne désigne jamais une procédure ni une campagne.
 //
 // Ce que le contrôle PARCOURT : (1) toutes les valeurs de `automations.*` (et des blocs
-// `automationsWebhook`, `automationsList`, `automationsFilters`) et
+// `automationsWebhook`, `automationsList`, `automationsFilters`, `automationsJob`,
+// `automationsRoutines` — tout bloc dont le nom commence par `automations`) et
 // `pageMeta.automations*`, en français — et leur pendant anglais, sous les mots anglais ;
 // (2) le texte des gabarits des pages et des composants de l'espace, leurs attributs lus
 // (`aria-label`, `title`, `placeholder`), et les chaînes littérales de leurs expressions et de
@@ -163,9 +164,12 @@ describe('lexique de l’espace Automatisations — ce qui est parcouru', () => 
     // pages parlent par clés i18n, parcourues par le dictionnaire. Un effondrement de ce compte
     // voudrait dire que la lecture des gabarits ne voit plus rien.
     expect(textes.length).toBeGreaterThan(150)
-    // Le texte en dur d'un gabarit ET une chaîne d'expression sont bien lus.
-    expect(textes).toContain('Journal')
-    expect(textes).toContain('pas encore prise')
+    // Le texte en dur d'un gabarit ET une chaîne d'expression sont bien lus. Depuis que la
+    // fiche d'une exécution parle par clés (oto#195, bloc `automationsJob`, parcouru par le
+    // dictionnaire), les témoins sont un identifiant d'outil cité dans un gabarit et le début
+    // d'un gabarit de chaîne dans une expression.
+    expect(textes).toContain('oto_trigger')
+    expect(textes).toContain('/data/')
     expect(copieDe(fr).length).toBeGreaterThan(150)
     expect(copieDe(en).length).toBe(copieDe(fr).length)
   })

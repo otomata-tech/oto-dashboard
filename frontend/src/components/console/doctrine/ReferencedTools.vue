@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { refNames, resolveTool, type ToolReg } from './tools'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ text: string; reg: ToolReg }>()
 
@@ -9,57 +12,56 @@ const items = computed(() =>
     const r = resolveTool(props.reg, name)
     if (r.state === 'dead') {
       return {
-        name, desc: 'introuvable dans le registre — renommé ou supprimé ?',
+        name, desc: t('workUi.refs.deadDesc'),
         descColor: 'var(--color-terra-ink)', nameColor: 'var(--color-terra-ink)',
-        dot: 'var(--color-terra)', stateLabel: 'introuvable', state: 'dead' as const,
+        dot: 'var(--color-terra)', stateLabel: t('workUi.refs.dead'), state: 'dead' as const,
       }
     }
     if (r.state === 'fed') {
       return {
         name, desc: r.desc, descColor: 'var(--color-mute)', nameColor: 'var(--color-ink)',
-        dot: 'var(--color-cobalt)', stateLabel: `fédéré · ${r.mcp ?? ''}`, state: 'fed' as const,
+        dot: 'var(--color-cobalt)', stateLabel: t('workUi.refs.fed', { mcp: r.mcp ?? '' }), state: 'fed' as const,
       }
     }
     return {
       name, desc: r.desc, descColor: 'var(--color-mute)', nameColor: 'var(--color-ink)',
-      dot: 'var(--color-olive)', stateLabel: 'natif oto', state: 'ok' as const,
+      dot: 'var(--color-olive)', stateLabel: t('workUi.refs.native'), state: 'ok' as const,
     }
   }),
 )
 const refCount = computed(() => {
   const n = items.value.length
-  return `${n} ${n > 1 ? 'outils' : 'outil'}`
+  return t('workUi.refs.count', { n }, n)
 })
 </script>
 
 <template>
   <div class="card">
     <div class="head">
-      <span class="eyebrow">outils référencés</span>
+      <span class="eyebrow">{{ t('workUi.refs.title') }}</span>
       <span class="count">{{ refCount }}</span>
     </div>
     <div class="sub">
-      dérivé du content, en lecture seule — résolu en direct contre le registre. la
-      description vient de l'outil lui-même.
+      {{ t('workUi.refs.sub') }}
     </div>
 
     <div v-if="items.length" class="list">
-      <div v-for="t in items" :key="t.name" class="row">
-        <span class="dot" :style="{ background: t.dot }" />
+      <div v-for="it in items" :key="it.name" class="row">
+        <span class="dot" :style="{ background: it.dot }" />
         <div class="body">
           <div class="line">
-            <code class="name" :style="{ color: t.nameColor }">{{ t.name }}</code>
-            <svg v-if="t.state === 'dead'" width="13" height="13" viewBox="0 0 24 24" fill="none"
+            <code class="name" :style="{ color: it.nameColor }">{{ it.name }}</code>
+            <svg v-if="it.state === 'dead'" width="13" height="13" viewBox="0 0 24 24" fill="none"
               stroke="var(--color-terra)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 3 2 20h20L12 3z" /><path d="M12 10v5M12 18h.01" />
             </svg>
           </div>
-          <div class="desc" :style="{ color: t.descColor }">{{ t.desc }}</div>
+          <div class="desc" :style="{ color: it.descColor }">{{ it.desc }}</div>
         </div>
-        <span class="pill" :class="`pill--${t.state}`">{{ t.stateLabel }}</span>
+        <span class="pill" :class="`pill--${it.state}`">{{ it.stateLabel }}</span>
       </div>
     </div>
-    <div v-else class="empty">aucun outil cité — utilisez <code>&lt;tool:nom&gt;</code> dans le content.</div>
+    <i18n-t v-else keypath="workUi.refs.none" tag="div" class="empty"><template #tag><code>&lt;tool:nom&gt;</code></template></i18n-t>
   </div>
 </template>
 

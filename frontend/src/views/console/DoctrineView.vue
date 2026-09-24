@@ -25,6 +25,9 @@ import ReferencedTools from '@/components/console/doctrine/ReferencedTools.vue'
 import UsageCard from '@/components/console/doctrine/UsageCard.vue'
 import RunnerTriggersCard from '@/components/console/RunnerTriggersCard.vue'
 import SharePrincipalDialog from '@/components/console/SharePrincipalDialog.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const router = useRouter()
 
@@ -51,8 +54,8 @@ const opening = ref(false)
 const refus = ref<TargetRefusal | null>(null)
 watch(routeParam, () => {
   if (!bundle.value) return   // `loadAll` lira le paramètre courant quand la liste arrive
-  const t = procedureTarget(routeParam.value, docs.value)
-  if (targetKey(t) !== targetKey(target.value)) void open(t)
+  const cible = procedureTarget(routeParam.value, docs.value)
+  if (targetKey(cible) !== targetKey(target.value)) void open(cible)
 })
 const body = ref('')           // corps publié (lecture)
 const saved = ref('')          // corps affiché
@@ -89,11 +92,11 @@ const docs = computed(() =>
   })))
 // La procédure affichée : prise dans la liste (cache), ou lue par son id — jamais une autre.
 const activeDoc = computed(() => {
-  const t = target.value
-  if (t.kind === 'listed') return docs.value.find((d) => d.id === t.id)
+  const cible = target.value
+  if (cible.kind === 'listed') return docs.value.find((d) => d.id === cible.id)
   const g = outside.value
-  if (t.kind !== 'by-id' || !g) return undefined
-  return { id: t.id, slug: g.slug ?? '', title: g.title ?? '', description: g.description ?? '', version: g.version ?? 0, exists: true }
+  if (cible.kind !== 'by-id' || !g) return undefined
+  return { id: cible.id, slug: g.slug ?? '', title: g.title ?? '', description: g.description ?? '', version: g.version ?? 0, exists: true }
 })
 const activeSlug = computed(() => activeDoc.value?.slug ?? '')
 const curVersion = computed(() => activeDoc.value?.version ?? 0)
@@ -155,10 +158,10 @@ let seq = 0
 async function open(requested: ProcedureTarget) {
   const mine = ++seq
   const first = docs.value[0]
-  const t: ProcedureTarget = requested.kind === 'first' && first
+  const cible: ProcedureTarget = requested.kind === 'first' && first
     ? { kind: 'listed', id: first.id, slug: first.slug }   // l'entrée du menu, par choix
     : requested
-  target.value = t
+  target.value = cible
   outside.value = null
   refus.value = null
   summary.value = activeDoc.value?.description ?? ''
@@ -168,13 +171,13 @@ async function open(requested: ProcedureTarget) {
   viewing.value = null
   viewingBody.value = ''
   usage.value = null
-  if (t.kind === 'listed') {
-    pick(t.id)   // un slug ou l'absence de paramètre se normalisent vers l'id
-    await openListed(t.slug, mine)
-  } else if (t.kind === 'by-id') {
-    await openById(t.id, mine)
-  } else if (t.kind === 'unknown') {
-    refus.value = { what: `« ${t.raw} »`, code: null, detail: 'aucune procédure de ce nom parmi celles listées ici.' }
+  if (cible.kind === 'listed') {
+    pick(cible.id)   // un slug ou l'absence de paramètre se normalisent vers l'id
+    await openListed(cible.slug, mine)
+  } else if (cible.kind === 'by-id') {
+    await openById(cible.id, mine)
+  } else if (cible.kind === 'unknown') {
+    refus.value = { what: `« ${cible.raw} »`, code: null, detail: t('workUi.procedures.notListed') }
   }
 }
 
@@ -227,21 +230,19 @@ async function openById(id: number, mine: number) {
     <!-- vide / pas d'org (sans procédure demandée : un lien, lui, s'ouvre quand même) -->
     <div v-if="noOrg && !loading && target.kind === 'first'" class="empty-state">
       <span class="o-medallion o-medallion-lg">o</span>
-      <div class="empty-title">aucune procédure <span class="squiggle">encore</span>.</div>
+      <i18n-t keypath="workUi.procedures.none" tag="div" class="empty-title"><template #encore><span class="squiggle">{{ t('workUi.procedures.yet') }}</span></template></i18n-t>
       <div class="empty-sub">
-        les procédures sont rattachées à votre organisation active. rejoignez ou basculez sur une org pour les consulter.
+        {{ t('workUi.procedures.noOrg') }}
       </div>
     </div>
 
     <!-- org sans procédure : dire qui l'écrit -->
     <div v-else-if="!loading && target.kind === 'first' && !docs.length" class="empty-state">
       <span class="o-medallion o-medallion-lg">o</span>
-      <div class="empty-title">aucune procédure <span class="squiggle">encore</span>.</div>
+      <i18n-t keypath="workUi.procedures.none" tag="div" class="empty-title"><template #encore><span class="squiggle">{{ t('workUi.procedures.yet') }}</span></template></i18n-t>
       <div class="empty-sub">
-        une procédure = un déroulé opératoire nommé que l'agent charge à la demande.
-        votre agent l'écrit pour vous (<code>oto_procedure</code>).
-        <br />l'agent readme (injecté à chaque session), lui, s'édite sur
-        <RouterLink to="/org">/org</RouterLink> et <RouterLink to="/account">/account</RouterLink>.
+        <i18n-t keypath="workUi.procedures.what" tag="span"><template #tool><code>oto_procedure</code></template></i18n-t>
+        <br /><i18n-t keypath="workUi.procedures.readme" tag="span"><template #org><RouterLink to="/org">/org</RouterLink></template><template #account><RouterLink to="/account">/account</RouterLink></template></i18n-t>
       </div>
     </div>
 
@@ -249,18 +250,17 @@ async function openById(id: number, mine: number) {
       <!-- ─────── colonne gauche ─────── -->
       <div class="col">
         <!-- la procédure demandée ne s'ouvre pas : le dire, avec le code, et rien à sa place (oto#201) -->
-        <TargetRefusalCard v-if="refus" :title="`impossible d'ouvrir la procédure ${refus.what}`"
+        <TargetRefusalCard v-if="refus" :title="t('workUi.procedures.cannotOpen', { what: refus.what })"
           :code="refus.code" :detail="refus.detail" />
-        <p v-else-if="opening" class="dim">chargement de la procédure…</p>
+        <p v-else-if="opening" class="dim">{{ t('workUi.procedures.opening') }}</p>
 
         <!-- bandeau dead-ref -->
         <div v-if="deadRefs.length" class="warn">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--color-terra)" stroke-width="1.9"
             stroke-linecap="round" stroke-linejoin="round" class="warn__i"><path d="M12 3 2 20h20L12 3z" /><path d="M12 10v5M12 18h.01" /></svg>
           <div class="warn__t">
-            <strong>{{ deadRefs.length }} référence{{ deadRefs.length > 1 ? 's' : '' }} d'outil non résolue{{ deadRefs.length > 1 ? 's' : '' }}</strong>
-            — <code>{{ deadRefs[0] }}</code> n'existe plus dans le registre. l'agent garde le contexte, mais l'appel
-            échouera en silence. corrigez la référence depuis votre agent (<code>oto_procedure</code>).
+            <strong>{{ t('workUi.procedures.deadRefs', { n: deadRefs.length }, deadRefs.length) }}</strong>
+            — <i18n-t keypath="workUi.procedures.deadHelp" tag="span"><template #ref><code>{{ deadRefs[0] }}</code></template><template #tool><code>oto_procedure</code></template></i18n-t>
           </div>
         </div>
 
@@ -268,39 +268,39 @@ async function openById(id: number, mine: number) {
           <!-- ZONE 1 · en-tête -->
           <div class="card hdr">
             <div class="hdr__tags">
-              <span class="tag tag--skill">procédure</span>
+              <span class="tag tag--skill">{{ t('workUi.procedures.procedure') }}</span>
               <span v-if="curVersion" class="tag tag--ver">v{{ curVersion }}</span>
               <span class="slug">{{ activeDoc.slug }}</span>
               <button v-if="canAdmin && listed && activeDoc.id > 0"
                 type="button" class="btn-edit" @click="shareOpen = true">
-                Partager
+                {{ t('workUi.procedures.share') }}
               </button>
             </div>
 
             <div class="hdr__title">{{ activeDoc.title }}</div>
 
             <div class="hdr__eyebrow">
-              <span class="squiggle-sm">résumé</span>
-              <span class="hdr__hint">— ce que fait ce process, et quand le charger</span>
+              <span class="squiggle-sm">{{ t('workUi.procedures.summary') }}</span>
+              <span class="hdr__hint">{{ t('workUi.procedures.summaryHint') }}</span>
             </div>
             <div class="hdr__summary">{{ summary || '—' }}</div>
 
             <div class="hdr__meta">
-              <span v-if="listed">chargée {{ usage?.count ?? 0 }}×</span>
-              <span v-else>hors de ta liste de procédures — versions et usage non affichés ici</span>
+              <span v-if="listed">{{ t('workUi.procedures.loaded', { n: usage?.count ?? 0 }) }}</span>
+              <span v-else>{{ t('workUi.procedures.outside') }}</span>
             </div>
           </div>
 
           <!-- ZONE 2 · content -->
           <div v-if="!refus" class="card">
             <div class="card__head">
-              <span class="eyebrow">content</span>
-              <span class="dim">markdown</span>
+              <span class="eyebrow">{{ t('workUi.procedures.content') }}</span>
+              <span class="dim">{{ t('workUi.procedures.markdown') }}</span>
             </div>
 
             <div v-if="viewing !== null" class="vbanner">
-              <span>Tu consultes la version <strong>v{{ viewing }}</strong> — lecture seule.</span>
-              <button type="button" class="btn-ghost-xs" @click="backToCurrent">Revenir à l'actuelle</button>
+              <i18n-t keypath="workUi.procedures.viewing" tag="span"><template #v><strong>v{{ viewing }}</strong></template></i18n-t>
+              <button type="button" class="btn-ghost-xs" @click="backToCurrent">{{ t('workUi.procedures.backToCurrent') }}</button>
             </div>
             <DoctrineContent :text="viewing !== null ? viewingBody : saved" :reg="reg" />
           </div>
@@ -315,7 +315,7 @@ async function openById(id: number, mine: number) {
         <!-- procédures -->
         <div v-if="docs.length" class="card pad-sm">
           <div class="card__head">
-            <span class="eyebrow">procédures</span>
+            <span class="eyebrow">{{ t('workUi.procedures.list') }}</span>
           </div>
           <div class="doclist">
             <button v-for="d in docs" :key="d.slug" type="button" class="docrow"
@@ -346,19 +346,19 @@ async function openById(id: number, mine: number) {
 
         <!-- versions -->
         <div v-if="listed" class="card pad-sm">
-          <span class="eyebrow">versions</span>
+          <span class="eyebrow">{{ t('workUi.procedures.versions') }}</span>
           <div class="vlist">
             <div v-for="v in versions" :key="v.version" class="vrow">
               <span class="vrow__dot" :class="{ cur: v.version === curVersion }" />
               <span class="vrow__v">v{{ v.version }}</span>
               <div class="vrow__meta">{{ authorLabel(v) }} · {{ fmtDate(v.created_at) }}</div>
-              <span v-if="v.version === curVersion" class="tag tag--ver">actuelle</span>
+              <span v-if="v.version === curVersion" class="tag tag--ver">{{ t('workUi.procedures.current') }}</span>
               <template v-else>
                 <button type="button" class="btn-ghost-xs" :disabled="viewLoading"
-                  @click="viewVersion(v.version)">Voir</button>
+                  @click="viewVersion(v.version)">{{ t('workUi.procedures.view') }}</button>
               </template>
             </div>
-            <div v-if="!versions.length" class="dim">aucun historique.</div>
+            <div v-if="!versions.length" class="dim">{{ t('workUi.procedures.noHistory') }}</div>
           </div>
         </div>
       </div>

@@ -16,6 +16,9 @@ import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessa
 import { Input } from '@/components/ui/input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 export interface ProjectOwnerPayload {
   name: string
@@ -34,7 +37,7 @@ const emit = defineEmits<{ (e: 'update:open', value: boolean): void }>()
 
 const schema = toTypedSchema(
   z.object({
-    name: z.string().trim().min(1, 'Nom requis').max(80, 'Trop long (max 80 caractères)'),
+    name: z.string().trim().min(1, t('workUi.create.nameRequired')).max(80, t('workUi.create.tooLong', { n: 80 })),
     scope: z.string(),
   }),
 )
@@ -70,16 +73,16 @@ const submit = handleSubmit(async (values) => {
   <Dialog :open="open" @update:open="emit('update:open', $event)">
     <DialogContent class="sm:max-w-[420px]">
       <DialogHeader>
-        <DialogTitle>nouveau projet</DialogTitle>
-        <DialogDescription>un conteneur de travail (un but + ses entités).</DialogDescription>
+        <DialogTitle>{{ t('workUi.create.projectTitle') }}</DialogTitle>
+        <DialogDescription>{{ t('workUi.create.projectDesc') }}</DialogDescription>
       </DialogHeader>
 
       <form class="grid gap-4" @submit.prevent="submit">
         <FormField v-slot="{ componentField }" name="name">
           <FormItem>
-            <FormLabel>nom</FormLabel>
+            <FormLabel>{{ t('workUi.create.name') }}</FormLabel>
             <FormControl>
-              <Input type="text" placeholder="ex. prospection Q3" autocomplete="off" v-bind="componentField" />
+              <Input type="text" :placeholder="t('workUi.create.projectPh')" autocomplete="off" v-bind="componentField" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -87,30 +90,30 @@ const submit = handleSubmit(async (values) => {
 
         <FormField v-slot="{ componentField }" name="scope">
           <FormItem>
-            <FormLabel>propriétaire</FormLabel>
+            <FormLabel>{{ t('workUi.create.owner') }}</FormLabel>
             <Select v-bind="componentField">
               <FormControl>
                 <SelectTrigger class="w-full">
-                  <SelectValue placeholder="Choisir un scope" />
+                  <SelectValue :placeholder="t('workUi.create.scopePh')" />
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value="me">moi (privé)</SelectItem>
-                <SelectItem value="org">org{{ orgName ? ` (${orgName})` : '' }}</SelectItem>
+                <SelectItem value="me">{{ t('workUi.create.me') }}</SelectItem>
+                <SelectItem value="org">{{ orgName ? t('workUi.create.orgNamed', { name: orgName }) : t('workUi.create.org') }}</SelectItem>
                 <SelectItem v-for="g in groups ?? []" :key="g.id" :value="`group:${g.id}`">
-                  équipe — {{ g.name }}
+                  {{ t('workUi.create.team', { name: g.name }) }}
                 </SelectItem>
-                <SelectItem v-if="canPlatform" value="platform">bibliothèque oto (plateforme)</SelectItem>
+                <SelectItem v-if="canPlatform" value="platform">{{ t('workUi.create.platform') }}</SelectItem>
               </SelectContent>
             </Select>
-            <FormDescription>par défaut « moi » : privé au créateur, dans le contexte de ton org. Tu partages ensuite ; « org » / « équipe » = visible de tous ses membres d'emblée.</FormDescription>
+            <FormDescription>{{ t('workUi.create.projectHelp') }}</FormDescription>
             <FormMessage />
           </FormItem>
         </FormField>
 
         <DialogFooter>
-          <Button type="button" variant="ghost" :disabled="isSubmitting" @click="emit('update:open', false)">annuler</Button>
-          <Button type="submit" :disabled="isSubmitting">{{ isSubmitting ? 'création…' : 'créer' }}</Button>
+          <Button type="button" variant="ghost" :disabled="isSubmitting" @click="emit('update:open', false)">{{ t('workUi.create.cancel') }}</Button>
+          <Button type="submit" :disabled="isSubmitting">{{ isSubmitting ? t('workUi.create.creating') : t('workUi.create.create') }}</Button>
         </DialogFooter>
       </form>
     </DialogContent>

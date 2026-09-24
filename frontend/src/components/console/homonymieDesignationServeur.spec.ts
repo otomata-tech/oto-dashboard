@@ -162,6 +162,10 @@ const TRAVAIL = {
 }
 
 describe('le détail d un travail de runner', () => {
+  // La fiche parle par clés depuis oto#195 : ses libellés se lisent dans la langue de
+  // référence du produit.
+  beforeEach(() => { i18n.global.locale.value = 'fr' })
+
   it('adresse le tableau par l identifiant que le SERVEUR a mis dans la charge utile', async () => {
     // La campagne vise le tableau REÇU. Son nom, à lui seul, désignerait le mien :
     // c'est la reproduction — avant que le backend n'emporte `datastore_id`, la
@@ -297,7 +301,7 @@ describe('la désignation, site par site', () => {
     for (const m of JOB.matchAll(/`\/data\/\$\{encodeURIComponent\(([A-Za-z_$][\w$.]*)\)/g))
       expect(m[1]).toBe('tableauId')
     // Le nom reste un LIBELLÉ, et il est toujours montré.
-    expect(JOB).toContain('ouvrir le tableau {{ tableauNom }}')
+    expect(JOB).toContain("t('automationsJob.openTable', { name: tableauNom })")
   })
 
   it('le repli consulte les DEUX listes, et l identifiant avant le nom', () => {

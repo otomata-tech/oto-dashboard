@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { InstructionUsage } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ usage: InstructionUsage | null; loading: boolean }>()
 
@@ -22,20 +25,20 @@ const callersLabel = computed(() => {
 
 <template>
   <div class="card">
-    <span class="eyebrow">usage · ce process</span>
+    <span class="eyebrow">{{ t('workUi.usage.title') }}</span>
 
     <div v-if="loading" class="skeleton" />
     <template v-else>
       <div class="count">
         <div class="n">{{ usage?.count ?? 0 }}</div>
-        <div class="u">chargements</div>
+        <div class="u">{{ t('workUi.usage.loads') }}</div>
       </div>
       <div v-if="usage && usage.count > 0" class="spark">
         <div v-for="(b, i) in bars" :key="i" class="bar" :style="{ height: b.h, background: b.color }" />
       </div>
-      <div v-else class="empty">jamais chargée sur les 30 derniers jours — l'agent la tire via <code>oto_get_doctrine</code>.</div>
+      <i18n-t v-else keypath="workUi.usage.never" tag="div" class="empty"><template #tool><code>oto_get_doctrine</code></template></i18n-t>
       <div class="foot">
-        <span>30 derniers jours</span><span>par {{ callersLabel }}</span>
+        <span>{{ t('workUi.usage.last30') }}</span><span>{{ t('workUi.usage.by', { who: callersLabel }) }}</span>
       </div>
     </template>
   </div>

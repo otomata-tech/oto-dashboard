@@ -21,6 +21,9 @@ import { subFieldsOf } from '@/lib/datastoreForm'
 import {
   accepteVideSousChamp, elementSaisi, estElementBrut, type CompositeSaisi, type ElementSaisi,
 } from '@/lib/rowDraft'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // `erreurs` (oto#219) : rang de l'élément → sous-champ → message — le refus du serveur
 // rattaché au champ exact, au lieu d'une phrase en tête de fiche.
@@ -89,7 +92,7 @@ function onScalarText(e: Event) {
   <!-- list scalaire -->
   <div v-if="modelValue.sorte === 'valeurs'" class="sre">
     <textarea class="sre-scalar" :value="scalarText" rows="3"
-      placeholder="une valeur par ligne" @input="onScalarText" />
+      :placeholder="t('workUi.subRecord.perLine')" @input="onScalarText" />
   </div>
 
   <!-- object / list de sous-records -->
@@ -97,14 +100,14 @@ function onScalarText(e: Event) {
     <div v-for="(item, i) in items" :key="i" class="sre-item" :data-item="i">
       <div v-if="!isObject" class="sre-item-head">
         <span class="sre-item-n mono">{{ i + 1 }}</span>
-        <button class="sre-x" :aria-label="`retirer l'item ${i + 1}`" @click="removeItem(i)">
+        <button class="sre-x" :aria-label="t('workUi.subRecord.removeItem', { n: i + 1 })" @click="removeItem(i)">
           <Icon name="close" :size="12" />
         </button>
       </div>
       <code v-if="estElementBrut(item)" class="mono sre-raw">{{ JSON.stringify(item.lu) }}</code>
       <div v-else class="sre-grid">
         <template v-for="k in keysOf(item)" :key="k.key">
-          <label class="sre-k">{{ k.label }}<span v-if="k.required" class="sre-req" title="champ requis">*</span></label>
+          <label class="sre-k">{{ k.label }}<span v-if="k.required" class="sre-req" :title="t('workUi.subRecord.required')">*</span></label>
           <div class="sre-cell" :data-cell="k.key">
             <input class="sre-inp" :value="item.textes[k.key] ?? ''" :placeholder="k.label"
               @input="setItemField(i, k.key, ($event.target as HTMLInputElement).value)" />
@@ -118,8 +121,8 @@ function onScalarText(e: Event) {
         </template>
       </div>
     </div>
-    <p v-if="!isObject && !items.length" class="dim sre-empty">aucun item.</p>
-    <Btn v-if="!isObject" kind="mini" icon="plus" @click="addItem">Item</Btn>
+    <p v-if="!isObject && !items.length" class="dim sre-empty">{{ t('workUi.subRecord.none') }}</p>
+    <Btn v-if="!isObject" kind="mini" icon="plus" @click="addItem">{{ t('workUi.subRecord.item') }}</Btn>
   </div>
 </template>
 

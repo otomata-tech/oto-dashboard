@@ -54,7 +54,7 @@ const modele = computed(() => (j.value ? modeleTravail(j.value) ?? t('automation
 // qui ÉTAIT tenu — pas un bail « expiré ». Dire « expiré » là accuserait de mort
 // un travail terminé normalement.
 const LIB_BAIL: Record<string, string> = {
-  'en-cours': 'court jusqu’à', expire: 'expiré depuis', tenu: 'tenu jusqu’à',
+  'en-cours': 'automationsJob.lease.running', expire: 'automationsJob.lease.expired', tenu: 'automationsJob.lease.held',
 }
 const bailDit = computed(() => {
   const job = j.value
@@ -64,7 +64,7 @@ const bailDit = computed(() => {
   const quand = absDate(new Date(b.fin).toISOString())
   return {
     etat: b.etat,
-    texte: `${LIB_BAIL[b.etat]} ${quand}`,
+    texte: t(LIB_BAIL[b.etat]!, { when: quand }),
     // Le seul cas qui appelle un geste : le worker est parti, le job attend d'être
     // repris. Ailleurs, la date est un fait, pas une alerte.
     alerte: b.etat === 'expire',
@@ -74,16 +74,7 @@ const bailDit = computed(() => {
 // ── Ce que le travail visait ────────────────────────────────────────────────
 // Le payload porte des RÉFÉRENCES par contrat d'enqueue ; sa forme reste ouverte.
 // On nomme ce qu'on reconnaît, on rend le reste tel quel.
-const ETIQUETTES_PAYLOAD: Record<string, string> = {
-  procedure: 'procédure',
-  fleet: 'campagne',
-  namespace: 'tableau',
-  project_id: 'projet',
-  tools: 'outils autorisés',
-  label: 'libellé',
-  max_steps: 'plafond d’étapes',
-  input: 'référence passée au run',
-}
+const ETIQUETTES_PAYLOAD = new Set(['procedure', 'fleet', 'namespace', 'project_id', 'tools', 'label', 'max_steps', 'input'])
 
 function texte(v: unknown): string {
   if (v === null || v === undefined) return '—'
@@ -179,7 +170,7 @@ const visees = computed(() => {
     // plus donnerait deux lignes pour une seule chose, dont une illisible.
     .filter(([cle]) => cle !== 'datastore_id')
     .filter(([, v]) => v !== null && v !== undefined && v !== '')
-    .map(([cle, v]) => ({ cle, label: ETIQUETTES_PAYLOAD[cle] ?? cle, valeur: texte(v) }))
+    .map(([cle, v]) => ({ cle, label: ETIQUETTES_PAYLOAD.has(cle) ? t(`automationsJob.payload.${cle}`) : cle, valeur: texte(v) }))
 })
 
 // ── Ce que le travail a produit ─────────────────────────────────────────────
@@ -192,7 +183,7 @@ const autres = computed(() => (j.value ? autresResultat(j.value) : []))
 const worker = computed(() => {
   const c = j.value?.claimed_by
   if (!c) return null
-  return c === me.value?.sub ? 'ton compte' : `${c.slice(0, 12)}…`
+  return c === me.value?.sub ? t('automationsJob.yourAccount') : `${c.slice(0, 12)}…`
 })
 
 // ── Le fil ──────────────────────────────────────────────────────────────────
@@ -206,12 +197,12 @@ function resume(m: RunThreadMessage): string {
   const brut = c?.content ?? c?.text
   const corps = typeof brut === 'string' ? brut : ''
   const appels = Array.isArray(c?.tool_calls)
-    ? (c!.tool_calls as Array<{ name?: string }>).map((t) => t.name).filter(Boolean)
+    ? (c!.tool_calls as Array<{ name?: string }>).map((x) => x.name).filter(Boolean)
     : []
   const releve = typeof c?.tool_relevé === 'string' ? c.tool_relevé : ''
   const outilsDits = appels.length ? appels.join(', ') : releve
   if (corps && outilsDits) return `${corps}\n↳ ${outilsDits}`
-  if (outilsDits) return `outils : ${outilsDits}`
+  if (outilsDits) return t('automationsJob.toolsSaid', { tools: outilsDits })
   return corps || '—'
 }
 
@@ -231,16 +222,16 @@ watch(() => props.job?.id, async () => {
 </script>
 
 <template>
-    <section v-if="j" class="card jd" aria-label="fiche d'une exécution">
+    <section v-if="j" class="card jd" :aria-label="t('automationsJob.aria')">
       <header class="jd-head">
         <div class="jd-head-txt">
           <h3 class="jd-title">
-            Exécution <span class="jd-id">#{{ j.id }}</span>
+            {{ t('automationsJob.title') }} <span class="jd-id">#{{ j.id }}</span>
             <Tag v-if="statut" :tone="statut.ton">{{ t(statut.cle, statut.params) }}</Tag>
           </h3>
           <p class="jd-desc">
             {{ procOf(j) ?? '—' }}
-            <span v-if="j.kind === 'continue'"> · suite d'un run</span>
+            <span v-if="j.kind === 'continue'">{{ t('automationsJob.continuation') }}</span>
             <span v-if="sejour(j, maintenant)"> · {{ sejour(j, maintenant) }}</span>
           </p>
         </div>
@@ -253,29 +244,28 @@ watch(() => props.job?.id, async () => {
         <!-- ② L'échec, en toutes lettres -->
         <div v-if="j.last_error" class="jd-err">
           <div class="jd-err-t">
-            {{ j.status === 'failed' ? 'Échec' : 'Dernier échec avant reprise' }}
-            <span class="jd-err-n">{{ j.attempts }}/{{ j.max_attempts }} tentatives</span>
+            {{ j.status === 'failed' ? t('automationsJob.failed') : t('automationsJob.lastFailure') }}
+            <span class="jd-err-n">{{ t('automationsJob.attempts', { n: j.attempts, max: j.max_attempts }) }}</span>
           </div>
           <p class="jd-err-m">{{ j.last_error }}</p>
         </div>
         <!-- Repris sans motif : personne n'a déclaré d'échec, le bail est mort. -->
         <p v-else-if="renvois(j)" class="jd-mute">
-          Repris {{ renvois(j) }} fois sans motif déclaré — la marque d'un worker perdu
-          en cours de bail, pas d'un échec de l'agent.
+          {{ t('automationsJob.resumed', { n: renvois(j) }) }}
         </p>
 
         <!-- ③ L'identité -->
         <dl class="jd-meta">
           <div>
-            <dt>créée</dt>
+            <dt>{{ t('automationsJob.created') }}</dt>
             <dd>{{ j.created_at ? absDate(String(j.created_at)) : '—' }}</dd>
           </div>
           <div>
-            <dt>conclue</dt>
-            <dd>{{ j.finished_at ? absDate(String(j.finished_at)) : 'pas encore' }}</dd>
+            <dt>{{ t('automationsJob.concluded') }}</dt>
+            <dd>{{ j.finished_at ? absDate(String(j.finished_at)) : t('automationsJob.notYet') }}</dd>
           </div>
           <div>
-            <dt>séjour</dt>
+            <dt>{{ t('automationsJob.stay') }}</dt>
             <dd>{{ sejourMs(j, maintenant) !== null ? duree(sejourMs(j, maintenant)!) : '—' }}</dd>
           </div>
           <div>
@@ -287,70 +277,63 @@ watch(() => props.job?.id, async () => {
             <dd>{{ cout }}</dd>
           </div>
           <div>
-            <dt>tentatives</dt>
+            <dt>{{ t('automationsJob.attemptsLabel') }}</dt>
             <dd>{{ j.attempts }} / {{ j.max_attempts }}</dd>
           </div>
           <!-- Le bail RÉEL de la prise, servi depuis oto-backend #723. Il remplace
                la présomption d'ancienneté : « expiré » n'est plus une déduction. -->
           <div v-if="bailDit">
-            <dt>bail</dt>
+            <dt>{{ t('automationsJob.lease') }}</dt>
             <dd :class="{ alerte: bailDit.alerte }">{{ bailDit.texte }}</dd>
           </div>
           <div>
-            <dt>worker</dt>
-            <dd :title="j.claimed_by ?? ''">{{ worker ?? 'pas encore prise' }}</dd>
+            <dt>{{ t('automationsJob.worker') }}</dt>
+            <dd :title="j.claimed_by ?? ''">{{ worker ?? t('automationsJob.notTaken') }}</dd>
           </div>
           <div>
-            <dt>run</dt>
-            <dd class="mono">{{ j.run_id ?? 'aucun run ouvert' }}</dd>
+            <dt>{{ t('automationsJob.run') }}</dt>
+            <dd class="mono">{{ j.run_id ?? t('automationsJob.noRun') }}</dd>
           </div>
         </dl>
 
         <!-- ④ Ce qu'il visait -->
         <section v-if="visees.length" class="jd-sec">
-          <h4 class="jd-sec-t">Ce qu'elle visait</h4>
+          <h4 class="jd-sec-t">{{ t('automationsJob.aimed') }}</h4>
           <!-- ⚠️ Les liens s'adressent par l'IDENTIFIANT porté par la charge utile, et
                n'existent QUE s'il y est. Un lien bâti sur le nom ouvrait, chez un lecteur
                qui a un homonyme, le tableau de CE lecteur — sous le bon libellé (oto#160). -->
           <p v-if="tableauId" class="jd-liens">
             <RouterLink :to="`/data/${encodeURIComponent(tableauId)}`" class="jd-lien">
-              ouvrir le tableau {{ tableauNom }}
+              {{ t('automationsJob.openTable', { name: tableauNom }) }}
             </RouterLink>
             <RouterLink
               v-if="lignePayload"
               :to="`/data/${encodeURIComponent(tableauId)}/item/${encodeURIComponent(lignePayload)}`"
               class="jd-lien"
-            >ouvrir la ligne visée</RouterLink>
+            >{{ t('automationsJob.openRow') }}</RouterLink>
             <RouterLink
               v-if="tenue.etat === 'trouvee'"
               :to="`/data/${encodeURIComponent(tableauId)}/item/${encodeURIComponent(tenue.id)}`"
               class="jd-lien"
-            >ouvrir la ligne qu'elle tient</RouterLink>
+            >{{ t('automationsJob.openHeld') }}</RouterLink>
           </p>
           <!-- ⚠️ On dit ce qu'on ne peut PAS montrer. Le tableau n'enregistre que la
                ligne qu'un run tient EN CE MOMENT ; elle est libérée à la conclusion.
                Laisser un silence ici se lirait « ce travail n'a touché aucune ligne ». -->
           <p v-if="tenue.etat === 'liberee'" class="jd-vide">
-            La ligne qu'elle a travaillée n'est plus retrouvable : le tableau ne retient
-            que la ligne qu'un agent tient sur le moment, et elle est relâchée à la
-            conclusion. Le journal du tableau, lui, garde la trace de l'écriture.
+            {{ t('automationsJob.released') }}
           </p>
           <p v-else-if="tenue.etat === 'aucune'" class="jd-vide">
-            Cet agent ne tient aucune ligne de ce tableau en ce moment — il n'en a pas
-            encore réservé, ou il l'a déjà rendue.
+            {{ t('automationsJob.none') }}
           </p>
           <p v-else-if="tenue.etat === 'illisible'" class="jd-vide">
-            La file de travail de ce tableau ne t'est pas lisible : impossible de dire
-            quelle ligne cet agent tient.
+            {{ t('automationsJob.unreadable') }}
           </p>
           <!-- ⚠️ Le cas d'un travail ANCIEN : il nomme son tableau sans l'identifier, et
                plusieurs tableaux peuvent porter ce nom. On montre le nom et on s'arrête
                là — ouvrir au jugé ouvrirait peut-être celui du lecteur. -->
           <p v-else-if="tenue.etat === 'sans-adresse'" class="jd-vide">
-            Cette exécution nomme son tableau ({{ tableauNom }}) sans l’identifier : elle a été
-            enfilée avant que la plateforme n’emporte l’identifiant. On ne l’ouvre pas
-            d’ici — plusieurs tableaux peuvent porter ce nom, et ce ne serait pas
-            forcément le bon. Passe par Données pour retrouver celui de cette campagne.
+            {{ t('automationsJob.noAddress', { name: tableauNom }) }}
           </p>
           <dl class="jd-meta">
             <div v-for="v in visees" :key="v.cle">
@@ -362,10 +345,9 @@ watch(() => props.job?.id, async () => {
 
         <!-- ⑤ Ce qu'il a produit -->
         <section class="jd-sec">
-          <h4 class="jd-sec-t">Ce qu'elle a produit</h4>
+          <h4 class="jd-sec-t">{{ t('automationsJob.produced') }}</h4>
           <p v-if="!postes.length && !outils.length && !autres.length" class="jd-vide">
-            Cette exécution n'a rien déclaré à sa conclusion : soit elle n'est pas encore
-            conclue, soit le worker n'a rendu aucun relevé.
+            {{ t('automationsJob.nothing') }}
           </p>
           <dl v-if="postes.length" class="jd-meta">
             <div v-for="p in postes" :key="p.cle">
@@ -376,7 +358,7 @@ watch(() => props.job?.id, async () => {
             </div>
           </dl>
           <div v-if="outils.length" class="jd-outils">
-            <div class="jd-outils-t">Outils appelés avec succès</div>
+            <div class="jd-outils-t">{{ t('automationsJob.toolsOk') }}</div>
             <ul>
               <li v-for="o in outils" :key="o.outil">
                 <span class="mono">{{ o.outil }}</span><b>{{ o.n }}</b>
@@ -395,19 +377,18 @@ watch(() => props.job?.id, async () => {
 
         <!-- ⑥ Le fil -->
         <section class="jd-sec">
-          <h4 class="jd-sec-t">Journal</h4>
+          <h4 class="jd-sec-t">{{ t('automationsJob.log') }}</h4>
           <p v-if="!j.run_id" class="jd-vide">
-            Cette exécution n'a pas ouvert de run : elle n'a pas de journal à lire.
+            {{ t('automationsJob.noLog') }}
           </p>
           <p v-else-if="fil === 'chargement'" class="jd-vide">{{ $t('common.loading') }}</p>
           <p v-else-if="fil === 'erreur'" class="jd-vide">
-            Journal illisible : il est réservé au propriétaire du run.
+            {{ t('automationsJob.logUnreadable') }}
           </p>
           <!-- Un fil vide n'est pas une panne : quand la boucle d'outils tourne
                chez le fournisseur, le verbatim des tours ne nous revient pas. -->
           <p v-else-if="Array.isArray(fil) && !fil.length" class="jd-vide">
-            Aucun tour conservé — les runs dont la boucle d'outils s'exécute chez le
-            fournisseur ne rendent qu'une synthèse.
+            {{ t('automationsJob.noTurn') }}
           </p>
           <div v-else-if="Array.isArray(fil)" class="jd-fil">
             <div v-for="msg in fil" :key="msg.seq" class="jd-msg" :data-role="msg.role">

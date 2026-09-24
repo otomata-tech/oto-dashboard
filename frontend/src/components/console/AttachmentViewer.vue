@@ -16,6 +16,9 @@ import { computed, ref, watch } from 'vue'
 import Icon from '@/components/console/Icon.vue'
 import MarkdownView from '@/components/console/MarkdownView.vue'
 import type { ProjectFile } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ file: ProjectFile | null }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -116,13 +119,13 @@ function onKey(e: KeyboardEvent) { if (e.key === 'Escape') emit('close') }
           <div v-if="file.description" class="av-head__desc">{{ file.description }}</div>
         </div>
         <div class="av-head__act">
-          <a v-if="src" :href="src" target="_blank" rel="noopener" class="av-iconbtn" title="Ouvrir dans un onglet">
+          <a v-if="src" :href="src" target="_blank" rel="noopener" class="av-iconbtn" :title="t('workUi.attachment.openTab')">
             <Icon name="external-link" :size="16" />
           </a>
-          <a v-if="src" :href="src" :download="file.filename" class="av-iconbtn" title="Télécharger">
+          <a v-if="src" :href="src" :download="file.filename" class="av-iconbtn" :title="t('workUi.attachment.download')">
             <Icon name="download" :size="16" />
           </a>
-          <button class="av-iconbtn" title="Fermer" @click="emit('close')">
+          <button class="av-iconbtn" :title="t('workUi.attachment.close')" @click="emit('close')">
             <Icon name="x" :size="17" />
           </button>
         </div>
@@ -130,7 +133,7 @@ function onKey(e: KeyboardEvent) { if (e.key === 'Escape') emit('close') }
 
       <div class="av-body" :class="{ 'av-body--pad': kind !== 'pdf' && kind !== 'image' }">
         <!-- pdf : viewer natif -->
-        <iframe v-if="kind === 'pdf' && src" :src="src" class="av-frame" title="Aperçu PDF"></iframe>
+        <iframe v-if="kind === 'pdf' && src" :src="src" class="av-frame" :title="t('workUi.attachment.pdf')"></iframe>
 
         <!-- image -->
         <div v-else-if="kind === 'image' && src" class="av-imgwrap">
@@ -139,16 +142,16 @@ function onKey(e: KeyboardEvent) { if (e.key === 'Escape') emit('close') }
 
         <!-- html : isolé -->
         <iframe v-else-if="kind === 'html' && src" :src="src" class="av-frame"
-          sandbox="allow-same-origin" title="Aperçu HTML"></iframe>
+          sandbox="allow-same-origin" :title="t('workUi.attachment.html')"></iframe>
 
         <!-- états de récupération pour les types texte -->
-        <p v-else-if="loading" class="av-note">chargement de l'aperçu…</p>
+        <p v-else-if="loading" class="av-note">{{ t('workUi.attachment.loading') }}</p>
         <div v-else-if="fetchError" class="av-fallback">
           <Icon name="triangle-alert" :size="28" class="av-fallback__ic" />
-          <p class="av-fallback__t">aperçu indisponible</p>
-          <p class="av-fallback__d">impossible de charger le contenu ici — ouvre ou télécharge le fichier.</p>
+          <p class="av-fallback__t">{{ t('workUi.attachment.unavailable') }}</p>
+          <p class="av-fallback__d">{{ t('workUi.attachment.cannotLoad') }}</p>
           <a v-if="src" :href="src" target="_blank" rel="noopener" class="btn ghost av-fallback__btn">
-            <Icon name="external-link" :size="15" /> ouvrir
+            <Icon name="external-link" :size="15" /> {{ t('workUi.attachment.open') }}
           </a>
         </div>
 
@@ -165,7 +168,7 @@ function onKey(e: KeyboardEvent) { if (e.key === 'Escape') emit('close') }
               </tr>
             </tbody>
           </table>
-          <p v-else class="av-note">csv vide.</p>
+          <p v-else class="av-note">{{ t('workUi.attachment.emptyCsv') }}</p>
         </div>
 
         <!-- json / texte -->
@@ -175,10 +178,10 @@ function onKey(e: KeyboardEvent) { if (e.key === 'Escape') emit('close') }
         <!-- format non rendable -->
         <div v-else class="av-fallback">
           <Icon name="file-text" :size="28" class="av-fallback__ic" />
-          <p class="av-fallback__t">aperçu non disponible pour ce format</p>
+          <p class="av-fallback__t">{{ t('workUi.attachment.noPreview') }}</p>
           <p class="av-fallback__d">{{ file.mime || file.filename }}</p>
           <a v-if="src" :href="src" :download="file.filename" class="btn ghost av-fallback__btn">
-            <Icon name="download" :size="15" /> télécharger
+            <Icon name="download" :size="15" /> {{ t('workUi.attachment.downloadLow') }}
           </a>
         </div>
       </div>

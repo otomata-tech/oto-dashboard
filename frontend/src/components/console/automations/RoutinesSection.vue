@@ -25,9 +25,9 @@ const error = ref<string | null>(null)
 
 const routines = computed(() => instances.value.filter((i) => i.connector === 'routine'))
 
-const LEVEL_LABEL: Record<string, string> = {
-  member: 'à moi', group: 'équipe', org: 'organisation', platform: 'plateforme',
-}
+const LEVEL_LABEL = computed<Record<string, string>>(() => ({
+  member: t('automationsRoutines.me'), group: t('automationsRoutines.group'), org: t('automationsRoutines.org'), platform: t('automationsRoutines.platform'),
+}))
 
 async function load() {
   try {
@@ -61,9 +61,9 @@ onMounted(load)
 
       <ul v-else class="au-list">
         <li v-for="i in routines" :key="i.ref" class="au-item">
-          <span class="au-name">{{ i.name || i.account || 'routine' }}</span>
+          <span class="au-name">{{ i.name || i.account || t('automationsRoutines.routine') }}</span>
           <span class="au-lvl">{{ LEVEL_LABEL[i.level] ?? i.level }}</span>
-          <span v-if="i.suspended" class="au-susp">mise de côté</span>
+          <span v-if="i.suspended" class="au-susp">{{ t('automationsRoutines.setAside') }}</span>
         </li>
       </ul>
     </div>

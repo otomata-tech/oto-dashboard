@@ -1,6 +1,7 @@
 // Smoke test de montage : le markdown entrant est rendu en riche (WYSIWYG), une
 // commande de la toolbar ressort par le v-model en markdown. Complète le test de
 // round-trip pur (lib/mdeExtensions.spec.ts) en couvrant le câblage Vue.
+import { i18n } from '@/lib/i18n'
 import { describe, expect, it } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import MarkdownEditor from './MarkdownEditor.vue'
@@ -13,7 +14,8 @@ async function mountEditor(initial: string) {
     modelValue: initial,
     'onUpdate:modelValue': (v: string) => updates.push(v),
   })
-  app.mount(host)
+  i18n.global.locale.value = 'fr'
+  app.use(i18n).mount(host)
   await nextTick()
   return { host, updates, unmount: () => { app.unmount(); host.remove() } }
 }
