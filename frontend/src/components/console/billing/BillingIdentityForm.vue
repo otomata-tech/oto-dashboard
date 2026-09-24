@@ -34,7 +34,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ saved: [BillingIdentityView] }>()
 
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 
 const draft = ref({
   legal_name: '', country_code: HOME_COUNTRY, address_line: '', address_line2: '',
@@ -72,7 +72,7 @@ const euNeedsVat = computed(() =>
 const vatPlaceholder = computed(() =>
   EU_COUNTRIES.has(draft.value.country_code)
     ? `${vatPrefix(draft.value.country_code)}…`
-    : 'sans objet hors de l\'Union européenne')
+    : t('billingUi.identity.vatNA'))
 
 // Surlignage : un champ nommé par le serveur le reste tant qu'il est vide.
 function flagged(field: string): boolean {
@@ -114,7 +114,7 @@ async function save() {
       <label class="bif-field bif-wide">
         <span class="bif-label">{{ IDENTITY_FIELD_LABEL.legal_name }}</span>
         <input v-model="draft.legal_name" class="inp" :class="{ flag: flagged('legal_name') }"
-          :disabled="!canManage || busy" placeholder="telle qu'elle figurera sur la facture" />
+          :disabled="!canManage || busy" :placeholder="t('billingUi.identity.legalNamePh')" />
       </label>
 
       <!-- Pas un <label> : il enveloppe un bouton (le select du DS), et le clic sur
@@ -122,12 +122,12 @@ async function save() {
       <div class="bif-field">
         <span class="bif-label">{{ IDENTITY_FIELD_LABEL.country_code }}</span>
         <OtoSelect v-model="draft.country_code" :options="countries" grow
-          :disabled="!canManage || busy" aria-label="pays de facturation"
+          :disabled="!canManage || busy" :aria-label="t('billingUi.identity.country')"
           :trigger-class="flagged('country_code') ? 'oto-flag' : ''" />
       </div>
 
       <label class="bif-field">
-        <span class="bif-label">Numéro de TVA intracommunautaire</span>
+        <span class="bif-label">{{ t('billingUi.identity.vat') }}</span>
         <input v-model="draft.vat_number" class="inp mono" :disabled="!canManage || busy"
           :placeholder="vatPlaceholder" />
       </label>
@@ -135,13 +135,13 @@ async function save() {
       <label class="bif-field bif-wide">
         <span class="bif-label">{{ IDENTITY_FIELD_LABEL.address_line }}</span>
         <input v-model="draft.address_line" class="inp" :class="{ flag: flagged('address_line') }"
-          :disabled="!canManage || busy" placeholder="numéro et voie" />
+          :disabled="!canManage || busy" :placeholder="t('billingUi.identity.addressPh')" />
       </label>
 
       <label class="bif-field bif-wide">
-        <span class="bif-label">Complément d'adresse</span>
+        <span class="bif-label">{{ t('billingUi.identity.address2') }}</span>
         <input v-model="draft.address_line2" class="inp" :disabled="!canManage || busy"
-          placeholder="bâtiment, étage (facultatif)" />
+          :placeholder="t('billingUi.identity.address2Ph')" />
       </label>
 
       <label class="bif-field">
@@ -157,25 +157,24 @@ async function save() {
       </label>
 
       <label class="bif-field bif-wide">
-        <span class="bif-label">Adresse d'envoi des factures</span>
+        <span class="bif-label">{{ t('billingUi.identity.email') }}</span>
         <input v-model="draft.billing_email" class="inp" type="email"
           :disabled="!canManage || busy"
-          placeholder="si elle diffère de celle de l'administrateur (facultatif)" />
+          :placeholder="t('billingUi.identity.emailPh')" />
       </label>
     </div>
 
     <Notice v-if="euNeedsVat && !draft.vat_number.trim()" tone="warn">
-      Un client de l'Union européenne établi hors de France doit indiquer son numéro
-      de TVA intracommunautaire : sans lui, la souscription en ligne n'est pas ouverte.
+      {{ t('billingUi.identity.euVat') }}
     </Notice>
     <Notice v-if="error" tone="warn">{{ error }}</Notice>
 
     <div v-if="canManage" class="bif-actions">
-      <Btn icon="check" :disabled="busy" @click="save">Enregistrer</Btn>
-      <span v-if="saved && !busy" class="bif-saved"><Icon name="ok" :size="14" /> enregistré</span>
+      <Btn icon="check" :disabled="busy" @click="save">{{ t('billingUi.identity.save') }}</Btn>
+      <span v-if="saved && !busy" class="bif-saved"><Icon name="ok" :size="14" /> {{ t('billingUi.identity.saved') }}</span>
     </div>
     <p v-else class="helptext">
-      Seul un administrateur de l'organisation peut modifier ces informations.
+      {{ t('billingUi.identity.adminOnly') }}
     </p>
   </div>
 </template>

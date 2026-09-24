@@ -2,6 +2,7 @@
 // qu'au super_admin (figé à l'entrée de la vue, `operator.superAdmin`), seulement après
 // une confirmation INTÉGRÉE (usePrompt, jamais un dialogue natif), et « Revenir en lecture
 // seule » retire le header d'écriture.
+import { i18n } from '@/lib/i18n'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick, ref } from 'vue'
 import { revokeViewAsWrite, setViewUser, viewHeaders, requestViewAsWrite } from '@/lib/viewOrg'
@@ -31,7 +32,8 @@ async function mountBanner() {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const app = createApp(ViewAsBanner)
-  app.mount(host)
+  i18n.global.locale.value = 'fr'
+  app.use(i18n).mount(host)
   await nextTick()
   cleanup = () => { app.unmount(); host.remove() }
   return host

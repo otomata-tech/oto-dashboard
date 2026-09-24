@@ -1,6 +1,7 @@
 // Membres d'une équipe (oto#192, réintroduit — cf. TeamDetailView) : les gestes d'écriture
 // (add/role/remove) suivent `can-manage`, jamais le rôle seul — même règle que le reste de
 // la console (oto#210/#211), portée ici par le PARENT (TeamDetailView), pas ce composant.
+import { i18n } from '@/lib/i18n'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 
@@ -31,7 +32,8 @@ async function boutons(canManage: boolean, meSub: string | null = 'u-autre') {
   const app = createApp(TeamMembersCard, {
     groupId: 3, orgId: 35, members: membres, canManage, meSub,
   })
-  app.mount(host)
+  i18n.global.locale.value = 'fr'
+  app.use(i18n).mount(host)
   await settle()
   const out = [...host.querySelectorAll('button')].map((b) => b.textContent?.trim() ?? '')
   app.unmount()
@@ -48,15 +50,15 @@ describe('TeamMembersCard — les gestes d\'écriture suivent can-manage', () =>
 
   it("can-manage=true : Add member, et par ligne Make lead/Demote + Remove", async () => {
     const out = await boutons(true)
-    expect(out).toContain('Add member')
-    expect(out).toContain('Demote')   // u-lead est déjà lead
-    expect(out).toContain('Make lead')   // u-membre ne l'est pas
-    expect(out.filter((b) => b === 'Remove')).toHaveLength(2)
+    expect(out).toContain('Ajouter un membre')
+    expect(out).toContain('Rétrograder')   // u-lead est déjà lead
+    expect(out).toContain('Nommer chef')   // u-membre ne l'est pas
+    expect(out.filter((b) => b === 'Retirer')).toHaveLength(2)
   })
 
   it("can-manage=true : la ligne DE l'appelant n'a pas de bouton (pas de self-demote/self-remove)", async () => {
     const out = await boutons(true, 'u-lead')
     // u-lead ne doit plus porter Demote/Remove pour lui-même — un seul membre restant a ces gestes.
-    expect(out.filter((b) => b === 'Remove')).toHaveLength(1)
+    expect(out.filter((b) => b === 'Retirer')).toHaveLength(1)
   })
 })

@@ -8,6 +8,9 @@ import { useMyOrgs } from '@/composables/useMyOrgs'
 import { useToast } from '@/composables/useToast'
 import { createMyOrg, setActiveOrg } from '@/api/console'
 import type { Org, GroupListItem } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // Switcher d'org (+ équipe). C'est de la CONSULTATION pure (ADR 0023), ZÉRO effet MCP
 // (jamais de bascule d'identité Claude depuis le FE — ça casserait une conversation en
@@ -113,7 +116,7 @@ async function createOrg() {
     const r = await createMyOrg(name)
     emit('switched')
     await goToOrg(r.org_id, '/overview')
-  } catch (e) { toast(msg(e, 'échec de la création')); switching.value = false }
+  } catch (e) { toast(msg(e, t('orgUi.workspace.createFailed'))); switching.value = false }
 }
 
 // Org MCP (MAISON) : le SEUL geste qui touche le MCP (setActiveOrg = PUT active-org).
@@ -126,7 +129,7 @@ async function setHome(o: Org) {
     await setActiveOrg(o.id)
     emit('switched')
     await goToOrg(o.id)
-  } catch (e) { toast(msg(e, "échec de la définition de l'org MCP")); switching.value = false }
+  } catch (e) { toast(msg(e, t('orgUi.workspace.homeFailed'))); switching.value = false }
 }
 
 const showTeams = computed(() => myTeams.value.length > 0)
@@ -138,19 +141,19 @@ onMounted(async () => {
   if (orgs.value != null) { loadOrgs(true).catch(() => {}); return }
   loading.value = true
   try { await loadOrgs() }
-  catch (e) { toast(msg(e, 'impossible de charger tes organisations')) }
+  catch (e) { toast(msg(e, t('orgUi.workspace.loadFailed'))) }
   finally { loading.value = false }
 })
 </script>
 
 <template>
   <div class="ws">
-    <div class="ws-head">workspace</div>
+    <div class="ws-head">{{ t('orgUi.workspace.head') }}</div>
 
     <div v-if="loading" class="ws-empty">{{ $t('common.loading') }}</div>
     <template v-else>
       <input v-if="filterable" v-model="filter" class="inp sm ws-filter"
-             placeholder="filtrer les workspaces…" aria-label="filtrer les workspaces" />
+             :placeholder="t('orgUi.workspace.filter')" :aria-label="t('orgUi.workspace.filterLabel')" />
       <div class="ws-list">
         <template v-for="o in shown" :key="o.id">
           <!-- Ligne org : bouton CONSULTATION (view-as) + pastille MAISON (défaut MCP).
@@ -160,19 +163,19 @@ onMounted(async () => {
               <Avatar v-if="o.logo_url" :src="o.logo_url" :name="o.name" :size="18" shape="square" />
               <span v-else class="ws-mono">{{ (o.name || '?').charAt(0).toUpperCase() }}</span>
               <span class="ws-name">{{ o.name }}</span>
-              <span class="ws-tag">{{ o.my_role === 'org_admin' ? 'admin' : 'membre' }}</span>
+              <span class="ws-tag">{{ o.my_role === 'org_admin' ? t('orgUi.workspace.admin') : t('orgUi.workspace.member') }}</span>
               <Icon v-if="o.id === me?.active_org" name="check" :size="14" class="ws-check" />
             </button>
             <!-- Org MCP (maison) : le défaut de tes conversations Claude. Pastille inerte
                  quand c'est déjà la maison, bouton « définir » sinon. -->
             <span v-if="o.id === me?.home_org" class="ws-home on"
-                  title="org MCP — défaut de tes conversations Claude">
-              <Icon name="home" :size="12" /> maison
+                  :title="t('orgUi.workspace.homeTitle')">
+              <Icon name="home" :size="12" /> {{ t('orgUi.workspace.home') }}
             </span>
             <button v-else class="ws-home" :disabled="switching"
-                    title="définir comme org MCP (défaut de tes conversations Claude)"
+                    :title="t('orgUi.workspace.setHomeTitle')"
                     @click="setHome(o)">
-              <Icon name="home" :size="12" /> définir
+              <Icon name="home" :size="12" /> {{ t('orgUi.workspace.setHome') }}
             </button>
           </div>
 
@@ -183,28 +186,28 @@ onMounted(async () => {
                     :disabled="switching" @click="pickTeam(g)">
               <Icon name="check" v-if="g.id === me?.active_group" :size="11" class="ws-team-check" />
               <span class="ws-team-name">{{ g.name }}</span>
-              <span v-if="g.my_role === 'group_admin'" class="ws-team-tag">chef</span>
+              <span v-if="g.my_role === 'group_admin'" class="ws-team-tag">{{ t('orgUi.workspace.lead') }}</span>
             </button>
           </div>
         </template>
-        <div v-if="filterable && !shown.length" class="ws-empty">aucun workspace ne correspond</div>
+        <div v-if="filterable && !shown.length" class="ws-empty">{{ t('orgUi.workspace.noMatch') }}</div>
       </div>
       <p class="ws-legend">
-        <Icon name="check" :size="11" /> consultation (ce tableau de bord) ·
-        <Icon name="home" :size="11" /> maison (défaut de tes conversations Claude)
+        <Icon name="check" :size="11" /> {{ t('orgUi.workspace.legendView') }}
+        <Icon name="home" :size="11" /> {{ t('orgUi.workspace.legendHome') }}
       </p>
     </template>
 
     <form v-if="creating" class="ws-newform" @submit.prevent="createOrg">
-      <input v-model="newName" class="ws-input" placeholder="nom du workspace"
+      <input v-model="newName" class="ws-input" :placeholder="t('orgUi.workspace.newName')"
              maxlength="80" :disabled="switching" autofocus />
       <button class="ws-create" type="submit" :disabled="switching || !newName.trim()">
-        {{ switching ? '…' : 'créer' }}
+        {{ switching ? '…' : t('orgUi.workspace.create') }}
       </button>
     </form>
     <button v-else class="ws-opt ws-add" :disabled="switching" @click="creating = true">
       <Icon name="plus" :size="13" />
-      <span class="ws-name">nouveau workspace</span>
+      <span class="ws-name">{{ t('orgUi.workspace.newWorkspace') }}</span>
     </button>
   </div>
 </template>

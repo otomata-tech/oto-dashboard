@@ -12,6 +12,9 @@
 import { computed, ref } from 'vue'
 import Notice from '@/components/console/Notice.vue'
 import type { TunnelDoc } from '@/lib/billingTunnel'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   /** Les documents restant à accepter, dans l'ordre servi. */
@@ -31,27 +34,25 @@ const outdated = computed(() => props.documents.filter((d) => d.accepted_version
     <ul class="blc-docs">
       <li v-for="d in documents" :key="d.slug">
         <a :href="d.url" target="_blank" rel="noopener">{{ d.label }}</a>
-        <span class="blc-ver">version {{ d.version }}</span>
+        <span class="blc-ver">{{ t('billingUi.legal.version', { v: d.version }) }}</span>
         <span v-if="d.accepted_version" class="blc-was">
-          vous aviez accepté la version {{ d.accepted_version }}
+          {{ t('billingUi.legal.accepted', { v: d.accepted_version }) }}
         </span>
       </li>
     </ul>
 
     <Notice v-if="outdated.length" tone="info">
       <template v-if="outdated.length === 1">
-        Ce document a changé depuis votre acceptation : la version précédente ne vaut
-        pas pour la version courante.
+        {{ t('billingUi.legal.changedOne') }}
       </template>
       <template v-else>
-        Ces documents ont changé depuis votre acceptation : les versions précédentes
-        ne valent pas pour les versions courantes.
+        {{ t('billingUi.legal.changedMany') }}
       </template>
     </Notice>
 
     <label class="blc-consent">
       <input v-model="accepted" type="checkbox" :disabled="busy" />
-      <span>J'ai lu et j'accepte ces documents.</span>
+      <span>{{ t('billingUi.legal.accept') }}</span>
     </label>
   </div>
 </template>

@@ -24,6 +24,9 @@ import { acceptLegal, getBillingIdentity, getLegal, subscribeBilling } from '@/a
 import { blockersOf, docsToAccept, priceParts, type TunnelDoc } from '@/lib/billingTunnel'
 import { explain, humanize } from '@/lib/errors'
 import type { BillingIdentityView, BillingPlan, VatBlocked, VatScheme } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   plan: BillingPlan
@@ -106,8 +109,7 @@ async function pay() {
       if (remaining.length) {
         docs.value = remaining
         accepted.value = false
-        error.value = 'Ces documents ont changé à l\'instant : relisez-les et acceptez '
-          + 'la version courante.'
+        error.value = t('billingUi.checkout.docsChanged')
         return
       }
       docs.value = []
@@ -144,10 +146,10 @@ async function onRefused(e: unknown) {
     // doit lire, ce sont les blocs repeints — les champs surlignés et les documents
     // à ouvrir. La phrase ne fait que dire lesquels regarder.
     const reste = [
-      blockers.identity ? 'l\'identité de facturation' : null,
-      blockers.legal ? 'l\'acceptation des conditions' : null,
+      blockers.identity ? t('billingUi.checkout.identity') : null,
+      blockers.legal ? t('billingUi.checkout.legal') : null,
     ].filter(Boolean)
-    error.value = `Avant le paiement, il reste ${reste.join(' et ')}.`
+    error.value = t('billingUi.checkout.remaining', { items: reste.join(t('billingUi.checkout.conj')) })
     return
   }
   // `payment_pending` : le refus dit quel paiement occupe la place, son âge et quoi
@@ -168,10 +170,10 @@ async function onRefused(e: unknown) {
 
     <template v-else>
       <!-- ── 1. Identité de facturation ── -->
-      <ConsoleCard title="Identité de facturation"
-        sub="le pays de facturation décide de la TVA, donc du montant réellement débité.">
+      <ConsoleCard :title="t('billingUi.checkout.identityTitle')"
+        :sub="t('billingUi.checkout.identitySub')">
         <template #actions>
-          <Btn kind="link" icon="chev" @click="emit('back')">Changer de palier</Btn>
+          <Btn kind="link" icon="chev" @click="emit('back')">{{ t('billingUi.checkout.changeTier') }}</Btn>
         </template>
         <BillingIdentityForm :view="identity" :can-manage="canManage" :highlight="highlight"
           @saved="onIdentitySaved" />
@@ -182,29 +184,29 @@ async function onRefused(e: unknown) {
         :blocked="vatBlocked" />
 
       <!-- ── 3. Consentement, dernier geste avant la page de paiement ── -->
-      <ConsoleCard v-if="docs.length" title="Conditions"
-        sub="à accepter pour souscrire.">
+      <ConsoleCard v-if="docs.length" :title="t('billingUi.checkout.terms')"
+        :sub="t('billingUi.checkout.termsSub')">
         <BillingLegalConsent v-model="accepted" :documents="docs" :busy="busy" />
       </ConsoleCard>
 
       <!-- ── 4. Paiement ── -->
-      <ConsoleCard title="Paiement"
-        sub="le règlement se fait par carte bancaire, sur la page sécurisée de notre prestataire.">
+      <ConsoleCard :title="t('billingUi.checkout.payment')"
+        :sub="t('billingUi.checkout.paymentSub')">
         <Notice v-if="paymentPending" tone="warn">{{ paymentPending }}</Notice>
         <Notice v-else-if="error" tone="warn">{{ error }}</Notice>
 
         <div v-if="canManage && !paymentPending" class="bck-pay">
           <Btn icon="card" :disabled="!canPay" @click="pay">
-            {{ price ? `Payer ${euros(price.ttc)} par mois` : 'Payer' }}
+            {{ price ? t('billingUi.checkout.payAmount', { amount: euros(price.ttc) }) : t('billingUi.checkout.pay') }}
           </Btn>
           <span v-if="!canPay && !busy" class="helptext">{{
             missing.length || vatBlocked
-              ? 'Complétez l\'identité de facturation ci-dessus.'
-              : 'Acceptez les conditions pour continuer.'
+              ? t('billingUi.checkout.completeIdentity')
+              : t('billingUi.checkout.acceptTerms')
           }}</span>
         </div>
         <p v-else-if="!canManage" class="helptext">
-          Seul un administrateur de l'organisation peut souscrire.
+          {{ t('billingUi.checkout.adminOnly') }}
         </p>
       </ConsoleCard>
     </template>

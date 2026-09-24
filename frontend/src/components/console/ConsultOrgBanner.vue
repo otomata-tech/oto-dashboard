@@ -6,6 +6,9 @@
 // (URL nue → plus de header X-Oto-Org).
 import { computed } from 'vue'
 import { useMe } from '@/composables/useMe'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { me } = useMe()
 const active = computed(() => me.value?.active_org_readonly === true)
@@ -18,8 +21,8 @@ function quit() {
 
 <template>
   <div v-if="active" class="consult-banner">
-    <span>👁&nbsp; tu consultes l'org <strong>{{ orgName }}</strong> en lecture seule (opérateur)</span>
-    <button type="button" @click="quit">Quitter</button>
+    <span><i18n-t keypath="orgUi.viewAs.consulting" tag="span"><template #name><strong>{{ orgName }}</strong></template></i18n-t></span>
+    <button type="button" @click="quit">{{ t('orgUi.viewAs.quit') }}</button>
   </div>
 </template>
 

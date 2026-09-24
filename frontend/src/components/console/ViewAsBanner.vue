@@ -17,6 +17,9 @@ import {
 } from '@/lib/viewOrg'
 import { usePrompt } from '@/composables/usePrompt'
 import { useMe } from '@/composables/useMe'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const viewing = ref(getViewUser())
 const writing = ref(viewAsWriteAccepted())
@@ -32,14 +35,11 @@ function quit() {
 async function askWrite() {
   const cible = viewing.value
   if (!cible || !canOfferWrite || writing.value) return
-  const toi = cible.operator?.name || 'toi'
+  const toi = cible.operator?.name || t('orgUi.viewAs.you')
   const ok = await confirmAction({
-    title: `Écrire en tant que ${cible.name} ?`,
-    message:
-      `Chaque modification sera faite au nom de ${cible.name} et journalisée « par ${toi} ` +
-      `en tant que ${cible.name} », visible par son organisation. L'écriture reste ouverte ` +
-      `jusqu'à ce que tu reviennes en lecture seule, quittes la vue ou recharges la page.`,
-    confirmLabel: `Écrire en tant que ${cible.name}`,
+    title: t('orgUi.viewAs.askTitle', { name: cible.name }),
+    message: t('orgUi.viewAs.askMessage', { name: cible.name, you: toi }),
+    confirmLabel: t('orgUi.viewAs.writeAs', { name: cible.name }),
     danger: true,
   })
   if (!ok) return
@@ -60,11 +60,11 @@ watch(viewAsWriteRequests, () => { void askWrite() })
 
 <template>
   <div v-if="viewing" class="viewas-banner" :class="{ 'viewas-banner--write': writing }">
-    <span v-if="writing">✎&nbsp; tu écris en tant que <strong>{{ viewing.name }}</strong> — chaque modification est journalisée à ton nom</span>
-    <span v-else>👁&nbsp; tu vois en tant que <strong>{{ viewing.name }}</strong> — lecture seule</span>
-    <button v-if="writing" type="button" data-test="viewas-readonly" @click="backToReadOnly">Revenir en lecture seule</button>
-    <button v-else-if="canOfferWrite" type="button" data-test="viewas-write" @click="askWrite">Écrire en tant que {{ viewing.name }}</button>
-    <button type="button" @click="quit">Quitter</button>
+    <span v-if="writing"><i18n-t keypath="orgUi.viewAs.writing" tag="span"><template #name><strong>{{ viewing.name }}</strong></template></i18n-t></span>
+    <span v-else><i18n-t keypath="orgUi.viewAs.viewing" tag="span"><template #name><strong>{{ viewing.name }}</strong></template></i18n-t></span>
+    <button v-if="writing" type="button" data-test="viewas-readonly" @click="backToReadOnly">{{ t('orgUi.viewAs.backToRead') }}</button>
+    <button v-else-if="canOfferWrite" type="button" data-test="viewas-write" @click="askWrite">{{ t('orgUi.viewAs.writeAs', { name: viewing.name }) }}</button>
+    <button type="button" @click="quit">{{ t('orgUi.viewAs.quit') }}</button>
   </div>
 </template>
 

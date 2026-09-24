@@ -5,6 +5,7 @@
 // (`GROUP_ADMIN_OF`). L'admin d'org, pour le serveur, c'est l'org_admin et le super_admin
 // (`roles.is_org_admin`) — JAMAIS l'`admin` plateforme, qui LIT la liste (`ORG_MEMBER_OF`, en
 // consultation) mais prendrait 403 sur chacun de ces boutons.
+import { i18n } from '@/lib/i18n'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick, ref } from 'vue'
 
@@ -36,7 +37,8 @@ async function boutons(role: string, org_role: string | null, active_org_readonl
   const host = document.createElement('div')
   document.body.appendChild(host)
   const app = createApp(View)
-  app.mount(host)
+  i18n.global.locale.value = 'fr'
+  app.use(i18n).mount(host)
   await settle()
   const out = [...host.querySelectorAll('button')].map((b) => b.textContent?.trim() ?? '')
   app.unmount()
@@ -53,11 +55,11 @@ beforeEach(() => {
 
 describe('GroupsView — les gestes suivent la règle du serveur (oto#210)', () => {
   it.each([
-    ['org_admin', 'member', 'org_admin', ['New', 'Members', 'Connectors', 'Edit', 'Delete']],
+    ['org_admin', 'member', 'org_admin', ['Nouvelle', 'Membres', 'Connecteurs', 'Modifier', 'Supprimer']],
     ['membre simple', 'member', 'org_member', []],
     ["admin plateforme, membre de l'org", 'admin', 'org_member', []],
     ["admin plateforme qui consulte l'org", 'admin', null, []],
-    ['super_admin', 'super_admin', null, ['New', 'Members', 'Connectors', 'Edit', 'Delete']],
+    ['super_admin', 'super_admin', null, ['Nouvelle', 'Membres', 'Connecteurs', 'Modifier', 'Supprimer']],
   ])('%s : %j', async (_nom, role, orgRole, attendus) => {
     expect(await boutons(role, orgRole)).toEqual(attendus)
   })
@@ -67,7 +69,8 @@ describe('GroupsView — les gestes suivent la règle du serveur (oto#210)', () 
     const View = (await import('./GroupsView.vue')).default
     const host = document.createElement('div')
     const app = createApp(View)
-    app.mount(host)
+    i18n.global.locale.value = 'fr'
+    app.use(i18n).mount(host)
     await settle()
     expect(api.listGroups).toHaveBeenCalledWith(42)
     expect(host.textContent).toContain('ventes')
@@ -82,7 +85,7 @@ describe('GroupsView — en consultation, aucun geste (oto#211)', () => {
     ['org_admin', 'member', 'org_admin'],
     ['super_admin', 'super_admin', null],
   ])('%s : gestes présents hors consultation, absents en consultation', async (_nom, role, orgRole) => {
-    expect(await boutons(role, orgRole, false)).toEqual(['New', 'Members', 'Connectors', 'Edit', 'Delete'])
+    expect(await boutons(role, orgRole, false)).toEqual(['Nouvelle', 'Membres', 'Connecteurs', 'Modifier', 'Supprimer'])
     expect(await boutons(role, orgRole, true)).toEqual([])
   })
 })

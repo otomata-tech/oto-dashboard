@@ -14,6 +14,9 @@
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import OtoLoading from '@/components/console/OtoLoading.vue'
 import Notice from '@/components/console/Notice.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 defineProps<{
   /** Branche servie par `confirm` : 'pending' = pas encore encaissé (le payeur est
@@ -26,28 +29,25 @@ defineProps<{
 </script>
 
 <template>
-  <ConsoleCard title="Souscription en cours">
+  <ConsoleCard :title="t('billingUi.pending.title')">
     <div class="bpg">
       <Notice v-if="status === 'pending_mandate'" tone="ok">
-        Votre paiement a bien été reçu.
+        {{ t('billingUi.pending.received') }}
       </Notice>
 
       <p v-if="givenUp" class="bpg-line">
-        Paiement reçu, activation en cours. Elle se termine sans vous : nous vous
-        écrivons dès que votre abonnement est ouvert.
+        {{ t('billingUi.pending.givenUp') }}
       </p>
       <template v-else>
         <OtoLoading :size="18" :label="status === 'pending_mandate'
-          ? 'votre moyen de paiement est en cours de validation'
-          : 'vérification du paiement'" />
+          ? t('billingUi.method.validating')
+          : t('billingUi.method.checking')" />
         <p class="bpg-line">
           <template v-if="status === 'pending_mandate'">
-            Cela prend quelques minutes. Votre abonnement s'ouvrira seul — inutile de
-            payer à nouveau, ni de rester sur cette page.
+            {{ t('billingUi.pending.minutes') }}
           </template>
           <template v-else>
-            Si vous n'avez pas terminé sur la page de paiement, reprenez-la dans
-            l'onglet où elle est restée ouverte.
+            {{ t('billingUi.pending.resume') }}
           </template>
         </p>
       </template>

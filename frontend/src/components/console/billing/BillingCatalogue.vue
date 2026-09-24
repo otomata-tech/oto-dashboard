@@ -14,6 +14,9 @@ import Icon from '@/components/console/Icon.vue'
 import Tag from '@/components/console/Tag.vue'
 import type { BillingPlan } from '@/types/api'
 import { euros as euroCents } from '@/lib/euros'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 defineProps<{
   plans: BillingPlan[]
@@ -26,15 +29,14 @@ const emit = defineEmits<{ choose: [plan: BillingPlan] }>()
 // Le mot du CATALOGUE pour un palier sans prix ; la règle d'écriture d'un montant
 // vit dans `lib/euros`.
 function euros(cents: number | null | undefined): string {
-  return cents == null ? 'sur devis' : euroCents(cents)
+  return cents == null ? t('billingUi.catalogue.quote') : euroCents(cents)
 }
 
 // Le seul axe qui varie réellement entre paliers (backend : options + unmetered
 // identiques partout — cf. billing.py PLANS). Le reste = « inclus dans tous les plans ».
 function accountsLabel(p: BillingPlan): string {
-  if (p.unipile_accounts == null) return 'Comptes messagerie illimités'
-  if (p.unipile_accounts === 1) return '1 compte messagerie connecté'
-  return `${p.unipile_accounts} comptes messagerie connectés`
+  if (p.unipile_accounts == null) return t('billingUi.catalogue.unlimited')
+  return t('billingUi.catalogue.accounts', { n: p.unipile_accounts }, p.unipile_accounts)
 }
 
 function contactSales() {
@@ -43,39 +45,38 @@ function contactSales() {
 </script>
 
 <template>
-  <ConsoleCard title="Choisir un abonnement"
-    :sub="canManage ? 'un abonnement par organisation, sans engagement — paiement par carte bancaire.'
-      : 'seul un administrateur de l\'organisation peut souscrire.'">
+  <ConsoleCard :title="t('billingUi.catalogue.title')"
+    :sub="canManage ? t('billingUi.catalogue.subAdmin')
+      : t('billingUi.catalogue.subMember')">
     <div class="grid3">
       <div v-for="p in plans" :key="p.plan" class="plan" :class="{ custom: p.custom }">
         <div class="plan-head">
           <span class="plan-name">{{ p.label }}</span>
-          <Tag v-if="p.custom" tone="cobalt">sur devis</Tag>
+          <Tag v-if="p.custom" tone="cobalt">{{ t('billingUi.catalogue.quote') }}</Tag>
         </div>
         <div class="plan-price">
           <span class="amt">{{ euros(p.amount) }}</span>
-          <span v-if="p.amount != null" class="per">/ mois</span>
+          <span v-if="p.amount != null" class="per">{{ t('billingUi.catalogue.perMonth') }}</span>
         </div>
         <div class="plan-accounts">{{ accountsLabel(p) }}</div>
         <div class="plan-cta">
           <Btn v-if="p.custom" kind="ghost" icon="ext" @click="contactSales">
-            Nous contacter</Btn>
+            {{ t('billingUi.catalogue.contact') }}</Btn>
           <template v-else-if="canManage">
-            <Btn icon="card" @click="emit('choose', p)">Choisir</Btn>
+            <Btn icon="card" @click="emit('choose', p)">{{ t('billingUi.catalogue.choose') }}</Btn>
           </template>
         </div>
       </div>
     </div>
 
-    <p class="hint">Les prix sont hors taxes ; la TVA applicable est calculée à
-      l'étape suivante, à partir de votre pays de facturation.</p>
+    <p class="hint">{{ t('billingUi.catalogue.taxes') }}</p>
 
     <div class="incl">
-      <div class="incl-h">Inclus dans tous les plans</div>
+      <div class="incl-h">{{ t('billingUi.catalogue.included') }}</div>
       <ul class="incl-list">
-        <li><Icon name="ok" :size="15" /> Messagerie LinkedIn &amp; WhatsApp (Unipile)</li>
-        <li><Icon name="ok" :size="15" /> Connecteurs de données sans quota d'appel</li>
-        <li><Icon name="ok" :size="15" /> Données entreprises France, CRM, e-mail &amp; documents d'org</li>
+        <li><Icon name="ok" :size="15" /> {{ t('billingUi.catalogue.messaging') }}</li>
+        <li><Icon name="ok" :size="15" /> {{ t('billingUi.catalogue.noQuota') }}</li>
+        <li><Icon name="ok" :size="15" /> {{ t('billingUi.catalogue.data') }}</li>
       </ul>
     </div>
   </ConsoleCard>

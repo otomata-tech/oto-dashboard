@@ -21,6 +21,9 @@ import Notice from '@/components/console/Notice.vue'
 import Stat from '@/components/console/Stat.vue'
 import { fmtDay } from '@/types/api'
 import type { BillingUsage } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 defineProps<{ usage: BillingUsage }>()
 
@@ -31,22 +34,20 @@ function nb(n: number): string {
 </script>
 
 <template>
-  <ConsoleCard title="Utilisation"
-    sub="les appels d'outil passés par vos agents ce mois-ci.">
+  <ConsoleCard :title="t('billingUi.usage.title')"
+    :sub="t('billingUi.usage.sub')">
     <!-- Les deux nombres CÔTE À CÔTE, jamais divisés l'un par l'autre. -->
     <div class="grid2">
-      <Stat label="appels ce mois-ci" :value="nb(usage.calls)" />
-      <Stat label="inclus" :value="nb(usage.included)" sub="par mois" />
+      <Stat :label="t('billingUi.usage.calls')" :value="nb(usage.calls)" />
+      <Stat :label="t('billingUi.usage.included')" :value="nb(usage.included)" :sub="t('billingUi.usage.perMonth')" />
     </div>
 
     <Notice v-if="usage.over" tone="warn" class="mt">
-      Vous avez dépassé les appels inclus ce mois-ci. Rien n'est coupé, rien n'est
-      facturé en plus.
+      {{ t('billingUi.usage.over') }}
     </Notice>
 
     <p class="hint">
-      Décompte du mois en cours, depuis le {{ fmtDay(usage.period_start) }}.
-      Il repart de zéro le 1er de chaque mois.
+      {{ t('billingUi.usage.since', { day: fmtDay(usage.period_start) }) }}
     </p>
   </ConsoleCard>
 </template>

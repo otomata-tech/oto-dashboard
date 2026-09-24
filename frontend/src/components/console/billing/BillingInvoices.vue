@@ -39,6 +39,9 @@ import { explain, humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
 import { fmtDay } from '@/types/api'
 import type { BillingInvoice } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   /** L'org est-elle censée recevoir des factures ? (abonnement PAYANT en cours).
@@ -135,18 +138,18 @@ async function telecharger(inv: BillingInvoice) {
 </script>
 
 <template>
-  <ConsoleCard v-if="visible" :flush="invoices.length > 0 && !error" title="Factures"
-    sub="chaque encaissement donne lieu à une facture — elle reste téléchargeable ici.">
+  <ConsoleCard v-if="visible" :flush="invoices.length > 0 && !error" :title="t('billingUi.invoices.title')"
+    :sub="t('billingUi.invoices.sub')">
     <Notice v-if="error" tone="warn">
       {{ error }}
-      <Btn kind="link" icon="chev" class="notice-fix" @click="load">Réessayer</Btn>
+      <Btn kind="link" icon="chev" class="notice-fix" @click="load">{{ t('common.retry') }}</Btn>
     </Notice>
 
     <table v-else-if="invoices.length" class="tbl">
       <thead>
         <tr>
-          <th>Date</th><th>Numéro</th><th>Période</th>
-          <th class="num">Montant TTC</th><th></th>
+          <th>{{ t('billingUi.invoices.date') }}</th><th>{{ t('billingUi.invoices.number') }}</th><th>{{ t('billingUi.invoices.period') }}</th>
+          <th class="num">{{ t('billingUi.invoices.amount') }}</th><th></th>
         </tr>
       </thead>
       <tbody>
@@ -156,26 +159,25 @@ async function telecharger(inv: BillingInvoice) {
             <span v-if="inv.number" class="mono">{{ inv.number }}</span>
             <!-- Pas encore de numéro : il n'existe pas avant le document. On le dit
                  sans jamais laisser entendre que l'argent s'est perdu. -->
-            <Tag v-else tone="saffron">en cours d'émission</Tag>
-            <Tag v-if="estAvoir(inv)" tone="cobalt" class="kind">avoir</Tag>
+            <Tag v-else tone="saffron">{{ t('billingUi.invoices.issuing') }}</Tag>
+            <Tag v-if="estAvoir(inv)" tone="cobalt" class="kind">{{ t('billingUi.invoices.credit') }}</Tag>
           </td>
           <td class="dim">{{ periode(inv) ?? '—' }}</td>
           <td class="num">{{ montant(inv) }}</td>
           <td class="act">
             <Btn v-if="inv.pdf_path" kind="mini" icon="download"
-              :disabled="busy === inv.id" @click="telecharger(inv)">PDF</Btn>
+              :disabled="busy === inv.id" @click="telecharger(inv)">{{ t('billingUi.invoices.pdf') }}</Btn>
             <!-- Émis, mais le fichier n'est pas encore revenu du fournisseur : la
                  reprise le récupérera. Dire l'attente vaut mieux qu'un bouton qui
                  refuserait au clic. -->
-            <span v-else-if="inv.status === 'issued'" class="soon">PDF en préparation</span>
+            <span v-else-if="inv.status === 'issued'" class="soon">{{ t('billingUi.invoices.preparing') }}</span>
           </td>
         </tr>
       </tbody>
     </table>
 
     <p v-else class="empty">
-      Aucune facture pour l'instant. La première paraîtra ici dès le prochain
-      encaissement, et vous la recevrez aussi par courrier électronique.
+      {{ t('billingUi.invoices.none') }}
     </p>
   </ConsoleCard>
 </template>

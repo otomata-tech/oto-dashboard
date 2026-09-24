@@ -33,6 +33,6 @@ describe('OrgView — un compte en pause se voit', () => {
     expect(SRC, 'la colonne est redevenue « active » : elle se lira comme un état de '
       + 'compte, à côté du marqueur de pause qui en est un vraiment')
       .not.toMatch(/<th>active<\/th>/)
-    expect(SRC).toMatch(/home org/)
+    expect(SRC).toMatch(/orgUi\.members\.homeOrg/)
   })
 })

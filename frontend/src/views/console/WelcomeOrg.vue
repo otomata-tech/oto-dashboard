@@ -6,6 +6,9 @@ import { useMe } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { createMyOrg } from '@/api/console'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { reload } = useMe()
 const { toast } = useToast()
@@ -29,18 +32,17 @@ async function create() {
 <template>
   <div class="state-empty" style="margin-top: 64px">
     <span class="o-medallion o-medallion-lg">o</span>
-    <div class="se-title">create your <Squiggle>workspace</Squiggle>.</div>
+    <i18n-t keypath="orgUi.welcome.title" tag="div" class="se-title"><template #workspace><Squiggle>{{ t('orgUi.welcome.workspace') }}</Squiggle></template></i18n-t>
     <div class="se-body">
-      a workspace holds your team's shared keys, agent readme, procedures and prospects. you'll be its admin —
-      invite teammates once it's set up.
+      {{ t('orgUi.welcome.body') }}
     </div>
     <div style="display: flex; gap: 8px; width: 100%; max-width: 380px; margin-top: 6px">
-      <input v-model="name" class="inp" placeholder="workspace name (e.g. acme)"
+      <input v-model="name" class="inp" :placeholder="t('orgUi.welcome.placeholder')"
         :disabled="busy" @keyup.enter="create" />
-      <Btn :disabled="busy" @click="create">{{ busy ? 'Creating…' : 'Create' }}</Btn>
+      <Btn :disabled="busy" @click="create">{{ busy ? t('orgUi.welcome.creating') : t('orgUi.welcome.create') }}</Btn>
     </div>
     <div class="se-body" style="font-size: 12px; margin-top: 2px">
-      have an invitation? open the link from your email instead.
+      {{ t('orgUi.welcome.invitation') }}
     </div>
   </div>
 </template>

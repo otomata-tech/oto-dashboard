@@ -5,6 +5,7 @@
 // vérifie ici que le `detail` backend s'affiche VERBATIM, et que `already_invited`
 // propose bien « resend » (révoquer l'existante puis ré-émettre) à partir de
 // `details.invitation.id` — sans faire retaper le formulaire.
+import { i18n } from '@/lib/i18n'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import { ApiError } from '@/api'
@@ -27,7 +28,8 @@ async function mountCard() {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const app = createApp(InvitationsCard, { scope: { level: 'org', id: 7 }, canManage: true })
-  app.mount(host)
+  i18n.global.locale.value = 'fr'
+  app.use(i18n).mount(host)
   await nextTick()
   return { host, cleanup: () => { app.unmount(); host.remove() } }
 }
@@ -92,7 +94,7 @@ describe('InvitationsCard — 409 already_member / already_invited (oto-dashboar
     const { message, action } = useToast()
     expect(message.value).toContain('#42')
     expect(message.value).not.toBe('409 already_invited')
-    expect(action.value?.label).toBe('resend')
+    expect(action.value?.label).toBe('renvoyer')
     cleanup()
   })
 
@@ -108,14 +110,14 @@ describe('InvitationsCard — 409 already_member / already_invited (oto-dashboar
     await openAndSubmit(host, 'a@b.invalid')
 
     const { action, runToastAction, message } = useToast()
-    expect(action.value?.label).toBe('resend')
+    expect(action.value?.label).toBe('renvoyer')
     await runToastAction()
     await flush()
 
     expect(revokeInvitation).toHaveBeenCalledWith(7, 42)
     expect(inviteMember).toHaveBeenCalledTimes(2)
     expect(inviteMember).toHaveBeenLastCalledWith(7, 'a@b.invalid', 'org_member', true)
-    expect(message.value).toBe('invite sent to a@b.invalid')
+    expect(message.value).toBe('invitation envoyée à a@b.invalid')
     cleanup()
   })
 })

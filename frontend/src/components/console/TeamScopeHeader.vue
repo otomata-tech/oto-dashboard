@@ -5,6 +5,9 @@
 // (membres / connecteurs / readme / procédures) vit dans le slot.
 import ConsoleCard from './ConsoleCard.vue'
 import type { GroupDetail } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 defineProps<{
   detail: GroupDetail | null
@@ -18,10 +21,9 @@ defineProps<{
   <div class="content-inner fadein">
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
-    <ConsoleCard v-if="loaded && groupId == null" title="aucune équipe">
+    <ConsoleCard v-if="loaded && groupId == null" :title="t('orgUi.teamScope.none')">
       <div class="helptext">
-        ouvre une équipe depuis la liste « équipes » de ton org, ou une puce d'équipe dans le
-        sélecteur d'org, pour la gérer ici.
+        {{ t('orgUi.teamScope.help') }}
       </div>
     </ConsoleCard>
 

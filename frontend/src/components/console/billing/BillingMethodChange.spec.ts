@@ -2,6 +2,7 @@
 // branche de `confirm`, et surtout ce qu'il ne dit jamais : un échec pendant une
 // attente, ou une coupure. Les phrases attendues sont celles que le SERVEUR sert
 // (`oto_mcp/billing_method.py`) : le composant les recopie, il ne les réécrit pas.
+import { i18n } from '@/lib/i18n'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import { ApiError } from '@/api'
@@ -23,7 +24,8 @@ async function mount(paymentRef: string | null = 'tr_x') {
   const settled = vi.fn()
   const retry = vi.fn()
   const app = createApp(Comp, { paymentRef, onSettled: settled, onRetry: retry })
-  app.mount(host)
+  i18n.global.locale.value = 'fr'
+  app.use(i18n).mount(host)
   await flush()
   return { host, settled, retry, unmount: () => { app.unmount(); host.remove() } }
 }

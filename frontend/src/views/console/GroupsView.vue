@@ -23,6 +23,9 @@ import { useMe, canAdministerOrg } from '@/composables/useMe'
 import { listGroups, createGroup, updateGroup, deleteGroup } from '@/api/console'
 import type { GroupListItem } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const router = useRouter()
 const { toast } = useToast()
@@ -65,17 +68,17 @@ onMounted(load)
 
 function create() {
   openForm({
-    title: 'new team',
-    description: 'a team inside your org.',
+    title: t('orgUi.teams.newTitle'),
+    description: t('orgUi.teams.newDesc'),
     fields: [
-      { key: 'name', label: 'name', placeholder: 'sales, ops, finance…', required: true },
-      { key: 'description', label: 'description', type: 'textarea', placeholder: 'what this team does (optional)' },
+      { key: 'name', label: t('orgUi.teams.name'), placeholder: t('orgUi.teams.namePlaceholder'), required: true },
+      { key: 'description', label: t('orgUi.teams.description'), type: 'textarea', placeholder: t('orgUi.teams.descPlaceholder') },
     ],
-    submitLabel: 'create',
+    submitLabel: t('orgUi.teams.create'),
     onConfirm: async (v) => {
       try {
         const g = await createGroup(activeOrgId.value!, (v.name ?? ''), v.description || '')
-        toast(`team "${g.name}" created`)
+        toast(t('orgUi.teams.created', { name: g.name }))
         await load()   // plus de scope d'équipe où descendre (oto#192) : la liste suffit
       } catch (e) { toast(humanize(e)); throw e }
     },
@@ -84,14 +87,14 @@ function create() {
 
 function rename(g: GroupListItem) {
   openForm({
-    title: 'edit team',
+    title: t('orgUi.teams.editTitle'),
     fields: [
-      { key: 'name', label: 'name', initial: g.name, required: true },
-      { key: 'description', label: 'description', type: 'textarea', initial: g.description },
+      { key: 'name', label: t('orgUi.teams.name'), initial: g.name, required: true },
+      { key: 'description', label: t('orgUi.teams.description'), type: 'textarea', initial: g.description },
     ],
-    submitLabel: 'save',
+    submitLabel: t('orgUi.teams.save'),
     onConfirm: async (v) => {
-      try { await updateGroup(g.id, { name: (v.name ?? ''), description: v.description || '' }); toast('saved'); await load() }
+      try { await updateGroup(g.id, { name: (v.name ?? ''), description: v.description || '' }); toast(t('orgUi.teams.saved')); await load() }
       catch (e) { toast(humanize(e)); throw e }
     },
   })
@@ -99,8 +102,8 @@ function rename(g: GroupListItem) {
 function openTeam(g: GroupListItem) { router.push(`/org/teams/${g.id}`) }
 
 async function removeGroup(g: GroupListItem) {
-  if (!await confirmAction({ title: 'delete team', danger: true, confirmLabel: 'Delete', message: 'delete this team? members, readme, procedures and shared keys are purged. members stay in the org.' })) return
-  try { await deleteGroup(g.id); toast('team deleted'); await load() }
+  if (!await confirmAction({ title: t('orgUi.teams.deleteTitle'), danger: true, confirmLabel: t('orgUi.teams.delete'), message: t('orgUi.teams.deleteMessage') })) return
+  try { await deleteGroup(g.id); toast(t('orgUi.teams.deleted')); await load() }
   catch (e) { toast(humanize(e)) }
 }
 </script>
@@ -109,38 +112,38 @@ async function removeGroup(g: GroupListItem) {
   <div class="content-inner fadein">
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
-    <ConsoleCard v-if="loaded && activeOrgId == null" title="no active org">
-      <div class="helptext">join or create an organization first — teams live inside an org.</div>
+    <ConsoleCard v-if="loaded && activeOrgId == null" :title="t('orgUi.teams.noOrg')">
+      <div class="helptext">{{ t('orgUi.teams.noOrgHelp') }}</div>
     </ConsoleCard>
 
-    <ConsoleCard v-else title="teams" flush
-      sub="teams inside your org.">
+    <ConsoleCard v-else :title="t('orgUi.teams.title')" flush
+      :sub="t('orgUi.teams.sub')">
       <template #actions>
-        <Btn v-if="orgAdmin" kind="mini" icon="plus" @click="create">New</Btn>
+        <Btn v-if="orgAdmin" kind="mini" icon="plus" @click="create">{{ t('orgUi.teams.new') }}</Btn>
       </template>
       <table class="tbl">
-        <thead><tr><th>team</th><th>you</th><th style="width: 190px"></th></tr></thead>
+        <thead><tr><th>{{ t('orgUi.teams.team') }}</th><th>{{ t('orgUi.teams.you') }}</th><th style="width: 190px"></th></tr></thead>
         <tbody>
           <tr v-for="g in groups" :key="g.id">
             <td>
               <div style="font-weight: 600; color: var(--color-ink)">{{ g.name }}</div>
-              <div style="font-size: 11px; color: var(--color-faint)">{{ g.member_count }} members<span v-if="g.description"> · {{ g.description }}</span></div>
+              <div style="font-size: 11px; color: var(--color-faint)">{{ t('orgUi.teams.membersCount', { n: g.member_count }, g.member_count) }}<span v-if="g.description"> · {{ g.description }}</span></div>
             </td>
             <td>
-              <Tag v-if="g.my_role === 'group_admin'" tone="ink">lead</Tag>
-              <Tag v-else-if="g.my_role === 'group_member'">member</Tag>
+              <Tag v-if="g.my_role === 'group_admin'" tone="ink">{{ t('orgUi.teams.lead') }}</Tag>
+              <Tag v-else-if="g.my_role === 'group_member'">{{ t('orgUi.teams.member') }}</Tag>
               <span v-else class="dim" style="font-size: 11px">—</span>
             </td>
             <td style="text-align: right; white-space: nowrap">
-              <Btn v-if="orgAdmin || g.my_role != null" kind="mini" @click="openTeam(g)">Members</Btn>
-              <Btn v-if="canManageConnectors(g)" kind="mini" @click="openConnectors(g)">Connectors</Btn>
+              <Btn v-if="orgAdmin || g.my_role != null" kind="mini" @click="openTeam(g)">{{ t('orgUi.teams.members') }}</Btn>
+              <Btn v-if="canManageConnectors(g)" kind="mini" @click="openConnectors(g)">{{ t('orgUi.teams.connectors') }}</Btn>
               <template v-if="orgAdmin">
-                <Btn kind="mini" @click="rename(g)">Edit</Btn>
-                <Btn kind="danger" @click="removeGroup(g)">Delete</Btn>
+                <Btn kind="mini" @click="rename(g)">{{ t('orgUi.teams.edit') }}</Btn>
+                <Btn kind="danger" @click="removeGroup(g)">{{ t('orgUi.teams.delete') }}</Btn>
               </template>
             </td>
           </tr>
-          <tr v-if="!groups.length"><td colspan="3" class="dim" style="text-align: center; padding: 16px">no teams yet<span v-if="orgAdmin"> — create one</span>.</td></tr>
+          <tr v-if="!groups.length"><td colspan="3" class="dim" style="text-align: center; padding: 16px">{{ t('orgUi.teams.none') }}<span v-if="orgAdmin">{{ t('orgUi.teams.createOne') }}</span>.</td></tr>
         </tbody>
       </table>
     </ConsoleCard>

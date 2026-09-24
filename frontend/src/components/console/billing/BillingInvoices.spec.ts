@@ -12,6 +12,7 @@
 //   4. un document en cours d'émission ne se lit jamais comme un paiement perdu ;
 //   5. un avoir se dit avoir, et son montant reste négatif ;
 //   6. aucun lien mort : pas de `pdf_path` ⟹ pas de bouton.
+import { i18n } from '@/lib/i18n'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { createApp, h, nextTick } from 'vue'
 import type { BillingInvoice } from '@/types/api'
@@ -42,7 +43,8 @@ async function render(props: Record<string, unknown> = {}) {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const app = createApp(h(BillingInvoices, props))
-  app.mount(host)
+  i18n.global.locale.value = 'fr'
+  app.use(i18n).mount(host)
   for (let i = 0; i < 10; i++) await nextTick()
   await new Promise((r) => setTimeout(r, 5))
   for (let i = 0; i < 10; i++) await nextTick()

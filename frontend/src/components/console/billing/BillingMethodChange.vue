@@ -20,6 +20,9 @@ import { confirmBillingMethodChange } from '@/api/console'
 import type { BillingMethodChangeResult } from '@/types/api.attendu'
 import { PENDING_WINDOW_MS, nextProbeDelayMs } from '@/lib/billingTunnel'
 import { explain } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   /** Le paiement que le NAVIGATEUR vient de conclure (`?payment_ref=`), posé par
@@ -84,37 +87,37 @@ onBeforeUnmount(() => clearTimeout(timer))
   <div class="bmc">
     <Notice v-if="error" tone="warn">
       {{ error }}
-      <Btn kind="link" icon="card" class="bmc-fix" @click="emit('retry')">Changer de carte</Btn>
+      <Btn kind="link" icon="card" class="bmc-fix" @click="emit('retry')">{{ t('billingUi.method.changeCard') }}</Btn>
     </Notice>
 
     <template v-else-if="result && isWaiting(result.status)">
       <OtoLoading v-if="!givenUp" :size="18" :label="result.status === 'pending_mandate'
-        ? 'votre moyen de paiement est en cours de validation'
-        : 'vérification du paiement'" />
+        ? t('billingUi.method.validating')
+        : t('billingUi.method.checking')" />
       <p class="bmc-line">
         {{ result.notice }}
         <Btn v-if="givenUp" kind="link" icon="chev" class="bmc-fix" @click="start">
-          Vérifier à nouveau</Btn>
+          {{ t('billingUi.method.checkAgain') }}</Btn>
       </p>
     </template>
 
     <Notice v-else-if="result?.status === 'failed'" tone="warn">
       {{ result.notice }}
-      <Btn kind="link" icon="card" class="bmc-fix" @click="emit('retry')">Changer de carte</Btn>
+      <Btn kind="link" icon="card" class="bmc-fix" @click="emit('retry')">{{ t('billingUi.method.changeCard') }}</Btn>
     </Notice>
 
     <Notice v-else-if="result?.status === 'changed'" tone="ok">{{ result.notice }}</Notice>
 
     <!-- Rejeu sur le mandat courant : le serveur ne sert pas de phrase ici. -->
     <Notice v-else-if="result?.status === 'already_current'" tone="ok">
-      Ce moyen de paiement est déjà celui de l'abonnement.
+      {{ t('billingUi.method.alreadyCurrent') }}
     </Notice>
 
     <!-- Une valeur de `status` que cet écran ne connaît pas : on montre ce que le
          serveur a écrit plutôt que de tourner sans fin. -->
     <Notice v-else-if="result" tone="info">{{ result.notice || result.status }}</Notice>
 
-    <OtoLoading v-else :size="18" label="vérification du paiement" />
+    <OtoLoading v-else :size="18" :label="t('billingUi.method.checking')" />
   </div>
 </template>
 

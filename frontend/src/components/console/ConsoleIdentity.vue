@@ -9,6 +9,9 @@ import { useMyOrgs } from '@/composables/useMyOrgs'
 import { useNav } from '@/composables/useNav'
 import { useScope } from '@/composables/useScope'
 import { useScopedLink } from '@/composables/useScopedLink'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // En-tête de la sidebar = l'axe IDENTITÉ (org + équipe active) ET le déclencheur du
 // SWITCH d'org : cliquer le bloc org/logo ouvre le WorkspaceSwitcher dans un POPOVER
@@ -110,7 +113,7 @@ const kicker = computed(() => {
       :class="{ org: level === 'org', platform: level === 'platform' }"
       :aria-expanded="open"
       aria-haspopup="dialog"
-      aria-label="changer d'organisation"
+      :aria-label="t('orgUi.identity.switchOrg')"
       @pointerenter="prefetch"
       @focus="prefetch"
       @click="toggle"
@@ -129,7 +132,7 @@ const kicker = computed(() => {
         <div class="ident-name">{{ orgName }}</div>
         <div class="ident-meta">
           <span v-if="orgRoleLabel" class="pill">{{ orgRoleLabel }}</span>
-          <span v-else class="pill faint">global</span>
+          <span v-else class="pill faint">{{ t('orgUi.identity.global_') }}</span>
           <span v-if="me?.active_group" class="ident-team">
             · {{ me.active_group_name }}
             <span class="pill">{{ groupRoleLabel }}</span>
@@ -147,7 +150,7 @@ const kicker = computed(() => {
         <div
           class="id-pop"
           role="dialog"
-          aria-label="changer d'organisation"
+          :aria-label="t('orgUi.identity.switchOrg')"
           :style="{ left: `${anchor.left}px`, top: `${anchor.top}px` }"
         >
           <div class="id-pop-body">

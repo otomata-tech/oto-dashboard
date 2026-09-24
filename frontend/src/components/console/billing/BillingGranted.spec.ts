@@ -7,6 +7,7 @@
 //   2. une échéance dit son JOUR, une absence d'échéance ne dit rien ;
 //   3. un don échu se lit comme échu, jamais « expire aujourd'hui » ;
 //   4. l'usage ne se divise pas — ni barre, ni jauge, ni pourcentage.
+import { i18n } from '@/lib/i18n'
 import { describe, expect, it } from 'vitest'
 import { createApp, h } from 'vue'
 import type { Component } from 'vue'
@@ -31,7 +32,8 @@ function render(comp: Component, props: Record<string, unknown>) {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const app = createApp(h(comp, props))
-  app.mount(host)
+  i18n.global.locale.value = 'fr'
+  app.use(i18n).mount(host)
   // `fr-FR` sépare les milliers par une espace insécable étroite (U+202F), dont la
   // forme exacte varie selon la version d'ICU. On normalise toutes les espaces
   // Unicode : figer le codepoint ferait un test vert ici et rouge ailleurs.

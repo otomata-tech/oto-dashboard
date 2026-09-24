@@ -18,6 +18,9 @@ import { uploadOrgLogo, deleteOrgLogo, updateOrg, archiveOrg, leaveOrg } from '@
 import { fmtDate } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { validateImage, IMAGE_ACCEPT_ATTR } from '@/lib/imageUpload'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
@@ -33,18 +36,18 @@ const isPersonalOrg = computed(() => detail.value?.org.personal === true)
 function editOrg() {
   if (activeOrgId.value == null) return
   openForm({
-    title: 'modifier l\'organisation',
-    submitLabel: 'enregistrer',
+    title: t('orgUi.settings.editTitle'),
+    submitLabel: t('orgUi.settings.save'),
     fields: [
-      { key: 'name', label: 'nom', initial: detail.value?.org.name ?? '', required: true },
-      { key: 'description', label: 'description', type: 'textarea',
-        placeholder: 'à quoi sert cette org (optionnel)', initial: detail.value?.org.description ?? '' },
-      { key: 'domain', label: 'domaine', placeholder: 'acme.com',
-        hint: 'le domaine de ton entreprise — récupère aussi ton logo automatiquement (logo.dev) si aucun n\'est déposé',
+      { key: 'name', label: t('orgUi.settings.name'), initial: detail.value?.org.name ?? '', required: true },
+      { key: 'description', label: t('orgUi.settings.description'), type: 'textarea',
+        placeholder: t('orgUi.settings.descPlaceholder'), initial: detail.value?.org.description ?? '' },
+      { key: 'domain', label: t('orgUi.settings.domain'), placeholder: 'acme.com',
+        hint: t('orgUi.settings.domainHint'),
         initial: detail.value?.org.domain ?? '' },
-      { key: 'industry', label: 'secteur', placeholder: 'ex. logiciel, comptabilité, retail (optionnel)',
+      { key: 'industry', label: t('orgUi.settings.industry'), placeholder: t('orgUi.settings.industryPlaceholder'),
         initial: detail.value?.org.industry ?? '' },
-      { key: 'location', label: 'lieu', placeholder: 'ex. Paris, France (optionnel)',
+      { key: 'location', label: t('orgUi.settings.location'), placeholder: t('orgUi.settings.locationPlaceholder'),
         initial: detail.value?.org.location ?? '' },
     ],
     onConfirm: async (v) => {
@@ -56,7 +59,7 @@ function editOrg() {
         })
         await reload()
         await reloadMe()          // rafraîchit nom + logo dans le badge identité (sidebar)
-        toast('organisation mise à jour')
+        toast(t('orgUi.settings.updated'))
       } catch (e) { toast(humanize(e)); throw e }
     },
   })
@@ -70,19 +73,19 @@ async function onLogoDrop(file: File) {
     await uploadOrgLogo(activeOrgId.value, file)
     await reload()
     await reloadMe()          // rafraîchit le logo dans le badge identité (topbar)
-    toast('logo mis à jour')
+    toast(t('orgUi.settings.logoUpdated'))
   } catch (err) { toast(humanize(err)) }
   finally { logoBusy.value = false }
 }
 async function removeLogo() {
   if (activeOrgId.value == null) return
-  if (!await confirmAction({ title: 'retirer le logo', danger: true, confirmLabel: 'retirer', message: 'retirer le logo de cette organisation ?' })) return
+  if (!await confirmAction({ title: t('orgUi.settings.removeLogoTitle'), danger: true, confirmLabel: t('orgUi.settings.remove'), message: t('orgUi.settings.removeLogoMessage') })) return
   try {
     logoBusy.value = true
     await deleteOrgLogo(activeOrgId.value)
     await reload()
     await reloadMe()
-    toast('logo retiré')
+    toast(t('orgUi.settings.logoRemoved'))
   } catch (err) { toast(humanize(err)) }
   finally { logoBusy.value = false }
 }
@@ -92,13 +95,13 @@ async function removeLogo() {
 // serveur ; on recharge en dur pour reconstruire identité/sidebar sur la nouvelle org.
 async function leave() {
   if (activeOrgId.value == null) return
-  const label = detail.value?.org.name || 'cette organisation'
-  if (!await confirmAction({ title: 'quitter l\'organisation', danger: true, confirmLabel: 'quitter',
-    message: `quitter « ${label} » ? tu perds l'accès à ses clés partagées, connecteurs et outils. tu peux y être réinvité·e plus tard.` })) return
+  const label = detail.value?.org.name || t('orgUi.settings.thisOrg')
+  if (!await confirmAction({ title: t('orgUi.settings.leaveTitle'), danger: true, confirmLabel: t('orgUi.settings.leave'),
+    message: t('orgUi.settings.leaveMessage', { name: label }) })) return
   try {
     await leaveOrg(activeOrgId.value)
     await reloadMe()
-    toast('tu as quitté l\'organisation')
+    toast(t('orgUi.settings.left'))
     window.location.assign('/overview')   // repart propre sur la nouvelle org active
   } catch (e) { toast(humanize(e)) }
 }
@@ -106,13 +109,13 @@ async function leave() {
 // Suppression (archivage réversible) de l'org — org_admin, jamais l'espace perso.
 async function deleteOrg() {
   if (activeOrgId.value == null) return
-  const label = detail.value?.org.name || 'this org'
-  if (!await confirmAction({ title: 'supprimer l\'organisation', danger: true, confirmLabel: 'supprimer',
-    message: `supprimer « ${label} » ? elle disparaît pour tous ses membres, qui retombent sur leurs autres espaces. les données sont conservées et un admin oto peut la restaurer.` })) return
+  const label = detail.value?.org.name || t('orgUi.settings.thisOrg')
+  if (!await confirmAction({ title: t('orgUi.settings.deleteTitle'), danger: true, confirmLabel: t('orgUi.settings.delete'),
+    message: t('orgUi.settings.deleteMessage', { name: label }) })) return
   try {
     await archiveOrg(activeOrgId.value)
     await reloadMe()            // l'org active a rebasculé → rafraîchit le badge identité
-    toast('organisation supprimée')
+    toast(t('orgUi.settings.deleted'))
     // Repart d'un contexte propre (la vue est scopée sur l'org active, désormais changée).
     window.location.assign('/console')
   } catch (e) { toast(humanize(e)) }
@@ -123,14 +126,14 @@ async function deleteOrg() {
   <div class="content-inner fadein">
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
 
-    <ConsoleCard v-if="loaded && activeOrgId == null" title="aucune org active">
-      <div class="helptext">tu n'es dans aucune organisation pour l'instant.</div>
+    <ConsoleCard v-if="loaded && activeOrgId == null" :title="t('orgUi.settings.noOrg')">
+      <div class="helptext">{{ t('orgUi.settings.noOrgHelp') }}</div>
     </ConsoleCard>
 
     <template v-else>
-      <ConsoleCard title="général" sub="nom, logo, description et profil d'entreprise de ton org active.">
+      <ConsoleCard :title="t('orgUi.settings.general')" :sub="t('orgUi.settings.generalSub')">
         <template v-if="canAdminister" #actions>
-          <Btn kind="mini" icon="pen" @click="editOrg">modifier</Btn>
+          <Btn kind="mini" icon="pen" @click="editOrg">{{ t('orgUi.settings.edit') }}</Btn>
         </template>
         <div class="rowlist">
           <div>
@@ -149,30 +152,30 @@ async function deleteOrg() {
             </div>
             <div v-if="detail?.org.description" style="font-size: 12.5px; color: var(--color-mute); margin-top: 8px; white-space: pre-wrap">{{ detail.org.description }}</div>
             <div v-else class="helptext" style="margin-top: 8px">
-              {{ canAdminister ? 'no description yet — add one to tell teammates what this org is for.' : 'no description.' }}
+              {{ canAdminister ? t('orgUi.settings.noDescAdmin') : t('orgUi.settings.noDesc') }}
             </div>
           </div>
 
           <!-- Logo : dérivé du domaine (logo.dev) par défaut, upload = override. -->
           <div v-if="canAdminister" style="border-top: 1px solid var(--color-hair); padding-top: 12px">
             <div v-if="!detail?.org.logo_custom && detail?.org.domain && detail?.org.logo_url" class="helptext" style="margin-bottom: 8px">
-              logo dérivé de <strong>{{ detail.org.domain }}</strong> (logo.dev) — dépose-en un pour le remplacer.
+              <i18n-t keypath="orgUi.settings.logoDerived" tag="span"><template #domain><strong>{{ detail.org.domain }}</strong></template></i18n-t>
             </div>
             <div v-else-if="!detail?.org.logo_url" class="helptext" style="margin-bottom: 8px">
-              aucun logo — renseigne un domaine dans « edit » pour le récupérer automatiquement, ou dépose-en un.
+              {{ t('orgUi.settings.noLogo') }}
             </div>
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
               <Dropzone :accept="IMAGE_ACCEPT_ATTR" :max-size-mb="2" :busy="logoBusy"
-                :label="detail?.org.logo_custom ? 'changer le logo' : 'déposer un logo'"
-                hint="png, jpeg ou webp · max 2 Mo"
+                :label="detail?.org.logo_custom ? t('orgUi.settings.changeLogo') : t('orgUi.settings.uploadLogo')"
+                :hint="t('orgUi.settings.logoHint')"
                 @select="onLogoDrop" @error="toast" />
-              <Btn v-if="detail?.org.logo_custom" kind="danger" :disabled="logoBusy" @click="removeLogo">retirer</Btn>
+              <Btn v-if="detail?.org.logo_custom" kind="danger" :disabled="logoBusy" @click="removeLogo">{{ t('orgUi.settings.remove') }}</Btn>
             </div>
           </div>
         </div>
       </ConsoleCard>
 
-      <ConsoleCard v-if="detail?.entitlements?.length" title="accès débloqués" sub="namespaces réservés ouverts pour cette org.">
+      <ConsoleCard v-if="detail?.entitlements?.length" :title="t('orgUi.settings.unlocked')" :sub="t('orgUi.settings.unlockedSub')">
         <div class="rowlist">
           <div v-for="e in detail.entitlements" :key="e.namespace" class="rowitem">
             <Tag tone="cobalt">{{ e.namespace }}</Tag>
@@ -184,30 +187,28 @@ async function deleteOrg() {
       <!-- Zone danger : gestes irréversibles/destructifs regroupés (jamais sur l'espace perso).
            quitter = self-service tout membre · supprimer (archivage réversible) = org_admin.
            En consultation, aucun des deux : la carte part avec eux (oto#211). -->
-      <ConsoleCard v-if="detail && !isPersonalOrg && canWrite" class="danger-zone" title="zone danger"
-        sub="actions sensibles sur cette organisation.">
+      <ConsoleCard v-if="detail && !isPersonalOrg && canWrite" class="danger-zone" :title="t('orgUi.settings.danger')"
+        :sub="t('orgUi.settings.dangerSub')">
         <div class="dz-list">
           <!-- Quitter : tout membre, refusé si dernier admin (409 backend). -->
           <div class="dz-row">
             <div class="dz-txt">
-              <div class="dz-t">quitter l'organisation</div>
+              <div class="dz-t">{{ t('orgUi.settings.leaveTitle') }}</div>
               <div class="helptext" style="margin: 0">
-                tu te retires de cette org et perds l'accès à ses clés, connecteurs et outils. tu peux y être
-                réinvité·e plus tard ; si tu es le dernier admin, nomme d'abord un successeur.
+                {{ t('orgUi.settings.leaveHelp') }}
               </div>
             </div>
-            <Btn kind="danger" @click="leave">quitter</Btn>
+            <Btn kind="danger" @click="leave">{{ t('orgUi.settings.leave') }}</Btn>
           </div>
           <!-- Supprimer (= archivage réversible) : réservé aux admins de l'org. -->
           <div v-if="canAdminister" class="dz-row">
             <div class="dz-txt">
-              <div class="dz-t">supprimer l'organisation</div>
+              <div class="dz-t">{{ t('orgUi.settings.deleteTitle') }}</div>
               <div class="helptext" style="margin: 0">
-                l'org disparaît pour tous ses membres, qui retombent sur leurs autres espaces. les données
-                sont conservées et un admin oto peut la restaurer.
+                {{ t('orgUi.settings.deleteHelp') }}
               </div>
             </div>
-            <Btn kind="danger" @click="deleteOrg">supprimer</Btn>
+            <Btn kind="danger" @click="deleteOrg">{{ t('orgUi.settings.delete') }}</Btn>
           </div>
         </div>
       </ConsoleCard>

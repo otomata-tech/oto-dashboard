@@ -11,13 +11,16 @@ import Tag from '@/components/console/Tag.vue'
 import type { BillingPayment } from '@/types/api'
 import { fmtDateTime } from '@/types/api'
 import { euros } from '@/lib/euros'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 defineProps<{ payments: BillingPayment[] }>()
 
 function payKind(kind: string): string {
-  if (kind === 'initial') return 'Souscription'
-  if (kind === 'renewal') return 'Échéance'
-  if (kind === 'method_change') return 'Changement de moyen'
+  if (kind === 'initial') return t('billingUi.payments.initial')
+  if (kind === 'renewal') return t('billingUi.payments.renewal')
+  if (kind === 'method_change') return t('billingUi.payments.methodChange')
   return kind
 }
 function payTone(s: string): 'olive' | 'terra' | 'ink' {
@@ -30,10 +33,10 @@ function payTone(s: string): 'olive' | 'terra' | 'ink' {
 </script>
 
 <template>
-  <ConsoleCard flush title="Paiements" sub="les échéances de cet abonnement.">
+  <ConsoleCard flush :title="t('billingUi.payments.title')" :sub="t('billingUi.payments.sub')">
     <table class="tbl">
       <thead>
-        <tr><th>Date</th><th>Type</th><th class="num">Montant</th><th>Statut</th></tr>
+        <tr><th>{{ t('billingUi.payments.date') }}</th><th>{{ t('billingUi.payments.kind') }}</th><th class="num">{{ t('billingUi.payments.amount') }}</th><th>{{ t('billingUi.payments.status') }}</th></tr>
       </thead>
       <tbody>
         <tr v-for="p in payments" :key="p.id">

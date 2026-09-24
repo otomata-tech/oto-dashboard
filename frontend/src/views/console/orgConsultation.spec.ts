@@ -45,7 +45,7 @@ type Charger = () => Promise<{ default: object }>
 // [écran, vue, gestes d'écriture, ce qui doit rester lu en consultation]
 const ECRANS: [string, Charger, string[], string[]][] = [
   ['/org — membres et invitations', () => import('./OrgView.vue'),
-    ['promote', 'remove', 'Invite', 'revoke'], ['Bob', 'alice@acme.test']],
+    ['promouvoir', 'retirer', 'Inviter', 'révoquer'], ['Bob', 'alice@acme.test']],
   ['/org/settings — profil, logo, zone danger', () => import('./OrgSettingsView.vue'),
     ['modifier', 'changer le logo', 'retirer', 'quitter', 'supprimer'], ['ACME', 'accès débloqués']],
   ['/org/security — MFA obligatoire', () => import('./OrgSecurityView.vue'),

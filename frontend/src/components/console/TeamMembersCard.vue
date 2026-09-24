@@ -20,6 +20,9 @@ import { useFormDialog } from '@/composables/useFormDialog'
 import { addGroupMember, setGroupMemberRole, removeGroupMember, getOrg } from '@/api/console'
 import type { GroupMember, GroupRole } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   groupId: number
@@ -44,58 +47,58 @@ async function addMember() {
       .filter((m) => !inTeam.has(m.sub))
       .map((m) => ({ value: m.sub, label: m.name ? `${m.name} · ${m.email ?? ''}`.trim() : (m.email ?? m.sub) }))
   } catch (e) { toast(humanize(e)); return }
-  if (!candidates.length) { toast('everyone in the org is already in this team.'); return }
+  if (!candidates.length) { toast(t('orgUi.teamMembers.allIn')); return }
   openForm({
-    title: 'add to team',
-    description: 'pick an org member to add.',
+    title: t('orgUi.teamMembers.addTitle'),
+    description: t('orgUi.teamMembers.addDesc'),
     fields: [
-      { key: 'target', label: 'member', type: 'select', required: true, options: candidates },
-      { key: 'role', label: 'role', type: 'select', initial: 'group_member',
-        options: [{ value: 'group_member', label: 'member' }, { value: 'group_admin', label: 'team lead' }] },
+      { key: 'target', label: t('orgUi.teamMembers.member'), type: 'select', required: true, options: candidates },
+      { key: 'role', label: t('orgUi.teamMembers.role'), type: 'select', initial: 'group_member',
+        options: [{ value: 'group_member', label: t('orgUi.teamMembers.member') }, { value: 'group_admin', label: t('orgUi.teamMembers.teamLead') }] },
     ],
-    submitLabel: 'add',
+    submitLabel: t('orgUi.teamMembers.add'),
     onConfirm: async (v) => {
       const role: GroupRole = v.role === 'group_admin' ? 'group_admin' : 'group_member'
-      try { await addGroupMember(props.groupId, (v.target ?? ''), role); toast('member added'); emit('changed') }
+      try { await addGroupMember(props.groupId, (v.target ?? ''), role); toast(t('orgUi.teamMembers.added')); emit('changed') }
       catch (e) { toast(humanize(e)); throw e }
     },
   })
 }
 async function toggleMemberRole(sub: string, role: GroupRole) {
   const next: GroupRole = role === 'group_admin' ? 'group_member' : 'group_admin'
-  try { await setGroupMemberRole(props.groupId, sub, next); toast('role updated'); emit('changed') }
+  try { await setGroupMemberRole(props.groupId, sub, next); toast(t('orgUi.teamMembers.roleUpdated')); emit('changed') }
   catch (e) { toast(humanize(e)) }
 }
 async function removeMember(sub: string) {
-  if (!await confirmAction({ title: 'remove member', danger: true, confirmLabel: 'Remove', message: 'remove this member from the team? they stay in the org.' })) return
-  try { await removeGroupMember(props.groupId, sub); toast('member removed'); emit('changed') }
+  if (!await confirmAction({ title: t('orgUi.teamMembers.removeTitle'), danger: true, confirmLabel: t('orgUi.teamMembers.remove'), message: t('orgUi.teamMembers.removeMessage') })) return
+  try { await removeGroupMember(props.groupId, sub); toast(t('orgUi.teamMembers.removed')); emit('changed') }
   catch (e) { toast(humanize(e)) }
 }
 </script>
 
 <template>
-  <ConsoleCard title="members" flush sub="who belongs to this team.">
+  <ConsoleCard :title="t('orgUi.teamMembers.title')" flush :sub="t('orgUi.teamMembers.sub')">
     <template v-if="canManage" #actions>
-      <Btn kind="mini" icon="plus" @click="addMember">Add member</Btn>
+      <Btn kind="mini" icon="plus" @click="addMember">{{ t('orgUi.teamMembers.addMember') }}</Btn>
     </template>
     <table class="tbl">
-      <thead><tr><th>member</th><th>role</th><th v-if="canManage" style="width: 130px"></th></tr></thead>
+      <thead><tr><th>{{ t('orgUi.teamMembers.member') }}</th><th>{{ t('orgUi.teamMembers.role') }}</th><th v-if="canManage" style="width: 130px"></th></tr></thead>
       <tbody>
         <tr v-for="m in members" :key="m.sub">
           <td>
             <div style="font-weight: 600; color: var(--color-ink)">{{ m.name || m.email }}</div>
             <div style="font-size: 11px; color: var(--color-faint)">{{ m.email }}</div>
           </td>
-          <td><Tag v-if="m.role === 'group_admin'" tone="ink">lead</Tag><Tag v-else>member</Tag></td>
+          <td><Tag v-if="m.role === 'group_admin'" tone="ink">{{ t('orgUi.teamMembers.lead') }}</Tag><Tag v-else>{{ t('orgUi.teamMembers.member') }}</Tag></td>
           <td v-if="canManage" style="text-align: right; white-space: nowrap">
             <template v-if="m.sub !== meSub">
-              <Btn kind="mini" @click="toggleMemberRole(m.sub, m.role)">{{ m.role === 'group_admin' ? 'Demote' : 'Make lead' }}</Btn>
-              <Btn kind="danger" @click="removeMember(m.sub)">Remove</Btn>
+              <Btn kind="mini" @click="toggleMemberRole(m.sub, m.role)">{{ m.role === 'group_admin' ? t('orgUi.teamMembers.demote') : t('orgUi.teamMembers.makeLead') }}</Btn>
+              <Btn kind="danger" @click="removeMember(m.sub)">{{ t('orgUi.teamMembers.remove') }}</Btn>
             </template>
-            <span v-else class="dim" style="font-size: 11px">you</span>
+            <span v-else class="dim" style="font-size: 11px">{{ t('orgUi.teamMembers.you') }}</span>
           </td>
         </tr>
-        <tr v-if="!members.length"><td :colspan="canManage ? 3 : 2" class="dim" style="text-align: center; padding: 14px">no members</td></tr>
+        <tr v-if="!members.length"><td :colspan="canManage ? 3 : 2" class="dim" style="text-align: center; padding: 14px">{{ t('orgUi.teamMembers.none') }}</td></tr>
       </tbody>
     </table>
   </ConsoleCard>

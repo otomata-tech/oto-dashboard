@@ -50,6 +50,9 @@ import { PENDING_WINDOW_MS, VAT_SCHEME_LABEL, nextProbeDelayMs } from '@/lib/bil
 import { euros as euroCents } from '@/lib/euros'
 import { explain, humanize } from '@/lib/errors'
 import { fmtDate } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
@@ -79,21 +82,21 @@ const STATUS_TONE: Record<string, 'olive' | 'saffron' | 'terra' | 'ink'> = {
   active: 'olive', past_due: 'terra', incomplete: 'saffron', canceled: 'ink',
   pending: 'saffron', failed: 'terra',
 }
-const STATUS_LABEL: Record<string, string> = {
-  active: 'Actif', past_due: 'Impayé', incomplete: 'En attente',
-  canceled: 'Résilié', pending: 'En cours', failed: 'Échec',
-}
+const STATUS_LABEL = computed<Record<string, string>>(() => ({
+  active: t('billingUi.view.status.active'), past_due: t('billingUi.view.status.past_due'), incomplete: t('billingUi.view.status.incomplete'),
+  canceled: t('billingUi.view.status.canceled'), pending: t('billingUi.view.status.pending'), failed: t('billingUi.view.status.failed'),
+}))
 
 // La RÈGLE d'écriture d'un montant (les centimes se montrent quand il y en a) vit dans
 // `lib/euros` : une facture est opposable. Ne reste ici que le mot du CATALOGUE.
 function euros(cents: number | null | undefined): string {
-  return cents == null ? 'sur devis' : euroCents(cents)
+  return cents == null ? t('billingUi.view.quote') : euroCents(cents)
 }
 
 function methodLabel(m: string | null | undefined): string {
-  if (m === 'comp') return 'Offert'
-  if (m === 'sepa') return 'Prélèvement SEPA'
-  return 'Carte bancaire'
+  if (m === 'comp') return t('billingUi.view.methodComp')
+  if (m === 'sepa') return t('billingUi.view.methodSepa')
+  return t('billingUi.view.methodCard')
 }
 
 // Les gestes d'un abonné : réservés à l'org_admin, sans objet sur un abonnement
@@ -104,7 +107,7 @@ const canAct = computed(() => {
 })
 // La phrase, ou la phrase et qui peut agir — sous la même forme pour les trois alertes.
 function withLever(base: string, can: boolean, verb: string): string {
-  return can ? `${base}.` : `${base} — seul un administrateur de l'organisation peut ${verb}.`
+  return can ? `${base}.` : t('billingUi.view.lever', { base, verb })
 }
 
 // Bandeau d'alerte de l'état abonné (résiliation programmée / impayé / échéance que
@@ -117,15 +120,13 @@ const alert = computed<{ tone: 'warn' | 'info'; text: string; fix?: Fix } | null
   if (!s?.subscribed) return null
   if (s.canceled_at) {
     return { tone: 'warn', fix: canAct.value ? 'resume' : undefined,
-      text: withLever(`Résiliation programmée — l'accès reste ouvert jusqu'au `
-        + `${fmtDate(s.current_period_end)}, puis passage au niveau gratuit`,
-      canAct.value, 'l\'annuler') }
+      text: withLever(t('billingUi.view.canceledAlert', { date: fmtDate(s.current_period_end) ?? '' }),
+      canAct.value, t('billingUi.view.cancelVerb')) }
   }
   if (s.status === 'past_due') {
     // Pendant le constat d'un changement de carte, c'est le bloc dessous qui porte le levier.
     return { tone: 'warn', fix: canAct.value && !methodInProgress.value ? 'method' : undefined,
-      text: withLever(`Paiement en échec — un nouvel essai est en cours, l'accès est maintenu `
-        + `jusqu'au ${fmtDate(s.grace_until)}`, canAct.value, 'changer de carte') }
+      text: withLever(t('billingUi.view.pastDueAlert', { date: fmtDate(s.grace_until) ?? '' }), canAct.value, t('billingUi.view.changeCardVerb')) }
   }
   // Un abonnement actif dont le TTC n'est pas calculable = une échéance que le
   // serveur ne pourra pas prélever. Le dire avant qu'elle tombe — et OUVRIR le
@@ -134,13 +135,13 @@ const alert = computed<{ tone: 'warn' | 'info'; text: string; fix?: Fix } | null
   // pendant huit jours.
   if (s.vat_blocked) {
     const cause = s.vat_blocked === 'vat_consumer_unsupported'
-      ? 'le numéro de TVA intracommunautaire de l\'organisation est requis'
-      : 'l\'identité de facturation de l\'organisation est incomplète'
+      ? t('billingUi.view.vatRequired')
+      : t('billingUi.view.identityIncomplete')
     return {
       tone: 'warn',
       fix: canManage.value ? 'identity' : undefined,
-      text: withLever(`La prochaine échéance ne peut pas être calculée : ${cause}`,
-        canManage.value, 'la corriger'),
+      text: withLever(t('billingUi.view.vatBlocked', { cause }),
+        canManage.value, t('billingUi.view.fixVerb')),
     }
   }
   return null
@@ -211,7 +212,7 @@ async function loadIdentity() {
 async function onIdentitySaved(view: BillingIdentityView) {
   identity.value = view
   await refreshStatus()
-  if (!gestureError.value) toast('identité de facturation enregistrée')
+  if (!gestureError.value) toast(t('billingUi.view.identitySaved'))
 }
 
 // Le lien de l'alerte mène au formulaire. Le défilement seul ne déplace pas le
@@ -254,7 +255,7 @@ async function probe(paymentRef: string | null) {
       return
     }
     pending.value = null
-    toast(r.status === 'active' ? 'abonnement activé' : 'paiement non abouti')
+    toast(r.status === 'active' ? t('billingUi.view.activated') : t('billingUi.view.notCompleted'))
     await load()
   } catch (e) {
     // `confirm` ne refuse que si l'APPEL est fautif (paiement inconnu, aucune
@@ -311,15 +312,14 @@ const methodReturnUrl = `${window.location.origin}/org/billing?billing=method`
 
 async function resiliate() {
   if (!await confirmAction({
-    title: 'Résilier l\'abonnement', danger: true, confirmLabel: 'Résilier',
-    message: 'l\'accès reste ouvert jusqu\'à la fin de la période en cours, '
-      + 'puis repasse au niveau gratuit. rien n\'est supprimé.',
+    title: t('billingUi.view.resiliateTitle'), danger: true, confirmLabel: t('billingUi.view.resiliate'),
+    message: t('billingUi.view.resiliateMessage'),
   })) return
   busy.value = true
   gestureError.value = null
   try {
     status.value = await cancelBilling()
-    toast('résiliation enregistrée')
+    toast(t('billingUi.view.resiliated'))
   } catch (e) {
     toast(explain(e))
   } finally {
@@ -336,7 +336,7 @@ async function resume() {
   gestureError.value = null
   try {
     status.value = await resumeBilling()
-    toast('résiliation annulée')
+    toast(t('billingUi.view.resumed'))
   } catch (e) {
     gestureError.value = explain(e)
   } finally {
@@ -355,8 +355,8 @@ async function changeMethod() {
     const started = await startBillingMethodChange(methodReturnUrl)
     if (!started.checkout_url) throw new Error('checkout_url absent de la réponse')
     if (!await confirmAction({
-      title: 'Changer de carte', message: started.notice,
-      confirmLabel: 'Continuer vers la page de paiement',
+      title: t('billingUi.view.changeCard'), message: started.notice,
+      confirmLabel: t('billingUi.view.toPayment'),
     })) return
     window.location.href = started.checkout_url
   } catch (e) {
@@ -391,36 +391,36 @@ async function changeMethod() {
       <BillingGranted v-if="status.granted?.length" :grants="status.granted" />
 
       <!-- ── Abonné : état courant ── -->
-      <ConsoleCard v-if="status.subscribed" :title="status.label ?? 'Abonnement'"
-        :sub="`abonnement de « ${me?.active_org_name ?? '' } »`">
+      <ConsoleCard v-if="status.subscribed" :title="status.label ?? t('billingUi.view.subscription')"
+        :sub="t('billingUi.view.subscriptionOf', { org: me?.active_org_name ?? '' })">
         <template #actions>
-          <Tag v-if="status.comp" tone="cobalt">offert par Otomata</Tag>
+          <Tag v-if="status.comp" tone="cobalt">{{ t('billingUi.view.offered') }}</Tag>
           <Tag v-else-if="status.status" :tone="STATUS_TONE[status.status] ?? 'ink'">
             {{ STATUS_LABEL[status.status] ?? status.status }}</Tag>
         </template>
 
         <div class="grid3">
-          <Stat label="montant"
+          <Stat :label="t('billingUi.view.amount')"
             :value="euros(nextCharge?.ttc ?? status.amount)"
-            :sub="nextCharge ? 'par mois, TTC' : status.amount ? 'par mois' : undefined" />
-          <Stat v-if="showNextBilling" label="prochaine échéance"
+            :sub="nextCharge ? t('billingUi.view.perMonthTtc') : status.amount ? t('billingUi.view.perMonth') : undefined" />
+          <Stat v-if="showNextBilling" :label="t('billingUi.view.nextCharge')"
             :value="fmtDate(status.next_billing_at) ?? '—'" />
-          <Stat label="paiement" :value="methodLabel(status.method)" />
+          <Stat :label="t('billingUi.view.payment')" :value="methodLabel(status.method)" />
         </div>
 
         <p v-if="nextCharge?.scheme" class="hint">
           {{ VAT_SCHEME_LABEL[nextCharge.scheme] }} —
-          {{ euros(status.amount) }} hors taxes.
+          {{ t('billingUi.view.exclTax', { amount: euros(status.amount) }) }}
         </p>
 
         <Notice v-if="alert" :tone="alert.tone" class="mt">
           {{ alert.text }}
           <Btn v-if="alert.fix === 'identity'" kind="link" icon="chev" class="notice-fix"
-            @click="goToIdentity">Compléter l'identité de facturation</Btn>
+            @click="goToIdentity">{{ t('billingUi.view.completeIdentity') }}</Btn>
           <Btn v-else-if="alert.fix === 'resume'" kind="link" icon="chev" class="notice-fix"
-            :disabled="busy" @click="resume">Annuler la résiliation</Btn>
+            :disabled="busy" @click="resume">{{ t('billingUi.view.undoCancel') }}</Btn>
           <Btn v-else-if="alert.fix === 'method'" kind="link" icon="card" class="notice-fix"
-            :disabled="busy" @click="changeMethod">Changer de carte</Btn>
+            :disabled="busy" @click="changeMethod">{{ t('billingUi.view.changeCard') }}</Btn>
         </Notice>
 
         <!-- Le constat d'un changement de carte, au retour de la page de paiement. -->
@@ -432,19 +432,19 @@ async function changeMethod() {
              et par où passer ; relire l'état est le geste qui suit. -->
         <Notice v-if="gestureError" tone="warn" class="mt">
           {{ gestureError }}
-          <Btn kind="link" icon="chev" class="notice-fix" @click="load">Actualiser</Btn>
+          <Btn kind="link" icon="chev" class="notice-fix" @click="load">{{ t('billingUi.view.refresh') }}</Btn>
         </Notice>
 
         <div v-if="canAct" class="row-actions">
           <!-- En impayé, c'est l'alerte qui porte « Changer de carte » ; pendant un
                constat de retour, le bloc au-dessus le porte. -->
           <Btn v-if="status.status !== 'past_due' && !methodInProgress" kind="ghost" icon="card"
-            :disabled="busy" @click="changeMethod">Changer de carte</Btn>
+            :disabled="busy" @click="changeMethod">{{ t('billingUi.view.changeCard') }}</Btn>
           <Btn v-if="!status.canceled_at" kind="danger" icon="trash" :disabled="busy"
-            @click="resiliate">Résilier l'abonnement</Btn>
+            @click="resiliate">{{ t('billingUi.view.cancelSub') }}</Btn>
         </div>
         <p v-else-if="status.comp" class="hint">
-          Cet abonnement est offert par Otomata — aucun paiement, aucune échéance.
+          {{ t('billingUi.view.comp') }}
         </p>
       </ConsoleCard>
 
@@ -457,11 +457,11 @@ async function changeMethod() {
            n'existe qu'avant la souscription, et c'est pourtant après qu'une adresse
            change, qu'un numéro de TVA arrive, et que l'échéance suivante en dépend.
            Un seul composant, une seule règle de saisie — deux copies divergeraient. -->
-      <ConsoleCard v-if="showIdentity" id="billing-identity" title="Identité de facturation"
-        sub="elle figure sur les factures, et son pays décide de la TVA de la prochaine échéance.">
+      <ConsoleCard v-if="showIdentity" id="billing-identity" :title="t('billingUi.view.identityTitle')"
+        :sub="t('billingUi.view.identitySub')">
         <Notice v-if="identityError" tone="warn">
           {{ identityError }}
-          <Btn kind="link" icon="chev" class="notice-fix" @click="loadIdentity">Réessayer</Btn>
+          <Btn kind="link" icon="chev" class="notice-fix" @click="loadIdentity">{{ t('common.retry') }}</Btn>
         </Notice>
         <BillingIdentityForm v-else :view="identity" :can-manage="canManage"
           @saved="onIdentitySaved" />

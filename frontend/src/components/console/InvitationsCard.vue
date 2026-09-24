@@ -19,6 +19,9 @@ import type { OrgInvitation } from '@/types/api'
 import { fmtDate } from '@/types/api'
 import { humanize, explain } from '@/lib/errors'
 import { ApiError } from '@/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // `canRead` charge la liste, `canManage` arme les gestes : un admin qui CONSULTE une org en lit
 // les invitations sans pouvoir en émettre ni en révoquer — le serveur refuse (oto#211).
@@ -35,13 +38,13 @@ const canReadRef = toRef(props, 'canRead')
 const { invitations, loading, error, reload, invite, revoke } = useInvitations(scopeRef, canReadRef)
 
 const level = computed(() => props.scope.level)
-const noun = computed(() => (level.value === 'org' ? 'the org' : level.value === 'team' ? 'the team' : 'oto'))
+const noun = computed(() => (level.value === 'org' ? t('orgUi.invitations.nounOrg') : level.value === 'team' ? t('orgUi.invitations.nounTeam') : t('orgUi.invitations.nounPlatform')))
 // Le rôle se dit dans le vocabulaire du niveau : `group_*` pour une équipe (l'invité entre
 // alors dans l'org parente comme membre simple, et dans l'équipe avec ce rôle).
 const atTeam = computed(() => level.value === 'team')
 const roleOptions = computed(() => (atTeam.value
-  ? [{ value: 'group_member', label: 'member' }, { value: 'group_admin', label: 'team lead' }]
-  : [{ value: 'org_member', label: 'member' }, { value: 'org_admin', label: 'admin' }]))
+  ? [{ value: 'group_member', label: t('orgUi.invitations.member') }, { value: 'group_admin', label: t('orgUi.invitations.teamLead') }]
+  : [{ value: 'org_member', label: t('orgUi.invitations.member') }, { value: 'org_admin', label: t('orgUi.invitations.admin') }]))
 const defaultRole = computed(() => (atTeam.value ? 'group_member' : 'org_member'))
 
 function isLead(iv: OrgInvitation): boolean {
@@ -53,15 +56,15 @@ function isLead(iv: OrgInvitation): boolean {
 // l'action « resend » du toast `already_invited`.
 async function doInvite(email: string | null, role: string, sendMail: boolean) {
   const res = await invite(email, role, sendMail)
-  if (res.emailed) toast(`invite sent to ${res.email}`)
+  if (res.emailed) toast(t('orgUi.invitations.sent', { email: res.email }))
   else openReveal({
-    title: 'share this invite yourself',
-    description: `send this link to the person — it joins them to ${noun.value}.`,
-    submitLabel: 'done',
+    title: t('orgUi.invitations.revealTitle'),
+    description: t('orgUi.invitations.revealDesc', { noun: noun.value }),
+    submitLabel: t('orgUi.invitations.done'),
     // Plus de code court : retiré du backend le 15/09 (oto-backend#560), seul le lien porte
     // l'invitation. Le champ « code » s'affichait vide depuis.
     fields: [
-      { key: 'url', label: 'invite link', initial: res.invite_url },
+      { key: 'url', label: t('orgUi.invitations.link'), initial: res.invite_url },
     ],
     onConfirm: async () => {},
   })
@@ -71,25 +74,25 @@ async function doInvite(email: string | null, role: string, sendMail: boolean) {
 function openInvite() {
   // Le rôle n'a de sens que pour l'org ; au niveau plateforme = onboarding pur.
   const fields = [
-    { key: 'email', label: 'email (optional)', placeholder: 'name@company.com',
-      hint: 'leave blank to get a link to share yourself' },
+    { key: 'email', label: t('orgUi.invitations.email'), placeholder: t('orgUi.invitations.emailPlaceholder'),
+      hint: t('orgUi.invitations.emailHint') },
     ...(level.value === 'platform' ? [] : [{
-      key: 'role', label: 'role', type: 'select' as const, initial: defaultRole.value,
+      key: 'role', label: t('orgUi.invitations.role'), type: 'select' as const, initial: defaultRole.value,
       options: roleOptions.value }]),
-    { key: 'delivery', label: 'how', type: 'select' as const, initial: 'mail',
-      options: [{ value: 'mail', label: 'send by email' }, { value: 'code', label: 'give me a link to share' }] },
+    { key: 'delivery', label: t('orgUi.invitations.how'), type: 'select' as const, initial: 'mail',
+      options: [{ value: 'mail', label: t('orgUi.invitations.byEmail') }, { value: 'code', label: t('orgUi.invitations.asLink') }] },
   ]
   openForm({
-    title: `invite to ${noun.value}`,
+    title: t('orgUi.invitations.inviteTitle', { noun: noun.value }),
     description: level.value === 'platform'
-      ? 'send them a sign-up link to join oto.'
-      : `send them an email link, or get a link to share yourself.`,
-    submitLabel: 'create invite',
+      ? t('orgUi.invitations.platformDesc')
+      : t('orgUi.invitations.desc'),
+    submitLabel: t('orgUi.invitations.create'),
     fields,
     onConfirm: async (v) => {
       const sendMail = v.delivery !== 'code'
       const email = (v.email || '').trim()
-      if (sendMail && !email) { toast('an email is required to send by email'); throw new Error('email required') }
+      if (sendMail && !email) { toast(t('orgUi.invitations.emailRequired')); throw new Error('email required') }
       const role = (v.role as string) || defaultRole.value
       try {
         await doInvite(email || null, role, sendMail)
@@ -102,7 +105,7 @@ function openInvite() {
           ? (e.details?.invitation as { id: number } | undefined) : undefined
         if (invite409) {
           toast(explain(e), { action: {
-            label: 'resend',
+            label: t('orgUi.invitations.resend'),
             run: async () => {
               try {
                 await revoke(invite409.id)
@@ -121,46 +124,46 @@ function openInvite() {
 }
 
 async function revokeInv(id: number) {
-  if (!await confirmAction({ title: 'revoke invitation', danger: true, confirmLabel: 'revoke',
-    message: 'revoke this pending invitation?' })) return
-  try { await revoke(id); toast('invitation revoked'); await reload() }
+  if (!await confirmAction({ title: t('orgUi.invitations.revokeTitle'), danger: true, confirmLabel: t('orgUi.invitations.revoke'),
+    message: t('orgUi.invitations.revokeMessage') })) return
+  try { await revoke(id); toast(t('orgUi.invitations.revoked')); await reload() }
   catch (e) { toast(humanize(e)) }
 }
 </script>
 
 <template>
-  <ConsoleCard flush title="invitations"
-    sub="people invited but not yet joined. they join on clicking the link.">
+  <ConsoleCard flush :title="t('orgUi.invitations.title')"
+    :sub="t('orgUi.invitations.sub')">
     <template v-if="canManage" #actions>
-      <Btn kind="mini" icon="plus" @click="openInvite">Invite</Btn>
+      <Btn kind="mini" icon="plus" @click="openInvite">{{ t('orgUi.invitations.invite') }}</Btn>
     </template>
 
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
-    <div v-else-if="loading && !invitations.length" class="dim" style="padding: 14px; text-align: center">loading…</div>
+    <div v-else-if="loading && !invitations.length" class="dim" style="padding: 14px; text-align: center">{{ t('common.loading') }}</div>
     <div v-else-if="!invitations.length" class="dim" style="padding: 14px; text-align: center">
-      no pending invitations
+      {{ t('orgUi.invitations.none') }}
     </div>
     <table v-else class="tbl">
-      <thead><tr><th>invitee</th><th>role</th><th>status</th><th v-if="canManage" style="width: 110px"></th></tr></thead>
+      <thead><tr><th>{{ t('orgUi.invitations.invitee') }}</th><th>{{ t('orgUi.invitations.role') }}</th><th>{{ t('orgUi.invitations.status') }}</th><th v-if="canManage" style="width: 110px"></th></tr></thead>
       <tbody>
         <tr v-for="iv in invitations" :key="iv.id">
           <td>
             <div style="display: flex; align-items: center; gap: 9px">
-              <Avatar :name="iv.email || 'link'" :size="28" />
+              <Avatar :name="iv.email || t('orgUi.invitations.linkAvatar')" :size="28" />
               <div>
                 <div style="font-weight: 600; color: var(--color-ink); display: flex; gap: 6px; align-items: center">
-                  {{ iv.email || 'link to share' }} <Tag tone="saffron">invited</Tag>
+                  {{ iv.email || t('orgUi.invitations.linkToShare') }} <Tag tone="saffron">{{ t('orgUi.invitations.invited') }}</Tag>
                 </div>
                 <div style="font-size: 11px; color: var(--color-faint)">
-                  invited {{ fmtDate(iv.created_at) }} · expires {{ fmtDate(iv.expires_at) }}
+                  {{ t('orgUi.invitations.dates', { created: fmtDate(iv.created_at), expires: fmtDate(iv.expires_at) }) }}
                 </div>
               </div>
             </div>
           </td>
-          <td><Tag v-if="isLead(iv)" tone="ink">{{ atTeam ? 'team lead' : 'admin' }}</Tag><Tag v-else>member</Tag></td>
+          <td><Tag v-if="isLead(iv)" tone="ink">{{ atTeam ? t('orgUi.invitations.teamLead') : t('orgUi.invitations.admin') }}</Tag><Tag v-else>{{ t('orgUi.invitations.member') }}</Tag></td>
           <td><Dot tone="saffron" :size="7" /></td>
           <td v-if="canManage" style="text-align: right">
-            <Btn kind="danger" @click="revokeInv(iv.id)">revoke</Btn>
+            <Btn kind="danger" @click="revokeInv(iv.id)">{{ t('orgUi.invitations.revoke') }}</Btn>
           </td>
         </tr>
       </tbody>

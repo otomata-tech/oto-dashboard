@@ -19,6 +19,9 @@ import Notice from '@/components/console/Notice.vue'
 import Tag from '@/components/console/Tag.vue'
 import { fmtDay } from '@/types/api'
 import type { BillingGrant } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ grants: BillingGrant[] }>()
 
@@ -34,8 +37,9 @@ function euros(cents: number): string {
 // chiffrer vaut mieux qu'un montant inventé.
 function worth(g: BillingGrant): string | null {
   if (g.value_amount == null) return null
-  return `Cet avantage vaut ${euros(g.value_amount)} HT`
-    + `${g.interval === 'month' ? ' par mois' : ''}.`
+  return g.interval === 'month'
+    ? t('billingUi.granted.worthMonthly', { amount: euros(g.value_amount) })
+    : t('billingUi.granted.worth', { amount: euros(g.value_amount) })
 }
 
 // À QUI il est offert. Un don posé sur un compte le suit d'une organisation à
@@ -43,10 +47,10 @@ function worth(g: BillingGrant): string | null {
 // bénéficie aussi.
 function scopeLine(g: BillingGrant): string {
   // Sans montant devant, « Il » n'aurait pas d'antécédent dans la phrase.
-  const sujet = g.value_amount == null ? 'Cet avantage est ouvert' : 'Il est ouvert'
+  const seul = g.value_amount == null
   return g.scope === 'user'
-    ? `${sujet} pour votre compte : vous le gardez dans toutes vos organisations.`
-    : `${sujet} pour toute l'organisation.`
+    ? (seul ? t('billingUi.granted.userNoAmount') : t('billingUi.granted.user'))
+    : (seul ? t('billingUi.granted.orgNoAmount') : t('billingUi.granted.org'))
 }
 
 // L'échéance du don. `expires_at` nul = SANS TERME : on ne dit rien plutôt que
@@ -61,16 +65,15 @@ function deadline(g: BillingGrant): { tone: 'warn' | 'info'; text: string } | nu
   // `days_left` NÉGATIF = l'échéance est passée. Surtout pas « expire aujourd'hui » —
   // et on dit par où rouvrir, sinon l'écran annonce une perte sans issue.
   if (d != null && d < 0) {
-    return { tone: 'warn', text: `Cette offre a pris fin le ${jour}. `
-      + 'Choisir un abonnement ci-dessous rouvre l\'accès.' }
+    return { tone: 'warn', text: t('billingUi.granted.ended', { day: jour ?? '' }) }
   }
   if (d != null && d <= 30) {
     const reste = d === 0
-      ? 'c\'est le dernier jour'
-      : d === 1 ? 'il reste 1 jour' : `il reste ${d} jours`
-    return { tone: 'warn', text: `Offert jusqu'au ${jour} — ${reste}.` }
+      ? t('billingUi.granted.lastDay')
+      : t('billingUi.granted.daysLeft', { n: d }, d)
+    return { tone: 'warn', text: t('billingUi.granted.until', { day: jour ?? '', left: reste }) }
   }
-  return { tone: 'info', text: `Offert jusqu'au ${jour}.` }
+  return { tone: 'info', text: t('billingUi.granted.untilPlain', { day: jour ?? '' }) }
 }
 
 // Mis en forme une fois : appeler `deadline()` trois fois depuis le template le
@@ -86,13 +89,13 @@ const rows = computed(() => props.grants.map((g) => ({
 </script>
 
 <template>
-  <ConsoleCard title="Ce qui vous est offert"
-    sub="des avantages payants qu'Otomata vous ouvre sans contrepartie.">
+  <ConsoleCard :title="t('billingUi.granted.title')"
+    :sub="t('billingUi.granted.sub')">
     <div class="grants">
       <div v-for="r in rows" :key="r.key" class="grant">
         <div class="g-head">
           <span class="g-name">{{ r.label }}</span>
-          <Tag tone="cobalt">offert par Otomata</Tag>
+          <Tag tone="cobalt">{{ t('billingUi.granted.offered') }}</Tag>
         </div>
         <p v-if="r.detail" class="g-detail">{{ r.detail }}</p>
         <p class="g-meta">{{ r.meta }}</p>

@@ -10,6 +10,9 @@ import Notice from '@/components/console/Notice.vue'
 import Tag from '@/components/console/Tag.vue'
 import { VAT_BLOCKED_MESSAGE, VAT_SCHEME_LABEL, VAT_SCHEME_NOTE, type PriceParts } from '@/lib/billingTunnel'
 import type { VatBlocked, VatScheme } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 defineProps<{
   planLabel: string
@@ -25,23 +28,23 @@ function euros(cents: number): string {
 </script>
 
 <template>
-  <ConsoleCard :title="`Abonnement ${planLabel}`"
-    sub="ce que vous réglerez chaque mois, sans engagement.">
+  <ConsoleCard :title="t('billingUi.price.title', { plan: planLabel })"
+    :sub="t('billingUi.price.sub')">
     <template #actions>
       <Tag v-if="scheme" tone="cobalt">{{ VAT_SCHEME_LABEL[scheme] }}</Tag>
     </template>
 
     <template v-if="price">
       <dl class="bpc">
-        <div><dt>Abonnement hors taxes</dt><dd>{{ euros(price.ht) }}</dd></div>
-        <div><dt>TVA</dt><dd>{{ euros(price.vat) }}</dd></div>
-        <div class="total"><dt>Total mensuel</dt><dd>{{ euros(price.ttc) }}</dd></div>
+        <div><dt>{{ t('billingUi.price.ht') }}</dt><dd>{{ euros(price.ht) }}</dd></div>
+        <div><dt>{{ t('billingUi.price.vat') }}</dt><dd>{{ euros(price.vat) }}</dd></div>
+        <div class="total"><dt>{{ t('billingUi.price.total') }}</dt><dd>{{ euros(price.ttc) }}</dd></div>
       </dl>
       <p v-if="scheme" class="helptext">{{ VAT_SCHEME_NOTE[scheme] }}</p>
     </template>
     <Notice v-else-if="blocked" tone="warn">{{ VAT_BLOCKED_MESSAGE[blocked] }}</Notice>
     <Notice v-else tone="info">
-      Le montant à régler s'affichera dès que l'identité de facturation sera enregistrée.
+      {{ t('billingUi.price.pending') }}
     </Notice>
   </ConsoleCard>
 </template>
