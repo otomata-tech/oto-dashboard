@@ -2,6 +2,9 @@
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // Session Logto morte (refresh token expiré, `getAccessToken` lève `stale_session`) :
 // le dashboard ne peut plus rien charger — rester dans le shell laisserait un menu
@@ -27,14 +30,14 @@ onMounted(go)
       <div style="display: flex; flex-direction: column; align-items: center; gap: 14px">
         <span class="o-medallion o-medallion-sm" style="width: 44px; height: 44px" aria-label="Oto" role="img" />
         <div>
-          <div style="font-size: 18px; font-weight: 700; letter-spacing: -0.02em">session expirée</div>
-          <div class="env" style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-faint); margin-top: 3px">reconnexion</div>
+          <div style="font-size: 18px; font-weight: 700; letter-spacing: -0.02em">{{ t('miscUi.session.expired') }}</div>
+          <div class="env" style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-faint); margin-top: 3px">{{ t('miscUi.session.reconnecting') }}</div>
         </div>
         <p class="helptext" style="margin: 4px 0 6px">
-          ta session a expiré — reconnexion en cours…
+          {{ t('miscUi.session.msg') }}
         </p>
         <a href="#" @click.prevent="go" style="font-size: 13px; color: var(--color-mute); text-decoration: underline">
-          la redirection ne se lance pas ? Se reconnecter
+          {{ t('miscUi.session.fallback') }}
         </a>
       </div>
     </section>

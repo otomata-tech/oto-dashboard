@@ -22,6 +22,9 @@ import { useScopedLink } from '@/composables/useScopedLink'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
 import { bumpDocs, docsVersion } from '@/lib/docsSignal'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ project: Project; color: string; active: boolean }>()
 
@@ -128,14 +131,14 @@ async function saveRename(d: Doc) {
         <span class="proj-dot" :style="{ background: color }" />
         <span class="proj-name">{{ project.name }}</span>
       </RouterLink>
-      <button v-if="canWrite" class="act" title="nouvelle page" @click="newPage">
+      <button v-if="canWrite" class="act" :title="t('miscUi.tree.newPage')" @click="newPage">
         <Icon name="plus" :size="12" />
       </button>
     </div>
 
     <template v-if="open">
       <div v-if="!loaded" class="note">…</div>
-      <div v-else-if="failed" class="note">pages illisibles</div>
+      <div v-else-if="failed" class="note">{{ t('miscUi.tree.unreadable') }}</div>
       <template v-else>
         <div v-for="r in rows" :key="r.doc.id" class="node" :class="{ on: activeDoc === String(r.doc.id) }"
           :style="{ paddingLeft: `${40 + r.depth * 12}px` }">
@@ -143,19 +146,19 @@ async function saveRename(d: Doc) {
           <input v-if="renaming === r.doc.id" ref="input" v-model="draft" class="node-input"
             @keydown.enter.prevent="saveRename(r.doc)" @keydown.esc="renaming = null" @blur="saveRename(r.doc)" />
           <RouterLink v-else class="node-link" :to="scoped(`/projects/${project.id}?doc=${r.doc.id}`)" @click="closeNav">
-            {{ r.doc.title || 'Sans titre' }}
+            {{ r.doc.title || t('miscUi.tree.untitled') }}
           </RouterLink>
-          <button v-if="canWrite && renaming !== r.doc.id" class="act" title="renommer" @click="startRename(r.doc)">
+          <button v-if="canWrite && renaming !== r.doc.id" class="act" :title="t('miscUi.tree.rename')" @click="startRename(r.doc)">
             <Icon name="pencil" :size="11" />
           </button>
         </div>
-        <RouterLink v-for="t in tables" :key="t.target_ref" class="node node-link-row"
-          :class="{ on: activeTable === t.target_ref }" style="padding-left: 40px"
-          :to="scoped(`/projects/${project.id}/data/${t.target_ref}`)" @click="closeNav">
+        <RouterLink v-for="tab in tables" :key="tab.target_ref" class="node node-link-row"
+          :class="{ on: activeTable === tab.target_ref }" style="padding-left: 40px"
+          :to="scoped(`/projects/${project.id}/data/${tab.target_ref}`)" @click="closeNav">
           <Icon name="database" :size="12" class="node-ic" />
-          <span class="node-text">{{ t.label || t.datastore || t.target_ref }}</span>
+          <span class="node-text">{{ tab.label || tab.datastore || tab.target_ref }}</span>
         </RouterLink>
-        <div v-if="!rows.length && !tables.length" class="note">aucune page</div>
+        <div v-if="!rows.length && !tables.length" class="note">{{ t('miscUi.tree.none') }}</div>
       </template>
     </template>
   </div>

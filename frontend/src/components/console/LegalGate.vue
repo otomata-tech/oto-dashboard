@@ -12,6 +12,9 @@
 // n'existait pas.
 import { computed, onMounted, ref } from 'vue'
 import { getLegal, acceptLegal, type LegalStatus } from '@/api/console'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const status = ref<LegalStatus | null>(null)
 const accepted = ref(false)
@@ -40,21 +43,21 @@ onMounted(load)
 </script>
 
 <template>
-  <div v-if="show" class="legal-gate" role="dialog" aria-modal="true" aria-label="acceptation des conditions">
+  <div v-if="show" class="legal-gate" role="dialog" aria-modal="true" :aria-label="t('miscUi.legal.aria')">
     <section class="card legal-gate__card">
       <span class="o-medallion o-medallion-sm" style="width: 44px; height: 44px" aria-label="Oto" role="img" />
       <div>
-        <h2>Avant de continuer</h2>
-        <p class="helptext" style="margin: 4px 0 0">Merci d'accepter nos conditions pour utiliser oto.</p>
+        <h2>{{ t('miscUi.legal.title') }}</h2>
+        <p class="helptext" style="margin: 4px 0 0">{{ t('miscUi.legal.please') }}</p>
       </div>
       <label class="legal-gate__consent">
         <input type="checkbox" v-model="accepted" />
         <span>
-          j'ai lu et j'accepte
+          {{ t('miscUi.legal.readAccept') }}
           <template v-for="(d, i) in docs" :key="d.slug"><a :href="d.url" target="_blank" rel="noopener">{{ d.label }}</a><span v-if="i < docs.length - 1"> · </span></template>.
         </span>
       </label>
-      <button class="btn" :disabled="!accepted || busy" @click="accept">Accepter et continuer</button>
+      <button class="btn" :disabled="!accepted || busy" @click="accept">{{ t('miscUi.legal.accept') }}</button>
     </section>
   </div>
 </template>

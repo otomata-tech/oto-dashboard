@@ -16,6 +16,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import type { FormDialogField } from '@/composables/useFormDialog'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   open: boolean
@@ -98,7 +101,7 @@ const submit = handleSubmit(async (values) => {
         </FormField>
 
         <DialogFooter>
-          <Button type="button" variant="ghost" :disabled="isSubmitting" @click="emit('update:open', false)">annuler</Button>
+          <Button type="button" variant="ghost" :disabled="isSubmitting" @click="emit('update:open', false)">{{ t('common.cancel') }}</Button>
           <Button type="submit" :disabled="isSubmitting">{{ isSubmitting ? '…' : submitLabel }}</Button>
         </DialogFooter>
       </form>

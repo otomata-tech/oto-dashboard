@@ -2736,5 +2736,89 @@
     "group": "team",
     "org": "organization",
     "platform": "platform"
+  },
+  "miscUi": {
+    "consent": {
+      "aria": "analytics consent",
+      "text": "we use {posthog} (EU) for product analytics and session replay to improve the dashboard. recordings mask your inputs. you can decline — nothing is captured until you accept.",
+      "privacy": "privacy",
+      "decline": "Decline",
+      "accept": "Accept"
+    },
+    "legal": {
+      "aria": "terms acceptance",
+      "title": "Before you continue",
+      "please": "Please accept our terms to use oto.",
+      "readAccept": "I have read and accept",
+      "accept": "Accept and continue"
+    },
+    "stateError": {
+      "title": "couldn't reach oto-mcp",
+      "msg": "your session is still valid — this is usually an upstream hiccup, not your keys. it often clears on a {retry}.",
+      "retry": "retry",
+      "retryNow": "Retry now",
+      "status": "Status page"
+    },
+    "session": {
+      "expired": "session expired",
+      "reconnecting": "reconnecting",
+      "msg": "your session expired — reconnecting…",
+      "fallback": "redirect not starting? Sign in again"
+    },
+    "mode": {
+      "user": "your key",
+      "group": "team key",
+      "org": "org key",
+      "platform": "platform",
+      "none": "not set"
+    },
+    "search": {
+      "placeholder": "Search your projects, pages, tables, procedures…",
+      "all": "all",
+      "searching": "searching…",
+      "retry": "retry",
+      "noResult": "No result — rephrase with the content's exact words.",
+      "hint": "Type your search — or ⌘K from any screen.",
+      "title": "Search",
+      "overlayPh": "Search a page, a table, a procedure…",
+      "seeAll": "see everything on the search page →",
+      "typeToSearch": "Type to search your projects, pages, tables, procedures…",
+      "keys": "↵ open · esc close",
+      "sidebar": "Search…"
+    },
+    "tree": {
+      "newPage": "new page",
+      "unreadable": "pages unreadable",
+      "untitled": "Untitled",
+      "rename": "rename",
+      "none": "no page",
+      "others": "others",
+      "noProject": "no project"
+    },
+    "mcp": {
+      "title": "mcp endpoint",
+      "sub": "point claude desktop, cursor or any mcp client here. auth via oauth.",
+      "help": "add it as a remote mcp server — your client opens the oauth flow against {host} and inherits the tools enabled on your account."
+    },
+    "pager": {
+      "prev": "‹ Prev",
+      "page": "page {n} / {total}",
+      "next": "Next ›"
+    },
+    "prompt": {
+      "save": "Save",
+      "confirm": "Confirm"
+    },
+    "activity": {
+      "events": "{n} event · last {days} days | {n} events · last {days} days"
+    },
+    "documents": {
+      "opening": "opening your org's documents…"
+    },
+    "copy": {
+      "copied": "copied to clipboard",
+      "failed": "copy failed",
+      "copy": "copy"
+    }
   }
 }

@@ -1,41 +1,25 @@
 # LA DETTE I18N CONNUE (oto#195) — par fichier, le nombre de chaînes visibles écrites en dur
 # dans son gabarit. Elle ne fait que DÉCROÎTRE : traduire une zone la baisse (`npm run
 # i18n:write`), rien ne s'y ajoute. Voir `scripts/i18n-check.mjs`.
-src/components/console/ActivityChart.vue 2
 src/components/console/AdminOrgCommerce.vue 13
 src/components/console/AgentContextCard.vue 2
 src/components/console/automations/RoutinesSection.vue 2
 src/components/console/connector-scope/ConnectorPlatformAccessPanel.vue 7
 src/components/console/ConnectorKeyAccounts.vue 23
-src/components/console/ConsentBanner.vue 7
-src/components/console/ConsoleSidebar.vue 1
-src/components/console/CopyField.vue 1
+src/components/console/ConsentBanner.vue 1
 src/components/console/DatastoreTable.vue 2
 src/components/console/doctrine/ReferencedTools.vue 1
 src/components/console/doctrine/UsageCard.vue 1
-src/components/console/FormDialog.vue 1
-src/components/console/LegalGate.vue 6
-src/components/console/McpEndpointCard.vue 4
-src/components/console/ModeTag.vue 5
+src/components/console/LegalGate.vue 1
 src/components/console/monitoring/ActivationFunnelCard.vue 8
 src/components/console/monitoring/RestCallsCard.vue 6
 src/components/console/monitoring/SignalAggCard.vue 1
-src/components/console/NameDialog.vue 1
 src/components/console/outreach/OutreachJournal.vue 19
 src/components/console/outreach/OutreachRecipients.vue 20
-src/components/console/Pager.vue 3
 src/components/console/PlatformAccessHint.vue 2
 src/components/console/PlatformFinder.vue 7
-src/components/console/PromptDialog.vue 2
 src/components/console/RunnerTriggersCard.vue 1
-src/components/console/SearchOverlay.vue 5
-src/components/console/SessionExpired.vue 5
-src/components/console/SidebarProjectTree.vue 4
-src/components/console/SidebarSpaces.vue 2
-src/components/console/StateError.vue 5
-src/components/ui/dialog/DialogContent.vue 1
-src/components/ui/dialog/DialogFooter.vue 1
-src/components/ui/dialog/DialogScrollContent.vue 1
+src/components/console/SessionExpired.vue 1
 src/views/console/AccountDevelopersView.vue 1
 src/views/console/AdminConnectorsView.vue 16
 src/views/console/AdminObjectsView.vue 10
@@ -49,8 +33,6 @@ src/views/console/ConnectorKeysPanel.vue 8
 src/views/console/ContextView.vue 1
 src/views/console/DataView.vue 12
 src/views/console/DoctrineView.vue 4
-src/views/console/DocumentsView.vue 1
 src/views/console/LoginGate.vue 1
 src/views/console/MonitoringView.vue 1
-src/views/console/SearchView.vue 5
 src/views/console/UsageView.vue 13

@@ -4,6 +4,7 @@
 // d'équipe s'affichait « Équipe » au lieu de son nom, définitivement (rien ne
 // relançait la lecture). Le test monte le composant AVANT que `me` soit là, puis
 // remplit `me` : c'est cette séquence, et elle seule, qui attrape le défaut.
+import { i18n } from '@/lib/i18n'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { createApp, nextTick, ref } from 'vue'
 
@@ -36,7 +37,8 @@ import { listGroups } from '@/api/console'
 async function monter() {
   const host = document.createElement('div')
   document.body.appendChild(host)
-  createApp(SidebarSpaces).mount(host)
+  i18n.global.locale.value = 'fr'
+  createApp(SidebarSpaces).use(i18n).mount(host)
   await vider()
   return host
 }

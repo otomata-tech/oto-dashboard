@@ -8,6 +8,9 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getKbProject } from '@/api/console'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const router = useRouter()
 const error = ref<string | null>(null)
@@ -23,6 +26,6 @@ onMounted(async () => {
 <template>
   <div class="content-inner fadein">
     <p v-if="error" class="dim" style="font-size: 12px; padding: 8px; color: var(--color-terra-ink)">{{ error }}</p>
-    <p v-else class="dim" style="font-size: 12px; padding: 8px">ouverture des documents de ton org…</p>
+    <p v-else class="dim" style="font-size: 12px; padding: 8px">{{ t('miscUi.documents.opening') }}</p>
   </div>
 </template>

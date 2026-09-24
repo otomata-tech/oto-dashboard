@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import Icon from './Icon.vue'
 import { useToast } from '@/composables/useToast'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // `label` optionnel : une valeur technique isolée se lit seule (endpoint MCP), mais
 // dès qu'une carte en aligne plusieurs (émetteur, jwks, client oauth…) chacune doit
@@ -12,9 +15,9 @@ const { toast } = useToast()
 async function copy() {
   try {
     await navigator.clipboard.writeText(props.value)
-    toast('copied to clipboard')
+    toast(t('miscUi.copy.copied'))
   } catch {
-    toast('copy failed')
+    toast(t('miscUi.copy.failed'))
   }
 }
 </script>
@@ -24,7 +27,7 @@ async function copy() {
     <div v-if="label" class="eyebrow" style="margin-bottom: 4px">{{ label }}</div>
     <div class="copyfield">
       <code>{{ value }}</code>
-      <button class="btn-mini" @click="copy"><Icon name="copy" :size="12" /> copy</button>
+      <button class="btn-mini" @click="copy"><Icon name="copy" :size="12" /> {{ t('miscUi.copy.copy') }}</button>
     </div>
   </div>
 </template>

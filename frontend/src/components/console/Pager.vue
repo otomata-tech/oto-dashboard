@@ -8,6 +8,9 @@
 // Le parent remet `page` à 0 quand son filtre change.
 import { computed } from 'vue'
 import Btn from './Btn.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   total: number
@@ -28,9 +31,9 @@ const rangeLabel = computed(() => {
   <div v-if="pageCount > 1" class="pager">
     <span class="dim" style="font-size: 12px">{{ rangeLabel }}</span>
     <span style="flex: 1"></span>
-    <Btn kind="mini" :disabled="page <= 0" @click="emit('update:page', page - 1)">‹ Préc.</Btn>
-    <span class="dim" style="font-size: 12px">page {{ page + 1 }} / {{ pageCount }}</span>
-    <Btn kind="mini" :disabled="page >= pageCount - 1" @click="emit('update:page', page + 1)">Suiv. ›</Btn>
+    <Btn kind="mini" :disabled="page <= 0" @click="emit('update:page', page - 1)">{{ t('miscUi.pager.prev') }}</Btn>
+    <span class="dim" style="font-size: 12px">{{ t('miscUi.pager.page', { n: page + 1, total: pageCount }) }}</span>
+    <Btn kind="mini" :disabled="page >= pageCount - 1" @click="emit('update:page', page + 1)">{{ t('miscUi.pager.next') }}</Btn>
   </div>
 </template>
 

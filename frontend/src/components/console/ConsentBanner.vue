@@ -2,6 +2,9 @@
 import { computed } from 'vue'
 import Btn from './Btn.vue'
 import { analyticsEnabled, consent, grantConsent, denyConsent } from '@/lib/analytics'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // Affiché uniquement si l'analytics est actif (clé présente) ET aucun choix fait.
 // En dev (pas de clé) ou après décision, le bandeau ne s'affiche jamais.
@@ -10,15 +13,14 @@ const show = computed(() => analyticsEnabled() && consent.value === null)
 
 <template>
   <Transition name="consent">
-    <div v-if="show" class="consent" role="dialog" aria-label="analytics consent">
+    <div v-if="show" class="consent" role="dialog" :aria-label="t('miscUi.consent.aria')">
       <div class="consent__text">
-        we use <strong>PostHog</strong> (EU) for product analytics and session replay to improve the
-        dashboard. recordings mask your inputs. you can decline — nothing is captured until you accept.
-        <a href="https://trust.oto.zone" target="_blank" rel="noopener">privacy</a>
+        <i18n-t keypath="miscUi.consent.text" tag="span"><template #posthog><strong>PostHog</strong></template></i18n-t>
+        <a href="https://trust.oto.zone" target="_blank" rel="noopener">{{ t('miscUi.consent.privacy') }}</a>
       </div>
       <div class="consent__actions">
-        <Btn kind="mini" @click="denyConsent">Decline</Btn>
-        <Btn @click="grantConsent">Accept</Btn>
+        <Btn kind="mini" @click="denyConsent">{{ t('miscUi.consent.decline') }}</Btn>
+        <Btn @click="grantConsent">{{ t('miscUi.consent.accept') }}</Btn>
       </div>
     </div>
   </Transition>

@@ -12,6 +12,9 @@ import { useScopedLink } from '@/composables/useScopedLink'
 import { humanize } from '@/lib/errors'
 import { FAMILIES, hitPath } from '@/lib/searchNav'
 import type { SearchHit } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -70,27 +73,27 @@ function openHit(h: SearchHit) { void router.push(scoped(hitPath(h))) }
     <div class="card sv">
       <div class="sv-field">
         <Icon name="search" :size="16" class="sv-ic" />
-        <input v-model="q" class="sv-in" placeholder="Chercher dans tes projets, pages, tableaux, procédures…" />
+        <input v-model="q" class="sv-in" :placeholder="t('miscUi.search.placeholder')" />
       </div>
 
       <div v-if="kindsPresent.length > 1" class="sv-chips">
-        <button class="sv-chip" :class="{ on: kindFilter === null }" @click="kindFilter = null">tout</button>
+        <button class="sv-chip" :class="{ on: kindFilter === null }" @click="kindFilter = null">{{ t('miscUi.search.all') }}</button>
         <button v-for="[k, label] in kindsPresent" :key="k" class="sv-chip"
           :class="{ on: kindFilter === k }" @click="kindFilter = kindFilter === k ? null : k">
           {{ label.toLowerCase() }}
         </button>
       </div>
 
-      <div v-if="loading" class="sv-state dim">recherche…</div>
+      <div v-if="loading" class="sv-state dim">{{ t('miscUi.search.searching') }}</div>
       <div v-else-if="error" class="state-error">
-        {{ error }} <button class="sv-retry" @click="run">réessayer</button>
+        {{ error }} <button class="sv-retry" @click="run">{{ t('miscUi.search.retry') }}</button>
       </div>
       <SearchHitList v-else-if="shown.length" :hits="shown" @open="openHit" />
       <div v-else-if="q.trim().length >= 2" class="sv-state">
-        {{ hint || 'Aucun résultat — reformule avec les mots exacts du contenu.' }}
+        {{ hint || t('miscUi.search.noResult') }}
       </div>
       <div v-else class="sv-state dim">
-        Tape ta recherche — ou ⌘K depuis n'importe quel écran.
+        {{ t('miscUi.search.hint') }}
       </div>
     </div>
   </div>

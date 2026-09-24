@@ -1,6 +1,7 @@
 // Arbre d'un projet dans la barre latérale (23/09/2026, repris du rail d'oto-frontend) :
 // il descend aux pages et aux tableaux, crée une page et en renomme une — seulement quand
 // le lecteur peut écrire. Il prévient l'écran projet par `docsSignal`.
+import { i18n } from '@/lib/i18n'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, h, nextTick } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -29,7 +30,8 @@ async function monter(project: Record<string, unknown>) {
   await router.push('/'); await router.isReady()
   const host = document.createElement('div')
   const app = createApp({ render: () => h(SidebarProjectTree as never, { project, color: 'red', active: true }) })
-  app.use(router).mount(host)
+  i18n.global.locale.value = 'fr'
+  app.use(router).use(i18n).mount(host)
   for (let i = 0; i < 5; i++) { await new Promise((r) => setTimeout(r, 0)); await nextTick() }
   return { host, app, router }
 }

@@ -2736,5 +2736,89 @@
     "group": "équipe",
     "org": "organisation",
     "platform": "plateforme"
+  },
+  "miscUi": {
+    "consent": {
+      "aria": "consentement aux statistiques",
+      "text": "nous utilisons {posthog} (UE) pour les statistiques produit et l'enregistrement de sessions afin d'améliorer le tableau de bord. les enregistrements masquent tes saisies. tu peux refuser — rien n'est capté tant que tu n'as pas accepté.",
+      "privacy": "confidentialité",
+      "decline": "Refuser",
+      "accept": "Accepter"
+    },
+    "legal": {
+      "aria": "acceptation des conditions",
+      "title": "Avant de continuer",
+      "please": "Merci d'accepter nos conditions pour utiliser oto.",
+      "readAccept": "j'ai lu et j'accepte",
+      "accept": "Accepter et continuer"
+    },
+    "stateError": {
+      "title": "impossible de joindre oto-mcp",
+      "msg": "ta session est toujours valide — c'est en général un raté en amont, pas tes clés. ça passe souvent en {retry}.",
+      "retry": "réessayant",
+      "retryNow": "Réessayer maintenant",
+      "status": "Page de statut"
+    },
+    "session": {
+      "expired": "session expirée",
+      "reconnecting": "reconnexion",
+      "msg": "ta session a expiré — reconnexion en cours…",
+      "fallback": "la redirection ne se lance pas ? Se reconnecter"
+    },
+    "mode": {
+      "user": "ta clé",
+      "group": "clé d'équipe",
+      "org": "clé d'org",
+      "platform": "plateforme",
+      "none": "non posée"
+    },
+    "search": {
+      "placeholder": "Chercher dans tes projets, pages, tableaux, procédures…",
+      "all": "tout",
+      "searching": "recherche…",
+      "retry": "réessayer",
+      "noResult": "Aucun résultat — reformule avec les mots exacts du contenu.",
+      "hint": "Tape ta recherche — ou ⌘K depuis n'importe quel écran.",
+      "title": "Rechercher",
+      "overlayPh": "Chercher une page, un tableau, une procédure…",
+      "seeAll": "tout voir sur la page de recherche →",
+      "typeToSearch": "Tape pour chercher dans tes projets, pages, tableaux, procédures…",
+      "keys": "↵ ouvrir · esc fermer",
+      "sidebar": "Rechercher…"
+    },
+    "tree": {
+      "newPage": "nouvelle page",
+      "unreadable": "pages illisibles",
+      "untitled": "Sans titre",
+      "rename": "renommer",
+      "none": "aucune page",
+      "others": "autres",
+      "noProject": "aucun projet"
+    },
+    "mcp": {
+      "title": "endpoint mcp",
+      "sub": "branche ici claude desktop, cursor ou tout client mcp. authentification par oauth.",
+      "help": "ajoute-le comme serveur mcp distant — ton client ouvre le parcours oauth auprès de {host} et hérite des outils activés sur ton compte."
+    },
+    "pager": {
+      "prev": "‹ Préc.",
+      "page": "page {n} / {total}",
+      "next": "Suiv. ›"
+    },
+    "prompt": {
+      "save": "Enregistrer",
+      "confirm": "Confirmer"
+    },
+    "activity": {
+      "events": "{n} événement · {days} derniers jours | {n} événements · {days} derniers jours"
+    },
+    "documents": {
+      "opening": "ouverture des documents de ton org…"
+    },
+    "copy": {
+      "copied": "copié dans le presse-papiers",
+      "failed": "copie impossible",
+      "copy": "copier"
+    }
   }
 }

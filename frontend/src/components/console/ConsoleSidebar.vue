@@ -74,7 +74,7 @@ const plomberieItems = computed(() =>
     <!-- Faux champ (on ne tape pas dans la sidebar) : clic / ⌘K → popup. -->
     <button class="sb-search" @click="searchOpen = true">
       <Icon name="search" :size="13" />
-      <span class="sb-search-lbl">Rechercher…</span>
+      <span class="sb-search-lbl">{{ t('miscUi.search.sidebar') }}</span>
       <kbd class="sb-search-kbd">⌘K</kbd>
     </button>
     <SearchOverlay v-model:open="searchOpen" />

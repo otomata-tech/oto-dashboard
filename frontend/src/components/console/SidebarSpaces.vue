@@ -18,6 +18,9 @@ import { useMe } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 import { useScopedLink } from '@/composables/useScopedLink'
 import { projectBucket, BUCKET_LABEL } from '@/lib/projectVisibility'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const { me } = useMe()
@@ -122,9 +125,9 @@ function toggle(key: string) {
         <SidebarProjectTree v-for="p in s.projects.slice(0, CAP)" :key="p.id"
           :project="p" :color="s.color" :active="String(p.id) === activeProjectId" />
         <RouterLink v-if="s.projects.length > CAP" class="space-more" :to="scoped('/projects')" @click="closeNav">
-          + {{ s.projects.length - CAP }} autres
+          + {{ s.projects.length - CAP }} {{ t('miscUi.tree.others') }}
         </RouterLink>
-        <div v-if="!s.projects.length" class="space-empty">aucun projet</div>
+        <div v-if="!s.projects.length" class="space-empty">{{ t('miscUi.tree.noProject') }}</div>
       </template>
     </div>
   </div>

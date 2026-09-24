@@ -3,6 +3,9 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import Btn from './Btn.vue'
 import OtoSelect from './OtoSelect.vue'
 import { usePrompt } from '@/composables/usePrompt'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const { state, resolve } = usePrompt()
 
@@ -84,8 +87,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             </label>
           </form>
           <div class="modal-actions">
-            <Btn kind="mini" @click="cancel">Cancel</Btn>
-            <button class="btn" :disabled="missingRequired" @click="submitForm">{{ form.submitLabel || 'Save' }}</button>
+            <Btn kind="mini" @click="cancel">{{ t('common.cancel') }}</Btn>
+            <button class="btn" :disabled="missingRequired" @click="submitForm">{{ form.submitLabel || t('miscUi.prompt.save') }}</button>
           </div>
         </template>
 
@@ -94,9 +97,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           <h3 class="modal-title">{{ confirm.title }}</h3>
           <p v-if="confirm.message" class="modal-desc">{{ confirm.message }}</p>
           <div class="modal-actions">
-            <Btn kind="mini" @click="cancel">Cancel</Btn>
+            <Btn kind="mini" @click="cancel">{{ t('common.cancel') }}</Btn>
             <button ref="confirmBtn" :class="confirm.danger ? 'btn danger-solid' : 'btn'" @click="resolve(true)">
-              {{ confirm.confirmLabel || 'Confirm' }}
+              {{ confirm.confirmLabel || t('miscUi.prompt.confirm') }}
             </button>
           </div>
         </template>

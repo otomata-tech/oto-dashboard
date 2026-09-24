@@ -13,6 +13,9 @@ import {
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   open: boolean
@@ -70,7 +73,7 @@ const submit = handleSubmit(async (values) => {
 
         <DialogFooter>
           <Button type="button" variant="ghost" :disabled="isSubmitting" @click="emit('update:open', false)">
-            annuler
+            {{ t('common.cancel') }}
           </Button>
           <Button type="submit" :disabled="isSubmitting">
             {{ isSubmitting ? '…' : submitLabel }}

@@ -13,6 +13,9 @@ import { searchAll } from '@/api/console'
 import { useScopedLink } from '@/composables/useScopedLink'
 import { flattenHits, hitPath } from '@/lib/searchNav'
 import type { SearchHit } from '@/types/api'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ (e: 'update:open', v: boolean): void }>()
@@ -71,11 +74,11 @@ function openAll() {
 <template>
   <Dialog :open="open" @update:open="emit('update:open', $event)">
     <DialogContent class="so" :style="{ maxWidth: '680px' }" @keydown="onKey">
-      <DialogTitle class="sr-only">Rechercher</DialogTitle>
+      <DialogTitle class="sr-only">{{ t('miscUi.search.title') }}</DialogTitle>
       <div class="so-field">
         <Icon name="search" :size="16" class="so-ic" />
         <!-- eslint-disable-next-line vue/no-autofocus — c'est LE geste de la popup -->
-        <input v-model="q" class="so-in" placeholder="Chercher une page, un tableau, une procédure…"
+        <input v-model="q" class="so-in" :placeholder="t('miscUi.search.overlayPh')"
           role="combobox" aria-expanded="true" aria-autocomplete="list" autofocus />
         <span v-if="loading" class="so-load">…</span>
       </div>
@@ -83,14 +86,14 @@ function openAll() {
       <div v-if="hits.length" class="so-results">
         <SearchHitList :hits="hits" :active="active"
           @open="openHit" @hover="(i) => active = i" />
-        <button class="so-all" @click="openAll">tout voir sur la page de recherche →</button>
+        <button class="so-all" @click="openAll">{{ t('miscUi.search.seeAll') }}</button>
       </div>
       <p v-else-if="q.trim().length >= 2 && !loading" class="so-empty">
-        {{ hint || 'Aucun résultat — reformule avec les mots exacts du contenu.' }}
+        {{ hint || t('miscUi.search.noResult') }}
       </p>
-      <p v-else class="so-empty dim">Tape pour chercher dans tes projets, pages, tableaux, procédures…</p>
+      <p v-else class="so-empty dim">{{ t('miscUi.search.typeToSearch') }}</p>
 
-      <div class="so-foot mono">↵ ouvrir · esc fermer</div>
+      <div class="so-foot mono">{{ t('miscUi.search.keys') }}</div>
     </DialogContent>
   </Dialog>
 </template>

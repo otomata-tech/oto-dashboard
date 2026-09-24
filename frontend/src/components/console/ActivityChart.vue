@@ -58,7 +58,7 @@ const tooltipTemplate = (d: Bucket) => `${d.label} · ${d.count} évén.${d.coun
       <VisTooltip />
     </VisXYContainer>
     <div class="ac__foot">
-      <span class="ac__k">{{ total }}</span> événement{{ total > 1 ? 's' : '' }} · {{ days }} derniers jours
+      <i18n-t keypath="miscUi.activity.events" tag="span" :plural="total"><template #n><span class="ac__k">{{ total }}</span></template><template #days>{{ days }}</template></i18n-t>
     </div>
   </div>
 </template>
