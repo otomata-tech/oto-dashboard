@@ -40,7 +40,7 @@ onMounted(load)
   <ConsoleCard title="agent context" flush
     sub="exactement ce que ton Claude reçoit d'oto à la connexion : instructions de la plateforme, agent readme cumulés, et les outils visibles sous ton org active. lecture seule.">
     <p v-if="error" class="dim" style="font-size: 13px; padding: 0 16px 12px">{{ error }}</p>
-    <p v-else-if="!loaded" class="dim" style="font-size: 13px; padding: 0 16px 12px">chargement…</p>
+    <p v-else-if="!loaded" class="dim" style="font-size: 13px; padding: 0 16px 12px">{{ $t('common.loading') }}</p>
 
     <template v-else-if="ctx">
       <!-- Couche 1 — instructions serveur (plateforme, statique) -->

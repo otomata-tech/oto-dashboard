@@ -32,6 +32,7 @@ vi.mock('@/composables/useDeepLink', () => ({
 
 import { ApiError } from '@/api'
 import OrgAuditExportCard from './OrgAuditExportCard.vue'
+import { i18n } from '@/lib/i18n'
 
 const LIGNE = {
   id: 7, created_at: '2026-09-20 10:00:00', sub: 'u-1', email: 'alice@acme.test',
@@ -55,7 +56,7 @@ async function settle() {
 async function monter(comp: object, props: Record<string, unknown> = {}) {
   const host = document.createElement('div')
   document.body.appendChild(host)
-  const app = createApp(h(comp, props))
+  const app = createApp(h(comp, props)).use(i18n)
   app.mount(host)
   await settle()
   return { host, done: () => { app.unmount(); host.remove() } }

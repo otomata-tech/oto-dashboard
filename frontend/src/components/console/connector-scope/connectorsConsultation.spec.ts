@@ -40,6 +40,7 @@ vi.mock('@/components/console/FormDialog.vue', vide)
 vi.mock('@/components/console/ConnectorSessionConnect.vue', vide)
 
 import { useUserAdapter } from './useUserAdapter'
+import { i18n } from '@/lib/i18n'
 
 const ctx = { openForm: vi.fn(), openCredential: vi.fn(), confirmAction: vi.fn(async () => true), toast: vi.fn() }
 const lever = () => useUserAdapter(ctx)
@@ -164,7 +165,7 @@ async function monter(cas: Cas, porteur: Record<string, unknown>) {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const app = createApp(C, cas.props?.())
-  app.use(router)
+  app.use(router).use(i18n)
   app.mount(host)
   await settle()
   const cliquables = [...host.querySelectorAll('button, [role="button"]')].map((b) => b.textContent?.trim() ?? '')

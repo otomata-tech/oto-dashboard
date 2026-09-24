@@ -17,5 +17,5 @@ const who = (s: UsageSignal) => s.email || s.sub || s.source
     <div class="dim" style="font-size: 11px">{{ fmt(s.created_at) }} · {{ who(s) }}</div>
     <div style="font-size: 12.5px; white-space: pre-wrap">{{ s.body || '—' }}</div>
   </div>
-  <div v-if="!rows.length" class="dim" style="padding: 12px">chargement…</div>
+  <div v-if="!rows.length" class="dim" style="padding: 12px">{{ $t('common.loading') }}</div>
 </template>

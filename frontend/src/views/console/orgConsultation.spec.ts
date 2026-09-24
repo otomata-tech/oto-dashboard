@@ -11,6 +11,7 @@
 // `useOrgAdapter.spec.ts`. Ici, les quatre écrans qui n'en avaient pas.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick, ref } from 'vue'
+import { i18n } from '@/lib/i18n'
 
 const api = vi.hoisted(() => ({
   getOrg: vi.fn(), setOrgMemberRole: vi.fn(), removeOrgMember: vi.fn(),
@@ -70,7 +71,7 @@ async function monter(charger: Charger, porteur: Record<string, unknown>) {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const app = createApp(View)
-  app.mount(host)
+  app.use(i18n).mount(host)
   await settle()
   // Un geste est un bouton, ou une zone cliquable (le dépôt de logo).
   const cliquables = [...host.querySelectorAll('button, [role="button"]')].map((b) => b.textContent?.trim() ?? '')

@@ -65,7 +65,7 @@ watch(() => props.orgId, reload)
       </Btn>
     </template>
 
-    <p v-if="loading" class="helptext" style="padding: 8px 2px">chargement…</p>
+    <p v-if="loading" class="helptext" style="padding: 8px 2px">{{ $t('common.loading') }}</p>
     <p v-else-if="error" class="helptext" style="padding: 8px 2px">état MFA indisponible.</p>
     <div v-else class="mfa-state">
       <Tag :tone="requireMfa ? 'olive' : 'ink'">{{ requireMfa ? 'imposé' : 'non imposé' }}</Tag>

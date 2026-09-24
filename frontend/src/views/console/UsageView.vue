@@ -160,7 +160,7 @@ function signalUser(s: UsageSignal): string {
                     <td><Tag :tone="c.ok ? 'olive' : 'terra'">{{ c.ok ? 'ok' : 'err' }}</Tag></td>
                     <td class="dim" style="font-size: 12px">{{ fmt(c.created_at) }}</td>
                   </tr>
-                  <tr v-if="!runCalls.length"><td class="dim" style="padding: 12px">chargement…</td></tr>
+                  <tr v-if="!runCalls.length"><td class="dim" style="padding: 12px">{{ $t('common.loading') }}</td></tr>
                 </tbody>
               </table>
             </td>

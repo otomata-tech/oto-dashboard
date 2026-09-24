@@ -582,7 +582,7 @@ async function removeFile() {
 
         <template v-if="toolsLoading || connectorTools.length">
           <div class="vw__sub" style="margin-top: 18px">outils exposés</div>
-          <p v-if="toolsLoading" class="dim" style="font-size: 12.5px">chargement…</p>
+          <p v-if="toolsLoading" class="dim" style="font-size: 12.5px">{{ $t('common.loading') }}</p>
           <div v-else class="vw__tools">
             <span v-for="t in connectorTools" :key="t.name" class="vw__tool" :title="t.description">{{ t.name }}</span>
           </div>
@@ -644,7 +644,7 @@ async function removeFile() {
           </button>
           <div v-show="procOpen" class="vw__procbody"><MarkdownView :source="procBody" /></div>
         </template>
-        <p v-else-if="procLoading" class="dim" style="font-size: 12.5px">chargement…</p>
+        <p v-else-if="procLoading" class="dim" style="font-size: 12.5px">{{ $t('common.loading') }}</p>
         <!-- Ni contenu ni chargement : le titre de la carte porte l'information à lui
              seul. On n'ajoute NI phrase explicative (qui ferait passer un échec de
              lecture pour un choix de conception) NI case vide. -->
@@ -688,7 +688,7 @@ async function removeFile() {
             </template>
           </div>
         </template>
-        <p v-else-if="runsLoading" class="dim" style="font-size: 12.5px; margin-top: 12px">chargement…</p>
+        <p v-else-if="runsLoading" class="dim" style="font-size: 12.5px; margin-top: 12px">{{ $t('common.loading') }}</p>
         <!-- Aucune exécution : on ne dit RIEN. « Aucun run enregistré » se lisait comme
              une panne alors que la procédure est simplement en attente d'être jouée. -->
         <!-- Le lien vers la fiche complète n'a de sens que si on a PU lire le corps :

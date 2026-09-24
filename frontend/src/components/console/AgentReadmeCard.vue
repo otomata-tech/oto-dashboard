@@ -67,7 +67,7 @@ async function saveDraft() {
       <Btn kind="mini" icon="pen" @click="edit">{{ body ? 'Éditer' : 'Écrire' }}</Btn>
     </template>
 
-    <p v-if="!loaded" class="dim-note">chargement…</p>
+    <p v-if="!loaded" class="dim-note">{{ $t('common.loading') }}</p>
 
     <template v-else-if="editing">
       <textarea v-model="draft" rows="10" class="rd-edit"

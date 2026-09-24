@@ -399,7 +399,7 @@ watch(() => props.job?.id, async () => {
           <p v-if="!j.run_id" class="jd-vide">
             Cette exécution n'a pas ouvert de run : elle n'a pas de journal à lire.
           </p>
-          <p v-else-if="fil === 'chargement'" class="jd-vide">chargement…</p>
+          <p v-else-if="fil === 'chargement'" class="jd-vide">{{ $t('common.loading') }}</p>
           <p v-else-if="fil === 'erreur'" class="jd-vide">
             Journal illisible : il est réservé au propriétaire du run.
           </p>

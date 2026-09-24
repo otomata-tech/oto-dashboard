@@ -93,7 +93,7 @@ onMounted(load)
     </header>
 
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
-    <p v-else-if="!loaded" class="helptext">chargement…</p>
+    <p v-else-if="!loaded" class="helptext">{{ $t('common.loading') }}</p>
 
     <template v-else>
       <ConsoleCard v-for="b in blocks" :key="b.key" :title="meta(b.key).title" :sub="meta(b.key).sub">

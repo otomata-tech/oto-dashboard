@@ -8,7 +8,9 @@ import { useMe } from '@/composables/useMe'
 import { previewInvite, acceptInvite } from '@/api/console'
 import type { InvitePreview } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { isAuthenticated, login, logout } = useAuth()
@@ -80,7 +82,7 @@ onMounted(async () => {
   token.value = (route.params.token as string) || qs.get('token') || ''
   otl.value = qs.get('otl') ?? ''
   if (!token.value) {
-    state.value = 'error'; errMsg.value = 'ce lien d\'invitation est incomplet.'; return
+    state.value = 'error'; errMsg.value = t('invite.invalid.incomplete'); return
   }
   // Aperçu public d'abord : on accompagne avant tout bounce vers l'auth.
   try {
@@ -112,64 +114,81 @@ onMounted(async () => {
       <span class="o-medallion o-medallion-lg">o</span>
 
       <template v-if="state === 'loading' || state === 'joining'">
-        <div class="se-title">{{ state === 'joining' ? 'on vous fait entrer…' : 'un instant…' }}</div>
-        <div class="se-body">on vérifie votre invitation.</div>
+        <div class="se-title">{{ state === 'joining' ? t('invite.checking.joining') : t('invite.checking.wait') }}</div>
+        <div class="se-body">{{ t('invite.checking.body') }}</div>
       </template>
 
       <template v-else-if="state === 'invited'">
-        <div class="se-eyebrow">vous êtes <Squiggle>invité·e</Squiggle></div>
-        <div class="se-title">bienvenue chez oto.</div>
+        <i18n-t keypath="invite.invited.eyebrow" tag="div" class="se-eyebrow">
+          <template #mark><Squiggle>{{ t('invite.invited.mark') }}</Squiggle></template>
+        </i18n-t>
+        <div class="se-title">{{ t('invite.invited.title') }}</div>
         <div class="se-body">
-          <template v-if="preview?.inviter">{{ preview.inviter }} vous invite</template>
-          <template v-else>vous êtes invité·e</template>
-          <template v-if="joinTarget"> à rejoindre <strong>{{ joinTarget }}</strong></template>
-          <template v-else> à rejoindre <strong>oto</strong></template>.
-          créez votre compte<template v-if="preview?.email"> en <strong>{{ preview.email }}</strong></template> pour entrer.
+          <template v-if="preview?.inviter">{{ t('invite.invited.byInviter', { inviter: preview.inviter }) }}</template>
+          <template v-else>{{ t('invite.invited.byNobody') }}</template>
+          <i18n-t keypath="invite.invited.toTarget" tag="span">
+            <template #target><strong>{{ joinTarget || 'oto' }}</strong></template>
+          </i18n-t>.
+          <i18n-t keypath="invite.invited.createAccount" tag="span">
+            <template #email><i18n-t v-if="preview?.email" keypath="invite.invited.asEmail" tag="span">
+              <template #email><strong>{{ preview.email }}</strong></template>
+            </i18n-t></template>
+          </i18n-t>
         </div>
         <div class="se-cta se-cta-col">
-          <Btn @click="createAccount">Créer mon compte</Btn>
-          <button class="linklike" @click="signIn">Déjà un compte ? Se connecter</button>
+          <Btn @click="createAccount">{{ t('invite.invited.cta') }}</Btn>
+          <button class="linklike" @click="signIn">{{ t('invite.invited.signIn') }}</button>
         </div>
       </template>
 
       <template v-else-if="state === 'confirm'">
-        <div class="se-eyebrow">petite <Squiggle>vérif</Squiggle></div>
-        <div class="se-title">autre compte.</div>
-        <div class="se-body">
-          cette invitation a été envoyée à <strong>{{ preview?.email }}</strong>, mais vous êtes
-          connecté·e en <strong>{{ me?.email }}</strong>. continuez avec ce compte, ou changez.
-        </div>
+        <i18n-t keypath="invite.confirm.eyebrow" tag="div" class="se-eyebrow">
+          <template #mark><Squiggle>{{ t('invite.confirm.mark') }}</Squiggle></template>
+        </i18n-t>
+        <div class="se-title">{{ t('invite.confirm.title') }}</div>
+        <i18n-t keypath="invite.confirm.body" tag="div" class="se-body">
+          <template #invited><strong>{{ preview?.email }}</strong></template>
+          <template #mine><strong>{{ me?.email }}</strong></template>
+        </i18n-t>
         <div class="se-cta se-cta-col">
-          <Btn @click="accept">Continuer en {{ me?.email }}</Btn>
-          <button class="linklike" @click="switchAccount">Changer de compte</button>
+          <Btn @click="accept">{{ t('invite.confirm.continue', { email: me?.email ?? '' }) }}</Btn>
+          <button class="linklike" @click="switchAccount">{{ t('invite.confirm.switch') }}</button>
         </div>
       </template>
 
       <template v-else-if="state === 'ok'">
-        <div class="se-eyebrow">bienvenue</div>
-        <div class="se-title">vous êtes <Squiggle>dans oto</Squiggle>.</div>
+        <div class="se-eyebrow">{{ t('invite.ok.eyebrow') }}</div>
+        <i18n-t keypath="invite.ok.title" tag="div" class="se-title">
+          <template #mark><Squiggle>{{ t('invite.ok.mark') }}</Squiggle></template>
+        </i18n-t>
         <div class="se-body">
-          <template v-if="orgName">vous avez rejoint <strong>{{ orgName }}</strong> — c'est votre espace actif. prochaine étape : connecter vos comptes et poser vos clés.</template>
-          <template v-else>votre accès est ouvert. prochaine étape : créer votre espace de travail.</template>
+          <i18n-t v-if="orgName" keypath="invite.ok.joined" tag="span">
+            <template #org><strong>{{ orgName }}</strong></template>
+          </i18n-t>
+          <template v-else>{{ t('invite.ok.open') }}</template>
         </div>
         <div class="se-cta">
-          <Btn @click="router.push('/overview')">{{ orgName ? 'Aller à la console' : 'Créer mon espace' }}</Btn>
+          <Btn @click="router.push('/overview')">{{ orgName ? t('invite.ok.toConsole') : t('invite.ok.createSpace') }}</Btn>
         </div>
       </template>
 
       <template v-else-if="errCode === 'email_mismatch'">
-        <div class="se-title">mauvais <Squiggle>compte</Squiggle>.</div>
+        <i18n-t keypath="invite.mismatch.title" tag="div" class="se-title">
+          <template #mark><Squiggle>{{ t('invite.mismatch.mark') }}</Squiggle></template>
+        </i18n-t>
         <div class="se-body">{{ errMsg }}</div>
         <div class="se-cta">
-          <Btn @click="switchAccount">Se connecter avec un autre compte</Btn>
+          <Btn @click="switchAccount">{{ t('invite.mismatch.cta') }}</Btn>
         </div>
       </template>
 
       <template v-else>
-        <div class="se-title">invitation <Squiggle>invalide</Squiggle>.</div>
+        <i18n-t keypath="invite.invalid.title" tag="div" class="se-title">
+          <template #mark><Squiggle>{{ t('invite.invalid.mark') }}</Squiggle></template>
+        </i18n-t>
         <div class="se-body">{{ errMsg }}</div>
         <div class="se-cta">
-          <Btn kind="ghost" @click="router.push('/overview')">Aller à la console</Btn>
+          <Btn kind="ghost" @click="router.push('/overview')">{{ t('invite.ok.toConsole') }}</Btn>
         </div>
       </template>
     </div>

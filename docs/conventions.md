@@ -165,3 +165,23 @@ tout ce qui passe par la règle omet ses gestes. Toujours rien de déduit de l'e
 rate ce mode : c'est ce que faisait le bandeau d'abonnement, corrigé le même jour.
 
 Recensement écran par écran, et sa mesure contre le middleware : `docs/orgs-groupes-invitations.md`.
+
+## ⚠️ Toute copy passe par une clé, en `fr` et en `en` (oto#195)
+
+La langue d'un compte est sa préférence déclarée (`me.locale`), sinon celle du navigateur ;
+tout ce qui n'est pas `fr` tombe sur `en` (`lib/i18n.ts`). Une chaîne visible écrite en dur
+dans un gabarit ne s'affiche que dans une langue : elle passe par `t('…')` / `$t('…')`, ou
+`<i18n-t>` quand la phrase entoure une valeur en gras. Le français existant se déplace vers
+les clés **mot pour mot** ; l'anglais est nouveau.
+
+**Le garde-fou** (`npm run i18n:check`, dans le job `test` du CI) lit les gabarits de tous les
+`.vue` : texte visible et attributs visibles statiques (`title`, `placeholder`, `aria-label`,
+`sub`, `empty`…). Au premier passage il en trouvait 1 608 : `scripts/i18n-dette.txt` porte,
+fichier par fichier, le nombre de chaînes en dur connues. Le contrôle échoue sur une chaîne de
+PLUS (une copy ajoutée hors i18n) et sur une chaîne de MOINS non reportée (`npm run
+i18n:write` baisse la ligne) : la dette ne fait que décroître. Limite connue : le script
+(`toast('…')`) n'est pas lu. Un test qui monte un composant traduit installe `i18n`
+(`app.use(i18n)`), sinon `$t` manque.
+
+Premier lot (24/09/2026) : la page d'invitation, « chargement… » partout, et les composants
+écrits ce jour-là (export du journal, couches d'une case). Suite : par zone d'écran.

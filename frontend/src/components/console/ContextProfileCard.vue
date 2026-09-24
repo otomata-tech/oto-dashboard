@@ -86,7 +86,7 @@ const draftRows = computed(() =>
       <Btn kind="mini" icon="pen" @click="edit">{{ filledCount ? 'éditer' : 'remplir' }}</Btn>
     </template>
 
-    <p v-if="!loaded" class="dim" style="font-size: 13px">chargement…</p>
+    <p v-if="!loaded" class="dim" style="font-size: 13px">{{ $t('common.loading') }}</p>
 
     <!-- Édition -->
     <template v-else-if="editing">

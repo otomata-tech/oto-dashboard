@@ -211,7 +211,7 @@ async function toggleSuspend(i: ConnectorInstance) {
 
 <template>
   <div class="ks">
-    <div v-if="loading" class="helptext">chargement…</div>
+    <div v-if="loading" class="helptext">{{ $t('common.loading') }}</div>
 
     <template v-else-if="!expanded">
       <!-- Forme repliée : la clé effective en une ligne. -->

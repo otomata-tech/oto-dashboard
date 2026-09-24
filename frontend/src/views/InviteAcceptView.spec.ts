@@ -16,6 +16,7 @@ vi.mock('@/composables/useAuth', () => ({
 }))
 
 import InviteAcceptView from './InviteAcceptView.vue'
+import { i18n } from '@/lib/i18n'
 
 async function monter(chemin: string) {
   const router = createRouter({ history: createMemoryHistory(), routes: [
@@ -25,7 +26,7 @@ async function monter(chemin: string) {
   await router.push(chemin)
   await router.isReady()
   const host = document.createElement('div')
-  const app = createApp(InviteAcceptView).use(router)
+  const app = createApp(InviteAcceptView).use(router).use(i18n)
   app.mount(host)
   for (let i = 0; i < 5; i++) { await new Promise((r) => setTimeout(r, 0)); await nextTick() }
   return { host, app }

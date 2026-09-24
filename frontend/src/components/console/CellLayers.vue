@@ -5,9 +5,11 @@
 // hauteur de chaque fiche. Une couche vidée tombe à l'enregistrement (contrat oto#204).
 import { ref } from 'vue'
 import type { Couches } from '@/lib/rowCells'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ modelValue: Couches | undefined; editable: boolean; origine?: string | null }>()
 const emit = defineEmits<{ 'update:modelValue': [Couches] }>()
+const { t } = useI18n()
 
 const val = () => props.modelValue ?? { comment: '', link: '' }
 const ouvert = ref(!!(val().comment || val().link))
@@ -18,19 +20,19 @@ const lienSur = (u: string) => /^https?:\/\//i.test(u.trim())
 <template>
   <div class="cl">
     <template v-if="!editable">
-      <p v-if="val().comment" class="cl-read">note : {{ val().comment }}</p>
+      <p v-if="val().comment" class="cl-read">{{ t('cellLayers.note', { text: val().comment }) }}</p>
       <a v-if="val().link && lienSur(val().link)" class="cl-read cl-a" :href="val().link.trim()"
         target="_blank" rel="noopener">{{ val().link }}</a>
-      <p v-else-if="val().link" class="cl-read">lien : {{ val().link }}</p>
+      <p v-else-if="val().link" class="cl-read">{{ t('cellLayers.link', { text: val().link }) }}</p>
     </template>
     <template v-else-if="ouvert">
-      <input class="cl-inp" :value="val().comment" placeholder="commentaire sur cette valeur"
-        aria-label="commentaire" @input="poser('comment', ($event.target as HTMLInputElement).value)" />
-      <input class="cl-inp" :value="val().link" placeholder="lien (source, preuve…)"
-        aria-label="lien" @input="poser('link', ($event.target as HTMLInputElement).value)" />
+      <input class="cl-inp" :value="val().comment" :placeholder="t('cellLayers.commentPh')"
+        :aria-label="t('cellLayers.comment')" @input="poser('comment', ($event.target as HTMLInputElement).value)" />
+      <input class="cl-inp" :value="val().link" :placeholder="t('cellLayers.linkPh')"
+        :aria-label="t('cellLayers.linkLabel')" @input="poser('link', ($event.target as HTMLInputElement).value)" />
     </template>
-    <button v-else type="button" class="cl-open" @click="ouvert = true">+ commentaire ou lien</button>
-    <p v-if="origine" class="cl-read cl-orig">origine : {{ origine }}</p>
+    <button v-else type="button" class="cl-open" @click="ouvert = true">{{ t('cellLayers.open') }}</button>
+    <p v-if="origine" class="cl-read cl-orig">{{ t('cellLayers.origin', { text: origine }) }}</p>
   </div>
 </template>
 

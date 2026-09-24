@@ -147,7 +147,7 @@ async function onFile(file: File) {
           <!-- recherche + résultats -->
           <template v-if="isSearch && !pickedRef">
             <input v-model="query" class="ep__in" placeholder="rechercher…" />
-            <p v-if="loading" class="dim" style="font-size: 12.5px; padding: 8px 2px">chargement…</p>
+            <p v-if="loading" class="dim" style="font-size: 12.5px; padding: 8px 2px">{{ $t('common.loading') }}</p>
             <p v-else-if="!filtered.length" class="dim" style="font-size: 12.5px; padding: 8px 2px">aucune entité de ce type.</p>
             <div v-else class="ep__list">
               <button v-for="o in filtered" :key="o.value" class="ep__row" @click="pick(o)">

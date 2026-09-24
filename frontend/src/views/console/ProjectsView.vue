@@ -230,7 +230,7 @@ const hasProjects = computed(() => loaded.value && !error.value && listed.value.
 
     <!-- états -->
     <p v-if="error" class="dim" style="font-size: 13px">{{ error }}</p>
-    <p v-else-if="!loaded" class="dim" style="font-size: 13px">chargement…</p>
+    <p v-else-if="!loaded" class="dim" style="font-size: 13px">{{ $t('common.loading') }}</p>
     <div v-else-if="!listed.length" class="pl-empty">
       <p class="pl-empty__t">Aucun projet</p>
       <p class="pl-empty__s">Un projet est un conteneur de travail — un but et ses entités (tableaux, connecteurs, procédures). Partageable, reprenable dans Claude.</p>
@@ -331,7 +331,7 @@ const hasProjects = computed(() => loaded.value && !error.value && listed.value.
       </button>
       <template v-if="archivedOpen">
         <p v-if="archivedError" class="dim" style="font-size: 13px">{{ archivedError }}</p>
-        <p v-else-if="archived === null" class="dim" style="font-size: 13px">chargement…</p>
+        <p v-else-if="archived === null" class="dim" style="font-size: 13px">{{ $t('common.loading') }}</p>
         <p v-else-if="!archived.length" class="dim" style="font-size: 13px">Aucun projet archivé.</p>
         <div v-else class="pl-table">
           <div v-for="p in archived" :key="p.id" class="pl-row pl-row--arch">
@@ -353,7 +353,7 @@ const hasProjects = computed(() => loaded.value && !error.value && listed.value.
           </DialogDescription>
         </DialogHeader>
         <p v-if="reader?.error" class="dim" style="font-size: 13px">{{ reader.error }}</p>
-        <p v-else-if="!reader?.doc" class="dim" style="font-size: 13px">chargement…</p>
+        <p v-else-if="!reader?.doc" class="dim" style="font-size: 13px">{{ $t('common.loading') }}</p>
         <template v-else>
           <div class="pl-reader__body"><MarkdownView :source="reader.doc.body_md" /></div>
         </template>

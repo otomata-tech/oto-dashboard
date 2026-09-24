@@ -151,7 +151,7 @@ const effect = computed(() => {
 
     <!-- Bénéficiaires actuels -->
     <div class="pa-list">
-      <div v-if="loading" class="dim" style="padding: 8px 0">chargement…</div>
+      <div v-if="loading" class="dim" style="padding: 8px 0">{{ $t('common.loading') }}</div>
       <div v-for="b in granted" :key="b.scope + b.id" class="pa-item">
         <Avatar :src="b.logo_url" :name="b.label" :size="22" :shape="b.scope === 'org' ? 'square' : 'circle'" />
         <span class="pa-id">

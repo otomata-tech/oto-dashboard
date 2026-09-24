@@ -543,5 +543,77 @@
       "ambiguous": "“{raw}” matches several tables",
       "pick": "none is opened in place of another: pick the one to open."
     }
+  },
+  "invite": {
+    "checking": {
+      "joining": "letting you in…",
+      "wait": "one moment…",
+      "body": "we're checking your invitation."
+    },
+    "invited": {
+      "eyebrow": "you're {mark}",
+      "mark": "invited",
+      "title": "welcome to oto.",
+      "byInviter": "{inviter} invites you",
+      "byNobody": "you're invited",
+      "toTarget": " to join {target}",
+      "createAccount": "create your account{email} to get in.",
+      "asEmail": " as {email}",
+      "cta": "Create my account",
+      "signIn": "Already have an account? Sign in"
+    },
+    "confirm": {
+      "eyebrow": "quick {mark}",
+      "mark": "check",
+      "title": "another account.",
+      "body": "this invitation was sent to {invited}, but you're signed in as {mine}. continue with this account, or switch.",
+      "continue": "Continue as {email}",
+      "switch": "Switch account"
+    },
+    "ok": {
+      "eyebrow": "welcome",
+      "title": "you're {mark}.",
+      "mark": "in oto",
+      "joined": "you've joined {org} — it's your active space. next step: connect your accounts and add your keys.",
+      "open": "your access is open. next step: create your workspace.",
+      "toConsole": "Go to the console",
+      "createSpace": "Create my space"
+    },
+    "mismatch": {
+      "title": "wrong {mark}.",
+      "mark": "account",
+      "cta": "Sign in with another account"
+    },
+    "invalid": {
+      "title": "{mark} invitation.",
+      "mark": "invalid",
+      "incomplete": "this invitation link is incomplete."
+    }
+  },
+  "auditExport": {
+    "title": "access log",
+    "sub": "tool calls made by agents under this org, with who, when, and the result — the record to produce for an audit. kept for 90 days; actions taken in this dashboard are not included.",
+    "from": "from",
+    "to": "to",
+    "emptyHint": "empty = everything kept",
+    "csv": "export as CSV",
+    "json": "as JSON",
+    "running": "exporting…",
+    "progress": "{got} / {total} calls",
+    "none": "no calls in this window. the log is kept for 90 days: an older period is empty, not inactive.",
+    "complete": "✓ {total} calls exported, {since} to {until} — complete export.",
+    "since": "from {date}",
+    "fromStart": "since the start of the log",
+    "incomplete": "⚠ {got} rows received for {total} announced: the export is incomplete, don't produce it as is — run it again."
+  },
+  "cellLayers": {
+    "note": "note: {text}",
+    "link": "link: {text}",
+    "origin": "origin: {text}",
+    "commentPh": "comment on this value",
+    "comment": "comment",
+    "linkPh": "link (source, evidence…)",
+    "linkLabel": "link",
+    "open": "+ comment or link"
   }
 }

@@ -12,8 +12,11 @@ import { downloadCsv } from '@/lib/csv'
 import { saveBlob } from '@/lib/download'
 import { fmtDayTime } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ orgId: number }>()
+const { t } = useI18n()
+const n = (x: number) => x.toLocaleString('fr-FR')
 
 const from = ref('')
 const to = ref('')
@@ -38,34 +41,31 @@ async function exporter(format: 'csv' | 'json') {
 </script>
 
 <template>
-  <ConsoleCard title="journal des accès"
-    sub="les appels d'outils faits par les agents sous cette org, avec qui, quand, et le résultat — la pièce à produire pour un audit. conservé 90 jours ; les gestes faits dans ce tableau de bord n'y figurent pas.">
+  <ConsoleCard :title="t('auditExport.title')" :sub="t('auditExport.sub')">
     <div class="ae">
-      <label class="ae__f">du <input v-model="from" type="date" class="inp sm" :disabled="busy" /></label>
-      <label class="ae__f">au <input v-model="to" type="date" class="inp sm" :disabled="busy" /></label>
-      <span class="helptext ae__hint">vide = tout ce qui est conservé</span>
+      <label class="ae__f">{{ t('auditExport.from') }} <input v-model="from" type="date" class="inp sm" :disabled="busy" /></label>
+      <label class="ae__f">{{ t('auditExport.to') }} <input v-model="to" type="date" class="inp sm" :disabled="busy" /></label>
+      <span class="helptext ae__hint">{{ t('auditExport.emptyHint') }}</span>
       <div class="ae__act">
-        <Btn kind="mini" icon="download" :disabled="busy" @click="exporter('csv')">exporter en CSV</Btn>
-        <Btn kind="mini" :disabled="busy" @click="exporter('json')">en JSON</Btn>
+        <Btn kind="mini" icon="download" :disabled="busy" @click="exporter('csv')">{{ t('auditExport.csv') }}</Btn>
+        <Btn kind="mini" :disabled="busy" @click="exporter('json')">{{ t('auditExport.json') }}</Btn>
       </div>
     </div>
 
     <p v-if="busy" class="helptext ae__line">
-      export en cours…<template v-if="progress"> {{ progress.got.toLocaleString('fr-FR') }} / {{ progress.total.toLocaleString('fr-FR') }} appels</template>
+      {{ t('auditExport.running') }}<template v-if="progress"> {{ t('auditExport.progress', { got: n(progress.got), total: n(progress.total) }) }}</template>
     </p>
     <p v-else-if="error" class="helptext ae__line ae__line--ko">{{ error }}</p>
     <template v-else-if="result">
-      <p v-if="result.total === 0" class="helptext ae__line">
-        aucun appel dans cette fenêtre. le journal est conservé 90 jours : une période plus ancienne est vide, pas inactive.
-      </p>
+      <p v-if="result.total === 0" class="helptext ae__line">{{ t('auditExport.none') }}</p>
       <p v-else-if="result.complete" class="helptext ae__line ae__line--ok">
-        ✓ {{ result.total.toLocaleString('fr-FR') }} appels exportés,
-        {{ result.since ? `du ${fmtDayTime(result.since)}` : 'depuis le début du journal' }}
-        au {{ fmtDayTime(result.untilEffectif) }} — export complet.
+        {{ t('auditExport.complete', {
+          total: n(result.total),
+          since: result.since ? t('auditExport.since', { date: fmtDayTime(result.since) }) : t('auditExport.fromStart'),
+          until: fmtDayTime(result.untilEffectif) }) }}
       </p>
       <p v-else class="helptext ae__line ae__line--ko">
-        ⚠ {{ result.calls.length.toLocaleString('fr-FR') }} lignes reçues pour {{ result.total.toLocaleString('fr-FR') }} annoncées :
-        l'export est incomplet, ne le produis pas tel quel — relance-le.
+        {{ t('auditExport.incomplete', { got: n(result.calls.length), total: n(result.total) }) }}
       </p>
     </template>
   </ConsoleCard>

@@ -123,7 +123,7 @@ async function toggleInherited(g: Guide) {
       <Btn kind="mini" icon="plus" @click="startCreate">Nouveau guide</Btn>
     </template>
 
-    <p v-if="!loaded" class="dim-note">chargement…</p>
+    <p v-if="!loaded" class="dim-note">{{ $t('common.loading') }}</p>
     <p v-else-if="error" class="dim-note" style="color: var(--color-terra-ink)">{{ error }}</p>
 
     <template v-else>

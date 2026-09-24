@@ -184,7 +184,7 @@ onMounted(async () => {
 
           <div v-if="orgId" class="grid gap-1">
             <label class="lbl">portée</label>
-            <p v-if="chargePortee" class="dim">chargement…</p>
+            <p v-if="chargePortee" class="dim">{{ $t('common.loading') }}</p>
             <template v-else>
               <p v-if="!datastores.length && !projects.length" class="dim">
                 aucun tableau ni projet dans cette organisation.

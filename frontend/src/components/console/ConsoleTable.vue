@@ -88,7 +88,7 @@ const { page, paged, total, pageSize } = usePager(() => view.value, props.pageSi
       <template v-for="(row, i) in paged" :key="i">
         <slot name="row" :row="row" :index="i" />
       </template>
-      <tr v-if="busy"><td colspan="100" class="dim" style="text-align: center; padding: 16px">chargement…</td></tr>
+      <tr v-if="busy"><td colspan="100" class="dim" style="text-align: center; padding: 16px">{{ $t('common.loading') }}</td></tr>
       <tr v-else-if="loaded && !view.length">
         <td colspan="100" class="dim" style="text-align: center; padding: 16px">
           {{ q.trim() && rows.length ? `aucun résultat pour « ${q.trim()} »` : (empty || 'aucune donnée') }}

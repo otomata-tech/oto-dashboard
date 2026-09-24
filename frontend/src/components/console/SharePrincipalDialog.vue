@@ -177,7 +177,7 @@ const kindLabel = (g: NamespaceShare) =>
           </p>
 
           <div class="sp-list">
-            <div v-if="loading" class="dim" style="padding: 8px 0">chargement…</div>
+            <div v-if="loading" class="dim" style="padding: 8px 0">{{ $t('common.loading') }}</div>
             <div v-for="g in grants" :key="(g.principal_type || 'user') + (g.principal_id || g.email || '')" class="sp-item">
               <span class="sp-who">{{ who(g) }}</span>
               <Tag :tone="g.principal_type === 'group' ? 'saffron' : g.principal_type === 'org' ? 'terra' : 'ink'">

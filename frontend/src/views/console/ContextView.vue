@@ -98,7 +98,7 @@ onMounted(load)
     </header>
 
     <p v-if="error" class="helptext" style="color: var(--color-terra-ink)">{{ error }}</p>
-    <p v-else-if="!loaded" class="helptext">chargement…</p>
+    <p v-else-if="!loaded" class="helptext">{{ $t('common.loading') }}</p>
 
     <template v-else-if="ctx">
       <!-- ══ HERO : la pile des couches injectées ══ -->

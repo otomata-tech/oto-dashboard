@@ -46,7 +46,7 @@ watch(() => props.rowId, async (rowId) => {
       <span v-if="!a.ok" class="rd-activity-err" :title="a.error ?? undefined">échec</span>
     </li>
   </ul>
-  <p v-else class="dim rd-activity-state">chargement…</p>
+  <p v-else class="dim rd-activity-state">{{ $t('common.loading') }}</p>
   <p v-if="activity && activity.length" class="rd-activity-note dim">
     journal de travail (rétention ~30 j), pas un audit permanent.
   </p>

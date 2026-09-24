@@ -69,7 +69,7 @@ function onOpenChange(v: boolean) { if (!v) emit('close') }
         </DialogDescription>
       </DialogHeader>
 
-      <p v-if="loading" class="tld-note">chargement…</p>
+      <p v-if="loading" class="tld-note">{{ $t('common.loading') }}</p>
       <p v-else-if="loadErr" class="tld-err">{{ loadErr }}</p>
 
       <div v-else-if="detail" class="tld-body">

@@ -33,6 +33,8 @@ jobs:
         run: cd frontend && npm ci
       - name: Types dérivés de l'OpenAPI à jour (pas de dérive)
         run: cd frontend && npm run api:check
+      - name: Aucune copy nouvelle en dur hors i18n (oto#195, dette en baisse seulement)
+        run: cd frontend && npm run i18n:check
       - name: Build preprod (env VITE staging)
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}

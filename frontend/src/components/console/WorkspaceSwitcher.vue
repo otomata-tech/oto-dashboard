@@ -147,7 +147,7 @@ onMounted(async () => {
   <div class="ws">
     <div class="ws-head">workspace</div>
 
-    <div v-if="loading" class="ws-empty">chargement…</div>
+    <div v-if="loading" class="ws-empty">{{ $t('common.loading') }}</div>
     <template v-else>
       <input v-if="filterable" v-model="filter" class="inp sm ws-filter"
              placeholder="filtrer les workspaces…" aria-label="filtrer les workspaces" />

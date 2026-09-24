@@ -9,6 +9,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, nextTick } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
+import { i18n } from '@/lib/i18n'
 
 const ROW = {
   id: 2, slug: 'tulina', name: 'Tulina', created_at: '2026-08-01 10:00:00',
@@ -55,7 +56,7 @@ async function mountView(query = '') {
   await router.isReady()
   const host = document.createElement('div')
   const app = createApp(View)
-  app.use(router)
+  app.use(router).use(i18n)
   app.mount(host)
   // Deux fetchs enchaînés (liste puis fiche) : laisser les microtâches se vider.
   for (let i = 0; i < 10; i++) await nextTick()

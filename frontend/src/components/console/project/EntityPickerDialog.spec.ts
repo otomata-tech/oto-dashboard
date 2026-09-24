@@ -8,6 +8,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import EntityPickerDialog from './EntityPickerDialog.vue'
+import { i18n } from '@/lib/i18n'
 
 const getDoctrine = vi.fn(async () => ({
   org_id: 1, org_name: 'Partoo', can_edit: true,
@@ -33,7 +34,7 @@ async function mountPicker(kind: 'connecteur' | 'tableau' | 'procedure' | 'doc' 
   // Reproduit EXACTEMENT le patron du parent : le composant naît avec open déjà
   // `true` (pas de toggle sur une instance existante — `v-if="addKind"` monte/démonte).
   const app = createApp(EntityPickerDialog, { open: true, kind, projectId: 1 })
-  app.mount(host)
+  app.use(i18n).mount(host)
   await nextTick()
   await nextTick()  // laisse la promesse de loadOptions() se résoudre
   return { unmount: () => { app.unmount(); host.remove() } }

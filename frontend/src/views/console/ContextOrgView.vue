@@ -79,7 +79,7 @@ onMounted(load)
         <template #actions>
           <RouterLink to="/org/teams"><Btn kind="mini">Gérer les équipes →</Btn></RouterLink>
         </template>
-        <p v-if="!loaded" class="helptext">chargement…</p>
+        <p v-if="!loaded" class="helptext">{{ $t('common.loading') }}</p>
         <div v-else-if="!groups.length" class="helptext">aucune équipe — l'org n'a pas d'équipe pour l'instant.</div>
         <div v-else class="rowlist">
           <div v-for="g in groups" :key="g.id" class="rowitem" style="gap: 10px">
@@ -99,7 +99,7 @@ onMounted(load)
         <template #actions>
           <RouterLink to="/org/connectors"><Btn kind="mini">Gérer connecteurs & baseline →</Btn></RouterLink>
         </template>
-        <p v-if="!loaded" class="helptext">chargement…</p>
+        <p v-if="!loaded" class="helptext">{{ $t('common.loading') }}</p>
         <div v-else-if="!activeConnectors.length" class="helptext">aucun connecteur activé pour l'org.</div>
         <div v-else style="display: flex; flex-wrap: wrap; gap: 8px">
           <Tag v-for="c in activeConnectors" :key="c.connector" tone="olive">{{ c.label || c.connector }}</Tag>

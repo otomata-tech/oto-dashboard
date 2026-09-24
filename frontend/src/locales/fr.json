@@ -543,5 +543,77 @@
       "ambiguous": "« {raw} » désigne plusieurs tableaux",
       "pick": "aucun n'est ouvert à la place d'un autre : choisis celui à ouvrir."
     }
+  },
+  "invite": {
+    "checking": {
+      "joining": "on vous fait entrer…",
+      "wait": "un instant…",
+      "body": "on vérifie votre invitation."
+    },
+    "invited": {
+      "eyebrow": "vous êtes {mark}",
+      "mark": "invité·e",
+      "title": "bienvenue chez oto.",
+      "byInviter": "{inviter} vous invite",
+      "byNobody": "vous êtes invité·e",
+      "toTarget": " à rejoindre {target}",
+      "createAccount": "créez votre compte{email} pour entrer.",
+      "asEmail": " en {email}",
+      "cta": "Créer mon compte",
+      "signIn": "Déjà un compte ? Se connecter"
+    },
+    "confirm": {
+      "eyebrow": "petite {mark}",
+      "mark": "vérif",
+      "title": "autre compte.",
+      "body": "cette invitation a été envoyée à {invited}, mais vous êtes connecté·e en {mine}. continuez avec ce compte, ou changez.",
+      "continue": "Continuer en {email}",
+      "switch": "Changer de compte"
+    },
+    "ok": {
+      "eyebrow": "bienvenue",
+      "title": "vous êtes {mark}.",
+      "mark": "dans oto",
+      "joined": "vous avez rejoint {org} — c'est votre espace actif. prochaine étape : connecter vos comptes et poser vos clés.",
+      "open": "votre accès est ouvert. prochaine étape : créer votre espace de travail.",
+      "toConsole": "Aller à la console",
+      "createSpace": "Créer mon espace"
+    },
+    "mismatch": {
+      "title": "mauvais {mark}.",
+      "mark": "compte",
+      "cta": "Se connecter avec un autre compte"
+    },
+    "invalid": {
+      "title": "invitation {mark}.",
+      "mark": "invalide",
+      "incomplete": "ce lien d'invitation est incomplet."
+    }
+  },
+  "auditExport": {
+    "title": "journal des accès",
+    "sub": "les appels d'outils faits par les agents sous cette org, avec qui, quand, et le résultat — la pièce à produire pour un audit. conservé 90 jours ; les gestes faits dans ce tableau de bord n'y figurent pas.",
+    "from": "du",
+    "to": "au",
+    "emptyHint": "vide = tout ce qui est conservé",
+    "csv": "exporter en CSV",
+    "json": "en JSON",
+    "running": "export en cours…",
+    "progress": "{got} / {total} appels",
+    "none": "aucun appel dans cette fenêtre. le journal est conservé 90 jours : une période plus ancienne est vide, pas inactive.",
+    "complete": "✓ {total} appels exportés, {since} au {until} — export complet.",
+    "since": "du {date}",
+    "fromStart": "depuis le début du journal",
+    "incomplete": "⚠ {got} lignes reçues pour {total} annoncées : l'export est incomplet, ne le produis pas tel quel — relance-le."
+  },
+  "cellLayers": {
+    "note": "note : {text}",
+    "link": "lien : {text}",
+    "origin": "origine : {text}",
+    "commentPh": "commentaire sur cette valeur",
+    "comment": "commentaire",
+    "linkPh": "lien (source, preuve…)",
+    "linkLabel": "lien",
+    "open": "+ commentaire ou lien"
   }
 }
