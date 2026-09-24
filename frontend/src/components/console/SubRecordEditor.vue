@@ -20,7 +20,9 @@ import {
   accepteVideSousChamp, elementSaisi, estElementBrut, type CompositeSaisi, type ElementSaisi,
 } from '@/lib/rowDraft'
 
-const props = defineProps<{ field: DatastoreField; modelValue: CompositeSaisi }>()
+// `erreurs` (oto#219) : rang de l'élément → sous-champ → message — le refus du serveur
+// rattaché au champ exact, au lieu d'une phrase en tête de fiche.
+const props = defineProps<{ field: DatastoreField; modelValue: CompositeSaisi; erreurs?: Record<number, Record<string, string>> }>()
 const emit = defineEmits<{ (e: 'update:modelValue', v: CompositeSaisi): void }>()
 
 const subFields = computed(() => subFieldsOf(props.field))
@@ -102,6 +104,7 @@ function onScalarText(e: Event) {
               @input="setItemField(i, k.key, ($event.target as HTMLInputElement).value)" />
             <VideAssumeToggle v-if="accepteVideSousChamp(field, k.key)" :model-value="!!item.vides[k.key]"
               @update:model-value="setItemEmpty(i, k.key, $event)" />
+            <p v-if="erreurs?.[i]?.[k.key]" class="sre-err" role="alert">{{ erreurs[i]![k.key] }}</p>
           </div>
         </template>
       </div>
@@ -128,7 +131,8 @@ function onScalarText(e: Event) {
 .sre-grid { display: grid; grid-template-columns: minmax(64px, auto) 1fr; gap: 4px 8px; align-items: center; }
 .sre-k { font-size: 10.5px; color: var(--color-mute); }
 .sre-req { color: var(--color-terra-ink); margin-left: 2px; }
-.sre-cell { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.sre-cell { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.sre-err { flex-basis: 100%; margin: 0; font-size: 11px; color: var(--color-terra-ink); }
 .sre-inp {
   width: 100%; min-width: 0; font: inherit; font-size: 12px; padding: 3px 6px;
   border: 1px solid var(--color-hair-soft); border-radius: var(--radius-md);

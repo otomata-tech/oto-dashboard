@@ -255,9 +255,16 @@ Désormais, pour une ligne existante et modifiable (`composables/useRowEditor.ts
     identiques, l'écran le dit.
   - 409 `row_locked` : dit, sans renvoi.
   - 400 `row_invalid` : rattaché au champ nommé par `details.expected_column` (la phrase
-    du serveur sous le champ) ; sinon dit en tête de fiche. ⚠️ Le serveur n'envoie pas
-    `expected_column` pour une cellule d'élément de liste : le chemin n'est que dans la
-    phrase, et l'écran ne la lit **jamais** pour deviner un champ (`rowEditor.spec.ts`).
+    du serveur sous le champ) ; sinon dit en tête de fiche. L'écran ne lit **jamais** la
+    phrase pour deviner un champ (`rowEditor.spec.ts`).
+  - **Jusqu'au sous-champ d'un élément de liste** (oto#219, 24/09/2026) : le refus porte
+    `details.a_renvoyer` (le fragment de ligne à corriger, un gabarit `<email>`,
+    `<nombre>`… par champ fautif) et `details.a_renvoyer_elements` (chaque élément en
+    cause, par son rang `contacts[2]` ou son identité `contacts[email=x]`), servis depuis
+    oto#135. `lib/rowRefusal.ts` (`fautesDe`) en tire colonne, élément, sous-champ et
+    gabarit ; la fiche (`erreursDe`) retrouve l'élément — par son identité dans la saisie
+    s'il le faut — et `SubRecordEditor` affiche « à corriger : attendu <gabarit> » sous le
+    sous-champ exact. Sans charge, le repli en tête de fiche reste.
   - `row_invalid` et `row_locked` sont rendus par `POST rows` et `PATCH rows/{id}` mais
     ne sont pas déclarés dans l'OpenAPI : ils se lisent dans l'enveloppe générique
     `{error, detail, details}` (`ApiError`), sans type servi.

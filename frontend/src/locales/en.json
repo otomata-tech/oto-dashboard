@@ -508,6 +508,7 @@
     "emptyAssumedHint": "declare this field deliberately empty — typing a value turns it off",
     "reading": "reading the row…",
     "readFailed": "the row could not be read for editing: {reason}",
+    "expected": "to fix: expected {attendu}",
     "invalidField": "value refused by the table's schema",
     "invalid": "save refused: {reason}",
     "locked": "this row is reserved by a job in progress: nothing was saved, your draft is kept.",

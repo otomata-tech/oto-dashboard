@@ -178,6 +178,9 @@ export function useRowEditor(src: SourceDuFormulaire) {
   const refusInvalide = computed(() => (refus.value?.sorte === 'invalide' ? refus.value : null))
   const refusDuChamp = (cle: string) =>
     (refusInvalide.value?.colonne === cle ? refusInvalide.value : null)
+  /** Les champs fautifs de CETTE colonne, jusqu'aux sous-champs de ses éléments (oto#219). */
+  const fautesDeColonne = (cle: string) =>
+    (refusInvalide.value?.fautes ?? []).filter((f) => f.colonne === cle)
   /** Un refus qu'aucun champ affiché ne peut porter se dit en tête de la fiche. */
   const refusHorsChamp = computed(() =>
     !!refusInvalide.value && !champs.value.some((d) => d.key === refusInvalide.value?.colonne))
@@ -186,6 +189,6 @@ export function useRowEditor(src: SourceDuFormulaire) {
     scalars, empties, composites, champs, basculerVide,
     lu, etat, echecLecture, refus, echecEcriture, echecRelecture, envoi,
     ouvrir, rouvrir, fermer, aAjouter, enregistrer, relire,
-    choix, opposees, tranche, choisir, reprendre, refusDuChamp, refusHorsChamp,
+    choix, opposees, tranche, choisir, reprendre, refusDuChamp, refusHorsChamp, fautesDeColonne,
   }
 }

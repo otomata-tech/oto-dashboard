@@ -508,6 +508,7 @@
     "emptyAssumedHint": "déclarer ce champ vide volontairement — saisir une valeur retire la bascule",
     "reading": "relecture de la ligne…",
     "readFailed": "la ligne n'a pas pu être relue pour être modifiée : {reason}",
+    "expected": "à corriger : attendu {attendu}",
     "invalidField": "valeur refusée par le schéma du tableau",
     "invalid": "enregistrement refusé : {reason}",
     "locked": "cette ligne est réservée par un traitement en cours : rien n'a été enregistré, ton brouillon est gardé.",
