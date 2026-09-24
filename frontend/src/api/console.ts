@@ -655,7 +655,9 @@ export const listSharedDocs = (scope: SharedDocScope) =>
 export const createDoc = (project_id: number, title: string,
   opts?: { parent_id?: number | null; body_md?: string; kind?: DocKind }) =>
   docsApi<Doc>({ op: 'create', project_id, title, ...(opts ?? {}) })
-export const updateDoc = (doc_id: number, fields: { title?: string; body_md?: string; kind?: DocKind; description?: string }) =>
+// `expected_rev` : la révision lue — le serveur refuse (409 `conflict`) si la page a changé
+// depuis, au lieu d'écraser (édition en place, `useDocAutosave`).
+export const updateDoc = (doc_id: number, fields: { title?: string; body_md?: string; kind?: DocKind; description?: string; expected_rev?: string }) =>
   docsApi<Doc>({ op: 'update', doc_id, ...fields })
 export const deleteDoc = (doc_id: number) => docsApi<{ ok: boolean }>({ op: 'delete', doc_id })
 // Déplacer/réordonner une page (Ship 2) : `position` = INDEX cible (0-based) dans la

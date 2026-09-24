@@ -16,6 +16,8 @@ import AttachmentViewer from '@/components/console/AttachmentViewer.vue'
 import DatastoreTable from '@/components/console/DatastoreTable.vue'
 import ProjectWorkQueues from './ProjectWorkQueues.vue'
 import ProjectUrlPerimeter from './ProjectUrlPerimeter.vue'
+import DocPageHead from './DocPageHead.vue'
+import { useDocAutosave } from '@/composables/useDocAutosave'
 import { parseDocSegments } from '@/lib/docEmbeds'
 import {
   updateDoc, deleteDoc, setDocPublic, getDocRevisions, getBacklinks,
@@ -55,6 +57,7 @@ const props = defineProps<{
   // `datastore_id` qui désigne, pas un nom projeté en amont (oto#160).
   tableLinks?: ProjectLink[]
   excludedUrlPrefixes?: string[]         // périmètre d'URL du projet (home, oto-backend#605)
+  docs?: Doc[]                           // pages du projet : fil d'Ariane de l'en-tête de page
 }>()
 const emit = defineEmits<{
   'save-brief': [string]
@@ -104,9 +107,15 @@ const eyebrow = computed(() => {
 })
 
 // ═══════════ PAGE (accueil = brief, ou page Documents) ═══════════
+// `editing` ne vaut que pour le BRIEF (bouton « éditer », « Enregistrer »). Une page
+// s'édite EN PLACE et s'enregistre seule (`useDocAutosave`, 24/09/2026) : un clic dans le
+// texte l'ouvre à l'écriture, sortir du texte la referme — le rendu (diagrammes, liens
+// [[…]], tableaux intégrés) revient alors, ce que l'éditeur ne sait pas afficher.
 const editing = ref(false)
 const briefDraft = ref(props.brief ?? '')
-const draft = ref<{ title: string; body_md: string; kind: DocKind; description: string } | null>(null)
+const auto = useDocAutosave(doc, () => { emit('reload-docs'); emit('changed') })
+const draft = auto.draft
+const docEditing = auto.editing
 const revisions = ref<DocRevision[]>([])
 const showHistory = ref(false)
 const backlinks = ref<{ id: number; project_id: number; title: string }[]>([])
@@ -123,8 +132,8 @@ function resetPage() {
   editing.value = false
   showHistory.value = false; revisions.value = []
   briefDraft.value = props.brief ?? ''
+  auto.reset()
   const d = doc.value
-  draft.value = d ? { title: d.title, body_md: d.body_md, kind: d.kind, description: d.description ?? '' } : null
   backlinks.value = []
   if (d) void loadBacklinks(d.id)
 }
@@ -143,20 +152,47 @@ function saveBrief() {
   emit('save-brief', briefDraft.value); editing.value = false
 }
 
-// doc page
-function editDoc() { const d = doc.value; if (d) { draft.value = { title: d.title, body_md: d.body_md, kind: d.kind, description: d.description ?? '' }; editing.value = true } }
-function cancelDoc() { const d = doc.value; if (d) draft.value = { title: d.title, body_md: d.body_md, kind: d.kind, description: d.description ?? '' }; editing.value = false }
-// `saving` garde les écritures ASYNCHRONES (saveDoc) : entre le clic et
-// la fin de l'appel, `editing` est encore vrai et le bouton encore cliquable.
-const saving = ref(false)
-async function saveDoc() {
-  const d = doc.value
-  if (!d || !draft.value || saving.value) return
-  saving.value = true
-  try { await updateDoc(d.id, { ...draft.value }); editing.value = false; emit('reload-docs'); emit('changed'); toast('page enregistrée') }
-  catch (e) { toast(humanize(e)) }
-  finally { saving.value = false }
+// doc page — édition en place. Un clic sur un lien, un bouton ou un tableau intégré garde
+// son sens : seul un clic dans la prose ouvre l'écriture.
+const canEditDoc = computed(() => kind.value === 'page' && !isHome.value && !!doc.value && !props.readOnly)
+// Le curseur s'ouvre LÀ où l'on a cliqué. Pas par les coordonnées — l'éditeur n'a ni la même
+// barre ni les mêmes interlignes que la lecture, le curseur tombait une ligne à côté — mais
+// par le TEXTE : le bloc cliqué (paragraphe, élément de liste, titre, cellule) et le nombre
+// de caractères avant le point cliqué, retrouvés ensuite dans l'éditeur.
+const focusAt = ref<{ text: string; offset: number } | 'end'>('end')
+function caretAt(x: number, y: number): { node: Node; offset: number } | null {
+  const d = document as Document & {
+    caretRangeFromPoint?: (x: number, y: number) => Range | null
+    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null
+  }
+  const r = d.caretRangeFromPoint?.(x, y)
+  if (r) return { node: r.startContainer, offset: r.startOffset }
+  const p = d.caretPositionFromPoint?.(x, y)
+  return p ? { node: p.offsetNode, offset: p.offset } : null
 }
+function onPageClick(e: MouseEvent) {
+  if (!canEditDoc.value || docEditing.value) return
+  if ((e.target as HTMLElement).closest('a, button, input, .vw__embed, .mermaid, svg')) return
+  focusAt.value = 'end'
+  const c = caretAt(e.clientX, e.clientY)
+  const el = c ? (c.node.nodeType === 1 ? c.node as Element : c.node.parentElement) : null
+  const block = el?.closest('p, li, h1, h2, h3, h4, h5, h6, td, th, pre')
+  if (c && block) {
+    const before = document.createRange()
+    before.selectNodeContents(block)
+    before.setEnd(c.node, c.offset)
+    focusAt.value = { text: (block.textContent ?? '').trim(), offset: before.toString().replace(/^\s+/, '').length }
+  }
+  auto.start()
+}
+// Sortir de l'écriture = le focus quitte la zone (la barre d'outils de l'éditeur en fait partie).
+function onEditorFocusOut(e: FocusEvent) {
+  const zone = e.currentTarget as HTMLElement
+  if (zone.contains(e.relatedTarget as Node | null)) return
+  void auto.stop()
+}
+// Page rechargée après un conflit : on jette le brouillon, on relit la page servie.
+function reloadAfterConflict() { auto.reset(); emit('reload-docs') }
 async function removeDoc() {
   const d = doc.value
   if (!d) return
@@ -193,20 +229,17 @@ async function restoreRevision(r: DocRevision) {
 // enregistré. Trois sorties possibles — changer de route, fermer l'onglet, oublier
 // d'enregistrer — et aucune n'était gardée.
 const isDirty = computed(() => {
+  if (docEditing.value) return auto.dirty.value
   if (!editing.value) return false
-  if (isHome.value) return briefDraft.value !== (props.brief ?? '')
-  const d = doc.value, dr = draft.value
-  if (!d || !dr) return false
-  return dr.title !== d.title || dr.body_md !== d.body_md || dr.kind !== d.kind
-    || dr.description !== (d.description ?? '')
+  return isHome.value && briefDraft.value !== (props.brief ?? '')
 })
 
 // Ctrl/Cmd+S — le réflexe d'enregistrement. L'édition n'est ouverte qu'en écriture
 // (aucun bouton n'y mène en lecture seule) ; la garde `readOnly` tient si ça change.
 useHotkey('s', () => {
-  if (!editing.value || props.readOnly) return
-  if (isHome.value) saveBrief()
-  else void saveDoc()
+  if (props.readOnly) return
+  if (docEditing.value) void auto.flush()
+  else if (editing.value && isHome.value) saveBrief()
 })
 
 // Fermeture d'onglet / rechargement : seul le dialogue natif du navigateur peut retenir
@@ -218,6 +251,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload)
 
 // Navigation interne : là on est encore dans l'app → confirmation applicative.
 onBeforeRouteLeave(async () => {
+  if (docEditing.value) await auto.flush()   // une page s'enregistre avant de partir
   if (!isDirty.value) return true
   return await confirmAction({
     title: 'Quitter sans enregistrer ?',
@@ -429,6 +463,13 @@ async function removeFile() {
       <header class="vw__hd">
         <span class="vw__hdic"><Icon :name="viewerIcon" :size="18" /></span>
         <div class="vw__hdtxt">
+          <DocPageHead v-if="kind === 'page' && !isHome && doc" :project-name="projectName" :doc="doc"
+            :docs="docs" :read-only="readOnly" :status="auto.status.value" :error="auto.error.value"
+            @open-doc="(id) => emit('open-doc', id)" @rename="(t) => auto.saveTitle(t)" @reload="reloadAfterConflict">
+            <Tag v-if="doc.kind !== 'doc'">{{ KIND_LABEL[doc.kind] }}</Tag>
+            <Tag v-if="doc.public" tone="cobalt">public</Tag>
+          </DocPageHead>
+          <template v-else>
           <div class="vw__hdrow">
             <h3 class="vw__title">{{ title }}</h3>
             <Tag v-if="kind === 'page' && doc && doc.kind !== 'doc'">{{ KIND_LABEL[doc.kind] }}</Tag>
@@ -437,19 +478,16 @@ async function removeFile() {
           </div>
           <div v-if="eyebrow" class="vw__eb">{{ eyebrow }}</div>
           <div v-if="link?.role" class="vw__hint">{{ link.role }}</div>
+          </template>
         </div>
         <!-- actions d'en-tête (pages) -->
         <div v-if="kind === 'page'" class="vw__hdact">
           <template v-if="!editing">
             <button v-if="!isHome && !readOnly" class="vw__x" @click="emit('add-subpage', doc!.id)"><Icon name="plus" :size="12" /> sous-page</button>
-            <button v-if="!readOnly" class="vw__x" @click="isHome ? editBrief() : editDoc()"><Icon name="pencil" :size="12" /> éditer</button>
+            <button v-if="isHome && !readOnly" class="vw__x" @click="editBrief()"><Icon name="pencil" :size="12" /> éditer</button>
           </template>
           <template v-else>
-            <template v-if="isHome"><Btn kind="mini" @click="saveBrief">Enregistrer</Btn><button class="vw__x" @click="cancelBrief">Annuler</button></template>
-            <template v-else>
-              <OtoSelect v-if="draft" v-model="draft.kind" :options="KIND_OPTIONS" size="sm" aria-label="type de page" />
-              <Btn kind="mini" :disabled="saving" @click="saveDoc">Enregistrer</Btn><button class="vw__x" @click="cancelDoc">Annuler</button>
-            </template>
+            <Btn kind="mini" @click="saveBrief">Enregistrer</Btn><button class="vw__x" @click="cancelBrief">Annuler</button>
           </template>
         </div>
       </header>
@@ -457,18 +495,25 @@ async function removeFile() {
       <!-- ═══ PAGE ═══ -->
       <template v-if="kind === 'page'">
         <!-- édition (brief ou doc) -->
-        <template v-if="editing">
-          <input v-if="!isHome && draft" v-model="draft.title" class="vw__titlein" placeholder="Titre de la page" />
-          <input v-if="!isHome && draft" v-model="draft.description" class="vw__descin"
-            placeholder="Sous-titre (une ligne — aide à repérer la page dans l'arbre et la recherche)" />
-          <MarkdownEditor v-if="isHome" v-model="briefDraft"
+        <template v-if="editing && isHome">
+          <MarkdownEditor v-model="briefDraft"
             placeholder="Le but du projet, le contexte, ce que l'agent doit savoir au démarrage…" />
-          <MarkdownEditor v-else-if="draft" v-model="draft.body_md" placeholder="Contenu de la page…" />
         </template>
+        <!-- page en écriture : la zone entière (réglages + éditeur) tient le focus ; en sortir
+             enregistre et rend la page. Échap fait de même. -->
+        <div v-else-if="docEditing && draft" class="vw__page vw__page--editing"
+          @focusout="onEditorFocusOut" @keydown.esc="auto.stop()">
+          <div class="vw__editopts">
+            <input v-model="draft.description" class="vw__descin"
+              placeholder="Sous-titre (une ligne — aide à repérer la page dans l'arbre et la recherche)" />
+            <OtoSelect v-model="draft.kind" :options="KIND_OPTIONS" size="sm" aria-label="type de page" />
+          </div>
+          <MarkdownEditor v-model="draft.body_md" placeholder="Contenu de la page…" :focus-at="focusAt" />
+        </div>
 
         <!-- lecture -->
         <template v-else>
-          <div class="vw__page">
+          <div class="vw__page" :class="{ 'vw__page--editable': canEditDoc }" @click="onPageClick">
             <template v-if="hasBody">
               <template v-for="(seg, i) in segments" :key="i">
                 <MarkdownView v-if="seg.type === 'md' && seg.text.trim()" :source="seg.text"
@@ -481,7 +526,7 @@ async function removeFile() {
                 </div>
               </template>
             </template>
-            <p v-else class="dim vw__novalue">{{ readOnly ? 'aucun contenu.' : (isHome ? 'aucun brief — clique « éditer » pour le rédiger.' : 'page vide — clique « éditer ».') }}</p>
+            <p v-else class="dim vw__novalue">{{ readOnly ? 'aucun contenu.' : (isHome ? 'aucun brief — clique « éditer » pour le rédiger.' : 'page vide — clique ici pour écrire.') }}</p>
 
             <!-- Files de travail (home) : supervision dérivée des tableaux liés à
                  cycle de vie — se rend seulement s'il y en a, ou pour dire qu'un lien
@@ -696,6 +741,9 @@ async function removeFile() {
 .vw__x--danger { color: var(--color-terra-ink); border-color: var(--color-terra-soft); }
 
 .vw__page { max-width: 720px; margin-inline: auto; }
+.vw__page--editable { cursor: text; }
+.vw__editopts { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.vw__editopts .vw__descin { margin: 0; flex: 1; }
 .vw__embed { margin: 18px 0; }
 .vw__pageact { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 16px; }
 .vw__titlein { width: 100%; max-width: 720px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 8px 11px; font: inherit; font-size: 16px; font-weight: 700; color: var(--color-ink); background: var(--color-surface); margin-bottom: 10px; margin-inline: auto; }

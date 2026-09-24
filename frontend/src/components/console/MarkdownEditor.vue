@@ -10,7 +10,11 @@ import Icon from './Icon.vue'
 import { usePrompt } from '@/composables/usePrompt'
 import { mdeExtensions } from '@/lib/mdeExtensions'
 
-const props = defineProps<{ modelValue: string; placeholder?: string }>()
+// `focusAt` : ouvrir l'éditeur AVEC le curseur (édition en place d'une page) — dans le bloc
+// dont le texte est `text`, après `offset` caractères ; bloc introuvable (ex. un lien [[…]],
+// rendu autrement qu'écrit) = en fin de texte. Absent = pas de focus automatique (le brief
+// s'ouvre par un bouton, comme avant).
+const props = defineProps<{ modelValue: string; placeholder?: string; focusAt?: { text: string; offset: number } | 'end' }>()
 const emit = defineEmits<{ 'update:modelValue': [string] }>()
 const { promptText } = usePrompt()
 
@@ -23,6 +27,22 @@ const editor = useEditor({
   extensions: mdeExtensions(props.placeholder ?? ''),
   onUpdate: ({ editor: e }) => emit('update:modelValue', e.getMarkdown()),
   onTransaction: () => { tick.value++ },
+  onCreate: ({ editor: e }) => {
+    const at = props.focusAt
+    if (!at) return
+    let pos: number | null = null
+    if (at !== 'end' && at.text) {
+      e.state.doc.descendants((node, p) => {
+        if (pos != null) return false
+        if (node.isTextblock && node.textContent.trim() === at.text) {
+          pos = p + 1 + Math.min(at.offset, node.content.size)
+          return false
+        }
+        return true
+      })
+    }
+    e.commands.focus(pos ?? 'end')
+  },
 })
 
 // Resynchronise si le parent remplace la valeur (annuler, changement de sélection).

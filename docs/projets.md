@@ -26,6 +26,21 @@ picker des vraies entités via `getNamespaces`/`getConnectors`/`getDoctrine`)
 dans `api/console.ts` (POST op-aware `/api/me/{projects,docs}`). Backend : `oto-backend/CLAUDE.md`
 §Projet. Non faits : MCP-App rendu, édition temps réel, pré-set vendable.
 
+**Une page se lit et s'écrit en place** (24/09/2026, repris du front de JB). En-tête de page
+(`project/DocPageHead.vue`) : fil d'Ariane (le projet puis les pages parentes, cliquables),
+titre **renommable en place** (clic, Entrée), chapô, « modifié le … » et l'état de
+l'enregistrement. Le « par qui » manque : une page ne sert pas son dernier auteur (oto#274).
+Le corps s'affiche **rendu** (diagrammes, liens `[[…]]`, tableaux intégrés) ; **un clic dans
+la prose l'ouvre à l'écriture, curseur à l'endroit cliqué** (retrouvé par le texte du bloc,
+pas par les coordonnées), sans bouton « éditer » ni « enregistrer ». Sortir du texte (focus
+ailleurs, Échap) enregistre et rend la page. Enregistrement automatique
+(`composables/useDocAutosave.ts`) après **4 s d'inactivité**, avec `expected_rev` : un 409
+`conflict` n'écrase rien, l'écran le dit et propose de recharger ; un échec garde le texte à
+l'écran et reste en écriture. ⚠️ 4 s et pas 1 s : chaque écriture crée une VERSION, réindexe
+la page et recalcule ses rétroliens ; descendre plus bas attend le regroupement des versions
+d'un même auteur côté backend (oto#274). Le brief du projet garde son bouton « éditer ». Pas
+d'éditeur de blocs : le stockage reste `body_md`, les blocs relèvent du modèle nœuds (gelé).
+
 **L'arbre de la barre latérale descend aux pages** (23/09/2026, repris du rail d'oto-frontend
 quand le dashboard est resté le front du produit — `components/console/SidebarProjectTree.vue`).
 Sous chaque espace (`SidebarSpaces`), un projet se déplie jusqu'à ses **pages** (arborescence,

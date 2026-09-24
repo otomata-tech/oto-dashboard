@@ -410,7 +410,7 @@ async function onChanged() { await Promise.all([loadActivity(), loadAudit()]) }
         <ProjectViewer v-else class="pj-body__vw" :item="selItem" :project-id="projectId" :project-name="project.name"
           :brief="project.brief_md" :read-only="readOnly" :doc-title-map="docTitleMap"
           :table-links="linksOf('tableau')"
-          :excluded-url-prefixes="project.excluded_url_prefixes"
+          :excluded-url-prefixes="project.excluded_url_prefixes" :docs="docs"
           @save-brief="saveBrief" @reload-docs="onReloadDocs" @reload-files="onReloadFiles"
           @reload-links="onReloadLinks" @reload-project="reloadProject" @changed="onChanged" @open-doc="openDoc"
           @add-subpage="openSubPage" @create-page="onCreatePage" />
