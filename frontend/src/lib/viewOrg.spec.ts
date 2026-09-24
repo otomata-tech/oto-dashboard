@@ -10,9 +10,11 @@ import {
   currentViewOrg, setViewOrgId, currentViewGroup, setViewGroupId,
   getViewUser, setViewUser,
   viewHeaders,
+  acceptViewAsWrite, revokeViewAsWrite, viewAsWriteAccepted,
 } from './viewOrg'
 
 beforeEach(() => {
+  revokeViewAsWrite()
   localStorage.clear()
   setViewOrgId(null)
   setViewGroupId(null)
@@ -118,5 +120,45 @@ describe('viewHeaders precedence', () => {
     setViewOrgId('42'); setViewGroupId('7')
     setViewUser({ sub: 'u1', name: 'Alice' })
     expect(viewHeaders()).toEqual({ 'X-Oto-View-As': 'u1' })
+  })
+})
+
+// Écrire en tant que (24/09/2026) : `X-Oto-View-As-Write` ne part QU'après le geste
+// d'acceptation, pour la cible acceptée, et tombe en quittant la vue ou en changeant de
+// cible. Un header d'écriture qui survivrait écrirait au nom d'un compte sans l'avoir voulu.
+describe('écrire en tant que (view-as write)', () => {
+  it('aucun header d\'écriture avant acceptation', () => {
+    setViewUser({ sub: 'u1', name: 'Alice' })
+    expect(viewHeaders()).toEqual({ 'X-Oto-View-As': 'u1' })
+    expect(viewAsWriteAccepted()).toBe(false)
+  })
+  it('après acceptation, le header part avec le view-as', () => {
+    setViewUser({ sub: 'u1', name: 'Alice' })
+    acceptViewAsWrite()
+    expect(viewHeaders()).toEqual({ 'X-Oto-View-As': 'u1', 'X-Oto-View-As-Write': '1' })
+  })
+  it('quitter la vue fait tomber l\'acceptation', () => {
+    setViewUser({ sub: 'u1', name: 'Alice' })
+    acceptViewAsWrite()
+    setViewUser(null)
+    expect(viewHeaders()).toEqual({})
+    setViewUser({ sub: 'u1', name: 'Alice' })
+    expect(viewHeaders()).toEqual({ 'X-Oto-View-As': 'u1' })
+  })
+  it('changer de cible fait tomber l\'acceptation', () => {
+    setViewUser({ sub: 'u1', name: 'Alice' })
+    acceptViewAsWrite()
+    setViewUser({ sub: 'u2', name: 'Bob' })
+    expect(viewHeaders()).toEqual({ 'X-Oto-View-As': 'u2' })
+  })
+  it('revenir en lecture seule retire le header', () => {
+    setViewUser({ sub: 'u1', name: 'Alice' })
+    acceptViewAsWrite()
+    revokeViewAsWrite()
+    expect(viewHeaders()).toEqual({ 'X-Oto-View-As': 'u1' })
+  })
+  it('sans vue, accepter ne pose rien', () => {
+    acceptViewAsWrite()
+    expect(viewHeaders()).toEqual({})
   })
 })

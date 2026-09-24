@@ -489,6 +489,8 @@
     "invalid_role": "invalid role",
     "forbidden": "you don't have access to this",
     "stale_session": "your session expired — sign in again",
+    "view_as_read_only": "read-only view — in “view as”, a super_admin can open writing with the “Écrire en tant que …” button of the banner at the top",
+    "view_as_write_forbidden": "writing on behalf of another account is reserved to super_admin",
     "invalid_api_token": "invalid api token",
     "invalid_token": "invalid session token",
     "missing_bearer": "not authenticated",

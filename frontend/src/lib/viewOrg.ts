@@ -9,6 +9,8 @@
 // ces variables module (`setViewOrgId`/`setViewGroupId` en afterEach) ; `viewHeaders()`
 // les lit. Absentes = on voit la maison (ni `X-Oto-Org` ni `X-Oto-Group`).
 // Le view-as USER reste en localStorage (axe orthogonal, opérateur plateforme).
+import { ref } from 'vue'
+
 const USER_KEY = 'oto_view_user'
 
 // ── org / équipe de consultation : dérivées de l'URL, tenues en variables module ──
@@ -55,24 +57,58 @@ export function consultRedirectPath(
   return scopedPath(path, curOrg, curGroup)
 }
 
-// « Voir en tant que » (ADR 0023, axe USER, LECTURE SEULE) — opérateur plateforme
-// uniquement, gaté backend. On stocke {sub, name} pour le bandeau. Envoyé en header
-// `X-Oto-View-As` ; le backend résout alors le dashboard sur ce user (et son org maison).
-export interface ViewUser { sub: string; name: string }
+// « Voir en tant que » (ADR 0023, axe USER) — opérateur plateforme uniquement, gaté
+// backend. LECTURE SEULE par défaut. On stocke {sub, name} pour le bandeau, plus qui
+// consulte (`operator`) : pendant la vue, `/api/me` rend le compte CIBLE, il ne peut
+// plus dire le rôle de l'opérateur — on le fige donc à l'entrée (AdminUserView). Ce
+// n'est qu'un indice d'affichage : le serveur refuse l'écriture à un non-super_admin
+// (403 `view_as_write_forbidden`). Envoyé en header `X-Oto-View-As` ; le backend
+// résout alors le dashboard sur ce user (et son org maison).
+export interface ViewAsOperator { name: string; superAdmin: boolean }
+export interface ViewUser { sub: string; name: string; operator?: ViewAsOperator }
 export function getViewUser(): ViewUser | null {
   const raw = localStorage.getItem(USER_KEY)
   if (!raw) return null
   try { return JSON.parse(raw) as ViewUser } catch { return null }
 }
 export function setViewUser(u: ViewUser | null): void {
+  // Quitter la vue ou changer de cible fait TOMBER l'acceptation d'écriture.
+  if (u === null || u.sub !== writeAcceptedFor.value) writeAcceptedFor.value = null
   if (u === null) { localStorage.removeItem(USER_KEY); return }
   localStorage.setItem(USER_KEY, JSON.stringify(u))
 }
 
+// ── Écrire en tant que (décision du 24/09/2026) ───────────────────────────────
+// Le super_admin peut ÉCRIRE au nom de la cible, mais seulement après un geste
+// d'acceptation explicite (bandeau → confirmation). L'acceptation vaut pour UNE cible
+// et vit en MÉMOIRE seulement : elle ne survit ni à un rechargement, ni à la sortie de
+// la vue, ni à un changement de cible. Acceptée, chaque requête porte en plus
+// `X-Oto-View-As-Write: 1` ; le serveur n'accepte une écriture en vue que sur ce
+// header ET pour un super_admin, et la journalise « par <opérateur> en tant que <cible> ».
+const writeAcceptedFor = ref<string | null>(null)
+// Incrémenté quand une écriture a été refusée faute d'acceptation (403
+// `view_as_read_only`) : le bandeau y répond en proposant le geste.
+export const viewAsWriteRequests = ref(0)
+
+export function viewAsWriteAccepted(): boolean {
+  const u = getViewUser()
+  return !!u && writeAcceptedFor.value === u.sub
+}
+export function acceptViewAsWrite(): void {
+  const u = getViewUser()
+  writeAcceptedFor.value = u ? u.sub : null
+}
+export function revokeViewAsWrite(): void { writeAcceptedFor.value = null }
+export function requestViewAsWrite(): void { viewAsWriteRequests.value++ }
+
 export function viewHeaders(): Record<string, string> {
   const h: Record<string, string> = {}
   const u = getViewUser()
-  if (u) { h['X-Oto-View-As'] = u.sub; return h }  // user-as prime : sa maison suit, pas de view-org
+  if (u) {  // user-as prime : sa maison suit, pas de view-org
+    h['X-Oto-View-As'] = u.sub
+    if (writeAcceptedFor.value === u.sub) h['X-Oto-View-As-Write'] = '1'
+    return h
+  }
   if (viewOrgId !== null) h['X-Oto-Org'] = viewOrgId
   if (viewGroupId !== null) h['X-Oto-Group'] = viewGroupId
   return h

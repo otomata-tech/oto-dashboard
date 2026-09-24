@@ -32,12 +32,21 @@ const { me } = useMe()
 // de toute façon ; l'UI ne propose pas l'action à un simple opérateur).
 const canManageRoles = computed(() => isSuperAdmin(me.value))
 
-// « Voir en tant que » (ADR 0023, lecture seule) : pose la consultation user + recharge
-// sur le console — tout le dashboard rend alors la vue de ce user. Pas sur soi-même.
+// « Voir en tant que » (ADR 0023, lecture seule par défaut) : pose la consultation user +
+// recharge sur le console — tout le dashboard rend alors la vue de ce user. Pas sur
+// soi-même. On y fige QUI consulte : pendant la vue, `/api/me` rend la cible, et le
+// bandeau n'offre « écrire en tant que » qu'à un super_admin.
 const canViewAs = computed(() => !!detail.value && detail.value.sub !== me.value?.sub)
 function viewAsUser() {
   if (!detail.value) return
-  setViewUser({ sub: detail.value.sub, name: detail.value.name || detail.value.email || detail.value.sub })
+  setViewUser({
+    sub: detail.value.sub,
+    name: detail.value.name || detail.value.email || detail.value.sub,
+    operator: {
+      name: me.value?.name || me.value?.email || me.value?.sub || '',
+      superAdmin: isSuperAdmin(me.value),
+    },
+  })
   window.location.href = '/console'
 }
 

@@ -489,6 +489,8 @@
     "invalid_role": "rôle invalide",
     "forbidden": "tu n'as pas accès à ceci",
     "stale_session": "ta session a expiré — reconnecte-toi",
+    "view_as_read_only": "consultation en lecture seule — en « voir en tant que », un super_admin peut ouvrir l'écriture par le bouton « Écrire en tant que … » du bandeau en haut",
+    "view_as_write_forbidden": "écrire au nom d'un autre compte est réservé au super_admin",
     "invalid_api_token": "jeton d'API invalide",
     "invalid_token": "jeton de session invalide",
     "missing_bearer": "non authentifié",

@@ -66,6 +66,20 @@ y vaut faux pour un membre, et les gestes du compte vu restent affichés. Le fro
 REST-only, zéro effet MCP. ⚠️ **L'état d'un tiers (fiche admin) est calculé contre SON org
 persistée, pas `current_org`** (qui renverrait le contexte du requérant) — cf. backend §ADR 0023.
 
+**Écrire en tant que (24/09/2026, décision d'Alexis).** La vue reste en lecture seule par
+défaut. Au **super_admin** seulement, le bandeau offre « Écrire en tant que <cible> » : une
+confirmation intégrée (`usePrompt`, jamais un dialogue natif) dit que chaque modification sera
+faite au nom de la cible et journalisée « par <opérateur> en tant que <cible> », visible par son
+organisation. Acceptée, chaque requête porte en plus `X-Oto-View-As-Write: 1` (`viewHeaders`) et
+le bandeau passe en mode écriture, avec « Revenir en lecture seule ». L'acceptation vit **en
+mémoire** (`writeAcceptedFor`, `lib/viewOrg.ts`) : elle tombe au rechargement, en quittant la vue
+et en changeant de cible. Le rôle de l'opérateur est **figé à l'entrée** (`ViewUser.operator`,
+posé par `AdminUserView`) parce que `/api/me` rend alors la cible : c'est un indice d'affichage,
+le serveur reste l'autorité (403 `view_as_write_forbidden` hors super_admin, 403
+`view_as_read_only` sans acceptation — ce refus rouvre la confirmation, via
+`viewAsWriteRequests`). Une vue posée avant ce lot n'a pas d'`operator` : pas de bouton, il suffit
+de la reprendre depuis la fiche admin.
+
 ## Hub compte (`/account`)
 
 `AccountView.vue` = hub « gérer mon compte » (≠ ancien écran profil seul) : carte **profile**

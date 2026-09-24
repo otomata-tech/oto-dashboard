@@ -1,5 +1,5 @@
 import { useAuth } from '@/composables/useAuth'
-import { viewHeaders } from '@/lib/viewOrg'
+import { getViewUser, requestViewAsWrite, viewHeaders } from '@/lib/viewOrg'
 import { beginBusy, endBusy } from '@/lib/busy'
 
 // Un refus REST tel que le backend le rend : `error` (jeton machine), `detail`
@@ -28,7 +28,11 @@ async function apiError(resp: Response): Promise<ApiError> {
   const body = (await resp.json().catch(() => ({}))) as {
     error?: string; detail?: string; details?: Record<string, unknown>
   }
-  return new ApiError(resp.status, body.error ?? resp.statusText, body.detail, body.details)
+  const err = new ApiError(resp.status, body.error ?? resp.statusText, body.detail, body.details)
+  // Une écriture en « voir en tant que » refusée faute d'acceptation : le bandeau
+  // propose alors le geste d'acceptation (au super_admin), au lieu d'un refus sec.
+  if (err.status === 403 && err.code === 'view_as_read_only' && getViewUser()) requestViewAsWrite()
+  return err
 }
 
 // Le backend du dashboard est oto-mcp (REST /api/*) — pas de serveur propre
@@ -53,7 +57,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       headers: {
         Authorization: `Bearer ${token}`,
         ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-        ...viewHeaders(),   // view-as : scope la consultation org/équipe (ADR 0023), sans muter l'identité
+        ...viewHeaders(),   // view-as : scope la consultation (ADR 0023) ; écriture seulement après acceptation
         ...init.headers,
       },
     })

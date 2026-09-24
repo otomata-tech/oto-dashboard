@@ -18,7 +18,8 @@ l'incident qui l'a produite et ses cas limites dans le doc pointé.
   `canWriteInOrg` (`useMe`), jamais le rôle seul — en consultation (`active_org_readonly`) le serveur
   refuse tout, super_admin compris ; la coque le dit une fois (`ConsultOrgBanner`), l'écran omet ses
   gestes, `/connectors` compris. « Voir en tant que » n'est pas couvert : aucun champ servi ne le dit,
-  et la règle ne le déduit pas. → `conventions.md`, `orgs-groupes-invitations.md`
+  et la règle ne le déduit pas ; le super_admin peut y ouvrir l'écriture par un geste d'acceptation
+  explicite (bandeau). → `conventions.md`, `orgs-groupes-invitations.md`, `identite-et-consultation.md`
 - **Un droit d'ÉCRITURE ne se déduit pas d'un droit d'ADMINISTRATION** : un geste d'écriture lit le
   drapeau de SON geste (`can_write_instructions`…), jamais `can_edit`. Aucun écran n'écrit plus de
   procédure aujourd'hui ; la règle vaut pour le prochain. → `orgs-groupes-invitations.md`
