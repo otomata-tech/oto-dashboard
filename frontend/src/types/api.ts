@@ -1886,6 +1886,13 @@ export type ModelSubscription = components['schemas']['Abonnement']
 export type ModelSubscriptionList = ApiOut<'me_model_subscriptions_list_get'>
 export type ModelSubscriptionLogin = ApiOut<'me_model_subscriptions_connect_post'>
 export type ModelSubscriptionRemoved = ApiOut<'me_model_subscriptions_remove_delete'>
+// Plafond de consommation : part max de l'usage TOTAL du compte du fournisseur (fenêtres
+// 5 h et 7 j). Perso (`PATCH`, null = aucun) et org (`GET`/`PUT`, null = défaut plateforme).
+export type ModelSubscriptionLimitBody = ApiIn<'me_model_subscriptions_set_limit_patch'>
+export type ModelSubscriptionLimitSet = ApiOut<'me_model_subscriptions_set_limit_patch'>
+export type OrgModelSubscriptionCap = ApiOut<'org_model_subscriptions_get_get'>
+export type OrgModelSubscriptionLimitBody = ApiIn<'org_model_subscriptions_set_put'>
+export type OrgModelSubscriptionCapSet = ApiOut<'org_model_subscriptions_set_put'>
 
 // ── accueil : « Dernières modifications » (oto#191, `GET /api/me/recent-changes`) ──
 // Une page (`type: 'doc'`, `id` = son `doc_id`, `project` renseigné) ou une procédure

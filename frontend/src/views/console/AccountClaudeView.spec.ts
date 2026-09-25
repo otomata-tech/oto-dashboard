@@ -5,7 +5,9 @@
 //      lecture ne le dit avant) se DIT, et le bouton qui échouerait disparaît ;
 //   3. effacer le sandbox passe par la modale de la console, jamais `window.confirm`, et
 //      renoncer n'appelle rien ;
-//   4. un statut hors de l'ensemble fermé lève au lieu d'être affiché comme un autre.
+//   4. un statut hors de l'ensemble fermé lève au lieu d'être affiché comme un autre ;
+//   5. le plafond perso : entier 1..100 ou null, jamais envoyé invalide, enregistré sur
+//      geste explicite, refus nommé sous le réglage.
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import { i18n } from '@/lib/i18n'
@@ -17,12 +19,13 @@ const api = vi.hoisted(() => ({
   startModelSubscriptionLogin: vi.fn(),
   sendModelSubscriptionCode: vi.fn(),
   removeModelSubscription: vi.fn(),
+  setModelSubscriptionLimit: vi.fn(),
 }))
 vi.mock('@/api/console', () => api)
 
 const CONNECTE = {
   family: 'claude_subscription', statut: 'connected', plan: 'max',
-  limit_reset_at: null, last_ok_at: null, waiting_jobs: 2,
+  limit_reset_at: null, last_ok_at: null, limit_pct: null as number | null, waiting_jobs: 2,
 }
 
 async function settle() {
@@ -98,6 +101,68 @@ describe('useModelSubscription — le parcours', () => {
   it('un statut inconnu lève', async () => {
     const { statutOf } = await import('@/lib/modelSubscription')
     expect(() => statutOf({ ...CONNECTE, statut: 'quelque_chose' })).toThrow(/inconnu/)
+  })
+})
+
+describe('plafond de consommation — la logique', () => {
+  it('bornes : entier de 1 à 100, ou null', async () => {
+    const { isValidLimit, parseLimitInput } = await import('@/lib/modelSubscription')
+    expect(isValidLimit(null)).toBe(true)
+    expect(isValidLimit(1)).toBe(true)
+    expect(isValidLimit(100)).toBe(true)
+    expect(isValidLimit(0)).toBe(false)
+    expect(isValidLimit(101)).toBe(false)
+    expect(isValidLimit(50.5)).toBe(false)
+    expect(parseLimitInput(' 60 ')).toBe(60)
+    expect(parseLimitInput(60)).toBe(60)
+    for (const bad of ['', '0', '101', '12.5', '-3', 'abc', null, undefined]) {
+      expect(parseLimitInput(bad)).toBeUndefined()
+    }
+  })
+
+  it('le brouillon suit la valeur enregistrée ; dirty = valide et différent', async () => {
+    const { ref } = await import('vue')
+    const { useLimitDraft } = await import('@/lib/modelSubscription')
+    const saved = ref<number | null>(null)
+    const d = useLimitDraft(() => saved.value)
+    expect(d.own.value).toBe(false)
+    expect(d.value.value).toBeNull()
+    expect(d.dirty.value).toBe(false)
+
+    d.own.value = true
+    expect(d.invalid.value).toBe(true)      // aucun chiffre saisi : rien à envoyer
+    expect(d.dirty.value).toBe(false)
+    d.text.value = '150'
+    expect(d.invalid.value).toBe(true)
+    d.text.value = '60'
+    expect(d.value.value).toBe(60)
+    expect(d.dirty.value).toBe(true)
+
+    saved.value = 60                        // enregistré : le brouillon se recale
+    await nextTick()
+    expect(d.own.value).toBe(true)
+    expect(d.text.value).toBe(60)
+    expect(d.dirty.value).toBe(false)
+    d.own.value = false                     // retirer son plafond = envoyer null
+    expect(d.value.value).toBeNull()
+    expect(d.dirty.value).toBe(true)
+  })
+
+  it('setLimit : la réponse relue fait foi ; un refus est retenu à part', async () => {
+    api.getModelSubscriptions.mockResolvedValue({ subscriptions: [CONNECTE] })
+    api.setModelSubscriptionLimit.mockResolvedValue({ ...CONNECTE, limit_pct: 40 })
+    const { useModelSubscription, errorKey } = await import('@/lib/modelSubscription')
+    const f = useModelSubscription()
+    await f.load()
+    expect(await f.setLimit(40)).toBe(true)
+    expect(api.setModelSubscriptionLimit).toHaveBeenCalledWith('claude_subscription', 40)
+    expect(f.sub.value?.limit_pct).toBe(40)
+
+    api.setModelSubscriptionLimit.mockRejectedValue(new ApiError(400, 'invalid_limit'))
+    expect(await f.setLimit(40)).toBe(false)
+    expect(errorKey(f.limitError.value)).toBe('modelSub.errors.invalid_limit')
+    expect(f.error.value).toBeNull()        // l'état de connexion n'en est pas touché
+    expect(f.sub.value?.limit_pct).toBe(40)
   })
 })
 
@@ -186,6 +251,63 @@ describe('AccountClaudeView — l’écran', () => {
     expect(host.querySelector('[data-test=etat-desc]')!.textContent).toContain('en pause jusqu')
     expect(host.querySelector('[data-test=waiting]')).toBeNull()
     expect(bouton(host, 'Connecter')).toBeUndefined()
+    unmount()
+  })
+
+  it('sans abonnement, pas de réglage de plafond', async () => {
+    api.getModelSubscriptions.mockResolvedValue({ subscriptions: [] })
+    const { host, unmount } = await mountView()
+    expect(host.querySelector('[data-test=limit-card]')).toBeNull()
+    unmount()
+  })
+
+  it('plafond perso : saisir, enregistrer ; hors bornes, le bouton reste inerte', async () => {
+    api.getModelSubscriptions.mockResolvedValue({ subscriptions: [CONNECTE] })
+    api.setModelSubscriptionLimit.mockResolvedValue({ ...CONNECTE, limit_pct: 60 })
+    const { host, unmount } = await mountView()
+
+    expect(host.querySelector('[data-test=limit-current]')!.textContent).toContain('aucun plafond perso')
+    expect(host.querySelector('[data-test=limit-rule]')!.textContent)
+      .toContain('le plus strict entre le plafond de l\'org qui lance le run (80 % par défaut')
+    expect(host.textContent).toContain('le run en cours finit')
+    const save = () => host.querySelector<HTMLButtonElement>('[data-test=limit-save]')!
+    expect(save().disabled).toBe(true)
+    expect(host.querySelector('[data-test=limit-input]')).toBeNull()
+
+    host.querySelector<HTMLButtonElement>('[data-test=limit-own]')!.click()
+    await settle()
+    const input = host.querySelector<HTMLInputElement>('[data-test=limit-input]')!
+    input.value = '150'
+    input.dispatchEvent(new Event('input'))
+    await settle()
+    expect(save().disabled).toBe(true)
+
+    input.value = '60'
+    input.dispatchEvent(new Event('input'))
+    await settle()
+    expect(save().disabled).toBe(false)
+    host.querySelector('[data-test=limit-card] form')!.dispatchEvent(new Event('submit'))
+    await settle()
+    expect(api.setModelSubscriptionLimit).toHaveBeenCalledWith('claude_subscription', 60)
+    expect(host.querySelector('[data-test=limit-current]')!.textContent).toContain('60 %')
+    expect(save().disabled).toBe(true)
+    unmount()
+  })
+
+  it('retirer son plafond envoie null ; un refus du serveur est nommé sous le réglage', async () => {
+    api.getModelSubscriptions.mockResolvedValue({ subscriptions: [{ ...CONNECTE, limit_pct: 50 }] })
+    api.setModelSubscriptionLimit.mockRejectedValue(new ApiError(404, 'not_connected'))
+    const { host, unmount } = await mountView()
+
+    expect(host.querySelector('[data-test=limit-current]')!.textContent).toContain('50 %')
+    host.querySelector<HTMLButtonElement>('[data-test=limit-none]')!.click()
+    await settle()
+    host.querySelector('[data-test=limit-card] form')!.dispatchEvent(new Event('submit'))
+    await settle()
+    expect(api.setModelSubscriptionLimit).toHaveBeenCalledWith('claude_subscription', null)
+    expect(host.querySelector('[data-test=limit-error]')!.textContent)
+      .toContain("Aucun abonnement Claude n'est branché")
+    expect(host.querySelector('[data-test=error]')).toBeNull()
     unmount()
   })
 })

@@ -75,6 +75,10 @@ const CLASSEES: Record<string, string> = {
   // Refus d'un geste de l'abonnement Claude (code refusé, ferme injoignable) : le geste qui
   // le reprend — « Valider », « Recommencer », « Connecter » — est dans la même carte, au-dessus.
   'views/console/AccountClaudeView.vue#0': 'levier-voisin',
+  // Refus d'enregistrer le plafond de consommation (perso, puis celui de l'org) : le champ
+  // et « Enregistrer » sont dans le même formulaire, juste sous l'alerte.
+  'views/console/AccountClaudeView.vue#1': 'levier-voisin',
+  'components/console/OrgModelSubscriptionCard.vue#1': 'levier-voisin',
 }
 const RAISONS = new Set(['informatif', 'levier-voisin'])
 

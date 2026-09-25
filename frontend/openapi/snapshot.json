@@ -1,11 +1,11 @@
 {
   "source": "https://mcp.oto.cx/api/openapi.json",
-  "fetched_at": "2026-09-25T08:23:02.758Z",
-  "sha256": "9783797c8e59d3b9e2bee972f2f8c46e299e3e13c0ad0acd771469cf09c58f06",
+  "fetched_at": "2026-09-25T09:58:15.993Z",
+  "sha256": "4af5bc24af84b99aba35328d858a54f207bbcd3508391a6ee3bb71cbb97dca61",
   "coverage": {
-    "operations": 290,
-    "withResponse": 220,
+    "operations": 299,
+    "withResponse": 229,
     "legacy": 32,
-    "schemas": 149
+    "schemas": 153
   }
 }

@@ -496,11 +496,27 @@
     "toastConnected": "Claude subscription connected",
     "toastDisconnected": "Claude subscription signed out",
     "toastDestroyed": "sandbox erased",
+    "limit": {
+      "title": "usage cap",
+      "sub": "the maximum share of your Claude account's total usage (5-hour and 7-day windows, your personal use included) your agents may reach.",
+      "none": "no personal cap",
+      "pct": "{pct}%",
+      "noneChoice": "no personal cap",
+      "ownChoice": "my cap",
+      "inputLabel": "personal cap, in %",
+      "bounds": "whole number from {min} to {max}",
+      "rule": "The threshold applied is the stricter of the cap of the org running the job ({pct}% by default, set by its admins) and yours.",
+      "atThreshold": "At the threshold, the running job finishes; the next ones wait for the windows to reset — none fail.",
+      "saving": "Saving…",
+      "toastSaved": "personal cap: {pct}%",
+      "toastCleared": "personal cap removed"
+    },
     "errors": {
       "subscription_not_enabled": "This option isn't enabled on your account.",
       "login_failed": "Anthropic didn't open a session with this code (expired or already used). Click “Start over”.",
       "farm_unavailable": "The sandbox service isn't responding right now. Try again in a few minutes.",
-      "not_connected": "No Claude subscription is connected on your account."
+      "not_connected": "No Claude subscription is connected on your account.",
+      "invalid_limit": "The cap must be a whole number from 1 to 100."
     }
   },
   "errors": {
@@ -2236,6 +2252,22 @@
       "creating": "Creating…",
       "create": "Create",
       "invitation": "have an invitation? open the link from your email instead."
+    },
+    "modelSub": {
+      "title": "Claude subscriptions · usage cap",
+      "sub": "when an org job runs on a member's Claude subscription, the maximum share of that account's total usage (5-hour and 7-day windows) it may reach.",
+      "current": "{pct}%",
+      "currentDefault": "{pct}% · default",
+      "descDefault": "The org hasn't set anything: the platform default applies, {pct}%.",
+      "descSet": "Org cap: {pct}% of each member's account total usage.",
+      "updated": "changed {date}",
+      "memberRule": "Each member can set a stricter cap on “My Claude subscription”: the lower of the two applies. At the threshold, the running job finishes and the next ones wait for the windows to reset.",
+      "inputLabel": "org cap, in %",
+      "backToDefault": "Back to the default ({pct}%)",
+      "readOnly": "Only an org admin can change this cap.",
+      "unavailable": "Cap unavailable.",
+      "toastSaved": "org cap: {pct}%",
+      "toastDefault": "org cap back to the default ({pct}%)"
     },
     "mfa": {
       "title": "security · mandatory MFA",

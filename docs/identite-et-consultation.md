@@ -144,5 +144,15 @@ coupe). Brancher son abonnement Claude (Pro, Max) pour que ses agents tournent d
 - **Retrait** : « Se déconnecter » (garde le sandbox, statut `disconnected`) ; « Effacer mon sandbox »
   (`?destroy=true`, irréversible) après confirmation `usePrompt` — jamais `window.confirm`.
   Après un retrait l'état est **relu**, pas déduit.
+- **Plafond de consommation** (carte à part, dès qu'un abonnement existe) : la part maximale de
+  l'usage **total** du compte Claude (fenêtres 5 h et 7 j, usage perso compris) que ses agents
+  peuvent atteindre. Choix « aucun plafond perso » / « mon plafond » (entier 1–100, `useLimitDraft`,
+  « Enregistrer » inerte tant que la saisie est invalide ou inchangée) → `PATCH …/{family}`
+  `{limit_pct}` (null = aucun plafond perso) ; la réponse est l'abonnement relu (`limit_pct`). Une
+  ligne dit le seuil appliqué — le plus strict entre le plafond de l'org du run (80 % par défaut,
+  réglé sur `/org/settings`, `docs/orgs-groupes-invitations.md`) et le sien — et ce qui se passe au
+  seuil : le run en cours finit, les suivants attendent la réinitialisation des fenêtres. Un refus
+  (`invalid_limit`, `not_connected`) s'affiche sous le réglage (`limitError`), sans toucher l'état
+  de connexion.
 - Le sélecteur de modèle d'une programmation (`optionsModele`) propose les `sub:*` dès que le
   catalogue les sert (`served`) : aucun filtre dédié.

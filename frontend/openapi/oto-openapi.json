@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Oto REST API",
-    "version": "v1.364.0+9e9b474c",
+    "version": "v1.369.0+ca58afeb",
     "description": "API REST de la plateforme Oto. Deux faces servent le même métier (ADR 0009) : le\nMCP (`/mcp`, JWT Logto) et ce REST. Ce document est **dérivé du serveur** à chaque\nrequête — il décrit ce qui tourne, pas une intention.\n\n**Authentification** — `Authorization: Bearer <jeton>`, sous deux formes :\n\n- **JWT Logto** (session interactive : dashboard, connecteur MCP) ;\n- **jeton API** `oto_…` (intégration programmatique), émis depuis une session\n  interactive — un jeton ne peut ni lister, ni créer, ni révoquer de jeton.\n\n**Portée d'un jeton** — un jeton API peut être **porté** à sa création\n(`POST /api/me/tokens` avec `scopes`) : il n'ouvre alors QUE les tableaux nommés,\nen lecture ou écriture, et rien d'autre de l'organisation. C'est la forme à confier\nà une intégration tierce. Hors portée : `403 token_scope_forbidden`.\n\n**Verbe dans le corps** — les surfaces consolidées (projets, pages, procédures,\nressources…) exposent un seul chemin dont le corps porte le verbe : `{\"op\": \"list\"}`.\nLes valeurs possibles sont dans l'énuméré `op` du schéma de la requête.\n\n**Contexte d'organisation** — en-tête optionnel `X-Oto-Org` (et `X-Oto-Group`) pour\ntravailler dans une organisation précise ; par défaut, l'organisation maison.\n\n**Erreurs** — une seule enveloppe, le composant `Erreur` : `error` (jeton machine\nstable, la clé sur laquelle un client décide), `detail` (la phrase, actionnable) et\nparfois `details` (forme structurée). Les 4xx listés sur une opération sont ceux\nqu'elle DÉCLARE, chacun rejoué par un test ; la liste n'est pas exhaustive : tout\nappel peut rendre `400 invalid_input` / `unknown_fields` / `invalid_json` /\n`invalid_body` (validation de la requête par l'adaptateur), `401` et `403`.\n"
   },
   "paths": {
@@ -2078,8 +2078,8 @@
     "/api/datastores": {
       "get": {
         "operationId": "me_datastore_list_datastores_get",
-        "summary": "Liste les tableaux visibles dans l'org active (possédés et partagés).",
-        "description": "Liste les tableaux visibles dans l'org active (possédés et partagés).",
+        "summary": "Liste les tableaux visibles dans l'org active : ceux de l'org et de tes équipes, ceux partagés à l'org ou à tes équipes, et TES tableaux personnels créés dans cette org (plus ceux ",
+        "description": "Liste les tableaux visibles dans l'org active : ceux de l'org et de tes équipes, ceux partagés à l'org ou à tes équipes, et TES tableaux personnels créés dans cette org (plus ceux d'avant dont l'org de création est inconnue). Un personnel créé dans une autre org est listé là-bas, pas ici ; il s'ouvre toujours par son numéro.",
         "tags": [
           "datastore"
         ],
@@ -2211,7 +2211,7 @@
       "post": {
         "operationId": "me_datastore_create_datastore_post",
         "summary": "Crée un tableau",
-        "description": "Crée un tableau. Par défaut il est PERSONNEL (visible de toi seul — ni les autres membres de ton org, ni ses administrateurs) ; passe `owner: {type: \"org\"|\"group\", id: N}` pour qu'il appartienne à l'org ou à l'équipe, et soit lisible de tous ses membres. ⚠️ L'en-tête `X-Oto-Org` NE CHANGE PAS le propriétaire : il décide sous quelle org on lit et écrit, jamais à qui appartient ce qu'on crée — seul `owner` le fait à la création. Ensuite, le propriétaire se change par TRANSFERT (`oto_resource op=transfer`, `POST /api/resources`, réservé au propriétaire ou à un admin). Créé sous cet en-tête sans `owner`, le tableau naît personnel et tout continue de fonctionner pour TOI : c'est au second agent, ou au collègue qui ne le trouve pas, que ça se voit. La réponse rend le propriétaire et vous avertit dans ce cas précis.",
+        "description": "Crée un tableau. Par défaut il est PERSONNEL (visible de toi seul — ni les autres membres de ton org, ni ses administrateurs) ; passe `owner: {type: \"org\"|\"group\", id: N}` pour qu'il appartienne à l'org ou à l'équipe, et soit lisible de tous ses membres. ⚠️ L'en-tête `X-Oto-Org` NE CHANGE PAS le propriétaire : il décide sous quelle org on lit et écrit, jamais à qui appartient ce qu'on crée — seul `owner` le fait à la création. Ensuite, le propriétaire se change par TRANSFERT (`oto_resource op=transfer`, `POST /api/resources`, réservé au propriétaire ou à un admin). Créé sous cet en-tête sans `owner`, le tableau naît personnel et tout continue de fonctionner pour TOI : c'est au second agent, ou au collègue qui ne le trouve pas, que ça se voit. La réponse rend le propriétaire et vous avertit dans ce cas précis. Un tableau personnel n'est LISTÉ que dans l'org où il a été créé (`X-Oto-Org`, ou l'org active) ; son numéro l'ouvre partout.",
         "tags": [
           "datastore"
         ],
@@ -13741,6 +13741,33 @@
                       "default": false,
                       "title": "View As Read Only",
                       "type": "boolean"
+                    },
+                    "view_as_bound_org": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "View As Bound Org"
+                    },
+                    "view_as_refused_prefixes": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "View As Refused Prefixes"
                     },
                     "active_org_is_personal": {
                       "default": false,
@@ -30446,6 +30473,239 @@
             "$ref": "#/components/parameters/XOtoRun"
           }
         ]
+      },
+      "patch": {
+        "operationId": "me_model_subscriptions_set_limit_patch",
+        "summary": "Set (or remove, `null`) YOUR own consumption cap on a model subscription.\n\nThe cap is a share, in % (1..100), of your provider account's TOTAL usage — the\n5-hour and 7-day windows ",
+        "description": "Set (or remove, `null`) YOUR own consumption cap on a model subscription.\n\nThe cap is a share, in % (1..100), of your provider account's TOTAL usage — the\n5-hour and 7-day windows the provider reports, your personal use included. Once a\nwindow reaches it, your agents' next jobs WAIT for the window to reset; a job\nalready running is never cut. Your organisation sets its own cap (80 % unless it\nchose otherwise): the LOWER of the two applies, so yours can only keep more room\nfor yourself, never raise the org's.",
+        "tags": [
+          "model_subscriptions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Un abonnement tel qu'un écran le montre.\n\n⚠️ Ni adresse e-mail, ni organisation du fournisseur, ni rien qui approche\nune session : la sonde les lit, la plateforme n'en garde rien.",
+                  "properties": {
+                    "family": {
+                      "title": "Family",
+                      "type": "string"
+                    },
+                    "statut": {
+                      "description": "`connected` | `needs_login` | `paused_limit` | `disconnected`.",
+                      "title": "Statut",
+                      "type": "string"
+                    },
+                    "plan": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "The plan tier the provider reported, e.g. `max`.",
+                      "title": "Plan"
+                    },
+                    "limit_reset_at": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "When the plan limit lifts, if the person is waiting on one. Their jobs stay queued until then — none fail.",
+                      "title": "Limit Reset At"
+                    },
+                    "last_ok_at": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Last Ok At"
+                    },
+                    "limit_pct": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "YOUR own consumption cap, in % of the account's total usage (`null` = none). It can only tighten your org's cap (default 80 %): the lower of the two applies.",
+                      "title": "Limit Pct"
+                    },
+                    "waiting_jobs": {
+                      "default": 0,
+                      "description": "How many of your jobs are queued on this subscription right now. While you are signed out, need to reconnect, or wait on a plan limit, they WAIT — none fail — and they resume on their own once you are back.",
+                      "title": "Waiting Jobs",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "family",
+                    "statut"
+                  ],
+                  "title": "Abonnement",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`unknown_family` — une famille qui n'est pas servie par abonnement ; `invalid_limit` — `limit_pct` hors de 1..100 ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "unknown_family",
+                            "invalid_limit",
+                            "run_org_mismatch"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "jeton absent ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "refus d'autorisation (ou hors portée du jeton)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`not_connected` — aucun abonnement de cette famille pour cette personne ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "not_connected",
+                            "run_not_found"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`run_closed` — le run de `X-Oto-Run` est clos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_closed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "family",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "description": "The model family, e.g. `claude_subscription`.",
+              "title": "Family",
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/XOtoRun"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "limit_pct": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Your own consumption cap, in % (1..100) of your provider account's TOTAL usage (5-hour and 7-day windows, your personal use included). `null` removes it.",
+                    "title": "Limit Pct"
+                  }
+                },
+                "required": [
+                  "limit_pct"
+                ]
+              }
+            }
+          }
+        }
       }
     },
     "/api/me/model-subscriptions/{family}/login": {
@@ -30706,6 +30966,19 @@
                       ],
                       "default": null,
                       "title": "Last Ok At"
+                    },
+                    "limit_pct": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "YOUR own consumption cap, in % of the account's total usage (`null` = none). It can only tighten your org's cap (default 80 %): the lower of the two applies.",
+                      "title": "Limit Pct"
                     },
                     "waiting_jobs": {
                       "default": 0,
@@ -45227,6 +45500,420 @@
         }
       }
     },
+    "/api/orgs/{id}/model-subscriptions/{family}": {
+      "get": {
+        "operationId": "org_model_subscriptions_get_get",
+        "summary": "Read the org's consumption cap on its members' personal model subscriptions (e.g",
+        "description": "Read the org's consumption cap on its members' personal model subscriptions (e.g. `claude_subscription`): the max share, in %, of each member's provider account TOTAL usage (5-hour and 7-day windows) the org's jobs may reach before the next ones wait for the reset. `default: true` = not set, platform default (80). A member may set a LOWER cap for themselves; the lower one applies.",
+        "tags": [
+          "model_subscriptions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Le plafond de l'org pour une famille d'abonnement.",
+                  "properties": {
+                    "org_id": {
+                      "title": "Org Id",
+                      "type": "integer"
+                    },
+                    "family": {
+                      "title": "Family",
+                      "type": "string"
+                    },
+                    "limit_pct": {
+                      "description": "The cap, in % of each member's provider account TOTAL usage (5-hour and 7-day windows). Past it, the org's next jobs on that subscription wait for the window to reset.",
+                      "title": "Limit Pct",
+                      "type": "integer"
+                    },
+                    "default": {
+                      "type": "boolean",
+                      "description": "`true` = the org has set nothing; this is the platform default.",
+                      "title": "Default"
+                    },
+                    "updated_at": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Updated At"
+                    },
+                    "updated_by": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Updated By"
+                    }
+                  },
+                  "required": [
+                    "org_id",
+                    "family",
+                    "limit_pct",
+                    "default"
+                  ],
+                  "title": "OrgPlafond",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`unknown_family` — une famille qui n'est pas servie par abonnement ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "unknown_family",
+                            "run_org_mismatch"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "jeton absent ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "refus d'autorisation (ou hors portée du jeton)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`unknown_org` — l'org n'existe pas ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "unknown_org",
+                            "run_not_found"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`run_closed` — le run de `X-Oto-Run` est clos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_closed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "integer"
+            },
+            "description": "champ `org_id` de la requête"
+          },
+          {
+            "name": "family",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Family",
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/XOtoRun"
+          }
+        ]
+      },
+      "put": {
+        "operationId": "org_model_subscriptions_set_put",
+        "summary": "Set the org's consumption cap on its members' personal model subscriptions: `limit_pct` 1..100 (% of each member's provider account TOTAL usage, 5-hour and 7-day windows alike), or",
+        "description": "Set the org's consumption cap on its members' personal model subscriptions: `limit_pct` 1..100 (% of each member's provider account TOTAL usage, 5-hour and 7-day windows alike), or `null` to go back to the platform default (80). Applies from the next job report; a running job is never cut. Org admin.",
+        "tags": [
+          "model_subscriptions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Le plafond de l'org pour une famille d'abonnement.",
+                  "properties": {
+                    "org_id": {
+                      "title": "Org Id",
+                      "type": "integer"
+                    },
+                    "family": {
+                      "title": "Family",
+                      "type": "string"
+                    },
+                    "limit_pct": {
+                      "description": "The cap, in % of each member's provider account TOTAL usage (5-hour and 7-day windows). Past it, the org's next jobs on that subscription wait for the window to reset.",
+                      "title": "Limit Pct",
+                      "type": "integer"
+                    },
+                    "default": {
+                      "type": "boolean",
+                      "description": "`true` = the org has set nothing; this is the platform default.",
+                      "title": "Default"
+                    },
+                    "updated_at": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Updated At"
+                    },
+                    "updated_by": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Updated By"
+                    }
+                  },
+                  "required": [
+                    "org_id",
+                    "family",
+                    "limit_pct",
+                    "default"
+                  ],
+                  "title": "OrgPlafond",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`unknown_family` — une famille qui n'est pas servie par abonnement ; `invalid_limit` — `limit_pct` hors de 1..100 ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "unknown_family",
+                            "invalid_limit",
+                            "run_org_mismatch"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "jeton absent ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "refus d'autorisation (ou hors portée du jeton)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`unknown_org` — l'org n'existe pas ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "unknown_org",
+                            "run_not_found"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`run_closed` — le run de `X-Oto-Run` est clos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_closed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "integer"
+            },
+            "description": "champ `org_id` de la requête"
+          },
+          {
+            "name": "family",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Family",
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/XOtoRun"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "limit_pct": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "1..100, or `null` to go back to the platform default.",
+                    "title": "Limit Pct"
+                  }
+                },
+                "required": [
+                  "limit_pct"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/orgs/{id}/monitoring/adoption": {
       "get": {
         "operationId": "org_monitoring_adoption_get",
@@ -50040,6 +50727,1143 @@
         }
       }
     },
+    "/api/service/orgs": {
+      "get": {
+        "operationId": "service_orgs_list_get",
+        "summary": "[service commerce] Non-archived orgs by increasing id, paginated by `after_id`.",
+        "description": "[service commerce] Non-archived orgs by increasing id, paginated by `after_id`.",
+        "tags": [
+          "orgs"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Les orgs non archivées d'id > `after_id`, par id croissant. `next_after_id` est\nle curseur de la page suivante, `None` quand la liste est finie.",
+                  "properties": {
+                    "orgs": {
+                      "items": {
+                        "$ref": "#/components/schemas/ServiceOrgRow"
+                      },
+                      "title": "Orgs",
+                      "type": "array"
+                    },
+                    "next_after_id": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Next After Id"
+                    }
+                  },
+                  "required": [
+                    "orgs"
+                  ],
+                  "title": "ServiceOrgs",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_org_mismatch"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "jeton absent ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "refus d'autorisation (ou hors portée du jeton)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_not_found"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`run_closed` — le run de `X-Oto-Run` est clos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_closed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "after_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "After Id",
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/XOtoRun"
+          }
+        ]
+      }
+    },
+    "/api/service/orgs/{id}/entitlements": {
+      "get": {
+        "operationId": "service_org_entitlements_list_get",
+        "summary": "[service commerce] Declared entitlements of an org, org-wide and per person, expired and future included.",
+        "description": "[service commerce] Declared entitlements of an org, org-wide and per person, expired and future included.",
+        "tags": [
+          "org"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Toutes les lignes de l'org, portée org (`sub` absent) et personnes, échues et à\nvenir comprises : le commerce voit ce qu'il a posé, dates non filtrées.",
+                  "properties": {
+                    "org_id": {
+                      "title": "Org Id",
+                      "type": "integer"
+                    },
+                    "entitlements": {
+                      "items": {
+                        "$ref": "#/components/schemas/ServiceEntitlementRow"
+                      },
+                      "title": "Entitlements",
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "org_id",
+                    "entitlements"
+                  ],
+                  "title": "ServiceEntitlements",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_org_mismatch"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "jeton absent ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "refus d'autorisation (ou hors portée du jeton)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`unknown_org` — l'org n'existe pas ou est archivée ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "unknown_org",
+                            "run_not_found"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`run_closed` — le run de `X-Oto-Run` est clos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_closed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "integer"
+            },
+            "description": "champ `org_id` de la requête"
+          },
+          {
+            "$ref": "#/components/parameters/XOtoRun"
+          }
+        ]
+      }
+    },
+    "/api/service/orgs/{id}/entitlements/{right_key}/{source}": {
+      "put": {
+        "operationId": "service_org_entitlement_put_put",
+        "summary": "[service commerce] Set (idempotent upsert) one entitlement: one row per (org, person, right, source)",
+        "description": "[service commerce] Set (idempotent upsert) one entitlement: one row per (org, person, right, source). `sub` omitted = the whole org. Returns the stored row.",
+        "tags": [
+          "org"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "right_key": {
+                      "title": "Right Key",
+                      "type": "string"
+                    },
+                    "source": {
+                      "title": "Source",
+                      "type": "string"
+                    },
+                    "value": {
+                      "title": "Value",
+                      "type": "integer"
+                    },
+                    "sub": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Sub"
+                    },
+                    "starts_at": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Starts At"
+                    },
+                    "expires_at": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Expires At"
+                    },
+                    "granted_by": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Granted By"
+                    },
+                    "granted_at": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "title": "Granted At"
+                    }
+                  },
+                  "required": [
+                    "right_key",
+                    "source",
+                    "value"
+                  ],
+                  "title": "ServiceEntitlementRow",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`unknown_source` — `source` hors de la liste fermée (subscription, trial, offered, partner, contract) ; `entitlement_unknown_key` — clé hors catalogue ; `entitlement_value_invalid` — valeur hors du genre de la clé ; `invalid_window` — `expires_at` ne suit pas `starts_at` ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "unknown_source",
+                            "entitlement_unknown_key",
+                            "entitlement_value_invalid",
+                            "invalid_window",
+                            "run_org_mismatch"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "jeton absent ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "refus d'autorisation (ou hors portée du jeton)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`unknown_org` — l'org n'existe pas ou est archivée ; `not_a_member` — la personne `sub` n'est pas membre de l'org ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "unknown_org",
+                            "not_a_member",
+                            "run_not_found"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`run_closed` — le run de `X-Oto-Run` est clos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_closed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "integer"
+            },
+            "description": "champ `org_id` de la requête"
+          },
+          {
+            "name": "right_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Right Key",
+              "type": "string"
+            }
+          },
+          {
+            "name": "source",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Source",
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/XOtoRun"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sub": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Sub"
+                  },
+                  "value": {
+                    "title": "Value",
+                    "type": "integer"
+                  },
+                  "starts_at": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Starts At"
+                  },
+                  "expires_at": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Expires At"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "service_org_entitlement_delete_delete",
+        "summary": "[service commerce] Remove one entitlement row (org, person, right, source); other sources and scopes stay.",
+        "description": "[service commerce] Remove one entitlement row (org, person, right, source); other sources and scopes stay.",
+        "tags": [
+          "org"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "ok": {
+                      "title": "Ok",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "title": "ServiceOk",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`unknown_source` — `source` hors de la liste fermée (subscription, trial, offered, partner, contract) ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "unknown_source",
+                            "run_org_mismatch"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "jeton absent ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "refus d'autorisation (ou hors portée du jeton)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`unknown_org` — l'org n'existe pas ou est archivée ; `not_a_member` — la personne `sub` n'est pas membre de l'org ; `unknown_entitlement` — aucune ligne à retirer ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "unknown_org",
+                            "not_a_member",
+                            "unknown_entitlement",
+                            "run_not_found"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`run_closed` — le run de `X-Oto-Run` est clos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_closed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "integer"
+            },
+            "description": "champ `org_id` de la requête"
+          },
+          {
+            "name": "right_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Right Key",
+              "type": "string"
+            }
+          },
+          {
+            "name": "source",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Source",
+              "type": "string"
+            }
+          },
+          {
+            "name": "sub",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Sub"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/XOtoRun"
+          }
+        ]
+      }
+    },
+    "/api/service/orgs/{id}/members": {
+      "get": {
+        "operationId": "service_org_members_get",
+        "summary": "[service commerce] Members of an org by seniority (`joined_at`), with email and last activity under this org.",
+        "description": "[service commerce] Members of an org by seniority (`joined_at`), with email and last activity under this org.",
+        "tags": [
+          "org"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Les membres de l'org PAR ANCIENNETÉ (`joined_at`, puis `sub`) — l'ordre dans\nlequel le commerce désigne les membres payants. `last_activity_at` = dernier appel\nd'outil émis sous CETTE org, `None` s'il n'y en a jamais eu.",
+                  "properties": {
+                    "org_id": {
+                      "title": "Org Id",
+                      "type": "integer"
+                    },
+                    "members": {
+                      "items": {
+                        "$ref": "#/components/schemas/ServiceMemberRow"
+                      },
+                      "title": "Members",
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "org_id",
+                    "members"
+                  ],
+                  "title": "ServiceMembers",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_org_mismatch"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "jeton absent ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "refus d'autorisation (ou hors portée du jeton)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`unknown_org` — l'org n'existe pas ou est archivée ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "unknown_org",
+                            "run_not_found"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`run_closed` — le run de `X-Oto-Run` est clos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_closed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "integer"
+            },
+            "description": "champ `org_id` de la requête"
+          },
+          {
+            "$ref": "#/components/parameters/XOtoRun"
+          }
+        ]
+      }
+    },
+    "/api/service/orgs/{id}/usage": {
+      "get": {
+        "operationId": "service_org_usage_get",
+        "summary": "[service commerce] Successful tool calls per person under an org over [since, until) (default: current month, UTC), and how many ran on a platform key.",
+        "description": "[service commerce] Successful tool calls per person under an org over [since, until) (default: current month, UTC), and how many ran on a platform key.",
+        "tags": [
+          "org"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Par personne, les appels d'outil RÉUSSIS émis sous l'org sur la fenêtre, et\nceux d'entre eux passés sur une clé de plateforme. Une personne sans appel n'y\nfigure pas ; un ancien membre qui a appelé, si.",
+                  "properties": {
+                    "org_id": {
+                      "title": "Org Id",
+                      "type": "integer"
+                    },
+                    "since": {
+                      "title": "Since",
+                      "type": "string"
+                    },
+                    "until": {
+                      "title": "Until",
+                      "type": "string"
+                    },
+                    "by_person": {
+                      "items": {
+                        "$ref": "#/components/schemas/ServiceUsageRow"
+                      },
+                      "title": "By Person",
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "org_id",
+                    "since",
+                    "until",
+                    "by_person"
+                  ],
+                  "title": "ServiceUsage",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`invalid_window` — `since` n'est pas avant `until` ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "invalid_window",
+                            "run_org_mismatch"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "jeton absent ou invalide",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "refus d'autorisation (ou hors portée du jeton)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`unknown_org` — l'org n'existe pas ou est archivée ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "unknown_org",
+                            "run_not_found"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`run_closed` — le run de `X-Oto-Run` est clos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Erreur"
+                    },
+                    {
+                      "properties": {
+                        "error": {
+                          "enum": [
+                            "run_closed"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Org Id",
+              "type": "integer"
+            },
+            "description": "champ `org_id` de la requête"
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Since"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Until"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/XOtoRun"
+          }
+        ]
+      }
+    },
     "/api/settings/api-keys/{provider}": {
       "get": {
         "operationId": "me_credential_get_get",
@@ -51370,6 +53194,18 @@
             "default": false,
             "title": "Suspended",
             "type": "boolean"
+          },
+          "is_platform_operator": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Is Platform Operator"
           }
         },
         "required": [
@@ -54334,6 +56170,19 @@
             "default": null,
             "title": "Last Ok At"
           },
+          "limit_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "YOUR own consumption cap, in % of the account's total usage (`null` = none). It can only tighten your org's cap (default 80 %): the lower of the two applies.",
+            "title": "Limit Pct"
+          },
           "waiting_jobs": {
             "default": 0,
             "description": "How many of your jobs are queued on this subscription right now. While you are signed out, need to reconnect, or wait on a plan limit, they WAIT — none fail — and they resume on their own once you are back.",
@@ -57163,6 +59012,194 @@
           "n"
         ],
         "title": "ToolFeedbackRow",
+        "type": "object"
+      },
+      "ServiceOrgRow": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Created At"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ServiceOrgRow",
+        "type": "object"
+      },
+      "ServiceMemberRow": {
+        "properties": {
+          "sub": {
+            "title": "Sub",
+            "type": "string"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Email"
+          },
+          "org_role": {
+            "title": "Org Role",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "joined_at": {
+            "title": "Joined At",
+            "type": "string"
+          },
+          "last_activity_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Activity At"
+          }
+        },
+        "required": [
+          "sub",
+          "org_role",
+          "is_active",
+          "joined_at"
+        ],
+        "title": "ServiceMemberRow",
+        "type": "object"
+      },
+      "ServiceUsageRow": {
+        "properties": {
+          "sub": {
+            "title": "Sub",
+            "type": "string"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "platform_calls": {
+            "title": "Platform Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sub",
+          "calls",
+          "platform_calls"
+        ],
+        "title": "ServiceUsageRow",
+        "type": "object"
+      },
+      "ServiceEntitlementRow": {
+        "properties": {
+          "right_key": {
+            "title": "Right Key",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "integer"
+          },
+          "sub": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Sub"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Starts At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expires At"
+          },
+          "granted_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Granted By"
+          },
+          "granted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Granted At"
+          }
+        },
+        "required": [
+          "right_key",
+          "source",
+          "value"
+        ],
+        "title": "ServiceEntitlementRow",
         "type": "object"
       },
       "CascadeEntry": {

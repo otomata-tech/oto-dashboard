@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // « Paramètres » de l'org active (/org/settings) : profil (nom/logo/domaine/secteur/lieu),
-// entitlements (lecture), et zone danger (archivage réversible). Extrait de l'ancienne page
+// entitlements (lecture), plafond de consommation des abonnements Claude (lecture membre,
+// édition admin — `OrgModelSubscriptionCard`), et zone danger (archivage réversible). Extrait de l'ancienne page
 // « membres » empilée. Le readme socle vit sur « contexte », la MFA sur « sécurité ».
 import { computed, ref } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
@@ -9,6 +10,7 @@ import Btn from '@/components/console/Btn.vue'
 import Avatar from '@/components/console/Avatar.vue'
 import Dropzone from '@/components/console/Dropzone.vue'
 import FormDialog from '@/components/console/FormDialog.vue'
+import OrgModelSubscriptionCard from '@/components/console/OrgModelSubscriptionCard.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
@@ -183,6 +185,8 @@ async function deleteOrg() {
           </div>
         </div>
       </ConsoleCard>
+
+      <OrgModelSubscriptionCard v-if="activeOrgId != null" :org-id="activeOrgId" :can-manage="canAdminister" />
 
       <!-- Zone danger : gestes irréversibles/destructifs regroupés (jamais sur l'espace perso).
            quitter = self-service tout membre · supprimer (archivage réversible) = org_admin.

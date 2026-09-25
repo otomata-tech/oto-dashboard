@@ -81,6 +81,7 @@ L'écran omet ses gestes, jamais grisés, et ne la répète pas ; ses lectures r
 | `/org/teams/:id` | add member, role, remove | `POST /api/groups/{id}/members{,/{sub}}`, `DELETE /api/groups/{id}/members/{sub}` | `canAdministerOrg` OU chef explicite de CETTE équipe (`my_role`) |
 | `/org/billing` | choisir, payer, changer de carte, résilier, annuler la résiliation, identité | `POST /api/me/billing/{subscribe,method,cancel,resume}`, `PUT /api/me/billing/identity` | `canAdministerOrg` (`canManage`) |
 | `/automations` | armer, relancer, arrêter, régler un déclencheur | `docs/automations.md` | `droits` |
+| `/org/settings` | régler le plafond de consommation des abonnements Claude, revenir au défaut | `PUT /api/orgs/{id}/model-subscriptions/{family}` | `canAdminister` ; la lecture (`GET`, membre) reste |
 
 **Mesuré, pas seulement lu** : les 27 appels des dix premières lignes ont été rejoués le 13/09/2026
 contre le `ViewAsMiddleware` d'oto-backend `origin/main` (`f4124f22`), avec la méthode, le chemin et
@@ -147,6 +148,29 @@ les outils et la confidentialité (en lecture depuis oto#192), la fiche d'un out
 Tests : `components/console/connector-scope/connectorsConsultation.spec.ts` (treize cas, chacun pour
 l'org_admin et le super_admin hors et en consultation, et pour l'admin plateforme en consultation),
 `useUserAdapter.spec.ts` (la clé d'org en consultation).
+
+## Plafond de consommation des abonnements Claude (`/org/settings`, 25/09/2026)
+
+Carte `OrgModelSubscriptionCard` (logique `useOrgModelSubscription` / `useLimitDraft` dans
+`lib/modelSubscription.ts`), sous les namespaces débloqués. Quand un run de l'org tourne sur
+l'abonnement Claude d'un membre (famille `claude_subscription`, modèles `sub:*`), le plafond est la
+part maximale de l'usage **total** du compte Claude de ce membre (fenêtres 5 h et 7 j) que le run
+peut atteindre. Au seuil, le run en cours finit et les suivants attendent la réinitialisation.
+
+- **Lecture, tout membre** : `GET /api/orgs/{id}/model-subscriptions/{family}` → `limit_pct` et
+  `default` (vrai = rien de réglé, défaut plateforme 80 %) ; tag « 80 % · défaut » ou « 60 % », date
+  de modification. Un membre lit que seul un admin peut changer le plafond.
+- **Édition, admin d'org** (`canAdminister`, donc omise en consultation) : champ 1–100 (entier) et
+  « Enregistrer » → `PUT` `{limit_pct}` ; hors bornes, le bouton reste inerte (`parseLimitInput`,
+  miroir de `exiger_limite_valide`). « Revenir au défaut (80 %) » → `PUT {limit_pct: null}`, affiché
+  seulement quand l'org a réglé quelque chose. La réponse du `PUT` est l'état relu.
+- ⚠️ `PLATFORM_DEFAULT_LIMIT` (80) est un **miroir** de `_abonnement.DEFAUT_LIMITE_PCT` : il ne sert
+  qu'à nommer le défaut sur le bouton et dans la phrase de l'écran perso ; la valeur en vigueur est
+  toujours lue.
+- Le plafond **perso** d'un membre (écran `/account/claude`, `docs/identite-et-consultation.md`)
+  ne peut que resserrer celui de l'org : le plus bas des deux s'applique.
+
+Tests : `components/console/OrgModelSubscriptionCard.spec.ts`.
 
 ## Groupes / départements (ADR 0012)
 

@@ -496,11 +496,27 @@
     "toastConnected": "abonnement Claude connecté",
     "toastDisconnected": "abonnement Claude déconnecté",
     "toastDestroyed": "sandbox effacé",
+    "limit": {
+      "title": "plafond de consommation",
+      "sub": "la part maximale de l'usage total de ton compte Claude (fenêtres 5 h et 7 j, ton usage perso compris) que tes agents peuvent atteindre.",
+      "none": "aucun plafond perso",
+      "pct": "{pct} %",
+      "noneChoice": "aucun plafond perso",
+      "ownChoice": "mon plafond",
+      "inputLabel": "plafond perso, en %",
+      "bounds": "entier de {min} à {max}",
+      "rule": "Le seuil appliqué est le plus strict entre le plafond de l'org qui lance le run ({pct} % par défaut, réglé par ses admins) et le tien.",
+      "atThreshold": "Au seuil, le run en cours finit ; les suivants attendent la réinitialisation des fenêtres — aucun n'échoue.",
+      "saving": "Enregistrement…",
+      "toastSaved": "plafond perso : {pct} %",
+      "toastCleared": "plafond perso retiré"
+    },
     "errors": {
       "subscription_not_enabled": "Cette option n'est pas ouverte sur ton compte.",
       "login_failed": "Anthropic n'a pas ouvert de session avec ce code (expiré ou déjà utilisé). Clique « Recommencer ».",
       "farm_unavailable": "Le service des sandboxes ne répond pas pour le moment. Réessaie dans quelques minutes.",
-      "not_connected": "Aucun abonnement Claude n'est branché sur ton compte."
+      "not_connected": "Aucun abonnement Claude n'est branché sur ton compte.",
+      "invalid_limit": "Le plafond doit être un entier de 1 à 100."
     }
   },
   "errors": {
@@ -2236,6 +2252,22 @@
       "creating": "Création…",
       "create": "Créer",
       "invitation": "tu as une invitation ? ouvre plutôt le lien reçu par email."
+    },
+    "modelSub": {
+      "title": "abonnements Claude · plafond de consommation",
+      "sub": "quand un run de l'org tourne sur l'abonnement Claude d'un membre, la part maximale de l'usage total de son compte (fenêtres 5 h et 7 j) qu'il peut atteindre.",
+      "current": "{pct} %",
+      "currentDefault": "{pct} % · défaut",
+      "descDefault": "L'org n'a rien réglé : le défaut de la plateforme s'applique, {pct} %.",
+      "descSet": "Plafond de l'org : {pct} % de l'usage total du compte de chaque membre.",
+      "updated": "modifié le {date}",
+      "memberRule": "Chaque membre peut se fixer un plafond plus strict sur « Mon abonnement Claude » : le plus bas des deux s'applique. Au seuil, le run en cours finit et les suivants attendent la réinitialisation des fenêtres.",
+      "inputLabel": "plafond de l'org, en %",
+      "backToDefault": "Revenir au défaut ({pct} %)",
+      "readOnly": "Seul un admin de l'org peut modifier ce plafond.",
+      "unavailable": "Plafond indisponible.",
+      "toastSaved": "plafond de l'org : {pct} %",
+      "toastDefault": "plafond de l'org revenu au défaut ({pct} %)"
     },
     "mfa": {
       "title": "sécurité · MFA obligatoire",

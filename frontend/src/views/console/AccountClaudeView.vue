@@ -5,6 +5,9 @@
 //
 // Une action visible à la fois : l'état, puis UN bouton ; pendant la connexion, seule
 // l'étape du code est à l'écran (les gestes de retrait reviennent une fois l'étape close).
+//
+// Le plafond de consommation vit dans une carte à part, dès qu'un abonnement existe :
+// enregistrement explicite, refus affiché sous le réglage.
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
@@ -15,15 +18,22 @@ import { usePrompt } from '@/composables/usePrompt'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
 import { exactDate } from '@/lib/recentChanges'
-import { errorKey, useModelSubscription, type SubscriptionEtat } from '@/lib/modelSubscription'
+import {
+  errorKey, LIMIT_MAX, LIMIT_MIN, PLATFORM_DEFAULT_LIMIT, useLimitDraft, useModelSubscription,
+  type SubscriptionEtat,
+} from '@/lib/modelSubscription'
 
 const { t, locale } = useI18n()
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
 const {
   sub, etat, loaded, step, loginUrl, notEnabled, error, busy,
-  load, start, submitCode, restart, disconnect, destroy,
+  load, start, submitCode, restart, disconnect, destroy, limitBusy, limitError, setLimit,
 } = useModelSubscription()
+
+const {
+  own: limitOwn, text: limitText, value: limitValue, invalid: limitInvalid, dirty: limitDirty, reset: resetLimit,
+} = useLimitDraft(() => sub.value?.limit_pct)
 
 const code = ref('')
 
@@ -36,6 +46,18 @@ const errorMsg = computed(() => {
   const k = errorKey(error.value)
   return k ? t(k) : humanize(error.value)
 })
+
+const limitErrorMsg = computed(() => {
+  if (!limitError.value) return null
+  const k = errorKey(limitError.value)
+  return k ? t(k) : humanize(limitError.value)
+})
+
+async function saveLimit() {
+  const v = limitValue.value
+  if (v === undefined) return
+  if (await setLimit(v)) toast(v === null ? t('modelSub.limit.toastCleared') : t('modelSub.limit.toastSaved', { pct: v }))
+}
 
 const resetAt = computed(() =>
   sub.value?.limit_reset_at ? exactDate(sub.value.limit_reset_at, locale.value) : null)
@@ -146,6 +168,40 @@ onMounted(load)
         </div>
       </div>
     </ConsoleCard>
+
+    <ConsoleCard v-if="loaded && sub" :title="t('modelSub.limit.title')" :sub="t('modelSub.limit.sub')"
+      data-test="limit-card">
+      <template #actions>
+        <span class="tag" :class="sub.limit_pct === null ? 'ink' : 'cobalt'" data-test="limit-current">
+          {{ sub.limit_pct === null ? t('modelSub.limit.none') : t('modelSub.limit.pct', { pct: sub.limit_pct }) }}
+        </span>
+      </template>
+      <form class="ms-body" @submit.prevent="saveLimit">
+        <div class="seg" role="radiogroup" :aria-label="t('modelSub.limit.title')">
+          <button type="button" :class="{ on: !limitOwn }" role="radio" :aria-checked="!limitOwn"
+            data-test="limit-none" @click="limitOwn = false">{{ t('modelSub.limit.noneChoice') }}</button>
+          <button type="button" :class="{ on: limitOwn }" role="radio" :aria-checked="limitOwn"
+            data-test="limit-own" @click="limitOwn = true">{{ t('modelSub.limit.ownChoice') }}</button>
+        </div>
+        <label v-if="limitOwn" class="ms-limit">
+          <input v-model="limitText" class="inp mono" type="number" inputmode="numeric"
+            :min="LIMIT_MIN" :max="LIMIT_MAX" step="1" :aria-label="t('modelSub.limit.inputLabel')"
+            data-test="limit-input">
+          <span>%</span>
+          <span class="helptext">{{ t('modelSub.limit.bounds', { min: LIMIT_MIN, max: LIMIT_MAX }) }}</span>
+        </label>
+        <p class="helptext" data-test="limit-rule">{{ t('modelSub.limit.rule', { pct: PLATFORM_DEFAULT_LIMIT }) }}</p>
+        <p class="helptext dim">{{ t('modelSub.limit.atThreshold') }}</p>
+        <Notice v-if="limitErrorMsg" tone="warn" data-test="limit-error">{{ limitErrorMsg }}</Notice>
+        <div class="ms-actions">
+          <Btn type="submit" :disabled="limitBusy || !limitDirty" data-test="limit-save">
+            {{ limitBusy ? t('modelSub.limit.saving') : t('common.save') }}
+          </Btn>
+          <Btn v-if="limitDirty || limitInvalid" kind="link" type="button" :disabled="limitBusy"
+            @click="resetLimit">{{ t('common.cancel') }}</Btn>
+        </div>
+      </form>
+    </ConsoleCard>
   </div>
 </template>
 
@@ -157,5 +213,8 @@ onMounted(load)
 .ms-code { display: flex; gap: 8px; align-items: center; }
 .ms-code .inp { flex: 1; min-width: 0; }
 .ms-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ms-limit { display: flex; align-items: center; gap: 8px; font-size: var(--fs-body); color: var(--color-ink); }
+.ms-limit .inp { width: 88px; }
+.ms-limit .helptext { margin: 0; }
 .ms-remove { padding-top: 12px; border-top: 1px solid var(--color-hair-soft); }
 </style>

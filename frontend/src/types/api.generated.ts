@@ -561,14 +561,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Liste les tableaux visibles dans l'org active (possédés et partagés).
-         * @description Liste les tableaux visibles dans l'org active (possédés et partagés).
+         * Liste les tableaux visibles dans l'org active : ceux de l'org et de tes équipes, ceux partagés à l'org ou à tes équipes, et TES tableaux personnels créés dans cette org (plus ceux
+         * @description Liste les tableaux visibles dans l'org active : ceux de l'org et de tes équipes, ceux partagés à l'org ou à tes équipes, et TES tableaux personnels créés dans cette org (plus ceux d'avant dont l'org de création est inconnue). Un personnel créé dans une autre org est listé là-bas, pas ici ; il s'ouvre toujours par son numéro.
          */
         get: operations["me_datastore_list_datastores_get"];
         put?: never;
         /**
          * Crée un tableau
-         * @description Crée un tableau. Par défaut il est PERSONNEL (visible de toi seul — ni les autres membres de ton org, ni ses administrateurs) ; passe `owner: {type: "org"|"group", id: N}` pour qu'il appartienne à l'org ou à l'équipe, et soit lisible de tous ses membres. ⚠️ L'en-tête `X-Oto-Org` NE CHANGE PAS le propriétaire : il décide sous quelle org on lit et écrit, jamais à qui appartient ce qu'on crée — seul `owner` le fait à la création. Ensuite, le propriétaire se change par TRANSFERT (`oto_resource op=transfer`, `POST /api/resources`, réservé au propriétaire ou à un admin). Créé sous cet en-tête sans `owner`, le tableau naît personnel et tout continue de fonctionner pour TOI : c'est au second agent, ou au collègue qui ne le trouve pas, que ça se voit. La réponse rend le propriétaire et vous avertit dans ce cas précis.
+         * @description Crée un tableau. Par défaut il est PERSONNEL (visible de toi seul — ni les autres membres de ton org, ni ses administrateurs) ; passe `owner: {type: "org"|"group", id: N}` pour qu'il appartienne à l'org ou à l'équipe, et soit lisible de tous ses membres. ⚠️ L'en-tête `X-Oto-Org` NE CHANGE PAS le propriétaire : il décide sous quelle org on lit et écrit, jamais à qui appartient ce qu'on crée — seul `owner` le fait à la création. Ensuite, le propriétaire se change par TRANSFERT (`oto_resource op=transfer`, `POST /api/resources`, réservé au propriétaire ou à un admin). Créé sous cet en-tête sans `owner`, le tableau naît personnel et tout continue de fonctionner pour TOI : c'est au second agent, ou au collègue qui ne le trouve pas, que ça se voit. La réponse rend le propriétaire et vous avertit dans ce cas précis. Un tableau personnel n'est LISTÉ que dans l'org où il a été créé (`X-Oto-Org`, ou l'org active) ; son numéro l'ouvre partout.
          */
         post: operations["me_datastore_create_datastore_post"];
         delete?: never;
@@ -2992,7 +2992,21 @@ export interface paths {
         delete: operations["me_model_subscriptions_remove_delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Set (or remove, `null`) YOUR own consumption cap on a model subscription.
+         *
+         *     The cap is a share, in % (1..100), of your provider account's TOTAL usage — the
+         *     5-hour and 7-day windows
+         * @description Set (or remove, `null`) YOUR own consumption cap on a model subscription.
+         *
+         *     The cap is a share, in % (1..100), of your provider account's TOTAL usage — the
+         *     5-hour and 7-day windows the provider reports, your personal use included. Once a
+         *     window reaches it, your agents' next jobs WAIT for the window to reset; a job
+         *     already running is never cut. Your organisation sets its own cap (80 % unless it
+         *     chose otherwise): the LOWER of the two applies, so yours can only keep more room
+         *     for yourself, never raise the org's.
+         */
+        patch: operations["me_model_subscriptions_set_limit_patch"];
         trace?: never;
     };
     "/api/me/model-subscriptions/{family}/login": {
@@ -4169,6 +4183,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/orgs/{id}/model-subscriptions/{family}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the org's consumption cap on its members' personal model subscriptions (e.g
+         * @description Read the org's consumption cap on its members' personal model subscriptions (e.g. `claude_subscription`): the max share, in %, of each member's provider account TOTAL usage (5-hour and 7-day windows) the org's jobs may reach before the next ones wait for the reset. `default: true` = not set, platform default (80). A member may set a LOWER cap for themselves; the lower one applies.
+         */
+        get: operations["org_model_subscriptions_get_get"];
+        /**
+         * Set the org's consumption cap on its members' personal model subscriptions: `limit_pct` 1..100 (% of each member's provider account TOTAL usage, 5-hour and 7-day windows alike), or
+         * @description Set the org's consumption cap on its members' personal model subscriptions: `limit_pct` 1..100 (% of each member's provider account TOTAL usage, 5-hour and 7-day windows alike), or `null` to go back to the platform default (80). Applies from the next job report; a running job is never cut. Org admin.
+         */
+        put: operations["org_model_subscriptions_set_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/orgs/{id}/monitoring/adoption": {
         parameters: {
             query?: never;
@@ -4596,6 +4634,110 @@ export interface paths {
          * @description Route écrite à la main : forme du corps non dérivable (elle n'est pas encore une capacité).
          */
         get: operations["get_api_salesforce_oauth_callback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/orgs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * [service commerce] Non-archived orgs by increasing id, paginated by `after_id`.
+         * @description [service commerce] Non-archived orgs by increasing id, paginated by `after_id`.
+         */
+        get: operations["service_orgs_list_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/orgs/{id}/entitlements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * [service commerce] Declared entitlements of an org, org-wide and per person, expired and future included.
+         * @description [service commerce] Declared entitlements of an org, org-wide and per person, expired and future included.
+         */
+        get: operations["service_org_entitlements_list_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/orgs/{id}/entitlements/{right_key}/{source}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * [service commerce] Set (idempotent upsert) one entitlement: one row per (org, person, right, source)
+         * @description [service commerce] Set (idempotent upsert) one entitlement: one row per (org, person, right, source). `sub` omitted = the whole org. Returns the stored row.
+         */
+        put: operations["service_org_entitlement_put_put"];
+        post?: never;
+        /**
+         * [service commerce] Remove one entitlement row (org, person, right, source); other sources and scopes stay.
+         * @description [service commerce] Remove one entitlement row (org, person, right, source); other sources and scopes stay.
+         */
+        delete: operations["service_org_entitlement_delete_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/orgs/{id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * [service commerce] Members of an org by seniority (`joined_at`), with email and last activity under this org.
+         * @description [service commerce] Members of an org by seniority (`joined_at`), with email and last activity under this org.
+         */
+        get: operations["service_org_members_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/service/orgs/{id}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * [service commerce] Successful tool calls per person under an org over [since, until) (default: current month, UTC), and how many ran on a platform key.
+         * @description [service commerce] Successful tool calls per person under an org over [since, until) (default: current month, UTC), and how many ran on a platform key.
+         */
+        get: operations["service_org_usage_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5055,6 +5197,11 @@ export interface components {
              * @default false
              */
             suspended: boolean;
+            /**
+             * Is Platform Operator
+             * @default null
+             */
+            is_platform_operator: boolean | null;
         };
         /**
          * OrgSecretEntry
@@ -6672,6 +6819,12 @@ export interface components {
              */
             last_ok_at: string | null;
             /**
+             * Limit Pct
+             * @description YOUR own consumption cap, in % of the account's total usage (`null` = none). It can only tighten your org's cap (default 80 %): the lower of the two applies.
+             * @default null
+             */
+            limit_pct: number | null;
+            /**
              * Waiting Jobs
              * @description How many of your jobs are queued on this subscription right now. While you are signed out, need to reconnect, or wait on a plan limit, they WAIT — none fail — and they resume on their own once you are back.
              * @default 0
@@ -7997,6 +8150,82 @@ export interface components {
              * @default []
              */
             users: string[];
+        };
+        /** ServiceOrgRow */
+        ServiceOrgRow: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: string | null;
+        };
+        /** ServiceMemberRow */
+        ServiceMemberRow: {
+            /** Sub */
+            sub: string;
+            /**
+             * Email
+             * @default null
+             */
+            email: string | null;
+            /** Org Role */
+            org_role: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Joined At */
+            joined_at: string;
+            /**
+             * Last Activity At
+             * @default null
+             */
+            last_activity_at: string | null;
+        };
+        /** ServiceUsageRow */
+        ServiceUsageRow: {
+            /** Sub */
+            sub: string;
+            /** Calls */
+            calls: number;
+            /** Platform Calls */
+            platform_calls: number;
+        };
+        /** ServiceEntitlementRow */
+        ServiceEntitlementRow: {
+            /** Right Key */
+            right_key: string;
+            /** Source */
+            source: string;
+            /** Value */
+            value: number;
+            /**
+             * Sub
+             * @default null
+             */
+            sub: string | null;
+            /**
+             * Starts At
+             * @default null
+             */
+            starts_at: string | null;
+            /**
+             * Expires At
+             * @default null
+             */
+            expires_at: string | null;
+            /**
+             * Granted By
+             * @default null
+             */
+            granted_by: string | null;
+            /**
+             * Granted At
+             * @default null
+             */
+            granted_at: string | null;
         };
         /**
          * CascadeEntry
@@ -18176,6 +18405,16 @@ export interface operations {
                          */
                         view_as_read_only: boolean;
                         /**
+                         * View As Bound Org
+                         * @default null
+                         */
+                        view_as_bound_org: number | null;
+                        /**
+                         * View As Refused Prefixes
+                         * @default null
+                         */
+                        view_as_refused_prefixes: string[] | null;
+                        /**
                          * Active Org Is Personal
                          * @default false
                          */
@@ -26983,6 +27222,132 @@ export interface operations {
             };
         };
     };
+    me_model_subscriptions_set_limit_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
+                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
+            };
+            path: {
+                family: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Limit Pct
+                     * @description Your own consumption cap, in % (1..100) of your provider account's TOTAL usage (5-hour and 7-day windows, your personal use included). `null` removes it.
+                     */
+                    limit_pct: number | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Family */
+                        family: string;
+                        /**
+                         * Statut
+                         * @description `connected` | `needs_login` | `paused_limit` | `disconnected`.
+                         */
+                        statut: string;
+                        /**
+                         * Plan
+                         * @description The plan tier the provider reported, e.g. `max`.
+                         * @default null
+                         */
+                        plan: string | null;
+                        /**
+                         * Limit Reset At
+                         * @description When the plan limit lifts, if the person is waiting on one. Their jobs stay queued until then — none fail.
+                         * @default null
+                         */
+                        limit_reset_at: string | null;
+                        /**
+                         * Last Ok At
+                         * @default null
+                         */
+                        last_ok_at: string | null;
+                        /**
+                         * Limit Pct
+                         * @description YOUR own consumption cap, in % of the account's total usage (`null` = none). It can only tighten your org's cap (default 80 %): the lower of the two applies.
+                         * @default null
+                         */
+                        limit_pct: number | null;
+                        /**
+                         * Waiting Jobs
+                         * @description How many of your jobs are queued on this subscription right now. While you are signed out, need to reconnect, or wait on a plan limit, they WAIT — none fail — and they resume on their own once you are back.
+                         * @default 0
+                         */
+                        waiting_jobs: number;
+                    };
+                };
+            };
+            /** @description `unknown_family` — une famille qui n'est pas servie par abonnement ; `invalid_limit` — `limit_pct` hors de 1..100 ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_family" | "invalid_limit" | "run_org_mismatch";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `not_connected` — aucun abonnement de cette famille pour cette personne ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "not_connected" | "run_not_found";
+                    };
+                };
+            };
+            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "run_closed";
+                    };
+                };
+            };
+        };
+    };
     me_model_subscriptions_connect_post: {
         parameters: {
             query?: never;
@@ -27146,6 +27511,12 @@ export interface operations {
                          * @default null
                          */
                         last_ok_at: string | null;
+                        /**
+                         * Limit Pct
+                         * @description YOUR own consumption cap, in % of the account's total usage (`null` = none). It can only tighten your org's cap (default 80 %): the lower of the two applies.
+                         * @default null
+                         */
+                        limit_pct: number | null;
                         /**
                          * Waiting Jobs
                          * @description How many of your jobs are queued on this subscription right now. While you are signed out, need to reconnect, or wait on a plan limit, they WAIT — none fail — and they resume on their own once you are back.
@@ -34658,6 +35029,228 @@ export interface operations {
             };
         };
     };
+    org_model_subscriptions_get_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
+                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
+            };
+            path: {
+                /** @description champ `org_id` de la requête */
+                id: number;
+                family: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Org Id */
+                        org_id: number;
+                        /** Family */
+                        family: string;
+                        /**
+                         * Limit Pct
+                         * @description The cap, in % of each member's provider account TOTAL usage (5-hour and 7-day windows). Past it, the org's next jobs on that subscription wait for the window to reset.
+                         */
+                        limit_pct: number;
+                        /**
+                         * Default
+                         * @description `true` = the org has set nothing; this is the platform default.
+                         */
+                        default: boolean;
+                        /**
+                         * Updated At
+                         * @default null
+                         */
+                        updated_at: string | null;
+                        /**
+                         * Updated By
+                         * @default null
+                         */
+                        updated_by: string | null;
+                    };
+                };
+            };
+            /** @description `unknown_family` — une famille qui n'est pas servie par abonnement ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_family" | "run_org_mismatch";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_org` — l'org n'existe pas ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_org" | "run_not_found";
+                    };
+                };
+            };
+            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "run_closed";
+                    };
+                };
+            };
+        };
+    };
+    org_model_subscriptions_set_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
+                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
+            };
+            path: {
+                /** @description champ `org_id` de la requête */
+                id: number;
+                family: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Limit Pct
+                     * @description 1..100, or `null` to go back to the platform default.
+                     */
+                    limit_pct: number | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Org Id */
+                        org_id: number;
+                        /** Family */
+                        family: string;
+                        /**
+                         * Limit Pct
+                         * @description The cap, in % of each member's provider account TOTAL usage (5-hour and 7-day windows). Past it, the org's next jobs on that subscription wait for the window to reset.
+                         */
+                        limit_pct: number;
+                        /**
+                         * Default
+                         * @description `true` = the org has set nothing; this is the platform default.
+                         */
+                        default: boolean;
+                        /**
+                         * Updated At
+                         * @default null
+                         */
+                        updated_at: string | null;
+                        /**
+                         * Updated By
+                         * @default null
+                         */
+                        updated_by: string | null;
+                    };
+                };
+            };
+            /** @description `unknown_family` — une famille qui n'est pas servie par abonnement ; `invalid_limit` — `limit_pct` hors de 1..100 ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_family" | "invalid_limit" | "run_org_mismatch";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_org` — l'org n'existe pas ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_org" | "run_not_found";
+                    };
+                };
+            };
+            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "run_closed";
+                    };
+                };
+            };
+        };
+    };
     org_monitoring_adoption_get: {
         parameters: {
             query?: {
@@ -36929,6 +37522,579 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    service_orgs_list_get: {
+        parameters: {
+            query?: {
+                after_id?: number;
+                limit?: number;
+            };
+            header?: {
+                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
+                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Orgs */
+                        orgs: components["schemas"]["ServiceOrgRow"][];
+                        /**
+                         * Next After Id
+                         * @default null
+                         */
+                        next_after_id: number | null;
+                    };
+                };
+            };
+            /** @description `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "run_org_mismatch";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "run_not_found";
+                    };
+                };
+            };
+            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "run_closed";
+                    };
+                };
+            };
+        };
+    };
+    service_org_entitlements_list_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
+                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
+            };
+            path: {
+                /** @description champ `org_id` de la requête */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Org Id */
+                        org_id: number;
+                        /** Entitlements */
+                        entitlements: components["schemas"]["ServiceEntitlementRow"][];
+                    };
+                };
+            };
+            /** @description `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "run_org_mismatch";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_org` — l'org n'existe pas ou est archivée ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_org" | "run_not_found";
+                    };
+                };
+            };
+            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "run_closed";
+                    };
+                };
+            };
+        };
+    };
+    service_org_entitlement_put_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
+                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
+            };
+            path: {
+                /** @description champ `org_id` de la requête */
+                id: number;
+                right_key: string;
+                source: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Sub
+                     * @default null
+                     */
+                    sub?: string | null;
+                    /** Value */
+                    value: number;
+                    /**
+                     * Starts At
+                     * @default null
+                     */
+                    starts_at?: string | null;
+                    /**
+                     * Expires At
+                     * @default null
+                     */
+                    expires_at?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Right Key */
+                        right_key: string;
+                        /** Source */
+                        source: string;
+                        /** Value */
+                        value: number;
+                        /**
+                         * Sub
+                         * @default null
+                         */
+                        sub: string | null;
+                        /**
+                         * Starts At
+                         * @default null
+                         */
+                        starts_at: string | null;
+                        /**
+                         * Expires At
+                         * @default null
+                         */
+                        expires_at: string | null;
+                        /**
+                         * Granted By
+                         * @default null
+                         */
+                        granted_by: string | null;
+                        /**
+                         * Granted At
+                         * @default null
+                         */
+                        granted_at: string | null;
+                    };
+                };
+            };
+            /** @description `unknown_source` — `source` hors de la liste fermée (subscription, trial, offered, partner, contract) ; `entitlement_unknown_key` — clé hors catalogue ; `entitlement_value_invalid` — valeur hors du genre de la clé ; `invalid_window` — `expires_at` ne suit pas `starts_at` ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_source" | "entitlement_unknown_key" | "entitlement_value_invalid" | "invalid_window" | "run_org_mismatch";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_org` — l'org n'existe pas ou est archivée ; `not_a_member` — la personne `sub` n'est pas membre de l'org ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_org" | "not_a_member" | "run_not_found";
+                    };
+                };
+            };
+            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "run_closed";
+                    };
+                };
+            };
+        };
+    };
+    service_org_entitlement_delete_delete: {
+        parameters: {
+            query?: {
+                sub?: string | null;
+            };
+            header?: {
+                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
+                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
+            };
+            path: {
+                /** @description champ `org_id` de la requête */
+                id: number;
+                right_key: string;
+                source: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Ok */
+                        ok: boolean;
+                    };
+                };
+            };
+            /** @description `unknown_source` — `source` hors de la liste fermée (subscription, trial, offered, partner, contract) ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_source" | "run_org_mismatch";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_org` — l'org n'existe pas ou est archivée ; `not_a_member` — la personne `sub` n'est pas membre de l'org ; `unknown_entitlement` — aucune ligne à retirer ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_org" | "not_a_member" | "unknown_entitlement" | "run_not_found";
+                    };
+                };
+            };
+            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "run_closed";
+                    };
+                };
+            };
+        };
+    };
+    service_org_members_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
+                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
+            };
+            path: {
+                /** @description champ `org_id` de la requête */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Org Id */
+                        org_id: number;
+                        /** Members */
+                        members: components["schemas"]["ServiceMemberRow"][];
+                    };
+                };
+            };
+            /** @description `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "run_org_mismatch";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_org` — l'org n'existe pas ou est archivée ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_org" | "run_not_found";
+                    };
+                };
+            };
+            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "run_closed";
+                    };
+                };
+            };
+        };
+    };
+    service_org_usage_get: {
+        parameters: {
+            query?: {
+                since?: string | null;
+                until?: string | null;
+            };
+            header?: {
+                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
+                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
+            };
+            path: {
+                /** @description champ `org_id` de la requête */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Org Id */
+                        org_id: number;
+                        /** Since */
+                        since: string;
+                        /** Until */
+                        until: string;
+                        /** By Person */
+                        by_person: components["schemas"]["ServiceUsageRow"][];
+                    };
+                };
+            };
+            /** @description `invalid_window` — `since` n'est pas avant `until` ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "invalid_window" | "run_org_mismatch";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_org` — l'org n'existe pas ou est archivée ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_org" | "run_not_found";
+                    };
+                };
+            };
+            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "run_closed";
+                    };
+                };
             };
         };
     };

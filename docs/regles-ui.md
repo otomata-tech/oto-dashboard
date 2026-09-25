@@ -50,9 +50,10 @@ l'incident qui l'a produite et ses cas limites dans le doc pointé.
 ## Les miroirs du serveur
 
 `lib/keyStack.ts` (↔ `access.walk_cascade`), `lib/credentialForm.ts`, `lib/tenantVerdict.ts`,
-`lib/connectorVerdict.ts`, `lib/datastoreClaims.ts` : **aucun test ne relie les deux repos**, une
+`lib/connectorVerdict.ts`, `lib/datastoreClaims.ts`, les bornes et le défaut du plafond de
+`lib/modelSubscription.ts` (↔ `_abonnement`) : **aucun test ne relie les deux repos**, une
 erreur n'y casse pas l'écran, **elle fait mentir l'UI** ; toute évolution se fait des deux côtés.
-→ `connecteurs.md`, `plateforme.md`, `datastore.md`
+→ `connecteurs.md`, `plateforme.md`, `datastore.md`, `orgs-groupes-invitations.md`
 
 - **Un secret conservé est OMIS du corps** du formulaire de credential : le serveur traite une clé
   présente et vide comme un effacement. → `connecteurs.md`

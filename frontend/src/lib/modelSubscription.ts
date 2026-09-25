@@ -10,13 +10,13 @@
 // l'a : c'est le 403 `subscription_not_enabled` au premier geste qui le révèle. On le
 // retient (`notEnabled`) pour que l'écran le DISE et retire le bouton, au lieu de laisser
 // un levier qui échouera à chaque clic.
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ApiError } from '@/api'
 import {
-  getModelSubscriptions, removeModelSubscription, sendModelSubscriptionCode,
-  startModelSubscriptionLogin,
+  getModelSubscriptions, getOrgModelSubscription, removeModelSubscription, sendModelSubscriptionCode,
+  setModelSubscriptionLimit, setOrgModelSubscriptionLimit, startModelSubscriptionLogin,
 } from '@/api/console'
-import type { ModelSubscription } from '@/types/api'
+import type { ModelSubscription, OrgModelSubscriptionCap } from '@/types/api'
 
 /** La seule famille servie par abonnement aujourd'hui (`sub:sonnet|opus|haiku`). */
 export const CLAUDE_FAMILY = 'claude_subscription'
@@ -35,7 +35,7 @@ export function statutOf(s: ModelSubscription): SubscriptionStatut {
 
 /** Les refus que l'écran sait nommer ; les autres passent par `humanize`. */
 export const KNOWN_ERRORS = [
-  'subscription_not_enabled', 'login_failed', 'farm_unavailable', 'not_connected',
+  'subscription_not_enabled', 'login_failed', 'farm_unavailable', 'not_connected', 'invalid_limit',
 ] as const
 
 /** La clé i18n du message d'un refus connu, ou null. */
@@ -109,6 +109,27 @@ export function useModelSubscription(family: string = CLAUDE_FAMILY) {
     return true
   }
 
+  // Le plafond perso a son propre état d'envoi : un refus s'affiche SOUS le réglage, pas
+  // dans l'état de connexion.
+  const limitBusy = ref(false)
+  const limitError = ref<unknown>(null)
+
+  /** Pose (1..100) ou retire (null) le plafond perso ; true = enregistré. La réponse est
+   *  l'abonnement relu : c'est elle qui dit le plafond en vigueur. */
+  async function setLimit(limit: number | null): Promise<boolean> {
+    limitBusy.value = true
+    limitError.value = null
+    try {
+      sub.value = await setModelSubscriptionLimit(family, limit)
+      return true
+    } catch (e) {
+      limitError.value = e
+      return false
+    } finally {
+      limitBusy.value = false
+    }
+  }
+
   function restart() {
     step.value = 'idle'
     loginUrl.value = null
@@ -126,8 +147,93 @@ export function useModelSubscription(family: string = CLAUDE_FAMILY) {
 
   return {
     sub, etat, loaded, step, loginUrl, notEnabled, error, busy,
-    load, start, submitCode, restart,
+    load, start, submitCode, restart, limitBusy, limitError, setLimit,
     disconnect: () => remove(false),
     destroy: () => remove(true),
   }
+}
+
+// ── Plafond de consommation ──────────────────────────────────────────────────────
+// Part maximale de l'usage TOTAL du compte Claude (fenêtres 5 h et 7 j, usage perso
+// compris) que les agents peuvent atteindre. Seuil appliqué = min(plafond de l'org du run,
+// plafond perso s'il existe). Au seuil, le run en cours finit ; les suivants attendent la
+// réinitialisation des fenêtres.
+
+export const LIMIT_MIN = 1
+export const LIMIT_MAX = 100
+/** ⚠️ Miroir de `_abonnement.DEFAUT_LIMITE_PCT` (oto-backend) : le plafond d'une org qui
+ *  n'a rien réglé. Il ne sert qu'à NOMMER le défaut sur le bouton qui y revient ; la valeur
+ *  en vigueur, elle, est toujours lue (`GET …/model-subscriptions/{family}`). */
+export const PLATFORM_DEFAULT_LIMIT = 80
+
+/** Miroir de `exiger_limite_valide` : un entier de 1 à 100, ou null. */
+export function isValidLimit(v: number | null): boolean {
+  return v === null || (Number.isInteger(v) && v >= LIMIT_MIN && v <= LIMIT_MAX)
+}
+
+/** La saisie d'un champ % → la valeur à envoyer, ou `undefined` si elle ne passerait pas
+ *  (vide, décimale, hors bornes) : le bouton se désactive au lieu d'essuyer un 400. */
+export function parseLimitInput(raw: string | number | null | undefined): number | undefined {
+  const s = String(raw ?? '').trim()
+  if (!/^\d+$/.test(s)) return undefined
+  const n = Number(s)
+  return isValidLimit(n) ? n : undefined
+}
+
+/** Le brouillon d'un réglage de plafond : `own` = un plafond chiffré (sinon null : aucun
+ *  plafond perso) et `text` = la saisie. Réinitialisé chaque fois que la valeur ENREGISTRÉE
+ *  change (chargement, enregistrement). `value` vaut `undefined` tant que la saisie est
+ *  invalide ; `dirty` = une valeur valide, différente de l'enregistrée. */
+export function useLimitDraft(saved: () => number | null | undefined) {
+  const own = ref(false)
+  const text = ref<string | number>('')
+  function reset() {
+    const s = saved() ?? null
+    own.value = s !== null
+    text.value = s === null ? '' : s
+  }
+  watch(saved, reset, { immediate: true })
+  const value = computed<number | null | undefined>(() => (own.value ? parseLimitInput(text.value) : null))
+  const invalid = computed(() => value.value === undefined)
+  const dirty = computed(() => value.value !== undefined && value.value !== (saved() ?? null))
+  return { own, text, value, invalid, dirty, reset }
+}
+
+/** Le plafond d'une org sur les abonnements de ses membres : lecture pour tout membre,
+ *  écriture (`set`) pour l'admin d'org — c'est au geste de le vérifier avant d'appeler. */
+export function useOrgModelSubscription(orgId: () => number, family: string = CLAUDE_FAMILY) {
+  const cap = ref<OrgModelSubscriptionCap | null>(null)
+  const loaded = ref(false)
+  const error = ref<unknown>(null)
+  const busy = ref(false)
+
+  async function load() {
+    busy.value = true
+    error.value = null
+    try {
+      cap.value = await getOrgModelSubscription(orgId(), family)
+      loaded.value = true
+    } catch (e) {
+      error.value = e
+    } finally {
+      busy.value = false
+    }
+  }
+
+  /** 1..100 = plafond de l'org ; null = revenir au défaut. true = enregistré (relu). */
+  async function set(limit: number | null): Promise<boolean> {
+    busy.value = true
+    error.value = null
+    try {
+      cap.value = await setOrgModelSubscriptionLimit(orgId(), family, limit)
+      return true
+    } catch (e) {
+      error.value = e
+      return false
+    } finally {
+      busy.value = false
+    }
+  }
+
+  return { cap, loaded, error, busy, load, set }
 }
