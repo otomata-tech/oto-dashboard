@@ -496,6 +496,7 @@ async function transfer() {
     </div>
 
     <DatastoreStatusBar v-if="cockpit" :label="statusField?.label || statusField?.key || ''"
+      :field="statusField ?? null"
       :states="lifecycleStates" :terminal="terminalStates" :counts="statusCounts"
       :active="activeStatus" :total="statusTotal"
       :abandon-state="statusField?.lifecycle?.abandon_state ?? null"

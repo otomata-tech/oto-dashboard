@@ -843,6 +843,10 @@ export interface DatastoreLifecycle {
   // l'autre est refusée à la pose. Absentes = aucun plafond.
   max_claims?: number | null
   abandon_state?: string | null
+  // Le nom AFFICHÉ de chaque étape (oto#140), `{état: libellé}` : présentation, jamais
+  // validation — une ligne porte toujours le code. Le serveur refuse à la pose une clé
+  // qui n'est pas un état de `states` ; un état sans libellé est permis.
+  labels?: Record<string, string>
 }
 export interface DatastoreField {
   key: string

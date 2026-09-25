@@ -10,7 +10,7 @@
 import { computed, onMounted, ref } from 'vue'
 import Tag from '../Tag.vue'
 import { getNamespaceAggregate, getNamespaceQueue, getNamespaces, getProjectRuns, getSharedWithMe } from '@/api/console'
-import type { ProjectLink, ProjectRun } from '@/types/api'
+import type { DatastoreField, ProjectLink, ProjectRun } from '@/types/api'
 import { absDate } from '@/lib/cellRender'
 import { bailLigne } from '@/lib/bailDeLigne'
 import { abandonState, claimBudget, maxClaims } from '@/lib/datastoreClaims'
@@ -26,6 +26,7 @@ const props = defineProps<{ links: ProjectLink[]; projectId: number }>()
 interface QueueLine {
   nsId: number
   datastore: string
+  field: DatastoreField             // la colonne d'avancement : ses libellés d'étape
   states: string[]                  // lifecycle d'abord, puis états observés hors déclaration
   counts: Record<string, number>
   total: number
@@ -102,7 +103,7 @@ onMounted(async () => {
         const now = Date.now()
         const expired = queue.rows.filter((r) => bailLigne(r, now).etat === 'expire').length
         return {
-          nsId: n.id, datastore: n.datastore,
+          nsId: n.id, datastore: n.datastore, field: sf,
           states: [...declared, ...observed], counts, total,
           claimed: queue.rows.length, expired,
           ceiling: maxClaims(sf.lifecycle),
@@ -138,7 +139,7 @@ const visible = computed(() => !loading.value && (lines.value.length > 0 || nonR
         :title="s === l.abandonState
           ? $t('projectsUi.workQueues.abandonHint')
           : undefined">
-        {{ etatLisible(s) }} <b>{{ l.counts[s] ?? 0 }}</b></span>
+        {{ etatLisible(s, l.field) }} <b>{{ l.counts[s] ?? 0 }}</b></span>
       <Tag v-if="l.claimed" tone="cobalt">{{ $t('projectsUi.workQueues.leased', { n: l.claimed }) }}</Tag>
       <Tag v-if="l.expired" tone="terra" :title="$t('projectsUi.workQueues.expiredHint')">
         {{ $t('projectsUi.workQueues.expired', l.expired) }}</Tag>

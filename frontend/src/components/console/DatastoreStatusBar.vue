@@ -10,9 +10,11 @@
 // que rien ne dise que c'est la PLATEFORME qui y verse les lignes.
 import { useI18n } from 'vue-i18n'
 import { etatLisible } from '@/lib/datastoreLifecycle'
+import type { DatastoreField } from '@/types/api'
 
 const props = defineProps<{
   label: string                  // libellé de la colonne d'avancement (« Statut »)
+  field: DatastoreField | null   // la colonne elle-même : ses libellés d'étape (`lifecycle.labels`)
   states: string[]
   terminal: string[]             // étapes finales (déclarées, ou sans transition sortante)
   counts: Record<string, number>
@@ -29,7 +31,7 @@ function toggle(state: string) {
 }
 function chipTitle(state: string): string {
   const base = props.active === state
-    ? t('dataUi.status.clear') : t('dataUi.status.filter', { state: etatLisible(state) })
+    ? t('dataUi.status.clear') : t('dataUi.status.filter', { state: etatLisible(state, props.field) })
   const filtre = props.terminal.includes(state) ? `${base} — ${t('dataUi.lifecycle.finalHint')}` : base
   if (state !== props.abandonState) return filtre
   return props.maxClaims
@@ -47,7 +49,7 @@ function chipTitle(state: string): string {
     <button v-for="s in states" :key="s" class="dsb-chip"
       :class="{ on: active === s, abandon: !!abandonState && s === abandonState }"
       :title="chipTitle(s)" @click="toggle(s)">
-      {{ etatLisible(s) }}<span v-if="terminal.includes(s)" class="dsb-final" aria-hidden="true">◼</span>
+      {{ etatLisible(s, field) }}<span v-if="terminal.includes(s)" class="dsb-final" aria-hidden="true">◼</span>
       <span class="dsb-n">{{ counts[s] ?? 0 }}</span>
     </button>
     <span v-if="maxClaims" class="dsb-ceiling">

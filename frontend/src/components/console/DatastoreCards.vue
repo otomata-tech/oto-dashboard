@@ -56,7 +56,7 @@ function fmt(v: unknown): string {
  * la barre de statuts et la fiche détaillée) ; le code brut reste en infobulle. */
 function statusText(row: DatastoreRow): string {
   const v = fmt(row[statusF.value!.key])
-  return estStatutACycle(statusF.value) ? etatLisible(v) : v
+  return estStatutACycle(statusF.value) ? etatLisible(v, statusF.value) : v
 }
 const statusTitle = (row: DatastoreRow) =>
   `${label(statusF.value!)} · ${t('dataUi.lifecycle.code', { code: fmt(row[statusF.value!.key]) })}`

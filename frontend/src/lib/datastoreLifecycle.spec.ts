@@ -47,18 +47,33 @@ describe('transitionPath', () => {
 
 describe('etatLisible — le libellé d’une étape, par règle générique', () => {
   it('underscores en espaces, première lettre en capitale', () => {
-    expect(etatLisible('a_qualifier')).toBe('A qualifier')
-    expect(etatLisible('non_interesse')).toBe('Non interesse')
-    expect(etatLisible('client')).toBe('Client')
+    expect(etatLisible('a_qualifier', null)).toBe('A qualifier')
+    expect(etatLisible('non_interesse', null)).toBe('Non interesse')
+    expect(etatLisible('client', null)).toBe('Client')
   })
   it('ne devine aucun accent ni aucune traduction', () => {
-    expect(etatLisible('contacte')).toBe('Contacte')
+    expect(etatLisible('contacte', null)).toBe('Contacte')
   })
   it('laisse intact un libellé déjà lisible, et ne rend jamais une chaîne vide', () => {
-    expect(etatLisible('En cours')).toBe('En cours')
-    expect(etatLisible('__a__b_')).toBe('A b')
-    expect(etatLisible('—')).toBe('—')
-    expect(etatLisible('')).toBe('')
+    expect(etatLisible('En cours', null)).toBe('En cours')
+    expect(etatLisible('__a__b_', null)).toBe('A b')
+    expect(etatLisible('—', null)).toBe('—')
+    expect(etatLisible('', null)).toBe('')
+  })
+})
+
+describe('etatLisible — le libellé DÉCLARÉ d’abord (lifecycle.labels, oto#140)', () => {
+  const champ = { key: 'statut', lifecycle: { states: ['a_qualifier', 'perdu'], labels: { a_qualifier: 'À qualifier' } } }
+  it('prend le libellé déclaré pour l’état', () => {
+    expect(etatLisible('a_qualifier', champ)).toBe('À qualifier')
+  })
+  it('un état sans libellé garde le libellé dérivé du code', () => {
+    expect(etatLisible('perdu', champ)).toBe('Perdu')
+    expect(etatLisible('a_qualifier', { lifecycle: { states: ['a_qualifier'] } })).toBe('A qualifier')
+    expect(etatLisible('a_qualifier', undefined)).toBe('A qualifier')
+  })
+  it('un libellé vide ne masque pas l’état', () => {
+    expect(etatLisible('a_qualifier', { lifecycle: { labels: { a_qualifier: '  ' } } })).toBe('A qualifier')
   })
 })
 
@@ -85,12 +100,18 @@ describe('estStatutACycle', () => {
 
 describe('transitionAnnounce — la confirmation nomme les étapes en clair', () => {
   it('libellés lisibles dans le message, codes dans le plan de retour', () => {
-    const a = transitionAnnounce('ACME', { key: 'statut', from: 'ecarte', to: 'a_enrichir' }, MUCHO)
+    const a = transitionAnnounce('ACME', { key: 'statut', from: 'ecarte', to: 'a_enrichir' }, { lifecycle: { transitions: MUCHO } })
     expect(a.message).toBe('« ACME » : Ecarte → A enrichir')
     expect(a.undo).toEqual(['ecarte'])
   })
+  it('les libellés déclarés nomment les étapes du message', () => {
+    const a = transitionAnnounce('ACME', { key: 'statut', from: 'ecarte', to: 'a_enrichir' },
+      { lifecycle: { transitions: MUCHO, labels: { ecarte: 'Écarté', a_enrichir: 'À enrichir' } } })
+    expect(a.message).toBe('« ACME » : Écarté → À enrichir')
+    expect(a.undo).toEqual(['ecarte'])
+  })
   it('un retour impossible se dit avec les mêmes libellés', () => {
-    const a = transitionAnnounce('ACME', { key: 'statut', from: 'enrichi', to: 'livre' }, MUCHO)
+    const a = transitionAnnounce('ACME', { key: 'statut', from: 'enrichi', to: 'livre' }, { lifecycle: { transitions: MUCHO } })
     expect(a.message).toBe('« ACME » : Enrichi → Livre — retour impossible : aucun chemin déclaré de « Livre » vers « Enrichi ».')
     expect(a.undo).toBeNull()
   })

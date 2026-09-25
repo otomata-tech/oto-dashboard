@@ -90,7 +90,7 @@ const chips = computed(() => props.filters.map((f) => ({
   // Type DÉCLARÉ : la vue fiches n'a pas de colonne d'où renifler les valeurs, mais
   // le namespace est typé — la chip doit dire « à partir du », pas « ≥ ».
   label: filterChipLabel(f, columnFilterKind([], f.field, declaredOf(f.field)?.type), labelOf(f.field),
-    estStatutACycle(declaredOf(f.field)) ? etatLisible : undefined),
+    estStatutACycle(declaredOf(f.field)) ? (v: string) => etatLisible(v, declaredOf(f.field)) : undefined),
 })))
 function removeChip(field: string) {
   emit('update:filters', props.filters.filter((f) => f.field !== field))

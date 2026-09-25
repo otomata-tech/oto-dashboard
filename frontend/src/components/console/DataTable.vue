@@ -151,8 +151,8 @@ function cellVal(row: DatastoreRow, col: string): unknown { return row[col] }
 // se filtrent et se nomment en clair, comme dans la barre de statuts et la fiche.
 const isStatusCol = (col: string) => estStatutACycle(fieldByKey.value[col])
 const statusOptions = (col: string) =>
-  (fieldByKey.value[col]?.lifecycle?.states ?? []).map((s) => ({ value: String(s), label: etatLisible(String(s)) }))
-const valueLabel = (col: string) => (v: string) => (isStatusCol(col) ? etatLisible(v) : v)
+  (fieldByKey.value[col]?.lifecycle?.states ?? []).map((s) => ({ value: String(s), label: etatLisible(String(s), fieldByKey.value[col]) }))
+const valueLabel = (col: string) => (v: string) => (isStatusCol(col) ? etatLisible(v, fieldByKey.value[col]) : v)
 
 // Recherche : champ partagé (frappe locale + débounce dans DatastoreSearchBar),
 // la source de vérité reste `props.search` côté parent.
@@ -295,7 +295,7 @@ watch(() => props.filters, (f) => {
               </span>
               <span v-else-if="isStatusCol(col) && cellVal(row, col) != null && cellVal(row, col) !== ''"
                 :title="t('dataUi.lifecycle.code', { code: String(cellVal(row, col)) })">
-                {{ etatLisible(String(cellVal(row, col))) }}
+                {{ etatLisible(String(cellVal(row, col)), fieldByKey[col]) }}
               </span>
               <span v-else-if="cellKind(cellVal(row, col)) === 'number'" class="num mono">
                 {{ cellShort(cellVal(row, col)) }}

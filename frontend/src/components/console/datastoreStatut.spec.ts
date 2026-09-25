@@ -45,7 +45,7 @@ async function monter(c: Component, props: Record<string, unknown>) {
 
 describe('barre de statuts', () => {
   const props = {
-    label: 'Statut', states: LIFECYCLE.states, terminal: LIFECYCLE.terminal,
+    label: 'Statut', field: SCHEMA.fields![1], states: LIFECYCLE.states, terminal: LIFECYCLE.terminal,
     counts: { a_qualifier: 3, client: 1 }, active: null, total: 4,
   }
 
@@ -97,5 +97,46 @@ describe('liste', () => {
     const th = [...document.querySelectorAll('.dt-filter-row th')]
     const choix = [...th[1]!.querySelectorAll('select.cfc-val option')].map((o) => o.textContent?.trim())
     expect(choix).toEqual(['…', 'A qualifier', 'A contacter', 'Contacte', 'Interesse', 'Non interesse', 'Client'])
+  })
+})
+
+// Les libellés DÉCLARÉS au cycle de vie (`lifecycle.labels`, oto#140) : les quatre surfaces
+// de la vue du tableau les prennent, et un état sans libellé garde le libellé dérivé.
+describe('libellés d’étape déclarés', () => {
+  const STATUT = {
+    key: 'statut', label: 'Statut', role: 'status' as const, type: 'text' as const,
+    lifecycle: { ...LIFECYCLE, labels: { a_qualifier: 'À qualifier', non_interesse: 'Pas intéressé' } },
+  }
+  const AVEC: DatastoreSchema = { fields: [SCHEMA.fields![0]!, STATUT] }
+
+  it('la barre de statuts', async () => {
+    await monter(DatastoreStatusBar, {
+      label: 'Statut', field: STATUT, states: LIFECYCLE.states, terminal: LIFECYCLE.terminal,
+      counts: { a_qualifier: 3 }, active: null, total: 3,
+    })
+    const chips = [...document.querySelectorAll<HTMLButtonElement>('.dsb-chip')].map((b) => b.textContent!)
+    expect(chips.some((c) => c.startsWith('À qualifier'))).toBe(true)
+    expect(chips.some((c) => c.startsWith('A contacter'))).toBe(true)   // pas de libellé : dérivé
+  })
+
+  it('le badge des fiches', async () => {
+    await monter(DatastoreCards, { rows: ROWS, schema: AVEC })
+    const tag = [...document.querySelectorAll<HTMLElement>('.ds-card__head > *')].find((e) => e.textContent?.includes('Pas intéressé'))
+    expect(tag?.title).toBe('Statut · code : non_interesse')
+  })
+
+  it('la cellule, la chip du filtre et la liste des étapes', async () => {
+    await monter(DataTable, {
+      rows: ROWS, total: 1, page: 0, pageSize: 25, sortField: null, sortDir: 'desc', search: '',
+      filters: [{ field: 'statut', op: 'eq', value: 'non_interesse' }], schema: AVEC,
+    })
+    const cellules = [...document.querySelectorAll('tbody td')].map((td) => td.textContent?.trim())
+    expect(cellules).toContain('Pas intéressé')
+    expect(document.querySelector('.fchip')?.textContent).toContain('Statut = Pas intéressé')
+    ;(document.querySelector('.dt-filter-toggle') as HTMLButtonElement).click()
+    await nextTick()
+    const th = [...document.querySelectorAll('.dt-filter-row th')]
+    const choix = [...th[1]!.querySelectorAll('select.cfc-val option')].map((o) => o.textContent?.trim())
+    expect(choix).toEqual(['…', 'À qualifier', 'A contacter', 'Contacte', 'Interesse', 'Pas intéressé', 'Client'])
   })
 })

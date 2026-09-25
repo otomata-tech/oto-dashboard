@@ -42,10 +42,10 @@ export function useTransitionUndo(ctx: TransitionUndoCtx) {
         await updateNamespaceRow(ns, row._id, { [t.key]: step })
         done++
       }
-      toast(`« ${rowLabel(row)} » : revenu à ${t.from ? etatLisible(t.from) : '—'}`)
+      toast(`« ${rowLabel(row)} » : revenu à ${t.from ? etatLisible(t.from, { lifecycle: ctx.lifecycle() }) : '—'}`)
     } catch (e) {
       toast(done
-        ? `« ${rowLabel(row)} » : retour interrompu — la fiche est restée à ${etatLisible(steps[done - 1]!)} (${humanize(e)})`
+        ? `« ${rowLabel(row)} » : retour interrompu — la fiche est restée à ${etatLisible(steps[done - 1]!, { lifecycle: ctx.lifecycle() })} (${humanize(e)})`
         : humanize(e))
     }
     await ctx.refresh()
@@ -54,7 +54,7 @@ export function useTransitionUndo(ctx: TransitionUndoCtx) {
   /** Confirme la transition appliquée et propose le retour quand il est légal. */
   function announce(ns: string, row: DatastoreRow, t: LifecycleIntent) {
     const { message, undo: steps } =
-      transitionAnnounce(rowLabel(row), t, ctx.lifecycle()?.transitions)
+      transitionAnnounce(rowLabel(row), t, { lifecycle: ctx.lifecycle() })
     if (!steps) { toast(message, { duration: 7000 }); return }
     // Le retour n'est pas gratuit quand le graphe impose un détour : il écrit autant
     // de transitions que de sauts — on l'annonce plutôt que de promettre « annuler ».

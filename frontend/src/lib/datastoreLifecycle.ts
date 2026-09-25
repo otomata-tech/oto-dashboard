@@ -4,15 +4,23 @@
 // c'est un TRAJET dans le même graphe, aux mêmes règles.
 import type { DatastoreField, DatastoreLifecycle } from '@/types/api'
 
+/** Ce qui porte un cycle de vie : une colonne du schéma (`DatastoreField`), ou le seul
+ * bloc quand l'appelant n'a que lui. */
+export type PorteurDeCycle = { lifecycle?: DatastoreLifecycle | null }
+
 /**
- * Libellé LISIBLE d'un état : le schéma ne porte que des codes (`a_qualifier`), et le
- * code brut, en majuscules dans un badge, ne disait pas ce qu'il désignait. Règle
- * GÉNÉRIQUE, aucun dictionnaire : les `_` deviennent des espaces, la première lettre
- * passe en capitale (`non_interesse` → « Non interesse »). Aucun accent n'est deviné :
- * une règle qui en poserait se tromperait un jour sans le dire.
- * ⚠️ Point UNIQUE : le jour où le lifecycle déclare des libellés, c'est ici qu'on les lit.
+ * Libellé LISIBLE d'un état. Le cycle de vie peut le DÉCLARER (`lifecycle.labels`,
+ * oto#140 : `a_qualifier` → « À qualifier ») ; à défaut, règle GÉNÉRIQUE, aucun
+ * dictionnaire : les `_` deviennent des espaces, la première lettre passe en capitale
+ * (`non_interesse` → « Non interesse »). Aucun accent n'est deviné : une règle qui en
+ * poserait se tromperait un jour sans le dire — c'est pour ça que le libellé se déclare.
+ * ⚠️ Point UNIQUE de lecture des libellés. `champ` est OBLIGATOIRE (même `null`) : un
+ * appelant qui l'oublierait afficherait le code dérivé à côté d'un écran qui affiche le
+ * libellé déclaré, et rien ne le signalerait.
  */
-export function etatLisible(code: string): string {
+export function etatLisible(code: string, champ: PorteurDeCycle | null | undefined): string {
+  const declare = champ?.lifecycle?.labels?.[String(code)]
+  if (typeof declare === 'string' && declare.trim()) return declare
   const s = String(code).replace(/_+/g, ' ').replace(/\s+/g, ' ').trim()
   return s ? s.charAt(0).toLocaleUpperCase() + s.slice(1) : String(code)
 }
@@ -50,14 +58,16 @@ export interface TransitionAnnounce {
   undo: string[] | null
 }
 
-/** Confirmation + plan de retour d'une transition qui vient d'être appliquée. */
+/** Confirmation + plan de retour d'une transition qui vient d'être appliquée. Les
+ * états y sont nommés comme partout ailleurs (`etatLisible`, libellés déclarés). */
 export function transitionAnnounce(
   rowLabel: string,
   t: LifecycleIntent,
-  transitions: Record<string, string[]> | undefined | null,
+  champ: PorteurDeCycle | null | undefined,
 ): TransitionAnnounce {
-  const de = t.from ? etatLisible(t.from) : '—'
-  const vers = etatLisible(t.to)
+  const transitions = champ?.lifecycle?.transitions
+  const de = t.from ? etatLisible(t.from, champ) : '—'
+  const vers = etatLisible(t.to, champ)
   const done = `« ${rowLabel} » : ${de} → ${vers}`
   if (!t.from) return { message: done, undo: null }   // pas d'état d'avant : rien à rétablir
   const back = transitionPath(transitions, t.to, t.from)

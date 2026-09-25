@@ -85,7 +85,7 @@ const statusField = computed(() =>
   (props.schema?.fields ?? []).find((f) => f.role === 'status') ?? null)
 const lifecycleStates = computed<string[]>(() =>
   (statusField.value?.lifecycle?.states ?? []).map(String))
-const lifecycleOpts = computed(() => lifecycleStates.value.map((s) => ({ value: s, label: etatLisible(s) })))
+const lifecycleOpts = computed(() => lifecycleStates.value.map((s) => ({ value: s, label: etatLisible(s, statusField.value) })))
 const BOOL_OPTIONS = [{ value: 'true', label: 'true' }, { value: 'false', label: 'false' }]
 const isLifecycleStatus = (d: FieldDesc) =>
   d.role === 'status' && lifecycleStates.value.length > 0
@@ -242,7 +242,7 @@ const terminalStates = computed(() => etatsTerminaux(statusField.value?.lifecycl
 const cycle = computed(() => !props.isNew && estStatutACycle(statusField.value))
 const stepLabel = computed(() => statusField.value?.label || t('dataUi.lifecycle.step'))
 function moveHint(etat: string): string {
-  const geste = t('dataUi.lifecycle.moveHint', { state: etatLisible(etat) })
+  const geste = t('dataUi.lifecycle.moveHint', { state: etatLisible(etat, statusField.value) })
   return terminalStates.value.has(etat) ? `${geste} — ${t('dataUi.lifecycle.finalHint')}` : geste
 }
 // Ce que la FILE sait de la fiche (oto-backend#433) : le compteur de réservations
@@ -306,7 +306,7 @@ function applyTransition(state: string) {
         <div v-if="cycle" class="rd-lifecycle" data-lifecycle>
           <span class="rd-step-lbl">{{ stepLabel }}</span>
           <b class="rd-step" :title="currentStatus ? t('dataUi.lifecycle.code', { code: currentStatus }) : undefined">
-            {{ currentStatus ? etatLisible(currentStatus) : t('dataUi.lifecycle.none') }}</b>
+            {{ currentStatus ? etatLisible(currentStatus, statusField) : t('dataUi.lifecycle.none') }}</b>
           <span v-if="currentStatus && terminalStates.has(currentStatus)" class="rd-final"
             :title="t('dataUi.lifecycle.finalHint')">◼ {{ t('dataUi.lifecycle.final') }}</span>
           <template v-if="transitions.length">
@@ -314,7 +314,7 @@ function applyTransition(state: string) {
             <span class="rd-step-lbl">{{ t('dataUi.lifecycle.moveTo') }}</span>
             <Btn v-for="etat in transitions" :key="etat" kind="mini" :data-state="etat"
               :title="moveHint(etat)" :aria-label="moveHint(etat)" @click="applyTransition(etat)">
-              {{ etatLisible(etat) }}<span v-if="terminalStates.has(etat)" class="rd-final">◼ {{ t('dataUi.lifecycle.final') }}</span>
+              {{ etatLisible(etat, statusField) }}<span v-if="terminalStates.has(etat)" class="rd-final">◼ {{ t('dataUi.lifecycle.final') }}</span>
             </Btn>
           </template>
           <Btn v-if="row?._claimed_by && !readOnly" kind="mini" @click="emit('release')">{{ t('dataUi.drawer.release') }}</Btn>
