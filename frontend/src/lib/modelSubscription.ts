@@ -13,10 +13,11 @@
 import { computed, ref, watch } from 'vue'
 import { ApiError } from '@/api'
 import {
-  getModelSubscriptions, getOrgModelSubscription, removeModelSubscription, sendModelSubscriptionCode,
-  setModelSubscriptionLimit, setOrgModelSubscriptionLimit, startModelSubscriptionLogin,
+  getModelSubscriptions, getMyOrgs, getOrgModelSubscription, removeModelSubscription, sendModelSubscriptionCode,
+  setModelSubscriptionLending, setModelSubscriptionLimit, setOrgModelSubscriptionLimit,
+  setOrgModelSubscriptionMode, startModelSubscriptionLogin,
 } from '@/api/console'
-import type { ModelSubscription, OrgModelSubscriptionCap } from '@/types/api'
+import type { ModelSubscription, Org, OrgModelSubscriptionCap, OrgModelSubscriptionMode } from '@/types/api'
 
 /** La seule famille servie par abonnement aujourd'hui (`sub:sonnet|opus|haiku`). */
 export const CLAUDE_FAMILY = 'claude_subscription'
@@ -36,6 +37,7 @@ export function statutOf(s: ModelSubscription): SubscriptionStatut {
 /** Les refus que l'écran sait nommer ; les autres passent par `humanize`. */
 export const KNOWN_ERRORS = [
   'subscription_not_enabled', 'login_failed', 'farm_unavailable', 'not_connected', 'invalid_limit',
+  'not_org_member', 'nothing_to_change',
 ] as const
 
 /** La clé i18n du message d'un refus connu, ou null. */
@@ -130,6 +132,26 @@ export function useModelSubscription(family: string = CLAUDE_FAMILY) {
     }
   }
 
+  // Le prêt au pool, idem : son propre état d'envoi, refus affiché sous les cases.
+  const lendBusy = ref(false)
+  const lendError = ref<unknown>(null)
+
+  /** Envoie l'ensemble COMPLET des orgs prêtées (il remplace le précédent) ; true =
+   *  enregistré. La réponse est l'abonnement relu : c'est elle qui dit `lent_to`. */
+  async function setLending(lentTo: number[]): Promise<boolean> {
+    lendBusy.value = true
+    lendError.value = null
+    try {
+      sub.value = await setModelSubscriptionLending(family, lentTo)
+      return true
+    } catch (e) {
+      lendError.value = e
+      return false
+    } finally {
+      lendBusy.value = false
+    }
+  }
+
   function restart() {
     step.value = 'idle'
     loginUrl.value = null
@@ -147,7 +169,7 @@ export function useModelSubscription(family: string = CLAUDE_FAMILY) {
 
   return {
     sub, etat, loaded, step, loginUrl, notEnabled, error, busy,
-    load, start, submitCode, restart, limitBusy, limitError, setLimit,
+    load, start, submitCode, restart, limitBusy, limitError, setLimit, lendBusy, lendError, setLending,
     disconnect: () => remove(false),
     destroy: () => remove(true),
   }
@@ -235,5 +257,111 @@ export function useOrgModelSubscription(orgId: () => number, family: string = CL
     }
   }
 
-  return { cap, loaded, error, busy, load, set }
+  // Le mode a son propre état d'envoi : son refus s'affiche sous le choix du mode, pas
+  // sous le plafond.
+  const modeBusy = ref(false)
+  const modeError = ref<unknown>(null)
+
+  /** Passe l'org en `personnel` ou en `pool` ; true = enregistré (relu, `pool_size` compris). */
+  async function setMode(mode: OrgModelSubscriptionMode): Promise<boolean> {
+    modeBusy.value = true
+    modeError.value = null
+    try {
+      cap.value = await setOrgModelSubscriptionMode(orgId(), family, mode)
+      return true
+    } catch (e) {
+      modeError.value = e
+      return false
+    } finally {
+      modeBusy.value = false
+    }
+  }
+
+  return { cap, loaded, error, busy, load, set, modeBusy, modeError, setMode }
+}
+
+// ── Mode de l'org et pool ────────────────────────────────────────────────────────
+// `personnel` (défaut) : un travail tourne sur l'abonnement de SON demandeur. `pool` : sur
+// celui d'un membre qui l'a PRÊTÉ à l'org (opt-in, par org), le moins récemment servi
+// d'abord ; sans prêteur libre, les travaux attendent. Le forfait consommé est celui du
+// prêteur, sous son plafond (le plus strict entre celui de l'org et le sien).
+
+export const MODES = ['personnel', 'pool'] as const satisfies readonly OrgModelSubscriptionMode[]
+
+/** Le mode servi (`str`), resserré sur l'ensemble fermé. Une valeur inconnue LÈVE : la
+ *  montrer comme l'un des deux ferait mentir l'écran sur qui paie les travaux. */
+export function modeOf(cap: Pick<OrgModelSubscriptionCap, 'mode'>): OrgModelSubscriptionMode {
+  if ((MODES as readonly string[]).includes(cap.mode)) return cap.mode as OrgModelSubscriptionMode
+  throw new Error(`mode d'abonnement inconnu : ${cap.mode}`)
+}
+
+/** Une org où l'on peut prêter : son mode (null = illisible, la lecture a échoué). */
+export interface LendableOrg {
+  org: Org
+  mode: OrgModelSubscriptionMode | null
+  poolSize: number | null
+}
+
+/** Les orgs dont la personne est membre, avec le mode de chacune. L'espace personnel est
+ *  écarté : on n'y prête qu'à soi-même. `memberIds` = TOUTES ses orgs, espace perso compris,
+ *  pour borner l'ensemble envoyé (le serveur refuse une org dont on n'est pas membre). */
+export function useLendableOrgs(family: string = CLAUDE_FAMILY) {
+  const orgs = ref<LendableOrg[]>([])
+  const memberIds = ref<number[]>([])
+  const loaded = ref(false)
+  const error = ref<unknown>(null)
+  const busy = ref(false)
+
+  async function load() {
+    busy.value = true
+    error.value = null
+    try {
+      const mine = (await getMyOrgs()).orgs
+      memberIds.value = mine.map((o) => o.id)
+      orgs.value = await Promise.all(mine.filter((o) => !o.personal).map(async (org) => {
+        try {
+          const cap = await getOrgModelSubscription(org.id, family)
+          return { org, mode: modeOf(cap), poolSize: cap.pool_size }
+        } catch {
+          // Une org illisible n'empêche pas les autres : elle s'affiche « mode inconnu »,
+          // et seul le retrait d'un prêt existant y reste possible.
+          return { org, mode: null, poolSize: null }
+        }
+      }))
+      loaded.value = true
+    } catch (e) {
+      error.value = e
+    } finally {
+      busy.value = false
+    }
+  }
+
+  return { orgs, memberIds, loaded, error, busy, load }
+}
+
+/** Le brouillon des cases « prêter à cette org ». Réinitialisé chaque fois que l'ensemble
+ *  ENREGISTRÉ change. Cocher n'est possible que pour une org en `pool` ; décocher un prêt
+ *  existant l'est toujours (retirer n'est jamais refusé). `payload` = l'ensemble COMPLET à
+ *  envoyer, borné aux orgs dont on est membre, trié. */
+export function useLendingDraft(saved: () => number[] | undefined, memberIds: () => number[]) {
+  const selected = ref<Set<number>>(new Set())
+  function reset() { selected.value = new Set(saved() ?? []) }
+  watch(() => (saved() ?? []).join(','), reset, { immediate: true })
+
+  function isSavedLent(id: number) { return (saved() ?? []).includes(id) }
+  function canToggle(o: LendableOrg) { return o.mode === 'pool' || isSavedLent(o.org.id) }
+  function toggle(id: number, on: boolean) {
+    const next = new Set(selected.value)
+    if (on) next.add(id)
+    else next.delete(id)
+    selected.value = next
+  }
+
+  const bounded = (ids: Iterable<number>) => {
+    const members = new Set(memberIds())
+    return [...new Set(ids)].filter((id) => members.has(id)).sort((a, b) => a - b)
+  }
+  const payload = computed(() => bounded(selected.value))
+  const dirty = computed(() => payload.value.join(',') !== bounded(saved() ?? []).join(','))
+  return { selected, canToggle, isSavedLent, toggle, payload, dirty, reset }
 }

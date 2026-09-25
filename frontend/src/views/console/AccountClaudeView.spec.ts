@@ -7,7 +7,10 @@
 //      renoncer n'appelle rien ;
 //   4. un statut hors de l'ensemble fermé lève au lieu d'être affiché comme un autre ;
 //   5. le plafond perso : entier 1..100 ou null, jamais envoyé invalide, enregistré sur
-//      geste explicite, refus nommé sous le réglage.
+//      geste explicite, refus nommé sous le réglage ;
+//   6. le prêt au pool : une case par org (espace perso écarté), cochable seulement en mode
+//      pool (la raison dite sinon), un prêt existant toujours retirable, et c'est l'ensemble
+//      COMPLET `lent_to` qui part ; un refus est nommé sous les cases.
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import { i18n } from '@/lib/i18n'
@@ -20,6 +23,9 @@ const api = vi.hoisted(() => ({
   sendModelSubscriptionCode: vi.fn(),
   removeModelSubscription: vi.fn(),
   setModelSubscriptionLimit: vi.fn(),
+  setModelSubscriptionLending: vi.fn(),
+  getMyOrgs: vi.fn(),
+  getOrgModelSubscription: vi.fn(),
 }))
 vi.mock('@/api/console', () => api)
 
@@ -53,6 +59,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   i18n.global.locale.value = 'fr'
   openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+  api.getMyOrgs.mockResolvedValue({ orgs: [] })
 })
 afterEach(() => openSpy.mockRestore())
 
@@ -309,5 +316,141 @@ describe('AccountClaudeView — l’écran', () => {
       .toContain("Aucun abonnement Claude n'est branché")
     expect(host.querySelector('[data-test=error]')).toBeNull()
     unmount()
+  })
+})
+
+// ── prêt au pool ────────────────────────────────────────────────────────────────
+const org = (id: number, name: string, personal = false) => ({
+  id, name, personal, logo_url: null, logo_custom: false, description: '', domain: null,
+  industry: '', location: '', member_count: 3, my_role: 'org_member',
+})
+const CAP = (org_id: number, mode: string, pool_size = 0) => ({
+  org_id, family: 'claude_subscription', limit_pct: 80, default: true, updated_at: null, updated_by: null,
+  mode, pool_size,
+})
+// Perso (écartée), Acme en pool (2 prêteurs), Beta en personnel, Gamma en pool.
+function mesOrgs() {
+  api.getMyOrgs.mockResolvedValue({ orgs: [org(1, 'Perso', true), org(7, 'Acme'), org(8, 'Beta'), org(9, 'Gamma')] })
+  api.getOrgModelSubscription.mockImplementation(async (id: number) =>
+    ({ 7: CAP(7, 'pool', 2), 8: CAP(8, 'personnel'), 9: CAP(9, 'pool', 0) } as Record<number, unknown>)[id])
+}
+const caseDe = (host: HTMLElement, id: number) =>
+  host.querySelector<HTMLInputElement>(`[data-test=lend-org-${id}] input[type=checkbox]`)!
+async function cocher(host: HTMLElement, id: number, on: boolean) {
+  const c = caseDe(host, id)
+  c.checked = on
+  c.dispatchEvent(new Event('change'))
+  await settle()
+}
+const soumettre = async (host: HTMLElement) => {
+  host.querySelector('[data-test=lend-card] form')!.dispatchEvent(new Event('submit'))
+  await settle()
+}
+
+describe('prêt au pool — la logique', () => {
+  it('modeOf resserre sur personnel | pool, et lève sur l’inconnu', async () => {
+    const { modeOf } = await import('@/lib/modelSubscription')
+    expect(modeOf({ mode: 'pool' })).toBe('pool')
+    expect(modeOf({ mode: 'personnel' })).toBe('personnel')
+    expect(() => modeOf({ mode: 'mutualise' })).toThrow(/mode d'abonnement inconnu/)
+  })
+
+  it('le brouillon : pool cochable, personnel non, prêt existant toujours retirable ; payload borné et trié', async () => {
+    const { ref } = await import('vue')
+    const { useLendingDraft } = await import('@/lib/modelSubscription')
+    const saved = ref<number[]>([8])
+    const d = useLendingDraft(() => saved.value, () => [1, 7, 8, 9])
+    const o = (id: number, mode: 'pool' | 'personnel' | null) => ({ org: org(id, 'x'), mode, poolSize: null })
+    expect(d.canToggle(o(7, 'pool'))).toBe(true)
+    expect(d.canToggle(o(9, 'personnel'))).toBe(false)
+    expect(d.canToggle(o(8, 'personnel'))).toBe(true)   // prêt existant : on peut le retirer
+    expect(d.canToggle(o(9, null))).toBe(false)
+    expect(d.dirty.value).toBe(false)
+    d.toggle(9, true)
+    d.toggle(7, true)
+    d.toggle(42, true)                                     // plus membre : jamais envoyée
+    expect(d.payload.value).toEqual([7, 8, 9])
+    expect(d.dirty.value).toBe(true)
+    saved.value = [7, 8, 9]
+    await Promise.resolve()
+    expect(d.dirty.value).toBe(false)
+  })
+})
+
+describe('AccountClaudeView — prêter au pool', () => {
+  it('une case par org (perso écartée) ; hors pool la case est fermée et la raison dite', async () => {
+    api.getModelSubscriptions.mockResolvedValue({ subscriptions: [{ ...CONNECTE, lent_to: [] }] })
+    mesOrgs()
+    const { host, unmount } = await mountView()
+    expect(api.getOrgModelSubscription).toHaveBeenCalledTimes(3)
+    expect(host.querySelector('[data-test=lend-org-1]')).toBeNull()
+    expect(host.querySelector('[data-test=lend-rule]')!.textContent).toContain('ton forfait qui est consommé')
+    expect(host.querySelector('[data-test=lend-note-7]')!.textContent).toContain('2 prêteurs')
+    expect(caseDe(host, 7).disabled).toBe(false)
+    expect(caseDe(host, 8).disabled).toBe(true)
+    expect(host.querySelector('[data-test=lend-note-8]')!.textContent).toContain('Un admin de l\'org peut la passer en pool')
+    expect(host.querySelector<HTMLButtonElement>('[data-test=lend-save]')!.disabled).toBe(true)
+    unmount()
+  })
+
+  it('enregistrer envoie l’ensemble COMPLET lent_to, et la réponse relue fait foi', async () => {
+    api.getModelSubscriptions.mockResolvedValue({ subscriptions: [{ ...CONNECTE, lent_to: [7] }] })
+    api.setModelSubscriptionLending.mockResolvedValue({ ...CONNECTE, lent_to: [7, 9] })
+    mesOrgs()
+    const { host, unmount } = await mountView()
+    expect(caseDe(host, 7).checked).toBe(true)
+    await cocher(host, 9, true)
+    expect(host.querySelector<HTMLButtonElement>('[data-test=lend-save]')!.disabled).toBe(false)
+    await soumettre(host)
+    expect(api.setModelSubscriptionLending).toHaveBeenCalledWith('claude_subscription', [7, 9])
+    expect(caseDe(host, 9).checked).toBe(true)
+    expect(host.querySelector<HTMLButtonElement>('[data-test=lend-save]')!.disabled).toBe(true)
+    unmount()
+  })
+
+  it('retirer un prêt dans une org repassée en personnel reste possible ; tout retirer envoie []', async () => {
+    api.getModelSubscriptions.mockResolvedValue({ subscriptions: [{ ...CONNECTE, lent_to: [8] }] })
+    api.setModelSubscriptionLending.mockResolvedValue({ ...CONNECTE, lent_to: [] })
+    mesOrgs()
+    const { host, unmount } = await mountView()
+    expect(caseDe(host, 8).disabled).toBe(false)
+    expect(host.querySelector('[data-test=lend-note-8]')!.textContent).toContain('ton prêt ne sert pas')
+    await cocher(host, 8, false)
+    await soumettre(host)
+    expect(api.setModelSubscriptionLending).toHaveBeenCalledWith('claude_subscription', [])
+    expect(caseDe(host, 8).disabled).toBe(true)   // plus prêté, et toujours hors pool
+    unmount()
+  })
+
+  it('un refus est nommé sous les cases ; le brouillon reste', async () => {
+    api.getModelSubscriptions.mockResolvedValue({ subscriptions: [{ ...CONNECTE, lent_to: [] }] })
+    api.setModelSubscriptionLending.mockRejectedValue(new ApiError(403, 'subscription_not_enabled'))
+    mesOrgs()
+    const { host, unmount } = await mountView()
+    await cocher(host, 7, true)
+    await soumettre(host)
+    expect(host.querySelector('[data-test=lend-error]')!.textContent).toContain("n'est pas ouverte sur ton compte")
+    expect(caseDe(host, 7).checked).toBe(true)
+    expect(host.querySelector('[data-test=not-enabled]')).toBeNull()   // le parcours n'est pas touché
+
+    api.setModelSubscriptionLending.mockRejectedValue(new ApiError(403, 'not_org_member'))
+    await soumettre(host)
+    expect(host.querySelector('[data-test=lend-error]')!.textContent).toContain("n'es plus membre")
+    unmount()
+  })
+
+  it('abonnement non connecté : le dire ; sans abonnement, aucune carte de prêt ni lecture des orgs', async () => {
+    api.getModelSubscriptions.mockResolvedValue({ subscriptions: [{ ...CONNECTE, statut: 'needs_login', lent_to: [] }] })
+    mesOrgs()
+    const a = await mountView()
+    expect(a.host.querySelector('[data-test=lend-not-connected]')).not.toBeNull()
+    a.unmount()
+
+    vi.clearAllMocks()
+    api.getModelSubscriptions.mockResolvedValue({ subscriptions: [] })
+    const b = await mountView()
+    expect(b.host.querySelector('[data-test=lend-card]')).toBeNull()
+    expect(api.getMyOrgs).not.toHaveBeenCalled()
+    b.unmount()
   })
 })

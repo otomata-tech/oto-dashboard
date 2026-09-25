@@ -511,12 +511,30 @@
       "toastSaved": "plafond perso : {pct} %",
       "toastCleared": "plafond perso retiré"
     },
+    "lend": {
+      "title": "prêter mon abonnement au pool",
+      "sub": "par organisation : les travaux d'une org en mode pool peuvent tourner sur ton abonnement.",
+      "rule": "C'est ton forfait qui est consommé par les travaux des autres membres, sous ton plafond de consommation. Ton abonnement ne sert qu'un travail à la fois, les tiens compris.",
+      "withdraw": "Tu peux retirer ton prêt à tout moment : il vaut pour les travaux suivants, un travail en cours n'est jamais coupé.",
+      "notConnected": "Ton abonnement n'est pas connecté : il ne servira au pool qu'une fois connecté.",
+      "unavailable": "Organisations indisponibles.",
+      "noOrg": "Tu n'es membre d'aucune organisation : il n'y a pas de pool où prêter.",
+      "poolNote": "mode pool · {n} prêteur | mode pool · {n} prêteurs",
+      "personnel": "mode personnel : pas de pool dans cette org, chacun y paie ses propres travaux. Un admin de l'org peut la passer en pool.",
+      "personnelLent": "mode personnel : ton prêt ne sert pas tant que l'org n'est pas en pool. Tu peux le retirer.",
+      "unknown": "mode illisible pour le moment : impossible de prêter à cette org.",
+      "unknownLent": "mode illisible pour le moment. Tu peux retirer ton prêt.",
+      "toastSaved": "abonnement prêté à {n} org | abonnement prêté à {n} orgs",
+      "toastNone": "abonnement prêté à aucune org"
+    },
     "errors": {
       "subscription_not_enabled": "Cette option n'est pas ouverte sur ton compte.",
       "login_failed": "Anthropic n'a pas ouvert de session avec ce code (expiré ou déjà utilisé). Clique « Recommencer ».",
       "farm_unavailable": "Le service des sandboxes ne répond pas pour le moment. Réessaie dans quelques minutes.",
       "not_connected": "Aucun abonnement Claude n'est branché sur ton compte.",
-      "invalid_limit": "Le plafond doit être un entier de 1 à 100."
+      "invalid_limit": "Le plafond doit être un entier de 1 à 100.",
+      "not_org_member": "Tu n'es plus membre d'une de ces organisations : recharge la page.",
+      "nothing_to_change": "Rien à enregistrer."
     }
   },
   "errors": {
@@ -2254,8 +2272,8 @@
       "invitation": "tu as une invitation ? ouvre plutôt le lien reçu par email."
     },
     "modelSub": {
-      "title": "abonnements Claude · plafond de consommation",
-      "sub": "quand un run de l'org tourne sur l'abonnement Claude d'un membre, la part maximale de l'usage total de son compte (fenêtres 5 h et 7 j) qu'il peut atteindre.",
+      "title": "abonnements Claude · mode et plafond",
+      "sub": "sur quel abonnement Claude tournent les travaux de l'org, et quelle part de l'usage total d'un compte (fenêtres 5 h et 7 j) ils peuvent atteindre.",
       "current": "{pct} %",
       "currentDefault": "{pct} % · défaut",
       "descDefault": "L'org n'a rien réglé : le défaut de la plateforme s'applique, {pct} %.",
@@ -2267,7 +2285,28 @@
       "readOnly": "Seul un admin de l'org peut modifier ce plafond.",
       "unavailable": "Plafond indisponible.",
       "toastSaved": "plafond de l'org : {pct} %",
-      "toastDefault": "plafond de l'org revenu au défaut ({pct} %)"
+      "toastDefault": "plafond de l'org revenu au défaut ({pct} %)",
+      "limitLabel": "Plafond de consommation",
+      "mode": {
+        "label": "Mode",
+        "name": {
+          "personnel": "personnel",
+          "pool": "pool"
+        },
+        "desc": {
+          "personnel": "Chaque travail tourne sur l'abonnement Claude de la personne qui l'a demandé. Les flottes ne peuvent pas tourner sur un abonnement.",
+          "pool": "Les travaux de l'org, flottes comprises, tournent sur l'abonnement d'un membre qui l'a prêté à l'org, le moins récemment servi d'abord. Sans prêteur libre, ils attendent : aucun n'échoue."
+        },
+        "poolSize": "{n} membre prête son abonnement à l'org. | {n} membres prêtent leur abonnement à l'org.",
+        "poolEmpty": "Aucun membre ne prête son abonnement : les travaux de l'org attendent. Chaque membre prête le sien depuis",
+        "lendLink": "Mon abonnement Claude",
+        "poolWarning": "En pool, le travail d'une personne tournera sur l'abonnement d'une autre : c'est le forfait du prêteur qui est consommé, sous son plafond. Le changement vaut pour les travaux suivants.",
+        "readOnly": "Seul un admin de l'org peut changer de mode.",
+        "toast": {
+          "personnel": "mode personnel : chacun sur son abonnement",
+          "pool": "mode pool : les travaux tournent sur les abonnements prêtés"
+        }
+      }
     },
     "mfa": {
       "title": "sécurité · MFA obligatoire",

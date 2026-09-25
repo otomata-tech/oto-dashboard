@@ -26,6 +26,7 @@ import type {
   ModelSubscription, ModelSubscriptionList, ModelSubscriptionLogin, ModelSubscriptionRemoved,
   ModelSubscriptionLimitBody, ModelSubscriptionLimitSet,
   OrgModelSubscriptionCap, OrgModelSubscriptionLimitBody, OrgModelSubscriptionCapSet,
+  OrgModelSubscriptionMode, OrgModelSubscriptionModeSet,
 } from '@/types/api'
 // ⚠️ Contrat SERVI PAR UN LOT NON DÉPLOYÉ (oto-backend PR #723) — écrit à la main
 // parce qu'une régénération depuis l'OpenAPI en ligne l'effacerait. Cf. le fichier.
@@ -1359,6 +1360,10 @@ export const removeModelSubscription = (family: string, destroy = false) =>
 // Plafond de consommation PERSO (1..100, null = aucun) : il ne peut que resserrer celui de l'org.
 export const setModelSubscriptionLimit = (family: string, limit_pct: ModelSubscriptionLimitBody['limit_pct']) =>
   api<ModelSubscriptionLimitSet>(subPath(family), { method: 'PATCH', ...j({ limit_pct }) })
+// Prêt au POOL : `lent_to` = l'ensemble COMPLET des orgs auxquelles on prête (il remplace le
+// précédent ; `[]` = aucune). Le plafond, omis, reste inchangé.
+export const setModelSubscriptionLending = (family: string, lent_to: number[]) =>
+  api<ModelSubscriptionLimitSet>(subPath(family), { method: 'PATCH', ...j({ lent_to }) })
 // Plafond de l'ORG sur les abonnements de ses membres : lecture = membre, écriture = org_admin
 // (null = revenir au défaut de la plateforme).
 const orgSubPath = (orgId: number, family: string) =>
@@ -1368,6 +1373,10 @@ export const getOrgModelSubscription = (orgId: number, family: string) =>
 export const setOrgModelSubscriptionLimit = (
   orgId: number, family: string, limit_pct: OrgModelSubscriptionLimitBody['limit_pct'],
 ) => api<OrgModelSubscriptionCapSet>(orgSubPath(orgId, family), { method: 'PUT', ...j({ limit_pct }) })
+// Mode de l'org (org_admin) : `personnel` = l'abonnement du demandeur ; `pool` = celui d'un
+// membre qui l'a prêté à l'org. Rend la carte relue (mode, pool_size compris).
+export const setOrgModelSubscriptionMode = (orgId: number, family: string, mode: OrgModelSubscriptionMode) =>
+  api<OrgModelSubscriptionModeSet>(`${orgSubPath(orgId, family)}/mode`, { method: 'PUT', ...j({ mode }) })
 // Admin (super_admin) : forcer un plan sur une org sans paiement (plan=null retire).
 export const adminSetPlan = (orgId: number, plan: string | null) =>
   api<BillingStatus>(`/api/admin/orgs/${orgId}/plan`, { method: 'POST', ...j({ plan }) })

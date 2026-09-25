@@ -78,12 +78,20 @@ const CLASSEES: Record<string, string> = {
   // Refus d'enregistrer le plafond de consommation (perso, puis celui de l'org) : le champ
   // et « Enregistrer » sont dans le même formulaire, juste sous l'alerte.
   'views/console/AccountClaudeView.vue#1': 'levier-voisin',
-  'components/console/OrgModelSubscriptionCard.vue#1': 'levier-voisin',
+  'components/console/OrgModelSubscriptionCard.vue#4': 'levier-voisin',
+  // Avertissement en passant l'org en pool (« le travail d'une personne tournera sur
+  // l'abonnement d'une autre ») : « Enregistrer » et « Annuler » sont juste dessous, dans le
+  // même formulaire — c'est eux qui tranchent. Puis le refus d'enregistrer le mode : même cadre.
+  'components/console/OrgModelSubscriptionCard.vue#2': 'levier-voisin',
+  'components/console/OrgModelSubscriptionCard.vue#3': 'levier-voisin',
+  // Refus d'enregistrer le prêt au pool : les cases et « Enregistrer » sont dans le même
+  // formulaire, juste autour de l'alerte.
+  'views/console/AccountClaudeView.vue#3': 'levier-voisin',
 }
 const RAISONS = new Set(['informatif', 'levier-voisin'])
 
 // Un levier DANS le cadre de l'alerte : un bouton, un lien, un gestionnaire de clic.
-const LEVIER = /<Btn|<router-link|@click|<a\s/
+const LEVIER = /<Btn|<router-link|<RouterLink|@click|<a\s/
 const ALERTE = /<Notice\b([^>]*)>([\s\S]*?)<\/Notice>/g
 
 function walk(dir: string): string[] {

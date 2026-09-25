@@ -81,7 +81,7 @@ L'écran omet ses gestes, jamais grisés, et ne la répète pas ; ses lectures r
 | `/org/teams/:id` | add member, role, remove | `POST /api/groups/{id}/members{,/{sub}}`, `DELETE /api/groups/{id}/members/{sub}` | `canAdministerOrg` OU chef explicite de CETTE équipe (`my_role`) |
 | `/org/billing` | choisir, payer, changer de carte, résilier, annuler la résiliation, identité | `POST /api/me/billing/{subscribe,method,cancel,resume}`, `PUT /api/me/billing/identity` | `canAdministerOrg` (`canManage`) |
 | `/automations` | armer, relancer, arrêter, régler un déclencheur | `docs/automations.md` | `droits` |
-| `/org/settings` | régler le plafond de consommation des abonnements Claude, revenir au défaut | `PUT /api/orgs/{id}/model-subscriptions/{family}` | `canAdminister` ; la lecture (`GET`, membre) reste |
+| `/org/settings` | régler le plafond de consommation des abonnements Claude, revenir au défaut ; changer le mode (personnel / pool) | `PUT /api/orgs/{id}/model-subscriptions/{family}`, `PUT …/{family}/mode` | `canAdminister` ; la lecture (`GET`, membre) reste |
 
 **Mesuré, pas seulement lu** : les 27 appels des dix premières lignes ont été rejoués le 13/09/2026
 contre le `ViewAsMiddleware` d'oto-backend `origin/main` (`f4124f22`), avec la méthode, le chemin et
@@ -149,7 +149,7 @@ Tests : `components/console/connector-scope/connectorsConsultation.spec.ts` (tre
 l'org_admin et le super_admin hors et en consultation, et pour l'admin plateforme en consultation),
 `useUserAdapter.spec.ts` (la clé d'org en consultation).
 
-## Plafond de consommation des abonnements Claude (`/org/settings`, 25/09/2026)
+## Abonnements Claude : mode et plafond de consommation (`/org/settings`, 25/09/2026)
 
 Carte `OrgModelSubscriptionCard` (logique `useOrgModelSubscription` / `useLimitDraft` dans
 `lib/modelSubscription.ts`), sous les namespaces débloqués. Quand un run de l'org tourne sur
@@ -169,6 +169,27 @@ peut atteindre. Au seuil, le run en cours finit et les suivants attendent la ré
   toujours lue.
 - Le plafond **perso** d'un membre (écran `/account/claude`, `docs/identite-et-consultation.md`)
   ne peut que resserrer celui de l'org : le plus bas des deux s'applique.
+
+
+**Le mode** (en tête de la carte, `modeOf` resserre le `mode` servi en `str` et lève sur l'inconnu) :
+qui paie les travaux de l'org sur la famille `claude_subscription`.
+
+- `personnel` (défaut) : chaque travail tourne sur l'abonnement de son demandeur ; les flottes n'y
+  tournent pas.
+- `pool` : les travaux, flottes comprises, tournent sur l'abonnement d'un membre qui l'a **prêté** à
+  l'org (opt-in par org, sur `/account/claude`, `docs/identite-et-consultation.md`), le moins
+  récemment servi d'abord ; sans prêteur libre, ils attendent. Le forfait consommé est celui du
+  prêteur, sous son plafond (le plus strict entre celui de l'org et le sien). La carte dit le nombre
+  de prêteurs (`pool_size`, prêts d'abonnements connectés) ; **zéro** = alerte « les travaux de
+  l'org attendent », avec le lien vers « Mon abonnement Claude » dans la phrase (le levier).
+- **Lecture** : tag du mode, phrase de ce qu'il change, et pour un membre « seul un admin de l'org
+  peut changer de mode ». **Édition** (admin d'org, `canAdminister`) : choix segmenté personnel /
+  pool en brouillon ; passer en pool affiche **avant** l'envoi un avertissement sobre (le travail
+  d'une personne tournera sur l'abonnement d'une autre) — pas de modale : « Enregistrer » /
+  « Annuler » sont dessous. → `PUT …/{family}/mode {mode}` ; la réponse relue (`pool_size`
+  compris) fait foi. Le mode a son propre état d'envoi (`modeBusy`/`modeError`) : un refus s'affiche
+  sous le choix du mode, pas sous le plafond. Effet sur les travaux suivants, un travail en cours
+  n'est jamais coupé.
 
 Tests : `components/console/OrgModelSubscriptionCard.spec.ts`.
 

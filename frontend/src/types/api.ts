@@ -39,11 +39,12 @@ export type ApiOut<K extends keyof operations> = operations[K]['responses'] exte
 
 /** Le corps (application/json) attendu par une opération du document OpenAPI. Même
  *  raison qu'`ApiOut` : un formulaire qui POSTe une fiche décrite par le serveur ne
- *  redéclare pas ses champs — il les dérive, et le CI voit la dérive. */
-export type ApiIn<K extends keyof operations> = operations[K] extends {
-  requestBody: { content: { 'application/json': infer T } }
-}
-  ? T
+ *  redéclare pas ses champs — il les dérive, et le CI voit la dérive. Un corps FACULTATIF
+ *  (`requestBody?`, tous ses champs optionnels côté serveur) se dérive pareil. */
+export type ApiIn<K extends keyof operations> = operations[K] extends { requestBody?: infer B }
+  ? NonNullable<B> extends { content: { 'application/json': infer T } }
+    ? T
+    : never
   : never
 
 // Paliers de rôle plateforme (3 crans, ADR rôles) :
@@ -1893,6 +1894,12 @@ export type ModelSubscriptionLimitSet = ApiOut<'me_model_subscriptions_set_limit
 export type OrgModelSubscriptionCap = ApiOut<'org_model_subscriptions_get_get'>
 export type OrgModelSubscriptionLimitBody = ApiIn<'org_model_subscriptions_set_put'>
 export type OrgModelSubscriptionCapSet = ApiOut<'org_model_subscriptions_set_put'>
+// Mode de l'org (`personnel` | `pool`) et prêt au pool. ⚠️ `mode` est servi en `str` dans
+// la réponse : l'ensemble fermé est celui du corps du PUT, resserré par `modeOf`
+// (`lib/modelSubscription.ts`). `lent_to` (PATCH perso) REMPLACE l'ensemble des orgs prêtées.
+export type OrgModelSubscriptionModeBody = ApiIn<'org_model_subscriptions_set_mode_put'>
+export type OrgModelSubscriptionMode = OrgModelSubscriptionModeBody['mode']
+export type OrgModelSubscriptionModeSet = ApiOut<'org_model_subscriptions_set_mode_put'>
 
 // ── accueil : « Dernières modifications » (oto#191, `GET /api/me/recent-changes`) ──
 // Une page (`type: 'doc'`, `id` = son `doc_id`, `project` renseigné) ou une procédure

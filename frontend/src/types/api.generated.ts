@@ -882,7 +882,7 @@ export interface paths {
         };
         /**
          * Read a datastore's declared TYPED schema (the one `data_set_schema` posts)
-         * @description Read a datastore's declared TYPED schema (the one `data_set_schema` posts). Returns `{datastore, ns_id, schema, enforced}` — `schema` is null when none is declared, which is a normal state, not an error. `ns_id` is the table's NUMBER (e.g. 174) and `datastore` its canonical name, whatever form you addressed it by: pass the NUMBER as `datastore` from here on — a name still resolves, it is being retired, not broken. Read it BEFORE amending: `data_set_schema` posts the schema WHOLE, it does not merge, so adding one field means re-posting the existing definition plus that field. The work-queue rules live on the `role:"status"` field, under `lifecycle`: `states`/`transitions`/`terminal`, plus `max_claims` + `abandon_state` — the ceiling of claims WITHOUT a write past which a row leaves the queue. `enforced` lists the validation keys THIS deployment actually applies (required, max_length, pattern…): check what you are about to declare against it, rather than against documentation — a key posted but not enforced looks like a contract and is not one, and one enforced only after the next deploy freezes rows all at once, weeks after the cause. ⚠️ It says what BITES, not what is USEFUL: a key absent from `enforced` is not dead — presentation keys are read by whoever renders the table, and oto cannot know who reads what downstream. Never drop a key on the strength of its absence here. `warning` appears only when the stored schema carries declaration keys oto does NOT read — typically a leftover `enum` sitting beside the `options` that actually constrains the field. When it does, trust the key the warning names: the unread one is a residue, whatever it says.
+         * @description Read a datastore's declared TYPED schema (the one `data_set_schema` posts). Returns `{datastore, ns_id, schema, enforced}` — `schema` is null when none is declared, which is a normal state, not an error. `ns_id` is the table's NUMBER (e.g. 174) and `datastore` its canonical name, whatever form you addressed it by: pass the NUMBER as `datastore` from here on — a name still resolves, it is being retired, not broken. Read it BEFORE amending: `data_set_schema` posts the schema WHOLE, it does not merge, so adding one field means re-posting the existing definition plus that field. The work-queue rules live on the `role:"status"` field, under `lifecycle`: `states`/`transitions`/`terminal`, plus `max_claims` + `abandon_state` — the ceiling of claims WITHOUT a write past which a row leaves the queue; `labels` (`{state: "Displayed name"}`) names each step for a screen and is never applied to a write. `enforced` lists the validation keys THIS deployment actually applies (required, max_length, pattern…): check what you are about to declare against it, rather than against documentation — a key posted but not enforced looks like a contract and is not one, and one enforced only after the next deploy freezes rows all at once, weeks after the cause. ⚠️ It says what BITES, not what is USEFUL: a key absent from `enforced` is not dead — presentation keys are read by whoever renders the table, and oto cannot know who reads what downstream. Never drop a key on the strength of its absence here. `warning` appears only when the stored schema carries declaration keys oto does NOT read — typically a leftover `enum` sitting beside the `options` that actually constrains the field. When it does, trust the key the warning names: the unread one is a residue, whatever it says.
          */
         get: operations["me_datastore_get_schema_get"];
         /**
@@ -896,7 +896,7 @@ export interface paths {
         head?: never;
         /**
          * Change a datastore's schema BY KEY, without rewriting the whole field list
-         * @description Change a datastore's schema BY KEY, without rewriting the whole field list. Prefer this over `data_set_schema` for any EDIT: `set` REPLACES, so rebuilding the list from what you know silently drops the per-field settings you did not restate (labels, help, max_length, pattern, width, options) — same call, same success, no way to tell. `fields` merges by `key`: listed properties overwrite, unlisted ones are PRESERVED, unknown keys are appended. `remove: ["key", …]` is the explicit deletion (a wrong key is refused, never silently ignored) — it takes the field out of the SCHEMA; to erase the column from the rows' DATA, that is `data_drop_column`. `remove_attrs: {"column": ["attr", …]}` takes attributes off columns that STAY — merging only completes, so this is the only way to drop one declaration without reposting the whole schema; an unknown column or attribute is refused, and `key` cannot be dropped. `strict`/`key`/`key_required`/`unknown_fields` change the head keys, untouched when omitted — `key_required: true` CLOSES the table (a write designating no existing row is refused), `false` reopens it. `unknown_fields` decides what happens to a column the schema does NOT declare: `"report"` (the default) CREATES it and names it back in `hors_schema` — `strict` alone never refused it — while `"reject"` refuses the write and stores nothing; set it on a table that has FINISHED being explored. Per field, `readonly: true` locks the value in place (layers such as `.comment` stay open) — the table's OWNER, or whoever GOVERNS it, can still replace such a value with `data_write(readonly_override=true)`, for that one call and journaled, so locking a column never means nobody can correct it again — On the `role:"status"` field, `lifecycle` merges KEY BY KEY and its `transitions` merge STATE BY STATE: naming one state leaves the others alone, so declaring a way OUT of a terminal state is one line and costs nothing else. Taking one out is explicit — `transitions: {"lost": null}` drops that state's exits, `lifecycle: {transitions: null}` drops the whole table. `origine: "system"` makes the platform keep the previous value in `<field>.origine` — `null` lifts it without touching the rows. Field ORDER is never reshuffled. Returns the resulting schema plus `{added, updated, removed}` and any `warning` the schema raises.
+         * @description Change a datastore's schema BY KEY, without rewriting the whole field list. Prefer this over `data_set_schema` for any EDIT: `set` REPLACES, so rebuilding the list from what you know silently drops the per-field settings you did not restate (labels, help, max_length, pattern, width, options) — same call, same success, no way to tell. `fields` merges by `key`: listed properties overwrite, unlisted ones are PRESERVED, unknown keys are appended. `remove: ["key", …]` is the explicit deletion (a wrong key is refused, never silently ignored) — it takes the field out of the SCHEMA; to erase the column from the rows' DATA, that is `data_drop_column`. `remove_attrs: {"column": ["attr", …]}` takes attributes off columns that STAY — merging only completes, so this is the only way to drop one declaration without reposting the whole schema; an unknown column or attribute is refused, and `key` cannot be dropped. `strict`/`key`/`key_required`/`unknown_fields` change the head keys, untouched when omitted — `key_required: true` CLOSES the table (a write designating no existing row is refused), `false` reopens it. `unknown_fields` decides what happens to a column the schema does NOT declare: `"report"` (the default) CREATES it and names it back in `hors_schema` — `strict` alone never refused it — while `"reject"` refuses the write and stores nothing; set it on a table that has FINISHED being explored. Per field, `readonly: true` locks the value in place (layers such as `.comment` stay open) — the table's OWNER, or whoever GOVERNS it, can still replace such a value with `data_write(readonly_override=true)`, for that one call and journaled, so locking a column never means nobody can correct it again — On the `role:"status"` field, `lifecycle` merges KEY BY KEY and its `transitions` merge STATE BY STATE: naming one state leaves the others alone, so declaring a way OUT of a terminal state is one line and costs nothing else. Taking one out is explicit — `transitions: {"lost": null}` drops that state's exits, `lifecycle: {transitions: null}` drops the whole table. `labels` (the displayed name of each state) merges STATE BY STATE too: `lifecycle: {labels: {"lost": "Lost"}}` names that step and keeps the others' labels, `{"lost": null}` drops that one label. `origine: "system"` makes the platform keep the previous value in `<field>.origine` — `null` lifts it without touching the rows. Field ORDER is never reshuffled. Returns the resulting schema plus `{added, updated, removed}` and any `warning` the schema raises.
          */
         patch: operations["me_datastore_patch_schema_patch"];
         trace?: never;
@@ -2993,18 +2993,27 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Set (or remove, `null`) YOUR own consumption cap on a model subscription.
+         * Set YOUR own consumption cap on a model subscription, and/or the orgs you lend it to.
          *
-         *     The cap is a share, in % (1..100), of your provider account's TOTAL usage — the
-         *     5-hour and 7-day windows
-         * @description Set (or remove, `null`) YOUR own consumption cap on a model subscription.
+         *     `limit_pct`: a share, in % (1..100), of your provider account's TOTAL usage — the
+         *     5-hour and
+         * @description Set YOUR own consumption cap on a model subscription, and/or the orgs you lend it to.
          *
-         *     The cap is a share, in % (1..100), of your provider account's TOTAL usage — the
-         *     5-hour and 7-day windows the provider reports, your personal use included. Once a
-         *     window reaches it, your agents' next jobs WAIT for the window to reset; a job
-         *     already running is never cut. Your organisation sets its own cap (80 % unless it
-         *     chose otherwise): the LOWER of the two applies, so yours can only keep more room
-         *     for yourself, never raise the org's.
+         *     `limit_pct`: a share, in % (1..100), of your provider account's TOTAL usage — the
+         *     5-hour and 7-day windows the provider reports, your personal use included (`null`
+         *     removes it). Once a window reaches it, the next jobs on your subscription WAIT for the
+         *     window to reset; a job already running is never cut. Your organisation sets its own
+         *     cap (80 % unless it chose otherwise): the LOWER of the two applies, so yours can only
+         *     keep more room for yourself, never raise the org's.
+         *
+         *     `lent_to`: the orgs whose POOL you lend this subscription to (the whole set; `[]`
+         *     lends to none). Explicit and per org: nothing is lent by default. It only serves an
+         *     org that runs its jobs in `pool` mode, and only while you are a member; the pool
+         *     takes the least recently used free lender, so your subscription runs one job at a
+         *     time, yours included. Your cap applies to those jobs too. Removing an org applies
+         *     from its next job.
+         *
+         *     Send at least one of the two; an omitted field is left unchanged.
          */
         patch: operations["me_model_subscriptions_set_limit_patch"];
         trace?: never;
@@ -4192,7 +4201,7 @@ export interface paths {
         };
         /**
          * Read the org's consumption cap on its members' personal model subscriptions (e.g
-         * @description Read the org's consumption cap on its members' personal model subscriptions (e.g. `claude_subscription`): the max share, in %, of each member's provider account TOTAL usage (5-hour and 7-day windows) the org's jobs may reach before the next ones wait for the reset. `default: true` = not set, platform default (80). A member may set a LOWER cap for themselves; the lower one applies.
+         * @description Read the org's consumption cap on its members' personal model subscriptions (e.g. `claude_subscription`): the max share, in %, of each member's provider account TOTAL usage (5-hour and 7-day windows) the org's jobs may reach before the next ones wait for the reset. `default: true` = not set, platform default (80). A member may set a LOWER cap for themselves; the lower one applies. Also returns the org's `mode` (`personnel` | `pool`) and its `pool_size` (members lending a usable subscription).
          */
         get: operations["org_model_subscriptions_get_get"];
         /**
@@ -4200,6 +4209,26 @@ export interface paths {
          * @description Set the org's consumption cap on its members' personal model subscriptions: `limit_pct` 1..100 (% of each member's provider account TOTAL usage, 5-hour and 7-day windows alike), or `null` to go back to the platform default (80). Applies from the next job report; a running job is never cut. Org admin.
          */
         put: operations["org_model_subscriptions_set_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/orgs/{id}/model-subscriptions/{family}/mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set how the org's jobs on a personal model subscription family (e.g
+         * @description Set how the org's jobs on a personal model subscription family (e.g. `claude_subscription`) are paid for. `personnel` (default): each job runs on the subscription of the member who asked for it; fleets are refused. `pool`: jobs — fleets included — run on the subscription of a member who explicitly LENT theirs to this org, the least recently used free one first; with no lender available they wait, none fail. Each lender's own cap applies to their account (the lower of the org's cap and theirs). Applies from the next job; a running job is never cut. Org admin.
+         */
+        put: operations["org_model_subscriptions_set_mode_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -6824,6 +6853,11 @@ export interface components {
              * @default null
              */
             limit_pct: number | null;
+            /**
+             * Lent To
+             * @description The orgs whose pool you lend this subscription to. Each lender's own cap still applies to their account.
+             */
+            lent_to?: number[];
             /**
              * Waiting Jobs
              * @description How many of your jobs are queued on this subscription right now. While you are signed out, need to reconnect, or wait on a plan limit, they WAIT — none fail — and they resume on their own once you are back.
@@ -27234,14 +27268,21 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": {
                     /**
                      * Limit Pct
-                     * @description Your own consumption cap, in % (1..100) of your provider account's TOTAL usage (5-hour and 7-day windows, your personal use included). `null` removes it.
+                     * @description Your own consumption cap, in % (1..100) of your provider account's TOTAL usage (5-hour and 7-day windows, your personal use included). `null` removes it; omitted leaves it unchanged.
+                     * @default null
                      */
-                    limit_pct: number | null;
+                    limit_pct?: number | null;
+                    /**
+                     * Lent To
+                     * @description The orgs whose POOL you lend this subscription to — the whole set, replacing the previous one (`[]` lends to none). Opt-in, per org: it serves an org's jobs only while that org runs in `pool` mode and you are a member. Removing an org applies from its next job; a running one is never cut. Omitted leaves it unchanged.
+                     * @default null
+                     */
+                    lent_to?: number[] | null;
                 };
             };
         };
@@ -27284,6 +27325,11 @@ export interface operations {
                          */
                         limit_pct: number | null;
                         /**
+                         * Lent To
+                         * @description The orgs whose pool you lend this subscription to. Each lender's own cap still applies to their account.
+                         */
+                        lent_to?: number[];
+                        /**
                          * Waiting Jobs
                          * @description How many of your jobs are queued on this subscription right now. While you are signed out, need to reconnect, or wait on a plan limit, they WAIT — none fail — and they resume on their own once you are back.
                          * @default 0
@@ -27292,7 +27338,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `unknown_family` — une famille qui n'est pas servie par abonnement ; `invalid_limit` — `limit_pct` hors de 1..100 ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
+            /** @description `unknown_family` — une famille qui n'est pas servie par abonnement ; `invalid_limit` — `limit_pct` hors de 1..100 ; `nothing_to_change` — ni `limit_pct` ni `lent_to` ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -27300,7 +27346,7 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
-                        error?: "unknown_family" | "invalid_limit" | "run_org_mismatch";
+                        error?: "unknown_family" | "invalid_limit" | "nothing_to_change" | "run_org_mismatch";
                     };
                 };
             };
@@ -27313,7 +27359,7 @@ export interface operations {
                     "application/json": components["schemas"]["Erreur"];
                 };
             };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
+            /** @description refus d'autorisation (ou hors portée du jeton) ; `subscription_not_enabled` — prêter n'est pas ouvert à cette personne ; `not_org_member` — `lent_to` nomme une org dont la personne n'est pas membre */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -27517,6 +27563,11 @@ export interface operations {
                          * @default null
                          */
                         limit_pct: number | null;
+                        /**
+                         * Lent To
+                         * @description The orgs whose pool you lend this subscription to. Each lender's own cap still applies to their account.
+                         */
+                        lent_to?: number[];
                         /**
                          * Waiting Jobs
                          * @description How many of your jobs are queued on this subscription right now. While you are signed out, need to reconnect, or wait on a plan limit, they WAIT — none fail — and they resume on their own once you are back.
@@ -35076,6 +35127,16 @@ export interface operations {
                          * @default null
                          */
                         updated_by: string | null;
+                        /**
+                         * Mode
+                         * @description `personnel` (default): each job runs on the subscription of the member who asked for it. `pool`: the org's jobs — fleets included — run on the subscription of a member who LENT theirs to this org (`PATCH /api/me/model-subscriptions/{family}` `lent_to`), the least recently used free one first.
+                         */
+                        mode: string;
+                        /**
+                         * Pool Size
+                         * @description How many members currently lend this org a usable (connected) subscription. In `pool` mode, zero means the org's jobs wait.
+                         */
+                        pool_size: number;
                     };
                 };
             };
@@ -35192,6 +35253,16 @@ export interface operations {
                          * @default null
                          */
                         updated_by: string | null;
+                        /**
+                         * Mode
+                         * @description `personnel` (default): each job runs on the subscription of the member who asked for it. `pool`: the org's jobs — fleets included — run on the subscription of a member who LENT theirs to this org (`PATCH /api/me/model-subscriptions/{family}` `lent_to`), the least recently used free one first.
+                         */
+                        mode: string;
+                        /**
+                         * Pool Size
+                         * @description How many members currently lend this org a usable (connected) subscription. In `pool` mode, zero means the org's jobs wait.
+                         */
+                        pool_size: number;
                     };
                 };
             };
@@ -35204,6 +35275,133 @@ export interface operations {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
                         error?: "unknown_family" | "invalid_limit" | "run_org_mismatch";
+                    };
+                };
+            };
+            /** @description jeton absent ou invalide */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description refus d'autorisation (ou hors portée du jeton) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"];
+                };
+            };
+            /** @description `unknown_org` — l'org n'existe pas ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_org" | "run_not_found";
+                    };
+                };
+            };
+            /** @description `run_closed` — le run de `X-Oto-Run` est clos */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "run_closed";
+                    };
+                };
+            };
+        };
+    };
+    org_model_subscriptions_set_mode_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Le run de la requête (`POST /api/me/runs`) — le seul titulaire qu'un bail de ligne reconnaisse. Jugé AVANT l'opération, refus nommés sans rien écrire : run inconnu ou d'un autre compte, porteur non membre de l'org du run (403 générique), `X-Oto-Org` contradictoire, run clos. */
+                "X-Oto-Run"?: components["parameters"]["XOtoRun"];
+            };
+            path: {
+                /** @description champ `org_id` de la requête */
+                id: number;
+                family: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Mode
+                     * @description `personnel` (each requester's own subscription) or `pool`.
+                     * @enum {string}
+                     */
+                    mode: "personnel" | "pool";
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Org Id */
+                        org_id: number;
+                        /** Family */
+                        family: string;
+                        /**
+                         * Limit Pct
+                         * @description The cap, in % of each member's provider account TOTAL usage (5-hour and 7-day windows). Past it, the org's next jobs on that subscription wait for the window to reset.
+                         */
+                        limit_pct: number;
+                        /**
+                         * Default
+                         * @description `true` = the org has set nothing; this is the platform default.
+                         */
+                        default: boolean;
+                        /**
+                         * Updated At
+                         * @default null
+                         */
+                        updated_at: string | null;
+                        /**
+                         * Updated By
+                         * @default null
+                         */
+                        updated_by: string | null;
+                        /**
+                         * Mode
+                         * @description `personnel` (default): each job runs on the subscription of the member who asked for it. `pool`: the org's jobs — fleets included — run on the subscription of a member who LENT theirs to this org (`PATCH /api/me/model-subscriptions/{family}` `lent_to`), the least recently used free one first.
+                         */
+                        mode: string;
+                        /**
+                         * Pool Size
+                         * @description How many members currently lend this org a usable (connected) subscription. In `pool` mode, zero means the org's jobs wait.
+                         */
+                        pool_size: number;
+                    };
+                };
+            };
+            /** @description `unknown_family` — une famille qui n'est pas servie par abonnement ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Erreur"] & {
+                        /** @enum {unknown} */
+                        error?: "unknown_family" | "run_org_mismatch";
                     };
                 };
             };

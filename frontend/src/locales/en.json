@@ -511,12 +511,30 @@
       "toastSaved": "personal cap: {pct}%",
       "toastCleared": "personal cap removed"
     },
+    "lend": {
+      "title": "lend my subscription to the pool",
+      "sub": "per organization: the jobs of an org in pool mode may run on your subscription.",
+      "rule": "Your plan is what other members' jobs consume, under your usage cap. Your subscription serves one job at a time, yours included.",
+      "withdraw": "You can withdraw your loan at any time: it applies to the next jobs, a running job is never cut.",
+      "notConnected": "Your subscription isn't connected: it will only serve the pool once connected.",
+      "unavailable": "Organizations unavailable.",
+      "noOrg": "You aren't a member of any organization: there is no pool to lend to.",
+      "poolNote": "pool mode · {n} lender | pool mode · {n} lenders",
+      "personnel": "personal mode: no pool in this org, everyone pays for their own jobs. An org admin can switch it to pool.",
+      "personnelLent": "personal mode: your loan isn't used until the org switches to pool. You can withdraw it.",
+      "unknown": "mode unreadable for now: you can't lend to this org.",
+      "unknownLent": "mode unreadable for now. You can withdraw your loan.",
+      "toastSaved": "subscription lent to {n} org | subscription lent to {n} orgs",
+      "toastNone": "subscription lent to no org"
+    },
     "errors": {
       "subscription_not_enabled": "This option isn't enabled on your account.",
       "login_failed": "Anthropic didn't open a session with this code (expired or already used). Click “Start over”.",
       "farm_unavailable": "The sandbox service isn't responding right now. Try again in a few minutes.",
       "not_connected": "No Claude subscription is connected on your account.",
-      "invalid_limit": "The cap must be a whole number from 1 to 100."
+      "invalid_limit": "The cap must be a whole number from 1 to 100.",
+      "not_org_member": "You're no longer a member of one of these organizations: reload the page.",
+      "nothing_to_change": "Nothing to save."
     }
   },
   "errors": {
@@ -2254,8 +2272,8 @@
       "invitation": "have an invitation? open the link from your email instead."
     },
     "modelSub": {
-      "title": "Claude subscriptions · usage cap",
-      "sub": "when an org job runs on a member's Claude subscription, the maximum share of that account's total usage (5-hour and 7-day windows) it may reach.",
+      "title": "Claude subscriptions · mode and cap",
+      "sub": "which Claude subscription the org's jobs run on, and what share of an account's total usage (5-hour and 7-day windows) they may reach.",
       "current": "{pct}%",
       "currentDefault": "{pct}% · default",
       "descDefault": "The org hasn't set anything: the platform default applies, {pct}%.",
@@ -2267,7 +2285,28 @@
       "readOnly": "Only an org admin can change this cap.",
       "unavailable": "Cap unavailable.",
       "toastSaved": "org cap: {pct}%",
-      "toastDefault": "org cap back to the default ({pct}%)"
+      "toastDefault": "org cap back to the default ({pct}%)",
+      "limitLabel": "Usage cap",
+      "mode": {
+        "label": "Mode",
+        "name": {
+          "personnel": "personal",
+          "pool": "pool"
+        },
+        "desc": {
+          "personnel": "Each job runs on the Claude subscription of the person who asked for it. Fleets can't run on a subscription.",
+          "pool": "The org's jobs, fleets included, run on the subscription of a member who lent it to the org, the least recently used first. With no free lender they wait: none fail."
+        },
+        "poolSize": "{n} member lends their subscription to the org. | {n} members lend their subscription to the org.",
+        "poolEmpty": "No member lends their subscription: the org's jobs are waiting. Each member lends theirs from",
+        "lendLink": "My Claude subscription",
+        "poolWarning": "In pool mode, one person's work will run on someone else's subscription: the lender's plan is what gets consumed, under their cap. The change applies to the next jobs.",
+        "readOnly": "Only an org admin can change the mode.",
+        "toast": {
+          "personnel": "personal mode: everyone on their own subscription",
+          "pool": "pool mode: jobs run on lent subscriptions"
+        }
+      }
     },
     "mfa": {
       "title": "security · mandatory MFA",

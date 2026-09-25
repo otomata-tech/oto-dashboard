@@ -8,7 +8,12 @@
 //
 // Le plafond de consommation vit dans une carte à part, dès qu'un abonnement existe :
 // enregistrement explicite, refus affiché sous le réglage.
-import { computed, onMounted, ref } from 'vue'
+//
+// Le prêt au pool aussi : une case par org dont la personne est membre (espace perso
+// écarté), l'ensemble COMPLET `lent_to` envoyé à l'enregistrement. On ne coche qu'une org
+// en mode `pool` (sinon la raison est dite, et qui peut changer le mode) ; un prêt existant
+// se décoche toujours — retirer n'est jamais refusé.
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Btn from '@/components/console/Btn.vue'
@@ -19,8 +24,8 @@ import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
 import { exactDate } from '@/lib/recentChanges'
 import {
-  errorKey, LIMIT_MAX, LIMIT_MIN, PLATFORM_DEFAULT_LIMIT, useLimitDraft, useModelSubscription,
-  type SubscriptionEtat,
+  errorKey, LIMIT_MAX, LIMIT_MIN, PLATFORM_DEFAULT_LIMIT, useLendableOrgs, useLendingDraft, useLimitDraft,
+  useModelSubscription, type LendableOrg, type SubscriptionEtat,
 } from '@/lib/modelSubscription'
 
 const { t, locale } = useI18n()
@@ -29,11 +34,35 @@ const { confirmAction } = usePrompt()
 const {
   sub, etat, loaded, step, loginUrl, notEnabled, error, busy,
   load, start, submitCode, restart, disconnect, destroy, limitBusy, limitError, setLimit,
+  lendBusy, lendError, setLending,
 } = useModelSubscription()
 
 const {
   own: limitOwn, text: limitText, value: limitValue, invalid: limitInvalid, dirty: limitDirty, reset: resetLimit,
 } = useLimitDraft(() => sub.value?.limit_pct)
+
+const lendable = useLendableOrgs()
+const lendDraft = useLendingDraft(() => sub.value?.lent_to, () => lendable.memberIds.value)
+// Les orgs ne se lisent qu'une fois un abonnement là : sans lui, rien à prêter.
+watch(() => sub.value !== null, (has) => { if (has && !lendable.loaded.value) void lendable.load() })
+
+/** La phrase sous une org : son mode, et pourquoi la case est fermée s'il y a lieu. */
+function lendNote(o: LendableOrg): string {
+  const lent = lendDraft.isSavedLent(o.org.id)
+  if (o.mode === 'pool') return t('modelSub.lend.poolNote', { n: o.poolSize ?? 0 }, o.poolSize ?? 0)
+  if (o.mode === null) return lent ? t('modelSub.lend.unknownLent') : t('modelSub.lend.unknown')
+  return lent ? t('modelSub.lend.personnelLent') : t('modelSub.lend.personnel')
+}
+
+const lendLoadMsg = computed(() => messageOf(lendable.error.value))
+const lendErrorMsg = computed(() => messageOf(lendError.value))
+
+async function saveLending() {
+  const ids = lendDraft.payload.value
+  if (await setLending(ids)) {
+    toast(ids.length ? t('modelSub.lend.toastSaved', { n: ids.length }, ids.length) : t('modelSub.lend.toastNone'))
+  }
+}
 
 const code = ref('')
 
@@ -41,17 +70,13 @@ const TAG: Record<SubscriptionEtat, string> = {
   none: 'ink', connected: 'olive', needs_login: 'saffron', paused_limit: 'saffron', disconnected: 'saffron',
 }
 
-const errorMsg = computed(() => {
-  if (!error.value) return null
-  const k = errorKey(error.value)
-  return k ? t(k) : humanize(error.value)
-})
-
-const limitErrorMsg = computed(() => {
-  if (!limitError.value) return null
-  const k = errorKey(limitError.value)
-  return k ? t(k) : humanize(limitError.value)
-})
+function messageOf(e: unknown): string | null {
+  if (!e) return null
+  const k = errorKey(e)
+  return k ? t(k) : humanize(e)
+}
+const errorMsg = computed(() => messageOf(error.value))
+const limitErrorMsg = computed(() => messageOf(limitError.value))
 
 async function saveLimit() {
   const v = limitValue.value
@@ -202,6 +227,47 @@ onMounted(load)
         </div>
       </form>
     </ConsoleCard>
+
+    <ConsoleCard v-if="loaded && sub" :title="t('modelSub.lend.title')" :sub="t('modelSub.lend.sub')"
+      data-test="lend-card">
+      <form class="ms-body" @submit.prevent="saveLending">
+        <p class="helptext" data-test="lend-rule">{{ t('modelSub.lend.rule') }}</p>
+        <p class="helptext dim">{{ t('modelSub.lend.withdraw') }}</p>
+        <p v-if="etat !== 'connected'" class="helptext" data-test="lend-not-connected">
+          {{ t('modelSub.lend.notConnected') }}
+        </p>
+
+        <div v-if="!lendable.loaded.value && lendable.busy.value" class="sk" style="height: 40px" />
+        <Notice v-else-if="!lendable.loaded.value && lendLoadMsg" tone="warn" data-test="lend-load-error">
+          {{ t('modelSub.lend.unavailable') }} {{ lendLoadMsg }}
+          <Btn kind="link" type="button" @click="lendable.load">{{ t('common.retry') }}</Btn>
+        </Notice>
+        <template v-else-if="lendable.loaded.value">
+          <p v-if="!lendable.orgs.value.length" class="helptext dim" data-test="lend-no-org">
+            {{ t('modelSub.lend.noOrg') }}
+          </p>
+          <ul v-else class="ms-orgs">
+            <li v-for="o in lendable.orgs.value" :key="o.org.id" :data-test="`lend-org-${o.org.id}`">
+              <label :class="{ off: !lendDraft.canToggle(o) }">
+                <input type="checkbox" :checked="lendDraft.selected.value.has(o.org.id)"
+                  :disabled="lendBusy || !lendDraft.canToggle(o)"
+                  @change="lendDraft.toggle(o.org.id, ($event.target as HTMLInputElement).checked)">
+                <span class="ms-org-name">{{ o.org.name }}</span>
+              </label>
+              <span class="helptext dim" :data-test="`lend-note-${o.org.id}`">{{ lendNote(o) }}</span>
+            </li>
+          </ul>
+          <Notice v-if="lendErrorMsg" tone="warn" data-test="lend-error">{{ lendErrorMsg }}</Notice>
+          <div v-if="lendable.orgs.value.length" class="ms-actions">
+            <Btn type="submit" :disabled="lendBusy || !lendDraft.dirty.value" data-test="lend-save">
+              {{ lendBusy ? t('modelSub.limit.saving') : t('common.save') }}
+            </Btn>
+            <Btn v-if="lendDraft.dirty.value" kind="link" type="button" :disabled="lendBusy"
+              @click="lendDraft.reset">{{ t('common.cancel') }}</Btn>
+          </div>
+        </template>
+      </form>
+    </ConsoleCard>
   </div>
 </template>
 
@@ -216,5 +282,11 @@ onMounted(load)
 .ms-limit { display: flex; align-items: center; gap: 8px; font-size: var(--fs-body); color: var(--color-ink); }
 .ms-limit .inp { width: 88px; }
 .ms-limit .helptext { margin: 0; }
+.ms-orgs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ms-orgs li { display: flex; flex-direction: column; gap: 2px; }
+.ms-orgs label { display: flex; align-items: center; gap: 8px; font-size: var(--fs-body); color: var(--color-ink); }
+.ms-orgs label.off { color: var(--color-mute); }
+.ms-orgs .helptext { padding-left: 24px; }
+.ms-org-name { font-weight: 600; }
 .ms-remove { padding-top: 12px; border-top: 1px solid var(--color-hair-soft); }
 </style>

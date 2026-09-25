@@ -154,5 +154,20 @@ coupe). Brancher son abonnement Claude (Pro, Max) pour que ses agents tournent d
   seuil : le run en cours finit, les suivants attendent la réinitialisation des fenêtres. Un refus
   (`invalid_limit`, `not_connected`) s'affiche sous le réglage (`limitError`), sans toucher l'état
   de connexion.
+- **Prêter mon abonnement au pool** (carte à part, dès qu'un abonnement existe, 25/09/2026) : une
+  case par org dont la personne est membre (`useLendableOrgs` : `GET /api/me/orgs`, espace perso
+  écarté, puis `GET /api/orgs/{id}/model-subscriptions/{family}` par org pour son `mode` et son
+  `pool_size`). On ne coche qu'une org en mode `pool` ; hors pool la case est fermée et la phrase dit
+  pourquoi (pas de pool, un admin de l'org peut l'y passer) ; une org illisible dit « mode
+  illisible ». Un prêt **existant** reste toujours décochable, même hors pool (retirer n'est jamais
+  refusé). « Enregistrer » (`useLendingDraft`, inerte tant que rien ne change) → `PATCH …/{family}`
+  `{lent_to}` avec l'ensemble **complet** (il remplace le précédent ; `[]` = aucune), borné aux orgs
+  dont on est membre ; le plafond n'est pas envoyé (omis = inchangé). La réponse relue fait foi. Les
+  phrases de la carte : c'est ton forfait qui est consommé par les travaux des autres, sous ton
+  plafond, un travail à la fois ; tu peux retirer ton prêt à tout moment, effet sur les travaux
+  suivants. Abonnement pas `connected` : la carte dit qu'il ne servira qu'une fois connecté. Refus
+  (`subscription_not_enabled` — prêter exige l'option —, `not_org_member`, `nothing_to_change`) sous
+  les cases (`lendError`), sans toucher le parcours de connexion. Le mode de l'org se règle sur
+  `/org/settings` (`docs/orgs-groupes-invitations.md`).
 - Le sélecteur de modèle d'une programmation (`optionsModele`) propose les `sub:*` dès que le
   catalogue les sert (`served`) : aucun filtre dédié.
