@@ -14,6 +14,7 @@ import {
   type ColFilterState, type FilterKind,
 } from '@/lib/datastoreFilters'
 import { userFields, defaultColumns } from '@/lib/datastoreColumns'
+import { estStatutACycle, etatLisible } from '@/lib/datastoreLifecycle'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -146,6 +147,13 @@ function sortTitle(col: string): string {
 }
 function cellVal(row: DatastoreRow, col: string): unknown { return row[col] }
 
+// ── la colonne d'avancement (role="status" à cycle de vie) : ses étapes s'affichent,
+// se filtrent et se nomment en clair, comme dans la barre de statuts et la fiche.
+const isStatusCol = (col: string) => estStatutACycle(fieldByKey.value[col])
+const statusOptions = (col: string) =>
+  (fieldByKey.value[col]?.lifecycle?.states ?? []).map((s) => ({ value: String(s), label: etatLisible(String(s)) }))
+const valueLabel = (col: string) => (v: string) => (isStatusCol(col) ? etatLisible(v) : v)
+
 // Recherche : champ partagé (frappe locale + débounce dans DatastoreSearchBar),
 // la source de vérité reste `props.search` côté parent.
 
@@ -166,7 +174,8 @@ function colKind(field: string): FilterKind {
   return k
 }
 function modelFor(field: string): ColFilterState {
-  return local[field] ?? { op: defaultOp(colKind(field)), value: '' }
+  // une étape se choisit dans la liste : « = » d'emblée, pas « contient »
+  return local[field] ?? { op: isStatusCol(field) ? 'eq' : defaultOp(colKind(field)), value: '' }
 }
 let ftimer: ReturnType<typeof setTimeout> | null = null
 function onCell(field: string, v: ColFilterState) {
@@ -186,7 +195,7 @@ function clearAll() {
 const chips = computed(() =>
   props.filters.map((f) => ({
     field: f.field,
-    label: filterChipLabel(f, colKind(f.field), header(f.field)),
+    label: filterChipLabel(f, colKind(f.field), header(f.field), valueLabel(f.field)),
   })))
 function removeChip(field: string) {
   delete local[field]
@@ -264,6 +273,7 @@ watch(() => props.filters, (f) => {
           <tr v-if="showFilters" class="dt-filter-row">
             <th v-for="col in columns" :key="col">
               <ColumnFilterCell :field="col" :kind="colKind(col)"
+                :options="isStatusCol(col) ? statusOptions(col) : undefined"
                 :model-value="modelFor(col)" @update:model-value="onCell(col, $event)" />
             </th>
           </tr>
@@ -282,6 +292,10 @@ watch(() => props.filters, (f) => {
               <span v-else-if="cellKind(cellVal(row, col)) === 'date'" class="mono"
                 :title="relDate(cellVal(row, col))">
                 {{ absDate(String(cellVal(row, col))) }}
+              </span>
+              <span v-else-if="isStatusCol(col) && cellVal(row, col) != null && cellVal(row, col) !== ''"
+                :title="t('dataUi.lifecycle.code', { code: String(cellVal(row, col)) })">
+                {{ etatLisible(String(cellVal(row, col))) }}
               </span>
               <span v-else-if="cellKind(cellVal(row, col)) === 'number'" class="num mono">
                 {{ cellShort(cellVal(row, col)) }}

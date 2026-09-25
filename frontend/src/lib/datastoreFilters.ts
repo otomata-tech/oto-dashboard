@@ -105,12 +105,14 @@ export function buildFilters(state: Record<string, ColFilterState>): ColumnFilte
 
 /** Libellé compact d'un filtre appliqué (chip « champ op valeur »). `field` permet
  * de nommer la colonne comme l'en-tête le fait (libellé de schéma, date système),
- * plutôt que par sa clé technique. */
+ * plutôt que par sa clé technique ; `valeur` nomme la valeur comme la cellule le fait
+ * (l'étape d'un statut en clair, pas son code). */
 export function filterChipLabel(f: ColumnFilter, kind: FilterKind = 'text',
-                                field: string = metaFieldLabel(f.field)): string {
+                                field: string = metaFieldLabel(f.field),
+                                valeur: (v: string) => string = (v) => v): string {
   const label = opLabel(f.op, kind)
   if (!opNeedsValue(f.op)) return `${field} ${label}`
-  const v = Array.isArray(f.value) ? f.value.join(', ') : f.value
+  const v = Array.isArray(f.value) ? f.value.map((x) => valeur(String(x))).join(', ') : valeur(f.value)
   if (kind === 'bool' && (v === 'true' || v === 'false'))
     return `${field} ${label} ${v === 'true' ? 'vrai' : 'faux'}`
   return `${field} ${label} ${v}`

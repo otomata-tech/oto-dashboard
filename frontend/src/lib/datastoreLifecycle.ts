@@ -2,6 +2,33 @@
 // au schéma. Le serveur en est SOUVERAIN : il refuse toute transition non déclarée.
 // Annuler un changement d'état n'est donc pas un « retour arrière » privilégié,
 // c'est un TRAJET dans le même graphe, aux mêmes règles.
+import type { DatastoreField, DatastoreLifecycle } from '@/types/api'
+
+/**
+ * Libellé LISIBLE d'un état : le schéma ne porte que des codes (`a_qualifier`), et le
+ * code brut, en majuscules dans un badge, ne disait pas ce qu'il désignait. Règle
+ * GÉNÉRIQUE, aucun dictionnaire : les `_` deviennent des espaces, la première lettre
+ * passe en capitale (`non_interesse` → « Non interesse »). Aucun accent n'est deviné :
+ * une règle qui en poserait se tromperait un jour sans le dire.
+ * ⚠️ Point UNIQUE : le jour où le lifecycle déclare des libellés, c'est ici qu'on les lit.
+ */
+export function etatLisible(code: string): string {
+  const s = String(code).replace(/_+/g, ' ').replace(/\s+/g, ' ').trim()
+  return s ? s.charAt(0).toLocaleUpperCase() + s.slice(1) : String(code)
+}
+
+/** Une colonne d'avancement : `role: "status"` AVEC un cycle de vie déclaré. */
+export const estStatutACycle = (f: DatastoreField | null | undefined): boolean =>
+  f?.role === 'status' && (f.lifecycle?.states?.length ?? 0) > 0
+
+/** Les étapes finales : `terminal` déclaré, sinon les états sans transition sortante. */
+export function etatsTerminaux(lc: DatastoreLifecycle | null | undefined): Set<string> {
+  if (!lc) return new Set()
+  if (lc.terminal?.length) return new Set(lc.terminal.map(String))
+  const sortants = new Set(Object.entries(lc.transitions ?? {})
+    .filter(([, vers]) => vers?.length).map(([de]) => de))
+  return new Set((lc.states ?? []).map(String).filter((s) => !sortants.has(s)))
+}
 
 /** Le geste de transition tel qu'il a été posé : on retient l'état d'AVANT, seul
  * moment où il est encore connu (après l'écriture, la fiche ne porte plus que
@@ -29,12 +56,14 @@ export function transitionAnnounce(
   t: LifecycleIntent,
   transitions: Record<string, string[]> | undefined | null,
 ): TransitionAnnounce {
-  const done = `« ${rowLabel} » : ${t.from ?? '—'} → ${t.to}`
+  const de = t.from ? etatLisible(t.from) : '—'
+  const vers = etatLisible(t.to)
+  const done = `« ${rowLabel} » : ${de} → ${vers}`
   if (!t.from) return { message: done, undo: null }   // pas d'état d'avant : rien à rétablir
   const back = transitionPath(transitions, t.to, t.from)
   if (!back || !back.length)
     return {
-      message: `${done} — retour impossible : aucun chemin déclaré de « ${t.to} » vers « ${t.from} ».`,
+      message: `${done} — retour impossible : aucun chemin déclaré de « ${vers} » vers « ${de} ».`,
       undo: null,
     }
   return { message: done, undo: back }

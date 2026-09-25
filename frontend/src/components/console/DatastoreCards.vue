@@ -11,6 +11,7 @@ import Tag from '@/components/console/Tag.vue'
 import type { DatastoreRow, DatastoreSchema, DatastoreField } from '@/types/api'
 import { champTitre } from '../../lib/datastoreTitle'
 import { abandonVerdict, claimBudget } from '@/lib/datastoreClaims'
+import { estStatutACycle, etatLisible } from '@/lib/datastoreLifecycle'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -51,6 +52,14 @@ function fmt(v: unknown): string {
   if (typeof v === 'object') return JSON.stringify(v)
   return String(v)
 }
+/** L'étape d'une fiche, en clair quand la colonne a un cycle de vie (même libellé que
+ * la barre de statuts et la fiche détaillée) ; le code brut reste en infobulle. */
+function statusText(row: DatastoreRow): string {
+  const v = fmt(row[statusF.value!.key])
+  return estStatutACycle(statusF.value) ? etatLisible(v) : v
+}
+const statusTitle = (row: DatastoreRow) =>
+  `${label(statusF.value!)} · ${t('dataUi.lifecycle.code', { code: fmt(row[statusF.value!.key]) })}`
 const present = (row: DatastoreRow, f?: DatastoreField) => !!f && row[f.key] != null && row[f.key] !== ''
 /** Pied de fiche = ce qui n'a pas de place ailleurs : les champs déclarés sans rôle
  * (dans l'ordre du schéma, sous leur libellé) PUIS les champs non déclarés (sous
@@ -111,7 +120,7 @@ function itemsOf(row: DatastoreRow, f: DatastoreField): unknown[] {
     <article v-for="row in rows" :key="row._id" class="ds-card" @click="emit('open', row)">
       <header class="ds-card__head">
         <h4 class="ds-card__title">{{ titleOf(row) }}</h4>
-        <Tag v-if="present(row, statusF)" tone="saffron">{{ fmt(row[statusF!.key]) }}</Tag>
+        <Tag v-if="present(row, statusF)" tone="saffron" :title="statusTitle(row)">{{ statusText(row) }}</Tag>
         <Tag v-if="row._claimed_by" tone="cobalt" :title="t('dataUi.cards.leaseUntil', { date: row._claimed_until ?? '?' })">
           {{ t('dataUi.cards.inProgress', { who: row._claimed_by }) }}
         </Tag>

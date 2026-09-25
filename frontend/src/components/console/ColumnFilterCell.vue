@@ -9,7 +9,12 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-const props = defineProps<{ field: string; kind: FilterKind; modelValue: ColFilterState }>()
+// `options` : les valeurs possibles, quand la colonne les déclare (les étapes d'un statut) —
+// la valeur se choisit alors dans une liste, sous son libellé, au lieu de se taper en code.
+const props = defineProps<{
+  field: string; kind: FilterKind; modelValue: ColFilterState
+  options?: Array<{ value: string; label: string }>
+}>()
 const emit = defineEmits<{ (e: 'update:modelValue', v: ColFilterState): void }>()
 
 const ops = computed(() => OPS_BY_KIND[props.kind])
@@ -36,6 +41,11 @@ function setValue(value: string) { emit('update:modelValue', { op: props.modelVa
       <option value="">…</option>
       <option value="true">{{ t('dataUi.filter.true') }}</option>
       <option value="false">{{ t('dataUi.filter.false') }}</option>
+    </select>
+    <select v-else-if="needsValue && options?.length" class="inp sm cfc-val" :value="modelValue.value"
+      @change="setValue(($event.target as HTMLSelectElement).value)">
+      <option value="">…</option>
+      <option v-for="o in options" :key="o.value" :value="o.value">{{ o.label }}</option>
     </select>
     <input v-else-if="needsValue" class="inp sm cfc-val" :class="{ wide: inputType === 'date' }"
       :type="inputType" :value="modelValue.value" placeholder="…"

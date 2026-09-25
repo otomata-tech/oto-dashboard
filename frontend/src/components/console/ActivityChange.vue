@@ -18,7 +18,7 @@ const resume = computed(() => (colonnes.value ? '' : changeOf(props.entry)))
 function texte(v: ShownValue): string {
   if (v.marker === 'absent') return t('rowActivity.value.absent')
   if (v.marker === 'null') return t('rowActivity.value.null')
-  if (v.marker === 'empty') return t('rowEditor.emptyAssumed')
+  if (v.marker === 'empty') return t('rowEditor.leftEmptyShort')
   return v.text ?? ''
 }
 

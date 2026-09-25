@@ -542,8 +542,13 @@
   },
   "rowEditor": {
     "call": "Appeler",
-    "emptyAssumed": "vide assumé",
-    "emptyAssumedHint": "déclarer ce champ vide volontairement — saisir une valeur retire la bascule",
+    "leaveEmpty": "Laisser vide (rien trouvé)",
+    "leaveEmptyHint": "dire que ce champ a été cherché sans résultat — saisir une valeur retire ce choix",
+    "leftEmpty": "Laissé vide volontairement",
+    "leftEmptyShort": "laissé vide",
+    "leftEmptyWhy": "Laissé vide volontairement : {reason}",
+    "undoLeaveEmpty": "Annuler",
+    "undoLeaveEmptyHint": "ne plus déclarer ce champ laissé vide : il redevient simplement vide",
     "reading": "relecture de la ligne…",
     "readFailed": "la ligne n'a pas pu être relue pour être modifiée : {reason}",
     "expected": "à corriger : attendu {attendu}",
@@ -1180,6 +1185,15 @@
       "all": "tous",
       "ceiling": "plafond {n} réservations sans écriture"
     },
+    "lifecycle": {
+      "step": "Étape",
+      "none": "aucune étape",
+      "moveTo": "Passer à",
+      "moveHint": "passer la fiche à l'étape « {state} »",
+      "final": "étape finale",
+      "finalHint": "étape finale, la fiche n'en sort plus",
+      "code": "code : {code}"
+    },
     "toolbar": {
       "desc": "décroissant — cliquer pour croissant",
       "asc": "croissant — cliquer pour décroissant",
@@ -1250,7 +1264,6 @@
       "newRow": "nouvelle ligne",
       "leaseUntil": "bail de traitement jusqu'à {date}",
       "claimsMax": "{count} — plafond {max}",
-      "terminal": "état terminal (fin de traitement)",
       "release": "Libérer le bail",
       "openLink": "Ouvrir le lien",
       "noFields": "aucun champ pour l'instant — ajoutes-en un ci-dessous.",

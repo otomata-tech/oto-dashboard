@@ -35,7 +35,7 @@ import { humanize } from '@/lib/errors'
 import { rowsToCsv, downloadCsv } from '@/lib/csv'
 import { userFields, visibleColumns } from '@/lib/datastoreColumns'
 import { filtersFromParam, filtersToParam } from '@/lib/datastoreFilters'
-import type { LifecycleIntent } from '@/lib/datastoreLifecycle'
+import { estStatutACycle, etatsTerminaux, type LifecycleIntent } from '@/lib/datastoreLifecycle'
 import { cleTitre } from '../../lib/datastoreTitle'
 import { useI18n } from 'vue-i18n'
 
@@ -102,7 +102,8 @@ const statusField = computed(() =>
   (meta.value?.schema?.fields ?? []).find((f) => f.role === 'status') ?? null)
 const lifecycleStates = computed<string[]>(() =>
   statusField.value?.lifecycle?.states ?? [])
-const cockpit = computed(() => !!statusField.value && lifecycleStates.value.length > 0)
+const cockpit = computed(() => estStatutACycle(statusField.value))
+const terminalStates = computed(() => [...etatsTerminaux(statusField.value?.lifecycle)])
 const statusCounts = ref<Record<string, number>>({})
 const statusTotal = ref(0)
 const activeStatus = computed<string | null>(() => {
@@ -494,7 +495,8 @@ async function transfer() {
       </span>
     </div>
 
-    <DatastoreStatusBar v-if="cockpit" :states="lifecycleStates" :counts="statusCounts"
+    <DatastoreStatusBar v-if="cockpit" :label="statusField?.label || statusField?.key || ''"
+      :states="lifecycleStates" :terminal="terminalStates" :counts="statusCounts"
       :active="activeStatus" :total="statusTotal"
       :abandon-state="statusField?.lifecycle?.abandon_state ?? null"
       :max-claims="statusField?.lifecycle?.max_claims ?? null" @select="onStatusSelect" />

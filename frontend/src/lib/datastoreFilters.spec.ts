@@ -120,6 +120,12 @@ describe('filterChipLabel', () => {
     expect(filterChipLabel({ field: 'done', op: 'eq', value: 'true' }, 'bool'))
       .toBe('done est vrai')
   })
+
+  it('nomme une étape de statut comme la cellule (libellé lisible, pas le code)', () => {
+    expect(filterChipLabel({ field: 'statut', op: 'eq', value: 'a_qualifier' }, 'text', 'Statut',
+      (v) => (v === 'a_qualifier' ? 'A qualifier' : v)))
+      .toBe('Statut = A qualifier')
+  })
 })
 
 describe('filters ↔ URL param', () => {

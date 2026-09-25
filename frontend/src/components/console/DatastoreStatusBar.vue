@@ -3,13 +3,18 @@
 // un chip par état du `lifecycle` du field role="status", avec compteur serveur
 // (aggregate). Cliquer filtre sur cet état ; « tous » lève le filtre. Aucune
 // notion métier codée en dur : GR/Blitz/Audiens = le même composant.
+// La barre NOMME la colonne (son libellé de schéma) et chaque étape en clair
+// (`etatLisible`) ; une étape finale le dit — le code brut reste en infobulle.
 // Le plafond de réservations (oto-backend#433) se lit ICI aussi : sans lui, l'état
 // d'abandon passait pour un état métier comme un autre, et son compteur montait sans
 // que rien ne dise que c'est la PLATEFORME qui y verse les lignes.
 import { useI18n } from 'vue-i18n'
+import { etatLisible } from '@/lib/datastoreLifecycle'
 
 const props = defineProps<{
+  label: string                  // libellé de la colonne d'avancement (« Statut »)
   states: string[]
+  terminal: string[]             // étapes finales (déclarées, ou sans transition sortante)
   counts: Record<string, number>
   active: string | null
   total: number
@@ -23,7 +28,9 @@ function toggle(state: string) {
   emit('select', props.active === state ? null : state)
 }
 function chipTitle(state: string): string {
-  const filtre = props.active === state ? t('dataUi.status.clear') : t('dataUi.status.filter', { state })
+  const base = props.active === state
+    ? t('dataUi.status.clear') : t('dataUi.status.filter', { state: etatLisible(state) })
+  const filtre = props.terminal.includes(state) ? `${base} — ${t('dataUi.lifecycle.finalHint')}` : base
   if (state !== props.abandonState) return filtre
   return props.maxClaims
     ? t('dataUi.status.abandonAfter', { n: props.maxClaims, filter: filtre })
@@ -33,13 +40,15 @@ function chipTitle(state: string): string {
 
 <template>
   <div class="dsb">
+    <span class="dsb-lbl">{{ label }}</span>
     <button class="dsb-chip" :class="{ on: active === null }" @click="emit('select', null)">
       {{ t('dataUi.status.all') }} <span class="dsb-n">{{ total }}</span>
     </button>
     <button v-for="s in states" :key="s" class="dsb-chip"
       :class="{ on: active === s, abandon: !!abandonState && s === abandonState }"
       :title="chipTitle(s)" @click="toggle(s)">
-      {{ s }} <span class="dsb-n">{{ counts[s] ?? 0 }}</span>
+      {{ etatLisible(s) }}<span v-if="terminal.includes(s)" class="dsb-final" aria-hidden="true">◼</span>
+      <span class="dsb-n">{{ counts[s] ?? 0 }}</span>
     </button>
     <span v-if="maxClaims" class="dsb-ceiling">
       {{ t('dataUi.status.ceiling', { n: maxClaims }) }}
@@ -53,6 +62,11 @@ function chipTitle(state: string): string {
   padding: 8px var(--pad-card, 16px);
   border-bottom: 1px solid var(--color-hair-soft, #e6e6e3);
 }
+.dsb-lbl {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--color-mute, #675a3c); margin-right: 2px;
+}
+.dsb-final { font-size: 9px; color: var(--color-faint, #6d603f); }
 .dsb-chip {
   font: inherit; font-size: 12px; cursor: pointer;
   display: inline-flex; align-items: center; gap: 6px;

@@ -27,7 +27,7 @@ const { t } = useI18n()
 
 function texte(v: unknown): string {
   const x = valeurDe(v)
-  if (x === VIDE_ASSUME) return t('rowEditor.emptyAssumed')
+  if (x === VIDE_ASSUME) return t('rowEditor.leftEmptyShort')
   if (x == null || x === '') return '—'
   return typeof x === 'object' ? JSON.stringify(x) : String(x)
 }

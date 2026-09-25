@@ -151,10 +151,10 @@ describe('les files de travail d un projet, tableau lié homonyme d un des miens
     expect(lignes).toBe(1)
     // Le libellé reste le NOM — c'est ce que l'utilisateur reconnaît.
     expect(texte).toContain('clients')
-    expect(texte).toContain('a_faire 11')
-    expect(texte).toContain('fait 13')
+    expect(texte).toContain('A faire 11')
+    expect(texte).toContain('Fait 13')
     expect(texte).toContain('2 sous bail')
-    expect(texte).not.toContain('a_faire 3')
+    expect(texte).not.toContain('A faire 3')
     expect(texte).not.toContain('1 sous bail')
     // Le lien d'ouverture vise le même tableau que les compteurs.
     expect(hrefs).toEqual(['/data/77'])
@@ -167,9 +167,9 @@ describe('les files de travail d un projet, tableau lié homonyme d un des miens
     const { texte, hrefs } = await accueil([
       { target_type: 'tableau', target_ref: '41', datastore: 'clients', datastore_id: 41 },
     ])
-    expect(texte).toContain('a_faire 3')
+    expect(texte).toContain('A faire 3')
     expect(texte).toContain('1 sous bail')
-    expect(texte).not.toContain('a_faire 11')
+    expect(texte).not.toContain('A faire 11')
     expect(hrefs).toEqual(['/data/41'])
     expect(adresses).toEqual(adresses.map(() => '41'))
   })
@@ -188,9 +188,9 @@ describe('les files de travail d un projet, tableau lié homonyme d un des miens
   it('les deux côte à côte : le lié compté, l autre nommé, le mien nulle part', async () => {
     const { texte, hrefs, lignes } = await accueil([LIE_AU_RECU, SANS_ADRESSE])
     expect(lignes).toBe(2)
-    expect(texte).toContain('a_faire 11')
+    expect(texte).toContain('A faire 11')
     expect(texte).toContain('aucun tableau résolu pour ce lien')
-    expect(texte).not.toContain('a_faire 3')
+    expect(texte).not.toContain('A faire 3')
     expect(hrefs).toEqual(['/data/77'])
     expect(adresses).toEqual(adresses.map(() => '77'))
   })

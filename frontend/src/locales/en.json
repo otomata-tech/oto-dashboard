@@ -542,8 +542,13 @@
   },
   "rowEditor": {
     "call": "Call",
-    "emptyAssumed": "assumed empty",
-    "emptyAssumedHint": "declare this field deliberately empty — typing a value turns it off",
+    "leaveEmpty": "Leave empty (nothing found)",
+    "leaveEmptyHint": "say this field was searched and nothing was found — typing a value clears this choice",
+    "leftEmpty": "Left empty on purpose",
+    "leftEmptyShort": "left empty",
+    "leftEmptyWhy": "Left empty on purpose: {reason}",
+    "undoLeaveEmpty": "Undo",
+    "undoLeaveEmptyHint": "stop declaring this field left empty: it becomes plainly empty again",
     "reading": "reading the row…",
     "readFailed": "the row could not be read for editing: {reason}",
     "expected": "to fix: expected {attendu}",
@@ -1180,6 +1185,15 @@
       "all": "all",
       "ceiling": "ceiling {n} claims without a write"
     },
+    "lifecycle": {
+      "step": "Step",
+      "none": "no step yet",
+      "moveTo": "Move to",
+      "moveHint": "move the record to the “{state}” step",
+      "final": "final step",
+      "finalHint": "final step: the record doesn't leave it",
+      "code": "code: {code}"
+    },
     "toolbar": {
       "desc": "descending — click for ascending",
       "asc": "ascending — click for descending",
@@ -1250,7 +1264,6 @@
       "newRow": "new row",
       "leaseUntil": "processing lease until {date}",
       "claimsMax": "{count} — ceiling {max}",
-      "terminal": "terminal state (end of processing)",
       "release": "Release the lease",
       "openLink": "Open the link",
       "noFields": "no fields yet — add one below.",

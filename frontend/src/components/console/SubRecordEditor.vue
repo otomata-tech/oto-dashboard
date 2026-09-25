@@ -109,9 +109,11 @@ function onScalarText(e: Event) {
         <template v-for="k in keysOf(item)" :key="k.key">
           <label class="sre-k">{{ k.label }}<span v-if="k.required" class="sre-req" :title="t('workUi.subRecord.required')">*</span></label>
           <div class="sre-cell" :data-cell="k.key">
-            <input class="sre-inp" :value="item.textes[k.key] ?? ''" :placeholder="k.label"
+            <input class="sre-inp" :value="item.textes[k.key] ?? ''"
+              :placeholder="item.vides[k.key] ? t('rowEditor.leftEmpty') : k.label"
               @input="setItemField(i, k.key, ($event.target as HTMLInputElement).value)" />
             <VideAssumeToggle v-if="accepteVideSousChamp(field, k.key)" :model-value="!!item.vides[k.key]"
+              :vide="!(item.textes[k.key] ?? '').trim()" :raison="item.couches[k.key]?.comment"
               @update:model-value="setItemEmpty(i, k.key, $event)" />
             <!-- couches de la cellule (oto#216) : sur un élément relu, pas sur un élément neuf -->
             <CellLayers v-if="item.lu !== undefined" class="sre-layers" :model-value="item.couches[k.key]"

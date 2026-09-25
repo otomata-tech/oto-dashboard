@@ -43,7 +43,7 @@ describe('RowActivityList', () => {
         diff: { ville: { avant: 'Paris', apres: { valeur: 'Lyon', comment: 'vu sur le site' } }, cherche: { apres: { valeur: '@empty' } } } }],
     }])
     const pastilles = [...hote.querySelectorAll('[data-test="value-change"]')].map((e) => [...e.children].map((c) => c.textContent!.trim()).join(' '))
-    expect(pastilles).toEqual(['cherche (absent) → vide assumé', 'ville Paris → Lyon + note'])
+    expect(pastilles).toEqual(['cherche (absent) → laissé vide', 'ville Paris → Lyon + note'])
     expect(hote.textContent).toContain('console')
     expect(hote.textContent).not.toContain('nom, ville')
     app.unmount()

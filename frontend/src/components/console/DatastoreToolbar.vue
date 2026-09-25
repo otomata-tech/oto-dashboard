@@ -15,6 +15,7 @@ import {
   buildFilters, defaultOp, filterChipLabel, columnFilterKind, metaFieldLabel,
   META_DATE_FIELDS, type ColFilterState,
 } from '@/lib/datastoreFilters'
+import { estStatutACycle, etatLisible } from '@/lib/datastoreLifecycle'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -88,7 +89,8 @@ const chips = computed(() => props.filters.map((f) => ({
   field: f.field,
   // Type DÉCLARÉ : la vue fiches n'a pas de colonne d'où renifler les valeurs, mais
   // le namespace est typé — la chip doit dire « à partir du », pas « ≥ ».
-  label: filterChipLabel(f, columnFilterKind([], f.field, declaredOf(f.field)?.type), labelOf(f.field)),
+  label: filterChipLabel(f, columnFilterKind([], f.field, declaredOf(f.field)?.type), labelOf(f.field),
+    estStatutACycle(declaredOf(f.field)) ? etatLisible : undefined),
 })))
 function removeChip(field: string) {
   emit('update:filters', props.filters.filter((f) => f.field !== field))

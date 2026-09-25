@@ -7,7 +7,7 @@
 // que le serveur accepte. Sans chemin, on le dit — jamais de bouton qui promet un
 // retour voué au refus.
 import { updateNamespaceRow } from '@/api/console'
-import { transitionAnnounce, type LifecycleIntent } from '@/lib/datastoreLifecycle'
+import { etatLisible, transitionAnnounce, type LifecycleIntent } from '@/lib/datastoreLifecycle'
 import { humanize } from '@/lib/errors'
 import { useToast } from '@/composables/useToast'
 import type { DatastoreLifecycle, DatastoreRow } from '@/types/api'
@@ -42,10 +42,10 @@ export function useTransitionUndo(ctx: TransitionUndoCtx) {
         await updateNamespaceRow(ns, row._id, { [t.key]: step })
         done++
       }
-      toast(`« ${rowLabel(row)} » : revenu à ${t.from}`)
+      toast(`« ${rowLabel(row)} » : revenu à ${t.from ? etatLisible(t.from) : '—'}`)
     } catch (e) {
       toast(done
-        ? `« ${rowLabel(row)} » : retour interrompu — la fiche est restée à ${steps[done - 1]} (${humanize(e)})`
+        ? `« ${rowLabel(row)} » : retour interrompu — la fiche est restée à ${etatLisible(steps[done - 1]!)} (${humanize(e)})`
         : humanize(e))
     }
     await ctx.refresh()

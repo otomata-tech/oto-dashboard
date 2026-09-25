@@ -182,11 +182,11 @@ const vider = async () => {
   for (let i = 0; i < 8; i++) { await new Promise((r) => setTimeout(r, 0)); await nextTick() }
 }
 
-async function monter() {
+async function monter(o: { schema?: DatastoreSchema; row?: Ligne; isNew?: boolean } = {}) {
   const emis = { saved: 0, close: 0 }
   const app = createApp(RowDrawer, {
-    open: true, row: { _id: 'r1', societe: 'ACME' }, fields: [], isNew: false, readOnly: false,
-    schema: SCHEMA, datastore: '77',
+    open: true, row: o.isNew ? null : { _id: 'r1', societe: 'ACME', ...o.row }, fields: [],
+    isNew: !!o.isNew, readOnly: false, schema: o.schema ?? SCHEMA, datastore: '77',
     onSaved: () => { emis.saved++ }, onClose: () => { emis.close++ },
   })
   app.component('RouterLink', { template: '<a><slot /></a>' })
@@ -344,18 +344,23 @@ describe('vider, et le vide assumé', () => {
     expect((cellule('contacts', 0, 'nom').querySelector('input') as HTMLInputElement).value).toBe('')
   })
 
-  it('activer « vide assumé » envoie @empty', async () => {
+  it('« Laisser vide » envoie @empty (offert une fois le champ vidé)', async () => {
     await monter()
+    taper(champ('pays').querySelector('input'), '')
+    await nextTick()
     await cliquer(champ('pays').querySelector('.vat'))
+    expect(champ('pays').textContent).toContain('Laissé vide volontairement')
     await cliquer(bouton('Enregistrer'))
     expect(patches()[0]!.corps).toEqual({ pays: '@empty' })
     expect(store.ligne.pays).toEqual({ valeur: '@empty' })
   })
 
-  it('désactiver un vide assumé sans valeur envoie null', async () => {
+  it('annuler un « laissé vide » sans valeur envoie null', async () => {
     await monter()
     const bascule = champ('effectif').querySelector('.vat')!
     expect(bascule.getAttribute('aria-pressed')).toBe('true')   // lu : {"valeur":"@empty"}
+    expect(champ('effectif').textContent).toContain('Laissé vide volontairement')
+    expect(bascule.textContent?.trim()).toBe('Annuler')
     await cliquer(bascule)
     await cliquer(bouton('Enregistrer'))
     expect(patches()[0]!.corps).toEqual({ effectif: null })
@@ -364,12 +369,109 @@ describe('vider, et le vide assumé', () => {
 
   it('aucune bascule sur l’identité d’une liste, une liste de valeurs, un objet, une colonne json', async () => {
     await monter()
-    expect(cellule('contacts', 0, 'fonction').querySelector('.vat')).not.toBeNull()   // témoin
-    expect(champ('pays').querySelector('.vat')).not.toBeNull()                         // témoin
+    expect(cellule('contacts', 2, 'fonction').querySelector('.vat')).not.toBeNull()   // témoin (vide)
+    expect(champ('effectif').querySelector('.vat')).not.toBeNull()                     // témoin (laissé vide)
+    taper(cellule('contacts', 0, 'email').querySelector('input'), '')
+    await nextTick()
     expect(cellule('contacts', 0, 'email').querySelector('.vat')).toBeNull()
     expect(champ('idcc').querySelector('.vat')).toBeNull()
     expect(champ('siege').querySelector('.vat')).toBeNull()
     expect(champ('meta').querySelector('.vat')).toBeNull()
+  })
+})
+
+describe('« Laisser vide » : une option du champ, visible seulement sur un champ vide', () => {
+  it('masquée sur un champ rempli, offerte une fois vidé, retirée dès qu’on saisit', async () => {
+    await monter()
+    expect(champ('pays').querySelector('.vat')).toBeNull()                 // « FR »
+    expect(q('.rd-title-row .vat')).toBeNull()                             // titre rempli
+    taper(champ('pays').querySelector('input'), '')
+    await nextTick()
+    expect(champ('pays').querySelector('.vat')?.textContent?.trim()).toBe('Laisser vide (rien trouvé)')
+    await cliquer(champ('pays').querySelector('.vat'))
+    taper(champ('pays').querySelector('input'), 'BE')
+    await vider()
+    expect(champ('pays').querySelector('.vat')).toBeNull()
+    expect(champ('pays').textContent).not.toContain('Laissé vide volontairement')
+  })
+
+  it('actif, le champ le dit, avec la raison (le commentaire de la case) quand elle existe', async () => {
+    await monter()
+    expect(cellule('contacts', 1, 'fonction').textContent).toContain('Laissé vide volontairement : poste vacant')
+    expect((cellule('contacts', 1, 'fonction').querySelector('input') as HTMLInputElement).placeholder)
+      .toBe('Laissé vide volontairement')
+  })
+
+  it('en anglais : « Leave empty », plus jamais « assumed empty »', async () => {
+    await monter()
+    i18n.global.locale.value = 'en'
+    await nextTick()
+    expect(cellule('contacts', 2, 'fonction').textContent).toContain('Leave empty (nothing found)')
+    expect(document.body.textContent).not.toMatch(/assumed empty|vide assumé/i)
+  })
+})
+
+// ── la colonne d'avancement (role="status" + lifecycle) — tableau 139 ────────
+const SCHEMA_CYCLE: DatastoreSchema = {
+  fields: [
+    ...SCHEMA.fields!,
+    {
+      key: 'statut', label: 'Statut', role: 'status', type: 'text',
+      lifecycle: {
+        states: ['a_qualifier', 'a_contacter', 'contacte', 'interesse', 'non_interesse', 'client'],
+        transitions: {
+          a_qualifier: ['a_contacter', 'non_interesse'], a_contacter: ['contacte', 'non_interesse'],
+          contacte: ['interesse', 'non_interesse'], interesse: ['client'],
+        },
+        terminal: ['client', 'non_interesse'],
+      },
+    },
+  ],
+}
+
+describe('l’étape de la fiche, dite comme telle', () => {
+  const bloc = () => q('[data-lifecycle]')!
+
+  it('nomme la colonne et l’étape en clair, et les passages possibles', async () => {
+    store.ligne = { ...DEPART(), statut: 'a_qualifier' }
+    await monter({ schema: SCHEMA_CYCLE, row: { statut: 'a_qualifier' } })
+    expect(bloc().textContent).toContain('Statut')
+    expect(bloc().querySelector('.rd-step')?.textContent?.trim()).toBe('A qualifier')
+    expect(bloc().textContent).not.toContain('a_qualifier')
+    expect(bloc().textContent).toContain('Passer à')
+    const passages = [...bloc().querySelectorAll<HTMLButtonElement>('button[data-state]')]
+    expect(passages.map((b) => b.dataset.state)).toEqual(['a_contacter', 'non_interesse'])
+    expect(passages[0]!.textContent?.trim()).toBe('A contacter')
+    expect(passages[0]!.title).toBe('passer la fiche à l\'étape « A contacter »')
+  })
+
+  it('une étape finale le dit, et l’infobulle explique qu’on n’en sort plus', async () => {
+    store.ligne = { ...DEPART(), statut: 'a_qualifier' }
+    await monter({ schema: SCHEMA_CYCLE, row: { statut: 'a_qualifier' } })
+    const fin = bloc().querySelector<HTMLButtonElement>('button[data-state="non_interesse"]')!
+    expect(fin.textContent).toContain('Non interesse')
+    expect(fin.textContent).toContain('étape finale')
+    expect(fin.title).toContain('étape finale, la fiche n\'en sort plus')
+  })
+
+  it('sur une étape finale : l’étape est marquée, aucun passage proposé', async () => {
+    store.ligne = { ...DEPART(), statut: 'client' }
+    await monter({ schema: SCHEMA_CYCLE, row: { statut: 'client' } })
+    expect(bloc().querySelector('.rd-step')?.textContent?.trim()).toBe('Client')
+    expect(bloc().querySelector('.rd-final')?.getAttribute('title')).toBe('étape finale, la fiche n\'en sort plus')
+    expect(bloc().querySelectorAll('button[data-state]')).toHaveLength(0)
+  })
+
+  it('jamais de « Laisser vide » sur le statut, en édition comme à la création', async () => {
+    store.ligne = { ...DEPART(), statut: '' }
+    await monter({ schema: SCHEMA_CYCLE, row: { statut: '' } })
+    expect(bloc().querySelector('.vat')).toBeNull()
+    expect(q('[data-field="statut"]')).toBeNull()          // le statut vit dans le bloc d'étape
+    for (const a of apps.splice(0)) a.unmount()
+    document.body.textContent = ''
+    await monter({ schema: SCHEMA_CYCLE, isNew: true })
+    expect(champ('statut').querySelector('.vat')).toBeNull()
+    expect(champ('pays').querySelector('.vat')).not.toBeNull()   // témoin : un champ vide l'a
   })
 })
 

@@ -14,6 +14,7 @@ import type { ProjectLink, ProjectRun } from '@/types/api'
 import { absDate } from '@/lib/cellRender'
 import { bailLigne } from '@/lib/bailDeLigne'
 import { abandonState, claimBudget, maxClaims } from '@/lib/datastoreClaims'
+import { etatLisible } from '@/lib/datastoreLifecycle'
 
 // Les liens `tableau` du projet, TELS QUE LE SERVEUR LES SERT. On en lit l'ADRESSE,
 // `datastore_id` — résolue dans la portée du PROPRIÉTAIRE du projet (backend v1.262.0),
@@ -137,7 +138,7 @@ const visible = computed(() => !loading.value && (lines.value.length > 0 || nonR
         :title="s === l.abandonState
           ? $t('projectsUi.workQueues.abandonHint')
           : undefined">
-        {{ s }} <b>{{ l.counts[s] ?? 0 }}</b></span>
+        {{ etatLisible(s) }} <b>{{ l.counts[s] ?? 0 }}</b></span>
       <Tag v-if="l.claimed" tone="cobalt">{{ $t('projectsUi.workQueues.leased', { n: l.claimed }) }}</Tag>
       <Tag v-if="l.expired" tone="terra" :title="$t('projectsUi.workQueues.expiredHint')">
         {{ $t('projectsUi.workQueues.expired', l.expired) }}</Tag>

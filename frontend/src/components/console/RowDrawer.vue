@@ -2,7 +2,7 @@
 // Drawer détail / édition / ajout d'une row. v2 (ADR 0046) : la MISE EN PAGE
 // s'auto-adapte au schéma — les RÔLES pilotent le layout (zéro métier en dur) :
 //   title  → titre éditable de l'en-tête (l'_id passe en sous-titre)
-//   status → chip d'en-tête + barre de transitions (plus un input libre)
+//   status → bloc « Étape : X · Passer à : [Y] » sous l'en-tête (plus un input libre)
 //   note / qualif → textareas pleine largeur en pied de fiche
 //   object / list de sous-records → sections structurées (SubRecordEditor)
 //   le reste (badge/metric/scalaires, déclarés ou non) → grille compacte 2 col,
@@ -24,7 +24,7 @@ import VideAssumeToggle from './VideAssumeToggle.vue'
 import { useFormDialog } from '@/composables/useFormDialog'
 import { useRowEditor } from '@/composables/useRowEditor'
 import type { DatastoreRow, DatastoreSchema } from '@/types/api'
-import type { LifecycleIntent } from '@/lib/datastoreLifecycle'
+import { estStatutACycle, etatLisible, etatsTerminaux, type LifecycleIntent } from '@/lib/datastoreLifecycle'
 import { abandonVerdict, claimBudget } from '@/lib/datastoreClaims'
 import { cellKind, absDate } from '@/lib/cellRender'
 import { bailLigne } from '@/lib/bailDeLigne'
@@ -85,13 +85,17 @@ const statusField = computed(() =>
   (props.schema?.fields ?? []).find((f) => f.role === 'status') ?? null)
 const lifecycleStates = computed<string[]>(() =>
   (statusField.value?.lifecycle?.states ?? []).map(String))
-const lifecycleOpts = computed(() => lifecycleStates.value.map((s) => ({ value: s, label: s })))
+const lifecycleOpts = computed(() => lifecycleStates.value.map((s) => ({ value: s, label: etatLisible(s) })))
 const BOOL_OPTIONS = [{ value: 'true', label: 'true' }, { value: 'false', label: 'false' }]
 const isLifecycleStatus = (d: FieldDesc) =>
   d.role === 'status' && lifecycleStates.value.length > 0
-// La bascule « vide assumé » : là où le contrat accepte la sentinelle, hors statut à cycle
-// de vie (qui ne change que par ses transitions). Un composite n'en a pas ; ses cellules d'élément si.
+// « Laisser vide » : là où le contrat accepte la sentinelle, hors statut à cycle de vie
+// (qui ne change que par ses transitions). Un composite n'en a pas ; ses cellules d'élément si.
+// Offert SOUS la saisie, et seulement quand elle est vide (cf. VideAssumeToggle).
 const accepteVide = (d: FieldDesc) => accepteVideColonne(d) && !isLifecycleStatus(d)
+const saisieVide = (cle: string) => !(scalars.value[cle] ?? '').trim()
+/** Placeholder d'une saisie : le libellé, ou « Laissé vide volontairement » quand c'est le cas. */
+const ph = (d: FieldDesc) => (empties.value[d.key] ? t('rowEditor.leftEmpty') : d.label)
 const compositeFields = computed(() =>
   editFields.value.filter((d) => d.declared && isComposite(d.field)))
 const longFields = computed(() =>
@@ -232,15 +236,15 @@ const transitions = computed<string[]>(() => {
   if (cur == null) return lc.states.map(String)          // pas encore d'état → tous
   return (lc.transitions?.[cur] ?? []).map(String)       // sinon les cibles déclarées
 })
-const terminalStates = computed<Set<string>>(() => {
-  const lc = statusField.value?.lifecycle
-  if (!lc) return new Set()
-  if (lc.terminal?.length) return new Set(lc.terminal.map(String))
-  // dérivés : états sans transition sortante déclarée
-  const outgoing = new Set(Object.entries(lc.transitions ?? {})
-    .filter(([, tos]) => tos?.length).map(([from]) => from))
-  return new Set((lc.states ?? []).map(String).filter((s) => !outgoing.has(s)))
-})
+const terminalStates = computed(() => etatsTerminaux(statusField.value?.lifecycle))
+// Le bloc d'étape : il NOMME la colonne (« Statut ») et l'étape en clair — un badge
+// `A_QUALIFIER` et des boutons « → non_interesse ◼ » ne disaient pas de quoi il s'agissait.
+const cycle = computed(() => !props.isNew && estStatutACycle(statusField.value))
+const stepLabel = computed(() => statusField.value?.label || t('dataUi.lifecycle.step'))
+function moveHint(etat: string): string {
+  const geste = t('dataUi.lifecycle.moveHint', { state: etatLisible(etat) })
+  return terminalStates.value.has(etat) ? `${geste} — ${t('dataUi.lifecycle.finalHint')}` : geste
+}
 // Ce que la FILE sait de la fiche (oto-backend#433) : le compteur de réservations
 // sans écriture, et le motif si le plafond l'a sortie de la file. Les deux étaient
 // muets ici — on voyait « en cours · worker » sans savoir que c'était la 3ᵉ fois,
@@ -268,8 +272,9 @@ function applyTransition(state: string) {
             <!-- le field role=title EST le titre de la fiche -->
             <template v-if="titleDesc">
               <div v-if="editable" class="rd-title-row">
-                <input v-model="scalars[titleDesc.key]" class="rd-title-input" :placeholder="titleDesc.label" />
+                <input v-model="scalars[titleDesc.key]" class="rd-title-input" :placeholder="ph(titleDesc)" />
                 <VideAssumeToggle v-if="accepteVide(titleDesc)" :model-value="!!empties[titleDesc.key]"
+                  :vide="saisieVide(titleDesc.key)" :raison="couches[titleDesc.key]?.comment"
                   @update:model-value="basculerVide(titleDesc.key, $event)" />
               </div>
               <h3 v-else class="modal-title">{{ scalars[titleDesc.key] || '—' }}</h3>
@@ -278,7 +283,6 @@ function applyTransition(state: string) {
             <h3 v-else class="modal-title">{{ isNew ? t('dataUi.drawer.newRow') : t('dataUi.drawer.detail') }}</h3>
             <p v-if="!isNew" class="modal-desc mono">{{ row?._id ?? '' }}</p>
           </div>
-          <Tag v-if="currentStatus" tone="saffron">{{ currentStatus }}</Tag>
           <Tag v-if="row?._claimed_by" tone="cobalt"
             :title="t('dataUi.drawer.leaseUntil', { date: row?._claimed_until ?? '?' })">
             {{ t('dataUi.cards.inProgress', { who: row._claimed_by }) }}
@@ -298,11 +302,21 @@ function applyTransition(state: string) {
              reste — et ce qui la remet en circuit. Le motif vient du serveur. -->
         <RowAbandonNotice v-if="abandon" class="rd-abandon" :verdict="abandon" :can-write="!readOnly" />
 
-        <!-- transitions du cycle de vie, sous l'en-tête (l'état courant est le chip) -->
-        <div v-if="transitions.length" class="rd-lifecycle">
-          <Btn v-for="etat in transitions" :key="etat" kind="mini"
-            :title="terminalStates.has(etat) ? t('dataUi.drawer.terminal') : undefined"
-            @click="applyTransition(etat)">→ {{ etat }}<template v-if="terminalStates.has(etat)"> ◼</template></Btn>
+        <!-- l'étape de la fiche, dite comme telle, puis les passages que le schéma permet -->
+        <div v-if="cycle" class="rd-lifecycle" data-lifecycle>
+          <span class="rd-step-lbl">{{ stepLabel }}</span>
+          <b class="rd-step" :title="currentStatus ? t('dataUi.lifecycle.code', { code: currentStatus }) : undefined">
+            {{ currentStatus ? etatLisible(currentStatus) : t('dataUi.lifecycle.none') }}</b>
+          <span v-if="currentStatus && terminalStates.has(currentStatus)" class="rd-final"
+            :title="t('dataUi.lifecycle.finalHint')">◼ {{ t('dataUi.lifecycle.final') }}</span>
+          <template v-if="transitions.length">
+            <span class="rd-step-sep" aria-hidden="true">·</span>
+            <span class="rd-step-lbl">{{ t('dataUi.lifecycle.moveTo') }}</span>
+            <Btn v-for="etat in transitions" :key="etat" kind="mini" :data-state="etat"
+              :title="moveHint(etat)" :aria-label="moveHint(etat)" @click="applyTransition(etat)">
+              {{ etatLisible(etat) }}<span v-if="terminalStates.has(etat)" class="rd-final">◼ {{ t('dataUi.lifecycle.final') }}</span>
+            </Btn>
+          </template>
           <Btn v-if="row?._claimed_by && !readOnly" kind="mini" @click="emit('release')">{{ t('dataUi.drawer.release') }}</Btn>
         </div>
 
@@ -326,8 +340,6 @@ function applyTransition(state: string) {
                 <label class="rd-label">{{ d.label }}<span v-if="d.required" class="rd-req"
                     :title="t('dataUi.drawer.required')">*</span><span v-else-if="d.requiredWhen" class="rd-req rd-req--soft"
                     :title="t('dataUi.drawer.requiredWhen', { when: reqWhenLabel(d) })">*</span></label>
-                <VideAssumeToggle v-if="editable && accepteVide(d)" :model-value="!!empties[d.key]"
-                  @update:model-value="basculerVide(d.key, $event)" />
               </div>
 
               <template v-if="!editable">
@@ -342,7 +354,7 @@ function applyTransition(state: string) {
               <OtoSelect v-else-if="widgetOf(d) === 'bool'" :model-value="scalars[d.key] ?? ''" @update:model-value="(v: string) => (scalars[d.key] = v)" :options="BOOL_OPTIONS" none-label="—" trigger-class="w-full" />
               <OtoSelect v-else-if="widgetOf(d) === 'enum'" :model-value="scalars[d.key] ?? ''" @update:model-value="(v: string) => (scalars[d.key] = v)" :options="enumOpts(d)" none-label="—" trigger-class="w-full" />
               <input v-else-if="widgetOf(d) === 'number'" v-model="scalars[d.key]" class="rd-input"
-                inputmode="decimal" :placeholder="d.label" />
+                inputmode="decimal" :placeholder="ph(d)" />
               <input v-else-if="widgetOf(d) === 'date'" type="date" class="rd-input"
                 :value="dateInputValue(d.key, false)"
                 @input="scalars[d.key] = ($event.target as HTMLInputElement).value" />
@@ -350,26 +362,29 @@ function applyTransition(state: string) {
                 :value="dateInputValue(d.key, true)"
                 @input="scalars[d.key] = ($event.target as HTMLInputElement).value" />
               <div v-else-if="widgetOf(d) === 'url'" class="rd-url">
-                <input v-model="scalars[d.key]" class="rd-input" type="url" :placeholder="d.label" />
+                <input v-model="scalars[d.key]" class="rd-input" type="url" :placeholder="ph(d)" />
                 <a v-if="scalars[d.key]" :href="scalars[d.key]" target="_blank" rel="noopener"
                   class="rd-open" :title="t('dataUi.drawer.openLink')"><Icon name="ext" :size="13" /></a>
               </div>
               <input v-else-if="widgetOf(d) === 'email'" v-model="scalars[d.key]" class="rd-input"
-                type="email" :placeholder="d.label" />
+                type="email" :placeholder="ph(d)" />
               <!-- `phone` (oto#103) : clavier téléphonique, et le lien d'appel sur la forme
                    compacte (séparateurs retirés, comme la validation du serveur). -->
               <div v-else-if="widgetOf(d) === 'phone'" class="rd-url">
                 <input v-model="scalars[d.key]" class="rd-input" type="tel" autocomplete="tel"
-                  :placeholder="d.label" />
+                  :placeholder="ph(d)" />
                 <a v-if="telOf(d.key)" :href="telOf(d.key)" class="rd-open" :title="t('rowEditor.call')">
                   <Icon name="ext" :size="13" /></a>
               </div>
-              <textarea v-else-if="widgetOf(d) === 'textarea'" v-model="scalars[d.key]" class="rd-input rd-area" rows="4" />
+              <textarea v-else-if="widgetOf(d) === 'textarea'" v-model="scalars[d.key]" class="rd-input rd-area" rows="4" :placeholder="ph(d)" />
               <template v-else>
-                <input v-model="scalars[d.key]" class="rd-input" :placeholder="d.label" />
+                <input v-model="scalars[d.key]" class="rd-input" :placeholder="ph(d)" />
                 <!-- valeur ISO non déclarée `date` : on la rend lisible sans la modifier -->
                 <span v-if="dateHint(d)" class="rd-hint">{{ dateHint(d) }}</span>
               </template>
+              <VideAssumeToggle v-if="editable && accepteVide(d)" :model-value="!!empties[d.key]"
+                :vide="saisieVide(d.key)" :raison="couches[d.key]?.comment"
+                @update:model-value="basculerVide(d.key, $event)" />
               <CellLayers v-if="aDesCouches(d.key)" v-model="couches[d.key]" :editable="editable" :origine="origineDe(d.key)" />
               <p v-if="erreurDe(d.key)" class="rd-err" role="alert">{{ erreurDe(d.key) }}</p>
             </div>
@@ -391,12 +406,13 @@ function applyTransition(state: string) {
               <label class="rd-label">{{ d.label }}<span v-if="d.required" class="rd-req"
                   :title="t('dataUi.drawer.required')">*</span><span v-else-if="d.requiredWhen" class="rd-req rd-req--soft"
                   :title="t('dataUi.drawer.requiredWhen', { when: reqWhenLabel(d) })">*</span></label>
-              <VideAssumeToggle v-if="editable && accepteVide(d)" :model-value="!!empties[d.key]"
-                @update:model-value="basculerVide(d.key, $event)" />
             </div>
             <p v-if="!editable" class="rd-readval">{{ readVal(d.key) }}</p>
             <textarea v-else v-model="scalars[d.key]" class="rd-input rd-area" rows="4"
-              :placeholder="d.label" />
+              :placeholder="ph(d)" />
+            <VideAssumeToggle v-if="editable && accepteVide(d)" :model-value="!!empties[d.key]"
+              :vide="saisieVide(d.key)" :raison="couches[d.key]?.comment"
+              @update:model-value="basculerVide(d.key, $event)" />
             <CellLayers v-if="aDesCouches(d.key)" v-model="couches[d.key]" :editable="editable" :origine="origineDe(d.key)" />
             <p v-if="erreurDe(d.key)" class="rd-err" role="alert">{{ erreurDe(d.key) }}</p>
           </div>
@@ -456,7 +472,7 @@ function applyTransition(state: string) {
 }
 .rd-title-input:hover { border-color: var(--color-hair-soft); }
 .rd-title-input:focus { outline: none; border-color: var(--color-cobalt); background: var(--color-surface); }
-.rd-title-row, .rd-label-row { display: flex; align-items: center; gap: 6px; }
+.rd-title-row, .rd-label-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .rd-label-row { justify-content: space-between; margin-bottom: 4px; }
 .rd-label-row .rd-label { margin-bottom: 0; }
 .rd-err { margin: 3px 0 0; font-size: 11.5px; color: var(--color-terra-ink); overflow-wrap: anywhere; }
@@ -473,6 +489,13 @@ function applyTransition(state: string) {
   padding: 0 18px 10px;
   border-bottom: 1px solid var(--color-hair-soft);
 }
+.rd-step-lbl { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--color-mute); }
+.rd-step {
+  font-size: 12.5px; font-weight: 700; color: var(--color-saffron-ink);
+  background: var(--color-saffron-soft); border-radius: var(--radius-pill); padding: 2px 10px;
+}
+.rd-step-sep { color: var(--color-faint); margin: 0 2px; }
+.rd-final { margin-left: 5px; font-size: 10.5px; font-weight: 600; color: var(--color-faint); white-space: nowrap; }
 .rd-body { overflow-y: auto; padding: 10px 18px 8px; }
 .rd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
 .rd-grid .rd-field.wide { grid-column: 1 / -1; }
