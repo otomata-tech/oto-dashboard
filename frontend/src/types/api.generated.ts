@@ -5046,14 +5046,22 @@ export interface components {
          *     ⚠️ Le plafond porte sur les espaces que TU as créés : rejoindre celui d'autrui
          *     n'en consomme aucun, et une org dont tu es membre sans l'avoir créée n'y entre pas.
          *     `remaining == 0` ⟹ la prochaine création sera refusée (429 `org_quota`).
+         *     `cap` et `remaining` à `null` ⟹ **aucun plafond** : super_admin, ou admin de ton
+         *     propre tenant.
          */
         OrgQuota: {
             /** Created */
             created: number;
-            /** Cap */
-            cap: number;
-            /** Remaining */
-            remaining: number;
+            /**
+             * Cap
+             * @default null
+             */
+            cap: number | null;
+            /**
+             * Remaining
+             * @default null
+             */
+            remaining: number | null;
         };
         /**
          * OrgBilling

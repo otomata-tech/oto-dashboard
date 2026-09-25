@@ -53117,25 +53117,39 @@
         "type": "object"
       },
       "OrgQuota": {
-        "description": "Où tu en es du plafond d'espaces CRÉÉS, lisible **avant** de s'y cogner (#464).\n\n`created` ne compte que ce qui occupe encore une place : ni les espaces archivés\n(l'archivage rend sa place), ni ton espace personnel (posé d'office, non\nsupprimable en tant que tel). `created` peut donc être plus petit que le nombre\nd'entrées d'`orgs` ci-dessus — l'espace perso y figure, il est bien à toi.\n⚠️ Le plafond porte sur les espaces que TU as créés : rejoindre celui d'autrui\nn'en consomme aucun, et une org dont tu es membre sans l'avoir créée n'y entre pas.\n`remaining == 0` ⟹ la prochaine création sera refusée (429 `org_quota`).",
+        "description": "Où tu en es du plafond d'espaces CRÉÉS, lisible **avant** de s'y cogner (#464).\n\n`created` ne compte que ce qui occupe encore une place : ni les espaces archivés\n(l'archivage rend sa place), ni ton espace personnel (posé d'office, non\nsupprimable en tant que tel). `created` peut donc être plus petit que le nombre\nd'entrées d'`orgs` ci-dessus — l'espace perso y figure, il est bien à toi.\n⚠️ Le plafond porte sur les espaces que TU as créés : rejoindre celui d'autrui\nn'en consomme aucun, et une org dont tu es membre sans l'avoir créée n'y entre pas.\n`remaining == 0` ⟹ la prochaine création sera refusée (429 `org_quota`).\n`cap` et `remaining` à `null` ⟹ **aucun plafond** : super_admin, ou admin de ton\npropre tenant.",
         "properties": {
           "created": {
             "title": "Created",
             "type": "integer"
           },
           "cap": {
-            "title": "Cap",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cap"
           },
           "remaining": {
-            "title": "Remaining",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Remaining"
           }
         },
         "required": [
-          "created",
-          "cap",
-          "remaining"
+          "created"
         ],
         "title": "OrgQuota",
         "type": "object"
