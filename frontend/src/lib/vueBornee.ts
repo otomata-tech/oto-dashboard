@@ -1,57 +1,69 @@
 // La vue BORNÉE « voir en tant que » d'un org_admin (oto#270) : l'admin d'org voit, en
 // lecture seule, ce qu'un membre de SON org voit DANS cette org. Le serveur la sert sur une
-// liste FERMÉE de lectures (`api.routes._LECTURES_VUE_BORNEE`) et refuse tout le reste en
-// `403 view_as_hors_org` : jetons API, grants de comptes connecteurs, tableaux partagés
-// « avec moi », abonnements de modèles, instances de connecteurs, facturation, légal,
-// bibliothèques, `/api/resources`, admin — des lectures « compte entier ».
+// liste fermée de lectures et refuse le reste en `403 view_as_hors_org` (jetons API,
+// facturation, instances de connecteurs, admin…).
 //
-// Ce module est la SEULE liste de ce que l'écran masque dans cette vue. La nav
-// (`navItemVisible`) et la garde du routeur lisent `SECTIONS_HORS_VUE` ; `api()` lit
-// `LECTURES_HORS_VUE` et ne part même pas (même refus que le serveur, sans l'aller-retour) ;
-// un écran qui lit en partie l'une de ces listes se masque sur `estHorsVue`. Hors de ce
-// module, aucun écran ne redit ce qui est hors vue. Le serveur reste l'autorité : une
-// lecture absente d'ici et refusée là-bas se dit par `estHorsVue`, jamais en rouge.
-import { getViewUser } from './viewOrg'
+// ⚠️ Ce que la vue refuse, le SERVEUR le dit : `/api/me` sert `view_as_bound_org` (l'org de
+// la vue, `null` hors vue bornée) et `view_as_refused_prefixes` (les préfixes des lectures
+// GET refusées), dérivés de ce que son middleware applique. Ce module n'en recopie rien : il
+// garde la dernière lecture de `/api/me` (`poserVueBornee`, appelé par `useMe`) et la lit.
+//   • `api()` ne lance pas une lecture GET couverte (même refus que le serveur, sans
+//     l'aller-retour) — préfixe de chaîne, SLASH FINAL COMPRIS : `/api/connectors/` refusé
+//     ne couvre pas `/api/connectors` exact, qui reste ouvert.
+//   • La nav et la garde du routeur masquent un ÉCRAN (`SECTIONS_HORS_VUE`) quand la lecture
+//     qui le fait vivre est refusée — la seule chose que le front ajoute : quel écran lit
+//     quoi, une notion d'écran que le serveur ne connaît pas.
+//   • Un écran qui lit en partie une liste refusée se masque sur `estHorsVue`.
+// Avant la première lecture de `/api/me`, rien n'est masqué ni retenu : le serveur reste
+// l'autorité, et un refus arrivé entre-temps se dit par `estHorsVue`, jamais en rouge.
 
-/** L'org à laquelle la vue est bornée, figée à l'entrée ; `null` hors vue bornée. */
-export function orgDeLaVue(): number | null {
-  return getViewUser()?.org?.id ?? null
+/** Ce que `/api/me` dit de la vue bornée ; `null` tant qu'il n'est pas lu. */
+interface VueServie { org: number; refuses: readonly string[] }
+let vue: VueServie | null = null
+
+/** Retient ce que `/api/me` sert (appelé à chaque lecture de `/api/me`). */
+export function poserVueBornee(me: {
+  view_as_bound_org?: number | null; view_as_refused_prefixes?: string[] | null
+} | null): void {
+  vue = me?.view_as_bound_org != null
+    ? { org: me.view_as_bound_org, refuses: me.view_as_refused_prefixes ?? [] }
+    : null
 }
-export const enVueBornee = (): boolean => orgDeLaVue() !== null
 
-/** Les écrans dont les lectures sont refusées en vue bornée : absents du menu, et une
- * adresse directe retombe sur l'aperçu. Préfixes de section. */
-export const SECTIONS_HORS_VUE: readonly string[] = [
-  '/org/billing',         // facturation
-  '/account/security',    // la MFA est celle du compte CONNECTÉ (Logto), jamais du membre vu
-  '/account/claude',      // abonnements de modèles
-  '/account/developers',  // jetons API
-  '/platform',            // admin
-]
+/** L'org à laquelle le SERVEUR borne la vue ; `null` hors vue bornée (ou `/api/me` non lu). */
+export function orgDeLaVue(): number | null {
+  return vue?.org ?? null
+}
+export const enVueBornee = (): boolean => vue !== null
 
-/** Les lectures refusées en vue bornée que des écrans OUVERTS font en partie. */
-export const LECTURES_HORS_VUE: readonly string[] = [
-  '/api/me/connector-instances',
-  '/api/me/connector-accounts/grants',
-  '/api/me/datastores/shared',
-  '/api/me/model-subscriptions',
-  '/api/me/tokens',
-  '/api/me/legal',
-  '/api/me/billing',     // `/api/billing/plans` (le catalogue) reste servi
-  '/api/resources',
-  '/api/admin/',
-]
+/** Préfixe de chaîne, sans normaliser le slash : c'est le contrat servi. */
+const refusee = (chemin: string): boolean =>
+  !!vue && vue.refuses.some((p) => chemin.startsWith(p))
 
-const couvre = (liste: readonly string[], chemin: string) =>
-  liste.some((p) => chemin === p || chemin.startsWith(p.endsWith('/') ? p : `${p}/`)
-    || chemin.startsWith(`${p}?`))
+/** Une lecture GET que la vue refuse. Une écriture n'est pas jugée ici : la vue est en
+ * lecture seule, le serveur la refuse déjà. */
+export function lectureHorsVue(chemin: string, methode = 'GET'): boolean {
+  return methode.toUpperCase() === 'GET' && refusee(chemin)
+}
+
+/** Les écrans d'une vue bornée, et la lecture qui les fait vivre : masqués quand le serveur
+ * la refuse. Préfixes de section → chemin REST lu à l'ouverture. */
+export const SECTIONS_HORS_VUE: Readonly<Record<string, string>> = {
+  '/org/billing': '/api/me/billing',                        // facturation
+  '/account/claude': '/api/me/model-subscriptions',          // abonnements de modèles
+  '/account/developers': '/api/me/tokens',                   // jetons API
+  '/platform': '/api/admin/users',                           // admin
+}
+/** ⚠️ `/account/security` : la MFA est lue sur Logto pour le compte CONNECTÉ, jamais pour
+ * le membre vu — aucune lecture du serveur ne le dit, c'est une règle d'écran. */
+const SECTIONS_TOUJOURS_HORS_VUE: readonly string[] = ['/account/security']
+
+const sousSection = (section: string, p: string) => section === p || section.startsWith(`${p}/`)
 
 export function sectionHorsVue(section: string): boolean {
-  return enVueBornee() && couvre(SECTIONS_HORS_VUE, section)
-}
-
-export function lectureHorsVue(chemin: string): boolean {
-  return enVueBornee() && couvre(LECTURES_HORS_VUE, chemin)
+  if (!vue) return false
+  if (SECTIONS_TOUJOURS_HORS_VUE.some((p) => sousSection(section, p))) return true
+  return Object.entries(SECTIONS_HORS_VUE).some(([p, lecture]) => sousSection(section, p) && refusee(lecture))
 }
 
 export const CODE_HORS_VUE = 'view_as_hors_org'

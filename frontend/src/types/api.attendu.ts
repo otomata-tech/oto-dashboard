@@ -127,3 +127,22 @@ export interface EmetteurDeclare {
   client_version?: string | null
   token_kind?: string | null
 }
+
+// ── ⑤ La vue bornée d'un org_admin, dite par le serveur (otomata-tech/oto#270) ──
+// Servi par oto-backend `a7e02e4c` (pas encore déployé) — le snapshot OpenAPI ne le
+// porte pas. Sur `/api/me` : `view_as_bound_org` = l'org de la vue bornée (`null` hors
+// vue bornée, y compris en vue d'opérateur) ; `view_as_refused_prefixes` = les préfixes
+// des LECTURES GET refusées en `403 view_as_hors_org` dans cette vue (`null` hors vue
+// bornée), dérivés par le serveur de ce que son middleware applique, SLASH FINAL GARDÉ
+// (`/api/connectors/` refusé, `/api/connectors` exact ouvert : comparer par préfixe de
+// chaîne, sans normaliser). Sur `OrgMemberEntry` (`GET /api/orgs/{id}`) :
+// `is_platform_operator`, servi au seul org_admin (et à l'opérateur), `null` pour un
+// membre ordinaire. Au prochain `npm run api:refresh`, remplacer par les types générés
+// et supprimer ce bloc.
+export interface VueBorneeServie {
+  view_as_bound_org?: number | null
+  view_as_refused_prefixes?: string[] | null
+}
+export interface OperateurDuMembre {
+  is_platform_operator?: boolean | null
+}

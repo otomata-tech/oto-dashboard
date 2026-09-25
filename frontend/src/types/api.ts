@@ -28,7 +28,7 @@
 import type { components, operations } from './api.generated'
 // ⚠️ Ce qu'un lot backend OUVERT sert et que l'OpenAPI en ligne ignore encore —
 // écrit à la main, à part, pour qu'une régénération ne l'efface pas. Cf. le fichier.
-import type { BailDeLaLigne, EmetteurDeclare } from './api.attendu'
+import type { BailDeLaLigne, EmetteurDeclare, OperateurDuMembre, VueBorneeServie } from './api.attendu'
 
 /** La réponse 200 (application/json) d'une opération du document OpenAPI. */
 export type ApiOut<K extends keyof operations> = operations[K]['responses'] extends {
@@ -306,7 +306,8 @@ export interface ProviderStatus {
 // créer un cycle types→lib.
 export type Locale = 'en' | 'fr'
 
-export interface Me {
+// La vue bornée d'un org_admin (oto#270) : cf. `api.attendu.ts` ⑤.
+export interface Me extends VueBorneeServie {
   sub: string
   email: string | null
   name: string | null
@@ -1073,7 +1074,7 @@ export interface UnipileSeat {
 
 // ── orgs ──
 export type Org = components['schemas']['OrgBrief']
-export type OrgMember = components['schemas']['OrgMemberEntry']
+export type OrgMember = components['schemas']['OrgMemberEntry'] & OperateurDuMembre
 export type OrgSecret = components['schemas']['OrgSecretEntry']
 export interface OrgEntitlement {
   namespace: string

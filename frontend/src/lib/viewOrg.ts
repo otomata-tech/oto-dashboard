@@ -65,10 +65,12 @@ export function consultRedirectPath(
 // (403 `view_as_write_forbidden`). Envoyé en header `X-Oto-View-As` ; le backend
 // résout alors le dashboard sur ce user (et son org maison).
 export interface ViewAsOperator { name: string; superAdmin: boolean }
-// Vue BORNÉE d'un org_admin (oto#270) : `org` est l'org où il est admin, figée à l'entrée
-// (depuis la liste des membres). Chaque requête porte alors `X-Oto-Org` = cette org — le
-// serveur l'exige (`400 view_as_org_required`) et borne tout à elle ; jamais d'écriture.
-// Ce qui est masqué dans cette vue vit dans `lib/vueBornee.ts`.
+// Vue BORNÉE d'un org_admin (oto#270) : `org` est l'org où il est admin, choisie à l'entrée
+// (depuis la liste des membres). Elle ne sert qu'à POSER `X-Oto-Org` sur chaque requête — le
+// serveur l'exige, `/api/me` compris (`400 view_as_org_required`), et borne tout à elle ;
+// jamais d'écriture. Ce n'est PAS la vérité de la vue : « suis-je en vue bornée, sur quelle
+// org, qu'est-ce qui m'y est refusé » se lit sur `/api/me` (`view_as_bound_org`,
+// `view_as_refused_prefixes`), que `lib/vueBornee.ts` tient.
 export interface ViewAsOrg { id: number; name: string }
 export interface ViewUser { sub: string; name: string; operator?: ViewAsOperator; org?: ViewAsOrg }
 export function getViewUser(): ViewUser | null {

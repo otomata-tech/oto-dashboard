@@ -81,6 +81,22 @@ describe('l’entrée depuis la liste des membres', () => {
     expect(window.location.href).toBe('/overview')
   })
 
+  it('pas de bouton sur un opérateur plateforme (le serveur le refuserait) ; `null` le garde', async () => {
+    me.value = ADMIN
+    api.getOrg.mockResolvedValue({
+      org: { id: 42, name: 'ACME', personal: false, my_role: 'org_admin' },
+      members: [
+        { sub: 'u-moi', name: 'Moi', email: 'moi@acme.test', role: 'org_admin', active: true, suspended: false, is_platform_operator: false },
+        { sub: 'u-op', name: 'Opé', email: 'op@acme.test', role: 'org_member', active: true, suspended: false, is_platform_operator: true },
+        { sub: 'u-bob', name: 'Bob', email: 'bob@acme.test', role: 'org_member', active: true, suspended: false, is_platform_operator: null },
+      ],
+    })
+    const host = await monter(() => import('./OrgView.vue'))
+    expect(boutons(host)).toHaveLength(1)
+    ;(boutons(host)[0] as HTMLButtonElement).click()
+    expect(getViewUser()?.sub).toBe('u-bob')
+  })
+
   it.each([
     ['un membre simple', { ...ADMIN, org_role: 'org_member' }],
     ['un opérateur qui consulte l’org', { ...ADMIN, role: 'super_admin', org_role: null, active_org_readonly: true }],

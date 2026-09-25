@@ -39,6 +39,10 @@ const HOME_ORG_HINT = computed(() => t('orgUi.members.homeHint'))
 const { me } = useMe()
 // `canAdminister` exclut déjà la consultation et toute vue « en tant que » en cours.
 const voitEnTantQue = computed(() => canAdminister.value && me.value?.org_role === 'org_admin')
+// Un opérateur plateforme ne se voit pas « en tant que » : le serveur refuserait la cible
+// (`is_platform_operator`, servi à l'org_admin). `null` = non servi : le bouton reste, le
+// serveur tranche et le bandeau dit son refus.
+const voirEnTantQuePossible = (m: OrgMember) => voitEnTantQue.value && m.is_platform_operator !== true
 function voirEnTantQue(m: OrgMember) {
   const org = activeOrgId.value
   if (org == null) return
@@ -106,7 +110,7 @@ async function removeMember(sub: string, label: string) {
               <td><Dot :tone="m.active ? 'olive' : 'faint'" :size="7" /></td>
               <td v-if="canAdminister" style="text-align: right">
                 <div v-if="m.sub !== meSub" style="display: flex; gap: 6px; justify-content: flex-end">
-                  <Btn v-if="voitEnTantQue" kind="mini" data-test="voir-en-tant-que" @click="voirEnTantQue(m)">
+                  <Btn v-if="voirEnTantQuePossible(m)" kind="mini" data-test="voir-en-tant-que" @click="voirEnTantQue(m)">
                     {{ t('viewAsOrg.enter') }}</Btn>
                   <Btn kind="mini" @click="toggleRole(m.sub, m.role)">{{ m.role === 'org_admin' ? t('orgUi.members.demote') : t('orgUi.members.promote') }}</Btn>
                   <Btn kind="danger" @click="removeMember(m.sub, m.name || m.email || t('orgUi.members.thisMember'))">{{ t('orgUi.members.remove') }}</Btn>

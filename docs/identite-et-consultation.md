@@ -86,24 +86,31 @@ de la reprendre depuis la fiche admin.
 
 **Voir en tant que, borné à l'org (oto#270, 25/09/2026, décision d'Alexis).** Un org_admin
 RÉEL (la colonne `org_role`, hors consultation) a, sur chaque autre membre de la liste des
-membres (`OrgView`), un bouton « voir en tant que ». Entrer fige l'org dans `ViewUser.org`
-(`lib/viewOrg.ts`) : chaque requête porte alors `X-Oto-View-As` ET `X-Oto-Org` = cette org —
+membres (`OrgView`), un bouton « voir en tant que » — omis sur un membre que le serveur dit
+opérateur plateforme (`is_platform_operator`, servi à l'org_admin ; `null` = non servi, le
+bouton reste et le serveur tranche). Entrer pose l'org dans `ViewUser.org` (`lib/viewOrg.ts`),
+qui ne sert qu'à l'en-tête : chaque requête porte alors `X-Oto-View-As` ET `X-Oto-Org` = cette org —
 jamais une autre, même si l'URL en consulte une —, et jamais `X-Oto-View-As-Write` (le
 serveur refuse l'écriture, `view_as_write_forbidden` : elle reste au super_admin). Le bandeau
 dit « tu vois ce que voit X dans <org>, en lecture seule », sans offre d'écriture ; « quitter »
 ramène à `/org`. Si le serveur refuse d'ouvrir la vue (`/api/me` en `400 view_as_org_required`,
 `403 view_as_hors_org` — cible opérateur plateforme ou plus membre —, `403 forbidden` — plus
 admin), le bandeau le dit.
-Le serveur sert cette vue sur une liste FERMÉE de lectures et refuse le reste en `403
-view_as_hors_org`. **`lib/vueBornee.ts` est la seule liste côté écran** : `SECTIONS_HORS_VUE`
-(facturation, sécurité du compte — la MFA y est celle du compte connecté —, abonnement Claude,
-développeurs, plateforme) retire l'entrée du menu (`navItemVisible`) et renvoie une adresse
-directe sur l'aperçu (garde du routeur) ; `LECTURES_HORS_VUE` (instances de connecteurs, grants
-de comptes, tableaux partagés avec moi, abonnements de modèles, jetons, légal, facturation,
-`/api/resources`, admin) : `api()` ne les envoie pas et lève le même refus. Un écran qui lit en
-partie l'une d'elles se masque sur `estHorsVue` (pile de clés d'un connecteur, routines) ; la
-liste des partages reçus rend vide (`horsVueVide`) — en vue bornée, un partage personnel reçu
-ne compte pas, côté serveur non plus. Tests : `lib/vueBornee.spec.ts`,
+Le serveur sert cette vue sur une liste FERMÉE de lectures, refuse le reste en `403
+view_as_hors_org`, et **le dit lui-même sur `/api/me`** : `view_as_bound_org` (l'org de la
+vue ; `null` hors vue bornée, y compris en vue d'opérateur) et `view_as_refused_prefixes` (les
+préfixes des lectures GET refusées, dérivés de ce que son middleware applique). **Le front n'en
+recopie rien** (`lib/vueBornee.ts`, nourri par `useMe` via `poserVueBornee`) : `api()` ne lance
+pas une lecture GET couverte et lève le même refus — préfixe de chaîne, slash final compris
+(`/api/connectors/` refusé laisse `/api/connectors` exact ouvert). Le front n'ajoute que ce que
+le serveur ne peut pas savoir : quel ÉCRAN vit de quelle lecture (`SECTIONS_HORS_VUE` :
+facturation, abonnement Claude, développeurs, plateforme), masqué du menu (`navItemVisible`) et
+renvoyé sur l'aperçu (garde du routeur) quand sa lecture est refusée ; et la sécurité du compte,
+toujours masquée en vue bornée (la MFA y est lue sur Logto pour le compte connecté, jamais pour
+le membre vu). Avant la lecture de `/api/me`, rien n'est masqué ni retenu : le serveur reste
+l'autorité. Un écran qui lit en partie une liste refusée se masque sur `estHorsVue` (pile de
+clés d'un connecteur, routines) ; la liste des partages reçus rend vide (`horsVueVide`) — en vue
+bornée, un partage personnel reçu ne compte pas, côté serveur non plus. Tests : `lib/vueBornee.spec.ts`,
 `views/console/voirEnTantQueOrg.spec.ts`.
 
 ## Hub compte (`/account`)
