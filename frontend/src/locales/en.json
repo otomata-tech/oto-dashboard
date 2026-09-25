@@ -252,7 +252,6 @@
         "error": "Runner presence unreadable: {reason}"
       },
       "campaigns": {
-        "betaOff": "Campaigns are not enabled for this organization.",
         "error": "Campaigns unreadable: {reason}"
       },
       "campaign": {
@@ -438,7 +437,9 @@
           "schedule": "Schedule (cron)",
           "timezone": "Time zone",
           "model": "Model",
-          "workerModel": "worker's model",
+          "chooseModel": "choose a model",
+          "modelMissing": "No model declared: this automation no longer runs until a model is chosen.",
+          "noModel": "no model — no longer runs",
           "notServed": "not served",
           "deleteConfirm": "Delete this schedule? Its pending occurrences will never run.",
           "deleteNotConfirmed": "deletion not confirmed by the server, the schedule stays listed"
@@ -525,6 +526,8 @@
     "stale_session": "your session expired — sign in again",
     "view_as_read_only": "read-only view — in “view as”, a super_admin can open writing with the “Écrire en tant que …” button of the banner at the top",
     "view_as_write_forbidden": "writing on behalf of another account is reserved to super_admin",
+    "model_required": "a model must be declared on the agent",
+    "model_key_required": "the key of this model's provider must be set in the organization",
     "invalid_api_token": "invalid api token",
     "invalid_token": "invalid session token",
     "missing_bearer": "not authenticated",

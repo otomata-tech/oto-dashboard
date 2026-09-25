@@ -110,7 +110,7 @@ describe('déclencheurs — ce que le formulaire envoie', () => {
     { id: 'mistral-large', label: 'Mistral Large', served: false },
   ]
 
-  it('sans modèle déclaré, le réglage part de « modèle du worker », jamais du défaut', () => {
+  it('sans modèle déclaré, le réglage part de « à choisir » (`""`), jamais du défaut', () => {
     expect(reglageInitial(T)).toEqual({ cron: '0 8 * * *', tz: 'Europe/Paris', model: '' })
   })
 
@@ -121,11 +121,6 @@ describe('déclencheurs — ce que le formulaire envoie', () => {
     expect(champsModifies(i, { ...i, tz: 'UTC' })).toEqual({ tz: 'UTC' })
     expect(champsModifies(i, { ...i, cron: ' 0 9 * * *', model: 'claude-opus' }))
       .toEqual({ cron: '0 9 * * *', model: 'claude-opus' })
-  })
-
-  it('revenir au modèle du worker envoie `""`', () => {
-    const i = reglageInitial({ ...T, model: 'mistral-large' })
-    expect(champsModifies(i, { ...i, model: '' })).toEqual({ model: '' })
   })
 
   it('après un réglage, la réponse fait foi et ce qui a été perdu survit', () => {
@@ -141,7 +136,7 @@ describe('déclencheurs — ce que le formulaire envoie', () => {
 
   it('un webhook se règle sans horaire ni fuseau : changer son modèle n’envoie que le modèle', () => {
     const i = reglageInitial(webhook({ tz: null }))
-    expect(i).toEqual({ cron: '', tz: '', model: '' })
+    expect(i).toEqual({ cron: '', tz: '', model: 'claude-sonnet-4-5' })
     expect(champsModifies(i, { ...i, model: 'mistral-large' })).toEqual({ model: 'mistral-large' })
   })
 

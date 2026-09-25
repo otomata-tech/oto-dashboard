@@ -6,8 +6,7 @@
 //
 // Rien n'est lu ici : les programmations (avec la présence du runner) et les campagnes sont
 // lues par la page, et partagées avec « à surveiller ». Leur erreur est dite dans ce bloc
-// sans alerte : « à surveiller » la porte déjà. Sans la bêta, il n'y a pas de campagne, sans
-// rouge. Les gestes restent sur les fiches.
+// sans alerte : « à surveiller » la porte déjà. Les gestes restent sur les fiches.
 //
 // Ordre : les actives d'abord (programmation activée, campagne vivante), puis les autres ;
 // dans chaque groupe, programmations dans l'ordre servi, puis campagnes rangées par

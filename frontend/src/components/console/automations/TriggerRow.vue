@@ -67,7 +67,7 @@ function surEnregistre(rendu: Partial<RunnerTrigger>) {
       <template v-else>{{ trigger.cron }}</template>
       · {{ trigger.tz }}
     </span>
-    <span class="rt-model">{{ modele.label ?? t('automations.triggers.form.workerModel') }}</span>
+    <span class="rt-model">{{ modele.label ?? t('automations.triggers.form.noModel') }}</span>
     <Tag v-if="modele.nonServi" tone="terra">{{ t('automations.triggers.form.notServed') }}</Tag>
     <Tag v-if="!trigger.enabled" tone="ink">{{ t('automations.schedulePage.disabled') }}</Tag>
     <span v-else-if="trigger.next_due && !estWebhook(trigger)" class="rt-next">

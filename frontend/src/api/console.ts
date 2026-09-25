@@ -516,7 +516,7 @@ export const getRunnerJob = (id: number) =>
   })
 
 export type { RunnerFleet, RunnerFleetState, RunnerArme, RunnerTrigger, RunnerDelivery }
-// UNE campagne par son identifiant (`op=get` ; 404 `fleet_not_found`, 403 `beta_required`).
+// UNE campagne par son identifiant (`op=get` ; 404 `fleet_not_found`).
 // ⚠️ Seule lecture de campagne que la consultation en lecture seule laisse passer : `get` est
 // dans la liste blanche du serveur, `state` n'y est pas (403 `view_as_read_only`).
 export const getRunnerFleet = (id: number) =>

@@ -120,15 +120,16 @@ export function refusServi(e: unknown): Refus {
 // `runner.triggers` est ouvert à tout membre, sans garde admin ni bêta : l'écran ne garde
 // rien de plus que le serveur servi. Seule la lecture seule masque les gestes.
 
-/** Ce que le formulaire d'un déclencheur règle. `model: ''` = le modèle du worker. */
+/** Ce que le formulaire d'un déclencheur règle. `model: ''` = aucun modèle déclaré : le
+ * formulaire le dit et n'enregistre pas tant qu'aucun n'est choisi (modèle obligatoire). */
 export interface ReglageDeclencheur {
   cron: string
   tz: string
   model: string
 }
 
-/** ⚠️ Un déclencheur sans modèle déclaré se règle sur `''` (« modèle du worker »), JAMAIS
- * sur le modèle `default` du catalogue : l'écrire changerait la famille qui sert l'agent. */
+/** ⚠️ Un déclencheur sans modèle déclaré se règle sur `''` (à choisir), JAMAIS sur le
+ * modèle `default` du catalogue : le présélectionner le ferait écrire sans qu'on l'ait choisi. */
 export function reglageInitial(t: Pick<RunnerTrigger, 'cron' | 'tz' | 'model'>): ReglageDeclencheur {
   // Un webhook n'a ni `cron` ni fuseau à régler : `''` des deux côtés, jamais envoyé.
   return { cron: t.cron ?? '', tz: t.tz ?? '', model: t.model ?? '' }
@@ -197,9 +198,9 @@ export interface OptionModele {
 }
 
 /** Les modèles SERVIS, dans l'ordre du catalogue — plus le modèle courant s'il ne l'est
- * pas, marqué : le taire ferait croire à un réglage qui n'existe pas. « Modèle du worker »
- * (`''`) n'y figure pas : c'est l'option vide du select. Le `default` du catalogue ne
- * change ni l'ordre ni la sélection. */
+ * pas, marqué : le taire ferait croire à un réglage qui n'existe pas. Il n'y a PAS d'option
+ * vide : le modèle est obligatoire. Le `default` du catalogue ne change ni l'ordre ni la
+ * sélection. */
 export function optionsModele(catalogue: ModeleCatalogue[], courant: string): OptionModele[] {
   const servis = catalogue.filter((m) => m.served)
     .map((m) => ({ value: m.id, label: m.label, nonServi: false }))

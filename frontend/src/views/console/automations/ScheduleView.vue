@@ -87,7 +87,7 @@ const filtreHistorique = computed(() =>
               <div>
                 <dt>{{ t('automations.schedulePage.model') }}</dt>
                 <dd>
-                  {{ modeleDeclencheur(trigger.model, runner?.models ?? []).label ?? t('automations.triggers.form.workerModel') }}
+                  {{ modeleDeclencheur(trigger.model, runner?.models ?? []).label ?? t('automations.triggers.form.noModel') }}
                   <Tag v-if="modeleDeclencheur(trigger.model, runner?.models ?? []).nonServi" tone="terra">
                     {{ t('automations.triggers.form.notServed') }}</Tag>
                 </dd>

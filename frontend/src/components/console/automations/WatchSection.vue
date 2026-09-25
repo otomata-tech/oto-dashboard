@@ -46,19 +46,16 @@ function sansTravail(f: RunnerFleet): string | null {
     <div class="card-body ws">
       <section class="ws-bloc" data-test="vivantes">
         <h4 class="ws-t">{{ t('automations.watch.live') }}</h4>
-        <p v-if="campagnes.betaAbsente" class="ws-mute" data-test="beta">{{ t('automations.campaigns.betaOff') }}</p>
-        <template v-else>
-          <p v-if="campagnes.erreur" class="ws-err" role="alert">{{ t('automations.campaigns.error', { reason: campagnes.erreur }) }}</p>
-          <p v-if="!campagnes.lu" class="ws-mute">{{ t('common.loading') }}</p>
-          <p v-else-if="!vivantes.length && !campagnes.erreur" class="ws-mute">{{ t('automations.watch.liveEmpty') }}</p>
-          <ul v-if="vivantes.length" class="ws-list">
-            <li v-for="f in vivantes" :key="f.id" class="ws-item">
-              <RouterLink :to="`/automations/campaigns/${f.id}`" class="ws-name">{{ nomCampagne(f) }}</RouterLink>
-              <Tag :tone="statut(f).ton">{{ statut(f).texte }}</Tag>
-              <span v-if="sansTravail(f)" class="ws-warn">{{ sansTravail(f) }}</span>
-            </li>
-          </ul>
-        </template>
+        <p v-if="campagnes.erreur" class="ws-err" role="alert">{{ t('automations.campaigns.error', { reason: campagnes.erreur }) }}</p>
+        <p v-if="!campagnes.lu" class="ws-mute">{{ t('common.loading') }}</p>
+        <p v-else-if="!vivantes.length && !campagnes.erreur" class="ws-mute">{{ t('automations.watch.liveEmpty') }}</p>
+        <ul v-if="vivantes.length" class="ws-list">
+          <li v-for="f in vivantes" :key="f.id" class="ws-item">
+            <RouterLink :to="`/automations/campaigns/${f.id}`" class="ws-name">{{ nomCampagne(f) }}</RouterLink>
+            <Tag :tone="statut(f).ton">{{ statut(f).texte }}</Tag>
+            <span v-if="sansTravail(f)" class="ws-warn">{{ sansTravail(f) }}</span>
+          </li>
+        </ul>
       </section>
 
       <section class="ws-bloc" data-test="en-perte">

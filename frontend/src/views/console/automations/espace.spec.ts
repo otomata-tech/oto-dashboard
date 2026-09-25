@@ -1,7 +1,7 @@
 // L'espace Automatisations (oto#214), monté comme la coque le monte. Ce qui se prouve ici :
 // chaque page s'ouvre par son ADRESSE et se recharge ; le retour navigateur garde filtres et
-// pagination ; l'ancien `?run=` aboutit ; une adresse qui ne désigne rien se dit ; la bêta
-// absente ne rougit rien ; une erreur reste dans sa section ; les historiques paginent sous
+// pagination ; l'ancien `?run=` aboutit ; une adresse qui ne désigne rien se dit ; une
+// erreur reste dans sa section ; les historiques paginent sous
 // leur filtre serveur. Droits et contre-épreuve : `espace.droits.spec.ts`.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/api'
@@ -164,14 +164,6 @@ describe('une seule liste : programmations et campagnes (24/09/2026)', () => {
     expect(api.listRunnerTriggers).toHaveBeenCalledTimes(1)
   })
 
-  it('sans la bêta : les programmations seules, sans rouge', async () => {
-    servirMonde(bouchons)
-    api.listRunnerFleets.mockRejectedValue(new ApiError(403, 'beta_required', 'les passages d’agents sont en bêta'))
-    const m = await ouvrir('/automations')
-    expect(noms(m)).toEqual(['Veille du matin'])
-    expect(m.hote.querySelector('[role="alert"]')).toBeNull()
-  })
-
   it('campagnes illisibles : dit dans la liste, sans seconde alerte ; les programmations restent', async () => {
     servirMonde(bouchons)
     api.listRunnerFleets.mockRejectedValue(new ApiError(500, 'boom'))
@@ -181,7 +173,7 @@ describe('une seule liste : programmations et campagnes (24/09/2026)', () => {
     expect(m.hote.querySelectorAll('[role="alert"]')).toHaveLength(1)
   })
 
-  it('un AUTRE 403 reste une erreur : le silence ne vaut que pour la bêta', async () => {
+  it('un 403 sur les campagnes est une erreur dite, jamais un silence (plus de porte bêta)', async () => {
     servirMonde(bouchons)
     api.listRunnerFleets.mockRejectedValue(new ApiError(403, 'forbidden'))
     const m = await ouvrir('/automations')
@@ -242,26 +234,6 @@ describe('une adresse n’affiche que l’objet qu’elle désigne', () => {
     expect(api.listRunnerJobs).not.toHaveBeenCalled()
     expect(m.hote.querySelector('[data-test="identite"]')).toBeNull()
   })
-})
-
-describe('la bêta absente ne rougit rien', () => {
-  it.each(['/automations', '/automations/campaigns/7', '/automations/executions'])(
-    '%s', async (url) => {
-      servirMonde(bouchons)
-      const beta = new ApiError(403, 'beta_required', 'les passages d’agents sont en bêta')
-      api.listRunnerFleets.mockRejectedValue(beta)
-      api.getRunnerFleet.mockRejectedValue(beta)
-      const m = await ouvrir(url)
-      expect(m.hote.querySelector('[role="alert"]')).toBeNull()
-      if (url === '/automations/executions') {
-        // Sans campagne lisible, le filtre par campagne n'est pas offert.
-        expect(m.hote.querySelector('[aria-label="Campagne"]')).toBeNull()
-        expect(m.hote.querySelector('[aria-label="Statut"]')).not.toBeNull()
-        expect(m.hote.querySelectorAll('li[data-job]').length).toBeGreaterThan(0)
-      } else {
-        expect(m.hote.textContent).toContain('Campagnes non activées pour cette organisation.')
-      }
-    })
 })
 
 describe('une erreur reste dans sa section', () => {

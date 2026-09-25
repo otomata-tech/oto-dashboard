@@ -64,12 +64,12 @@ beforeEach(() => {
 
 describe('régler un déclencheur', () => {
   it('« Régler » ouvre le formulaire en ligne ; seuls les champs modifiés partent', async () => {
-    const hote = await monter([BASE])
+    const hote = await monter([{ ...BASE, model: 'claude-sonnet-4-5' }])
     await cliquer(sel(hote, 'regler'))
     expect(sel(hote, 'reglage')).not.toBeNull()
     await saisir(hote, '[data-test="cron"]', ' 0 9 * * * ')
     expect(sel(hote, 'reglage')!.textContent).toContain('tous les jours à 9 h')
-    api.updateRunnerTrigger.mockResolvedValue({ trigger: { ...BASE, cron: '0 9 * * *' } })
+    api.updateRunnerTrigger.mockResolvedValue({ trigger: { ...BASE, model: 'claude-sonnet-4-5', cron: '0 9 * * *' } })
     api.listRunnerTriggers.mockReturnValue(new Promise(() => {}))
     await cliquer(sel(hote, 'enregistrer'))
     expect(api.updateRunnerTrigger).toHaveBeenCalledTimes(1)
@@ -103,17 +103,25 @@ describe('régler un déclencheur', () => {
     expect(api.updateRunnerTrigger).not.toHaveBeenCalled()
   })
 
-  it('le modèle ne se présélectionne jamais sur le défaut du catalogue', async () => {
-    const hote = await monter([BASE])
+  it('le modèle ne se présélectionne jamais sur le défaut du catalogue, et il est OBLIGATOIRE', async () => {
+    const hote = await monter([{ ...BASE, model: null }])
     await cliquer(sel(hote, 'regler'))
     const champ = sel(hote, 'champ-modele')!.textContent!
-    expect(champ).toContain('modèle du worker')
+    expect(champ).toContain('choisir un modèle')
     expect(champ).not.toContain('Claude Sonnet 4.5')
+    expect(champ).not.toContain('modèle du worker')
+    // Sans modèle, rien ne part : le formulaire le dit.
+    expect(sel(hote, 'modele-requis')!.textContent).toContain('ne tourne plus')
+    await saisir(hote, '[data-test="cron"]', '0 9 * * *')
+    const bouton = sel(hote, 'enregistrer') as HTMLButtonElement
+    expect(bouton.disabled).toBe(true)
+    await cliquer(bouton)
+    expect(api.updateRunnerTrigger).not.toHaveBeenCalled()
   })
 
-  it('sans modèle déclaré, la ligne dit « modèle du worker », sans marque', async () => {
-    const ligne = (await monter([BASE])).querySelector('li')!.textContent!
-    expect(ligne).toContain('modèle du worker')
+  it('sans modèle déclaré, la ligne dit qu’elle ne tourne plus, sans marque « non servi »', async () => {
+    const ligne = (await monter([{ ...BASE, model: null }])).querySelector('li')!.textContent!
+    expect(ligne).toContain('aucun modèle — ne tourne plus')
     expect(ligne).not.toContain('non servi')
   })
 

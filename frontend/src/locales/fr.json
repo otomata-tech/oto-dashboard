@@ -252,7 +252,6 @@
         "error": "Présence du runner illisible : {reason}"
       },
       "campaigns": {
-        "betaOff": "Campagnes non activées pour cette organisation.",
         "error": "Campagnes illisibles : {reason}"
       },
       "campaign": {
@@ -438,7 +437,9 @@
           "schedule": "Horaire (cron)",
           "timezone": "Fuseau",
           "model": "Modèle",
-          "workerModel": "modèle du worker",
+          "chooseModel": "choisir un modèle",
+          "modelMissing": "Aucun modèle déclaré : cette automatisation ne tourne plus tant qu'un modèle n'est pas choisi.",
+          "noModel": "aucun modèle — ne tourne plus",
           "notServed": "non servi",
           "deleteConfirm": "Supprimer cette programmation ? Ses occurrences en attente ne partiront jamais.",
           "deleteNotConfirmed": "suppression non confirmée par le serveur, la programmation reste listée"
@@ -525,6 +526,8 @@
     "stale_session": "ta session a expiré — reconnecte-toi",
     "view_as_read_only": "consultation en lecture seule — en « voir en tant que », un super_admin peut ouvrir l'écriture par le bouton « Écrire en tant que … » du bandeau en haut",
     "view_as_write_forbidden": "écrire au nom d'un autre compte est réservé au super_admin",
+    "model_required": "un modèle doit être déclaré sur l'agent",
+    "model_key_required": "la clé du fournisseur de ce modèle doit être déposée dans l'organisation",
     "invalid_api_token": "jeton d'API invalide",
     "invalid_token": "jeton de session invalide",
     "missing_bearer": "non authentifié",

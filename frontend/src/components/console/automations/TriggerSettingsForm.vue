@@ -3,8 +3,10 @@
 // fuseau, modèle ; un webhook n'a ni horaire ni fuseau, il ne règle que son modèle. L'interrupteur et la suppression vivent sur la ligne (`TriggerRow`).
 //
 // ⚠️ Seuls les champs MODIFIÉS partent (`champsModifies`) : `op=update` est partiel.
-// ⚠️ Le modèle ne se présélectionne JAMAIS sur le `default` du catalogue : sans modèle
-// déclaré, le formulaire dit « modèle du worker » et, s'il est choisi, envoie `""`.
+// ⚠️ Le modèle est OBLIGATOIRE (24/09/2026) : un agent hébergé sans modèle déclaré ne
+// tourne plus. Il ne se présélectionne JAMAIS sur le `default` du catalogue : sur un
+// déclencheur qui n'en a pas, le formulaire le DIT et n'enregistre rien tant qu'aucun n'est
+// choisi.
 // La validation (cron, fuseau, cadence plancher) reste au serveur : `invalid_schedule`
 // s'affiche sous l'horaire, avec le `detail` qui nomme le fautif.
 import { computed, reactive, ref } from 'vue'
@@ -34,6 +36,7 @@ const refus = ref<Refus | null>(null)
 
 const modifies = computed(() => champsModifies(initial, saisi))
 const inchange = computed(() => Object.keys(modifies.value).length === 0)
+const sansModele = computed(() => !saisi.model)
 const apercu = computed(() => cadenceEnMots(saisi.cron))
 const fuseaux = computed(() => fuseauxProposes(initial.tz).map((z) => ({ value: z, label: z })))
 const modeles = computed(() => optionsModele(props.models, initial.model).map((o) => ({
@@ -42,7 +45,7 @@ const modeles = computed(() => optionsModele(props.models, initial.model).map((o
 })))
 
 async function enregistrer() {
-  if (inchange.value || envoi.value) return
+  if (inchange.value || sansModele.value || envoi.value) return
   envoi.value = true
   refus.value = null
   refusHoraire.value = null
@@ -80,11 +83,12 @@ async function enregistrer() {
     <div class="tsf-field" data-test="champ-modele">
       <span class="tsf-lbl">{{ t('automations.triggers.form.model') }}</span>
       <OtoSelect v-model="saisi.model" :options="modeles" size="sm"
-        :none-label="t('automations.triggers.form.workerModel')"
+        :placeholder="t('automations.triggers.form.chooseModel')"
         :aria-label="t('automations.triggers.form.model')" />
+      <span v-if="sansModele" class="tsf-hint" data-test="modele-requis">{{ t('automations.triggers.form.modelMissing') }}</span>
     </div>
     <div class="tsf-line">
-      <Btn kind="mini" type="submit" data-test="enregistrer" :disabled="inchange || envoi"
+      <Btn kind="mini" type="submit" data-test="enregistrer" :disabled="inchange || sansModele || envoi"
         :aria-busy="envoi || undefined">{{ t('common.save') }}</Btn>
       <Btn kind="link" type="button" :disabled="envoi" @click="emit('annule')">{{ t('common.cancel') }}</Btn>
     </div>

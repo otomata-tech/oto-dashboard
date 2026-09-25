@@ -7,7 +7,7 @@ export const programmation = (over: Partial<RunnerTrigger> = {}): RunnerTrigger 
   id: 3, org_id: 2, sub: 'u', procedure: 'veille', cron: '0 8 * * *', tz: 'Europe/Paris', tools: [],
   project_id: null, input: null, label: 'Veille du matin', enabled: true,
   next_due: '2026-09-14 06:00:00', last_enqueued_at: null, created_at: '2026-09-01 08:00:00',
-  max_steps: null, model: null, expired_count: 0, expired_since: null, expired_last: null,
+  max_steps: null, model: 'claude-sonnet-4-5', expired_count: 0, expired_since: null, expired_last: null,
   kind: 'schedule', payload_mode: null, payload_fields: null, max_per_hour: null, fraicheur_s: null,
   hook_url: null, deliveries_24h: null, deliveries_refused_24h: null, last_delivery: null,
   tool_warnings: [], queue_pending: null, queue_held: null, ...over,

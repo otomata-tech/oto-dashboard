@@ -59,8 +59,8 @@ navigation, le fil d'Ariane et les tests la lisent. La vue d'espace
 | `/automations/executions/:id` | `ExecutionView` — la fiche (`RunnerJobDetail`), liens vers sa campagne ou sa programmation | `jobs op=get` |
 
 - **Une adresse n'affiche que l'objet qu'elle désigne** (`useLectureParId` + `ObjetAdresse`) :
-  un `:id` qui n'est pas un entier positif se dit sans appel ; un 404 se dit avec son code ; la
-  bêta absente se dit sans rouge. `:id` n'est pas contraint dans le routeur : une adresse
+  un `:id` qui n'est pas un entier positif se dit sans appel ; un 404 se dit avec son code.
+  `:id` n'est pas contraint dans le routeur : une adresse
   invalide retomberait sinon en silence sur l'aperçu.
 - **L'URL porte la lecture** : les filtres (une entrée d'historique par changement) et ce qui a
   été déroulé (`?shown=`, remplacé à chaque « Afficher la suite ») — un retour depuis la page
@@ -82,7 +82,7 @@ navigation, le fil d'Ariane et les tests la lisent. La vue d'espace
 | section | composant | ce qu'elle lit |
 |---|---|---|
 | Runner | `components/console/automations/RunnerPresenceBanner.vue` | le bloc `runner` de `runner.triggers op=list`, lu par l'entrée avec la liste (`useProgrammations`) — la présence est une propriété de l'org, servie là |
-| Automatisations | `automations/AutomationsList.vue` | rien : programmations et campagnes lues par la page. Une ligne par objet (nom → fiche, genre, légende, état) ; actives d'abord ; campagnes illisibles ou programmations illisibles dites dans la liste sans seconde alerte, bêta absente sans rouge |
+| Automatisations | `automations/AutomationsList.vue` | rien : programmations et campagnes lues par la page. Une ligne par objet (nom → fiche, genre, légende, état) ; actives d'abord ; campagnes illisibles ou programmations illisibles dites dans la liste sans seconde alerte |
 | Une campagne (sa fiche) | `CampaignSummary.vue` + `CampaignActions.vue` | `runner.fleets op=state` (`useLectureCampagne`) ; gestes `op=launch` / `op=stop` |
 | Travaux d'une campagne | `automations/RunnerJobList.vue` | `runner.jobs op=list` paginé, filtre `fleet_id` ; chaque ligne mène à la page de son exécution |
 | Déclencheurs d'une procédure | `components/console/RunnerTriggersCard.vue` + `automations/TriggerRow.vue` + `automations/TriggerSettingsForm.vue` | `runner.triggers op=list procedure=` ; gestes `op=update` (partiel) et `op=delete` (`useGestesDeclencheur`) ; montée sur la fiche d'une procédure (plus dans l'espace depuis le 24/09/2026) |
@@ -120,7 +120,7 @@ exécution.
   programmation, pour la ligne comme pour la page des réglages.
 - **`composables/useProgrammations.ts`** — la liste des programmations et la présence du runner,
   en une lecture. **`composables/useCampagnes.ts`** — les campagnes de l'org, une lecture pour
-  l'entrée (bêta absente dite sans erreur). **`composables/useAffichesUrl.ts`** — `?shown=`.
+  l'entrée. **`composables/useAffichesUrl.ts`** — `?shown=`.
 
 Toute la copie neuve vit sous `automations.*` dans `locales/fr.json` et `locales/en.json`.
 Les chaînes plus anciennes de la fiche, de la carte des déclencheurs et d'une ligne de
@@ -217,10 +217,14 @@ contre-épreuve par un mutant simulé en mémoire, la fenêtre d'observation, le
   suivra ce que le serveur servira.
 - **Seuls les champs modifiés partent** (`champsModifies`) : `op=update` est partiel, et un
   `model` renvoyé inchangé sur un déclencheur allumé repasserait la garde du modèle servi.
-- **Le modèle** : « modèle du worker » (envoie `""`), puis les modèles `served` du catalogue
-  (`runner.models`, servi avec la liste). Un modèle courant non servi reste affiché et marqué
-  « non servi », sur la ligne et dans le formulaire. ⚠️ **Jamais de présélection du
-  `default`** : sans modèle déclaré, le formulaire part de « modèle du worker ».
+- **Le modèle est OBLIGATOIRE** (24/09/2026) : un agent hébergé sans modèle déclaré ne tourne
+  plus (400 `model_required` à la pose). Le formulaire propose les modèles `served` du
+  catalogue (`runner.models`, servi avec la liste), sans option vide ; un modèle courant non
+  servi reste affiché et marqué « non servi », sur la ligne et dans le formulaire. ⚠️ **Jamais
+  de présélection du `default`** : sur un déclencheur sans modèle, le formulaire dit « choisir
+  un modèle », la ligne dit « aucun modèle — ne tourne plus », et « Enregistrer » reste inactif
+  tant qu'aucun n'est choisi. Un 400 `model_key_required` (clé du fournisseur absente de l'org)
+  s'affiche avec le `detail` du serveur.
 - **Le fuseau** : `Intl.supportedValuesOf('timeZone')`, le fuseau courant en tête s'il n'y
   figure pas. La validation reste au serveur : `invalid_schedule` (cron et fuseau revalidés
   ensemble) s'affiche sous l'horaire, avec le `detail` qui nomme le fautif, et la saisie reste.
@@ -262,8 +266,9 @@ inscrivent) :
 
 ## Erreurs
 
-- **Le 403 `beta_required`** de `runner.fleets` se dit « Campagnes non activées pour cette
-  organisation », sans rouge : ce n'est pas une panne. Un autre 403 reste une erreur.
+- **Plus de porte bêta sur les agents hébergés** (24/09/2026) : campagnes, programmations et
+  webhooks sont ouverts à toute org. `beta_required` n'existe plus sur `runner.fleets` : un
+  403 y est une erreur comme une autre, dite dans sa section.
 - **Une erreur reste dans sa section** : campagnes, carte, liste de travaux, présence du runner,
   interrupteur d'un déclencheur. Elle s'efface à la lecture suivante réussie.
 - Défaut corrigé au passage : une erreur d'`op=state` (ancienne carte des flottes) ou d'un

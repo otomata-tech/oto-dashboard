@@ -1,7 +1,7 @@
 <script setup lang="ts" generic="T">
 // L'issue de la lecture d'un objet par son ADRESSE (oto#214), commune aux pages d'une
 // campagne, d'une programmation et d'une exécution (`useLectureParId`). Une adresse n'affiche
-// que l'objet qu'elle désigne : une adresse sans identifiant, un 404, la bêta absente se
+// que l'objet qu'elle désigne : une adresse sans identifiant ou un 404 se
 // disent, et rien ne s'affiche à leur place. Le contenu de la page ne se rend que sur un
 // objet lu ; une erreur de relecture reste affichée au-dessus de la dernière lecture réussie.
 import { useI18n } from 'vue-i18n'
@@ -22,7 +22,6 @@ const { t } = useI18n()
     :title="t(titre, { what: `« ${lecture.brut.value} »` })" :detail="t('automations.space.notAnId')" />
   <TargetRefusalCard v-else-if="lecture.refus.value" :title="t(titre, { what: lecture.refus.value.what })"
     :code="lecture.refus.value.code" :detail="lecture.refus.value.detail" />
-  <p v-else-if="lecture.beta.value" class="oa-mute" data-test="beta">{{ t('automations.campaigns.betaOff') }}</p>
   <template v-else>
     <p v-if="lecture.erreur.value" class="oa-err" role="alert">
       {{ t('automations.space.readError', { reason: lecture.erreur.value }) }}</p>

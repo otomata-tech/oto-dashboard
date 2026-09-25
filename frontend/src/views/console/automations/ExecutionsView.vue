@@ -33,7 +33,7 @@ const lecture = computed(() => filtresExecutions(route.query))
 // Un filtre neuf remonte la liste : elle relit depuis le début, sous le nouveau filtre.
 const cle = computed(() => JSON.stringify(lecture.value.valeur))
 
-// Les campagnes nomment les options du filtre. Sans la bêta, le filtre n'est pas offert.
+// Les campagnes nomment les options du filtre. Une lecture refusée retire le filtre.
 const campagnes = ref<RunnerFleet[]>([])
 const campagnesErreur = ref<string | null>(null)
 async function lireCampagnes() {
@@ -42,8 +42,7 @@ async function lireCampagnes() {
     campagnesErreur.value = null
   } catch (e) {
     campagnes.value = []
-    campagnesErreur.value = e instanceof ApiError && e.status === 403 && e.code === 'beta_required'
-      ? null : humanize(e)
+    campagnesErreur.value = humanize(e)
   }
 }
 onMounted(lireCampagnes)
