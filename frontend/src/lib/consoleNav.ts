@@ -12,6 +12,7 @@
 // l'axe ORTHOGONAL : ne pas le confondre avec le niveau (quoi je fais).
 
 import { META_ESPACE } from './automationsEspace'
+import { sectionHorsVue } from './vueBornee'
 
 // 'team' (« gérer mon équipe ») : agir SUR une équipe donnée — ses membres, ses
 // connecteurs. Retiré avec tout le niveau équipe (oto#192), revenu le 18/09 : un chef
@@ -68,6 +69,9 @@ export function navItemVisible(it: NavItem, r: NavRights): boolean {
   return (!it.super || r.superAdmin)
     && (!it.orgAdmin || r.seesOrgAdministration)
     && (!it.orgAdminReads || r.orgAdmin)
+    // Vue bornée d'un org_admin (oto#270) : un écran dont les lectures y sont refusées
+    // n'a pas de porte (`lib/vueBornee`, la seule liste).
+    && !sectionHorsVue(it.path)
 }
 
 // NB : `label`/`group`/`title`/`crumb` portent des **clés i18n** (résolues via `t()`

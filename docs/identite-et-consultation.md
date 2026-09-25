@@ -84,6 +84,28 @@ apparaissent alors. Avec un backend antérieur, le champ reste vrai et les geste
 après acceptation. Une vue posée avant ce lot n'a pas d'`operator` : pas de bouton, il suffit
 de la reprendre depuis la fiche admin.
 
+**Voir en tant que, borné à l'org (oto#270, 25/09/2026, décision d'Alexis).** Un org_admin
+RÉEL (la colonne `org_role`, hors consultation) a, sur chaque autre membre de la liste des
+membres (`OrgView`), un bouton « voir en tant que ». Entrer fige l'org dans `ViewUser.org`
+(`lib/viewOrg.ts`) : chaque requête porte alors `X-Oto-View-As` ET `X-Oto-Org` = cette org —
+jamais une autre, même si l'URL en consulte une —, et jamais `X-Oto-View-As-Write` (le
+serveur refuse l'écriture, `view_as_write_forbidden` : elle reste au super_admin). Le bandeau
+dit « tu vois ce que voit X dans <org>, en lecture seule », sans offre d'écriture ; « quitter »
+ramène à `/org`. Si le serveur refuse d'ouvrir la vue (`/api/me` en `400 view_as_org_required`,
+`403 view_as_hors_org` — cible opérateur plateforme ou plus membre —, `403 forbidden` — plus
+admin), le bandeau le dit.
+Le serveur sert cette vue sur une liste FERMÉE de lectures et refuse le reste en `403
+view_as_hors_org`. **`lib/vueBornee.ts` est la seule liste côté écran** : `SECTIONS_HORS_VUE`
+(facturation, sécurité du compte — la MFA y est celle du compte connecté —, abonnement Claude,
+développeurs, plateforme) retire l'entrée du menu (`navItemVisible`) et renvoie une adresse
+directe sur l'aperçu (garde du routeur) ; `LECTURES_HORS_VUE` (instances de connecteurs, grants
+de comptes, tableaux partagés avec moi, abonnements de modèles, jetons, légal, facturation,
+`/api/resources`, admin) : `api()` ne les envoie pas et lève le même refus. Un écran qui lit en
+partie l'une d'elles se masque sur `estHorsVue` (pile de clés d'un connecteur, routines) ; la
+liste des partages reçus rend vide (`horsVueVide`) — en vue bornée, un partage personnel reçu
+ne compte pas, côté serveur non plus. Tests : `lib/vueBornee.spec.ts`,
+`views/console/voirEnTantQueOrg.spec.ts`.
+
 ## Hub compte (`/account`)
 
 `AccountView.vue` = hub « gérer mon compte » (≠ ancien écran profil seul) : carte **profile**

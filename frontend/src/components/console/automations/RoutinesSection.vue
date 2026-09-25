@@ -17,11 +17,14 @@ import ConsoleCard from '../ConsoleCard.vue'
 import { getConnectorInstances } from '@/api/console'
 import type { ConnectorInstance } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { estHorsVue } from '@/lib/vueBornee'
 
 const { t } = useI18n()
 const instances = ref<ConnectorInstance[]>([])
 const loaded = ref(false)
 const error = ref<string | null>(null)
+// Vue bornée d'un org_admin (oto#270) : la lecture est refusée, la carte n'est pas dans la vue.
+const horsVue = ref(false)
 
 const routines = computed(() => instances.value.filter((i) => i.connector === 'routine'))
 
@@ -34,7 +37,8 @@ async function load() {
     instances.value = (await getConnectorInstances()).instances
     error.value = null
   } catch (e) {
-    error.value = humanize(e)
+    if (estHorsVue(e)) horsVue.value = true
+    else error.value = humanize(e)
   } finally {
     loaded.value = true
   }
@@ -44,7 +48,7 @@ onMounted(load)
 </script>
 
 <template>
-  <ConsoleCard :title="t('automations.routines.title')" :sub="t('automations.routines.sub')">
+  <ConsoleCard v-if="!horsVue" :title="t('automations.routines.title')" :sub="t('automations.routines.sub')">
     <div class="card-body">
       <p v-if="error" class="au-err">{{ error }}</p>
 

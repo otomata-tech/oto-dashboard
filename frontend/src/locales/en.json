@@ -503,6 +503,8 @@
     }
   },
   "errors": {
+    "view_as_hors_org": "not in this view: in a “view as” bounded to your org, this read is not served",
+    "view_as_org_required": "an org admin’s “view as” happens inside their org: leave the view and reopen it from the member list",
     "datastore_exists": "a datastore with that name already exists",
     "duplicate_label": "a key with that provider and label already exists",
     "last_org_admin": "can't remove or demote the last admin of the org",
@@ -2819,6 +2821,15 @@
       "copied": "copied to clipboard",
       "failed": "copy failed",
       "copy": "copy"
+    }
+  },
+  "viewAsOrg": {
+    "enter": "view as",
+    "viewing": "You see what {name} sees in {org}, read-only.",
+    "refused": {
+      "view_as_org_required": "The view as {name} could not open: the org was not sent.",
+      "view_as_hors_org": "The view as {name} is not open: this account is not (or no longer) a member of your org that you can view this way.",
+      "forbidden": "The view as {name} is not open: you are not (or no longer) an admin of this org."
     }
   }
 }

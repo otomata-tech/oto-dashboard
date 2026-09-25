@@ -65,7 +65,12 @@ export function consultRedirectPath(
 // (403 `view_as_write_forbidden`). Envoyé en header `X-Oto-View-As` ; le backend
 // résout alors le dashboard sur ce user (et son org maison).
 export interface ViewAsOperator { name: string; superAdmin: boolean }
-export interface ViewUser { sub: string; name: string; operator?: ViewAsOperator }
+// Vue BORNÉE d'un org_admin (oto#270) : `org` est l'org où il est admin, figée à l'entrée
+// (depuis la liste des membres). Chaque requête porte alors `X-Oto-Org` = cette org — le
+// serveur l'exige (`400 view_as_org_required`) et borne tout à elle ; jamais d'écriture.
+// Ce qui est masqué dans cette vue vit dans `lib/vueBornee.ts`.
+export interface ViewAsOrg { id: number; name: string }
+export interface ViewUser { sub: string; name: string; operator?: ViewAsOperator; org?: ViewAsOrg }
 export function getViewUser(): ViewUser | null {
   const raw = localStorage.getItem(USER_KEY)
   if (!raw) return null
@@ -96,7 +101,8 @@ export function viewAsWriteAccepted(): boolean {
 }
 export function acceptViewAsWrite(): void {
   const u = getViewUser()
-  writeAcceptedFor.value = u ? u.sub : null
+  // Une vue bornée d'org_admin ne s'ouvre jamais à l'écriture (le serveur la refuse).
+  writeAcceptedFor.value = u && !u.org ? u.sub : null
 }
 export function revokeViewAsWrite(): void { writeAcceptedFor.value = null }
 export function requestViewAsWrite(): void { viewAsWriteRequests.value++ }
@@ -104,6 +110,11 @@ export function requestViewAsWrite(): void { viewAsWriteRequests.value++ }
 export function viewHeaders(): Record<string, string> {
   const h: Record<string, string> = {}
   const u = getViewUser()
+  if (u?.org) {  // vue bornée : toujours SON org, jamais une autre, jamais d'écriture
+    h['X-Oto-View-As'] = u.sub
+    h['X-Oto-Org'] = String(u.org.id)
+    return h
+  }
   if (u) {  // user-as prime : sa maison suit, pas de view-org
     h['X-Oto-View-As'] = u.sub
     if (writeAcceptedFor.value === u.sub) h['X-Oto-View-As-Write'] = '1'

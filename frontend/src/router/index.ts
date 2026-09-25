@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw, type RouteMeta } f
 import ConsoleLayout from '../views/console/ConsoleLayout.vue'
 import InviteAcceptView from '../views/InviteAcceptView.vue'
 import { NAV, type NavLevel } from '@/lib/consoleNav'
+import { sectionHorsVue } from '@/lib/vueBornee'
 import { ANCIENNES_LISTES, detailEspace, PAGES_ESPACE, SECTION as SECTION_AUTOMATIONS } from '@/lib/automationsEspace'
 import {
   currentViewOrg, setViewOrgId, currentViewGroup, setViewGroupId, consultRedirectPath,
@@ -182,6 +183,13 @@ router.beforeEach((to, from) => {
     to.path, Boolean(to.meta.orgScoped), to.params.orgId != null, curOrg, curGroup,
   )
   return redirect ? { path: redirect, query: to.query, hash: to.hash } : true
+})
+
+// Vue bornée d'un org_admin (oto#270) : une adresse d'écran hors de cette vue (facturation,
+// jetons, admin…) retombe sur l'aperçu, comme son entrée de menu est absente.
+router.beforeEach((to) => {
+  const section = typeof to.meta.section === 'string' ? to.meta.section : to.path
+  return sectionHorsVue(section) ? { path: '/overview' } : true
 })
 
 // Synchronise l'org ET l'équipe de consultation (→ `viewHeaders`) sur l'URL résolue.

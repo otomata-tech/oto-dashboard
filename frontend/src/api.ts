@@ -1,5 +1,6 @@
 import { useAuth } from '@/composables/useAuth'
 import { getViewUser, requestViewAsWrite, viewHeaders } from '@/lib/viewOrg'
+import { CODE_HORS_VUE, lectureHorsVue } from '@/lib/vueBornee'
 import { beginBusy, endBusy } from '@/lib/busy'
 import { saveBlob } from '@/lib/download'
 
@@ -41,6 +42,9 @@ async function apiError(resp: Response): Promise<ApiError> {
 const base = (import.meta.env.VITE_OTO_MCP_BASE as string).replace(/\/$/, '')
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  // Vue bornée d'un org_admin (oto#270) : une lecture que le serveur refuse dans cette vue
+  // ne part pas — même refus, sans l'aller-retour (`lib/vueBornee`, la seule liste).
+  if (lectureHorsVue(path)) throw new ApiError(403, CODE_HORS_VUE)
   const { getAccessToken } = useAuth()
   // Toute erreur ICI = session Logto morte (refresh 400, token undefined, erreur
   // OIDC localisée type « La requête de consentement est invalide ») — normalisée

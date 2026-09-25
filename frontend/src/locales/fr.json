@@ -503,6 +503,8 @@
     }
   },
   "errors": {
+    "view_as_hors_org": "pas dans cette vue : en « voir en tant que » borné à ton org, cette lecture n'est pas servie",
+    "view_as_org_required": "la vue « en tant que » d'un admin d'org se fait dans son org : quitte la vue et rouvre-la depuis la liste des membres",
     "datastore_exists": "un tableau porte déjà ce nom",
     "duplicate_label": "une clé avec ce connecteur et ce libellé existe déjà",
     "last_org_admin": "impossible de retirer ou rétrograder le dernier admin de l'org",
@@ -2819,6 +2821,15 @@
       "copied": "copié dans le presse-papiers",
       "failed": "copie impossible",
       "copy": "copier"
+    }
+  },
+  "viewAsOrg": {
+    "enter": "voir en tant que",
+    "viewing": "Tu vois ce que voit {name} dans {org}, en lecture seule.",
+    "refused": {
+      "view_as_org_required": "La vue en tant que {name} n'a pas pu s'ouvrir : l'org n'a pas été transmise.",
+      "view_as_hors_org": "La vue en tant que {name} n'est pas ouverte : ce compte n'est pas (ou plus) un membre de ton org que tu peux voir ainsi.",
+      "forbidden": "La vue en tant que {name} n'est pas ouverte : tu n'es pas (ou plus) admin de cette org."
     }
   }
 }

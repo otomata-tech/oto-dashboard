@@ -11,6 +11,7 @@ import Btn from '@/components/console/Btn.vue'
 import { useMe, canWriteInOrg } from '@/composables/useMe'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/errors'
+import { estHorsVue } from '@/lib/vueBornee'
 import { getConnectorInstances, suspendInstance, getOrg } from '@/api/console'
 import { rowState, relayOf, relayFor, isHealthKo } from '@/lib/keyStack'
 import type { RowState } from '@/lib/keyStack'
@@ -46,6 +47,9 @@ const effective = computed<string | null>(() => {
 
 const instances = ref<ConnectorInstance[]>([])
 const loading = ref(true)
+// Vue bornée d'un org_admin (oto#270) : les instances portent les clés membre des AUTRES
+// orgs, le serveur les refuse (`view_as_hors_org`) — la pile n'est pas dans cette vue.
+const horsVue = ref(false)
 // Roster de l'org consultée — résout `set_by` (un sub) en nom/email dans `meta()`
 // ci-dessous, plutôt que l'identifiant opaque (oto-dashboard#143). `org.get` est
 // ouvert à tout membre, pas seulement à un admin.
@@ -61,7 +65,10 @@ async function load() {
     instances.value = all.filter((i) => i.connector === c.value.name)
     orgMembers.value = members
     emit('keys', instances.value.length)
-  } catch (e) { toast(humanize(e)) } finally { loading.value = false }
+  } catch (e) {
+    if (estHorsVue(e)) horsVue.value = true
+    else toast(humanize(e))
+  } finally { loading.value = false }
 }
 onMounted(load)
 
@@ -212,7 +219,7 @@ async function toggleSuspend(i: ConnectorInstance) {
 </script>
 
 <template>
-  <div class="ks">
+  <div v-if="!horsVue" class="ks">
     <div v-if="loading" class="helptext">{{ $t('common.loading') }}</div>
 
     <template v-else-if="!expanded">

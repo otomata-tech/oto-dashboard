@@ -10,7 +10,13 @@
 // Le DROIT d'écrire de l'écran ne se tire pas d'ici : à l'acceptation comme au retour en
 // lecture seule, on relit `/api/me`, dont `view_as_read_only` décide (`canWriteInOrg`,
 // oto#212). L'état local ne sert qu'à poser l'en-tête.
-import { ref, watch } from 'vue'
+//
+// Vue BORNÉE d'un org_admin (oto#270, `viewing.org`) : lecture seule, sans jamais d'offre
+// d'écriture ; le bandeau nomme l'org, et « quitter » ramène à ses membres. Si le serveur
+// refuse d'ouvrir la vue (`/api/me` en 400 `view_as_org_required` ou 403 `view_as_hors_org`
+// / `forbidden` : la cible est opérateur plateforme, n'est plus membre, ou l'appelant n'est
+// plus admin), le bandeau le dit et propose de quitter — l'écran derrière n'a rien à montrer.
+import { computed, ref, watch } from 'vue'
 import {
   acceptViewAsWrite, getViewUser, revokeViewAsWrite, setViewUser,
   viewAsWriteAccepted, viewAsWriteRequests,
@@ -23,13 +29,22 @@ const { t } = useI18n()
 
 const viewing = ref(getViewUser())
 const writing = ref(viewAsWriteAccepted())
-const canOfferWrite = !!viewing.value?.operator?.superAdmin
+const canOfferWrite = !!viewing.value?.operator?.superAdmin && !viewing.value?.org
 const { confirmAction } = usePrompt()
-const { reload } = useMe()
+const { reload, error: meError } = useMe()
+const bornee = computed(() => viewing.value?.org ?? null)
+// Le code du refus de `/api/me` (message `"<status> <code>"`), en vue bornée seulement.
+const REFUS_OUVERTURE = ['view_as_org_required', 'view_as_hors_org', 'forbidden'] as const
+const refusOuverture = computed(() => {
+  if (!bornee.value || !meError.value) return null
+  const code = meError.value.split(' ')[1] ?? ''
+  return (REFUS_OUVERTURE as readonly string[]).includes(code) ? code : null
+})
 
 function quit() {
+  const retour = bornee.value ? '/org' : '/platform/users'
   setViewUser(null)
-  window.location.href = '/platform/users'
+  window.location.href = retour
 }
 
 async function askWrite() {
@@ -60,7 +75,9 @@ watch(viewAsWriteRequests, () => { void askWrite() })
 
 <template>
   <div v-if="viewing" class="viewas-banner" :class="{ 'viewas-banner--write': writing }">
-    <span v-if="writing"><i18n-t keypath="orgUi.viewAs.writing" tag="span"><template #name><strong>{{ viewing.name }}</strong></template></i18n-t></span>
+    <span v-if="refusOuverture" data-test="viewas-refus">{{ t(`viewAsOrg.refused.${refusOuverture}`, { name: viewing.name }) }}</span>
+    <span v-else-if="bornee"><i18n-t keypath="viewAsOrg.viewing" tag="span"><template #name><strong>{{ viewing.name }}</strong></template><template #org><strong>{{ bornee.name }}</strong></template></i18n-t></span>
+    <span v-else-if="writing"><i18n-t keypath="orgUi.viewAs.writing" tag="span"><template #name><strong>{{ viewing.name }}</strong></template></i18n-t></span>
     <span v-else><i18n-t keypath="orgUi.viewAs.viewing" tag="span"><template #name><strong>{{ viewing.name }}</strong></template></i18n-t></span>
     <button v-if="writing" type="button" data-test="viewas-readonly" @click="backToReadOnly">{{ t('orgUi.viewAs.backToRead') }}</button>
     <button v-else-if="canOfferWrite" type="button" data-test="viewas-write" @click="askWrite">{{ t('orgUi.viewAs.writeAs', { name: viewing.name }) }}</button>

@@ -68,6 +68,7 @@ L'écran omet ses gestes, jamais grisés, et ne la répète pas ; ses lectures r
 | écran | geste | appel | règle |
 |---|---|---|---|
 | `/org` | promote/demote, remove | `POST`/`DELETE /api/orgs/{id}/members/{sub}` | `canAdminister` |
+| `/org` | voir en tant que (lecture seule, bornée à l'org, oto#270) | en-têtes `X-Oto-View-As` + `X-Oto-Org` (aucune écriture) | `canAdminister` ET `org_role === 'org_admin'` (le rôle réel, pas l'escalade super_admin) ; jamais sur soi |
 | `/org` | invite, revoke (`InvitationsCard`) | `POST /api/orgs/{id}/invitations`, `DELETE …/invitations/{iid}` | `canManage` = `canAdminister` ; la liste reste lue (`canRead` = `isOrgAdmin`) |
 | `/org/settings` | modifier, déposer ou retirer le logo, supprimer | `PATCH /api/orgs/{id}`, `POST`/`DELETE …/logo`, `DELETE /api/orgs/{id}` | `canAdminister` |
 | `/org/settings` | quitter | `DELETE /api/me/orgs/{id}/membership` | `canWrite` ; sans geste, la « zone danger » disparaît |

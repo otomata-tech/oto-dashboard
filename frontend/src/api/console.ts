@@ -1,6 +1,7 @@
 // Client REST typé pour la console — toutes les routes oto-mcp (api_routes*.py).
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiDownload, apiUpload, apiPublic } from '@/api'
+import { horsVueVide } from '@/lib/vueBornee'
 import type {
   ApiTokenCreated,
   AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AgentToolbox, AccountProfile, InitGuide, InitScope, ApiToken, ConnectorActivation, ConnectorInstance, ConnectorMeta, CredentialState, MyConnector, SearchHit,
@@ -710,8 +711,10 @@ export const getNamespaces = () =>
 // que soit l'org active, et même sans org. La liste de l'org l'exclut À DESSEIN, c'est
 // donc la SEULE porte qui les rende — même garde `listeServie` : une clé disparue lève,
 // elle ne se tait pas en liste vide.
+// En vue bornée d'un org_admin (oto#270), un partage PERSONNEL reçu ne compte pas : le
+// serveur refuse la liste, et « aucun » est alors la vraie réponse de la vue.
 export const getSharedWithMe = () =>
-  api<{ datastores?: SharedDatastoreEntry[] }>('/api/me/datastores/shared')
+  horsVueVide(api<{ datastores?: SharedDatastoreEntry[] }>('/api/me/datastores/shared'), { datastores: [] })
     .then((r) => ({ datastores: listeServie(r, 'tableaux partagés avec moi') }))
 // owner optionnel (ADR 0030) : { type:'org'|'group', id } pour un classeur d'équipe.
 export const createNamespace = (namespace: string, owner?: { type: string; id: string | number }) =>

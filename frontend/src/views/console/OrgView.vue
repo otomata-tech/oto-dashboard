@@ -6,6 +6,10 @@
 // hors consultation — oto#211) ; l'admin qui consulte l'org lit membres et invitations.
 // Les invitations vivent dans la carte partagée `InvitationsCard` (feature cascade — même
 // carte au niveau org / équipe / plateforme).
+// « Voir en tant que » (oto#270) : un org_admin RÉEL de l'org (la colonne, pas l'escalade
+// super_admin, qui a sa propre vue d'opérateur) voit, en lecture seule, ce qu'un membre
+// voit DANS cette org. L'org est figée à l'entrée (`ViewUser.org`) ; le serveur reste
+// l'autorité (un opérateur plateforme ne se voit pas ainsi : il le refuse, le bandeau le dit).
 import { computed } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Dot from '@/components/console/Dot.vue'
@@ -17,6 +21,9 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useOrgScope } from '@/composables/useOrgScope'
 import { setOrgMemberRole, removeOrgMember } from '@/api/console'
+import { useMe } from '@/composables/useMe'
+import { setViewUser } from '@/lib/viewOrg'
+import type { OrgMember } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useI18n } from 'vue-i18n'
 
@@ -28,6 +35,19 @@ const { confirmAction } = usePrompt()
 const { activeOrgId, meSub, detail, error, loaded, isOrgAdmin, canAdminister, reload } = useOrgScope()
 
 const HOME_ORG_HINT = computed(() => t('orgUi.members.homeHint'))
+
+const { me } = useMe()
+// `canAdminister` exclut déjà la consultation et toute vue « en tant que » en cours.
+const voitEnTantQue = computed(() => canAdminister.value && me.value?.org_role === 'org_admin')
+function voirEnTantQue(m: OrgMember) {
+  const org = activeOrgId.value
+  if (org == null) return
+  setViewUser({
+    sub: m.sub, name: m.name || m.email || m.sub,
+    org: { id: org, name: detail.value?.org.name ?? '' },
+  })
+  window.location.href = '/overview'
+}
 const PAUSED_HINT = computed(() => t('orgUi.members.pausedHint'))
 
 async function toggleRole(sub: string, role: string) {
@@ -61,7 +81,7 @@ async function removeMember(sub: string, label: string) {
                côté d'une colonne qui se lit « actif » aurait rendu la ligne illisible :
                un membre en pause dont c'est l'org maison y aurait été « actif » ET
                « en pause ». -->
-          <thead><tr><th>{{ t('orgUi.members.member') }}</th><th>{{ t('orgUi.members.role') }}</th><th :title="HOME_ORG_HINT">{{ t('orgUi.members.homeOrg') }}</th><th v-if="canAdminister" style="width: 150px"></th></tr></thead>
+          <thead><tr><th>{{ t('orgUi.members.member') }}</th><th>{{ t('orgUi.members.role') }}</th><th :title="HOME_ORG_HINT">{{ t('orgUi.members.homeOrg') }}</th><th v-if="canAdminister" style="width: 260px"></th></tr></thead>
           <tbody>
             <tr v-for="m in detail?.members ?? []" :key="m.sub">
               <td>
@@ -86,6 +106,8 @@ async function removeMember(sub: string, label: string) {
               <td><Dot :tone="m.active ? 'olive' : 'faint'" :size="7" /></td>
               <td v-if="canAdminister" style="text-align: right">
                 <div v-if="m.sub !== meSub" style="display: flex; gap: 6px; justify-content: flex-end">
+                  <Btn v-if="voitEnTantQue" kind="mini" data-test="voir-en-tant-que" @click="voirEnTantQue(m)">
+                    {{ t('viewAsOrg.enter') }}</Btn>
                   <Btn kind="mini" @click="toggleRole(m.sub, m.role)">{{ m.role === 'org_admin' ? t('orgUi.members.demote') : t('orgUi.members.promote') }}</Btn>
                   <Btn kind="danger" @click="removeMember(m.sub, m.name || m.email || t('orgUi.members.thisMember'))">{{ t('orgUi.members.remove') }}</Btn>
                 </div>
