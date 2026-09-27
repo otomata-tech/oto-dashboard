@@ -199,8 +199,9 @@ Trois règles, toutes DÉRIVÉES du registre, aucune connaissance d'un connecteu
    envoi ; ici rien ne part sans le discriminant, requis). **Corrigé le 08/09** : la modale
    ouvrait sur les douze champs, illisible.
 2. **Pré-remplir depuis le palier.** `credentialPrefill(provider, scope)` relit les champs
-   révélables du credential déjà posé — `member`, `group` ou `org`, admin du palier exigé.
-   Un secret ne se relit JAMAIS ; un 404 « rien de posé » est un état, pas une erreur.
+   non secrets du credential déjà posé — `member`, `group` ou `org`, admin du palier exigé.
+   La valeur d'un champ secret n'est JAMAIS rendue, à aucun palier et pour personne
+   (oto-backend#671) ; un 404 « rien de posé » est un état, pas une erreur.
 3. **Ne pas renvoyer un secret CONSERVÉ vide.** Depuis le 27/08/2026, le serveur complète
    les clés ABSENTES et traite une clé PRÉSENTE ET VIDE comme un effacement — renvoyer
    tout, comme avant, effacerait la clé qu'on voulait garder. Un secret déjà au coffre laissé
@@ -238,7 +239,7 @@ affiché**. Toute évolution se fait des deux côtés.
 ⚠️ **`read_scope` / `read_account`, jamais `scope` / `account`.** La réponse de lecture est
 un objet PLAT dont les autres clés sont les champs du connecteur — et `http` déclare
 lui-même un champ nommé `scope` (les scopes oauth2). Le préfixe est ce qui empêche
-l'enveloppe de manger un champ révélable.
+l'enveloppe de manger un champ non secret.
 
 **D'où ça vient** : le 27/08, un pont client avait changé de machine et il fallait corriger
 son URL de base. Le formulaire affichait douze champs vides, dont un jeton qu'aucune surface

@@ -35,7 +35,7 @@ const props = defineProps<{
   // déclaré par le connecteur, jamais deviné ici. Vide = schéma plat, tous les
   // champs s'affichent (le cas des ~90 autres connecteurs).
   fieldDiscriminator?: string
-  // Ce qui est DÉJÀ au coffre, pour pré-remplir : uniquement les champs révélables
+  // Ce qui est DÉJÀ au coffre, pour pré-remplir : uniquement les champs non secrets
   // (URL de base, mode d'auth, nom de header…). Un secret ne se relit jamais.
   initialValues?: Record<string, string>
   // Un credential existe-t-il déjà à ce palier ? Ça change le sens d'un champ secret

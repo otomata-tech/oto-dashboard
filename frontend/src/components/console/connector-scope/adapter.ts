@@ -212,7 +212,7 @@ export interface CredentialDialogSpec {
   // par le connecteur (`auth.field_discriminator`) — le dialogue n'affiche alors que
   // les champs que ce mode rend pertinents (oto-dashboard#126).
   fieldDiscriminator?: string
-  // Ce qui est déjà au coffre à ce palier, pour pré-remplir : les champs révélables
+  // Ce qui est déjà au coffre à ce palier, pour pré-remplir : les champs non secrets
   // seulement. Un secret ne se relit jamais, à aucun palier.
   initialValues?: Record<string, string>
   // Un credential existe-t-il déjà ici ? Un champ secret laissé vide est alors OMIS

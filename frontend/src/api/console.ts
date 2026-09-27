@@ -94,9 +94,10 @@ export const unselectConnector = (name: string) =>
 export const setCredential = (provider: string, fields: Record<string, string>, account = '') =>
   api(`/api/settings/api-keys/${provider}`,
     { method: 'POST', ...j(account ? { ...fields, account } : fields) })
-// Les champs RÉVÉLABLES d'un credential déjà posé, au palier demandé — de quoi
-// pré-remplir un formulaire de modification. Un secret n'en sort jamais : ce qui
-// revient, ce sont l'URL de base, le mode d'auth, un nom de header, un identifiant.
+// Les champs NON SECRETS d'un credential déjà posé, au palier demandé — de quoi
+// pré-remplir un formulaire de modification. La valeur d'un champ secret n'est jamais
+// rendue, à aucun palier et pour personne (oto-backend#671) : ce qui revient, ce sont
+// l'URL de base, le mode d'auth, un nom de header, un identifiant.
 // `scope` 'group'/'org' exige d'être admin du palier ; `account` cible un compte nommé.
 // 404 `not_configured` = rien de posé à ce palier — ce n'est pas une erreur d'écran.
 export const getCredential = (

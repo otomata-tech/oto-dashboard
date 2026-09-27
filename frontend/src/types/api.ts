@@ -149,9 +149,10 @@ export interface VerifyResult {
 // ses clés sont les `credential_fields` du connecteur visé, donc variables (base_url,
 // auth_mode, header_name, username…). Le document OpenAPI n'en connaît que l'enveloppe.
 //
-// Les champs rendus sont ceux que le registre déclare révélables ou non secrets — un
-// secret ne se relit JAMAIS, à aucun palier. C'est ce qui permet de corriger une URL
-// sans détenir la clé (oto-backend#448).
+// Les champs rendus sont les champs NON SECRETS du registre (`secret=False` décide
+// seul) ; la valeur d'un champ secret n'est JAMAIS rendue, à aucun palier et pour
+// personne — sa clé est absente du corps (oto-backend#671). C'est ce qui permet de
+// corriger une URL sans détenir la clé (oto-backend#448).
 //
 // ⚠️ **`read_scope`, pas `scope`.** Le préfixe n'est pas décoratif : le connecteur
 // `http` déclare lui-même un champ nommé `scope` (les scopes oauth2), et une clé
