@@ -100,10 +100,15 @@ async function loadPickers() {
 // Dans l'espace perso, l'org n'a pas d'autre membre : on le dit, et on montre la sortie.
 const memberEmpty = computed(() => me.value?.active_org_is_personal
   ? t('shareEmpty.memberPersonal') : t('shareEmpty.member'))
+// Partage EN ATTENTE : l'adresse n'a pas encore de compte. On le dit DANS le dialogue
+// (pas un toast qui s'efface) : l'invitation est partie, l'accès viendra à l'inscription,
+// et jamais l'org entière — c'est ce que la personne doit comprendre avant de fermer.
+const pendingNote = ref('')
 watch(() => props.open, (o) => {
   if (!o) return
   mode.value = 'member'; role.value = 'editor'
   memberSub.value = ''; groupId.value = ''; orgId.value = ''; email.value = ''
+  pendingNote.value = ''
   void loadPickers()
 })
 
@@ -117,9 +122,18 @@ const principal = computed<SharePrincipal | null>(() => {
 async function addPrincipal() {
   if (!principal.value || busy.value) return
   busy.value = true
+  pendingNote.value = ''
   try {
-    await shareResource('project', String(projectId.value), principal.value, role.value)
-    toast(t('projectsUi.share.toast.shared')); memberSub.value = ''; groupId.value = ''; orgId.value = ''; email.value = ''
+    const target = principal.value.email ?? ''
+    const r = await shareResource('project', String(projectId.value), principal.value, role.value)
+    if (r?.pending) {
+      pendingNote.value = r.already_pending
+        ? t('projectsUi.share.pendingAgain', { email: target })
+        : t('projectsUi.share.pendingNote', { email: target })
+    } else {
+      toast(t('projectsUi.share.toast.shared'))
+    }
+    memberSub.value = ''; groupId.value = ''; orgId.value = ''; email.value = ''
     emit('changed')
   } catch (e) { toast(humanize(e)) }
   finally { busy.value = false }
@@ -344,7 +358,8 @@ async function transfer() {
               <div v-for="g in grants" :key="(g.principal_type || 'user') + (g.principal_id || g.email || '')" class="sd__grant">
                 <span class="sd__av">{{ initials(g) }}</span>
                 <span class="sd__gname">{{ g.label || g.email || g.principal_id }}</span>
-                <Tag v-if="g.principal_type === 'group'" tone="saffron">{{ t('projectsUi.share.mode.team') }}</Tag>
+                <Tag v-if="g.pending" tone="saffron" data-test="pending-tag">{{ t('projectsUi.share.pendingTag') }}</Tag>
+                <Tag v-else-if="g.principal_type === 'group'" tone="saffron">{{ t('projectsUi.share.mode.team') }}</Tag>
                 <Tag v-else-if="g.principal_type === 'org'" tone="terra">{{ t('projectsUi.share.orgTag') }}</Tag>
                 <Tag :tone="roleTone(g.role, g.permission)">{{ roleLabel(g.role, g.permission) }}</Tag>
                 <button v-if="!readOnly && principalOf(g)" class="sd__rev" :title="t('projectsUi.share.revoke')" @click="revoke(g)"><Icon name="x" :size="13" /></button>
@@ -359,6 +374,7 @@ async function transfer() {
               <OtoSelect v-model="role" :options="ROLE_OPTIONS" :aria-label="t('projectsUi.share.role')" />
               <Btn kind="mini" icon="plus" :disabled="busy || !principal" @click="addPrincipal">{{ t('projectsUi.share.invite') }}</Btn>
             </div>
+            <p v-if="pendingNote" class="sd__pending" role="status" data-test="pending-note">{{ pendingNote }}</p>
             <p v-if="!readOnly && pickersError" class="sd__err" role="alert" data-test="pickers-error">{{ t('shareEmpty.loadError', { reason: pickersError }) }}</p>
             <p v-if="readOnly" class="dim sd__ro">{{ t('projectsUi.share.readOnly') }}</p>
           </section>
@@ -495,6 +511,7 @@ async function transfer() {
 .sd__ds .sd__desc { margin: 7px 0 0; }
 .sd__area { width: 100%; margin-top: 9px; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 9px 11px; font-family: var(--font-sans); font-size: 12.5px; line-height: 1.55; color: var(--color-ink-soft); background: var(--color-surface); resize: vertical; box-sizing: border-box; }
 .sd__area:disabled { opacity: .6; }
+.sd__pending { margin-top: 9px; padding: 8px 10px; border-radius: var(--radius-md); background: var(--color-saffron-soft); font-size: 11.5px; line-height: 1.45; color: var(--color-saffron-ink); }
 .sd__dswarn { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-top: 9px; padding: 8px 10px; border-radius: var(--radius-md); background: var(--color-saffron-soft); font-size: 11px; line-height: 1.45; color: var(--color-saffron-ink); }
 .sd__dswarn :deep(svg) { color: var(--color-saffron-ink); flex: none; }
 .sd__dswarn code { font-family: var(--font-mono); font-size: 10px; }

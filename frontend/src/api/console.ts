@@ -13,7 +13,7 @@ import type {
   GoogleOauthStatus, GroupConnectorActivation, GroupDetail, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LinkedProcedure, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption, AuditExport,
-  ColumnFilter, CreatedDatastore, DatastoreRow, DatastoreEntry, SharedDatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, RewritableRow, SharePrincipal, ToolCall, ToolEntry,
+  ColumnFilter, CreatedDatastore, DatastoreRow, DatastoreEntry, SharedDatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, RewritableRow, SharePrincipal, ShareResult, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallDetail, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   ConnectorOAuthStatus, ConnectorOAuthDisconnected, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult,
@@ -845,7 +845,7 @@ export const getResource = (resource_type: string, resource_id: string) =>
   api<ResourceEntry & { grants: NamespaceShare[] }>(
     '/api/resources', { method: 'POST', ...j({ op: 'get', resource_type, resource_id }) })
 export const shareResource = (resource_type: string, resource_id: string, principal: SharePrincipal, role: 'viewer' | 'editor' | 'manager' = 'editor') =>
-  api<{ ok: boolean }>('/api/resources', { method: 'POST', ...j({ op: 'share', resource_type, resource_id, ...principal, role }) })
+  api<ShareResult>('/api/resources', { method: 'POST', ...j({ op: 'share', resource_type, resource_id, ...principal, role }) })
 export const unshareResource = (resource_type: string, resource_id: string, principal: SharePrincipal) =>
   api<{ ok: boolean }>('/api/resources', { method: 'POST', ...j({ op: 'unshare', resource_type, resource_id, ...principal }) })
 export const appendNamespaceRow = (ns: string, row: Record<string, unknown>) =>
@@ -976,8 +976,11 @@ export const previewInvite = (token: string) =>
   apiPublic<InvitePreview>(`/api/invitations/${encodeURIComponent(token)}`)
 // Accept par token (le code court a été retiré du backend le 15/09) — commun aux 3 scopes.
 export const acceptInvite = (payload: { token: string }) =>
-  api<{ ok: boolean; org_id: number | null; org_role: string | null;
+  api<{ ok: boolean; org_id?: number | null; org_role?: string | null;
         group_id?: number | null; group_role?: string | null;
+        // partage en attente d'UN objet : l'accès à cet objet, aucune org rejointe
+        resource_type?: string | null; resource_id?: string | null;
+        resource_role?: string | null;
         name: string | null; self?: boolean }>(
     '/api/me/invitations/accept', { method: 'POST', ...j(payload) })
 export const setOrgMemberRole = (id: number, sub: string, role: string) =>

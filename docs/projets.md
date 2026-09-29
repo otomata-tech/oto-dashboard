@@ -35,7 +35,11 @@ Groupe nav **workspace** → `/projects` (`ProjectsView.vue`, **index grille**) 
 (`ProjectDocs.vue`, capacité `oto_doc`) + **entités liées** (tableau/procédure/connecteur/base,
 picker des vraies entités via `getNamespaces`/`getConnectors`/`getDoctrine`)
 + **partage/transfert** (`oto_resource` resource_type=`project`, réutilise `getResource`/
-`shareResource`/`transferResource`) + **journal d'activité**. API client : `*Project*`/`*Doc*`
+`shareResource`/`transferResource`) + **journal d'activité**. **Partager avec une adresse sans
+compte** (29/09/2026) : le bouton dit « Partager » ; le backend pose un partage EN ATTENTE
+(`pending: true`) au lieu d'un « utilisateur inconnu » — le dialogue le dit en clair (invitation
+envoyée, accès à ce projet seul à l'inscription, jamais l'org), la liste le marque « en attente »
+et la croix le retire par l'adresse (`unshareResource`). API client : `*Project*`/`*Doc*`
 dans `api/console.ts` (POST op-aware `/api/me/{projects,docs}`). Backend : `oto-backend/CLAUDE.md`
 §Projet. Non faits : MCP-App rendu, édition temps réel, pré-set vendable.
 

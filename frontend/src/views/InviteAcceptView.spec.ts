@@ -40,4 +40,16 @@ describe('InviteAcceptView — le lien porte le jeton', () => {
     expect(api.previewInvite).toHaveBeenCalledWith('tok-256-bits')
     app.unmount()
   })
+
+  it('un partage en attente d’UN objet : on l’ouvre, on ne rejoint rien', async () => {
+    i18n.global.locale.value = 'fr'
+    api.previewInvite.mockResolvedValueOnce({ email: 'x@y.fr', org_name: null, scope: 'resource',
+      resource_type: 'project', resource_name: 'Veille' } as any)
+    const { host, app } = await monter('/invitation/tok-256-bits')
+    const texte = host.textContent ?? ''
+    expect(texte).toContain('à ouvrir')
+    expect(texte).toContain('Veille')
+    expect(texte).not.toContain('à rejoindre')
+    app.unmount()
+  })
 })

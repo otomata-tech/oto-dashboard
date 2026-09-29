@@ -86,7 +86,9 @@ function openInvite() {
     title: t('orgUi.invitations.inviteTitle', { noun: noun.value }),
     description: level.value === 'platform'
       ? t('orgUi.invitations.platformDesc')
-      : t('orgUi.invitations.desc'),
+      // Inviter ouvre TOUT ce que l'org (ou l'équipe) possède : pour un seul objet, on
+      // partage l'objet (partage en attente si la personne n'a pas de compte).
+      : `${t('orgUi.invitations.desc')} ${t('orgUi.invitations.scopeWarning', { noun: noun.value })}`,
     submitLabel: t('orgUi.invitations.create'),
     fields,
     onConfirm: async (v) => {

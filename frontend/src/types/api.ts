@@ -339,7 +339,7 @@ export interface Me extends VueBorneeServie {
 }
 
 // Scope d'une invitation (feature cascade) — DÉRIVÉ des cibles côté backend.
-export type InviteScopeKind = 'platform' | 'org' | 'team'
+export type InviteScopeKind = 'platform' | 'org' | 'team' | 'resource'
 
 // ÉCRIT À LA MAIN — la capacité ne déclare pas son `Output` (GET /api/invitations/code/{},
 //    GET /api/invitations/{}) : sa réponse est un `200 OK` nu dans le document.
@@ -349,6 +349,10 @@ export interface InvitePreview {
   org_name: string | null
   group_name?: string | null
   scope?: InviteScopeKind
+  // Partage EN ATTENTE d'UN objet (`scope: 'resource'`) : ce qui est partagé, et rien
+  // d'autre — l'invitée n'entre dans aucune org.
+  resource_type?: string | null
+  resource_name?: string | null
 }
 
 // Résultat d'une émission d'invitation d'org.
@@ -896,8 +900,24 @@ export interface NamespaceShare {
   role?: string | null    // ADR 0048 : viewer | editor | manager (surface produit)
   permission: string      // rétro-compat (read | write) — projeté depuis le rôle
   principal_type?: string
-  principal_id?: string
+  principal_id?: string | null
   created_at?: string | null
+  // Partage EN ATTENTE : l'adresse n'a pas encore de compte (pas de `principal_id`).
+  // L'accès à cet objet lui sera donné à l'inscription ; `unshare` par l'email le retire.
+  pending?: boolean
+  invitation_expires_at?: string | null
+}
+
+// Réponse d'un `op=share` à un principal. `pending` = partage EN ATTENTE vers une
+// adresse sans compte (invitation envoyée, accès à l'inscription, jamais l'org) ;
+// `already_pending` = un partage identique attendait déjà (aucun second lien).
+export interface ShareResult {
+  ok: boolean
+  shared_with?: string | null
+  pending?: boolean
+  already_pending?: boolean
+  pending_note?: string | null
+  notified?: boolean | null
 }
 
 // Destinataire d'un partage `oto_resource` : un user (email), une équipe (group_id —

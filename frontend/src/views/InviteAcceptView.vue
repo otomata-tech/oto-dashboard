@@ -25,6 +25,8 @@ const { me, load, reload } = useMe()
 const state = ref<'loading' | 'invited' | 'confirm' | 'joining' | 'ok' | 'error'>('loading')
 const preview = ref<InvitePreview | null>(null)
 const orgName = ref<string | null>(null)
+// Partage EN ATTENTE d'UN objet : l'accès à cet objet, aucune org rejointe.
+const shared = ref<{ type: string; id: string | null; name: string | null } | null>(null)
 const errMsg = ref('')
 const errCode = ref('')
 const otl = ref('')  // one-time-token Logto (magic link) — connexion sans saisie de code
@@ -41,12 +43,19 @@ function codeOf(e: unknown): string {
 }
 
 // Ce que l'invité rejoint (feature cascade) : équipe > org > (rien = onboarding plateforme).
+// Un partage en attente ne fait rien rejoindre : il OUVRE un objet.
+const isResource = computed(() => preview.value?.scope === 'resource')
 const joinTarget = computed<string | null>(() => {
   const p = preview.value
   if (!p) return null
+  if (p.scope === 'resource') return p.resource_name ?? null
   if (p.scope === 'team' && p.group_name) return `l'équipe ${p.group_name}`
   return p.org_name ?? null
 })
+function openShared() {
+  const s = shared.value
+  router.push(s?.type === 'project' && s.id ? `/projects/${s.id}` : '/overview')
+}
 
 // Retour post-login = l'URL courante (préserve code/token), OTT réinjecté par login().
 const returnTo = () => `${window.location.pathname}${window.location.search}`
@@ -67,7 +76,8 @@ async function accept() {
   state.value = 'joining'
   try {
     const r = await acceptInvite(acceptPayload())
-    orgName.value = r.name
+    if (r.resource_type) shared.value = { type: r.resource_type, id: r.resource_id ?? null, name: r.name }
+    else orgName.value = r.name
     await reload()
     state.value = 'ok'
   } catch (e) {
@@ -126,7 +136,7 @@ onMounted(async () => {
         <div class="se-body">
           <template v-if="preview?.inviter">{{ t('invite.invited.byInviter', { inviter: preview.inviter }) }}</template>
           <template v-else>{{ t('invite.invited.byNobody') }}</template>
-          <i18n-t keypath="invite.invited.toTarget" tag="span">
+          <i18n-t :keypath="isResource ? 'invite.invited.toResource' : 'invite.invited.toTarget'" tag="span">
             <template #target><strong>{{ joinTarget || 'oto' }}</strong></template>
           </i18n-t>.
           <i18n-t keypath="invite.invited.createAccount" tag="span">
@@ -162,13 +172,17 @@ onMounted(async () => {
           <template #mark><Squiggle>{{ t('invite.ok.mark') }}</Squiggle></template>
         </i18n-t>
         <div class="se-body">
-          <i18n-t v-if="orgName" keypath="invite.ok.joined" tag="span">
+          <i18n-t v-if="shared" keypath="invite.ok.sharedWith" tag="span" data-test="shared-with">
+            <template #resource><strong>{{ shared.name || t('invite.ok.open') }}</strong></template>
+          </i18n-t>
+          <i18n-t v-else-if="orgName" keypath="invite.ok.joined" tag="span">
             <template #org><strong>{{ orgName }}</strong></template>
           </i18n-t>
           <template v-else>{{ t('invite.ok.open') }}</template>
         </div>
         <div class="se-cta">
-          <Btn @click="router.push('/overview')">{{ orgName ? t('invite.ok.toConsole') : t('invite.ok.createSpace') }}</Btn>
+          <Btn v-if="shared" @click="openShared">{{ t('invite.ok.openResource') }}</Btn>
+          <Btn v-else @click="router.push('/overview')">{{ orgName ? t('invite.ok.toConsole') : t('invite.ok.createSpace') }}</Btn>
         </div>
       </template>
 

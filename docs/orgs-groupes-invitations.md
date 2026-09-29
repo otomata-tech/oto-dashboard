@@ -283,6 +283,13 @@ lien porte l'invitation.
 → « rejoindre l'équipe X / oto » — une invitation d'équipe émise ailleurs s'accepte toujours ici).
 Backend : `oto-backend/docs/rest-api.md` §invitations + `capabilities/{orgs,groups,platform}_invites.py`.
 
+**Un quatrième cas, le partage EN ATTENTE (29/09/2026)** : partager un projet avec une
+adresse sans compte (`ProjectShareDialog.vue`) envoie un lien `/invitation/<token>` qui ne
+fait rien rejoindre. L'aperçu porte `scope: 'resource'` et `resource_name` (« à ouvrir X ») ;
+l'acceptation rend `resource_type`/`resource_id` et la page propose d'ouvrir l'objet. La
+carte d'invitation d'org/équipe rappelle que l'invité voit tout ce que l'org possède, et
+renvoie vers « Partager » pour un seul objet.
+
 
 ## Export du journal des accès (oto#269, 24/09/2026)
 
