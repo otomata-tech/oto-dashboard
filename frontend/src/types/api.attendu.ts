@@ -146,3 +146,14 @@ export interface VueBorneeServie {
 export interface OperateurDuMembre {
   is_platform_operator?: boolean | null
 }
+
+// ── ⑥ Lire un tableau par son identifiant (otomata-tech/oto#160) ────────────
+// Servi par oto-backend `763f88dd` (pas encore déployé) — le snapshot OpenAPI ne porte
+// pas la route. `GET /api/datastores/{datastore}` (capacité `me.datastore.get_datastore`)
+// rend UNE `DatastoreEntry`, la forme d'un élément de `GET /api/datastores` : `shared:false`
+// si le tableau est à l'appelant, à l'org consultée ou à une équipe à portée, sinon
+// `shared:true` avec `permission` et `can_write`. L'accès ne dépend ni des listes ni de
+// l'org consultée. Inconnu ou inaccessible : 404 `datastore_not_found`, la même réponse
+// dans les deux cas. Aucun type nouveau (la réponse est une `DatastoreEntry`) : ce bloc
+// dit seulement pourquoi `getDatastore` appelle une route absente du snapshot. Au
+// prochain `npm run api:refresh`, vérifier que le snapshot la porte et supprimer ce bloc.

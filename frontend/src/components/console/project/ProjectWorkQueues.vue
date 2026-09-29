@@ -9,8 +9,10 @@
 // su rattacher à un tableau apparaît aussi, nommé, sans compteurs (cf. `nonResolus`).
 import { computed, onMounted, ref } from 'vue'
 import Tag from '../Tag.vue'
-import { getNamespaceAggregate, getNamespaceQueue, getNamespaces, getProjectRuns, getSharedWithMe } from '@/api/console'
-import type { DatastoreField, ProjectLink, ProjectRun } from '@/types/api'
+import { getNamespaceAggregate, getNamespaceQueue, getNamespaces, getProjectRuns } from '@/api/console'
+import type { DatastoreEntry, DatastoreField, ProjectLink, ProjectRun } from '@/types/api'
+import { humanize } from '@/lib/errors'
+import { resoudreTableau } from '@/lib/tableauParId'
 import { absDate } from '@/lib/cellRender'
 import { bailLigne } from '@/lib/bailDeLigne'
 import { abandonState, claimBudget, maxClaims } from '@/lib/datastoreClaims'
@@ -46,6 +48,11 @@ const lines = ref<QueueLine[]>([])
 // ce serait les résoudre chez le lecteur, donc refaire le défaut. On les nomme, sans
 // compteurs, et on dit le geste qui répare.
 const nonResolus = ref<string[]>([])
+// Les liens dont le tableau désigné est inconnu ou inaccessible au lecteur (404 déclaré
+// de la lecture par identifiant) : nommés, sans compteurs — pas tus.
+const inaccessibles = ref<string[]>([])
+// Une autre erreur de résolution : dite, pas avalée en bloc vide.
+const erreur = ref<string | null>(null)
 const lastRun = ref<ProjectRun | null>(null)
 const loading = ref(true)
 
@@ -54,21 +61,24 @@ const OUTCOME_TONE: Record<string, Tone> = { done: 'olive', failed: 'terra', blo
 
 onMounted(async () => {
   try {
-    const ids = new Set(props.links.flatMap((l) => (l.datastore_id != null ? [l.datastore_id] : [])))
+    // Un lien par identifiant servi (dédoublonné : deux liens peuvent viser un tableau).
+    const lies = new Map<number, ProjectLink>()
+    for (const l of props.links) if (l.datastore_id != null && !lies.has(l.datastore_id)) lies.set(l.datastore_id, l)
     nonResolus.value = props.links.filter((l) => l.datastore_id == null)
       .map((l) => l.datastore ?? l.target_ref)
-    // LES DEUX listes, comme le repli de `DatastoreTable` : `getNamespaces()` exclut à
-    // dessein les partages NOMINATIFS, et un tableau reçu lié au projet n'aurait jamais
-    // eu de compteurs. Elles ne se recoupent pas (le serveur ôte de la seconde ce que la
-    // première rend) : aucun tableau n'y est compté deux fois.
-    const [{ datastores: propres }, { datastores: recus }, runsRes] = await Promise.all([
+    const [{ datastores: liste }, runsRes] = await Promise.all([
       getNamespaces(),
-      getSharedWithMe(),
       getProjectRuns(props.projectId).catch(() => ({ runs: [] as ProjectRun[] })),
     ])
     lastRun.value = runsRes.runs[0] ?? null
-    const candidates = [...propres, ...recus].filter((n) => {
-      if (!ids.has(n.id)) return false
+    // La liste de l'org, puis la lecture par identifiant pour ce qu'elle ne rend pas
+    // (perso, reçu en personne — oto#160) : `resoudreTableau`, la même résolution que
+    // `DatastoreTable`. Un tableau reçu lié au projet garde ainsi ses compteurs.
+    const resolus = await Promise.all([...lies].map(async ([id, l]) =>
+      ({ lien: l, tableau: await resoudreTableau(String(id), liste) })))
+    inaccessibles.value = resolus.filter((r) => r.tableau === null)
+      .map((r) => r.lien.datastore ?? r.lien.target_ref)
+    const candidates = resolus.flatMap((r) => (r.tableau ? [r.tableau] : [])).filter((n: DatastoreEntry) => {
       const sf = (n.schema?.fields ?? []).find((f) => f.role === 'status')
       return !!sf && (sf.lifecycle?.states?.length ?? 0) > 0
     })
@@ -112,12 +122,15 @@ onMounted(async () => {
         } satisfies QueueLine
       } catch { return null }
     }))).filter((x): x is QueueLine => x !== null)
+  } catch (e) {
+    erreur.value = humanize(e)
   } finally {
     loading.value = false
   }
 })
 
-const visible = computed(() => !loading.value && (lines.value.length > 0 || nonResolus.value.length > 0))
+const visible = computed(() => !loading.value && (lines.value.length > 0 || nonResolus.value.length > 0
+  || inaccessibles.value.length > 0 || erreur.value !== null))
 </script>
 
 <template>
@@ -154,6 +167,11 @@ const visible = computed(() => !loading.value && (lines.value.length > 0 || nonR
       <span class="pwq-ns">{{ nom }}</span>
       <span class="pwq-mute">{{ $t('projectsUi.workQueues.unresolved') }}</span>
     </div>
+    <div v-for="(nom, i) in inaccessibles" :key="`inaccessible:${i}`" class="pwq-line" data-test="inaccessible">
+      <span class="pwq-ns">{{ nom }}</span>
+      <span class="pwq-mute">{{ $t('tableauParId.introuvable') }}</span>
+    </div>
+    <p v-if="erreur" class="pwq-err" data-test="erreur">{{ erreur }}</p>
   </div>
 </template>
 
@@ -167,6 +185,7 @@ const visible = computed(() => !loading.value && (lines.value.length > 0 || nonR
 .pwq-run { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--color-mute); }
 .pwq-runlabel { font-weight: 600; color: var(--color-ink); }
 .pwq-mute { color: var(--color-faint); font-size: 11px; }
+.pwq-err { margin: 0; font-size: 12px; color: var(--color-terra-ink); }
 .pwq-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
 .pwq-ns { font-weight: 600; color: var(--color-ink); text-decoration: none; }
 .pwq-ns:hover { color: var(--color-cobalt); text-decoration: underline; }

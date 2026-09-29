@@ -2926,5 +2926,8 @@
     "nsHelpElsewhere": "a personal table lives in your personal space, not in this org; an org binder is shared with its members.",
     "projectCreatedElsewhere": "project created — it lives in your personal space, not in this org",
     "nsCreatedElsewhere": "table “{name}” created — it lives in your personal space, not in this org"
+  },
+  "tableauParId": {
+    "introuvable": "table not found, or not accessible to you"
   }
 }

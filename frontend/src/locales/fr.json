@@ -2926,5 +2926,8 @@
     "nsHelpElsewhere": "un tableau personnel se range dans ton espace perso, pas dans cette org ; un classeur d'org est partagé avec ses membres.",
     "projectCreatedElsewhere": "projet créé — il se range dans ton espace perso, pas dans cette org",
     "nsCreatedElsewhere": "tableau « {name} » créé — il se range dans ton espace perso, pas dans cette org"
+  },
+  "tableauParId": {
+    "introuvable": "tableau introuvable ou inaccessible"
   }
 }

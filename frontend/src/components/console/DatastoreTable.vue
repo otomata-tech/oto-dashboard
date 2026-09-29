@@ -25,13 +25,14 @@ import { usePrompt } from '@/composables/usePrompt'
 import { useTransferOwnership } from '@/composables/useTransferOwnership'
 import { useTransitionUndo } from '@/composables/useTransitionUndo'
 import {
-  getNamespaces, getSharedWithMe, getNamespaceRows, getNamespaceRow, getNamespaceAggregate,
+  getNamespaces, getNamespaceRows, getNamespaceRow, getNamespaceAggregate,
   getNamespaceQueue, releaseRowClaim,
   appendNamespaceRow, updateNamespaceRow, deleteNamespaceRow,
   deleteNamespace, renameNamespace,
 } from '@/api/console'
 import type { DatastoreEntry, DatastoreRow, ColumnFilter } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { resoudreTableau } from '@/lib/tableauParId'
 import { rowsToCsv, downloadCsv } from '@/lib/csv'
 import { userFields, visibleColumns } from '@/lib/datastoreColumns'
 import { filtersFromParam, filtersToParam } from '@/lib/datastoreFilters'
@@ -236,25 +237,16 @@ async function resolveMeta() {
     return
   }
   try {
-    // ⚠️ LES DEUX listes. `getNamespaces()` exclut à dessein les partages NOMINATIFS
-    // (ils n'appartiennent à aucune org — incident du 30/06) : un tableau reçu y est
-    // donc introuvable, et ce repli renvoyait « introuvable ici » sur un tableau qu'on
-    // a parfaitement le droit de lire (oto#160). La seconde liste est la seule porte
-    // qui les rende ; elles restent côte à côte, jamais fusionnées en amont.
-    // ⚠️ Et l'IDENTIFIANT d'abord, sur l'union, AVANT tout rapprochement par nom : un
-    // id ne désigne qu'un tableau, un nom peut en désigner plusieurs. Chercher les deux
-    // clés dans la même passe laissait l'ordre de la liste trancher — donc un homonyme
-    // à soi gagner sur l'identifiant demandé.
-    const [propres, recus] = await Promise.all([getNamespaces(), getSharedWithMe()])
-    const all: DatastoreEntry[] = [...propres.datastores, ...recus.datastores]
-    const found = all.find((n) => String(n.id) === props.nsRef)
-      ?? all.find((n) => n.datastore === props.nsRef)
+    // La liste de l'org, puis la LECTURE PAR IDENTIFIANT pour ce qu'elle ne rend pas
+    // (perso, reçu en personne — oto#160, 29/09/2026) : `resoudreTableau`, la même
+    // résolution que les files de travail du projet. L'identifiant avant le nom.
+    const found = await resoudreTableau(props.nsRef, (await getNamespaces()).datastores)
     if (found) { meta.value = found; return }
-    // Introuvable SANS exception (tableau d'une autre org, ou renommé) : ne pas
+    // Inconnu OU inaccessible (le 404 déclaré ne distingue pas les deux) : ne pas
     // laisser meta=null muet → page blanche. Poser une erreur actionnable.
     meta.value = null
     notFound.value = true
-    rowsError.value = 'Tableau introuvable dans ce contexte — il appartient peut-être à une autre organisation.'
+    rowsError.value = t('tableauParId.introuvable')
   } catch (e) { rowsError.value = humanize(e); meta.value = null }
 }
 

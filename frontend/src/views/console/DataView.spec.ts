@@ -27,14 +27,18 @@ import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { i18n } from '@/lib/i18n'
 import type { DatastoreEntry, SharedDatastoreEntry } from '@/types/api'
+import { ApiError } from '@/api'
 
 const api = vi.hoisted(() => ({
   getNamespaces: vi.fn(),
   getSharedWithMe: vi.fn(),
+  getDatastore: vi.fn(),
   createNamespace: vi.fn(),
 }))
 vi.mock('@/api/console', () => api)
-const { getNamespaces, getSharedWithMe } = api
+const { getNamespaces, getSharedWithMe, getDatastore, createNamespace } = api
+const toasts = vi.hoisted(() => [] as string[])
+vi.mock('@/composables/useToast', () => ({ useToast: () => ({ toast: (m: string) => { toasts.push(m) } }) }))
 
 type MeLite = {
   sub: string; active_org: number | null; active_org_name?: string | null
@@ -54,7 +58,13 @@ const Tableau = defineComponent({
   },
 })
 vi.mock('@/components/console/DatastoreTable.vue', () => ({ default: Tableau }))
-vi.mock('@/components/console/NamespaceCreateDialog.vue', () => ({ default: Vide }))
+// Le dialogue de création, réduit à ce qu'il remet à l'écran : son `onConfirm`.
+let creer: ((p: { name: string; scope: 'user' | 'org' }) => Promise<void>) | null = null
+const Dialogue = defineComponent({
+  props: { onConfirm: { type: Function, default: null } },
+  setup(p) { creer = p.onConfirm as typeof creer; return () => h('div') },
+})
+vi.mock('@/components/console/NamespaceCreateDialog.vue', () => ({ default: Dialogue }))
 
 // Une entrée telle que `GET /api/datastores` la sert (cf. registre.py `_entry`) :
 // `is_personal` = owner_type 'user' ET owner_id == mon sub. Un tableau d'un AUTRE
@@ -138,6 +148,9 @@ async function monterListe(
 
 beforeEach(() => {
   vi.clearAllMocks()
+  toasts.length = 0
+  // Par défaut, la lecture par identifiant ne trouve rien (404 déclaré, oto#160).
+  getDatastore.mockRejectedValue(new ApiError(404, 'datastore_not_found'))
   i18n.global.locale.value = 'fr'
   // Le contexte de la confusion : une org active, dont AUCUN tableau n'existe.
   me.value = { sub: 'u-alexis', active_org: 42, active_org_name: 'Client X' }
@@ -521,3 +534,47 @@ describe('DataView — une adresse ambiguë ne choisit pas en silence (oto#203)'
     unmount()
   })
 })
+
+// ── oto#160 (29/09/2026) : ce qu'aucune liste ne rend se LIT par identifiant ─────────
+describe('DataView — un tableau hors des listes s\'ouvre par son identifiant (oto#160)', () => {
+  it('un /data/<id> absent des listes est lu par identifiant et s\'ouvre', async () => {
+    getDatastore.mockResolvedValue(entree({ id: 77, datastore: 'mon-perso' }))
+    const { panneau, titres, unmount } = await monterListe([entree({ id: 1, datastore: 'a-org', ...DE_LORG })], '/data/77')
+    expect(getDatastore).toHaveBeenCalledWith('77')
+    expect(panneau()).toBe('77|mon-perso')
+    expect(titres()).not.toContain('tableau introuvable ici')
+    unmount()
+  })
+
+  it('un tableau DE la liste ne déclenche aucune lecture par identifiant', async () => {
+    const { panneau, unmount } = await monterListe([entree({ id: 1, datastore: 'a-org', ...DE_LORG })], '/data/1')
+    expect(panneau()).toBe('1|a-org')
+    expect(getDatastore).not.toHaveBeenCalled()
+    unmount()
+  })
+
+  it('une autre erreur que le 404 déclaré est dite, et n\'accuse pas l\'absence', async () => {
+    getDatastore.mockRejectedValue(new ApiError(500, 'internal_error', 'panne'))
+    const { host, titres, panneau, unmount } = await monterListe([], '/data/77')
+    expect(panneau()).toBeNull()
+    expect(titres()).not.toContain('tableau introuvable ici')
+    expect(host.textContent).toContain('internal_error')
+    unmount()
+  })
+
+  it('créé perso dans une org : l\'avertissement servi est dit, et le tableau s\'ouvre par l\'id RENDU', async () => {
+    createNamespace.mockResolvedValue({
+      ok: true, datastore: 'nouveau', ns_id: 91, owner_type: 'user', owner_id: 'u-alexis',
+      is_personal: true, avertissement: 'se liste dans ton org perso',
+    })
+    getDatastore.mockResolvedValue(entree({ id: 91, datastore: 'nouveau' }))
+    const { panneau, unmount } = await monterListe([], '/data')
+    await creer!({ name: 'nouveau', scope: 'user' })
+    await settle()
+    expect(toasts).toEqual(['se liste dans ton org perso'])
+    // La liste de l'org ne le rend pas : il s'ouvre quand même, par l'identifiant rendu.
+    expect(panneau()).toBe('91|nouveau')
+    unmount()
+  })
+})
+

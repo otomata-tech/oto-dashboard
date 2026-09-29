@@ -30,6 +30,11 @@ import type { components, operations } from './api.generated'
 // écrit à la main, à part, pour qu'une régénération ne l'efface pas. Cf. le fichier.
 import type { BailDeLaLigne, EmetteurDeclare, OperateurDuMembre, VueBorneeServie } from './api.attendu'
 
+/** La réponse 201 de la création d'un tableau : son identifiant (`ns_id`, celui par
+ *  lequel l'ouvrir — oto#160) et l'`avertissement` quand il naît perso hors de l'org perso. */
+export type CreatedDatastore =
+  operations['me_datastore_create_datastore_post']['responses'][201]['content']['application/json']
+
 /** La réponse 200 (application/json) d'une opération du document OpenAPI. */
 export type ApiOut<K extends keyof operations> = operations[K]['responses'] extends {
   200: { content: { 'application/json': infer T } }

@@ -75,6 +75,21 @@ créé depuis une org s'y range aussi : le dialogue le dit (« personnel (visibl
 espace perso) ») et la création le rappelle au lieu de le chercher dans la liste. Tests :
 `lib/orgPerso.spec.ts`.
 
+**Ce qu'une liste ne rend pas s'ouvre par son identifiant** (oto#160, 29/09/2026 ; backend
+`763f88dd`). `GET /api/datastores/{datastore}` (`getDatastore`) rend UNE entrée, à la forme
+d'un élément de liste, depuis n'importe quelle org où l'accès existe (`shared:true` avec
+`permission`/`can_write` quand le tableau n'appartient pas au contexte), et 404
+`datastore_not_found` s'il est inconnu OU inaccessible. Une seule résolution,
+`lib/tableauParId.ts` (`resoudreTableau`) : la liste de l'org — l'identifiant avant le nom —,
+puis la lecture par identifiant ; `null` = le 404 déclaré, toute autre erreur remonte (pas de
+repli silencieux). Elle sert `DatastoreTable` (repli sans méta), les files de travail d'un
+projet (`ProjectWorkQueues` : un tableau reçu ou perso lié à un projet de l'org garde ses
+compteurs, un lien inaccessible est nommé « tableau introuvable ou inaccessible ») et
+`/data/<id>` (`DataView` : un tableau absent des listes s'ouvre quand même). La création
+ouvre le tableau par l'identifiant RENDU (`ns_id`), jamais en le cherchant par son nom, et
+dit l'`avertissement` servi quand il y en a un. Tests : `lib/tableauParId.spec.ts`,
+`filesDeProjetHomonymie.spec.ts`, `views/console/DataView.spec.ts`.
+
 - **Aucun doublon**, deux fois : le serveur écarte ce que la liste de l'org rend déjà (jeu
   dérivé de `list_datastores()`, jamais recopié), et la vue le refait sur les ids
   réellement rendus — elle compose deux réponses obtenues à deux instants, entre lesquels

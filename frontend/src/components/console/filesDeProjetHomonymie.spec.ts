@@ -104,9 +104,14 @@ beforeEach(() => {
     if (!m) return repondre({})
     const adresse = decodeURIComponent(m[1] ?? '')
     adresses.push(adresse)
+    // 99 : inconnu ou inaccessible (le 404 déclaré) ; 98 : une panne.
+    if (adresse === '99') return { ok: false, status: 404, json: async () => ({ error: 'datastore_not_found' }) } as unknown as Response
+    if (adresse === '98') return { ok: false, status: 500, json: async () => ({ error: 'internal_error' }) } as unknown as Response
     const cible = resoudre(adresse)
     if (!cible) return { ok: false, status: 404, json: async () => ({ error: 'not_found' }) } as unknown as Response
     const reste = m[2] ?? ''
+    // La lecture par identifiant (oto#160) : l'entrée, à la forme d'un élément de liste.
+    if (reste === '') return repondre(cible)
     if (reste.startsWith('/aggregate')) return repondre({ groups: GROUPES[cible.id] ?? [] })
     if (reste.startsWith('/queue')) return repondre({ rows: FILES[cible.id] ?? [] })
     return repondre({ ok: true })
@@ -200,6 +205,37 @@ describe('les files de travail d un projet, tableau lié homonyme d un des miens
   })
 })
 
+// ── oto#160 (29/09/2026) : ce que la liste de l'org ne rend pas se LIT par identifiant ──
+describe('les files de travail d un projet, tableau lié absent de la liste', () => {
+  it('HORS de l org perso, un tableau reçu lié garde ses compteurs (lu par identifiant)', async () => {
+    // La lentille « moi » ne part pas dans une org : sans la lecture par identifiant, le
+    // tableau reçu lié au projet n'aurait plus eu de compteurs.
+    poserOrgPerso({ active_org_is_personal: false })
+    const { texte, hrefs } = await accueil([LIE_AU_RECU])
+    expect(texte).toContain('A faire 11')
+    expect(hrefs).toEqual(['/data/77'])
+    expect(adresses).toEqual(adresses.map(() => '77'))
+  })
+
+  it('le 404 déclaré NOMME le lien, sans compteurs', async () => {
+    const { texte, puces, hrefs } = await accueil([
+      { target_type: 'tableau', target_ref: 'fantome', datastore: 'fantome', datastore_id: 99 },
+    ])
+    expect(texte).toContain('fantome')
+    expect(texte).toContain('tableau introuvable ou inaccessible')
+    expect(puces).toBe(0)
+    expect(hrefs).toEqual([])
+  })
+
+  it('une autre erreur est DITE, pas avalée en bloc vide', async () => {
+    const { texte } = await accueil([
+      { target_type: 'tableau', target_ref: 'panne', datastore: 'panne', datastore_id: 98 },
+    ])
+    expect(texte).toContain('internal_error')
+    expect(texte).not.toContain('tableau introuvable ou inaccessible')
+  })
+})
+
 // ── les témoins de source : ce qu'aucun montage n'atteint ─────────────────────
 // Lus RELATIVEMENT à ce fichier pour les composants (la preuve de chute les rejoue
 // depuis une copie mutée), depuis la racine `src/` pour la vue qui n'est pas montée.
@@ -218,7 +254,8 @@ describe('la désignation des files de projet, site par site', () => {
   })
 
   it('le bloc choisit ses tableaux par l identifiant du lien, jamais par le nom', () => {
-    expect(FILES_PROJET).toContain('ids.has(n.id)')
+    // Chaque tableau est RÉSOLU par l'identifiant du lien (oto#160 : liste, puis lecture par id).
+    expect(FILES_PROJET).toContain('resoudreTableau(String(id), liste)')
     // …et l'adresse qui part est l'id de l'entrée choisie, pas son nom : les deux
     // moitiés comptent (choisir par id puis adresser par le nom recompte le mien).
     expect(FILES_PROJET).toContain('const ref = String(n.id)')

@@ -122,6 +122,8 @@ beforeEach(() => {
     const cible = resoudre(adresse)
     if (!cible) return { ok: false, status: 404, json: async () => ({ error: 'not_found' }) } as unknown as Response
     const reste = m[2] ?? ''
+    // La lecture par identifiant (oto#160) : l'entrée, à la forme d'un élément de liste.
+    if (reste === '') return repondre(cible)
     if (reste.startsWith('/rows')) {
       const lignes = LIGNES[cible.id] ?? []
       return repondre({ rows: lignes, total: lignes.length, offset: 0, limit: 25 })
@@ -233,6 +235,7 @@ describe('l affichage intégré dans un projet, sans méta passée', () => {
     // C'est la reproduction : avant, `getNamespaces()` était la SEULE liste
     // consultée, elle exclut les partages nominatifs, et l'écran répondait
     // « Tableau introuvable dans ce contexte » sur un tableau parfaitement lisible.
+    // Depuis oto#160 (29/09/2026), ce qui manque à la liste se LIT par identifiant.
     const hote = monter(DatastoreTable, { nsRef: String(RECU.id), govern: false })
     await vider()
 
@@ -286,6 +289,7 @@ const ICI = dirname(fileURLToPath(import.meta.url))
 const VIEWER = readFileSync(join(ICI, 'project/ProjectViewer.vue'), 'utf8')
 const JOB = readFileSync(join(ICI, 'RunnerJobDetail.vue'), 'utf8')
 const TABLE = readFileSync(join(ICI, 'DatastoreTable.vue'), 'utf8')
+const RESOLUTION = readFileSync(join(ICI, '../../lib/tableauParId.ts'), 'utf8')
 
 describe('la désignation, site par site', () => {
   it('l embed de lien de projet passe l IDENTIFIANT servi, et rien d autre', () => {
@@ -308,15 +312,16 @@ describe('la désignation, site par site', () => {
     expect(JOB).toContain("t('automationsJob.openTable', { name: tableauNom })")
   })
 
-  it('le repli consulte les DEUX listes, et l identifiant avant le nom', () => {
-    expect(TABLE).toContain('getSharedWithMe()')
-    // L'ordre est le sujet : chercher les deux clés dans la même passe laissait
-    // l'ordre de la liste trancher — donc un homonyme gagner sur l'identifiant.
+  it('le repli passe par la résolution partagée, qui cherche l identifiant avant le nom', () => {
+    // Une seule résolution (oto#160) : la liste de l'org, puis la lecture par identifiant.
     const debut = TABLE.indexOf('async function resolveMeta')
     expect(debut).toBeGreaterThan(-1)
     const repli = TABLE.slice(debut, TABLE.indexOf('async function fetchRows'))
-    const parId = repli.indexOf('String(n.id) === props.nsRef')
-    const parNom = repli.indexOf('n.datastore === props.nsRef')
+    expect(repli).toContain('resoudreTableau(props.nsRef')
+    // L'ordre est le sujet : chercher les deux clés dans la même passe laissait
+    // l'ordre de la liste trancher — donc un homonyme gagner sur l'identifiant.
+    const parId = RESOLUTION.indexOf('String(n.id) === ref')
+    const parNom = RESOLUTION.indexOf('n.datastore === ref')
     expect(parId).toBeGreaterThan(-1)
     expect(parNom).toBeGreaterThan(parId)
   })

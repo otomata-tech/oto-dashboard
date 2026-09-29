@@ -14,7 +14,7 @@ import type {
   GoogleOauthStatus, GroupConnectorActivation, GroupDetail, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LinkedProcedure, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption, AuditExport,
-  ColumnFilter, DatastoreRow, DatastoreEntry, SharedDatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, RewritableRow, SharePrincipal, ToolCall, ToolEntry,
+  ColumnFilter, CreatedDatastore, DatastoreRow, DatastoreEntry, SharedDatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, RewritableRow, SharePrincipal, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallDetail, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   ConnectorOAuthStatus, ConnectorOAuthDisconnected, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult,
@@ -718,6 +718,13 @@ function listeServie<T>(payload: { datastores?: T[] | null }, quoi: string): T[]
 export const getNamespaces = () =>
   api<{ datastores?: DatastoreEntry[] }>('/api/datastores')
     .then((r) => ({ datastores: listeServie(r, 'liste des tableaux') }))
+// UN tableau par son identifiant (ou son nom), à la forme d'une entrée de la liste
+// (oto#160, 29/09/2026). L'accès ne dépend ni des listes ni de l'org consultée : c'est la
+// porte d'un tableau lié qu'une liste d'org ne rend plus (perso, reçu en personne). 404
+// `datastore_not_found` s'il est inconnu OU inaccessible. Route pas encore dans le
+// snapshot OpenAPI : `types/api.attendu.ts` ⑥. Résolution : `lib/tableauParId`.
+export const getDatastore = (ref: string) =>
+  api<DatastoreEntry>(`/api/datastores/${encodeURIComponent(ref)}`)
 // Les tableaux partagés NOMINATIVEMENT à l'appelant — À CÔTÉ de `getNamespaces`, jamais
 // fusionnés avec elle (arbitrage oto#160 : les faire entrer dans la liste de l'org
 // courante rouvrirait l'incident du 30/06). `SUB_ONLY` côté serveur : elle répond quelle
@@ -738,7 +745,7 @@ export const createNamespace = (namespace: string, owner?: { type: string; id: s
   // il s'appelle `datastore` depuis la bascule, et un corps resté en `namespace` ne casse
   // pas — il crée un tableau SANS NOM, refusé en 400 `missing_datastore`. Le champ suit le
   // chemin, toujours dans le même geste.
-  api('/api/datastores', { method: 'POST', ...j(owner ? { datastore: namespace, owner } : { datastore: namespace }) })
+  api<CreatedDatastore>('/api/datastores', { method: 'POST', ...j(owner ? { datastore: namespace, owner } : { datastore: namespace }) })
 export const deleteNamespace = (ns: string) =>
   api(`/api/datastores/${encodeURIComponent(ns)}`, { method: 'DELETE' })
 export interface RowQuery {

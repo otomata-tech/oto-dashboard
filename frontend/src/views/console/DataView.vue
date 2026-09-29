@@ -15,6 +15,7 @@ import { getNamespaces, getSharedWithMe, createNamespace } from '@/api/console'
 import type { DatastoreEntry, SharedDatastoreEntry } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { enOrgPerso } from '@/lib/orgPerso'
+import { resoudreTableau } from '@/lib/tableauParId'
 import { resolveTarget, type TargetChoice, type TargetKey } from '@/lib/routeTarget'
 
 const { toast } = useToast()
@@ -49,7 +50,13 @@ const recus = computed(() => partages.value.filter((n) => !idsDeLorg.value.has(n
 // « choisis un tableau » — le défaut qui a motivé l'arbitrage (oto#160 · #154).
 const toutes = computed<SharedDatastoreEntry[]>(() => [...datastores.value, ...recus.value])
 
-const current = computed(() => toutes.value.find((n) => n.id === selectedId.value) || null)
+// Un tableau ouvert par son adresse que AUCUNE liste ne rend — perso ouvert depuis une
+// org, reçu en personne hors de l'org perso, tableau tout juste créé (oto#160,
+// 29/09/2026) : lu par identifiant (`resoudreTableau`), il s'ouvre comme les autres.
+const horsListe = ref<DatastoreEntry | null>(null)
+const lectureParId = ref(false)
+const current = computed(() => toutes.value.find((n) => n.id === selectedId.value)
+  || (horsListe.value && horsListe.value.id === selectedId.value ? horsListe.value : null))
 const activeOrgName = computed(() => (me.value?.active_org ? (me.value?.active_org_name || 'mon org') : null))
 
 // Hors organisation : aucune org active, OU l'espace personnel mono-membre, que le produit
@@ -174,8 +181,20 @@ const resolution = computed(() =>
 async function applySelection(raw: string | null) {
   if (!raw) { selectedId.value = null; return }
   const r = resolveTarget(raw, toutes.value, CLES)
-  if (r.kind !== 'found') { selectedId.value = null; return }
-  const ns = r.item
+  if (r.kind === 'found') { selectionner(r.item); return }
+  selectedId.value = null
+  // Un nom porté par plusieurs tableaux : le choix reste au lecteur (`candidats`).
+  if (r.kind === 'ambiguous') return
+  // Absent de toutes les listes : la lecture par identifiant tranche. `null` = inconnu
+  // ou inaccessible (`introuvable` le dit) ; toute autre erreur est dite, pas tue.
+  lectureParId.value = true
+  try {
+    const lu = await resoudreTableau(raw, toutes.value)
+    if (lu) { horsListe.value = lu; selectionner(lu) }
+  } catch (e) { error.value = humanize(e) }
+  finally { lectureParId.value = false }
+}
+function selectionner(ns: DatastoreEntry) {
   if (String(route.params.id) !== String(ns.id)) {
     const { ns: _drop, ...rest } = route.query
     // préserve le deep-link de row (`…/item/<rowId>`) quand on normalise nom → id
@@ -209,7 +228,8 @@ const candidats = computed<TargetChoice[] | null>(() => {
 // `!error` : une liste qui n'a pas chargé n'est pas un tableau introuvable — sans ce
 // garde, une panne de réseau accuserait le partage.
 const introuvable = computed(
-  () => loaded.value && !error.value && !!selParam.value && !current.value && !candidats.value)
+  () => loaded.value && !lectureParId.value && !error.value && !!selParam.value && !current.value
+    && !candidats.value)
 
 // Les deux listes en un seul temps : `current` se résout sur leur union, et un chargement
 // en deux vagues ferait clignoter « tableau introuvable ici » sur un lien direct légitime.
@@ -235,19 +255,23 @@ async function doCreate(payload: { name: string; scope: 'user' | 'org' }) {
   const activeOrg = me.value?.active_org
   const owner = payload.scope === 'org' && activeOrg ? { type: 'org', id: activeOrg } : undefined
   try {
-    await createNamespace(payload.name, owner)
+    const cree = await createNamespace(payload.name, owner)
     // Un tableau personnel créé hors de l'org perso ne se liste pas ici (oto#160) : on dit
-    // où il se range au lieu de le chercher dans une liste qui ne le rendra pas.
-    toast(!owner && !enOrgPerso(me.value)
-      ? t('orgPersoUi.nsCreatedElsewhere', { name: payload.name }) : t('dataUi.view.created', { name: payload.name }))
+    // où il se range — l'avertissement SERVI d'abord, qui le dit quand l'org a été demandée.
+    toast(cree.avertissement
+      ?? (!owner && !enOrgPerso(me.value)
+        ? t('orgPersoUi.nsCreatedElsewhere', { name: payload.name }) : t('dataUi.view.created', { name: payload.name })))
     await load()
-    const created = datastores.value.find((n) => n.datastore === payload.name)
-    if (created) open(created.id)
+    // Ouvert par l'identifiant RENDU, jamais retrouvé par son nom dans une liste : un
+    // tableau perso créé dans une org n'y est pas, et un nom peut désigner plusieurs
+    // tableaux. Hors liste, `applySelection` le lit par identifiant.
+    open(cree.ns_id)
   } catch (e) { toast(humanize(e)); throw e }
 }
 
 async function onNsDeleted() {
   selectedId.value = null
+  horsListe.value = null
   void router.replace('/data')
   await load()
 }
