@@ -114,9 +114,11 @@ describe('ce qui est hors de la vue', () => {
     setViewUser(BORNEE)
     poserVueBornee({ view_as_bound_org: 42, view_as_refused_prefixes: ['/api/me/tokens'] })
     expect(sectionHorsVue('/account/developers')).toBe(true)
-    expect(sectionHorsVue('/org/billing')).toBe(false)
-    // La MFA est lue sur Logto pour le compte connecté : règle d'écran, toujours masquée.
+    expect(sectionHorsVue('/account/claude')).toBe(false)
+    // La MFA est lue sur Logto pour le compte connecté, la facturation sur oto-commerce pour
+    // le porteur du jeton : règles d'écran, toujours masquées.
     expect(sectionHorsVue('/account/security')).toBe(true)
+    expect(sectionHorsVue('/org/billing')).toBe(true)
   })
 
   it('une lecture refusée ne part pas : même refus que le serveur', async () => {

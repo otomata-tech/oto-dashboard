@@ -1,91 +1,72 @@
 <script setup lang="ts">
-// Ce qu'Otomata OFFRE, dit là où on vient regarder ce qu'on paie.
+// Ce qu'Otomata OFFRE à l'organisation, dit là où on vient regarder ce qu'on paie :
+// l'essai en cours et les dons de droits (`GET /orgs/{id}/avantages`, oto-commerce).
 //
-// Un don d'option (`option_comps`, couche 3 d'ADR 0043) ouvre un avantage payant
-// sans écrire la moindre ligne d'abonnement. Or l'écran de facturation lit
-// l'abonnement — donc il vendait à ses bénéficiaires, prix affichés et bouton armé,
-// exactement ce qu'ils possédaient déjà (mesuré côté serveur le 2026-09-02 : 32 dons
-// vivants, un seul abonnement payant sur toute la plateforme).
+// Un don ouvre un avantage payant sans écrire la moindre ligne d'abonnement. Un écran de
+// facturation qui ne lit que l'abonnement vend donc à ses bénéficiaires, prix affichés et
+// bouton armé, exactement ce qu'ils possèdent déjà (mesuré côté serveur le 2026-09-02 :
+// 32 dons vivants, un seul abonnement payant sur toute la plateforme).
 //
-// Cette carte se pose AU-DESSUS du catalogue, jamais à sa place : un don n'est pas
-// un abonnement, et la voie pour en prendre un ne doit pas se refermer.
+// Cette carte se pose AU-DESSUS de l'offre, jamais à sa place : un don n'est pas un
+// abonnement, et la voie pour en prendre un ne doit pas se refermer. Quand l'offre n'est
+// PAS dessous (abonnement qui court, contrat en cours, attente d'ouverture), un don échu
+// se dit échu sans renvoyer vers elle (`offerBelow`).
 //
-// ⚠️ On NOMME l'avantage (`label`, servi par le registre de connecteurs). Un
-// « offert par Otomata » seul deviendrait faux le jour où un second avantage
-// s'offre — et il n'y a pas que la messagerie qui coûte.
+// ⚠️ On NOMME l'avantage (le droit du catalogue, traduit). Un « offert par Otomata » seul
+// deviendrait faux le jour où un second avantage s'offre. Un droit que cet écran ne
+// connaît pas se montre sous son code plutôt que de disparaître.
 import { computed } from 'vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Notice from '@/components/console/Notice.vue'
 import Tag from '@/components/console/Tag.vue'
+import { droitLabel } from '@/lib/billingTunnel'
 import { fmtDay } from '@/types/api'
-import type { BillingGrant } from '@/types/api'
+import type { CommerceAvantages } from '@/types/api.commerce'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-const props = defineProps<{ grants: BillingGrant[] }>()
+const props = defineProps<{
+  avantages: CommerceAvantages
+  /** L'offre est affichée sous cette carte : un don échu peut y renvoyer. */
+  offerBelow: boolean
+}>()
 
-// Même forme que le reste de l'écran de facturation : les prix du catalogue sont
-// des euros entiers.
-function euros(cents: number): string {
-  return (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR',
-    minimumFractionDigits: 0 })
-}
+const JOUR_MS = 24 * 60 * 60 * 1000
 
-// « Ce que ça vaut » = ce qu'il faudrait payer pour l'avoir, hors taxes comme le
-// catalogue juste en dessous. Muet si le serveur n'a pas de prix à donner : ne rien
-// chiffrer vaut mieux qu'un montant inventé.
-function worth(g: BillingGrant): string | null {
-  if (g.value_amount == null) return null
-  return g.interval === 'month'
-    ? t('billingUi.granted.worthMonthly', { amount: euros(g.value_amount) })
-    : t('billingUi.granted.worth', { amount: euros(g.value_amount) })
-}
-
-// À QUI il est offert. Un don posé sur un compte le suit d'une organisation à
-// l'autre : le confondre avec un don d'espace ferait croire à un collègue qu'il en
-// bénéficie aussi.
-function scopeLine(g: BillingGrant): string {
-  // Sans montant devant, « Il » n'aurait pas d'antécédent dans la phrase.
-  const seul = g.value_amount == null
-  return g.scope === 'user'
-    ? (seul ? t('billingUi.granted.userNoAmount') : t('billingUi.granted.user'))
-    : (seul ? t('billingUi.granted.orgNoAmount') : t('billingUi.granted.org'))
-}
-
-// L'échéance du don. `expires_at` nul = SANS TERME : on ne dit rien plutôt que
-// d'annoncer une fin qui n'existe pas.
+// L'échéance. `fin` nulle = SANS TERME : on ne dit rien plutôt que d'annoncer une fin
+// qui n'existe pas.
 //
-// ⚠️ Ne jamais reprendre ici le « aucun paiement, aucune échéance » de l'abonnement
-// offert : ce bloc-ci, lui, peut parfaitement en avoir une.
-function deadline(g: BillingGrant): { tone: 'warn' | 'info'; text: string } | null {
-  if (!g.expires_at) return null
-  const jour = fmtDay(g.expires_at)
-  const d = g.days_left
-  // `days_left` NÉGATIF = l'échéance est passée. Surtout pas « expire aujourd'hui » —
-  // et on dit par où rouvrir, sinon l'écran annonce une perte sans issue.
-  if (d != null && d < 0) {
-    return { tone: 'warn', text: t('billingUi.granted.ended', { day: jour ?? '' }) }
+// ⚠️ Ne jamais écrire ici « aucune échéance » : un don peut parfaitement en avoir une.
+function deadline(fin: string | null): { tone: 'warn' | 'info'; text: string } | null {
+  if (!fin) return null
+  const jour = fmtDay(fin) ?? ''
+  const reste = Date.parse(fin) - Date.now()
+  // Une échéance PASSÉE : surtout pas « expire aujourd'hui » — et on dit par où rouvrir,
+  // sinon l'écran annonce une perte sans issue.
+  if (reste < 0) {
+    const key = props.offerBelow ? 'billingUi.granted.ended' : 'billingUi.granted.endedPlain'
+    return { tone: 'warn', text: t(key, { day: jour }) }
   }
-  if (d != null && d <= 30) {
-    const reste = d === 0
-      ? t('billingUi.granted.lastDay')
-      : t('billingUi.granted.daysLeft', { n: d }, d)
-    return { tone: 'warn', text: t('billingUi.granted.until', { day: jour ?? '', left: reste }) }
+  const d = Math.floor(reste / JOUR_MS)
+  if (d <= 30) {
+    const left = d === 0 ? t('billingUi.granted.lastDay') : t('billingUi.granted.daysLeft', { n: d }, d)
+    return { tone: 'warn', text: t('billingUi.granted.until', { day: jour, left }) }
   }
-  return { tone: 'info', text: t('billingUi.granted.untilPlain', { day: jour ?? '' }) }
+  return { tone: 'info', text: t('billingUi.granted.untilPlain', { day: jour }) }
 }
 
-// Mis en forme une fois : appeler `deadline()` trois fois depuis le template le
-// ferait recalculer à chaque rendu, et rendrait la lecture du gabarit plus dure que
-// la règle qu'il applique.
-const rows = computed(() => props.grants.map((g) => ({
-  key: `${g.scope}:${g.option}`,
-  label: g.label,
-  detail: g.detail,
-  meta: [worth(g), scopeLine(g)].filter(Boolean).join(' '),
-  deadline: deadline(g),
-})))
+// Mis en forme une fois : l'essai d'abord (il couvre tout), puis les dons.
+const rows = computed(() => [
+  ...(props.avantages.essai ? [{
+    key: 'essai', label: t('billingUi.granted.trial'), detail: t('billingUi.granted.trialDetail'),
+    deadline: deadline(props.avantages.essai.fin),
+  }] : []),
+  ...props.avantages.dons.map((d) => ({
+    key: `don:${d.droit}`, label: droitLabel(d.droit), detail: t('billingUi.granted.org'),
+    deadline: deadline(d.fin),
+  })),
+])
 </script>
 
 <template>
@@ -97,8 +78,7 @@ const rows = computed(() => props.grants.map((g) => ({
           <span class="g-name">{{ r.label }}</span>
           <Tag tone="cobalt">{{ t('billingUi.granted.offered') }}</Tag>
         </div>
-        <p v-if="r.detail" class="g-detail">{{ r.detail }}</p>
-        <p class="g-meta">{{ r.meta }}</p>
+        <p class="g-detail">{{ r.detail }}</p>
         <Notice v-if="r.deadline" :tone="r.deadline.tone" class="g-when">
           {{ r.deadline.text }}
         </Notice>
@@ -110,8 +90,7 @@ const rows = computed(() => props.grants.map((g) => ({
 <style scoped>
 .grants { display: flex; flex-direction: column; gap: 14px; }
 /* Un filet entre deux avantages, pas une carte par avantage : ce sont des lignes
-   d'une même liste, et encadrer chacune ferait concurrence aux cartes de paliers
-   juste en dessous. */
+   d'une même liste, et encadrer chacune ferait concurrence à l'offre juste en dessous. */
 .grant + .grant { padding-top: 14px; border-top: 1px solid var(--color-hair-soft); }
 .g-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .g-name { font-weight: 700; font-size: 14px; color: var(--color-ink); }
@@ -119,6 +98,5 @@ const rows = computed(() => props.grants.map((g) => ({
   font-size: var(--fs-small); color: var(--color-ink-soft); margin: 6px 0 0;
   line-height: 1.5;
 }
-.g-meta { font-size: 12px; color: var(--color-mute); margin: 6px 0 0; line-height: 1.5; }
 .g-when { margin-top: 10px; }
 </style>

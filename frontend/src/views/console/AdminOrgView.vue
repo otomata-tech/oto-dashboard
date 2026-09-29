@@ -295,10 +295,9 @@ const orgOptions = computed(() => detail.value?.option_comps ?? [])
       </ConsoleCard>
 
 
-      <!-- Commerce (plan, facturation) : à part, en dernier — le cœur d'une instance n'en a pas. -->
-      <div class="eyebrow" style="margin: 26px 0 8px">commerce — plan et facturation</div>
-      <AdminOrgCommerce :org-id="orgId" :org-name="detail.org.name" :billing="detail.billing"
-        :can-write="canWrite" :is-operator="isOperator" @changed="refresh" />
+      <!-- Commerce (abonnement, facturation) : à part, en dernier — le cœur d'une instance n'en
+           a pas. Lu et écrit chez oto-commerce, par son API d'administration. -->
+      <AdminOrgCommerce :org-id="orgId" :org-name="detail.org.name" :is-operator="isOperator" />
     </template>
 
     <FormDialog v-if="formDialog" v-model:open="formDialogOpen"

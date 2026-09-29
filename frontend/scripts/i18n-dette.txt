@@ -1,7 +1,6 @@
 # LA DETTE I18N CONNUE (oto#195) — par fichier, le nombre de chaînes visibles écrites en dur
 # dans son gabarit. Elle ne fait que DÉCROÎTRE : traduire une zone la baisse (`npm run
 # i18n:write`), rien ne s'y ajoute. Voir `scripts/i18n-check.mjs`.
-src/components/console/AdminOrgCommerce.vue 13
 src/components/console/AgentContextCard.vue 2
 src/components/console/automations/RoutinesSection.vue 2
 src/components/console/connector-scope/ConnectorPlatformAccessPanel.vue 7
@@ -24,7 +23,7 @@ src/views/console/AccountDevelopersView.vue 1
 src/views/console/AdminConnectorsView.vue 16
 src/views/console/AdminObjectsView.vue 10
 src/views/console/AdminOrgsView.vue 14
-src/views/console/AdminOrgView.vue 27
+src/views/console/AdminOrgView.vue 26
 src/views/console/AdminOutreachView.vue 32
 src/views/console/AdminTenantsView.vue 58
 src/views/console/AdminUsersView.vue 17

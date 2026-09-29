@@ -1,4 +1,4 @@
-import { useAuth } from '@/composables/useAuth'
+import { useAuth, type TokenTarget } from '@/composables/useAuth'
 import { getViewUser, requestViewAsWrite, viewHeaders } from '@/lib/viewOrg'
 import { CODE_HORS_VUE, lectureHorsVue } from '@/lib/vueBornee'
 import { beginBusy, endBusy } from '@/lib/busy'
@@ -41,29 +41,42 @@ async function apiError(resp: Response): Promise<ApiError> {
 // (ADR 0004/0007 : le front ne détient aucun secret, le centre est oto-mcp).
 const base = (import.meta.env.VITE_OTO_MCP_BASE as string).replace(/\/$/, '')
 
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  // Vue bornée d'un org_admin (oto#270) : une lecture que le serveur refuse dans cette vue
-  // ne part pas — même refus, sans l'aller-retour (`lib/vueBornee`, sur la liste que
-  // `/api/me` sert).
-  if (lectureHorsVue(path, init.method)) throw new ApiError(403, CODE_HORS_VUE)
+// La facturation vit dans OTO-COMMERCE (`https://commerce.oto.cx`, routes sous `/api`),
+// avec sa propre ressource Logto (`useAuth`). Lue à l'APPEL et non au chargement : un poste
+// dev sans commerce garde une console qui marche, seul l'écran de facturation lève.
+const commerceBase = String(import.meta.env.VITE_OTO_COMMERCE_BASE ?? '').replace(/\/$/, '')
+
+function commerceUrl(path: string): string {
+  if (!commerceBase) throw new Error('commerce_unconfigured')
+  return `${commerceBase}${path}`
+}
+
+// Le jeton du service visé. Toute erreur ICI = session Logto morte (refresh 400, token
+// undefined, erreur OIDC localisée type « La requête de consentement est invalide ») —
+// normalisée pour que l'UI propose « se reconnecter » au lieu d'un faux incident serveur.
+// Seule exception : un commerce absent de la config n'est pas une session morte.
+async function bearer(target: TokenTarget = 'core'): Promise<string> {
   const { getAccessToken } = useAuth()
-  // Toute erreur ICI = session Logto morte (refresh 400, token undefined, erreur
-  // OIDC localisée type « La requête de consentement est invalide ») — normalisée
-  // pour que l'UI propose « se reconnecter » au lieu d'un faux incident serveur.
-  let token: string
   try {
-    token = await getAccessToken()
-  } catch {
+    return await getAccessToken(target)
+  } catch (e) {
+    if (e instanceof Error && e.message === 'commerce_unconfigured') throw e
     throw new Error('stale_session')
   }
+}
+
+// L'envoi JSON authentifié, commun au cœur et au commerce : seuls l'URL, le jeton et les
+// en-têtes propres au service changent.
+async function sendJson<T>(url: string, token: string, init: RequestInit,
+  extra: Record<string, string>): Promise<T> {
   beginBusy()   // active la présence « réfléchit » d'Oto (favicon) le temps de l'appel
   try {
-    const resp = await fetch(`${base}${path}`, {
+    const resp = await fetch(url, {
       ...init,
       headers: {
         Authorization: `Bearer ${token}`,
         ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-        ...viewHeaders(),   // view-as : scope la consultation (ADR 0023) ; écriture seulement après acceptation
+        ...extra,
         ...init.headers,
       },
     })
@@ -72,6 +85,24 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   } finally {
     endBusy()
   }
+}
+
+export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  // Vue bornée d'un org_admin (oto#270) : une lecture que le serveur refuse dans cette vue
+  // ne part pas — même refus, sans l'aller-retour (`lib/vueBornee`, sur la liste que
+  // `/api/me` sert).
+  if (lectureHorsVue(path, init.method)) throw new ApiError(403, CODE_HORS_VUE)
+  const token = await bearer()
+  // view-as : scope la consultation (ADR 0023) ; écriture seulement après acceptation.
+  return sendJson<T>(`${base}${path}`, token, init, viewHeaders())
+}
+
+// Un appel à OTO-COMMERCE : son jeton, et SANS les en-têtes de « voir en tant que » — le
+// commerce ne les connaît pas, il relit lui-même auprès du cœur le rôle du porteur du jeton
+// dans l'org du chemin. Même enveloppe de refus `{error, detail}`, donc même `ApiError`.
+export async function apiCommerce<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const url = commerceUrl(path)
+  return sendJson<T>(url, await bearer('commerce'), init, {})
 }
 
 // Fetch PUBLIC (sans bearer) — pour les endpoints non authentifiés (ex. aperçu
@@ -86,12 +117,19 @@ export async function apiPublic<T>(path: string, init: RequestInit = {}): Promis
 // + view-as, récupère le blob et déclenche le download navigateur. Le nom vient du
 // Content-Disposition, sinon `fallbackName`.
 export async function apiDownload(path: string, fallbackName = 'export.zip'): Promise<void> {
-  const { getAccessToken } = useAuth()
-  let token: string
-  try { token = await getAccessToken() } catch { throw new Error('stale_session') }
-  const resp = await fetch(`${base}${path}`, {
-    headers: { Authorization: `Bearer ${token}`, ...viewHeaders() },
-  })
+  return download(`${base}${path}`, await bearer(), viewHeaders(), fallbackName)
+}
+
+// Le même téléchargement, depuis OTO-COMMERCE (le PDF d'une facture) : son jeton, sans
+// en-têtes de « voir en tant que ».
+export async function apiCommerceDownload(path: string, fallbackName: string): Promise<void> {
+  const url = commerceUrl(path)
+  return download(url, await bearer('commerce'), {}, fallbackName)
+}
+
+async function download(url: string, token: string, extra: Record<string, string>,
+  fallbackName: string): Promise<void> {
+  const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}`, ...extra } })
   if (!resp.ok) throw await apiError(resp)
   const blob = await resp.blob()
   const cd = resp.headers.get('Content-Disposition') || ''

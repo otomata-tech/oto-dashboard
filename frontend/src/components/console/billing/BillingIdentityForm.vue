@@ -2,11 +2,13 @@
 // PREMIER écran du tunnel (#128) : qui paie, et depuis où.
 //
 // Ce n'est pas une fiche administrative de plus — c'est le pays saisi ici qui
-// décide du régime de TVA, donc du montant réellement débité, et `subscribe` refuse
-// (409 `billing_identity_required`) tant que les cinq champs requis ne sont pas là.
-// D'où l'ordre du tunnel : identité, puis montant annoncé, puis consentement.
+// décide du régime de TVA, donc du montant réellement débité, et la souscription est
+// refusée (400 `billing_identity_required`) tant que les cinq champs requis ne sont pas
+// là. D'où l'ordre du tunnel : identité, puis montant annoncé, puis consentement.
 //
-// La fiche part ENTIÈRE : le serveur remplace, il ne fusionne pas.
+// La fiche part ENTIÈRE vers oto-commerce (`PUT /orgs/{id}/identite`) : le serveur
+// remplace, il ne fusionne pas. L'adresse d'envoi des factures est requise, et `manquants`
+// la nomme (`email`) comme les cinq autres champs.
 //
 // ⚠️ Le numéro de TVA n'est pas contrôlé ici. Sa forme est vérifiée côté serveur,
 // qui NOMME ce qu'il attend (« un numéro BE commence par "BE" », « attendu EL suivi
@@ -18,27 +20,29 @@ import Btn from '@/components/console/Btn.vue'
 import Icon from '@/components/console/Icon.vue'
 import Notice from '@/components/console/Notice.vue'
 import OtoSelect from '@/components/console/OtoSelect.vue'
-import { setBillingIdentity } from '@/api/console'
+import { setIdentite } from '@/api/console'
 import { EU_COUNTRIES, HOME_COUNTRY, countryOptions, vatPrefix } from '@/lib/countries'
 import { IDENTITY_FIELD_LABEL } from '@/lib/billingTunnel'
 import { explain } from '@/lib/errors'
-import type { BillingIdentityView } from '@/types/api'
+import type { CommerceIdentiteVue } from '@/types/api.commerce'
 
 const props = defineProps<{
-  view: BillingIdentityView | null
-  /** Écriture réservée à l'org_admin (le serveur le garde aussi). */
+  orgId: number
+  view: CommerceIdentiteVue | null
+  /** Écriture réservée à l'org_admin hors consultation (le serveur le garde aussi) : sans
+   *  elle, la fiche se lit sans bouton. */
   canManage: boolean
   /** Champs que le serveur vient de nommer comme manquants — surlignés tant qu'ils
    *  le restent. Vide en peinture à froid. */
   highlight?: string[]
 }>()
-const emit = defineEmits<{ saved: [BillingIdentityView] }>()
+const emit = defineEmits<{ saved: [CommerceIdentiteVue] }>()
 
 const { locale, t } = useI18n()
 
 const draft = ref({
-  legal_name: '', country_code: HOME_COUNTRY, address_line: '', address_line2: '',
-  postal_code: '', city: '', vat_number: '', billing_email: '',
+  legal_name: '', country_code: HOME_COUNTRY, address_line: '',
+  postal_code: '', city: '', vat_number: '', email: '',
 })
 const busy = ref(false)
 const error = ref<string | null>(null)
@@ -47,17 +51,16 @@ const saved = ref(false)
 // Le formulaire se (re)remplit sur la fiche servie — y compris après un
 // enregistrement, où la réponse est l'état rafraîchi et non un accusé.
 watch(() => props.view, (v) => {
-  const i = v?.identity
+  const i = v?.identite
   if (!i) return
   draft.value = {
     legal_name: i.legal_name ?? '',
     country_code: i.country_code ?? HOME_COUNTRY,
     address_line: i.address_line ?? '',
-    address_line2: i.address_line2 ?? '',
     postal_code: i.postal_code ?? '',
     city: i.city ?? '',
     vat_number: i.vat_number ?? '',
-    billing_email: i.billing_email ?? '',
+    email: i.email ?? '',
   }
 }, { immediate: true })
 
@@ -86,15 +89,14 @@ async function save() {
   saved.value = false
   try {
     const d = draft.value
-    const view = await setBillingIdentity({
+    const view = await setIdentite(props.orgId, {
       legal_name: d.legal_name.trim(),
       country_code: d.country_code,
       address_line: d.address_line.trim(),
       postal_code: d.postal_code.trim(),
       city: d.city.trim(),
-      address_line2: d.address_line2.trim() || null,
       vat_number: d.vat_number.trim() || null,
-      billing_email: d.billing_email.trim() || null,
+      email: d.email.trim(),
     })
     saved.value = true
     emit('saved', view)
@@ -138,12 +140,6 @@ async function save() {
           :disabled="!canManage || busy" :placeholder="t('billingUi.identity.addressPh')" />
       </label>
 
-      <label class="bif-field bif-wide">
-        <span class="bif-label">{{ t('billingUi.identity.address2') }}</span>
-        <input v-model="draft.address_line2" class="inp" :disabled="!canManage || busy"
-          :placeholder="t('billingUi.identity.address2Ph')" />
-      </label>
-
       <label class="bif-field">
         <span class="bif-label">{{ IDENTITY_FIELD_LABEL.postal_code }}</span>
         <input v-model="draft.postal_code" class="inp" :class="{ flag: flagged('postal_code') }"
@@ -158,7 +154,7 @@ async function save() {
 
       <label class="bif-field bif-wide">
         <span class="bif-label">{{ t('billingUi.identity.email') }}</span>
-        <input v-model="draft.billing_email" class="inp" type="email"
+        <input v-model="draft.email" class="inp" :class="{ flag: flagged('email') }" type="email"
           :disabled="!canManage || busy"
           :placeholder="t('billingUi.identity.emailPh')" />
       </label>
@@ -173,9 +169,6 @@ async function save() {
       <Btn icon="check" :disabled="busy" @click="save">{{ t('billingUi.identity.save') }}</Btn>
       <span v-if="saved && !busy" class="bif-saved"><Icon name="ok" :size="14" /> {{ t('billingUi.identity.saved') }}</span>
     </div>
-    <p v-else class="helptext">
-      {{ t('billingUi.identity.adminOnly') }}
-    </p>
   </div>
 </template>
 

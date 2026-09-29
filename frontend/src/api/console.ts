@@ -1,13 +1,12 @@
 // Client REST typé pour la console — toutes les routes oto-mcp (api_routes*.py).
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
-import { api, apiDownload, apiUpload, apiPublic } from '@/api'
+import { api, apiDownload, apiUpload, apiPublic, apiCommerce, apiCommerceDownload, ApiError } from '@/api'
 import { lentilleMoi } from '@/lib/orgPerso'
 import { horsVueVide } from '@/lib/vueBornee'
 import type {
   ApiTokenCreated,
   AdminUser, AdminUserDetail, AdminOrgSummary, AgentContext, AgentToolbox, AccountProfile, InitGuide, InitScope, ApiToken, ConnectorActivation, ConnectorInstance, ConnectorMeta, CredentialState, MyConnector, SearchHit,
-  BillingStatus, BillingSubscribeResult, BillingPayment, BillingPlan,
-  BillingIdentityView, BillingIdentityInput, BillingConfirmResult, BillingInvoice, LegalStatus,
+  LegalStatus,
   Project, ProjectLink, ProjectLinkType, ConnectorLinkConfig, ProjectFile, Doc, DocKind, DocRevision, ProjectActivity, ProjectRun,
   SharedDoc, SharedDocScope,
   DoctrineBundle, Guide, GuideById, GuideScope,
@@ -31,11 +30,14 @@ import type {
 } from '@/types/api'
 // ⚠️ Contrat SERVI PAR UN LOT NON DÉPLOYÉ (oto-backend PR #723) — écrit à la main
 // parce qu'une régénération depuis l'OpenAPI en ligne l'effacerait. Cf. le fichier.
+import type { BailDuTravail } from '@/types/api.attendu'
+// Le contrat d'oto-commerce, qui ne publie pas d'OpenAPI — cf. le fichier.
 import type {
-  BailDuTravail,
-  BillingMethodChangeStarted, BillingMethodChangeResult,
-  AdminBillingIdentityView, AdminBillingIdentityInput,
-} from '@/types/api.attendu'
+  CommerceAbonnement, CommerceAvantages, CommerceCgv, CommerceCheckout, CommerceContrat, CommerceContratSaisie,
+  CommerceEtatAdmin, CommerceFacture, CommerceIdentiteAdminSaisie, CommerceIdentiteSaisie,
+  CommerceIdentiteVue, CommerceMoi, CommerceOk, CommercePaiement, CommerceSouscription,
+  CommerceTarif,
+} from '@/types/api.commerce'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
 
@@ -1279,89 +1281,91 @@ export const setPlatformInstruction = (key: string, body_md: string) =>
     `/api/admin/platform-instructions/${encodeURIComponent(key)}`,
     { method: 'PUT', ...j({ body_md }) })
 
-// ── Billing / abonnement par org (ADR 0043) — scopé à l'org active (X-Oto-Org) ──
-// Catalogue public des plans (indépendant de l'abonnement) — cockpit admin + achat.
-export const getPlans = () => api<{ plans: BillingPlan[] }>('/api/billing/plans')
-export const getBilling = () => api<BillingStatus>('/api/me/billing')
-export const getBillingPayments = (limit = 20) =>
-  api<{ payments: BillingPayment[] }>(`/api/me/billing/payments?limit=${limit}`)
-// checkout_url = page de paiement hébergée Mollie (carte, ou prélèvement SEPA
-// dont le mandat est collecté sur LEUR page — plus aucun champ IBAN côté nous).
-// v1 = carte (ADR 0043 « v1 CB seule ») ; method='sepa' resterait un simple hint.
-// La réponse est TOUJOURS une souscription OUVERTE (`checkout_url` + la
-// décomposition HT/TVA/TTC réellement retenue) : à ce stade rien n'est débité et
-// aucun abonnement n'existe. Les préalables manquants sortent en 409, pas en 200.
-export const subscribeBilling = (body: {
-  plan: string; return_url: string; method?: 'card' | 'sepa'
-}) => api<BillingSubscribeResult>('/api/me/billing/subscribe', { method: 'POST', ...j(body) })
-// Confirme au retour de la page hébergée (polling ; le webhook Mollie confirme
-// aussi côté serveur — ce confirm est le filet au retour navigateur).
-//
-// `payment_ref` = le paiement que le NAVIGATEUR vient de conclure, posé par le
-// serveur sur l'URL de retour (`?payment_ref=tr_…`). Sans lui, le serveur retombe
-// sur « le plus récent non conclu » — correct pour une re-sonde, approximatif au
-// retour d'un checkout. Le passer quand on l'a (#127).
-export const confirmBilling = (payment_ref?: string | null) =>
-  api<BillingConfirmResult>('/api/me/billing/confirm',
-    { method: 'POST', ...j(payment_ref ? { payment_ref } : {}) })
-export const cancelBilling = () => api<BillingStatus>('/api/me/billing/cancel', { method: 'POST' })
-// L'inverse de `cancel` (#845 ②), qui n'existait pas : purement local côté serveur —
-// résilier ne révoque pas le mandat, reprendre n'encaisse rien et n'appelle personne.
-// Refusé (400 `already_ended`) une fois la période échue : c'est alors un
-// réabonnement, par `subscribe` — et le refus le dit, on l'affiche tel quel.
-export const resumeBilling = () => api<BillingStatus>('/api/me/billing/resume', { method: 'POST' })
-// Changer de moyen de paiement (#845 ①) — la porte qui manquait à un abonné dont la
-// carte est morte. Un premier paiement à 0,00 sur la page hébergée (aucun mouvement
-// d'argent), puis `confirm` au retour. `return_url` = où revenir ; le serveur y recolle
-// `?payment_ref=` comme pour la souscription. Accepté sur `active` ET `past_due`.
-// ⚠️ `notice` s'affiche AVANT la redirection : l'ancien moyen reste actif tant que le
-// nouveau n'est pas confirmé — sans cette phrase, qui abandonne croit s'être coupé.
-export const startBillingMethodChange = (return_url: string) =>
-  api<BillingMethodChangeStarted>('/api/me/billing/method',
-    { method: 'POST', ...j({ return_url }) })
-// Constate le retour (ou re-sonde) : bascule sur le nouveau mandat puis révoque
-// l'ancien. Idempotent. `payment_ref` désigne LE changement conclu quand il y en a
-// plusieurs ouverts ; sans lui, le serveur prend le plus récent.
-export const confirmBillingMethodChange = (payment_ref?: string | null) =>
-  api<BillingMethodChangeResult>('/api/me/billing/method/confirm',
-    { method: 'POST', ...j(payment_ref ? { payment_ref } : {}) })
-
-// Identité de facturation de l'org (#486) — PRÉALABLE du cycle : le pays décide du
-// taux de TVA, donc du montant réellement débité, et `subscribe` refuse (409
-// `billing_identity_required`) tant qu'elle n'est pas complète. Consulter = tout
-// membre (le TTC affiché en dépend) ; écrire = org_admin.
-export const getBillingIdentity = () =>
-  api<BillingIdentityView>('/api/me/billing/identity')
+// ── Facturation de l'org — OTO-COMMERCE (`oto-commerce/docs/api-utilisateur.md`) ──
+// L'org est dans le CHEMIN, jamais dans un « org active » de session : chaque geste prend
+// l'id de l'org affichée. `apiCommerce` présente le jeton du commerce et n'envoie pas les
+// en-têtes de « voir en tant que » : le commerce relit lui-même, auprès du cœur, le rôle
+// du porteur dans l'org. Toute la facturation est à l'org_admin ; un membre ne lit que
+// `/moi`.
+const orgCommerce = (orgId: number) => `/api/orgs/${orgId}`
+// Sans jeton : le prix d'une place, et les documents d'achat en vigueur.
+export const getTarif = () => apiCommerce<CommerceTarif>('/api/tarif')
+export const getCgv = () => apiCommerce<CommerceCgv>('/api/cgv')
+// Un membre : porte-t-il les droits payants, et jusqu'à quand.
+export const getMonStatutPayant = (orgId: number) =>
+  apiCommerce<CommerceMoi>(`${orgCommerce(orgId)}/moi`)
+// Ce que l'org a sans payer (essai, dons) — lisible même sans abonnement.
+export const getAvantages = (orgId: number) =>
+  apiCommerce<CommerceAvantages>(`${orgCommerce(orgId)}/avantages`)
+// L'abonnement, ou `null` : `404 no_subscription` est l'état normal d'une org qui n'a
+// jamais souscrit, pas une panne. Tout autre refus remonte.
+export const getAbonnement = async (orgId: number): Promise<CommerceAbonnement | null> => {
+  try {
+    return await apiCommerce<CommerceAbonnement>(`${orgCommerce(orgId)}/abonnement`)
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404 && e.code === 'no_subscription') return null
+    throw e
+  }
+}
+// Le contrat hors plateforme, ou `null` : `404 no_contract` est l'état normal d'une org
+// qui n'en a pas. Clos, il se lit encore (`fin` passée) : « en cours » se tranche à la
+// lecture (`contratEnCours`). Tout autre refus remonte.
+export const getContrat = async (orgId: number): Promise<CommerceContrat | null> => {
+  try {
+    return await apiCommerce<CommerceContrat>(`${orgCommerce(orgId)}/contrat`)
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404 && e.code === 'no_contract') return null
+    throw e
+  }
+}
+// Souscrire : les documents d'achat s'acceptent DANS la souscription (`acceptations`, la
+// version acceptée par slug) — plus par `/api/me/legal/accept`. Rend la page de paiement
+// hébergée ; rien n'est débité à ce stade, et l'ouverture se constate en relisant
+// l'abonnement (le webhook du PSP fait foi). Refusé `409 under_contract` tant qu'un
+// contrat court : souscrire par-dessus ferait payer deux fois.
+export const souscrire = (orgId: number, body: CommerceSouscription) =>
+  apiCommerce<CommerceCheckout>(`${orgCommerce(orgId)}/abonnement`, { method: 'POST', ...j(body) })
+// Changer le nombre de places : une hausse vaut tout de suite (facturée à l'échéance),
+// une baisse prend effet à l'échéance (`places_a_l_echeance`).
+export const changerPlaces = (orgId: number, places: number) =>
+  apiCommerce<CommerceOk>(`${orgCommerce(orgId)}/abonnement`, { method: 'PATCH', ...j({ places }) })
+// Résilier à l'échéance, et l'inverse tant que la période court.
+export const resilier = (orgId: number) =>
+  apiCommerce<CommerceOk>(`${orgCommerce(orgId)}/abonnement/resiliation`, { method: 'POST' })
+export const reprendre = (orgId: number) =>
+  apiCommerce<CommerceOk>(`${orgCommerce(orgId)}/abonnement/resiliation`, { method: 'DELETE' })
+export const getPaiements = (orgId: number) =>
+  apiCommerce<{ paiements: CommercePaiement[] }>(`${orgCommerce(orgId)}/paiements`)
+// L'identité de facturation — PRÉALABLE de la souscription : son pays décide de la TVA.
 // La fiche part ENTIÈRE : le serveur remplace, il ne fusionne pas.
-export const setBillingIdentity = (body: BillingIdentityInput) =>
-  api<BillingIdentityView>('/api/me/billing/identity', { method: 'PUT', ...j(body) })
+export const getIdentite = (orgId: number) =>
+  apiCommerce<CommerceIdentiteVue>(`${orgCommerce(orgId)}/identite`)
+export const setIdentite = (orgId: number, body: CommerceIdentiteSaisie) =>
+  apiCommerce<CommerceIdentiteVue>(`${orgCommerce(orgId)}/identite`, { method: 'PUT', ...j(body) })
+// Changer de moyen de paiement : un premier paiement à 0,00 sur la page hébergée crée le
+// nouveau mandat, qui remplace l'ancien quand le PSP le confirme. Carte seulement, sans corps.
+export const changerMoyenDePaiement = (orgId: number) =>
+  apiCommerce<CommerceCheckout>(`${orgCommerce(orgId)}/moyen-de-paiement`, { method: 'POST' })
+// Les factures et avoirs — « téléchargeables depuis manage.oto.cx », promettent les CGV.
+export const getFactures = (orgId: number) =>
+  apiCommerce<{ factures: CommerceFacture[] }>(`${orgCommerce(orgId)}/factures`)
+// Le PDF n'est PAS du JSON : `apiCommerceDownload`, le nom vient du Content-Disposition.
+export const downloadFacturePdf = (orgId: number, factureId: number, fallbackName: string) =>
+  apiCommerceDownload(`${orgCommerce(orgId)}/factures/${factureId}/pdf`, fallbackName)
 
-// ── Factures et avoirs de l'org (#488) ──
-// Ce que les CGV promettent : « chaque encaissement donne lieu à une facture […]
-// téléchargeable depuis manage.oto.cx ». Lecture = TOUT MEMBRE de l'org, comme le
-// journal des paiements — la restreindre à l'org_admin fermerait au comptable la
-// seule porte que le contrat lui ouvre.
-export const getBillingInvoices = (limit = 24) =>
-  api<{ invoices: BillingInvoice[] }>(`/api/me/billing/invoices?limit=${limit}`)
-// Le PDF n'est PAS du JSON : route écrite à la main côté serveur, et
-// `apiDownload` ici — même bearer, même view-as, le nom de fichier vient du
-// Content-Disposition. ⚠️ `path` est le `pdf_path` SERVI avec la facture, jamais
-// un chemin recomposé : le serveur ne le rend que s'il y a un fichier au bout.
-export const downloadBillingInvoicePdf = (path: string, fallbackName: string) =>
-  apiDownload(path, fallbackName)
-
-// ── Documents légaux (acceptation CGU/CGV/DPA) — journal côté oto-mcp ──
+// ── Documents légaux d'ACCÈS (CGU) — journal côté oto-mcp ──
 // Types DÉRIVÉS de l'OpenAPI (`LegalStatus`), ré-exportés ici parce que les écrans
-// les importaient de ce module quand ils étaient écrits à la main.
+// les importaient de ce module quand ils étaient écrits à la main. Les documents d'ACHAT
+// (CGV, DPA) ont quitté le cœur : ils s'acceptent dans la souscription d'oto-commerce.
 export type { LegalStatus, LegalDocument } from '@/types/api'
 export const getLegal = () => api<LegalStatus>('/api/me/legal')
-// context = 'access' (inscription/CGU) | 'purchase' (achat) ; enregistre l'acceptation
-// des documents requis du contexte à leur version courante.
+// Enregistre l'acceptation des documents requis du contexte `access` à leur version
+// courante.
 //
 // ⚠️ La réponse est le statut légal RAFRAÎCHI, pas un accusé : si
-// `contexts.<context>.outstanding` n'est pas vide au retour, un document a bougé
-// entre l'affichage et le clic — il faut repeindre, pas enchaîner (#128).
-export const acceptLegal = (context: 'access' | 'purchase') =>
+// `contexts.access.outstanding` n'est pas vide au retour, un document a bougé entre
+// l'affichage et le clic — il faut repeindre, pas enchaîner (#128).
+export const acceptLegal = (context: 'access') =>
   api<LegalStatus>('/api/me/legal/accept', { method: 'POST', ...j({ context }) })
 
 // ── Abonnement de modèle personnel (palier membre, jamais l'org) ──
@@ -1397,13 +1401,28 @@ export const setOrgModelSubscriptionLimit = (
 // membre qui l'a prêté à l'org. Rend la carte relue (mode, pool_size compris).
 export const setOrgModelSubscriptionMode = (orgId: number, family: string, mode: OrgModelSubscriptionMode) =>
   api<OrgModelSubscriptionModeSet>(`${orgSubPath(orgId, family)}/mode`, { method: 'PUT', ...j({ mode }) })
-// Admin (super_admin) : forcer un plan sur une org sans paiement (plan=null retire).
-export const adminSetPlan = (orgId: number, plan: string | null) =>
-  api<BillingStatus>(`/api/admin/orgs/${orgId}/plan`, { method: 'POST', ...j({ plan }) })
-// Admin plateforme (#917) : l'identité de facturation d'une org ET le client Pennylane
-// qu'elle désigne — posé à la main, jamais rapproché ni créé par le code. La fiche
-// part ENTIÈRE : le serveur remplace, il ne fusionne pas.
-export const getAdminBillingIdentity = (orgId: number) =>
-  api<AdminBillingIdentityView>(`/api/admin/orgs/${orgId}/billing-identity`)
-export const setAdminBillingIdentity = (orgId: number, body: AdminBillingIdentityInput) =>
-  api<AdminBillingIdentityView>(`/api/admin/orgs/${orgId}/billing-identity`, { method: 'PUT', ...j(body) })
+// ── Admin plateforme : le bloc commerce de la fiche d'org (API d'administration
+// d'oto-commerce). Même jeton que la facturation ; le droit est le rôle PLATEFORME de
+// l'appelant, relu auprès du cœur. Avant la bascule, chaque geste rend `409 before_switch`.
+const adminCommerce = (orgId: number) => `/api/admin/orgs/${orgId}`
+export const getAdminCommerce = (orgId: number) =>
+  apiCommerce<CommerceEtatAdmin>(`${adminCommerce(orgId)}/commerce`)
+// Offrir un droit du catalogue à l'org (`fin` facultative) — remplace « forcer un plan
+// offert ». Le retirer.
+export const adminPoserDon = (orgId: number, droit: string, fin: string | null) =>
+  apiCommerce<CommerceOk>(`${adminCommerce(orgId)}/dons/${encodeURIComponent(droit)}`,
+    { method: 'PUT', ...j(fin ? { fin } : {}) })
+export const adminRetirerDon = (orgId: number, droit: string) =>
+  apiCommerce<CommerceOk>(`${adminCommerce(orgId)}/dons/${encodeURIComponent(droit)}`, { method: 'DELETE' })
+// Un abonnement réglé hors plateforme ; `DELETE` le clôt maintenant.
+export const adminPoserContrat = (orgId: number, body: CommerceContratSaisie) =>
+  apiCommerce<CommerceOk>(`${adminCommerce(orgId)}/contrat`, { method: 'PUT', ...j(body) })
+export const adminCloreContrat = (orgId: number) =>
+  apiCommerce<CommerceOk>(`${adminCommerce(orgId)}/contrat`, { method: 'DELETE' })
+// L'identité de facturation ET l'identifiant client du logiciel comptable, que seul
+// l'admin désigne (`compta_client_id`, vide = aucun). La fiche part ENTIÈRE.
+export const adminSetIdentite = (orgId: number, body: CommerceIdentiteAdminSaisie) =>
+  apiCommerce<CommerceIdentiteVue>(`${adminCommerce(orgId)}/identite`, { method: 'PUT', ...j(body) })
+// Le PDF d'une facture de l'org, côté admin plateforme.
+export const adminDownloadFacturePdf = (orgId: number, factureId: number, fallbackName: string) =>
+  apiCommerceDownload(`${adminCommerce(orgId)}/factures/${factureId}/pdf`, fallbackName)

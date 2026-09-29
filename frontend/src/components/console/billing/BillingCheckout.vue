@@ -1,15 +1,15 @@
 <script setup lang="ts">
-// Le tunnel de souscription d'un palier, en UN écran (#127 + #128).
+// Le tunnel de souscription d'un nombre de membres, en UN écran (#127 + #128).
 //
-// L'ordre est celui du serveur, et il n'est pas cosmétique : **identité → montant
-// annoncé → consentement → paiement**. On accepte des CGV *pour un montant*, et le
-// montant n'existe qu'une fois le pays connu (c'est lui qui décide de la TVA).
+// L'ordre n'est pas cosmétique : **identité → montant annoncé → consentement →
+// paiement**. On accepte des CGV *pour un montant*, et le montant n'existe qu'une fois le
+// pays connu (c'est lui qui décide de la TVA).
 //
-// ⚠️ Les manques se peignent TOUS D'UN COUP. Le serveur les rend ensemble
-// (`details.blockers`) précisément pour qu'un tunnel n'enchaîne pas « corrige
-// l'identité » puis, au clic suivant, « ah, et coche aussi » — et l'écran se peint
-// aussi À FROID (identité + statut légal) pour ne pas avoir besoin d'un refus pour
-// savoir quoi demander.
+// Tout vient d'oto-commerce : la fiche (`GET /orgs/{id}/identite`), les documents d'achat
+// (`GET /api/cgv`), et la souscription elle-même (`POST /orgs/{id}/abonnement`), qui
+// porte l'acceptation des documents à leur version. L'écran se peint À FROID (fiche +
+// documents) pour ne pas avoir besoin d'un refus pour savoir quoi demander ; un refus qui
+// nomme un préalable repeint le bloc concerné.
 import { computed, onMounted, ref } from 'vue'
 import Btn from '@/components/console/Btn.vue'
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
@@ -20,47 +20,53 @@ import BillingIdentityForm from './BillingIdentityForm.vue'
 import BillingLegalConsent from './BillingLegalConsent.vue'
 import BillingPriceCard from './BillingPriceCard.vue'
 import { ApiError } from '@/api'
-import { acceptLegal, getBillingIdentity, getLegal, subscribeBilling } from '@/api/console'
-import { blockersOf, docsToAccept, priceParts, type TunnelDoc } from '@/lib/billingTunnel'
+import { getCgv, getIdentite, souscrire } from '@/api/console'
+import {
+  acceptationsOf, blockersOf, cgvDocs, priceParts, taxPreview, type TunnelDoc,
+} from '@/lib/billingTunnel'
+import { euros } from '@/lib/euros'
 import { explain, humanize } from '@/lib/errors'
-import type { BillingIdentityView, BillingPlan, VatBlocked, VatScheme } from '@/types/api'
+import type { CommerceIdentiteVue, CommerceTarif } from '@/types/api.commerce'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
 const props = defineProps<{
-  plan: BillingPlan
-  /** Souscrire est réservé à l'org_admin (le serveur le garde aussi). */
-  canManage: boolean
-  returnUrl: string
+  orgId: number
+  /** Le nombre de membres payants choisi. */
+  places: number
+  tarif: CommerceTarif
 }>()
+// Retour à l'état de l'org, relu : changer le nombre, ou constater qu'un abonnement existe.
 const emit = defineEmits<{ back: [] }>()
-
-const PURCHASE = 'purchase'
 
 const loading = ref(true)
 const loadError = ref<string | null>(null)
-const identity = ref<BillingIdentityView | null>(null)
+const identity = ref<CommerceIdentiteVue | null>(null)
 const docs = ref<TunnelDoc[]>([])
 const accepted = ref(false)
-// Champs SURLIGNÉS. Distinct de `missing` : la fiche vide en sert cinq dès le premier
+// Champs SURLIGNÉS. Distinct de `manquants` : la fiche vide en sert cinq dès le premier
 // affichage, et peindre en rouge un formulaire auquel personne n'a touché est une
-// alarme sans fait. Le surlignage n'apparaît qu'après un refus — quand le serveur a
-// vraiment nommé ce qui manque.
+// alarme sans fait. Le surlignage n'apparaît qu'après un refus.
 const highlight = ref<string[]>([])
 const busy = ref(false)
 const error = ref<string | null>(null)
-// Un paiement de cette org est déjà en vol : le serveur l'a dit, et rouvrir un
-// checkout débiterait deux fois. Le bouton ne revient pas de lui-même (#127).
-const paymentPending = ref<string | null>(null)
+// Souscrire n'a plus d'objet, et le commerce le dit en 409 : l'org a déjà un abonnement
+// vivant (`subscription_alive`), ou un premier paiement est encore ouvert chez le PSP
+// (`payment_pending`) — en rouvrir un ferait payer deux fois (#127) —, ou un contrat
+// hors plateforme court (`under_contract`, posé entre la lecture de l'état et le clic).
+// Le refus s'affiche tel quel (le contrat, par sa clé i18n : le détail du serveur ne dit
+// que l'id de l'org), le bouton ne revient pas de lui-même, et le geste est de relire
+// l'état — qui montre alors le contrat.
+const alive = ref<string | null>(null)
 
 async function load() {
   loading.value = true
   loadError.value = null
   try {
-    const [view, legal] = await Promise.all([getBillingIdentity(), getLegal()])
-    identity.value = view
-    docs.value = docsToAccept(legal, PURCHASE)
+    const [vue, cgv] = await Promise.all([getIdentite(props.orgId), getCgv()])
+    identity.value = vue
+    docs.value = cgvDocs(cgv)
   } catch (e) {
     loadError.value = humanize(e)
   } finally {
@@ -69,29 +75,18 @@ async function load() {
 }
 onMounted(load)
 
-// Les champs requis encore absents — la liste que le serveur nomme, servie aussi
-// bien à froid (`missing`) qu'au refus.
-const missing = computed(() => identity.value?.missing ?? [])
-// `vat_blocked` et `vat_scheme` sont déclarés `str` par le serveur là où le domaine
-// est un ensemble fermé — on les resserre ici, comme `BillingStatus` le fait déjà.
-const vatBlocked = computed(() => (identity.value?.vat_blocked ?? null) as VatBlocked | null)
-const scheme = computed(() => (identity.value?.vat_scheme ?? null) as VatScheme | null)
-
-// HT / TVA / TTC. Le taux et le régime viennent de l'API ; seul le rapprochement
-// avec le prix du palier se fait ici (cf. l'avertissement de `billingTunnel`).
-const price = computed(() => priceParts(props.plan.amount, identity.value?.vat_rate_bps))
+const missing = computed(() => identity.value?.manquants ?? [])
+// Le régime et le taux que la fiche ouvre (miroir de la règle du commerce).
+const tax = computed(() => taxPreview(identity.value))
+const price = computed(() =>
+  priceParts(props.places * props.tarif.prix_ht_par_place, tax.value.rateBps))
 
 const canPay = computed(() =>
-  props.canManage && !busy.value && !paymentPending.value
-  && missing.value.length === 0 && !vatBlocked.value
+  !busy.value && !alive.value && !tax.value.blocked
   && (docs.value.length === 0 || accepted.value))
 
-function euros(cents: number): string {
-  return (cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
-}
-
-function onIdentitySaved(view: BillingIdentityView) {
-  identity.value = view
+function onIdentitySaved(vue: CommerceIdentiteVue) {
+  identity.value = vue
   highlight.value = []
   error.value = null
 }
@@ -100,22 +95,10 @@ async function pay() {
   busy.value = true
   error.value = null
   try {
-    // Le consentement est le dernier geste avant la page de paiement. La réponse
-    // d'`accept` est le statut RAFRAÎCHI : s'il reste quelque chose, un document a
-    // bougé entre l'affichage et le clic — on repeint au lieu de rejouer.
-    if (docs.value.length) {
-      const refreshed = await acceptLegal(PURCHASE)
-      const remaining = docsToAccept(refreshed, PURCHASE)
-      if (remaining.length) {
-        docs.value = remaining
-        accepted.value = false
-        error.value = t('billingUi.checkout.docsChanged')
-        return
-      }
-      docs.value = []
-    }
-    const started = await subscribeBilling({
-      plan: props.plan.plan, return_url: props.returnUrl, method: 'card',
+    // Le consentement est le dernier geste avant la page de paiement, et il part DANS
+    // la souscription : la version de chaque document tel qu'il a été montré.
+    const started = await souscrire(props.orgId, {
+      places: props.places, methode: 'card', acceptations: acceptationsOf(docs.value),
     })
     window.location.href = started.checkout_url
   } catch (e) {
@@ -127,38 +110,33 @@ async function pay() {
 
 async function onRefused(e: unknown) {
   const blockers = blockersOf(e)
-  if (blockers) {
-    // Peindre les deux manques d'un coup. La liste des champs se relit sur la fiche
-    // (`missing`), qui est la même que celle nommée par le refus — le blocker, lui,
-    // ne la porte qu'en prose.
-    if (blockers.identity) {
-      try {
-        identity.value = await getBillingIdentity()
-        highlight.value = identity.value.missing
-      } catch { /* la fiche reste celle affichée */ }
-    }
-    if (blockers.legal) {
-      docs.value = blockers.legal.documents
-      accepted.value = false
-    }
-    // ⚠️ Le message du serveur n'est PAS affiché ici : il est écrit pour un client
-    // d'API (« Enregistre-la avec POST /api/me/legal/accept… »). Ce que le payeur
-    // doit lire, ce sont les blocs repeints — les champs surlignés et les documents
-    // à ouvrir. La phrase ne fait que dire lesquels regarder.
-    const reste = [
-      blockers.identity ? t('billingUi.checkout.identity') : null,
-      blockers.legal ? t('billingUi.checkout.legal') : null,
-    ].filter(Boolean)
-    error.value = t('billingUi.checkout.remaining', { items: reste.join(t('billingUi.checkout.conj')) })
+  if (blockers?.identity) {
+    // La liste des champs se relit sur la fiche (`manquants`), la même que celle que le
+    // refus nomme en prose.
+    try {
+      identity.value = await getIdentite(props.orgId)
+      highlight.value = identity.value.manquants
+    } catch { /* la fiche reste celle affichée */ }
+    error.value = t('billingUi.checkout.remaining', { items: t('billingUi.checkout.identity') })
     return
   }
-  // `payment_pending` : le refus dit quel paiement occupe la place, son âge et quoi
-  // faire. Celui-là est rédigé pour être lu — on l'affiche tel quel, et on ne rouvre
-  // pas de page de paiement.
-  if (e instanceof ApiError && e.code === 'payment_pending') {
-    paymentPending.value = explain(e)
+  if (blockers?.legal) {
+    // Un document a changé de version entre l'affichage et le clic : on repeint la
+    // liste en vigueur, et la case se recoche en connaissance de cause.
+    try { docs.value = cgvDocs(await getCgv()) } catch { /* la liste reste celle affichée */ }
+    accepted.value = false
+    error.value = t('billingUi.checkout.docsChanged')
     return
   }
+  if (e instanceof ApiError && e.code === 'under_contract') {
+    alive.value = humanize(e)
+    return
+  }
+  if (e instanceof ApiError && (e.code === 'subscription_alive' || e.code === 'payment_pending')) {
+    alive.value = explain(e)
+    return
+  }
+  // Le refus du commerce est affiché tel quel : il nomme ce qui bloque.
   error.value = explain(e)
 }
 </script>
@@ -173,15 +151,15 @@ async function onRefused(e: unknown) {
       <ConsoleCard :title="t('billingUi.checkout.identityTitle')"
         :sub="t('billingUi.checkout.identitySub')">
         <template #actions>
-          <Btn kind="link" icon="chev" @click="emit('back')">{{ t('billingUi.checkout.changeTier') }}</Btn>
+          <Btn kind="link" icon="chev" @click="emit('back')">{{ t('billingUi.checkout.changeSeats') }}</Btn>
         </template>
-        <BillingIdentityForm :view="identity" :can-manage="canManage" :highlight="highlight"
-          @saved="onIdentitySaved" />
+        <BillingIdentityForm :org-id="orgId" :view="identity" :can-manage="true"
+          :highlight="highlight" @saved="onIdentitySaved" />
       </ConsoleCard>
 
       <!-- ── 2. Le montant, avant tout consentement ── -->
-      <BillingPriceCard :plan-label="plan.label" :price="price" :scheme="scheme"
-        :blocked="vatBlocked" />
+      <BillingPriceCard :places="places" :price="price" :scheme="tax.scheme"
+        :blocked="tax.blocked" />
 
       <!-- ── 3. Consentement, dernier geste avant la page de paiement ── -->
       <ConsoleCard v-if="docs.length" :title="t('billingUi.checkout.terms')"
@@ -192,22 +170,22 @@ async function onRefused(e: unknown) {
       <!-- ── 4. Paiement ── -->
       <ConsoleCard :title="t('billingUi.checkout.payment')"
         :sub="t('billingUi.checkout.paymentSub')">
-        <Notice v-if="paymentPending" tone="warn">{{ paymentPending }}</Notice>
+        <Notice v-if="alive" tone="warn">
+          {{ alive }}
+          <Btn kind="link" icon="chev" class="bck-fix" @click="emit('back')">{{ t('billingUi.view.refresh') }}</Btn>
+        </Notice>
         <Notice v-else-if="error" tone="warn">{{ error }}</Notice>
 
-        <div v-if="canManage && !paymentPending" class="bck-pay">
+        <div v-if="!alive" class="bck-pay">
           <Btn icon="card" :disabled="!canPay" @click="pay">
             {{ price ? t('billingUi.checkout.payAmount', { amount: euros(price.ttc) }) : t('billingUi.checkout.pay') }}
           </Btn>
           <span v-if="!canPay && !busy" class="helptext">{{
-            missing.length || vatBlocked
+            missing.length || tax.blocked
               ? t('billingUi.checkout.completeIdentity')
               : t('billingUi.checkout.acceptTerms')
           }}</span>
         </div>
-        <p v-else-if="!canManage" class="helptext">
-          {{ t('billingUi.checkout.adminOnly') }}
-        </p>
       </ConsoleCard>
     </template>
   </div>
@@ -215,4 +193,7 @@ async function onRefused(e: unknown) {
 
 <style scoped>
 .bck-pay { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+.bck-fix {
+  margin-left: 6px; color: inherit; text-decoration: underline; text-underline-offset: 2px;
+}
 </style>

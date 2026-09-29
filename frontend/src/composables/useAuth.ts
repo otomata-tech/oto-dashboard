@@ -8,11 +8,22 @@ import { setSentryUser } from '@/lib/sentry'
 const endpoint = import.meta.env.VITE_LOGTO_ENDPOINT as string
 const appId = import.meta.env.VITE_LOGTO_APP_ID as string
 const resource = import.meta.env.VITE_LOGTO_AUDIENCE as string
+// La ressource PROPRE à oto-commerce (la facturation) : un jeton n'ouvre que l'audience
+// pour laquelle il a été émis, donc le front demande les deux au MÊME login et présente à
+// chaque service le sien (oto-commerce `docs/api-utilisateur.md`). Absente (poste dev
+// sans commerce) : la console marche, seul un appel au commerce lève.
+const commerceResource = (import.meta.env.VITE_LOGTO_COMMERCE_AUDIENCE as string | undefined) || null
+
+/** À quel service un jeton est destiné : le cœur (oto-backend) ou le commerce. */
+export type TokenTarget = 'core' | 'commerce'
 
 const logto = new LogtoClient({
   endpoint,
   appId,
-  resources: [resource],
+  // ⚠️ Ajouter une ressource, comme ajouter un scope, n'est acquis qu'au login suivant :
+  // une session ouverte avant ne sait pas émettre le jeton commerce (→ `stale_session`,
+  // « se reconnecter », une fois).
+  resources: commerceResource ? [resource, commerceResource] : [resource],
   // `identities` : requis pour l'Account API Logto (/api/my-account/mfa-verifications),
   // qui alimente la gestion 2FA self-service du dashboard. ⚠️ Ajouter un scope force un
   // re-consent : un user déjà connecté doit se reconnecter une fois pour l'obtenir.
@@ -87,8 +98,10 @@ export function useAuth() {
     await logto.signOut(redirectTo || window.location.origin)
   }
 
-  async function getAccessToken(): Promise<string> {
-    const token = await logto.getAccessToken(resource)
+  // Le cœur par défaut : aucun appel existant ne change.
+  async function getAccessToken(target: TokenTarget = 'core'): Promise<string> {
+    if (target === 'commerce' && !commerceResource) throw new Error('commerce_unconfigured')
+    const token = await logto.getAccessToken(target === 'commerce' ? commerceResource! : resource)
     // @logto/browser peut renvoyer undefined sur session morte au lieu de throw
     // (gotcha connu) → erreur franche plutôt qu'un « Bearer undefined ».
     if (!token) throw new Error('stale_session')

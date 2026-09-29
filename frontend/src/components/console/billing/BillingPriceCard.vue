@@ -1,21 +1,22 @@
 <script setup lang="ts">
 // Le montant, annoncé AVANT le consentement et avant la page de paiement (#128).
 //
-// « Ce que vous réglerez » est le TTC, pas le prix du palier : le payeur ne doit pas
-// découvrir la TVA chez le prestataire. Le régime et le taux viennent de l'API — le
-// front ne classe personne, il rapproche le taux servi du prix du catalogue
-// (cf. l'avertissement de tête de `lib/billingTunnel`).
+// « Ce que vous réglerez » est le TTC, pas le prix d'une place : le payeur ne doit pas
+// découvrir la TVA chez le prestataire. Le régime et le taux sont ceux que l'identité
+// ouvre, rapprochés du tarif du commerce (cf. l'avertissement de tête de
+// `lib/billingTunnel`, miroir de la règle du serveur).
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Notice from '@/components/console/Notice.vue'
 import Tag from '@/components/console/Tag.vue'
 import { VAT_BLOCKED_MESSAGE, VAT_SCHEME_LABEL, VAT_SCHEME_NOTE, type PriceParts } from '@/lib/billingTunnel'
-import type { VatBlocked, VatScheme } from '@/types/api'
+import type { VatBlocked, VatScheme } from '@/types/api.commerce'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
 defineProps<{
-  planLabel: string
+  /** Le nombre de membres payants choisi. */
+  places: number
   /** `null` tant que le régime n'est pas tranché — `blocked` dit alors pourquoi. */
   price: PriceParts | null
   scheme: VatScheme | null
@@ -28,7 +29,7 @@ function euros(cents: number): string {
 </script>
 
 <template>
-  <ConsoleCard :title="t('billingUi.price.title', { plan: planLabel })"
+  <ConsoleCard :title="t('billingUi.price.title', { n: places }, places)"
     :sub="t('billingUi.price.sub')">
     <template #actions>
       <Tag v-if="scheme" tone="cobalt">{{ VAT_SCHEME_LABEL[scheme] }}</Tag>

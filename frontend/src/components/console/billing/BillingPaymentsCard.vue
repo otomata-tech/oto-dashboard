@@ -1,21 +1,21 @@
 <script setup lang="ts">
-// Le JOURNAL des tentatives de paiement d'un abonné — les échéances, la
-// souscription, et depuis #845 les changements de moyen (un premier paiement à
-// 0,00 : la ligne existe, son montant est nul). Extrait de `BillingView` sans
-// changement de comportement, pour la même raison que le catalogue.
+// Le JOURNAL des tentatives de paiement de l'org (`GET /orgs/{id}/paiements`, oto-commerce)
+// — la souscription, les échéances, et les changements de moyen (un premier paiement à
+// 0,00 : la ligne existe, son montant est nul).
 //
-// Ce n'est PAS la carte des factures (au-dessus) : une facture est le document que
-// les CGV promettent ; ceci n'est que la suite des tentatives.
+// Ce n'est PAS la carte des factures (au-dessus) : une facture est le document que les
+// CGV promettent ; ceci n'est que la suite des tentatives.
 import ConsoleCard from '@/components/console/ConsoleCard.vue'
 import Tag from '@/components/console/Tag.vue'
-import type { BillingPayment } from '@/types/api'
+import type { CommercePaiement } from '@/types/api.commerce'
 import { fmtDateTime } from '@/types/api'
 import { euros } from '@/lib/euros'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-defineProps<{ payments: BillingPayment[] }>()
+// Le commerce sert le journal du plus récent au plus ancien : on le montre tel quel.
+defineProps<{ payments: CommercePaiement[] }>()
 
 function payKind(kind: string): string {
   if (kind === 'initial') return t('billingUi.payments.initial')
@@ -30,6 +30,11 @@ function payTone(s: string): 'olive' | 'terra' | 'ink' {
   if (['failed', 'canceled', 'expired'].includes(s)) return 'terra'
   return 'ink'
 }
+// Le montant réellement pris (TTC). Une ligne reprise du cœur peut ne pas le porter :
+// on ne le reconstitue pas.
+function amount(p: CommercePaiement): string {
+  return p.montant_ttc == null ? '—' : euros(p.montant_ttc)
+}
 </script>
 
 <template>
@@ -41,9 +46,9 @@ function payTone(s: string): 'olive' | 'terra' | 'ink' {
       <tbody>
         <tr v-for="p in payments" :key="p.id">
           <td class="mono">{{ fmtDateTime(p.created_at) }}</td>
-          <td>{{ payKind(p.kind) }}</td>
-          <td class="num">{{ euros(p.amount) }}</td>
-          <td><Tag :tone="payTone(p.status)">{{ p.status }}</Tag></td>
+          <td>{{ payKind(p.nature) }}</td>
+          <td class="num">{{ amount(p) }}</td>
+          <td><Tag :tone="payTone(p.statut)">{{ p.statut }}</Tag></td>
         </tr>
       </tbody>
     </table>

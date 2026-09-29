@@ -1092,7 +1092,8 @@ export interface OrgEntitlement {
   granted_at?: string | null
 }
 // ⚠️ ÉCRIT À LA MAIN — `entitlements` n'est PAS servi : `_org_detail` renvoie {org,
-//    members, secrets, option_comps, billing}. La carte « accès débloqués »
+//    members, secrets, option_comps, billing} (`billing` n'est plus lu : la facturation
+//    vit dans oto-commerce). La carte « accès débloqués »
 //    d'OrgSettingsView en dépend et ne peut donc jamais s'afficher — à trancher côté
 //    backend (servir le champ) ou ici (retirer la carte), pas à masquer.
 export interface OrgDetail {
@@ -1101,7 +1102,6 @@ export interface OrgDetail {
   secrets: OrgSecret[]
   entitlements?: OrgEntitlement[]
   option_comps?: string[]   // options payantes offertes (comp admin) à l'ORG
-  billing?: BillingStatus   // plan/abonnement de l'org (ADR 0043) — cockpit admin
 }
 // ── redaction de champs par connecteur (FieldFilter, ADR 0015) ──
 export interface FieldRule {
@@ -1705,162 +1705,7 @@ export type ScheduledEmail = components['schemas']['ScheduledEmail']
 // reste mcp.oto.ninja/mcp.
 export const MCP_URL = (import.meta.env.VITE_MCP_PUBLIC_URL as string) || 'https://mcp.oto.cx/mcp'
 
-// ── Billing / abonnement par org (ADR 0043) ──
-export type BillingPlan = components['schemas']['Plan']
-// ⚠️ ÉCRIT À LA MAIN — le contrat servi est plus LÂCHE que l'écran (`BillingStatus` :
-//    plans: déclaré nullable ; plan: déclaré nullable ; currency: déclaré nullable ;
-//    interval: déclaré nullable ; status: déclaré nullable ; status: `str` là où l'écran a
-//    un ensemble fermé (active|canceled|failed|incomplete|past_due|pending) ; method:
-//    déclaré nullable ; method: `str` là où l'écran a un ensemble fermé (card|comp|sepa)).
-//    Le correctif est côté oto-backend — resserrer l'`Output` — puis `npm run api:refresh`
-//    ici.
-export interface BillingStatus {
-  subscribed: boolean
-  plans?: BillingPlan[]           // présent seulement si pas encore abonné
-  plan?: string
-  label?: string | null
-  amount?: number | null          // prix du palier au catalogue, en centimes HORS TAXES
-  currency?: string
-  interval?: string
-  // 'incomplete'|'active'|'past_due'|'canceled' = statut miroir ; 'pending'|'failed'
-  // = états transitoires renvoyés par confirm (polling de l'intent/mandat).
-  status?: 'incomplete' | 'active' | 'past_due' | 'canceled' | 'pending' | 'failed'
-  method?: 'card' | 'sepa' | 'comp'
-  comp?: boolean                  // abonnement forcé par un admin (non payé)
-  current_period_end?: string | null
-  next_billing_at?: string | null
-  grace_until?: string | null
-  canceled_at?: string | null
-  // Décomposition de la PROCHAINE échéance (#486). ⚠️ Sur un abonnement offert
-  // (comp), les cinq champs valent toujours `null` : rien n'y sera jamais prélevé.
-  vat_rate_bps?: number | null
-  vat_amount?: number | null
-  amount_ttc?: number | null      // ce qui sera RÉELLEMENT prélevé, en centimes
-  vat_scheme?: VatScheme | null
-  vat_blocked?: VatBlocked | null
-  // ── Ce qui est OFFERT, et ce qui est consommé (backend `billing_grants`) ──
-  // Servis dans les DEUX branches, abonné ou non — et c'est tout le point : la
-  // branche « pas d'abonnement » est justement celle qui vendait au bénéficiaire
-  // d'un don ce qu'il possédait déjà. `[]` / `null` = rien à montrer.
-  granted?: BillingGrant[]
-  usage?: BillingUsage | null
-}
-export type BillingSubscribeResult = ApiOut<'billing_subscribe_post'>
-export type BillingPayment = components['schemas']['Payment']
-
-/** Une FACTURE — ou un AVOIR — émise pour un encaissement (oto-backend #488).
- *
- *  ⚠️ ÉCRIT À LA MAIN, mais **pas pour la raison des types juste au-dessus** : ici le
- *  contrat est parfaitement déclaré côté serveur, et servi en production. C'est le
- *  SNAPSHOT commité (`openapi/oto-openapi.json`) qui est antérieur au lot, et le
- *  rafraîchir emporterait tout le reste de la dérive accumulée — un `api:refresh`
- *  est un acte à part, dont le diff est l'information, jamais l'effet de bord d'un
- *  lot d'écran. Les champs ci-dessous ont été relevés un à un sur le document servi
- *  par un serveur vivant, pas recopiés d'une intention.
- *
- *  ⚠️ Une facture n'est PAS une tentative de paiement (ça, c'est `BillingPayment`) :
- *  c'est le document comptable, et c'est lui que les CGV promettent téléchargeable.
- *  Son numéro vient de Pennylane, qui porte la numérotation continue d'Otomata. */
-export interface BillingInvoice {
-  /** Identifiant local, celui qu'attend la route de téléchargement du PDF. */
-  id: number
-  /** ⚠️ Le serveur déclare `str` ; l'écran n'en connaît que deux valeurs. Un `kind`
-   *  inconnu doit donc se lire comme une facture ordinaire, jamais faire disparaître
-   *  la ligne : un document qu'on ne sait pas nommer reste un document dû. */
-  kind: 'invoice' | 'credit_note'
-  /** 'issued' = émis, numéroté, définitif. 'pending' = l'émission n'a pas encore
-   *  abouti — **l'encaissement, lui, a bien eu lieu** et la facture est due ; elle
-   *  est rejouée automatiquement. ⚠️ Un `pending` n'est jamais un paiement perdu, et
-   *  la copie ne doit pas le laisser croire. */
-  status: 'issued' | 'pending'
-  /** Attribué par Pennylane à la finalisation. `null` tant que `status='pending'` :
-   *  un numéro n'existe pas avant le document. */
-  number?: string | null
-  currency: string
-  /** En CENTIMES. */
-  amount_ht?: number | null
-  vat_rate_bps?: number | null
-  vat_amount?: number | null
-  /** Ce qui a été réellement débité, en centimes. ⚠️ **NÉGATIF sur un avoir.** */
-  amount_ttc?: number | null
-  vat_scheme?: VatScheme | null
-  period_start?: string | null
-  period_end?: string | null
-  /** Date PORTÉE par le document — celle de l'encaissement, pas celle de son
-   *  émission technique. */
-  issued_at?: string | null
-  /** `false` avec `status='issued'` = document bien émis dont le fichier n'a pas
-   *  encore été récupéré chez le fournisseur ; la reprise le fera. */
-  has_pdf: boolean
-  /** Chemin REST du PDF, à préfixer de la base d'API — **ce n'est pas une URL
-   *  publique** : la route exige le même jeton que le reste de `/api/me`. `null`
-   *  quand `has_pdf` est faux, et le serveur ne le sert QUE s'il y a quelque chose
-   *  au bout : un lien vers une 404 se subit au clic. */
-  pdf_path?: string | null
-  /** Envoi au contact de facturation. `null` = non envoyé — le document reste
-   *  téléchargeable, l'e-mail n'en conditionne rien. */
-  emailed_at?: string | null
-  created_at: string
-}
-
-/** Un avantage payant OFFERT par Otomata (don d'option, couche 3 d'ADR 0043).
- *
- *  ⚠️ ÉCRIT À LA MAIN, pour la même raison que `BillingStatus` juste au-dessus :
- *  `/api/me/billing` ne déclare pas d'`Output`, donc rien de tout cela n'existe
- *  dans le document OpenAPI et `api:gen` ne peut pas le dériver. Le correctif de
- *  fond est côté oto-backend (déclarer l'`Output`), puis `npm run api:refresh` ici.
- *  D'ici là le champ reste OPTIONNEL côté `BillingStatus`, avec sa conduite de
- *  repli à l'écran (`v-if`) : un backend antérieur ne sert rien, et l'écran se
- *  contente de ne pas afficher le bloc.
- *
- *  ⚠️ Purement DESCRIPTIF : il n'ouvre aucun droit, l'entitlement reste au serveur.
- *  Le backend ne rend que les options qui figurent dans un palier vendu — un
- *  drapeau de population n'a pas de prix, donc n'est jamais présenté comme un
- *  cadeau. */
-export interface BillingGrant {
-  option: string
-  /** NOMME l'avantage. Il n'y a pas que la messagerie qui coûte : l'écran affiche
-   *  ce libellé, jamais un « offert par Otomata » seul qui deviendrait faux le jour
-   *  où un second avantage s'offre. */
-  label: string
-  detail: string | null
-  /** 'org' = ouvert à toute l'organisation | 'user' = à CE compte, qui l'emporte
-   *  avec lui dans toutes ses organisations. */
-  scope: 'org' | 'user'
-  granted_at: string | null
-  /** `null` = sans terme. */
-  expires_at: string | null
-  /** `null` si sans terme. **NÉGATIF quand l'échéance est passée** : le serveur ne
-   *  le borne pas à zéro exprès, un don échu doit se lire comme échu et non comme
-   *  « expire aujourd'hui ». */
-  days_left: number | null
-  /** Centimes HORS TAXES — ce qu'il faudrait payer pour l'avoir (prix du palier le
-   *  moins cher qui l'inclut). */
-  value_amount: number | null
-  currency: string | null
-  interval: string | null
-}
-
-/** Les appels d'outil d'agent du MOIS EN COURS, et ce qui est inclus.
- *
- *  ⚠️ **Aucun ratio n'est servi, et aucun ne doit être calculé ici.** À une médiane
- *  de 25 appels sur 1000 inclus, une barre de progression ou un pourcentage dit
- *  « c'est gratuit et sans fin » — l'inverse exact de ce que ce bloc existe pour
- *  faire comprendre. On affiche le nombre et le plafond, jamais leur division ;
- *  `over` est le seul discriminant de ton.
- *
- *  ⚠️ Fenêtre = mois en cours SEULEMENT. La rétention du journal ne permet pas de
- *  comparaison au mois précédent : ne rien bâtir dessus. */
-export interface BillingUsage {
-  calls: number
-  included: number
-  period_start: string
-  /** Servi par le serveur, jamais dérivé. N'entraîne AUCUN refus ni surfacturation :
-   *  le dépassement s'affiche, il ne coupe pas. */
-  over: boolean
-}
-
-// ── Identité de facturation, TVA et consentement d'achat (#486/#487, tunnel #128) ──
+// ── TVA et consentement d'achat (la facturation elle-même vit dans oto-commerce : api.commerce.ts) ──
 // Le régime fiscal servi par l'API. Le front ne le CALCULE pas : il l'affiche.
 export type VatScheme = 'fr_ttc' | 'reverse_charge' | 'export'
 // Pourquoi aucun régime n'est calculable — donc pourquoi il n'y a pas de TTC à
@@ -1868,18 +1713,6 @@ export type VatScheme = 'fr_ttc' | 'reverse_charge' | 'export'
 // souscription en ligne : le guichet OSS n'est pas en place.
 export type VatBlocked = 'billing_identity_required' | 'vat_consumer_unsupported'
 
-export type BillingIdentity = components['schemas']['BillingIdentity']
-/** L'identité, ce qui lui manque, et le régime qu'elle produirait. Forme COMMUNE à
- *  la lecture et à l'écriture : `set` rend l'état rafraîchi, pas un accusé. */
-export type BillingIdentityView = ApiOut<'me_billing_identity_get_get'>
-/** La fiche POSTÉE ENTIÈRE (la capacité remplace, elle ne fusionne pas). */
-export type BillingIdentityInput = ApiIn<'me_billing_identity_set_put'>
-// La vue ADMIN de la fiche (+ client Pennylane, #917) vit dans `api.attendu.ts`
-// tant que la route n'est pas dans le snapshot OpenAPI.
-/** Avancement du premier paiement — quatre branches discriminées par `status`,
- *  toutes en 200. ⚠️ `pending_mandate` = ENCAISSÉ, mandat pas encore né : une
- *  ATTENTE, jamais un échec (#127). */
-export type BillingConfirmResult = ApiOut<'billing_confirm_post'>
 export type LegalDocument = components['schemas']['LegalDocument']
 export type LegalContext = components['schemas']['LegalContext']
 export type LegalStatus = ApiOut<'me_legal_get_get'>

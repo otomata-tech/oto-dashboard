@@ -1,80 +1,36 @@
-// Le cas qui a laissé le seul abonné payant dans une impasse huit jours durant :
-// l'écran de facturation affichait « complétez l'identité de facturation » SANS
-// aucun endroit où le faire. Le formulaire existait — mais monté dans le seul
-// tunnel de souscription, qui disparaît dès qu'on est abonné.
+// L'écran de facturation, branché sur oto-commerce. Ce que le typecheck ne voit pas, et
+// que ces tests fixent :
+//   1. chaque geste part vers la BONNE route du commerce, l'org dans le chemin, avec le
+//      bon corps (places, acceptations des documents d'achat, identité entière…) ;
+//   2. une alerte porte son levier, et le formulaire qu'elle désigne est monté ;
+//   3. tant qu'une souscription est en vol, aucun bouton « payer » n'est atteignable —
+//      l'écran RELIT l'abonnement, il ne confirme rien lui-même (le webhook fait foi) ;
+//   4. un membre ne voit que son propre statut ; en consultation, le commerce n'est pas
+//      appelé du tout ;
+//   5. une org sous contrat en cours voit son contrat À LA PLACE de l'offre ; un contrat
+//      clos ne masque rien.
 //
-// Ces tests couvrent donc le CÂBLAGE d'un écran d'ABONNÉ (le typecheck ne voit pas
-// qu'une alerte n'a pas d'issue) :
-//   1. l'alerte porte son propre levier, et le formulaire est réellement monté ;
-//   2. l'enregistrement part vers le PUT et l'alerte tombe quand le serveur la lève ;
-//   3. à qui ne peut pas écrire, on ne propose pas un bouton qui refusera au clic ;
-//   4. un abonnement OFFERT n'affiche pas de fiche : rien n'y sera jamais prélevé.
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+// Le transport (`apiCommerce`) est remplacé par un faux commerce ; `api/console` est le
+// VRAI : c'est lui qui compose les routes que ces tests lisent.
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { i18n } from '@/lib/i18n'
-import { ApiError } from '@/api'
 import { usePrompt } from '@/composables/usePrompt'
+import type {
+  CommerceAbonnement, CommerceAvantages, CommerceContrat, CommerceIdentiteVue, CommerceMoi,
+  CommercePaiement,
+} from '@/types/api.commerce'
 
-const ACTIF = {
-  subscribed: true, plan: 'standard', label: 'Standard', amount: 1900,
-  currency: 'EUR', interval: 'month', status: 'active', method: 'card', comp: false,
-  current_period_end: '2026-09-25', next_billing_at: '2026-09-25',
-  grace_until: null, canceled_at: null,
-}
-// L'état d'Alexis au 2026-09-02 : abonné, actif, et pas de TTC calculable.
-const BLOQUE = {
-  ...ACTIF,
-  vat_rate_bps: null, vat_amount: null, amount_ttc: null, vat_scheme: null,
-  vat_blocked: 'billing_identity_required',
-}
-// Ce que le serveur rend une fois la fiche posée.
-const DEBLOQUE = {
-  ...ACTIF,
-  vat_rate_bps: 2000, vat_amount: 380, amount_ttc: 2280, vat_scheme: 'fr_ttc',
-  vat_blocked: null,
-}
-
-const FICHE_VIDE = {
-  identity: null,
-  missing: ['legal_name', 'country_code', 'address_line', 'postal_code', 'city'],
-  vat_scheme: null, vat_rate_bps: null, vat_blocked: 'billing_identity_required',
-}
-const FICHE_PLEINE = {
-  identity: {
-    legal_name: 'ACME SAS', country_code: 'FR', vat_number: null,
-    address_line: '1 rue du Test', address_line2: null, postal_code: '13001',
-    city: 'Marseille', billing_email: null,
-  },
-  missing: [], vat_scheme: 'fr_ttc', vat_rate_bps: 2000, vat_blocked: null,
-}
-
-// `vi.hoisted` : la fabrique de `vi.mock` est remontée en tête de module, elle ne
-// peut donc pas fermer sur des `const` déclarés plus bas.
-const api = vi.hoisted(() => ({
-  getBilling: vi.fn(),
-  getBillingIdentity: vi.fn(),
-  setBillingIdentity: vi.fn(),
-  getBillingPayments: vi.fn(),
-  // La carte « Factures » est montée par la vue et lit ce module : sans cette
-  // entrée, le mock rendrait `undefined` et la carte partirait en erreur sous des
-  // tests qui ne parlent pas d'elle.
-  getBillingInvoices: vi.fn(),
-  downloadBillingInvoicePdf: vi.fn(),
-  confirmBilling: vi.fn(),
-  cancelBilling: vi.fn(),
-  // Les deux gestes de #845 : l'inverse de la résiliation, et le changement de carte
-  // (ouverture, puis constat au retour — lu par `BillingMethodChange`).
-  resumeBilling: vi.fn(),
-  startBillingMethodChange: vi.fn(),
-  confirmBillingMethodChange: vi.fn(),
+const commerce = vi.hoisted(() => ({ apiCommerce: vi.fn(), apiCommerceDownload: vi.fn() }))
+vi.mock('@/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api')>()), ...commerce,
 }))
-vi.mock('@/api/console', () => api)
-const { getBilling, getBillingIdentity, setBillingIdentity, getBillingPayments,
-  getBillingInvoices, resumeBilling, startBillingMethodChange, confirmBillingMethodChange } = api
+import { ApiError } from '@/api'
 
 const me = ref<{
-  org_role: string | null; role: string; active_org_name: string; active_org_readonly?: boolean
+  org_role: string | null; role: string; active_org: number | null; active_org_name: string
+  active_org_readonly?: boolean; view_as_read_only?: boolean
 } | null>(null)
 // Les helpers de rôle sont les VRAIS (oto#210) : seul le profil est un bouchon.
 vi.mock('@/composables/useMe', async (importOriginal) => ({
@@ -82,11 +38,119 @@ vi.mock('@/composables/useMe', async (importOriginal) => ({
   useMe: () => ({ me }),
 }))
 
+// ── le faux commerce ─────────────────────────────────────────────────────────
+
+const ACTIF: CommerceAbonnement = {
+  tarif: 'par_membre', places: 3, places_a_l_echeance: null, payants: ['u1', 'u2', 'u3'],
+  montant_ht: 7500, tva_bps: 2000, tva: 1500, montant_ttc: 9000, regime_tva: 'fr_ttc',
+  tva_bloquee: null, statut: 'active', periode_fin: '2026-10-25T00:00:00+00:00',
+  echeance: '2026-10-25T00:00:00+00:00', grace_fin: null, resilie_le: null,
+  droits_jusqu_au: '2026-11-15T00:00:00+00:00', essai: null,
+}
+// L'état d'Alexis au 2026-09-02 : abonné, actif, et pas de TTC calculable.
+const BLOQUE: CommerceAbonnement = {
+  ...ACTIF, tva_bps: null, tva: null, montant_ttc: null, regime_tva: null,
+  tva_bloquee: 'billing_identity_required',
+}
+const RESILIE: CommerceAbonnement = { ...ACTIF, resilie_le: '2026-09-20T10:00:00+00:00', echeance: null }
+const IMPAYE: CommerceAbonnement = { ...ACTIF, statut: 'past_due', grace_fin: '2026-11-09T00:00:00+00:00' }
+const OUVERT: CommerceAbonnement = { ...ACTIF, statut: 'incomplete', periode_fin: null, echeance: null }
+
+const FICHE_VIDE: CommerceIdentiteVue = {
+  identite: null, manquants: ['legal_name', 'country_code', 'address_line', 'postal_code', 'city', 'email'],
+}
+const FICHE_PLEINE: CommerceIdentiteVue = {
+  identite: { legal_name: 'ACME SAS', country_code: 'FR', vat_number: null,
+    address_line: '1 rue du Test', postal_code: '13001', city: 'Marseille', email: 'compta@acme.test' },
+  manquants: [],
+}
+const CGV = { documents: {
+  cgv: { version: '2.1', label: 'CGV', url: 'https://oto.cx/cgv' },
+  dpa: { version: '2.1', label: 'DPA', url: 'https://oto.cx/dpa' },
+} }
+let idPaiement = 0
+const paiement = (nature: string, statut: string): CommercePaiement => ({
+  id: ++idPaiement, created_at: '2026-09-28T10:00:00+00:00', nature, statut, places: 3, montant_ht: 7500,
+  tva_bps: 2000, tva: 1500, montant_ttc: 9000, regime_tva: 'fr_ttc', periode_fin: null,
+})
+
+// Un abonnement réglé hors plateforme, posé par l'admin plateforme.
+const CONTRAT: CommerceContrat = {
+  licences: 12, droits: ['unipile', 'platform_unmetered'], debut: '2026-01-01T00:00:00+00:00',
+  fin: '2999-12-31T12:00:00+00:00', reference: 'BC-2026-007',
+}
+
+const srv: {
+  abonnement: CommerceAbonnement | null
+  contrat: CommerceContrat | null
+  avantages: CommerceAvantages
+  paiements: CommercePaiement[]
+  identite: CommerceIdentiteVue
+  moi: CommerceMoi
+  // Un refus à rendre pour « VERBE chemin ».
+  refus: Record<string, ApiError>
+  // Ce qu'un geste change dans le monde, une fois accepté.
+  apres: Record<string, () => void>
+} = { abonnement: null, contrat: null, avantages: { essai: null, dons: [] }, paiements: [], identite: FICHE_PLEINE,
+  moi: { payant: false, jusqu_au: null }, refus: {}, apres: {} }
+const appels: { geste: string; corps: unknown }[] = []
+
+function servir() {
+  commerce.apiCommerce.mockImplementation(async (path: string, init: RequestInit = {}) => {
+    const geste = `${init.method ?? 'GET'} ${path}`
+    appels.push({ geste, corps: init.body ? JSON.parse(String(init.body)) : undefined })
+    const refus = srv.refus[geste]
+    if (refus) throw refus
+    srv.apres[geste]?.()
+    const o = '/api/orgs/42'
+    switch (geste) {
+      case 'GET /api/tarif': return { prix_ht_par_place: 2500, devise: 'eur', intervalle: 'month' }
+      case 'GET /api/cgv': return CGV
+      case `GET ${o}/moi`: return srv.moi
+      case `GET ${o}/avantages`: return srv.avantages
+      case `GET ${o}/abonnement`:
+        if (!srv.abonnement) throw new ApiError(404, 'no_subscription', 'l\'org #42 n\'a pas d\'abonnement')
+        return srv.abonnement
+      case `GET ${o}/contrat`:
+        if (!srv.contrat) throw new ApiError(404, 'no_contract', 'l\'org #42 n\'a pas de contrat')
+        return srv.contrat
+      case `GET ${o}/paiements`: return { paiements: srv.paiements }
+      case `GET ${o}/identite`: return srv.identite
+      case `PUT ${o}/identite`: return srv.identite
+      case `GET ${o}/factures`: return { factures: [] }
+      case `POST ${o}/abonnement`: return { checkout_url: 'https://pay.invalid/souscription' }
+      case `POST ${o}/moyen-de-paiement`: return { checkout_url: 'https://pay.invalid/carte' }
+      case `PATCH ${o}/abonnement`:
+      case `POST ${o}/abonnement/resiliation`:
+      case `DELETE ${o}/abonnement/resiliation`: return { ok: true }
+    }
+    throw new Error(`route inattendue : ${geste}`)
+  })
+}
+const gestes = () => appels.map((a) => a.geste)
+const corpsDe = (geste: string) => appels.find((a) => a.geste === geste)?.corps
+
+// ── le montage ───────────────────────────────────────────────────────────────
+
+// `window.location` est remplacé par un objet nu : la vue écrit `href` pour partir chez
+// le prestataire — jsdom ne navigue pas, on lit ce qui a été écrit.
+const ORIGIN = 'http://localhost:3000'
+function fakeLocation() {
+  Object.defineProperty(window, 'location', {
+    configurable: true, writable: true,
+    value: { origin: ORIGIN, href: `${ORIGIN}/org/billing`, assign: vi.fn() },
+  })
+}
+
 async function mountView() {
   const View = (await import('./BillingView.vue')).default
+  const Vide = defineComponent({ render: () => h('div') })
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/org/billing', component: defineComponent({ render: () => h('div') }) }],
+    routes: [
+      { path: '/org/billing', component: Vide },
+      { path: '/platform/orgs/:id', component: Vide },
+    ],
   })
   await router.push('/org/billing')
   await router.isReady()
@@ -100,350 +164,471 @@ async function mountView() {
   return { host, unmount: () => { app.unmount(); host.remove() } }
 }
 
-// `load()` puis `loadIdentity()` s'enchaînent : laisser les microtâches se vider.
+// Les lectures s'enchaînent : laisser les microtâches se vider (horloge réelle ou figée).
 async function settle() {
   for (let i = 0; i < 10; i++) await nextTick()
-  await new Promise((r) => setTimeout(r, 20))
+  if (vi.isFakeTimers()) await vi.advanceTimersByTimeAsync(20)
+  else await new Promise((r) => setTimeout(r, 20))
   for (let i = 0; i < 10; i++) await nextTick()
 }
 
-function boutonNomme(host: HTMLElement, texte: string): HTMLButtonElement | undefined {
-  return [...host.querySelectorAll('button')]
-    .find((b) => b.textContent?.includes(texte))
+const texte = (host: HTMLElement) => (host.textContent ?? '').replace(/\p{Zs}/gu, ' ')
+function boutonNomme(host: HTMLElement, t: string): HTMLButtonElement | undefined {
+  return [...host.querySelectorAll('button')].find((b) => b.textContent?.includes(t))
+}
+function boutonsNommes(host: HTMLElement, t: string): HTMLButtonElement[] {
+  return [...host.querySelectorAll('button')].filter((b) => b.textContent?.includes(t))
+}
+async function saisir(input: HTMLInputElement, valeur: string) {
+  input.value = valeur
+  input.dispatchEvent(new Event('input'))
+  await nextTick()
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
   i18n.global.locale.value = 'fr'
-  me.value = { org_role: 'org_admin', role: 'member', active_org_name: 'ACME' }
-  getBillingPayments.mockResolvedValue({ payments: [] })
-  getBillingInvoices.mockResolvedValue({ invoices: [] })
+  me.value = { org_role: 'org_admin', role: 'member', active_org: 42, active_org_name: 'ACME' }
+  appels.length = 0
+  Object.assign(srv, { abonnement: null, contrat: null, avantages: { essai: null, dons: [] }, paiements: [],
+    identite: FICHE_PLEINE, moi: { payant: false, jusqu_au: null }, refus: {}, apres: {} })
+  servir()
+  fakeLocation()
+})
+afterEach(() => { vi.useRealTimers() })
+
+// ── souscrire ────────────────────────────────────────────────────────────────
+
+describe('BillingView — souscrire un nombre de membres', () => {
+  it('sans abonnement (404 no_subscription), l\'offre dit le prix d\'une place — plus aucun palier',
+    async () => {
+      const { host, unmount } = await mountView()
+      const txt = texte(host)
+      expect(txt).toContain('Choisir un abonnement')
+      expect(txt).toContain('25 €')
+      expect(txt).toContain('HT par membre et par mois')
+      expect(txt).not.toContain('sur devis')
+      // L'org est dans le chemin de chaque lecture.
+      expect(gestes()).toEqual(expect.arrayContaining([
+        'GET /api/orgs/42/abonnement', 'GET /api/orgs/42/contrat', 'GET /api/orgs/42/avantages',
+        'GET /api/orgs/42/paiements', 'GET /api/tarif']))
+      // Sans contrat (404 no_contract) : aucune carte de contrat.
+      expect(txt).not.toContain('Votre contrat')
+      unmount()
+    })
+
+  it('le tunnel annonce le TTC de N places, puis souscrit avec les places et les versions acceptées',
+    async () => {
+      const { host, unmount } = await mountView()
+      await saisir(host.querySelector<HTMLInputElement>('input[type=number]')!, '3')
+      expect(texte(host)).toContain('Soit 75 € HT par mois.')
+      boutonNomme(host, 'Continuer')!.click()
+      await settle()
+
+      // Montant AVANT le consentement : 3 × 25 € HT, TVA française 20 % → 90 € TTC.
+      const txt = texte(host)
+      expect(txt).toContain('Abonnement pour 3 membres')
+      expect(txt).toContain('90')
+      expect(txt).toContain('version 2.1')
+      const payer = boutonNomme(host, 'Payer')!
+      expect(payer.disabled).toBe(true)
+
+      const caseCgv = host.querySelector<HTMLInputElement>('input[type=checkbox]')!
+      caseCgv.checked = true
+      caseCgv.dispatchEvent(new Event('change'))
+      await nextTick()
+      boutonNomme(host, 'Payer')!.click()
+      await settle()
+
+      expect(corpsDe('POST /api/orgs/42/abonnement')).toEqual({
+        places: 3, methode: 'card', acceptations: { cgv: '2.1', dpa: '2.1' },
+      })
+      // Plus d'acceptation à part au cœur : elle est DANS la souscription.
+      expect(gestes().some((g) => g.includes('/legal'))).toBe(false)
+      expect(window.location.href).toBe('https://pay.invalid/souscription')
+      unmount()
+    })
+
+  it('un document qui change entre l\'affichage et le clic : on repeint, on ne part pas',
+    async () => {
+      srv.refus['POST /api/orgs/42/abonnement'] = new ApiError(400, 'purchase_documents_required',
+        'à accepter, à leur version en vigueur : cgv 2.2')
+      const { host, unmount } = await mountView()
+      boutonNomme(host, 'Continuer')!.click()
+      await settle()
+      const caseCgv = host.querySelector<HTMLInputElement>('input[type=checkbox]')!
+      caseCgv.checked = true
+      caseCgv.dispatchEvent(new Event('change'))
+      await nextTick()
+      boutonNomme(host, 'Payer')!.click()
+      await settle()
+
+      expect(texte(host)).toContain('Ces documents ont changé à l\'instant')
+      // La case se recoche en connaissance de cause, et les documents se relisent.
+      expect(host.querySelector<HTMLInputElement>('input[type=checkbox]')!.checked).toBe(false)
+      expect(gestes().filter((g) => g === 'GET /api/cgv')).toHaveLength(2)
+      expect(window.location.href).toBe(`${ORIGIN}/org/billing`)
+      unmount()
+    })
+
+  it('un premier paiement déjà ouvert (409 payment_pending) : le refus tel quel, et plus de « Payer »',
+    async () => {
+      const refus = 'un premier paiement de l\'org #42 est en cours chez Mollie'
+      srv.refus['POST /api/orgs/42/abonnement'] = new ApiError(409, 'payment_pending', refus)
+      const { host, unmount } = await mountView()
+      boutonNomme(host, 'Continuer')!.click()
+      await settle()
+      const caseCgv = host.querySelector<HTMLInputElement>('input[type=checkbox]')!
+      caseCgv.checked = true
+      caseCgv.dispatchEvent(new Event('change'))
+      await nextTick()
+      boutonNomme(host, 'Payer')!.click()
+      await settle()
+
+      expect(texte(host)).toContain(refus)
+      expect(boutonNomme(host, 'Payer')).toBeUndefined()
+      expect(boutonNomme(host, 'Actualiser')).toBeTruthy()
+      expect(window.location.href).toBe(`${ORIGIN}/org/billing`)
+      unmount()
+    })
+
+  it('ce qui est offert (essai, dons) se dit AU-DESSUS de l\'offre, qui reste ouverte', async () => {
+    srv.avantages = { essai: { fin: '2999-01-01T00:00:00+00:00' }, dons: [{ droit: 'unipile', fin: null }] }
+    const { host, unmount } = await mountView()
+    const txt = texte(host)
+    expect(txt).toContain('Essai gratuit')
+    expect(txt).toContain('Messagerie LinkedIn & WhatsApp (Unipile)')
+    expect(txt.indexOf('Ce qui vous est offert')).toBeLessThan(txt.indexOf('Choisir un abonnement'))
+    expect(boutonNomme(host, 'Continuer')).toBeTruthy()
+    unmount()
+  })
 })
 
-describe('BillingView — identité de facturation hors du tunnel', () => {
-  it('un abonné dont l\'échéance est bloquée a le formulaire SOUS l\'alerte, et un lien qui y mène', async () => {
-    getBilling.mockResolvedValue(BLOQUE)
-    getBillingIdentity.mockResolvedValue(FICHE_VIDE)
+// ── sous contrat ─────────────────────────────────────────────────────────────
 
+// Un abonnement réglé hors plateforme : l'org a payé. Lui proposer l'offre, c'était
+// l'inviter à payer deux fois — le commerce le refuse (409 under_contract).
+describe('BillingView — une org sous contrat', () => {
+  it('contrat en cours : la carte du contrat, et ni l\'offre ni le tarif', async () => {
+    srv.contrat = CONTRAT
     const { host, unmount } = await mountView()
-
-    // L'écran est bien celui d'un abonné : aucun tunnel, aucun catalogue.
-    expect(host.innerHTML).not.toContain('Choisir un abonnement')
-    // L'alerte est là…
-    expect(host.textContent).toContain('La prochaine échéance ne peut pas être calculée')
-    // …ET elle porte un levier.
-    expect(boutonNomme(host, 'Compléter l\'identité de facturation')).toBeTruthy()
-    // …qui mène à un formulaire RÉELLEMENT monté sur cet écran.
-    const carte = host.querySelector('#billing-identity')
-    expect(carte, 'la carte d\'identité de facturation est absente').toBeTruthy()
-    expect(carte!.textContent).toContain('Raison sociale')
-    expect(carte!.querySelectorAll('input').length).toBeGreaterThan(4)
-    expect(boutonNomme(host, 'Enregistrer')).toBeTruthy()
-    // Le formulaire du tunnel, pas une copie : la lecture passe par la MÊME API.
-    expect(getBillingIdentity).toHaveBeenCalledTimes(1)
+    const txt = texte(host)
+    expect(txt).toContain('Votre contrat')
+    expect(txt).toContain('12')
+    expect(txt).toContain('Messagerie LinkedIn & WhatsApp (Unipile)')
+    expect(txt).toContain('Connecteurs de données sans quota d\'appel')
+    expect(txt).toContain('Référence : BC-2026-007')
+    expect(txt).toContain('depuis le')
+    expect(txt).toContain('31 décembre 2999')
+    expect(txt).not.toContain('Choisir un abonnement')
+    expect(boutonNomme(host, 'Continuer')).toBeUndefined()
+    expect(gestes()).not.toContain('GET /api/tarif')
     unmount()
   })
 
-  it('enregistrer depuis cet écran écrit par le PUT, et l\'alerte tombe quand le serveur la lève',
+  it('contrat sans échéance (reconduction tacite) : « sans échéance », jamais une date inventée',
     async () => {
-      getBilling.mockResolvedValueOnce(BLOQUE)
-      getBillingIdentity.mockResolvedValue(FICHE_VIDE)
-      setBillingIdentity.mockResolvedValue(FICHE_PLEINE)
-      // Le second `getBilling` est celui d'après-enregistrement : le serveur ne
-      // bloque plus, et c'est cette relecture qui doit faire tomber l'alerte.
-      getBilling.mockResolvedValue(DEBLOQUE)
-
+      srv.contrat = { ...CONTRAT, fin: null, debut: null, licences: null, reference: null }
       const { host, unmount } = await mountView()
-      expect(host.textContent).toContain('La prochaine échéance ne peut pas être calculée')
+      const txt = texte(host)
+      expect(txt).toContain('Votre contrat')
+      expect(txt).toContain('sans échéance')
+      expect(txt).not.toContain('depuis le')
+      expect(txt).not.toContain('Référence')
+      expect(txt).not.toContain('Choisir un abonnement')
+      unmount()
+    })
 
-      const champs = [...host.querySelectorAll<HTMLInputElement>('#billing-identity input')]
-      const raisonSociale = champs[0]!            // premier champ du formulaire
-      raisonSociale.value = 'ACME SAS'
-      raisonSociale.dispatchEvent(new Event('input'))
+  it('sous contrat, un don ÉCHU ne renvoie pas vers une offre absente', async () => {
+    srv.contrat = CONTRAT
+    srv.avantages = { essai: null, dons: [{ droit: 'unipile', fin: '2020-01-01T00:00:00+00:00' }] }
+    const { host, unmount } = await mountView()
+    const txt = texte(host)
+    expect(txt).toContain('Cette offre a pris fin le')
+    expect(txt).not.toContain('ci-dessous')
+    expect(txt).not.toContain('Choisir un abonnement')
+    unmount()
+  })
+
+  it('contrat CLOS : il ne masque rien, l\'offre revient', async () => {
+    srv.contrat = { ...CONTRAT, fin: '2020-01-01T00:00:00+00:00' }
+    const { host, unmount } = await mountView()
+    const txt = texte(host)
+    expect(txt).not.toContain('Votre contrat')
+    expect(txt).toContain('Choisir un abonnement')
+    expect(boutonNomme(host, 'Continuer')).toBeTruthy()
+    unmount()
+  })
+
+  it('un contrat posé entre la lecture et le clic (409 under_contract) : le message traduit, plus de « Payer »',
+    async () => {
+      srv.refus['POST /api/orgs/42/abonnement'] = new ApiError(409, 'under_contract',
+        'l\'org #42 est sous contrat')
+      const { host, unmount } = await mountView()
+      boutonNomme(host, 'Continuer')!.click()
+      await settle()
+      const caseCgv = host.querySelector<HTMLInputElement>('input[type=checkbox]')!
+      caseCgv.checked = true
+      caseCgv.dispatchEvent(new Event('change'))
       await nextTick()
-
-      boutonNomme(host, 'Enregistrer')!.click()
+      boutonNomme(host, 'Payer')!.click()
       await settle()
 
-      expect(setBillingIdentity).toHaveBeenCalledTimes(1)
-      expect(setBillingIdentity.mock.calls[0]![0]).toMatchObject({
-        legal_name: 'ACME SAS', country_code: 'FR',
-      })
-      // L'écran s'est relu : plus d'alerte, et le TTC de l'échéance apparaît.
-      expect(getBilling).toHaveBeenCalledTimes(2)
-      expect(host.textContent).not.toContain('La prochaine échéance ne peut pas être calculée')
-      expect(host.textContent).toContain('22,80')
-      unmount()
-    })
+      expect(texte(host)).toContain('l\'organisation est sous contrat')
+      expect(boutonNomme(host, 'Payer')).toBeUndefined()
+      expect(window.location.href).toBe(`${ORIGIN}/org/billing`)
 
-  it('à un membre qui ne peut pas écrire, on nomme qui le peut au lieu d\'un bouton qui refuserait',
-    async () => {
-      me.value = { org_role: 'member', role: 'member', active_org_name: 'ACME' }
-      getBilling.mockResolvedValue(BLOQUE)
-      getBillingIdentity.mockResolvedValue(FICHE_VIDE)
-
-      const { host, unmount } = await mountView()
-
-      expect(host.textContent).toContain('seul un administrateur de l\'organisation peut la corriger')
-      expect(boutonNomme(host, 'Compléter l\'identité de facturation')).toBeUndefined()
-      // La fiche reste LISIBLE (le TTC en dépend), mais en lecture seule.
-      expect(host.querySelector('#billing-identity')).toBeTruthy()
-      expect(boutonNomme(host, 'Enregistrer')).toBeUndefined()
-      unmount()
-    })
-
-  it('un abonnement OFFERT n\'affiche pas de fiche de facturation : rien n\'y sera prélevé',
-    async () => {
-      getBilling.mockResolvedValue({ ...ACTIF, comp: true, method: 'comp', vat_blocked: null })
-      getBillingIdentity.mockResolvedValue(FICHE_PLEINE)
-
-      const { host, unmount } = await mountView()
-
-      expect(host.textContent).toContain('offert par Otomata')
-      expect(host.querySelector('#billing-identity')).toBeNull()
-      expect(getBillingIdentity).not.toHaveBeenCalled()
-      unmount()
-    })
-
-  it('si la fiche ne se lit pas, l\'écran de l\'abonné reste debout (et son alerte avec lui)',
-    async () => {
-      getBilling.mockResolvedValue(BLOQUE)
-      getBillingIdentity.mockRejectedValue(new Error('upstream'))
-
-      const { host, unmount } = await mountView()
-
-      expect(host.textContent).toContain('La prochaine échéance ne peut pas être calculée')
-      expect(host.querySelector('#billing-identity')).toBeTruthy()
-      expect(boutonNomme(host, 'Réessayer')).toBeTruthy()
+      // « Actualiser » relit l'état : le contrat est là, à la place de l'offre.
+      srv.contrat = CONTRAT
+      boutonNomme(host, 'Actualiser')!.click()
+      await settle()
+      expect(texte(host)).toContain('Votre contrat')
+      expect(texte(host)).not.toContain('Choisir un abonnement')
       unmount()
     })
 })
 
-// ── #845 : les deux alertes qui n'avaient pas de levier en ont un ──────────────
-//
-// « Résiliation programmée » n'offrait pas de revenir en arrière ; « paiement en
-// échec » n'offrait pas de changer de carte. Les deux gestes existent côté serveur
-// depuis oto-backend#845 ; ces tests couvrent leur CÂBLAGE ici : qui les voit, ce
-// qu'ils appellent, et que les phrases du serveur (refus comme constats) arrivent
-// à l'écran telles quelles.
+// ── l'attente d'ouverture ────────────────────────────────────────────────────
 
-const RESILIE = { ...ACTIF, canceled_at: '2026-09-03T10:00:00Z', next_billing_at: null }
-const IMPAYE = { ...ACTIF, status: 'past_due', grace_until: '2026-10-09' }
-const ATTENTE = 'Ton moyen de paiement actuel reste actif tant que le nouveau n\'est pas '
-  + 'confirmé — rien n\'est coupé si tu abandonnes cette page.'
-
-// `window.location` est remplacé par un objet nu : la vue lit `origin` et `href`
-// pour bâtir ses URL de retour, et écrit `href` pour partir chez le prestataire —
-// jsdom ne navigue pas, on lit ce qui a été écrit.
-const ORIGIN = 'http://localhost:3000'
-function fakeLocation(path = '/org/billing') {
-  Object.defineProperty(window, 'location', {
-    configurable: true, writable: true,
-    value: { origin: ORIGIN, href: `${ORIGIN}${path}`, assign: vi.fn() },
-  })
-}
-function boutonsNommes(host: HTMLElement, texte: string): HTMLButtonElement[] {
-  return [...host.querySelectorAll('button')].filter((b) => b.textContent?.includes(texte))
-}
-
-describe('BillingView — annuler une résiliation (#845 ②)', () => {
-  beforeEach(() => {
-    fakeLocation()
-    getBillingIdentity.mockResolvedValue(FICHE_PLEINE)
-  })
-
-  it('résilié, période en cours : l\'alerte porte « Annuler la résiliation », et « Résilier » a disparu',
+describe('BillingView — après la page de paiement, on relit (le webhook fait foi)', () => {
+  it('souscription en vol : aucun « payer » atteignable, et l\'écran s\'ouvre quand le commerce active',
     async () => {
-      getBilling.mockResolvedValueOnce(RESILIE)
-      getBilling.mockResolvedValue(ACTIF)
-      resumeBilling.mockResolvedValue(ACTIF)
+      vi.useFakeTimers()
+      srv.abonnement = OUVERT
+      srv.paiements = [paiement('initial', 'open')]
 
       const { host, unmount } = await mountView()
+      expect(texte(host)).toContain('Souscription en cours')
+      expect(boutonNomme(host, 'Continuer')).toBeUndefined()
+      expect(boutonNomme(host, 'Payer')).toBeUndefined()
 
-      expect(host.textContent).toContain('Résiliation programmée')
-      expect(boutonNomme(host, 'Résilier l\'abonnement')).toBeUndefined()
-      const lever = boutonNomme(host, 'Annuler la résiliation')
-      expect(lever, 'l\'alerte doit porter son levier').toBeTruthy()
-
-      lever!.click()
+      // Le webhook a ouvert l'abonnement : la relecture suivante le constate.
+      srv.abonnement = ACTIF
+      srv.paiements = [paiement('initial', 'paid')]
+      await vi.advanceTimersByTimeAsync(5000)
       await settle()
 
-      expect(resumeBilling).toHaveBeenCalledTimes(1)
-      // L'état rendu par `resume` est celui qu'on affiche : plus d'alerte, et le
-      // geste inverse est de retour.
-      expect(host.textContent).not.toContain('Résiliation programmée')
-      expect(boutonNomme(host, 'Annuler la résiliation')).toBeUndefined()
+      expect(texte(host)).not.toContain('Souscription en cours')
       expect(boutonNomme(host, 'Résilier l\'abonnement')).toBeTruthy()
+      // Aucune confirmation côté client : rien d'autre que des relectures.
+      expect(gestes().every((g) => g.startsWith('GET '))).toBe(true)
       unmount()
     })
 
-  it('période échue entre l\'affichage et le clic : le refus du serveur s\'affiche tel quel',
-    async () => {
-      getBilling.mockResolvedValue(RESILIE)
-      const refus = 'already_ended: la période est terminée et l\'abonnement est clos — '
-        + 'reprends-le par une nouvelle souscription, pas par une reprise'
-      resumeBilling.mockRejectedValue(new ApiError(400, 'already_ended', refus))
+  it('paiement reçu, ouverture en cours : une ATTENTE, jamais un échec', async () => {
+    srv.abonnement = OUVERT
+    srv.paiements = [paiement('initial', 'paid')]
+    const { host, unmount } = await mountView()
+    const txt = texte(host)
+    expect(txt).toContain('Votre paiement a bien été reçu.')
+    expect(txt).not.toContain('échec')
+    expect(boutonNomme(host, 'Payer')).toBeUndefined()
+    unmount()
+  })
 
+  it('le dernier paiement a échoué : rien n\'est en vol, l\'offre se rouvre et le dit', async () => {
+    srv.abonnement = OUVERT
+    srv.paiements = [paiement('initial', 'failed')]
+    const { host, unmount } = await mountView()
+    expect(texte(host)).toContain('Le dernier paiement n\'a pas abouti')
+    expect(boutonNomme(host, 'Continuer')).toBeTruthy()
+    unmount()
+  })
+})
+
+// ── l'abonné ─────────────────────────────────────────────────────────────────
+
+describe('BillingView — l\'abonné', () => {
+  it('montre le TTC de l\'échéance, les places, et ses trois gestes', async () => {
+    srv.abonnement = ACTIF
+    const { host, unmount } = await mountView()
+    const txt = texte(host)
+    expect(txt).toContain('90 €')
+    expect(txt).toContain('par mois, TTC')
+    expect(txt).toContain('membres payants')
+    expect(boutonNomme(host, 'Changer le nombre de membres')).toBeTruthy()
+    expect(boutonNomme(host, 'Changer de carte')).toBeTruthy()
+    expect(boutonNomme(host, 'Résilier l\'abonnement')).toBeTruthy()
+    // La carte « usage inclus » a disparu (décision d'Alexis).
+    expect(txt).not.toContain('appels ce mois-ci')
+    unmount()
+  })
+
+  it('changer le nombre de membres part en PATCH, et une baisse se dit à l\'échéance', async () => {
+    srv.abonnement = ACTIF
+    srv.apres['PATCH /api/orgs/42/abonnement'] = () => {
+      srv.abonnement = { ...ACTIF, places_a_l_echeance: 2 }
+    }
+    const { host, unmount } = await mountView()
+    boutonNomme(host, 'Changer le nombre de membres')!.click()
+    await nextTick()
+    expect(texte(host)).toContain('une baisse prend effet à l\'échéance')
+    await saisir(host.querySelector<HTMLInputElement>('input[type=number]')!, '2')
+    boutonNomme(host, 'Enregistrer')!.click()
+    await settle()
+
+    expect(corpsDe('PATCH /api/orgs/42/abonnement')).toEqual({ places: 2 })
+    expect(texte(host)).toContain('Baisse programmée : 2 membres payants à partir du')
+    unmount()
+  })
+
+  it('un abonné au FORFAIT n\'a pas de places à choisir', async () => {
+    srv.abonnement = { ...ACTIF, tarif: 'forfait' }
+    const { host, unmount } = await mountView()
+    expect(texte(host)).toContain('tarif conservé')
+    expect(boutonNomme(host, 'Changer le nombre de membres')).toBeUndefined()
+    unmount()
+  })
+
+  it('échéance incalculable : l\'alerte porte son levier, et le formulaire est monté dessous',
+    async () => {
+      srv.abonnement = BLOQUE
+      srv.identite = FICHE_VIDE
       const { host, unmount } = await mountView()
+      expect(texte(host)).toContain('La prochaine échéance ne peut pas être calculée')
+      expect(boutonNomme(host, 'Compléter l\'identité de facturation')).toBeTruthy()
+      const carte = host.querySelector('#billing-identity')
+      expect(carte, 'la carte d\'identité de facturation est absente').toBeTruthy()
+      expect(carte!.textContent).toContain('Raison sociale')
+      unmount()
+    })
+
+  it('enregistrer l\'identité l\'écrit ENTIÈRE (adresse d\'envoi comprise), et l\'alerte tombe à la relecture',
+    async () => {
+      srv.abonnement = BLOQUE
+      srv.identite = FICHE_VIDE
+      srv.apres['PUT /api/orgs/42/identite'] = () => {
+        srv.identite = FICHE_PLEINE
+        srv.abonnement = ACTIF
+      }
+      const { host, unmount } = await mountView()
+      const champs = [...host.querySelectorAll<HTMLInputElement>('#billing-identity input')]
+      await saisir(champs[0]!, 'ACME SAS')
+      await saisir(host.querySelector<HTMLInputElement>('#billing-identity input[type=email]')!, 'compta@acme.test')
+      boutonNomme(host, 'Enregistrer')!.click()
+      await settle()
+
+      expect(corpsDe('PUT /api/orgs/42/identite')).toMatchObject({
+        legal_name: 'ACME SAS', country_code: 'FR', email: 'compta@acme.test',
+      })
+      expect(texte(host)).not.toContain('La prochaine échéance ne peut pas être calculée')
+      unmount()
+    })
+
+  it('résiliation programmée : l\'alerte offre de l\'annuler (DELETE), « Résilier » a disparu',
+    async () => {
+      srv.abonnement = RESILIE
+      srv.apres['DELETE /api/orgs/42/abonnement/resiliation'] = () => { srv.abonnement = ACTIF }
+      const { host, unmount } = await mountView()
+      expect(texte(host)).toContain('Résiliation programmée')
+      expect(boutonNomme(host, 'Résilier l\'abonnement')).toBeUndefined()
       boutonNomme(host, 'Annuler la résiliation')!.click()
       await settle()
-
-      expect(host.textContent).toContain(refus)
-      // Le refus dit de relire l'état : le levier est là.
-      expect(boutonNomme(host, 'Actualiser')).toBeTruthy()
+      expect(gestes()).toContain('DELETE /api/orgs/42/abonnement/resiliation')
+      expect(texte(host)).not.toContain('Résiliation programmée')
       unmount()
     })
 
-  it('à un membre, l\'alerte nomme qui peut annuler, sans bouton qui refuserait', async () => {
-    me.value = { org_role: 'member', role: 'member', active_org_name: 'ACME' }
-    getBilling.mockResolvedValue(RESILIE)
-
+  it('un refus du commerce s\'affiche tel quel, avec de quoi relire l\'état', async () => {
+    srv.abonnement = RESILIE
+    const refus = 'l\'org #42 n\'a pas de résiliation à annuler'
+    srv.refus['DELETE /api/orgs/42/abonnement/resiliation'] = new ApiError(400, 'not_canceled', refus)
     const { host, unmount } = await mountView()
+    boutonNomme(host, 'Annuler la résiliation')!.click()
+    await settle()
+    expect(texte(host)).toContain(refus)
+    expect(boutonNomme(host, 'Actualiser')).toBeTruthy()
+    unmount()
+  })
 
-    expect(host.textContent).toContain('seul un administrateur de l\'organisation peut l\'annuler')
-    expect(boutonNomme(host, 'Annuler la résiliation')).toBeUndefined()
+  it('résilier passe par un dialogue, puis POST /abonnement/resiliation', async () => {
+    srv.abonnement = ACTIF
+    const { state, resolve } = usePrompt()
+    const { host, unmount } = await mountView()
+    boutonNomme(host, 'Résilier l\'abonnement')!.click()
+    await settle()
+    expect(state.value?.kind).toBe('confirm')
+    resolve(true)
+    await settle()
+    expect(gestes()).toContain('POST /api/orgs/42/abonnement/resiliation')
+    unmount()
+  })
+})
+
+describe('BillingView — changer de carte', () => {
+  it('la phrase s\'affiche AVANT de partir, puis POST /moyen-de-paiement envoie chez le prestataire',
+    async () => {
+      srv.abonnement = ACTIF
+      const { state, resolve } = usePrompt()
+      const { host, unmount } = await mountView()
+      boutonNomme(host, 'Changer de carte')!.click()
+      await settle()
+
+      expect(state.value?.kind === 'confirm' && state.value.config.message)
+        .toContain('L\'ancien reste actif tant que le nouveau n\'est pas confirmé')
+      // Tant qu'on n'a pas continué, rien n'est ouvert et on n'est parti nulle part.
+      expect(gestes()).not.toContain('POST /api/orgs/42/moyen-de-paiement')
+      expect(window.location.href).toBe(`${ORIGIN}/org/billing`)
+
+      resolve(true)
+      await settle()
+      // Carte seulement, sans corps.
+      expect(gestes()).toContain('POST /api/orgs/42/moyen-de-paiement')
+      expect(corpsDe('POST /api/orgs/42/moyen-de-paiement')).toBeUndefined()
+      expect(window.location.href).toBe('https://pay.invalid/carte')
+      unmount()
+    })
+
+  it('en impayé, c\'est l\'alerte qui porte « Changer de carte » — une seule fois', async () => {
+    srv.abonnement = IMPAYE
+    const { host, unmount } = await mountView()
+    expect(texte(host)).toContain('Paiement en échec')
+    expect(boutonsNommes(host, 'Changer de carte')).toHaveLength(1)
+    unmount()
+  })
+
+  it('un changement déjà en validation se dit, et n\'en arme pas un second', async () => {
+    srv.abonnement = ACTIF
+    // Du plus récent au plus ancien, comme le commerce le sert.
+    srv.paiements = [paiement('method_change', 'open'), paiement('initial', 'paid')]
+    const { host, unmount } = await mountView()
+    expect(texte(host)).toContain('Un nouveau moyen de paiement est en cours de validation')
     expect(boutonNomme(host, 'Changer de carte')).toBeUndefined()
     unmount()
   })
 })
 
-describe('BillingView — changer de carte (#845 ①)', () => {
-  beforeEach(() => {
-    fakeLocation()
-    getBillingIdentity.mockResolvedValue(FICHE_PLEINE)
-  })
+// ── qui voit quoi ────────────────────────────────────────────────────────────
 
-  it('actif : « Changer de carte » est offert à côté de « Résilier »', async () => {
-    getBilling.mockResolvedValue(ACTIF)
+describe('BillingView — un membre ne voit que son propre statut', () => {
+  it('lit GET /moi, et rien d\'autre', async () => {
+    me.value = { org_role: 'member', role: 'member', active_org: 42, active_org_name: 'ACME' }
+    srv.moi = { payant: true, jusqu_au: '2026-11-15T00:00:00+00:00' }
     const { host, unmount } = await mountView()
-    expect(boutonNomme(host, 'Changer de carte')).toBeTruthy()
-    expect(boutonNomme(host, 'Résilier l\'abonnement')).toBeTruthy()
+    expect(texte(host)).toContain('Vous faites partie des membres payants')
+    expect(texte(host)).toContain('réservés aux administrateurs')
+    expect(gestes()).toEqual(['GET /api/orgs/42/moi'])
+    expect(boutonNomme(host, 'Résilier')).toBeUndefined()
     unmount()
   })
-
-  it('en impayé, c\'est l\'alerte qui porte « Changer de carte » — une seule fois', async () => {
-    getBilling.mockResolvedValue(IMPAYE)
-    const { host, unmount } = await mountView()
-    expect(host.textContent).toContain('Paiement en échec')
-    expect(boutonsNommes(host, 'Changer de carte')).toHaveLength(1)
-    unmount()
-  })
-
-  it('ouvre le changement avec l\'URL de retour, montre la phrase du serveur AVANT de partir, puis envoie sur la page de paiement',
-    async () => {
-      getBilling.mockResolvedValue(ACTIF)
-      startBillingMethodChange.mockResolvedValue({
-        checkout_url: 'https://pay.invalid/x', payment_id: 'tr_neuf', notice: ATTENTE,
-      })
-      const { state, resolve } = usePrompt()
-
-      const { host, unmount } = await mountView()
-      boutonNomme(host, 'Changer de carte')!.click()
-      await settle()
-
-      expect(startBillingMethodChange).toHaveBeenCalledWith(`${ORIGIN}/org/billing?billing=method`)
-      // Le dialogue du design system, avec la phrase servie mot pour mot.
-      expect(state.value?.kind).toBe('confirm')
-      expect(state.value?.kind === 'confirm' && state.value.config.message).toBe(ATTENTE)
-      // Tant qu'on n'a pas continué, on n'est parti nulle part.
-      expect(window.location.href).toBe(`${ORIGIN}/org/billing`)
-
-      resolve(true)
-      await settle()
-      expect(window.location.href).toBe('https://pay.invalid/x')
-      unmount()
-    })
-
-  it('un refus à l\'ouverture s\'affiche tel quel, et on ne part nulle part', async () => {
-    getBilling.mockResolvedValue(ACTIF)
-    const refus = 'no_customer: cet abonnement n\'a pas de client de paiement rattaché — '
-      + 'il a été ouvert autrement (plan offert), il n\'y a pas de carte à changer'
-    startBillingMethodChange.mockRejectedValue(new ApiError(400, 'no_customer', refus))
-
-    const { host, unmount } = await mountView()
-    boutonNomme(host, 'Changer de carte')!.click()
-    await settle()
-
-    expect(host.textContent).toContain(refus)
-    expect(window.location.href).toBe(`${ORIGIN}/org/billing`)
-    unmount()
-  })
-
-  it('au retour (`?billing=method&payment_ref=`), le constat sonde avec la référence et recopie la phrase servie',
-    async () => {
-      fakeLocation('/org/billing?billing=method&payment_ref=tr_neuf')
-      getBilling.mockResolvedValue(ACTIF)
-      confirmBillingMethodChange.mockResolvedValue({
-        status: 'changed', notice: 'Ton nouveau moyen de paiement est actif.',
-      })
-
-      const { host, unmount } = await mountView()
-
-      expect(confirmBillingMethodChange).toHaveBeenCalledWith('tr_neuf')
-      expect(host.textContent).toContain('Ton nouveau moyen de paiement est actif.')
-      // L'abonnement s'est relu après la bascule (le moyen affiché en dépend)…
-      expect(getBilling).toHaveBeenCalledTimes(2)
-      // …et le geste est de nouveau armé.
-      expect(boutonNomme(host, 'Changer de carte')).toBeTruthy()
-      unmount()
-    })
-
-  it('au retour, une carte refusée : la phrase servie, l\'abonnement inchangé, et de quoi réessayer',
-    async () => {
-      fakeLocation('/org/billing?billing=method&payment_ref=tr_neuf')
-      getBilling.mockResolvedValue(ACTIF)
-      confirmBillingMethodChange.mockResolvedValue({
-        status: 'failed', payment_status: 'failed',
-        notice: 'Ton moyen de paiement actuel n\'a pas changé.',
-      })
-
-      const { host, unmount } = await mountView()
-
-      expect(host.textContent).toContain('Ton moyen de paiement actuel n\'a pas changé.')
-      expect(host.textContent).toContain('Carte bancaire')
-      expect(getBilling).toHaveBeenCalledTimes(1)
-      expect(boutonsNommes(host, 'Changer de carte').length).toBeGreaterThan(0)
-      unmount()
-    })
 })
 
-// ── oto#211 : en consultation, le serveur refuse toute écriture ─────────────────
-//
-// `ViewAsMiddleware` refuse en `403 view_as_read_only` toute requête non-GET d'un opérateur
-// plateforme qui consulte l'org : souscrire, résilier, reprendre, changer de carte, écrire
-// l'identité — super_admin compris. L'écran reste lisible, les gestes partent.
-const PLAN = { plan: 'standard', label: 'Standard', amount: 1900, custom: false, unipile_accounts: 1 }
-const GESTES_FACTURATION = ['Choisir', 'Changer de carte', 'Résilier l\'abonnement',
-  'Annuler la résiliation', 'Compléter l\'identité de facturation', 'Enregistrer']
-
-describe('BillingView — en consultation, aucun geste (oto#211)', () => {
-  beforeEach(() => {
-    fakeLocation()
-    getBillingIdentity.mockResolvedValue(FICHE_VIDE)
-  })
-
-  // [état servi, gestes offerts à un admin hors consultation — dans l'ordre de la liste]
-  const ETATS: [string, unknown, string[]][] = [
-    ['non abonné', { subscribed: false, plans: [PLAN] }, ['Choisir']],
-    ['abonné actif', ACTIF, ['Changer de carte', 'Résilier l\'abonnement', 'Enregistrer']],
-    ['échéance bloquée', BLOQUE,
-      ['Changer de carte', 'Résilier l\'abonnement', 'Compléter l\'identité de facturation', 'Enregistrer']],
-    ['résiliation programmée', RESILIE, ['Changer de carte', 'Annuler la résiliation', 'Enregistrer']],
-  ]
-
+// En consultation (oto#211) ou « vu en tant que » (oto#212), le jeton reste celui de
+// l'opérateur, qui n'est pas membre : le commerce refuserait tout. L'écran ne l'appelle
+// pas, et renvoie à la fiche d'org de la plateforme.
+describe('BillingView — en consultation, le commerce n\'est pas appelé', () => {
   it.each([
-    ['org_admin', { org_role: 'org_admin', role: 'member' }],
-    ['super_admin', { org_role: null, role: 'super_admin' }],
-  ])('%s : gestes présents hors consultation, absents en consultation', async (_nom, porteur) => {
-    for (const [nomEtat, etat, attendus] of ETATS) {
-      for (const lectureSeule of [false, true]) {
-        me.value = { ...porteur, active_org_name: 'ACME', active_org_readonly: lectureSeule }
-        getBilling.mockResolvedValue(etat)
-        const { host, unmount } = await mountView()
-        const presents = GESTES_FACTURATION.filter((g) => boutonNomme(host, g))
-        expect(presents, `${nomEtat}, consultation : ${lectureSeule}`).toEqual(lectureSeule ? [] : attendus)
-        unmount()
-      }
+    ['consultation', { active_org_readonly: true }],
+    ['voir en tant que', { view_as_read_only: true }],
+  ])('%s : aucune lecture, aucun geste, et le renvoi vers la fiche d\'org', async (_nom, over) => {
+    me.value = { org_role: 'org_admin', role: 'super_admin', active_org: 42, active_org_name: 'ACME', ...over }
+    srv.abonnement = ACTIF
+    const { host, unmount } = await mountView()
+    expect(commerce.apiCommerce).not.toHaveBeenCalled()
+    expect(host.querySelector('a')?.getAttribute('href')).toBe('/platform/orgs/42')
+    for (const g of ['Continuer', 'Changer de carte', 'Résilier l\'abonnement', 'Enregistrer']) {
+      expect(boutonNomme(host, g), g).toBeUndefined()
     }
+    unmount()
   })
 })

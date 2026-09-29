@@ -1,20 +1,24 @@
-// Le tunnel de souscription, côté lecture : ce que le serveur refuse, ce qu'il
+// Le tunnel de souscription, côté lecture : ce que le commerce refuse, ce qu'il
 // faudra afficher, et le montant à annoncer avant d'envoyer quelqu'un payer.
 //
-// ⚠️ **MIROIR DU SERVEUR**, au même titre que `keyStack.ts` : `vatAmount()` refait
-// le calcul de `billing_vat.vat_amount` (oto-backend) parce qu'aucune surface ne
-// rend le TTC d'un palier AVANT la souscription — l'identité sert le taux et le
-// régime, le catalogue sert le HT, et c'est ici qu'ils se rencontrent. Une erreur
-// n'y casse rien à l'écran : **elle fait annoncer au payeur un montant autre que
-// celui qui sera débité**, ce qui se découvre sur la page du PSP. D'où le test.
-// Le jour où le backend sert un TTC par palier, ce calcul disparaît.
+// ⚠️ **MIROIR DU SERVEUR**, au même titre que `keyStack.ts` : `taxPreview()` refait la
+// règle de `tva.scheme_for` / `tva.tax_preview` (oto-commerce) et `vatAmount()` son
+// calcul, parce qu'aucune surface ne rend le TTC d'un nombre de places AVANT la
+// souscription — l'identité ne sert que la fiche et ses manques, le tarif sert le HT
+// d'une place, et c'est ici qu'ils se rencontrent. Une erreur n'y casse rien à l'écran :
+// **elle fait annoncer au payeur un montant autre que celui qui sera débité**, ce qui se
+// découvre sur la page du PSP. D'où le test. Après souscription, les montants viennent
+// de `GET /abonnement`, jamais d'ici.
 //
-// Le reste du module est de la LECTURE de contrat : normaliser les deux formes sous
-// lesquelles arrivent les mêmes manques — le refus 409 de `subscribe`
-// (`details.blockers`) et la lecture à froid (`GET /api/me/billing/identity` +
-// `GET /api/me/legal`) — pour que l'écran n'ait qu'une forme à peindre.
+// Le reste du module est de la LECTURE de contrat : les documents d'achat de
+// `GET /api/cgv`, les refus de `POST /abonnement` qui nomment un préalable, et le
+// journal des paiements qui dit si un encaissement est en vol.
 import { ApiError } from '@/api'
-import type { LegalStatus, VatBlocked, VatScheme } from '@/types/api'
+import { EU_COUNTRIES, HOME_COUNTRY } from '@/lib/countries'
+import { i18n } from '@/lib/i18n'
+import type {
+  CommerceCgv, CommerceContrat, CommerceIdentiteVue, CommercePaiement, VatBlocked, VatScheme,
+} from '@/types/api.commerce'
 
 // ── le montant ───────────────────────────────────────────────────────────────
 
@@ -27,7 +31,7 @@ export function vatAmount(amountHt: number, rateBps: number): number {
 }
 
 export interface PriceParts {
-  /** Prix du palier, en centimes hors taxes. */
+  /** Prix de l'abonnement, en centimes hors taxes. */
   ht: number
   /** TVA en centimes — 0 en autoliquidation comme à l'export. */
   vat: number
@@ -36,9 +40,9 @@ export interface PriceParts {
 }
 
 /** La décomposition à annoncer, ou `null` quand elle ne peut pas être calculée :
- *  palier sur devis (`amountHt` absent) ou régime pas encore tranché (`rateBps`
- *  absent, `vat_blocked` dit alors pourquoi). Ne devine JAMAIS un taux : annoncer
- *  un TTC au jugé serait pire que de n'en annoncer aucun. */
+ *  montant absent, ou régime pas encore tranché (`rateBps` absent, `blocked` dit
+ *  alors pourquoi). Ne devine JAMAIS un taux : annoncer un TTC au jugé serait pire
+ *  que de n'en annoncer aucun. */
 export function priceParts(
   amountHt: number | null | undefined,
   rateBps: number | null | undefined,
@@ -48,97 +52,87 @@ export function priceParts(
   return { ht: amountHt, vat, ttc: amountHt + vat }
 }
 
-// ── les préalables, sous leurs deux formes ───────────────────────────────────
+export interface TaxPreview {
+  scheme: VatScheme | null
+  rateBps: number | null
+  /** Le refus qui s'appliquerait à la souscription ; `null` quand elle est ouverte. */
+  blocked: VatBlocked | null
+}
 
-/** Un document à accepter, tel qu'il doit être PRÉSENTÉ : son libellé, sa version
- *  courante et son adresse viennent tous du serveur (un tenant tiers a ses propres
- *  documents, et une version bouge entre deux déploiements). */
+/** Le régime et le taux qu'ouvre une identité — la règle de `tva.scheme_for`, précédée
+ *  du contrôle des champs requis de `tva.tax_for_identity` :
+ *
+ *    France                              `fr_ttc`          20 %
+ *    Union hors France, n° de TVA        `reverse_charge`   0 %
+ *    Union hors France, SANS n° de TVA   refusé (`vat_consumer_unsupported`)
+ *    hors Union                          `export`           0 % */
+export function taxPreview(vue: CommerceIdentiteVue | null): TaxPreview {
+  const i = vue?.identite
+  if (!i || (vue?.manquants.length ?? 0) > 0) {
+    return { scheme: null, rateBps: null, blocked: 'billing_identity_required' }
+  }
+  if (i.country_code === HOME_COUNTRY) return { scheme: 'fr_ttc', rateBps: 2000, blocked: null }
+  if (EU_COUNTRIES.has(i.country_code)) {
+    return i.vat_number
+      ? { scheme: 'reverse_charge', rateBps: 0, blocked: null }
+      : { scheme: null, rateBps: null, blocked: 'vat_consumer_unsupported' }
+  }
+  return { scheme: 'export', rateBps: 0, blocked: null }
+}
+
+// ── les documents d'achat ────────────────────────────────────────────────────
+
+/** Un document à accepter, tel qu'il doit être PRÉSENTÉ : son libellé, sa version en
+ *  vigueur et son adresse viennent tous du commerce (une version bouge entre deux
+ *  déploiements). */
 export interface TunnelDoc {
   slug: string
   label: string
   version: string
   url: string
-  /** Non nul = déjà accepté, mais dans une version antérieure. Le dire évite
-   *  d'envoyer quelqu'un chercher une case qu'il a bien cochée, sur la version
-   *  d'avant. */
-  accepted_version: string | null
 }
+
+/** Les documents de `GET /api/cgv`, dans l'ordre servi. */
+export function cgvDocs(cgv: CommerceCgv | null): TunnelDoc[] {
+  return Object.entries(cgv?.documents ?? {}).map(([slug, d]) => ({
+    slug, label: d.label || slug, version: d.version, url: d.url,
+  }))
+}
+
+/** Ce que `POST /abonnement` attend : la version acceptée de chaque document. */
+export function acceptationsOf(docs: TunnelDoc[]): Record<string, string> {
+  return Object.fromEntries(docs.map((d) => [d.slug, d.version]))
+}
+
+// ── les préalables qu'un refus nomme ─────────────────────────────────────────
 
 export interface TunnelBlockers {
   /** Identité de facturation incomplète, ou pays fermé à la souscription en ligne. */
   identity: { code: VatBlocked; message: string } | null
-  /** Documents du contexte `purchase` restant à accepter. */
-  legal: { message: string; documents: TunnelDoc[] } | null
+  /** Les documents d'achat ont changé de version entre l'affichage et le clic. */
+  legal: { message: string } | null
 }
-
-const EMPTY: TunnelBlockers = { identity: null, legal: null }
 
 const IDENTITY_CODES: readonly string[] = ['billing_identity_required', 'vat_consumer_unsupported']
 
-/** Les préalables non satisfaits que porte un refus de `subscribe`, ou `null` si ce
- *  refus n'en est pas un (`already_subscribed`, `payment_pending`, panne PSP…).
- *
- *  ⚠️ On lit `details.blockers`, **jamais le code de tête seul** : celui-ci ne nomme
- *  que le PREMIER manque dans l'ordre du tunnel, donc un écran qui s'y fie fait
- *  remplir un formulaire pour opposer une case à cocher au clic suivant. Le code de
- *  tête ne sert que de repli, pour un serveur qui ne rendrait pas encore `details`. */
+/** Le préalable non satisfait que porte un refus de `POST /abonnement`, ou `null` si ce
+ *  refus n'en est pas un (`subscription_alive`, `payment_pending`, `invalid_places`…). Le
+ *  commerce nomme UN manque par refus : l'écran se peint à froid (fiche + documents)
+ *  pour ne pas avoir besoin d'un refus pour savoir quoi demander. */
 export function blockersOf(e: unknown): TunnelBlockers | null {
-  if (!(e instanceof ApiError) || e.status !== 409) return null
-  const raw = e.details?.blockers
-  const found = Array.isArray(raw)
-    ? raw.reduce<TunnelBlockers>((acc, b) => merge(acc, b as Record<string, unknown>), EMPTY)
-    // Repli : un seul manque, nommé par le code de tête et décrit par `detail`.
-    : merge(EMPTY, { code: e.code, message: e.detail ?? '' })
-  return found.identity || found.legal ? found : null
-}
-
-function merge(acc: TunnelBlockers, b: Record<string, unknown>): TunnelBlockers {
-  const code = typeof b.code === 'string' ? b.code : ''
-  const message = typeof b.message === 'string' ? b.message : ''
-  if (IDENTITY_CODES.includes(code)) {
-    return { ...acc, identity: { code: code as VatBlocked, message } }
+  if (!(e instanceof ApiError) || e.status !== 400) return null
+  const message = e.detail ?? ''
+  if (IDENTITY_CODES.includes(e.code)) {
+    return { identity: { code: e.code as VatBlocked, message }, legal: null }
   }
-  if (code === 'legal_required') {
-    return { ...acc, legal: { message, documents: toDocs(b.documents) } }
-  }
-  return acc
-}
-
-function toDocs(raw: unknown): TunnelDoc[] {
-  if (!Array.isArray(raw)) return []
-  return raw.flatMap((d) => {
-    const o = d as Record<string, unknown>
-    if (typeof o.slug !== 'string' || typeof o.url !== 'string') return []
-    return [{
-      slug: o.slug,
-      label: typeof o.label === 'string' ? o.label : o.slug,
-      version: typeof o.version === 'string' ? o.version : '',
-      url: o.url,
-      accepted_version: typeof o.accepted_version === 'string' ? o.accepted_version : null,
-    }]
-  })
-}
-
-/** Les mêmes documents, lus à FROID sur `GET /api/me/legal` — la source pour peindre
- *  l'écran avant d'avoir tenté quoi que ce soit. Le 409 ne sert qu'au cas « on a
- *  essayé et il manquait quelque chose ». */
-export function docsToAccept(status: LegalStatus | null, context: string): TunnelDoc[] {
-  const outstanding = new Set(status?.contexts?.[context]?.outstanding ?? [])
-  return (status?.documents ?? [])
-    .filter((d) => outstanding.has(d.slug))
-    .map((d) => ({
-      slug: d.slug,
-      label: d.label,
-      version: d.version,
-      url: d.url,
-      accepted_version: d.accepted_version ?? null,
-    }))
+  if (e.code === 'purchase_documents_required') return { identity: null, legal: { message } }
+  return null
 }
 
 // ── libellés ─────────────────────────────────────────────────────────────────
 
 /** Les cinq champs requis, dans l'ordre du formulaire — le même ordre que celui
- *  dans lequel le serveur nomme les manquants (`missing`). */
+ *  dans lequel le serveur nomme les manquants (`manquants`). */
 export const IDENTITY_FIELD_LABEL: Record<string, string> = {
   legal_name: 'Raison sociale',
   country_code: 'Pays',
@@ -147,7 +141,7 @@ export const IDENTITY_FIELD_LABEL: Record<string, string> = {
   city: 'Ville',
 }
 
-/** Le régime servi par l'API, dit au payeur. Le front ne le calcule pas. */
+/** Le régime servi par l'API, dit au payeur. */
 export const VAT_SCHEME_LABEL: Record<VatScheme, string> = {
   fr_ttc: 'TVA française',
   reverse_charge: 'Autoliquidation',
@@ -155,7 +149,7 @@ export const VAT_SCHEME_LABEL: Record<VatScheme, string> = {
 }
 
 export const VAT_SCHEME_NOTE: Record<VatScheme, string> = {
-  fr_ttc: 'La TVA française de 20 % est ajoutée au prix du palier.',
+  fr_ttc: 'La TVA française de 20 % est ajoutée au prix de l\'abonnement.',
   reverse_charge: 'TVA due par le preneur — article 196 de la directive 2006/112/CE.',
   export: 'Prestation de services fournie hors de l\'Union européenne — article 259-1 du CGI.',
 }
@@ -171,18 +165,56 @@ export const VAT_BLOCKED_MESSAGE: Record<VatBlocked, string> = {
     + 'intracommunautaire. Renseignez votre numéro, ou écrivez-nous.',
 }
 
-// ── la course au moyen de paiement ───────────────────────────────────────────
+// ── ce que l'org a déjà ──────────────────────────────────────────────────────
 
-/** La fenêtre pendant laquelle un moyen de paiement encore en validation est une
- *  ATTENTE et non un incident — `billing.PENDING_WINDOW` côté serveur. Passée cette
- *  durée, l'écran cesse de sonder et renvoie vers nous. */
+/** Une échéance qui court encore : `null` = sans terme, sinon à venir. La règle est
+ *  celle du commerce pour un essai, un don et un contrat (`contrat_en_cours`). */
+export function enCours(fin: string | null, maintenant = Date.now()): boolean {
+  return fin == null || Date.parse(fin) > maintenant
+}
+
+/** Un contrat qui court : il couvre l'org, et `POST /abonnement` le refuse
+ *  (`409 under_contract`). Clos, il ne couvre plus rien et ne masque plus l'offre. */
+export function contratEnCours(c: CommerceContrat | null, maintenant = Date.now()): boolean {
+  return !!c && enCours(c.fin, maintenant)
+}
+
+/** Le nom d'un droit du catalogue du cœur (don ou contrat), traduit. Un droit que
+ *  l'écran ne connaît pas se montre sous son code plutôt que de disparaître. */
+export function droitLabel(droit: string): string {
+  const key = `billingUi.granted.rights.${droit}`
+  return i18n.global.te(key) ? i18n.global.t(key) : droit
+}
+
+// ── l'encaissement en vol ────────────────────────────────────────────────────
+
+/** Les statuts Mollie d'un paiement qui n'est pas conclu : le payeur est peut-être
+ *  encore sur la page du prestataire, ou l'encaissement s'achève. */
+const EN_VOL = ['open', 'pending', 'authorized']
+const ECHEC = ['failed', 'canceled', 'expired']
+
+/** Où en est le dernier paiement d'une `nature` donnée (`initial` : la souscription ;
+ *  `method_change` : un nouveau moyen de paiement), d'après le journal — que le commerce
+ *  sert du plus récent au plus ancien : `en_vol` (pas encore conclu), `paye`, `echec`, ou
+ *  `null` s'il n'y en a pas. */
+export function dernierPaiement(
+  paiements: CommercePaiement[], nature: string,
+): 'en_vol' | 'paye' | 'echec' | null {
+  const p = paiements.find((x) => x.nature === nature)
+  if (!p) return null
+  if (EN_VOL.includes(p.statut)) return 'en_vol'
+  if (ECHEC.includes(p.statut)) return 'echec'
+  return p.statut === 'paid' ? 'paye' : 'en_vol'
+}
+
+/** La fenêtre pendant laquelle un abonnement `incomplete` est une ATTENTE et non un
+ *  incident. Passée cette durée, l'écran cesse de relire et rend la main. */
 export const PENDING_WINDOW_MS = 30 * 60 * 1000
 
-/** Cadence de re-sonde quand le serveur n'en conseille pas (branche `pending` : le
- *  payeur est peut-être encore sur la page du PSP). */
+/** Cadence de relecture quand rien n'en conseille une autre. */
 export const DEFAULT_RETRY_S = 5
 
-/** Le délai avant la prochaine sonde, borné : un `retry_after` absent ou aberrant ne
+/** Le délai avant la prochaine relecture, borné : une valeur absente ou aberrante ne
  *  doit ni marteler le serveur ni figer l'écran une minute. */
 export function nextProbeDelayMs(retryAfter: number | null | undefined): number {
   const s = typeof retryAfter === 'number' && retryAfter > 0 ? retryAfter : DEFAULT_RETRY_S

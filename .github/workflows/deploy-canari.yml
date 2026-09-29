@@ -42,6 +42,10 @@ jobs:
           VITE_LOGTO_ENDPOINT: https://auth.oto.cx
           VITE_LOGTO_AUDIENCE: https://mcp.oto.ninja/mcp
           VITE_OTO_MCP_BASE: https://mcp.oto.ninja
+          # La facturation (oto-commerce) est celle de PROD, en préprod aussi : le canari
+          # du commerce n'expose pas d'API, et la préprod lit les données de prod.
+          VITE_OTO_COMMERCE_BASE: https://commerce.oto.cx
+          VITE_LOGTO_COMMERCE_AUDIENCE: https://commerce.oto.cx/api
           VITE_SENTRY_ENV: canari
           VITE_POSTHOG_KEY: ""
         run: cd frontend && npm run build

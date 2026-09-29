@@ -1,32 +1,26 @@
 <script setup lang="ts">
-// DEUXIÈME écran du tunnel (#128) : l'acceptation des documents d'achat.
+// TROISIÈME étape du tunnel : l'acceptation des documents d'achat (CGV, DPA).
 //
-// Les libellés, les versions et les adresses viennent TOUS de la réponse — un
-// tenant tiers a ses propres documents, et une version bouge entre deux
-// déploiements. Rien n'est écrit en dur ici, pas même le nombre de documents.
+// Les libellés, les versions et les adresses viennent TOUS d'oto-commerce
+// (`GET /api/cgv`) — une version bouge entre deux déploiements. Rien n'est écrit en dur
+// ici, pas même le nombre de documents. L'acceptation part DANS la souscription
+// (`acceptations`, la version de chaque document) : le commerce la consigne avec qui,
+// quand et depuis où.
 //
-// UNE case pour l'ensemble : le serveur ne connaît pas d'acceptation partielle du
-// contexte `purchase`. Et le consentement est le DERNIER geste avant la page de
-// paiement, parce qu'on accepte des CGV *pour un montant* — d'où l'ordre identité →
-// montant → consentement.
-import { computed, ref } from 'vue'
-import Notice from '@/components/console/Notice.vue'
+// UNE case pour l'ensemble : le commerce n'accepte pas de souscription partielle. Et le
+// consentement est le DERNIER geste avant la page de paiement, parce qu'on accepte des
+// CGV *pour un montant* — d'où l'ordre identité → montant → consentement.
 import type { TunnelDoc } from '@/lib/billingTunnel'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-const props = defineProps<{
-  /** Les documents restant à accepter, dans l'ordre servi. */
+defineProps<{
+  /** Les documents à accepter, dans l'ordre servi. */
   documents: TunnelDoc[]
   busy?: boolean
 }>()
 const accepted = defineModel<boolean>({ default: false })
-
-// `accepted_version` non nul = déjà accepté, mais sur une version antérieure. Le
-// dire évite d'envoyer quelqu'un chercher une case qu'il a bien cochée, sur la
-// version d'avant — c'est la première objection du payeur quand une version bouge.
-const outdated = computed(() => props.documents.filter((d) => d.accepted_version))
 </script>
 
 <template>
@@ -35,20 +29,8 @@ const outdated = computed(() => props.documents.filter((d) => d.accepted_version
       <li v-for="d in documents" :key="d.slug">
         <a :href="d.url" target="_blank" rel="noopener">{{ d.label }}</a>
         <span class="blc-ver">{{ t('billingUi.legal.version', { v: d.version }) }}</span>
-        <span v-if="d.accepted_version" class="blc-was">
-          {{ t('billingUi.legal.accepted', { v: d.accepted_version }) }}
-        </span>
       </li>
     </ul>
-
-    <Notice v-if="outdated.length" tone="info">
-      <template v-if="outdated.length === 1">
-        {{ t('billingUi.legal.changedOne') }}
-      </template>
-      <template v-else>
-        {{ t('billingUi.legal.changedMany') }}
-      </template>
-    </Notice>
 
     <label class="blc-consent">
       <input v-model="accepted" type="checkbox" :disabled="busy" />
@@ -66,7 +48,6 @@ const outdated = computed(() => props.documents.filter((d) => d.accepted_version
 }
 .blc-docs a { color: var(--color-saffron-ink); text-decoration: underline; font-weight: 600; }
 .blc-ver { font-family: var(--font-mono); font-size: 10.5px; color: var(--color-faint); }
-.blc-was { font-size: 11.5px; color: var(--color-mute); }
 .blc-consent {
   display: flex; align-items: flex-start; gap: 9px; cursor: pointer;
   font-size: var(--fs-small); color: var(--color-ink); line-height: 1.5;

@@ -5,6 +5,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
+// Le bloc commerce de la fiche (`AdminOrgCommerce`) est traduit : la vue se monte avec i18n.
+import { i18n } from '@/lib/i18n'
 
 const ORG = {
   org: {
@@ -12,12 +14,10 @@ const ORG = {
     domain: null, industry: null, location: null, description: null,
   },
   members: [], secrets: [], option_comps: ['unipile'],
-  billing: { subscribed: false, plans: [], granted: [] },
 }
 
 vi.mock('@/api/console', () => ({
   getAdminOrg: vi.fn(async () => ORG),
-  getPlans: vi.fn(async () => ({ plans: [] })),
 }))
 
 // Membre simple : la carte d'accès plateforme ne dépend d'aucun rôle.
@@ -51,6 +51,7 @@ async function mountView() {
   document.body.appendChild(host)
   const app = createApp(View)
   app.use(router)
+  app.use(i18n)
   app.mount(host)
   await settle()
   return { host, router, unmount: () => { app.unmount(); host.remove() } }

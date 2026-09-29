@@ -30,10 +30,6 @@ import { fileURLToPath } from 'node:url'
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 const CLASSEES: Record<string, string> = {
-  // Un paiement est EN VOL. Le geste juste est d'attendre — et c'est un bouton
-  // reproposé ici qui a débité deux fois le premier client payant (#127). L'absence
-  // de levier est le correctif, pas l'oubli.
-  'components/console/billing/BillingCheckout.vue#0': 'informatif',
   // Refus du tunnel : le formulaire qui l'a produit est juste dessous, le geste est
   // de corriger puis de re-soumettre.
   'components/console/billing/BillingCheckout.vue#1': 'levier-voisin',
@@ -43,9 +39,6 @@ const CLASSEES: Record<string, string> = {
   // Pourquoi aucun montant n'est annonçable : la fiche d'identité est l'étape du même
   // tunnel, montée sur le même écran.
   'components/console/billing/BillingPriceCard.vue#0': 'levier-voisin',
-  // Dépassement d'appels inclus : « rien n'est coupé, rien n'est facturé en plus ».
-  // Rien n'est demandé — et la copie ne doit rien menacer.
-  'components/console/billing/BillingUsageCard.vue#0': 'informatif',
   // Audience tronquée : un CONSTAT sur ce qui partira. Restreindre l'audience se fait
   // dans la carte « Campagne », au-dessus, et n'est pas ce qui est demandé ici.
   // « Armée depuis N sans premier travail : aucun worker ne sonde la file » (oto#205, extrait

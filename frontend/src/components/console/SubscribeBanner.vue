@@ -4,59 +4,78 @@
 // simple ne peut pas souscrire : lui montrer ce bandeau serait une alerte sans levier
 // (règle « jamais d'alerte sans levier », docs/conventions.md).
 //
-// Il se tait, et c'est voulu, dans quatre cas :
-//   • l'org est abonnée (`subscribed`) ;
-//   • l'org possède déjà quelque chose d'OFFERT (`granted` non vide) — le lot du 02/09
-//     a cessé de vendre à qui possède déjà, ce bandeau ne rouvre pas cette porte ;
-//   • l'org active est CONSULTÉE par un opérateur (lecture seule) : ce n'est pas la
-//     sienne, il n'a rien à souscrire ;
+// Il se tait, et c'est voulu, dans six cas :
+//   • l'org active est PERSONNELLE (`me.active_org_is_personal`, lu par `enOrgPerso`) —
+//     décision d'Alexis (29/09/2026) : on ne pousse à s'abonner que dans une org d'équipe ;
+//   • l'org a un abonnement (`GET /abonnement` rend un état ; `404 no_subscription` =
+//     non abonnée) — un abonnement résilié et échu (`canceled`) compte comme aucun ;
+//   • l'org est SOUS CONTRAT, un abonnement réglé hors plateforme (`GET /contrat` ;
+//     `404 no_contract` = aucun) tant qu'il court — le commerce refuserait d'ailleurs la
+//     souscription (`409 under_contract`). Un contrat clos ne fait plus taire ;
+//   • l'org possède déjà quelque chose d'OFFERT — un essai en cours ou un don non échu
+//     (`GET /avantages`) : le lot du 02/09 a cessé de vendre à qui possède déjà, ce
+//     bandeau ne rouvre pas cette porte ;
+//   • l'org active est CONSULTÉE par un opérateur (lecture seule), ou vue « en tant
+//     que » : ce n'est pas la sienne, il n'a rien à souscrire ;
 //   • la page courante EST la facturation : le levier y est déjà.
-// Le statut vient de `/api/me/billing` (une lecture par org active, rafraîchie quand
-// on quitte la page facturation — c'est là qu'une souscription vient d'avoir lieu).
-// Un refus du serveur (facturation désactivée, 404) masque le bandeau sans rien
-// casser : il n'est pas essentiel à la console, et l'erreur est dite en console.
+// L'état vient d'oto-commerce, pour l'org du chemin (une lecture par org active,
+// rafraîchie quand on quitte la page facturation — c'est là qu'une souscription vient
+// d'avoir lieu). Un membre simple ne déclenche aucun appel. Un refus du commerce (org
+// d'un tenant tiers, commerce absent de la config) masque le bandeau sans rien casser :
+// il n'est pas essentiel à la console, et l'erreur est dite en console.
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { getBilling } from '@/api/console'
+import { getAbonnement, getAvantages, getContrat } from '@/api/console'
 import { useMe, canWriteInOrg } from '@/composables/useMe'
 import { useScopedLink } from '@/composables/useScopedLink'
+import { contratEnCours, enCours } from '@/lib/billingTunnel'
+import { enOrgPerso } from '@/lib/orgPerso'
+import { getViewUser } from '@/lib/viewOrg'
 import Icon from './Icon.vue'
-import type { BillingStatus } from '@/types/api'
 
 const { t } = useI18n()
 const route = useRoute()
 const { me } = useMe()
 const { scoped } = useScopedLink()
 
-const status = ref<BillingStatus | null>(null)
-const loadedFor = ref<string | null>(null)
+// `true` = rien ne s'y vend (abonnée, sous contrat, ou dotée) ; `false` = le bandeau a lieu d'être ;
+// `null` = pas encore lu, ou illisible.
+const covered = ref<boolean | null>(null)
+const loadedFor = ref<number | null>(null)
 
-// La clé de rafraîchissement : l'org active (un changement d'org = un autre statut).
-const orgKey = computed(() => String(me.value?.active_org ?? me.value?.sub ?? ''))
+// La clé de rafraîchissement : l'org active (un changement d'org = un autre état).
+const orgId = computed(() => me.value?.active_org ?? null)
 const onBilling = computed(() => String(route.meta.section || '') === '/org/billing')
-// Hors consultation ET hors « voir en tant que » : la règle unique d'écriture (oto#211/#212).
+// Hors consultation ET hors « voir en tant que » : la règle unique d'écriture (oto#211/#212)
+// — et le commerce, qui relit le rôle du porteur du jeton, n'ouvrirait de toute façon
+// l'état qu'à l'org_admin réel.
+// Une org perso n'est pas visée (décision du 29/09) : aucun appel non plus.
 const eligible = computed(() =>
-  !!me.value && me.value.org_role === 'org_admin' && canWriteInOrg(me.value))
+  !!me.value && me.value.org_role === 'org_admin' && canWriteInOrg(me.value) && !getViewUser()
+  && !enOrgPerso(me.value))
 
 async function load() {
-  if (!eligible.value) { status.value = null; return }
+  const id = orgId.value
+  if (!eligible.value || id == null) { covered.value = null; return }
   try {
-    status.value = await getBilling()
-    loadedFor.value = orgKey.value
+    const [ab, ct, av] = await Promise.all([getAbonnement(id), getContrat(id), getAvantages(id)])
+    // Un contrat, un essai ou un don ÉCHU ne couvre plus : il ne fait plus taire le bandeau.
+    const abonnee = !!ab && ab.statut !== 'canceled'
+    covered.value = abonnee || contratEnCours(ct)
+      || (!!av.essai && enCours(av.essai.fin)) || av.dons.some((d) => enCours(d.fin))
+    loadedFor.value = id
   } catch (e) {
-    status.value = null
-    console.warn('[SubscribeBanner] statut de facturation indisponible', e)
+    covered.value = null
+    console.warn('[SubscribeBanner] état de facturation indisponible', e)
   }
 }
 
-watch([eligible, orgKey], () => { if (eligible.value && loadedFor.value !== orgKey.value) load() }, { immediate: true })
+watch([eligible, orgId], () => { if (eligible.value && loadedFor.value !== orgId.value) load() }, { immediate: true })
 // Quitter /org/billing : c'est là qu'une souscription vient peut-être d'aboutir.
 watch(onBilling, (now, before) => { if (before && !now) load() })
 
-const show = computed(() =>
-  eligible.value && !onBilling.value && status.value !== null
-  && status.value.subscribed === false && (status.value.granted?.length ?? 0) === 0)
+const show = computed(() => eligible.value && !onBilling.value && covered.value === false)
 </script>
 
 <template>

@@ -49,14 +49,16 @@ export function lectureHorsVue(chemin: string, methode = 'GET'): boolean {
 /** Les écrans d'une vue bornée, et la lecture qui les fait vivre : masqués quand le serveur
  * la refuse. Préfixes de section → chemin REST lu à l'ouverture. */
 export const SECTIONS_HORS_VUE: Readonly<Record<string, string>> = {
-  '/org/billing': '/api/me/billing',                        // facturation
   '/account/claude': '/api/me/model-subscriptions',          // abonnements de modèles
   '/account/developers': '/api/me/tokens',                   // jetons API
   '/platform': '/api/admin/users',                           // admin
 }
 /** ⚠️ `/account/security` : la MFA est lue sur Logto pour le compte CONNECTÉ, jamais pour
- * le membre vu — aucune lecture du serveur ne le dit, c'est une règle d'écran. */
-const SECTIONS_TOUJOURS_HORS_VUE: readonly string[] = ['/account/security']
+ * le membre vu — aucune lecture du serveur ne le dit, c'est une règle d'écran.
+ * ⚠️ `/org/billing` : la facturation est lue sur oto-commerce, qui relit le rôle du PORTEUR
+ * du jeton et ignore la vue « en tant que » — le cœur ne sert plus aucune lecture qui la
+ * ferait vivre, c'est donc aussi une règle d'écran. */
+const SECTIONS_TOUJOURS_HORS_VUE: readonly string[] = ['/account/security', '/org/billing']
 
 const sousSection = (section: string, p: string) => section === p || section.startsWith(`${p}/`)
 
