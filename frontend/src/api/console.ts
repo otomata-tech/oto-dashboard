@@ -1,6 +1,7 @@
 // Client REST typé pour la console — toutes les routes oto-mcp (api_routes*.py).
 // Pas de fallback : api() lève sur !ok (cf. CLAUDE.md).
 import { api, apiDownload, apiUpload, apiPublic } from '@/api'
+import { lentilleMoi } from '@/lib/orgPerso'
 import { horsVueVide } from '@/lib/vueBornee'
 import type {
   ApiTokenCreated,
@@ -353,8 +354,12 @@ const projectsApi = <T>(body: Record<string, unknown>) =>
 // `scope` : omis/`org` = la liste de l'org consultée (ses projets, mes perso rangés en
 // elle, ce qui est partagé à elle ou à mes équipes en elle) ; `me` = les projets partagés
 // à MOI en personne, qu'aucune liste d'org ne rend.
-export const listProjects = (scope?: 'org' | 'me') =>
-  projectsApi<{ projects: Project[] }>({ op: 'list', fields: ['*'], ...(scope ? { scope } : {}) })
+// `scope: 'me'` (les projets partagés à MOI en personne) est une lentille « moi » : lue
+// seulement dans l'org perso (`lentilleMoi`, oto#160).
+export const listProjects = (scope?: 'org' | 'me') => {
+  const lire = () => projectsApi<{ projects: Project[] }>({ op: 'list', fields: ['*'], ...(scope ? { scope } : {}) })
+  return scope === 'me' ? lentilleMoi(lire, { projects: [] as Project[] }) : lire()
+}
 // Zone Documents de l'org = un projet d'org ordinaire, ancré par id côté serveur.
 // Le chemin `/api/me/kb` et le nom de cette fonction sont des identifiants d'API
 // hérités (règle maison : le code garde son nom, seule la copy change).
@@ -632,8 +637,12 @@ export const listDocs = (project_id: number) =>
 export const getDoc = (doc_id: number) => docsApi<Doc>({ op: 'get', doc_id })
 // Pages partagées SEULES (sans leur projet) : `org` = avec l'org consultée (et mes équipes
 // en elle), `me` = avec moi en personne. Une entrée nomme la page ; `getDoc` la lit.
-export const listSharedDocs = (scope: SharedDocScope) =>
-  docsApi<{ docs: SharedDoc[]; count: number; scope: SharedDocScope | null }>({ op: 'shared_with_me', scope })
+// `me` est une lentille « moi » : lue seulement dans l'org perso (`lentilleMoi`, oto#160).
+export const listSharedDocs = (scope: SharedDocScope) => {
+  type Reponse = { docs: SharedDoc[]; count: number; scope: SharedDocScope | null }
+  const lire = () => docsApi<Reponse>({ op: 'shared_with_me', scope })
+  return scope === 'me' ? lentilleMoi<Reponse>(lire, { docs: [], count: 0, scope }) : lire()
+}
 export const createDoc = (project_id: number, title: string,
   opts?: { parent_id?: number | null; body_md?: string; kind?: DocKind }) =>
   docsApi<Doc>({ op: 'create', project_id, title, ...(opts ?? {}) })
@@ -717,8 +726,11 @@ export const getNamespaces = () =>
 // elle ne se tait pas en liste vide.
 // En vue bornée d'un org_admin (oto#270), un partage PERSONNEL reçu ne compte pas : le
 // serveur refuse la liste, et « aucun » est alors la vraie réponse de la vue.
+// C'est une lentille « moi » : lue seulement dans l'org perso (`lentilleMoi`, oto#160,
+// 29/09/2026) — ailleurs, aucun tableau reçu en personne ne s'affiche.
 export const getSharedWithMe = () =>
-  horsVueVide(api<{ datastores?: SharedDatastoreEntry[] }>('/api/me/datastores/shared'), { datastores: [] })
+  lentilleMoi(() => horsVueVide(api<{ datastores?: SharedDatastoreEntry[] }>('/api/me/datastores/shared'),
+    { datastores: [] }), { datastores: [] as SharedDatastoreEntry[] })
     .then((r) => ({ datastores: listeServie(r, 'tableaux partagés avec moi') }))
 // owner optionnel (ADR 0030) : { type:'org'|'group', id } pour un classeur d'équipe.
 export const createNamespace = (namespace: string, owner?: { type: string; id: string | number }) =>

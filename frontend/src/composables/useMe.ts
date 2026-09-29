@@ -3,6 +3,7 @@ import { getMe } from '@/api/console'
 import { identifyUser } from '@/lib/analytics'
 import { applyMeLocale } from '@/lib/i18n'
 import { setSentryUser } from '@/lib/sentry'
+import { poserOrgPerso } from '@/lib/orgPerso'
 import { poserVueBornee } from '@/lib/vueBornee'
 import type { Me, Role } from '@/types/api'
 
@@ -22,6 +23,8 @@ async function load(force = false): Promise<Me | null> {
       me.value = await getMe()
       // Ce que la vue bornée d'un org_admin refuse, tel que le serveur le dit (oto#270).
       poserVueBornee(me.value)
+      // L'org perso, seule à lire les lentilles « moi » (oto#160).
+      poserOrgPerso(me.value)
       lastLoadedAt = Date.now()
       error.value = null
       // Relie la session PostHog à l'utilisateur (segmentation rôle/org).

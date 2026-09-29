@@ -18,6 +18,7 @@ import { useMe } from '@/composables/useMe'
 import { useNav } from '@/composables/useNav'
 import { useScopedLink } from '@/composables/useScopedLink'
 import { projectBucket, BUCKET_LABEL } from '@/lib/projectVisibility'
+import { enOrgPerso } from '@/lib/orgPerso'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -80,7 +81,10 @@ const spaces = computed<Space[]>(() => {
     else if (b === 'shared') shared.push(p)
     // 'platform' : les modèles de la bibliothèque vivent dans l'index, pas dans la barre.
   }
-  const out: Space[] = [{ key: 'mine', label: BUCKET_LABEL.mine, color: accentFor('mine'), projects: mine }]
+  // « Mes projets » : toujours dans l'org perso, même vide ; ailleurs seulement s'il reste
+  // des projets à moi dans la liste servie — une org ne montre que l'org (oto#160).
+  const out: Space[] = enOrgPerso(me.value) || mine.length
+    ? [{ key: 'mine', label: BUCKET_LABEL.mine, color: accentFor('mine'), projects: mine }] : []
   for (const gid of Object.keys(byGroup).sort((a, b) =>
     (groupNames.value[a] || a).localeCompare(groupNames.value[b] || b)))
     // Repli sans identifiant technique : « Équipe » nu vaut mieux qu'« Équipe 12 »

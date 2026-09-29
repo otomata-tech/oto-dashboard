@@ -18,6 +18,7 @@
 // n'en porte pas est NOMMÉ sans compteurs — jamais résolu à l'écran.
 // ─────────────────────────────────────────────────────────────────────────────
 import { describe, expect, it, beforeEach, vi } from 'vitest'
+import { poserOrgPerso } from '@/lib/orgPerso'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -87,6 +88,9 @@ const repondre = (corps: unknown) =>
 beforeEach(() => {
   // Les files de travail parlent par i18n ; les attentes sont écrites en français.
   i18n.global.locale.value = 'fr'
+  // Un tableau REÇU en personne ne se lit que dans l'org perso (oto#160, 29/09/2026) :
+  // ces scénarios s'y déroulent. Hors d'elle, la lentille ne part pas (`lib/orgPerso.spec`).
+  poserOrgPerso({ active_org_is_personal: true })
   adresses.length = 0
   document.body.textContent = ''
   vi.stubGlobal('fetch', async (url: string) => {

@@ -2,7 +2,7 @@
 // Création d'un namespace datastore — form VALIDÉ (vee-validate + zod). Remplace le
 // promptForm : nom requis/trimmé/borné + scope (perso ou classeur d'org active,
 // proposé seulement s'il y a une org active). L'appel réseau est délégué au parent.
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import * as z from 'zod'
@@ -14,8 +14,13 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { useI18n } from 'vue-i18n'
+import { useMe } from '@/composables/useMe'
+import { enOrgPerso } from '@/lib/orgPerso'
 
 const { t } = useI18n()
+const { me } = useMe()
+// Hors de l'org perso, un tableau personnel se range dans mon espace perso (oto#160).
+const horsEspacePerso = computed(() => !enOrgPerso(me.value))
 
 const props = defineProps<{
   open: boolean
@@ -78,11 +83,11 @@ const submit = handleSubmit(async (values) => {
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value="user">{{ t('workUi.create.personal') }}</SelectItem>
+                <SelectItem value="user">{{ horsEspacePerso ? t('orgPersoUi.nsPersonalElsewhere') : t('workUi.create.personal') }}</SelectItem>
                 <SelectItem value="org">{{ t('workUi.create.orgBinder', { name: orgName }) }}</SelectItem>
               </SelectContent>
             </Select>
-            <FormDescription>{{ t('workUi.create.nsHelp') }}</FormDescription>
+            <FormDescription>{{ horsEspacePerso ? t('orgPersoUi.nsHelpElsewhere') : t('workUi.create.nsHelp') }}</FormDescription>
             <FormMessage />
           </FormItem>
         </FormField>

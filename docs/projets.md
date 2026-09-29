@@ -15,6 +15,19 @@ description: >-
 
 ## Les écrans
 
+**Une org ne montre que l'org** (oto#160 ; décision d'Alexis, 28 et 29/09/2026). Dans une
+org non perso, on ne voit que ce que l'org et ses équipes possèdent, et ce qu'on leur
+partage ; ce qui est à moi ou partagé à moi en personne se lit dans mon **org perso**
+(`me.active_org_is_personal`). Les *lentilles « moi »* — projets `scope=me`, pages
+`shared_with_me scope=me`, tableaux `/api/me/datastores/shared` — ne partent que là :
+`lentilleMoi` (`lib/orgPerso.ts`) les enveloppe dans `api/console.ts`, ailleurs elles
+rendent le vide sans appel, et le refus déclaré du serveur (`CODE_HORS_ORG_PERSO`) rend le
+vide aussi. La barre latérale ne garde « Mes projets » hors org perso que s'il en reste dans
+la liste servie. À la création, sans propriétaire, un projet est à moi et se range dans mon
+espace perso : hors de lui, le dialogue propose « moi (visible dans mon espace perso) »,
+« l'org » et « une équipe » (ces deux-là envoient leur propriétaire explicitement), et la
+création le rappelle. Tests : `lib/orgPerso.spec.ts`, `components/console/orgPersoCreation.spec.ts`.
+
 Groupe nav **workspace** → `/projects` (`ProjectsView.vue`, **index grille**) + page dédiée
 **`/projects/:id`** (`ProjectDetailView.vue`, route résolue par `ConsoleLayout` via
 `route.name==='project-detail'`, `viewKey=fullPath` → remount sur `:id`, même patron que

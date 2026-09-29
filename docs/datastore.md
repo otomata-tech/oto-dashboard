@@ -64,6 +64,17 @@ blocs de gabarit) : la liste de l'org en tête, puis `personnel`, puis `partagé
 Les deux dernières sont repliées **dans** une org et dépliées hors org — c'est le contexte
 d'org qui décide du repli, jamais la nature du contenu.
 
+**Depuis le 29/09/2026, une org ne montre que l'org** (oto#160, décision d'Alexis des 28 et
+29/09). Dans une org non perso, la liste ne rend plus que les tableaux de l'org et de ses
+équipes, et ceux qu'on leur partage ; mes tableaux personnels et ceux qu'on m'a partagés en
+personne se lisent dans mon **org perso**. `GET /api/me/datastores/shared` y est donc une
+*lentille « moi »* : le serveur la refuse hors de l'org perso (`personal_view_outside_personal_org`),
+et le dashboard ne l'appelle plus ailleurs (`lentilleMoi`, `lib/orgPerso.ts`, la seule
+règle) — la section `partagé avec moi` n'apparaît pas dans une org. Un tableau personnel
+créé depuis une org s'y range aussi : le dialogue le dit (« personnel (visible dans mon
+espace perso) ») et la création le rappelle au lieu de le chercher dans la liste. Tests :
+`lib/orgPerso.spec.ts`.
+
 - **Aucun doublon**, deux fois : le serveur écarte ce que la liste de l'org rend déjà (jeu
   dérivé de `list_datastores()`, jamais recopié), et la vue le refait sur les ids
   réellement rendus — elle compose deux réponses obtenues à deux instants, entre lesquels

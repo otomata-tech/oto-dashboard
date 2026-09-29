@@ -2918,5 +2918,13 @@
       "view_as_hors_org": "La vue en tant que {name} n'est pas ouverte : ce compte n'est pas (ou plus) un membre de ton org que tu peux voir ainsi.",
       "forbidden": "La vue en tant que {name} n'est pas ouverte : tu n'es pas (ou plus) admin de cette org."
     }
+  },
+  "orgPersoUi": {
+    "meElsewhere": "moi (visible dans mon espace perso)",
+    "projectHelpElsewhere": "« moi » : le projet t'appartient et se range dans ton espace perso, pas dans cette org. « org » / « équipe » : visible de tous ses membres d'emblée.",
+    "nsPersonalElsewhere": "personnel (visible dans mon espace perso)",
+    "nsHelpElsewhere": "un tableau personnel se range dans ton espace perso, pas dans cette org ; un classeur d'org est partagé avec ses membres.",
+    "projectCreatedElsewhere": "projet créé — il se range dans ton espace perso, pas dans cette org",
+    "nsCreatedElsewhere": "tableau « {name} » créé — il se range dans ton espace perso, pas dans cette org"
   }
 }

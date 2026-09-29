@@ -14,6 +14,7 @@ import { useMe } from '@/composables/useMe'
 import { getNamespaces, getSharedWithMe, createNamespace } from '@/api/console'
 import type { DatastoreEntry, SharedDatastoreEntry } from '@/types/api'
 import { humanize } from '@/lib/errors'
+import { enOrgPerso } from '@/lib/orgPerso'
 import { resolveTarget, type TargetChoice, type TargetKey } from '@/lib/routeTarget'
 
 const { toast } = useToast()
@@ -26,7 +27,9 @@ const datastores = ref<DatastoreEntry[]>([])
 // Ce que `GET /api/me/datastores/shared` sert : les tableaux partagés NOMINATIVEMENT à
 // l'appelant. Une SECONDE liste, jamais fusionnée avec celle de l'org (arbitrage oto#160
 // du 10/09 : les y faire entrer rouvrirait l'incident du 30/06 — un tableau qui
-// n'appartient à aucune org, lu comme venant de celle où l'on navigue).
+// n'appartient à aucune org, lu comme venant de celle où l'on navigue). Depuis le 29/09/2026
+// (oto#160, « l'org ne montre que l'org ») c'est une lentille « moi » : lue seulement dans
+// l'org perso (`lentilleMoi`), vide ailleurs — la section « partagés avec moi » n'y est pas.
 const partages = ref<SharedDatastoreEntry[]>([])
 const error = ref<string | null>(null)
 const loaded = ref(false)
@@ -233,7 +236,10 @@ async function doCreate(payload: { name: string; scope: 'user' | 'org' }) {
   const owner = payload.scope === 'org' && activeOrg ? { type: 'org', id: activeOrg } : undefined
   try {
     await createNamespace(payload.name, owner)
-    toast(t('dataUi.view.created', { name: payload.name }))
+    // Un tableau personnel créé hors de l'org perso ne se liste pas ici (oto#160) : on dit
+    // où il se range au lieu de le chercher dans une liste qui ne le rendra pas.
+    toast(!owner && !enOrgPerso(me.value)
+      ? t('orgPersoUi.nsCreatedElsewhere', { name: payload.name }) : t('dataUi.view.created', { name: payload.name }))
     await load()
     const created = datastores.value.find((n) => n.datastore === payload.name)
     if (created) open(created.id)

@@ -25,6 +25,7 @@ import {
   projectVisibility, projectBucket, BUCKET_ORDER, BUCKET_LABEL, BUCKET_HINT,
 } from '@/lib/projectVisibility'
 import { humanize } from '@/lib/errors'
+import { enOrgPerso } from '@/lib/orgPerso'
 import { useToast } from '@/composables/useToast'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
 
@@ -35,7 +36,8 @@ const { me } = useMe()
 
 const projects = ref<Project[]>([])
 // Projets partagés à MOI en personne : aucune liste d'org ne les rend (ils n'appartiennent
-// à aucune org) — `scope: 'me'`, rangés dans leur propre section.
+// à aucune org) — `scope: 'me'`, rangés dans leur propre section. Lentille « moi » : lue
+// seulement dans l'org perso (oto#160), vide ailleurs, et la section n'apparaît pas.
 const personalShares = ref<Project[]>([])
 const templates = ref<Project[]>([])
 // Pages partagées SEULES, sans leur projet : avec l'org consultée, avec moi.
@@ -176,7 +178,10 @@ async function create() {
 async function doCreate(payload: ProjectOwnerPayload) {
   try {
     const p = await createProject(payload.name, '', payload.owner)
-    toast(t('projectsUi.list.toast.created'))
+    // Sans propriétaire, le projet est à moi : hors org perso, il ne se liste pas ici
+    // (oto#160) — on dit où il est, puis on l'ouvre par son id, qui reste ouvrable.
+    toast(!payload.owner && !enOrgPerso(me.value)
+      ? t('orgPersoUi.projectCreatedElsewhere') : t('projectsUi.list.toast.created'))
     openProject(p.id)
   } catch (e) { toast(humanize(e)); throw e }
 }
