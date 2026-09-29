@@ -2929,5 +2929,12 @@
   },
   "tableauParId": {
     "introuvable": "tableau introuvable ou inaccessible"
+  },
+  "shareEmpty": {
+    "member": "aucun autre membre dans cette org",
+    "memberPersonal": "ton espace perso n'a pas d'autre membre : partage par e-mail, ou à toute une org",
+    "team": "aucune équipe dans cette org",
+    "org": "tu n'es membre d'aucune autre org",
+    "loadError": "impossible de charger les membres, équipes et orgs : {reason}"
   }
 }

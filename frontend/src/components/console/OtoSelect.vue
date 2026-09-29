@@ -7,6 +7,10 @@
 // `noneLabel` : ajoute un item de tête « effacer » qui mappe sur la valeur VIDE ('').
 // reka refuse la chaîne vide comme valeur d'item → on passe par une sentinelle interne
 // (l'extérieur reste '' ↔ pas de valeur, comme l'`<option value="">` natif).
+//
+// `emptyLabel` : ce que dit le menu ouvert quand il n'a AUCUN choix. Sans lui, reka ouvre
+// un menu de hauteur nulle — un trait sous le champ, que l'on prend pour un bug d'affichage
+// (vécu le 29/09/2026 au partage d'un projet : « je ne peux pas voir la liste »).
 import { computed } from 'vue'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
@@ -15,6 +19,7 @@ const props = withDefaults(defineProps<{
   options: readonly { value: T; label: string; disabled?: boolean }[]
   placeholder?: string
   noneLabel?: string
+  emptyLabel?: string
   ariaLabel?: string
   disabled?: boolean
   grow?: boolean
@@ -51,6 +56,11 @@ const currentLabel = computed(() => {
     <SelectContent position="popper" :side-offset="4">
       <SelectItem v-if="noneLabel != null" :value="NONE">{{ noneLabel }}</SelectItem>
       <SelectItem v-for="o in options" :key="o.value" :value="o.value" :disabled="o.disabled">{{ o.label }}</SelectItem>
+      <div v-if="!options.length && noneLabel == null && emptyLabel" class="oto-select-empty" data-test="select-empty">{{ emptyLabel }}</div>
     </SelectContent>
   </Select>
 </template>
+
+<style scoped>
+.oto-select-empty { padding: 7px 10px; font-size: 12.5px; color: var(--color-mute); max-width: 280px; line-height: 1.45; }
+</style>

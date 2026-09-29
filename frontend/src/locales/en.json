@@ -2929,5 +2929,12 @@
   },
   "tableauParId": {
     "introuvable": "table not found, or not accessible to you"
+  },
+  "shareEmpty": {
+    "member": "no other member in this org",
+    "memberPersonal": "your personal space has no other member: share by email, or with a whole org",
+    "team": "no team in this org",
+    "org": "you are not a member of any other org",
+    "loadError": "couldn't load members, teams and orgs: {reason}"
   }
 }

@@ -65,6 +65,9 @@ const role = ref<ResourceRole>('editor')
 const memberSub = ref(''); const groupId = ref(''); const orgId = ref(''); const email = ref('')
 const members = ref<OrgMember[]>([]); const groups = ref<GroupListItem[]>([]); const myOrgs = ref<Org[]>([])
 const busy = ref(false)
+// Une liste qui ne se lit pas se DIT : avalée en `[]`, elle ouvrait un menu vide, pris pour un
+// bug d'affichage (29/09/2026). Une liste lue et vide se dit aussi (`emptyLabel` des menus).
+const pickersError = ref<string | null>(null)
 
 // Options des selects (DS OtoSelect) — dérivées des listes chargées.
 const MODE_OPTIONS = computed<{ value: Mode; label: string }[]>(() => [
@@ -79,15 +82,24 @@ const orgOpts = computed(() => myOrgs.value.map((o) => ({ value: String(o.id), l
 
 async function loadPickers() {
   const org = me.value?.active_org
-  const [m, g, o] = await Promise.all([
-    org != null ? getOrg(org).then((d) => d.members ?? []).catch(() => []) : Promise.resolve([]),
-    org != null ? listGroups(org).then((d) => d.groups).catch(() => []) : Promise.resolve([]),
-    getMyOrgs().then((d) => d.orgs).catch(() => []),
-  ])
-  members.value = m.filter((x) => x.sub !== me.value?.sub && !!x.email)
-  groups.value = g
-  myOrgs.value = o.filter((x) => x.id !== org)
+  pickersError.value = null
+  try {
+    const [m, g, o] = await Promise.all([
+      org != null ? getOrg(org).then((d) => d.members ?? []) : Promise.resolve([]),
+      org != null ? listGroups(org).then((d) => d.groups) : Promise.resolve([]),
+      getMyOrgs().then((d) => d.orgs),
+    ])
+    members.value = m.filter((x) => x.sub !== me.value?.sub && !!x.email)
+    groups.value = g
+    myOrgs.value = o.filter((x) => x.id !== org)
+  } catch (e) {
+    members.value = []; groups.value = []; myOrgs.value = []
+    pickersError.value = humanize(e)
+  }
 }
+// Dans l'espace perso, l'org n'a pas d'autre membre : on le dit, et on montre la sortie.
+const memberEmpty = computed(() => me.value?.active_org_is_personal
+  ? t('shareEmpty.memberPersonal') : t('shareEmpty.member'))
 watch(() => props.open, (o) => {
   if (!o) return
   mode.value = 'member'; role.value = 'editor'
@@ -340,14 +352,15 @@ async function transfer() {
             </div>
             <div v-if="!readOnly" class="sd__add">
               <OtoSelect v-model="mode" :options="MODE_OPTIONS" :aria-label="t('projectsUi.share.recipientType')" />
-              <OtoSelect v-if="mode === 'member'" v-model="memberSub" :options="memberOpts" grow :placeholder="t('projectsUi.share.pickMember')" />
-              <OtoSelect v-else-if="mode === 'team'" v-model="groupId" :options="teamOpts" grow :placeholder="t('projectsUi.share.pickTeam')" />
-              <OtoSelect v-else-if="mode === 'org'" v-model="orgId" :options="orgOpts" grow :placeholder="t('projectsUi.share.pickOrg')" />
+              <OtoSelect v-if="mode === 'member'" v-model="memberSub" :options="memberOpts" grow :placeholder="t('projectsUi.share.pickMember')" :empty-label="memberEmpty" />
+              <OtoSelect v-else-if="mode === 'team'" v-model="groupId" :options="teamOpts" grow :placeholder="t('projectsUi.share.pickTeam')" :empty-label="t('shareEmpty.team')" />
+              <OtoSelect v-else-if="mode === 'org'" v-model="orgId" :options="orgOpts" grow :placeholder="t('projectsUi.share.pickOrg')" :empty-label="t('shareEmpty.org')" />
               <input v-else v-model="email" class="sd__in sd__grow" type="email" :placeholder="t('projectsUi.share.emailPlaceholder')" @keyup.enter="addPrincipal" />
               <OtoSelect v-model="role" :options="ROLE_OPTIONS" :aria-label="t('projectsUi.share.role')" />
               <Btn kind="mini" icon="plus" :disabled="busy || !principal" @click="addPrincipal">{{ t('projectsUi.share.invite') }}</Btn>
             </div>
-            <p v-else class="dim sd__ro">{{ t('projectsUi.share.readOnly') }}</p>
+            <p v-if="!readOnly && pickersError" class="sd__err" role="alert" data-test="pickers-error">{{ t('shareEmpty.loadError', { reason: pickersError }) }}</p>
+            <p v-if="readOnly" class="dim sd__ro">{{ t('projectsUi.share.readOnly') }}</p>
           </section>
 
           <div class="sd__hr"></div>
@@ -469,6 +482,7 @@ async function transfer() {
 .sd__in { border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 8px 11px; font-family: var(--font-sans); font-size: 13px; color: var(--color-ink); background: var(--color-surface); }
 .sd__grow { flex: 1; min-width: 150px; }
 .sd__ro { font-size: 11.5px; margin: 6px 0 0; }
+.sd__err { font-size: 12px; margin: 8px 0 0; color: var(--color-terra-ink); }
 .sd__linkrow { display: flex; align-items: center; gap: 7px; }
 .sd__exposure { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; }
 .sd__url { flex: 1; min-width: 0; border: 1px solid var(--color-hair); border-radius: var(--radius-md); padding: 7px 10px; font-family: var(--font-mono); font-size: 10.5px; color: var(--color-ink-soft); background: var(--color-paper-2); }
