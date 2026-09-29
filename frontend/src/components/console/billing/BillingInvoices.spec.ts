@@ -103,9 +103,10 @@ describe('BillingInvoices — la facture que les CGV promettent', () => {
       v.done()
     })
 
-  it('un document en cours d\'émission se montre, et ne se lit pas comme un paiement perdu',
+  // `held` (oto-commerce#3) : encaissée, la facture attend que l'admin plateforme l'émette.
+  it('une facture en attente d\'émission (`held`) se montre, et ne se lit pas comme un paiement perdu',
     async () => {
-      factures([{ ...EMISE, id: 13, statut: 'pending', numero: null, pdf_nom: null, pdf: false, emise_le: null }])
+      factures([{ ...EMISE, id: 13, statut: 'held', numero: null, pdf_nom: null, pdf: false, emise_le: null }])
       const v = await render({ paying: true })
       // La ligne EXISTE et porte son montant : l'encaissement a bien eu lieu.
       expect(v.txt).toContain('22,80')

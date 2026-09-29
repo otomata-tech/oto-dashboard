@@ -538,6 +538,11 @@
     }
   },
   "errors": {
+    "invalid_number": "numéro de facture manquant",
+    "invalid_pdf": "le fichier n'est pas un PDF",
+    "invalid_invoice": "émission incomplète : le numéro et le PDF sont exigés, la date au format AAAA-MM-JJ",
+    "no_held_invoice": "cette facture n'est plus en attente d'émission : relisez la fiche",
+    "before_switch": "la facturation est encore tenue par le cœur : ce geste n'est pas encore ouvert au commerce",
     "under_contract": "l'organisation est sous contrat : son abonnement se règle hors plateforme, il n'y a rien à souscrire ici. Actualisez pour voir le contrat.",
     "view_as_hors_org": "pas dans cette vue : en « voir en tant que » borné à ton org, cette lecture n'est pas servie",
     "view_as_org_required": "la vue « en tant que » d'un admin d'org se fait dans son org : quitte la vue et rouvre-la depuis la liste des membres",
@@ -2570,6 +2575,12 @@
       "identitySaved": "identité de facturation enregistrée",
       "invoicesTitle": "factures",
       "noInvoices": "aucune facture.",
+      "invoiceHeld": "en attente d'émission",
+      "invoiceNumberField": "numéro",
+      "invoiceDateField": "date d'émission",
+      "invoicePdfField": "PDF de la facture",
+      "issueInvoice": "Émettre",
+      "invoiceIssued": "facture émise",
       "invalidLicences": "licences : un nombre entier attendu",
       "invalidEnd": "fin : une date AAAA-MM-JJ attendue"
     }

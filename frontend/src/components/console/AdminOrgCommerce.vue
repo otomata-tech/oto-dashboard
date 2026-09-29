@@ -7,7 +7,8 @@
 // Ce qu'elle remplace : « forcer un plan offert » devient OFFRIR UN DROIT du catalogue
 // (`PUT /dons/{droit}`, fin facultative) ; l'id client Pennylane devient l'identifiant
 // client du logiciel comptable (`compta_client_id`) ; le contrat hors plateforme se pose
-// et se clôt ici.
+// et se clôt ici ; une facture en attente (`held`) s'émet ici, numéro et PDF posés à la
+// main (`AdminFactureEmission`, oto-commerce#3).
 //
 // ⚠️ Avant la bascule, le commerce refuse chaque geste (`409 before_switch`) : la
 // facturation est encore au cœur. L'état le dit (`bascule_faite`), et un refus
@@ -22,6 +23,7 @@ import Tag from './Tag.vue'
 import Btn from './Btn.vue'
 import Notice from './Notice.vue'
 import FormDialog from './FormDialog.vue'
+import AdminFactureEmission from './AdminFactureEmission.vue'
 import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
@@ -179,6 +181,10 @@ function editIdentity() {
 }
 
 const factures = computed(() => etat.value?.factures ?? [])
+// L'émission rend la liste relue : elle remplace celle de l'état, sans relire le reste.
+function onIssued(liste: CommerceFacture[]) {
+  if (etat.value) etat.value = { ...etat.value, factures: liste }
+}
 async function downloadPdf(f: CommerceFacture) {
   try { await adminDownloadFacturePdf(props.orgId, f.id, f.pdf_nom ?? `facture-${f.numero ?? f.id}.pdf`) }
   catch (e) { toast(explain(e)) }
@@ -283,12 +289,17 @@ async function downloadPdf(f: CommerceFacture) {
         <!-- Factures : le relevé de ce que le commerce a émis pour l'org. -->
         <ConsoleCard :title="t('billingUi.admin.invoicesTitle')">
           <div class="rowlist">
-            <div v-for="f in factures" :key="f.id" style="display: flex; align-items: center; gap: 10px">
-              <span class="mono" style="flex: 1">{{ f.numero ?? `#${f.id}` }}</span>
-              <span class="dim">{{ fmtDay(f.emise_le) ?? '—' }}</span>
-              <span class="mono">{{ f.montant_ttc == null ? '—' : euros(f.montant_ttc) }}</span>
-              <Tag :tone="f.nature === 'credit_note' ? 'cobalt' : 'ink'">{{ f.statut }}</Tag>
-              <Btn v-if="f.pdf" kind="mini" icon="download" @click="downloadPdf(f)">{{ t('billingUi.invoices.pdf') }}</Btn>
+            <div v-for="f in factures" :key="f.id">
+              <div style="display: flex; align-items: center; gap: 10px">
+                <span class="mono" style="flex: 1">{{ f.numero ?? `#${f.id}` }}</span>
+                <span class="dim">{{ fmtDay(f.emise_le) ?? '—' }}</span>
+                <span class="mono">{{ f.montant_ttc == null ? '—' : euros(f.montant_ttc) }}</span>
+                <Tag v-if="f.statut === 'held'" tone="saffron">{{ t('billingUi.admin.invoiceHeld') }}</Tag>
+                <Tag v-else :tone="f.nature === 'credit_note' ? 'cobalt' : 'ink'">{{ f.statut }}</Tag>
+                <Btn v-if="f.pdf" kind="mini" icon="download" @click="downloadPdf(f)">{{ t('billingUi.invoices.pdf') }}</Btn>
+              </div>
+              <!-- En attente d'émission : son numéro et son PDF se posent ici. -->
+              <AdminFactureEmission v-if="f.statut === 'held'" :org-id="orgId" :facture="f" @issued="onIssued" />
             </div>
             <div v-if="!factures.length" class="helptext" style="margin: 0">{{ t('billingUi.admin.noInvoices') }}</div>
           </div>

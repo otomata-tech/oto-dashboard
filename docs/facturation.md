@@ -263,6 +263,7 @@ même jeton ; le droit est le rôle plateforme de l'appelant, relu auprès du c�
 | `PUT` / `DELETE /dons/{droit}` | offrir un droit du catalogue (`unipile`, `platform_unmetered`, `unipile_seats`, `members_max`), fin facultative — **remplace « forcer un plan offert »** |
 | `PUT` / `DELETE /contrat` | `{licences, droits, fin?, reference?}` : un abonnement réglé hors plateforme ; `DELETE` le clôt maintenant |
 | `PUT /identite` | la fiche ENTIÈRE et `compta_client_id` — l'identifiant client du logiciel comptable, qui **remplace l'id client Pennylane** |
+| `PUT /factures/{id}` | émettre une facture `held` (tout encaissement en laisse une, ni numéro ni PDF, oto-commerce#3) : `{numero, emise_le?, pdf_base64, pdf_nom?}` → `{factures}`, la liste relue qui remplace l'affichée. `AdminFactureEmission` : numéro, date (aujourd'hui par défaut), PDF ; refus `invalid_number` / `invalid_pdf` / `invalid_invoice` / `no_held_invoice` / `before_switch` dits par leur clé `errors.<code>`. Côté org, `held` se montre « en cours d'émission », sans lien |
 | `GET /factures/{id}/pdf` | le PDF d'une facture de l'org |
 
 ⚠️ **Avant la bascule**, le commerce refuse chaque geste (`409 before_switch`) : la

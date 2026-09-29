@@ -2,11 +2,13 @@
 // d'administration d'oto-commerce. Ce qui se fixe ici : il lit l'état ENTIER de l'org
 // chez le commerce, ses gestes partent vers les bonnes routes, et un refus — `before_switch`
 // en tête, tant que la facturation est au cœur — s'affiche tel que le commerce l'a écrit.
+// L'émission d'une facture en attente (`held`, oto-commerce#3) dit ses refus par leur code
+// traduit, et remplace la liste par celle que le commerce rend.
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { createApp, h, nextTick } from 'vue'
 import { i18n } from '@/lib/i18n'
 import { usePrompt } from '@/composables/usePrompt'
-import type { CommerceEtatAdmin } from '@/types/api.commerce'
+import type { CommerceEtatAdmin, CommerceFacture } from '@/types/api.commerce'
 
 const commerce = vi.hoisted(() => ({ apiCommerce: vi.fn(), apiCommerceDownload: vi.fn() }))
 vi.mock('@/api', async (importOriginal) => ({
@@ -31,6 +33,17 @@ const ETAT: CommerceEtatAdmin = {
     periode_fin: null, emise_le: '2026-09-25T10:00:00+00:00', pdf_nom: 'F-2026-0009.pdf', pdf: true }],
   bascule_faite: false,
 }
+// Un encaissement qui attend son émission : montants et période, ni numéro ni PDF.
+const EN_ATTENTE: CommerceFacture = { id: 10, nature: 'invoice', statut: 'held', numero: null,
+  montant_ht: 2500, tva_bps: 2000, tva: 500, montant_ttc: 3000, regime_tva: 'fr_ttc',
+  periode_debut: '2026-09-29T00:00:00+00:00', periode_fin: '2026-10-29T00:00:00+00:00',
+  emise_le: null, pdf_nom: null, pdf: false }
+const EMISE: CommerceFacture = { ...EN_ATTENTE, statut: 'issued', numero: 'F-2026-0010',
+  emise_le: '2026-09-29T00:00:00+00:00', pdf_nom: 'F-2026-0010.pdf', pdf: true }
+
+// L'état servi, et ce que rend (ou refuse) l'émission.
+let etat: CommerceEtatAdmin = ETAT
+let emission: () => unknown = () => ({ factures: [EMISE, ...ETAT.factures] })
 
 async function render(isOperator = true) {
   const host = document.createElement('div')
@@ -49,9 +62,12 @@ async function settle() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  etat = ETAT
+  emission = () => ({ factures: [EMISE, ...ETAT.factures] })
   commerce.apiCommerce.mockImplementation(async (path: string, init: RequestInit = {}) => {
     const geste = `${init.method ?? 'GET'} ${path}`
-    if (geste === 'GET /api/admin/orgs/7/commerce') return ETAT
+    if (geste === 'GET /api/admin/orgs/7/commerce') return etat
+    if (geste === 'PUT /api/admin/orgs/7/factures/10') return emission()
     if (geste === 'DELETE /api/admin/orgs/7/dons/unipile') {
       throw new ApiError(409, 'before_switch', 'la facturation est encore au cœur : ce geste s\'y fait')
     }
@@ -104,6 +120,79 @@ describe('AdminOrgCommerce — l\'état de l\'org chez le commerce', () => {
     const v = await render(false)
     expect(commerce.apiCommerce).not.toHaveBeenCalled()
     expect((v.host.textContent ?? '').trim()).toBe('')
+    v.done()
+  })
+})
+
+describe('AdminOrgCommerce — émettre une facture en attente (oto-commerce#3)', () => {
+  // Remplit le formulaire d'une facture `held` : numéro, et un PDF choisi dans l'input file.
+  async function remplir(host: HTMLElement, numero: string) {
+    const num = host.querySelector<HTMLInputElement>('input[type=text]')!
+    num.value = numero
+    num.dispatchEvent(new Event('input'))
+    const file = host.querySelector<HTMLInputElement>('input[type=file]')!
+    const pdf = new File(['%PDF-1.4 facture'], 'F-2026-0010.pdf', { type: 'application/pdf' })
+    Object.defineProperty(file, 'files', { configurable: true, value: [pdf] })
+    file.dispatchEvent(new Event('change'))
+    await settle()
+  }
+  // Le bouton du formulaire, quelle que soit la langue (« Émettre » / « Issue »).
+  const emettre = (host: HTMLElement) => host.querySelector<HTMLButtonElement>('form button')!
+
+  it('une facture ÉMISE n\'a pas de formulaire d\'émission', async () => {
+    const v = await render()
+    expect(v.host.querySelector('input[type=file]')).toBeNull()
+    expect(v.host.textContent).not.toContain('en attente d\'émission')
+    v.done()
+  })
+
+  it('une facture EN ATTENTE se dit, et s\'émet : PUT avec numéro, date du jour et PDF en base64, puis la liste rendue',
+    async () => {
+      etat = { ...ETAT, factures: [EN_ATTENTE, ...ETAT.factures] }
+      const v = await render()
+      expect(v.host.textContent).toContain('en attente d\'émission')
+      // Rien ne part tant que le numéro et le PDF manquent.
+      expect(emettre(v.host).textContent).toContain('Émettre')
+      expect(emettre(v.host).disabled).toBe(true)
+      const date = v.host.querySelector<HTMLInputElement>('input[type=date]')!
+      expect(date.value).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+
+      await remplir(v.host, ' F-2026-0010 ')
+      expect(emettre(v.host).disabled).toBe(false)
+      emettre(v.host).click()
+      await settle()
+
+      const appel = commerce.apiCommerce.mock.calls.find(([p, i]) =>
+        p === '/api/admin/orgs/7/factures/10' && (i as RequestInit | undefined)?.method === 'PUT')!
+      expect(JSON.parse(String((appel[1] as RequestInit).body))).toEqual({
+        numero: 'F-2026-0010', emise_le: date.value, pdf_base64: btoa('%PDF-1.4 facture'),
+        pdf_nom: 'F-2026-0010.pdf',
+      })
+      expect(toast).toHaveBeenCalledWith('facture émise')
+      // La liste est celle que le commerce a rendue : émise, sans formulaire, sans relire l'état.
+      expect(v.host.textContent).toContain('F-2026-0010')
+      expect(v.host.textContent).not.toContain('en attente d\'émission')
+      expect(v.host.querySelector('input[type=file]')).toBeNull()
+      expect(commerce.apiCommerce.mock.calls.filter(([p]) => p === '/api/admin/orgs/7/commerce')).toHaveLength(1)
+      v.done()
+    })
+
+  it('un refus se dit par son code TRADUIT, et le formulaire reste', async () => {
+    etat = { ...ETAT, factures: [EN_ATTENTE, ...ETAT.factures] }
+    emission = () => { throw new ApiError(400, 'invalid_pdf', '`pdf_base64` : un document PDF') }
+    const v = await render()
+    await remplir(v.host, 'F-2026-0010')
+    emettre(v.host).click()
+    await settle()
+    expect(toast).toHaveBeenCalledWith('le fichier n\'est pas un PDF')
+    expect(v.host.querySelector('input[type=file]')).not.toBeNull()
+    expect(v.host.querySelector<HTMLInputElement>('input[type=text]')!.value).toBe('F-2026-0010')
+
+    i18n.global.locale.value = 'en'
+    await settle()
+    emettre(v.host).click()
+    await settle()
+    expect(toast).toHaveBeenLastCalledWith('the file is not a PDF')
     v.done()
   })
 })

@@ -14,9 +14,10 @@
 //      téléchargeable » vaut aussi après une résiliation. La gater sur
 //      `subscribed` rendrait invisibles les factures de qui vient de partir —
 //      exactement celles qu'on réclame ensuite à son comptable.
-//   2. **Un `pending` n'est pas un paiement perdu.** L'encaissement a eu lieu, seul
-//      le document tarde et il est rejoué automatiquement. La ligne se montre, avec
-//      son montant, et la copie rassure au lieu d'alarmer.
+//   2. **Un `held` n'est pas un paiement perdu.** L'encaissement a eu lieu, seul le
+//      document tarde : l'admin plateforme lui pose son numéro et son PDF
+//      (oto-commerce#3). La ligne se montre, avec son montant, « en cours
+//      d'émission », sans lien, et la copie rassure au lieu d'alarmer.
 //   3. **Aucun lien mort.** Le bouton n'existe que si le commerce sert `pdf: true` — il
 //      y a un fichier au bout. Un document émis sans fichier le DIT, au lieu d'offrir un
 //      clic qui tomberait sur `404 no_invoice_pdf`.
@@ -111,7 +112,7 @@ function montant(inv: CommerceFacture): string {
 }
 
 /** Le nom de repli si le serveur n'a pas posé de Content-Disposition. Le numéro
- *  quand il existe, l'identifiant sinon : un `pending` n'a pas encore de numéro. */
+ *  quand il existe, l'identifiant sinon : un `held` n'a pas encore de numéro. */
 function nomFichier(inv: CommerceFacture): string {
   if (inv.pdf_nom) return inv.pdf_nom
   const base = estAvoir(inv) ? 'avoir' : 'facture'

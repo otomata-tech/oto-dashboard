@@ -170,7 +170,9 @@ export interface CommerceIdentiteSaisie {
 export interface CommerceFacture {
   id: number
   nature: 'invoice' | 'credit_note' | string
-  statut: string
+  /** `held` : l'encaissement a eu lieu, la facture attend d'être émise par l'admin
+   *  plateforme (ni numéro, ni date d'émission, ni PDF) ; `issued` : émise. */
+  statut: 'held' | 'issued' | string
   numero: string | null
   montant_ht: number | null
   tva_bps: number | null
@@ -223,5 +225,14 @@ export interface CommerceContratSaisie {
   droits: string[]
   fin?: string | null
   reference?: string | null
+}
+/** `PUT /api/admin/orgs/{id}/factures/{facture_id}` : émettre une facture `held`. Le
+ *  commerce ne crée aucune pièce chez l'outil comptable : le numéro et le PDF viennent de
+ *  l'admin. `emise_le` (AAAA-MM-JJ) omise = maintenant. Rend `{factures}`, la liste relue. */
+export interface CommerceFactureEmission {
+  numero: string
+  emise_le?: string
+  pdf_base64: string
+  pdf_nom?: string
 }
 export type CommerceIdentiteAdminSaisie = CommerceIdentiteSaisie & { compta_client_id: string | null }

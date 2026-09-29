@@ -34,9 +34,9 @@ import type { BailDuTravail } from '@/types/api.attendu'
 // Le contrat d'oto-commerce, qui ne publie pas d'OpenAPI — cf. le fichier.
 import type {
   CommerceAbonnement, CommerceAvantages, CommerceCgv, CommerceCheckout, CommerceContrat, CommerceContratSaisie,
-  CommerceEtatAdmin, CommerceFacture, CommerceIdentiteAdminSaisie, CommerceIdentiteSaisie,
-  CommerceIdentiteVue, CommerceMoi, CommerceOk, CommercePaiement, CommerceSouscription,
-  CommerceTarif,
+  CommerceEtatAdmin, CommerceFacture, CommerceFactureEmission, CommerceIdentiteAdminSaisie,
+  CommerceIdentiteSaisie, CommerceIdentiteVue, CommerceMoi, CommerceOk, CommercePaiement,
+  CommerceSouscription, CommerceTarif,
 } from '@/types/api.commerce'
 
 const j = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
@@ -1423,6 +1423,12 @@ export const adminCloreContrat = (orgId: number) =>
 // l'admin désigne (`compta_client_id`, vide = aucun). La fiche part ENTIÈRE.
 export const adminSetIdentite = (orgId: number, body: CommerceIdentiteAdminSaisie) =>
   apiCommerce<CommerceIdentiteVue>(`${adminCommerce(orgId)}/identite`, { method: 'PUT', ...j(body) })
+// Émettre une facture `held` (oto-commerce#3) : le numéro et le PDF (en base64) posés à la
+// main ; elle passe `issued`. Rend la liste des factures RELUE. Refus `invalid_number`,
+// `invalid_pdf`, `invalid_invoice` (400), `no_held_invoice` (404), `before_switch` (409).
+export const adminEmettreFacture = (orgId: number, factureId: number, body: CommerceFactureEmission) =>
+  apiCommerce<{ factures: CommerceFacture[] }>(`${adminCommerce(orgId)}/factures/${factureId}`,
+    { method: 'PUT', ...j(body) })
 // Le PDF d'une facture de l'org, côté admin plateforme.
 export const adminDownloadFacturePdf = (orgId: number, factureId: number, fallbackName: string) =>
   apiCommerceDownload(`${adminCommerce(orgId)}/factures/${factureId}/pdf`, fallbackName)

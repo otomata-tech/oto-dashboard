@@ -538,6 +538,11 @@
     }
   },
   "errors": {
+    "invalid_number": "missing invoice number",
+    "invalid_pdf": "the file is not a PDF",
+    "invalid_invoice": "incomplete issue: the number and the PDF are required, the date as YYYY-MM-DD",
+    "no_held_invoice": "this invoice is no longer awaiting issue: reload the sheet",
+    "before_switch": "billing is still held by the core: this action is not open to commerce yet",
     "under_contract": "the organization is under contract: its subscription is paid outside the platform, there is nothing to subscribe to here. Refresh to see the contract.",
     "view_as_hors_org": "not in this view: in a “view as” bounded to your org, this read is not served",
     "view_as_org_required": "an org admin’s “view as” happens inside their org: leave the view and reopen it from the member list",
@@ -2570,6 +2575,12 @@
       "identitySaved": "billing identity saved",
       "invoicesTitle": "invoices",
       "noInvoices": "no invoice.",
+      "invoiceHeld": "awaiting issue",
+      "invoiceNumberField": "number",
+      "invoiceDateField": "issue date",
+      "invoicePdfField": "invoice PDF",
+      "issueInvoice": "Issue",
+      "invoiceIssued": "invoice issued",
       "invalidLicences": "licences: a whole number expected",
       "invalidEnd": "end: a YYYY-MM-DD date expected"
     }
