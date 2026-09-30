@@ -15,6 +15,7 @@ import { useToast } from '@/composables/useToast'
 import { usePrompt } from '@/composables/usePrompt'
 import { useFormDialog } from '@/composables/useFormDialog'
 import { useMe } from '@/composables/useMe'
+import { enOrgPerso } from '@/lib/orgPerso'
 import { useOrgScope } from '@/composables/useOrgScope'
 import { uploadOrgLogo, deleteOrgLogo, updateOrg, archiveOrg, leaveOrg } from '@/api/console'
 import { fmtDate } from '@/types/api'
@@ -27,13 +28,15 @@ const { t } = useI18n()
 const { toast } = useToast()
 const { confirmAction } = usePrompt()
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
-const { reload: reloadMe } = useMe()
+const { me, reload: reloadMe } = useMe()
 // Gestes : `canAdminister` (profil, logo, supprimer) et `canWrite` (quitter) — le rôle, hors
 // consultation, où le serveur refuse toute écriture (oto#211).
 const { activeOrgId, detail, error, loaded, canWrite, canAdminister, reload } = useOrgScope()
 
 const logoBusy = ref(false)
-const isPersonalOrg = computed(() => detail.value?.org.personal === true)
+// Une org perso est une org comme une autre (29/09/2026) : sa zone danger se montre. Seule
+// exception visible ici : son PROPRIÉTAIRE ne la quitte pas (le serveur le refuse en 409).
+const monOrgPerso = computed(() => enOrgPerso(me.value))
 
 function editOrg() {
   if (activeOrgId.value == null) return
@@ -188,14 +191,15 @@ async function deleteOrg() {
 
       <OrgModelSubscriptionCard v-if="activeOrgId != null" :org-id="activeOrgId" :can-manage="canAdminister" />
 
-      <!-- Zone danger : gestes irréversibles/destructifs regroupés (jamais sur l'espace perso).
-           quitter = self-service tout membre · supprimer (archivage réversible) = org_admin.
+      <!-- Zone danger : gestes irréversibles/destructifs regroupés.
+           quitter = self-service tout membre, sauf le propriétaire de SON org perso ·
+           supprimer (archivage réversible) = org_admin.
            En consultation, aucun des deux : la carte part avec eux (oto#211). -->
-      <ConsoleCard v-if="detail && !isPersonalOrg && canWrite" class="danger-zone" :title="t('orgUi.settings.danger')"
+      <ConsoleCard v-if="detail && canWrite && (!monOrgPerso || canAdminister)" class="danger-zone" :title="t('orgUi.settings.danger')"
         :sub="t('orgUi.settings.dangerSub')">
         <div class="dz-list">
-          <!-- Quitter : tout membre, refusé si dernier admin (409 backend). -->
-          <div class="dz-row">
+          <!-- Quitter : tout membre, refusé si dernier admin (409 backend) ; jamais son org perso. -->
+          <div v-if="!monOrgPerso" class="dz-row">
             <div class="dz-txt">
               <div class="dz-t">{{ t('orgUi.settings.leaveTitle') }}</div>
               <div class="helptext" style="margin: 0">

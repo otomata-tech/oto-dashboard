@@ -18,7 +18,6 @@
 // n'en porte pas est NOMMÉ sans compteurs — jamais résolu à l'écran.
 // ─────────────────────────────────────────────────────────────────────────────
 import { describe, expect, it, beforeEach, vi } from 'vitest'
-import { poserOrgPerso } from '@/lib/orgPerso'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -88,9 +87,6 @@ const repondre = (corps: unknown) =>
 beforeEach(() => {
   // Les files de travail parlent par i18n ; les attentes sont écrites en français.
   i18n.global.locale.value = 'fr'
-  // Un tableau REÇU en personne ne se lit que dans l'org perso (oto#160, 29/09/2026) :
-  // ces scénarios s'y déroulent. Hors d'elle, la lentille ne part pas (`lib/orgPerso.spec`).
-  poserOrgPerso({ active_org_is_personal: true })
   adresses.length = 0
   document.body.textContent = ''
   vi.stubGlobal('fetch', async (url: string) => {
@@ -207,10 +203,9 @@ describe('les files de travail d un projet, tableau lié homonyme d un des miens
 
 // ── oto#160 (29/09/2026) : ce que la liste de l'org ne rend pas se LIT par identifiant ──
 describe('les files de travail d un projet, tableau lié absent de la liste', () => {
-  it('HORS de l org perso, un tableau reçu lié garde ses compteurs (lu par identifiant)', async () => {
-    // La lentille « moi » ne part pas dans une org : sans la lecture par identifiant, le
-    // tableau reçu lié au projet n'aurait plus eu de compteurs.
-    poserOrgPerso({ active_org_is_personal: false })
+  it('un tableau reçu lié garde ses compteurs, lu par identifiant', async () => {
+    // La liste de l'org ne rend pas le reçu nominatif : sans la lecture par identifiant, le
+    // tableau reçu lié au projet n'aurait pas de compteurs.
     const { texte, hrefs } = await accueil([LIE_AU_RECU])
     expect(texte).toContain('A faire 11')
     expect(hrefs).toEqual(['/data/77'])

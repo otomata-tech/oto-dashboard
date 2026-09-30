@@ -302,9 +302,9 @@ export interface LendableOrg {
   poolSize: number | null
 }
 
-/** Les orgs dont la personne est membre, avec le mode de chacune. L'espace personnel est
- *  écarté : on n'y prête qu'à soi-même. `memberIds` = TOUTES ses orgs, espace perso compris,
- *  pour borner l'ensemble envoyé (le serveur refuse une org dont on n'est pas membre). */
+/** Les orgs dont la personne est membre, avec le mode de chacune — org perso comprise : c'est
+ *  une org comme une autre (29/09/2026), d'autres peuvent y travailler. `memberIds` = TOUTES
+ *  ses orgs, pour borner l'ensemble envoyé (le serveur refuse une org dont on n'est pas membre). */
 export function useLendableOrgs(family: string = CLAUDE_FAMILY) {
   const orgs = ref<LendableOrg[]>([])
   const memberIds = ref<number[]>([])
@@ -318,7 +318,7 @@ export function useLendableOrgs(family: string = CLAUDE_FAMILY) {
     try {
       const mine = (await getMyOrgs()).orgs
       memberIds.value = mine.map((o) => o.id)
-      orgs.value = await Promise.all(mine.filter((o) => !o.personal).map(async (org) => {
+      orgs.value = await Promise.all(mine.map(async (org) => {
         try {
           const cap = await getOrgModelSubscription(org.id, family)
           return { org, mode: modeOf(cap), poolSize: cap.pool_size }

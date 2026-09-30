@@ -328,11 +328,12 @@ const CAP = (org_id: number, mode: string, pool_size = 0) => ({
   org_id, family: 'claude_subscription', limit_pct: 80, default: true, updated_at: null, updated_by: null,
   mode, pool_size,
 })
-// Perso (écartée), Acme en pool (2 prêteurs), Beta en personnel, Gamma en pool.
+// Perso (une org comme une autre depuis le 29/09/2026, ici en personnel), Acme en pool
+// (2 prêteurs), Beta en personnel, Gamma en pool.
 function mesOrgs() {
   api.getMyOrgs.mockResolvedValue({ orgs: [org(1, 'Perso', true), org(7, 'Acme'), org(8, 'Beta'), org(9, 'Gamma')] })
   api.getOrgModelSubscription.mockImplementation(async (id: number) =>
-    ({ 7: CAP(7, 'pool', 2), 8: CAP(8, 'personnel'), 9: CAP(9, 'pool', 0) } as Record<number, unknown>)[id])
+    ({ 1: CAP(1, 'personnel'), 7: CAP(7, 'pool', 2), 8: CAP(8, 'personnel'), 9: CAP(9, 'pool', 0) } as Record<number, unknown>)[id])
 }
 const caseDe = (host: HTMLElement, id: number) =>
   host.querySelector<HTMLInputElement>(`[data-test=lend-org-${id}] input[type=checkbox]`)!
@@ -378,12 +379,14 @@ describe('prêt au pool — la logique', () => {
 })
 
 describe('AccountClaudeView — prêter au pool', () => {
-  it('une case par org (perso écartée) ; hors pool la case est fermée et la raison dite', async () => {
+  it('une case par org (perso comprise) ; hors pool la case est fermée et la raison dite', async () => {
+    // 29/09/2026 : l'org perso est une org comme une autre — d'autres peuvent y travailler,
+    // on peut donc y prêter (elle était écartée).
     api.getModelSubscriptions.mockResolvedValue({ subscriptions: [{ ...CONNECTE, lent_to: [] }] })
     mesOrgs()
     const { host, unmount } = await mountView()
-    expect(api.getOrgModelSubscription).toHaveBeenCalledTimes(3)
-    expect(host.querySelector('[data-test=lend-org-1]')).toBeNull()
+    expect(api.getOrgModelSubscription).toHaveBeenCalledTimes(4)
+    expect(caseDe(host, 1).disabled).toBe(true)
     expect(host.querySelector('[data-test=lend-rule]')!.textContent).toContain('ton forfait qui est consommé')
     expect(host.querySelector('[data-test=lend-note-7]')!.textContent).toContain('2 prêteurs')
     expect(caseDe(host, 7).disabled).toBe(false)

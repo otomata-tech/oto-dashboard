@@ -49,8 +49,6 @@ const isOperator = computed(() => isPlatformOperator(me.value))
 const myMembership = computed(() =>
   detail.value?.members.find((m) => m.sub === me.value?.sub) ?? null)
 
-const isPersonalOrg = computed(() => detail.value?.org.personal === true)
-
 async function refresh() { detail.value = await getAdminOrg(orgId.value) }
 
 async function loadAll() {
@@ -240,7 +238,7 @@ const orgOptions = computed(() => detail.value?.option_comps ?? [])
               </div>
             </div>
 
-            <div v-if="canWrite && !isPersonalOrg" style="border-top: 1px solid var(--color-hair); padding-top: 12px">
+            <div v-if="canWrite" style="border-top: 1px solid var(--color-hair); padding-top: 12px">
               <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap">
                 <div class="helptext" style="margin: 0">archive (soft-delete) cet espace — réversible en base, données conservées.</div>
                 <Btn kind="danger" @click="archiveOrg">Archiver l'org</Btn>

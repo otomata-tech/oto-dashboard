@@ -14,7 +14,6 @@ import { useMe } from '@/composables/useMe'
 import { getNamespaces, getSharedWithMe, createNamespace } from '@/api/console'
 import type { DatastoreEntry, SharedDatastoreEntry } from '@/types/api'
 import { humanize } from '@/lib/errors'
-import { enOrgPerso } from '@/lib/orgPerso'
 import { resoudreTableau } from '@/lib/tableauParId'
 import { resolveTarget, type TargetChoice, type TargetKey } from '@/lib/routeTarget'
 
@@ -28,9 +27,8 @@ const datastores = ref<DatastoreEntry[]>([])
 // Ce que `GET /api/me/datastores/shared` sert : les tableaux partagés NOMINATIVEMENT à
 // l'appelant. Une SECONDE liste, jamais fusionnée avec celle de l'org (arbitrage oto#160
 // du 10/09 : les y faire entrer rouvrirait l'incident du 30/06 — un tableau qui
-// n'appartient à aucune org, lu comme venant de celle où l'on navigue). Depuis le 29/09/2026
-// (oto#160, « l'org ne montre que l'org ») c'est une lentille « moi » : lue seulement dans
-// l'org perso (`lentilleMoi`), vide ailleurs — la section « partagés avec moi » n'y est pas.
+// n'appartient à aucune org, lu comme venant de celle où l'on navigue). C'est une lentille
+// « moi », servie dans toute org (29/09/2026 : une org perso est une org comme une autre).
 const partages = ref<SharedDatastoreEntry[]>([])
 const error = ref<string | null>(null)
 const loaded = ref(false)
@@ -256,11 +254,9 @@ async function doCreate(payload: { name: string; scope: 'user' | 'org' }) {
   const owner = payload.scope === 'org' && activeOrg ? { type: 'org', id: activeOrg } : undefined
   try {
     const cree = await createNamespace(payload.name, owner)
-    // Un tableau personnel créé hors de l'org perso ne se liste pas ici (oto#160) : on dit
-    // où il se range — l'avertissement SERVI d'abord, qui le dit quand l'org a été demandée.
-    toast(cree.avertissement
-      ?? (!owner && !enOrgPerso(me.value)
-        ? t('orgPersoUi.nsCreatedElsewhere', { name: payload.name }) : t('dataUi.view.created', { name: payload.name })))
+    // Un tableau personnel se liste pour moi ici, où je l'ai créé (29/09/2026) —
+    // l'avertissement SERVI d'abord, qui dit que les autres membres ne le voient pas.
+    toast(cree.avertissement ?? t('dataUi.view.created', { name: payload.name }))
     await load()
     // Ouvert par l'identifiant RENDU, jamais retrouvé par son nom dans une liste : un
     // tableau perso créé dans une org n'y est pas, et un nom peut désigner plusieurs

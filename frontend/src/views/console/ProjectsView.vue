@@ -25,7 +25,6 @@ import {
   projectVisibility, projectBucket, BUCKET_ORDER, BUCKET_LABEL, BUCKET_HINT,
 } from '@/lib/projectVisibility'
 import { humanize } from '@/lib/errors'
-import { enOrgPerso } from '@/lib/orgPerso'
 import { useToast } from '@/composables/useToast'
 import { useMe, isPlatformOperator } from '@/composables/useMe'
 
@@ -178,10 +177,9 @@ async function create() {
 async function doCreate(payload: ProjectOwnerPayload) {
   try {
     const p = await createProject(payload.name, '', payload.owner)
-    // Sans propriétaire, le projet est à moi : hors org perso, il ne se liste pas ici
-    // (oto#160) — on dit où il est, puis on l'ouvre par son id, qui reste ouvrable.
-    toast(!payload.owner && !enOrgPerso(me.value)
-      ? t('orgPersoUi.projectCreatedElsewhere') : t('projectsUi.list.toast.created'))
+    // Sans propriétaire, le projet est à moi : il se liste pour moi ici, où je l'ai créé
+    // (29/09/2026 : une org perso est une org comme une autre).
+    toast(t('projectsUi.list.toast.created'))
     openProject(p.id)
   } catch (e) { toast(humanize(e)); throw e }
 }

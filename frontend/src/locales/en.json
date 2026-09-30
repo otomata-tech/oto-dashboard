@@ -3001,14 +3001,6 @@
       "forbidden": "The view as {name} is not open: you are not (or no longer) an admin of this org."
     }
   },
-  "orgPersoUi": {
-    "meElsewhere": "me (shown in my personal space)",
-    "projectHelpElsewhere": "“me”: the project is yours and lives in your personal space, not in this org. “org” / “team”: visible to all its members right away.",
-    "nsPersonalElsewhere": "personal (shown in my personal space)",
-    "nsHelpElsewhere": "a personal table lives in your personal space, not in this org; an org binder is shared with its members.",
-    "projectCreatedElsewhere": "project created — it lives in your personal space, not in this org",
-    "nsCreatedElsewhere": "table “{name}” created — it lives in your personal space, not in this org"
-  },
   "tableauParId": {
     "introuvable": "table not found, or not accessible to you"
   },

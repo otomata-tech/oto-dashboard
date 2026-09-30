@@ -5,7 +5,7 @@
 // deviennent des choix EXPLICITES (« donner à… »), plus le défaut. Ensuite on partage
 // (`oto_resource`). L'appel réseau est délégué au parent ; les équipes proposées sont
 // celles que le parent juge utilisables.
-import { computed, watch } from 'vue'
+import { watch } from 'vue'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import * as z from 'zod'
@@ -18,13 +18,9 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Button } from '@/components/ui/button'
 import { useI18n } from 'vue-i18n'
 import { useMe } from '@/composables/useMe'
-import { enOrgPerso } from '@/lib/orgPerso'
 
 const { t } = useI18n()
 const { me } = useMe()
-// Hors de l'org perso, un projet « à moi » ne se liste pas ici : il se range dans mon
-// espace perso (oto#160, 29/09/2026). Le libellé le dit avant qu'on le crée.
-const horsEspacePerso = computed(() => !enOrgPerso(me.value))
 
 export interface ProjectOwnerPayload {
   name: string
@@ -104,7 +100,7 @@ const submit = handleSubmit(async (values) => {
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value="me">{{ horsEspacePerso ? t('orgPersoUi.meElsewhere') : t('workUi.create.me') }}</SelectItem>
+                <SelectItem value="me">{{ t('workUi.create.me') }}</SelectItem>
                 <SelectItem value="org">{{ orgName ? t('workUi.create.orgNamed', { name: orgName }) : t('workUi.create.org') }}</SelectItem>
                 <SelectItem v-for="g in groups ?? []" :key="g.id" :value="`group:${g.id}`">
                   {{ t('workUi.create.team', { name: g.name }) }}
@@ -112,7 +108,7 @@ const submit = handleSubmit(async (values) => {
                 <SelectItem v-if="canPlatform" value="platform">{{ t('workUi.create.platform') }}</SelectItem>
               </SelectContent>
             </Select>
-            <FormDescription>{{ horsEspacePerso ? t('orgPersoUi.projectHelpElsewhere') : t('workUi.create.projectHelp') }}</FormDescription>
+            <FormDescription>{{ t('workUi.create.projectHelp') }}</FormDescription>
             <FormMessage />
           </FormItem>
         </FormField>

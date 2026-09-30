@@ -23,7 +23,6 @@
 // endroits le rougit.
 // ─────────────────────────────────────────────────────────────────────────────
 import { describe, expect, it, beforeEach, vi } from 'vitest'
-import { poserOrgPerso } from '@/lib/orgPerso'
 import { i18n } from '@/lib/i18n'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -105,9 +104,6 @@ beforeEach(() => {
   i18n.global.locale.value = 'en'
   adresses.length = 0
   document.body.innerHTML = ''
-  // Un tableau REÇU en personne ne se lit que dans l'org perso (oto#160, 29/09/2026) :
-  // ces scénarios s'y déroulent. Hors d'elle, la lentille ne part pas (`lib/orgPerso.spec`).
-  poserOrgPerso({ active_org_is_personal: true })
   vi.stubGlobal('fetch', async (url: string) => {
     const chemin = new URL(url).pathname
     // La liste de l'org + le perso. Elle EXCLUT le reçu nominatif, comme en prod.

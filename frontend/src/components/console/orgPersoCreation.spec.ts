@@ -1,7 +1,8 @@
-// Créer « à moi » depuis une org non perso (oto#160 ; Alexis, 29/09/2026) : sans
-// propriétaire, l'objet m'appartient et se range dans mon espace perso, pas dans l'org où
-// je suis. Le dialogue le dit AVANT la création ; « l'org » et « une équipe » envoient
-// leur propriétaire EXPLICITEMENT.
+// Créer « à moi » depuis n'importe quelle org (Alexis, 29/09/2026) : sans propriétaire,
+// l'objet m'appartient et se liste pour moi dans l'org où je l'ai créé — une org perso est
+// une org comme une autre, le libellé est donc le même partout (il annonçait « visible dans
+// mon espace perso » hors de l'org perso). « l'org » et « une équipe » envoient leur
+// propriétaire EXPLICITEMENT.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick, ref } from 'vue'
 import { i18n } from '@/lib/i18n'
@@ -82,9 +83,9 @@ beforeEach(() => {
 describe('créer un projet dans une org non perso', () => {
   beforeEach(() => { me.value = { active_org_is_personal: false } })
 
-  it('trois choix : moi (dans mon espace perso), l’org, une équipe', async () => {
+  it('trois choix : moi, l’org, une équipe', async () => {
     const { hote } = await monter()
-    expect(choix(hote)).toEqual(['moi (visible dans mon espace perso)', 'org (Otomata Admin)', 'équipe — Ventes'])
+    expect(choix(hote)).toEqual(['moi (privé)', 'org (Otomata Admin)', 'équipe — Ventes'])
   })
 
   it('« l’org » envoie l’org EXPLICITEMENT', async () => {
