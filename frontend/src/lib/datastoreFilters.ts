@@ -5,7 +5,7 @@
 import { cellKind } from './cellRender'
 import type { ColumnFilter, FilterOp } from '@/types/api'
 
-export type FilterKind = 'text' | 'number' | 'date' | 'bool' | 'timestamp'
+export type FilterKind = 'text' | 'number' | 'date' | 'bool' | 'timestamp' | 'composite'
 
 // État local d'un filtre de colonne (avant assemblage en ColumnFilter).
 export interface ColFilterState { op: FilterOp; value: string }
@@ -32,10 +32,13 @@ export function isMetaDateField(field: string): boolean {
 // Type DÉCLARÉ au schéma (ADR 0046) → type de filtre. Il fait autorité sur la
 // détection par la valeur : une colonne vide sur la page courante n'a plus à
 // retomber en `text` (et à perdre ses ops d'ordre) alors que le schéma la dit
-// `number`. Les types composites n'ont pas de filtre propre → texte.
+// `number`. Les types composites (`list`, `object`) ont leur propre genre : le
+// backend refuse de COMPARER la colonne entière (eq/ne/in/gt…), seuls contains,
+// empty, not_empty y sont permis.
 const KIND_BY_DECLARED_TYPE: Record<string, FilterKind> = {
   number: 'number', date: 'date', datetime: 'date', bool: 'bool',
   text: 'text', url: 'text', email: 'text', enum: 'text',
+  list: 'composite', object: 'composite',
 }
 
 /** Type de filtre d'une colonne : type déclaré au schéma s'il existe, sinon déduit
@@ -65,6 +68,9 @@ export const OPS_BY_KIND: Record<FilterKind, FilterOp[]> = {
   // Miroir de db._DS_META_TS_OPS : pas d'`empty`/`not_empty` sur une colonne
   // NOT NULL (le backend les refuse — ne pas proposer un choix qui rend 400).
   timestamp: ['gte', 'lte', 'eq', 'gt', 'lt'],
+  // Miroir du refus backend (otomata-tech/oto#22) : pas de comparaison d'une colonne
+  // list/object entière — ne pas proposer un choix qui rend 400.
+  composite: ['contains', 'empty', 'not_empty'],
 }
 
 // Libellé d'op — contextualisé pour les dates (avant/après) vs ordres numériques.

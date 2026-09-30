@@ -34,6 +34,11 @@ describe('columnFilterKind', () => {
     expect(columnFilterKind([{ j: 12 }], 'j', 'json')).toBe('number')
   })
 
+  it('gives list and object columns the composite kind, whatever the values', () => {
+    expect(columnFilterKind([{ c: 12 }], 'c', 'list')).toBe('composite')
+    expect(columnFilterKind([], 'o', 'object')).toBe('composite')
+  })
+
   it('detects bool from a boolean value', () => {
     expect(columnFilterKind([{ b: false }], 'b')).toBe('bool')
   })
@@ -154,5 +159,24 @@ describe('filters ↔ URL param', () => {
   it('drops valued ops whose value is blank, keeps valid triples', () => {
     expect(filtersFromParam('[["f","eq",""],["g","eq","ok"]]'))
       .toEqual([{ field: 'g', op: 'eq', value: 'ok' }])
+  })
+})
+
+describe('composite columns (list / object)', () => {
+  it('only offer contains, empty and not_empty', () => {
+    expect(OPS_BY_KIND.composite).toEqual(['contains', 'empty', 'not_empty'])
+    for (const op of ['eq', 'ne', 'in', 'gt', 'gte', 'lt', 'lte'] as const)
+      expect(OPS_BY_KIND.composite).not.toContain(op)
+  })
+
+  it('default to contains', () => {
+    expect(defaultOp('composite')).toBe('contains')
+  })
+
+  it('label the ops in clear', () => {
+    expect(filterChipLabel({ field: 'contacts', op: 'contains', value: 'Dupont' }, 'composite'))
+      .toBe('contacts contient Dupont')
+    expect(filterChipLabel({ field: 'contacts', op: 'empty', value: '' }, 'composite'))
+      .toBe('contacts vide')
   })
 })
