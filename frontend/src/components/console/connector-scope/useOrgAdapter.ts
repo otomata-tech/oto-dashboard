@@ -15,7 +15,7 @@ import {
 } from '@/api/console'
 import { useMe, canAdministerOrg, canWriteInOrg } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
-import { openAddAccount } from './addAccount'
+import { openAddAccount, openReplaceAccount } from './addAccount'
 import type {
   OrgConnectorActivation, ConnectorMeta, FieldFiltersBundle,
 } from '@/types/api'
@@ -128,15 +128,24 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
     // `fields` que pour un connecteur MULTI-champs (`credentials_store.secret_from_input`).
     // Une clé unique (PayFit : un seul champ, `key`) se pose par `api_key` — envoyée dans
     // `fields`, elle était ignorée et la pose refusée en 400 `empty_api_key`.
+    openAddAccount(ctx, m, existing, accountOpts(r, m, org))
+  }
+  // Remplacer les identifiants d'UNE clé d'org nommée : même écriture, même aiguillage.
+  function replaceAccount(r: OrgConnectorActivation, account: string) {
+    const m = meta(r)
+    if (!m || !orgAdmin.value || orgId.value == null) return
+    openReplaceAccount(ctx, m, account, accountOpts(r, m, orgId.value))
+  }
+  function accountOpts(r: OrgConnectorActivation, m: NonNullable<ReturnType<typeof meta>>, org: number) {
     const fields = m.credential_fields ?? []
     const multi = m.secret_kind === 'fields'
-    openAddAccount(ctx, m, existing, {
-      scope: 'org',
-      save: (values, account) => (multi
+    return {
+      scope: 'org' as const,
+      save: (values: Record<string, string>, account: string) => (multi
         ? setOrgSecret(org, r.connector, '', undefined, values, account)
         : setOrgSecret(org, r.connector, values[fields[0]?.name ?? ''] ?? '', undefined, undefined, account)),
       reload: () => Promise.all([load(), reloadMe()]),
-    })
+    }
   }
 
   return {
@@ -194,6 +203,7 @@ export function useOrgAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<OrgConnector
       canVerify: () => canWrite.value,
       accountScope: 'org',
       addAccount,
+      replaceAccount,
       // Consentement AU SCOPE ORG. Sans lui, cette surface laissait POSER l'application
       // OAuth de l'org sans aucun moyen de l'activer : l'org_admin enregistrait
       // client_id/secret/login_url, et devait deviner qu'il fallait aller sur sa fiche

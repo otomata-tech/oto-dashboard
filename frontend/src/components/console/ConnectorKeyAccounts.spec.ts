@@ -18,6 +18,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import ConnectorKeyAccounts from './ConnectorKeyAccounts.vue'
+import { i18n } from '@/lib/i18n'
 import { useMe } from '@/composables/useMe'
 import type { ConnectorIdentity, Me, MyConnector } from '@/types/api'
 
@@ -62,6 +63,7 @@ type Props = {
   scope?: 'member' | 'org'
   add?: (existing: string[]) => void
   verify?: (account: string) => Promise<unknown>
+  replace?: (account: string) => void
   onNamed?: (n: number) => void
   onChanged?: () => void
 }
@@ -69,7 +71,8 @@ function mount(props: Props = {}) {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const app = createApp(ConnectorKeyAccounts, { connector: CONNECTOR, ...props })
-  app.mount(host)
+  i18n.global.locale.value = 'fr'
+  app.use(i18n).mount(host)
   return {
     host,
     text: () => host.textContent ?? '',
@@ -328,6 +331,40 @@ describe('ConnectorKeyAccounts — au palier org', () => {
     await settle()
 
     expect(c.buttons()).toHaveLength(0)
+    c.cleanup()
+  })
+})
+
+// Changer la clé d'UN compte nommé (vécu 30/09 sur Slack) : une fois des comptes nommés
+// posés, le serveur refuse toute pose anonyme (409 `account_required`), et « modifier
+// ma clé » ne savait pas dire lequel. Chaque compte nommé porte donc son « Remplacer »,
+// qui passe SON nom au geste de l'adaptateur.
+describe('ConnectorKeyAccounts — remplacer un compte nommé', () => {
+  beforeEach(() => {
+    document.body.innerHTML = ''
+    identities.mockReset()
+  })
+
+  it('offre « Remplacer » sur chaque compte nommé et passe son nom', async () => {
+    served(account('otomata admin', true), account('principal'))
+    useMe().me.value = { sub: 'u' } as unknown as Me
+    const replace = vi.fn()
+    const c = mount({ replace })
+    await settle()
+
+    const remplacer = c.buttons().filter((b) => (b.textContent ?? '').trim() === 'Remplacer')
+    expect(remplacer).toHaveLength(2)
+    remplacer[1]!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(replace).toHaveBeenCalledWith('principal')
+    c.cleanup()
+  })
+
+  it('n’offre pas « Remplacer » sans geste de l’adaptateur', async () => {
+    served(account('otomata admin', true), account('principal'))
+    useMe().me.value = { sub: 'u' } as unknown as Me
+    const c = mount()
+    await settle()
+    expect(c.buttons().some((b) => (b.textContent ?? '').trim() === 'Remplacer')).toBe(false)
     c.cleanup()
   })
 })

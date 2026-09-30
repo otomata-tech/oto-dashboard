@@ -91,6 +91,8 @@ export interface CredentialLever<R> {
   // retire. Absents = ce scope ne gère pas de comptes nommés : ni liste ni ajout.
   accountScope?: 'org'
   addAccount?(r: R, existing: string[]): void
+  // Remplacer les identifiants d'UN compte nommé existant (`addAccount.ts`).
+  replaceAccount?(r: R, account: string): void
 }
 
 export interface ConnectCta<R> {
@@ -132,6 +134,10 @@ export interface ConnectionLever<R> {
   // ce scope ne sait pas encore ajouter un compte ; l'écran n'affiche alors rien.
   // Le même geste existe au palier org (`CredentialLever.addAccount`).
   addAccount?(r: R, existing: string[]): void
+  // Remplacer les identifiants d'UN compte nommé existant — sans lui, une fois des
+  // comptes nommés posés, aucune surface ne permettait de changer une clé (le serveur
+  // refuse la pose anonyme en 409 `account_required`).
+  replaceAccount?(r: R, account: string): void
   // `note` = phrase honnête sur le relais (calculée par la pile : ce qui prendrait
   // la suite, ou l'avertissement « rien ne prendra le relais ») — CDC P8.
   removeKey(r: R, note?: string): void

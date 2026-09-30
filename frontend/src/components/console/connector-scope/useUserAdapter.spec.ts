@@ -17,6 +17,7 @@ const setOrgSecret = vi.fn(
   async (_id: number, _provider: string, _key: string,
          _baseUrl?: string, _fields?: Record<string, string>) => ({}))
 const getMe = vi.fn(async () => ({ sub: 'u', providers: {} }))
+const identities = vi.fn(async (..._a: unknown[]) => ({ supported: true, identities: [] as { id: string }[] }))
 
 vi.mock('@/api/console', () => ({
   getMyConnectors: vi.fn(async () => ({ connectors: [] })),
@@ -33,6 +34,7 @@ vi.mock('@/api/console', () => ({
   selectConnector: vi.fn(async () => ({})),
   pauseConnector: vi.fn(async () => ({})),
   unselectConnector: vi.fn(async () => ({})),
+  getConnectorIdentities: (...a: unknown[]) => identities(...a),
   getMe: () => getMe(),
 }))
 
@@ -79,6 +81,63 @@ describe('useUserAdapter — ajouter un compte nommé (#121)', () => {
     // Le rechargement de `me` EST le signal que la liste des comptes et la pile de
     // provenance écoutent — sans lui, les deux restent sur leur instantané de montage.
     expect(getMe).toHaveBeenCalled()
+  })
+})
+
+// Changer la clé quand des comptes NOMMÉS existent (vécu 30/09 sur Slack) : la pose
+// anonyme est refusée par le serveur (409 `account_required`). « Modifier ma clé » ne
+// doit donc plus ouvrir une pose sans nom : un seul compte nommé → on le remplace ;
+// plusieurs → on renvoie à la liste. Et « Remplacer » vise SON compte.
+describe('useUserAdapter — remplacer la clé d’un compte nommé', () => {
+  let opened: CredentialDialogSpec | null
+  let toasts: string[]
+  let ctx: ScopeCtx
+
+  beforeEach(() => {
+    opened = null
+    toasts = []
+    setCredential.mockClear()
+    identities.mockReset()
+    ctx = {
+      openForm: () => {},
+      openCredential: (spec) => { opened = spec },
+      confirmAction: async () => true,
+      toast: (m) => { toasts.push(m) },
+    }
+  })
+
+  it('« Remplacer » repose SOUS le nom du compte, sans le redemander', async () => {
+    useUserAdapter(ctx).connection!.replaceAccount!(SLACK, 'otomata admin')
+    expect(opened!.accountMode).toBe('fixed')
+    expect(opened!.account).toBe('otomata admin')
+    // Un secret laissé vide reste au coffre : c'est un compte qui EXISTE.
+    expect(opened!.existing).toBe(true)
+    await opened!.onConfirm({ bot_token: 'xoxb-9' }, 'otomata admin')
+    expect(setCredential).toHaveBeenCalledWith('slack', { bot_token: 'xoxb-9' }, 'otomata admin')
+  })
+
+  it('« modifier la clé » avec un seul compte nommé le remplace', async () => {
+    identities.mockResolvedValue({ supported: true, identities: [{ id: 'principal' }] })
+    await useUserAdapter(ctx).connection!.configureKey(SLACK)
+    expect(opened!.accountMode).toBe('fixed')
+    expect(opened!.account).toBe('principal')
+  })
+
+  it('« modifier la clé » avec plusieurs comptes nommés renvoie à la liste', async () => {
+    identities.mockResolvedValue({
+      supported: true, identities: [{ id: 'otomata admin' }, { id: 'principal' }],
+    })
+    await useUserAdapter(ctx).connection!.configureKey(SLACK)
+    // Aucune pose anonyme ouverte : elle serait refusée en 409.
+    expect(opened).toBeNull()
+    expect(toasts.join(' ')).toContain('Remplacer')
+  })
+
+  it('sans compte nommé, la pose ordinaire ne change pas', async () => {
+    identities.mockResolvedValue({ supported: true, identities: [{ id: '' }] })
+    await useUserAdapter(ctx).connection!.configureKey(SLACK)
+    expect(opened).not.toBeNull()
+    expect(opened!.accountMode).toBeUndefined()
   })
 })
 

@@ -49,3 +49,32 @@ export function openAddAccount(
     },
   })
 }
+
+// Remplacer les identifiants d'UN compte nommé existant — le geste qui manquait : une
+// fois des comptes nommés posés, le serveur refuse toute pose anonyme (409
+// `account_required`), et « modifier ma clé » ne savait pas dire laquelle. Le dialogue
+// s'ouvre en mode `fixed` sur ce compte : son nom n'est pas redemandé, un secret laissé
+// vide reste au coffre (`existing`).
+export function openReplaceAccount(
+  ctx: ScopeCtx, c: ConnectorMeta, account: string, opts: AddAccountOpts,
+): void {
+  const fields = c.credential_fields ?? []
+  if (!fields.length) return
+  const w = accountWords(c.auth?.account_noun)
+  ctx.openCredential({
+    label: c.label, fields, single: fields.length === 1, scope: opts.scope,
+    fieldDiscriminator: c.auth?.field_discriminator,
+    docs: c.doc_sections, existing: true,
+    accountMode: 'fixed', account, accountNoun: w.noun,
+    verify: c.verifiable
+      ? () => (opts.scope === 'org'
+        ? verifyConnector(c.name, 'org', account)
+        : verifyConnector(c.name))
+      : undefined,
+    onConfirm: async (values) => {
+      await opts.save(values, account)
+      ctx.toast(`${w.noun} « ${account} » mis${w.e} à jour`)
+      await opts.reload()
+    },
+  })
+}

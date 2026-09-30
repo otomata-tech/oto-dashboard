@@ -30,6 +30,10 @@ const accountsAt = computed(() => {
   return accountScope && addAccount && multi && s.value.present ? accountScope : null
 })
 const addAccount = (existing: string[]) => props.lever.addAccount?.(props.row, existing)
+const replaceAccount = computed(() => {
+  const rep = props.lever.replaceAccount
+  return rep ? (account: string) => rep(props.row, account) : undefined
+})
 // La sonde d'UN compte nommé, offerte à la liste aux mêmes conditions que « tester ».
 const verifyAccount = computed(() => {
   const { verify, canVerify } = props.lever
@@ -110,7 +114,7 @@ async function test() {
         {{ t('connectorsUi.credential.oauthHelp') }}
       </p>
       <ConnectorKeyAccounts v-if="accountsAt && meta" :connector="meta" :scope="accountsAt"
-                            :add="addAccount" :verify="verifyAccount"
+                            :add="addAccount" :verify="verifyAccount" :replace="replaceAccount"
                             @named="(n) => namedAccounts = n" @changed="emit('changed')" />
       <div v-if="!canEdit && !canTest" class="helptext" style="margin-top: 8px">{{ t('connectorsUi.credential.readOnly') }}</div>
     </template>

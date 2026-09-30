@@ -8,7 +8,7 @@ import {
   getMyConnectors, getTools, getToolRegistry, getAgentToolbox,
   selectConnector, pauseConnector, unselectConnector,
   setCredential, deleteApiKey, verifyConnector,
-  getOrgFieldFilters, credentialPrefill, setOrgSecret,
+  getOrgFieldFilters, credentialPrefill, setOrgSecret, getConnectorIdentities,
 } from '@/api/console'
 import { useMe, canAdministerOrg, canWriteInOrg } from '@/composables/useMe'
 import { humanize } from '@/lib/errors'
@@ -16,7 +16,7 @@ import { connectorVerdict } from '@/lib/connectorVerdict'
 import { originBadge } from '@/lib/installOrigin'
 import { notSeenByName, unseenReason } from '@/lib/agentToolbox'
 import { poseScope } from '@/lib/credentialScope'
-import { openAddAccount } from './addAccount'
+import { openAddAccount, openReplaceAccount } from './addAccount'
 import type { ConnectorState, FieldFiltersBundle, InstalledNotSeen, MyConnector, ToolEntry } from '@/types/api'
 
 export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector> {
@@ -79,6 +79,10 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
     } catch (e) { error.value = humanize(e) } finally { ready.value = true }
   }
   async function reload() { await Promise.all([load(), reloadMe()]) }
+  // Remplacer les identifiants d'UN compte nommé du membre (même geste qu'`addAccount`).
+  const openReplace = (r: MyConnector, account: string) => openReplaceAccount(ctx, r, account, {
+    scope: 'member', save: (values, a) => setCredential(r.name, values, a), reload,
+  })
 
   async function setExposure(r: MyConnector, exp: ExposureState) {
     const s: ConnectorState = exp === 'live' ? 'active' : exp === 'muted' ? 'paused' : 'not_selected'
@@ -194,6 +198,19 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
           ctx.toast(`${r.label} : sa clé vaut pour toute l'org — un admin de ton org la pose.`)
           return
         }
+        // ⚠️ Des comptes NOMMÉS existent déjà (multi-compte) : une pose sans nom est
+        // refusée par le serveur (409 `account_required`, vécu 30/09 sur Slack). On
+        // ne rouvre donc pas la pose anonyme : un seul compte nommé → on le remplace ;
+        // plusieurs → on renvoie à la liste, où chaque compte a son « Remplacer ».
+        if (!atOrg && r.auth?.cardinality === 'multi_account') {
+          const ids = await getConnectorIdentities(r.name, 'member').catch(() => null)
+          const named = (ids?.identities ?? []).map((i) => i.id).filter((id) => id !== '')
+          if (named.length === 1) { openReplace(r, named[0]!); return }
+          if (named.length > 1) {
+            ctx.toast(`${r.label} : plusieurs comptes posés — choisis lequel remplacer dans la liste (« Remplacer »).`)
+            return
+          }
+        }
         const single = fields.length === 1
         // Relire ce qui est relisible AVANT d'ouvrir : sans ça, corriger une valeur
         // non secrète oblige à tout resaisir, secret compris — et le secret, lui,
@@ -224,6 +241,7 @@ export function useUserAdapter(ctx: ScopeCtx): ConnectorScopeAdapter<MyConnector
       addAccount: (r, existing) => openAddAccount(ctx, r, existing, {
         scope: 'member', save: (values, account) => setCredential(r.name, values, account), reload,
       }),
+      replaceAccount: (r, account) => openReplace(r, account),
       removeKey: async (r, note) => {
         const message = `retirer ta clé ${r.label} ?${note ? ` ${note}` : ''}`
         if (!await ctx.confirmAction({ title: 'retirer la clé', danger: true, confirmLabel: 'Retirer', message })) return

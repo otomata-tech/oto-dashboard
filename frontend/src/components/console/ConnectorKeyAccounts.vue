@@ -29,6 +29,7 @@ import { usePrompt } from '@/composables/usePrompt'
 import { explain, humanize } from '@/lib/errors'
 import { accountWords } from '@/lib/accountNoun'
 import type { ConnectorIdentity, ConnectorMeta, VerifyResult } from '@/types/api'
+import { useI18n } from 'vue-i18n'
 
 const props = withDefaults(defineProps<{
   connector: ConnectorMeta
@@ -38,12 +39,17 @@ const props = withDefaults(defineProps<{
   add?: (existing: string[]) => void
   // Sonder UN compte (palier org : la sonde prend un `account`) ; absent = pas de test.
   verify?: (account: string) => Promise<VerifyResult>
-}>(), { scope: 'member', add: undefined, verify: undefined })
+  // Remplacer les identifiants d'UN compte nommé (le geste de l'adaptateur) ; absent =
+  // pas de remplacement offert. Sans lui, une fois des comptes nommés posés, aucune
+  // surface ne changeait une clé : la pose anonyme est refusée (409 `account_required`).
+  replace?: (account: string) => void
+}>(), { scope: 'member', add: undefined, verify: undefined, replace: undefined })
 // `named` : combien de comptes NOMMÉS sont posés — le panneau d'org retire alors ses
 // gestes « clé unique », qui viseraient un compte anonyme qui n'existe plus.
 // `changed` : une écriture ici (défaut, retrait) — le parent relit ce qu'il affiche.
 const emit = defineEmits<{ named: [n: number]; changed: [] }>()
 const { me, reload } = useMe()
+const { t } = useI18n()
 const { toast } = useToast()
 const { confirmAction, promptText } = usePrompt()
 
@@ -181,6 +187,8 @@ async function remove(a: ConnectorIdentity) {
           <Btn v-if="!a.is_default" kind="mini" :disabled="busy === a.id"
                @click="makeDefault(a)">Par défaut</Btn>
           <Btn v-if="verify" kind="mini" :disabled="busy === a.id" @click="test(a)">tester</Btn>
+          <Btn v-if="replace && a.id !== ''" kind="mini" :disabled="busy === a.id"
+               @click="replace(a.id)">{{ t('connectorsUi.keyStack.replace') }}</Btn>
           <Btn v-if="a.id !== ''" kind="mini" :disabled="busy === a.id" @click="rename(a)">Renommer</Btn>
           <Btn kind="danger" :disabled="busy === a.id" @click="remove(a)">Retirer</Btn>
         </span>

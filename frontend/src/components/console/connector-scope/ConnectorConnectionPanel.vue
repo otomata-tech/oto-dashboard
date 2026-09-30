@@ -109,6 +109,11 @@ const addAccount = computed(() => {
   const add = props.lever.addAccount
   return add ? (existing: string[]) => add(c.value, existing) : undefined
 })
+// Remplacer UN compte nommé (le geste du levier), lié à CE connecteur.
+const replaceAccount = computed(() => {
+  const rep = props.lever.replaceAccount
+  return rep ? (account: string) => rep(c.value, account) : undefined
+})
 const needsKey = computed(() => connKind.value === 'key')
 const docRefCount = computed(() => c.value.doctrine_ref_count ?? 0)
 
@@ -198,7 +203,8 @@ const keyCta = computed(() => (orgKeyOnly.value
         <!-- Comptes nommés (#121) : un compte du coffre = un workspace Slack, une
              organisation Zoho. Ne s'affiche qu'une fois un credential posé — le
              premier compte reste anonyme, la pose ordinaire ne change pas. -->
-        <ConnectorKeyAccounts v-if="keyConfigured && multiAccount" :connector="c" :add="addAccount" />
+        <ConnectorKeyAccounts v-if="keyConfigured && multiAccount" :connector="c" :add="addAccount"
+                              :replace="replaceAccount" />
       </div>
 
       <ConnectorOAuthAccounts v-else-if="connKind === 'google'" />
