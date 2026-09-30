@@ -2642,8 +2642,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Accept an org invitation by its mail token
-         * @description Accept an org invitation by its mail token. Joins the org.
+         * Accept an invitation by its mail token
+         * @description Accept an invitation by its mail token. An org/team invitation joins the org; a pending SHARE of one resource (`resource_type` in the answer) gives access to that resource only, and joins nothing.
          */
         post: operations["org_invite_accept_post"];
         delete?: never;
@@ -4597,7 +4597,7 @@ export interface paths {
         put?: never;
         /**
          * Govern an OWNED resource (ADR 0030) without reading its content
-         * @description Govern an OWNED resource (ADR 0030) without reading its content. op=list: resources you govern (platform admins see all); op=get: owner + shares + metadata (each grant carries a `role`); op=transfer: hand ownership to a user (`new_owner_email`), to one of YOUR orgs (`new_owner_org`, you must be a member) OR to one of YOUR teams (`new_owner_group`, ADR 0049 — scoping a resource to a pôle IS the way to restrict it); a user-owned previous owner keeps editor access (transfer is owner/admin only, never a grantee). ANTI-LOCKOUT: if the transfer would leave YOU unable to ever get the resource back (handing to a third party, or to an org/team you don't administer), it is refused with code `confirm_loss_of_control` — resend with `confirm_transfer=true` to proceed consciously (a platform admin is never blocked and can always recover it). op=share/unshare — ONE unified « Share », two axes (ADR 0048): AUDIENCE (`audience`) = where it goes: `person` (`email`) / `team` (`group_id`, a group of an org you belong to) / `org` (`org_id`, a whole org, client delivery) → a grant; `public`/`secret` → PUBLISH the project (public = listed, secret = unguessable link) with `mcp_tools` (defaults to the already-published set); `private` → unpublish. ROLE (`role`) = what they can do: `viewer` (read), `editor` (write), `manager` (GOVERNANCE — re-share / delete / publish, grantable, but NOT ownership transfer); public/secret force viewer. Legacy `permission` read|write is still accepted (mapped to viewer/editor). KEYS (`credentials`, project share only, same for person/team/org): a recipient works in the project with THEIR OWN keys (`own`, the default) — the owner org's and team's keys are NOT lent. `credentials='inherit'` lends them, bounded by your own rights (you must be a member of the owner org; refused with `inherit_beyond_sharer_rights` otherwise); re-share with `credentials='own'` or unshare to revoke. op=get shows each grant's `credentials`. EXPIRY (`ttl_days`, share to person/team/org only; refused with `ttl_days_grant_only` elsewhere): the share expires after N days — past it the recipient loses access (content, listings, lent keys), with NO reminder before. Omitted on a re-share: an active share keeps its expiry, an expired one is reopened without one; to remove an expiry, unshare then share. With cascade=true the linked tableaux/procedures get the same expiry. op=share returns `expires_at` (null = none); op=get lists each grant's `expires_at` and `expired` — an expired share stays listed, marked, until unshared. resource_type ∈ {datastore_namespace, project, procedure, doc} — it is the discriminant, and it also decides which shape comes back. PROCEDURES (resource_type=procedure): op=transfer MOVES the procedure with its history — same resource_id, every revision, its project links and its shares follow it (a slug already taken at the destination gets a suffix, nothing is overwritten). By contrast, transferring a PROJECT with cascade=true COPIES its linked procedures into the target (see DELIVER A FULL PROJECT below). resource_type="doc" shares ONE PAGE ALONE (resource_id = its oto_doc id), read-only: role `viewer` (the default — editor/manager are refused with `doc_viewer_only`), audience person/team/org only (public/secret do not apply to a page). The recipient reads it with oto_doc op=get and finds it with oto_doc op=shared_with_me — never its project, sibling pages, sub-pages, revisions or backlinks. Sharing a page takes the right to govern its project; op=unshare closes it at once; op=list lists the pages you shared one by one; a page is never transferred on its own. ⚠️ KNOWN DEFECT, kept for backward compatibility: resource_type DEFAULTS to `datastore_namespace`. Omitting it does NOT mean « any type » — the call silently targets a datastore namespace, so op=get/list answer about the wrong family, and op=transfer/share ACT ON A DIFFERENT RESOURCE than the one you meant (same numeric id, other family). ALWAYS pass resource_type explicitly. The fix is a separate surface, oto_resource_v2 / POST /api/resources/v2, which REQUIRES the field — migrate to it. DELIVER A FULL PROJECT (#52): share/transfer a project with cascade=true to carry its linked entities in one gesture — linked tableaux get the same share/transfer, linked procedures are share-granted read (readable cross-org via oto_procedure op=get guide_id) or COPIED into the target org on transfer (link re-pointed, source untouched), connector links report `recipient_credential` (the recipient plugs their own key; the project's pre-made identity/instructions overrides travel with it) or `inherited_credential` under credentials=inherit; docs & files follow automatically. Returns a per-entity cascade report. Owner OR org/platform admin governing it; never exposes row content.
+         * @description Govern an OWNED resource (ADR 0030) without reading its content. op=list: resources you govern (platform admins see all); op=get: owner + shares + metadata (each grant carries a `role`); op=transfer: hand ownership to a user (`new_owner_email`), to one of YOUR orgs (`new_owner_org`, you must be a member) OR to one of YOUR teams (`new_owner_group`, ADR 0049 — scoping a resource to a pôle IS the way to restrict it); a user-owned previous owner keeps editor access (transfer is owner/admin only, never a grantee). ANTI-LOCKOUT: if the transfer would leave YOU unable to ever get the resource back (handing to a third party, or to an org/team you don't administer), it is refused with code `confirm_loss_of_control` — resend with `confirm_transfer=true` to proceed consciously (a platform admin is never blocked and can always recover it). op=share/unshare — ONE unified « Share », two axes (ADR 0048): AUDIENCE (`audience`) = where it goes: `person` (`email`) / `team` (`group_id`, a group of an org you belong to) / `org` (`org_id`, a whole org, client delivery) → a grant; `public`/`secret` → PUBLISH the project (public = listed, secret = unguessable link) with `mcp_tools` (defaults to the already-published set); `private` → unpublish. ROLE (`role`) = what they can do: `viewer` (read), `editor` (write), `manager` (GOVERNANCE — re-share / delete / publish, grantable, but NOT ownership transfer); public/secret force viewer. Legacy `permission` read|write is still accepted (mapped to viewer/editor). KEYS (`credentials`, project share only, same for person/team/org): a recipient works in the project with THEIR OWN keys (`own`, the default) — the owner org's and team's keys are NOT lent. `credentials='inherit'` lends them, bounded by your own rights (you must be a member of the owner org; refused with `inherit_beyond_sharer_rights` otherwise); re-share with `credentials='own'` or unshare to revoke. op=get shows each grant's `credentials`. EXPIRY (`ttl_days`, share to person/team/org only; refused with `ttl_days_grant_only` elsewhere): the share expires after N days — past it the recipient loses access (content, listings, lent keys), with NO reminder before. Omitted on a re-share: an active share keeps its expiry, an expired one is reopened without one; to remove an expiry, unshare then share. With cascade=true the linked tableaux/procedures get the same expiry. op=share returns `expires_at` (null = none); op=get lists each grant's `expires_at` and `expired` — an expired share stays listed, marked, until unshared. PENDING SHARE (audience person, `email` with NO oto account yet): the share is NOT refused — it is kept pending: the address gets an email with a link, and on signup (or by opening the link) gets access to THIS resource with the given role and NOTHING else — they never join your org. op=share returns `pending: true` and `pending_note`; sharing again to the same address reuses it (`already_pending`). op=get lists it in `grants` with `pending: true`; op=unshare with the same `email` withdraws it. Refused with cascade=true or credentials='inherit' (`pending_share_plain_only`): share again once they have an account. To give someone ONE resource, share it — never invite them into your org, which opens everything the org owns. resource_type ∈ {datastore_namespace, project, procedure, doc} — it is the discriminant, and it also decides which shape comes back. PROCEDURES (resource_type=procedure): op=transfer MOVES the procedure with its history — same resource_id, every revision, its project links and its shares follow it (a slug already taken at the destination gets a suffix, nothing is overwritten). By contrast, transferring a PROJECT with cascade=true COPIES its linked procedures into the target (see DELIVER A FULL PROJECT below). resource_type="doc" shares ONE PAGE ALONE (resource_id = its oto_doc id), read-only: role `viewer` (the default — editor/manager are refused with `doc_viewer_only`), audience person/team/org only (public/secret do not apply to a page). The recipient reads it with oto_doc op=get and finds it with oto_doc op=shared_with_me — never its project, sibling pages, sub-pages, revisions or backlinks. Sharing a page takes the right to govern its project; op=unshare closes it at once; op=list lists the pages you shared one by one; a page is never transferred on its own. ⚠️ KNOWN DEFECT, kept for backward compatibility: resource_type DEFAULTS to `datastore_namespace`. Omitting it does NOT mean « any type » — the call silently targets a datastore namespace, so op=get/list answer about the wrong family, and op=transfer/share ACT ON A DIFFERENT RESOURCE than the one you meant (same numeric id, other family). ALWAYS pass resource_type explicitly. The fix is a separate surface, oto_resource_v2 / POST /api/resources/v2, which REQUIRES the field — migrate to it. DELIVER A FULL PROJECT (#52): share/transfer a project with cascade=true to carry its linked entities in one gesture — linked tableaux get the same share/transfer, linked procedures are share-granted read (readable cross-org via oto_procedure op=get guide_id) or COPIED into the target org on transfer (link re-pointed, source untouched), connector links report `recipient_credential` (the recipient plugs their own key; the project's pre-made identity/instructions overrides travel with it) or `inherited_credential` under credentials=inherit; docs & files follow automatically. Returns a per-entity cascade report. Owner OR org/platform admin governing it; never exposes row content.
          */
         post: operations["resources_govern_post"];
         delete?: never;
@@ -4617,7 +4617,7 @@ export interface paths {
         put?: never;
         /**
          * BETA
-         * @description BETA. Same governance surface as oto_resource (ADR 0030), with a STRICT input contract: resource_type is REQUIRED (no default) ∈ {datastore_namespace, project, procedure, doc}, and resource_id must be numeric. PROCEDURES (resource_type=procedure): op=transfer MOVES the procedure with its history — same resource_id, every revision, its project links and its shares follow it (a slug already taken at the destination gets a suffix, nothing is overwritten). By contrast, transferring a PROJECT with cascade=true COPIES its linked procedures into the target (see DELIVER A FULL PROJECT below). resource_type="doc" shares ONE PAGE ALONE (resource_id = its oto_doc id), read-only: role `viewer` (the default — editor/manager are refused with `doc_viewer_only`), audience person/team/org only (public/secret do not apply to a page). The recipient reads it with oto_doc op=get and finds it with oto_doc op=shared_with_me — never its project, sibling pages, sub-pages, revisions or backlinks. Sharing a page takes the right to govern its project; op=unshare closes it at once; op=list lists the pages you shared one by one; a page is never transferred on its own. Prefer this tool over oto_resource: on the legacy one, omitting resource_type silently targets a datastore namespace, so op=transfer/share act on a DIFFERENT resource than the one you meant. Everything else is identical — op=list: resources you govern (platform admins see all); op=get: owner + shares + metadata (each grant carries a `role`); op=transfer: hand ownership to a user (`new_owner_email`), to one of YOUR orgs (`new_owner_org`, you must be a member) OR to one of YOUR teams (`new_owner_group`, ADR 0049 — scoping a resource to a pôle IS the way to restrict it); a user-owned previous owner keeps editor access (transfer is owner/admin only, never a grantee). ANTI-LOCKOUT: if the transfer would leave YOU unable to ever get the resource back (handing to a third party, or to an org/team you don't administer), it is refused with code `confirm_loss_of_control` — resend with `confirm_transfer=true` to proceed consciously (a platform admin is never blocked and can always recover it). op=share/unshare — ONE unified « Share », two axes (ADR 0048): AUDIENCE (`audience`) = where it goes: `person` (`email`) / `team` (`group_id`, a group of an org you belong to) / `org` (`org_id`, a whole org, client delivery) → a grant; `public`/`secret` → PUBLISH the project (public = listed, secret = unguessable link) with `mcp_tools` (defaults to the already-published set); `private` → unpublish. ROLE (`role`) = what they can do: `viewer` (read), `editor` (write), `manager` (GOVERNANCE — re-share / delete / publish, grantable, but NOT ownership transfer); public/secret force viewer. Legacy `permission` read|write is still accepted (mapped to viewer/editor). KEYS (`credentials`, project share only, same for person/team/org): a recipient works in the project with THEIR OWN keys (`own`, the default) — the owner org's and team's keys are NOT lent. `credentials='inherit'` lends them, bounded by your own rights (you must be a member of the owner org; refused with `inherit_beyond_sharer_rights` otherwise); re-share with `credentials='own'` or unshare to revoke. op=get shows each grant's `credentials`. EXPIRY (`ttl_days`, share to person/team/org only; refused with `ttl_days_grant_only` elsewhere): the share expires after N days — past it the recipient loses access (content, listings, lent keys), with NO reminder before. Omitted on a re-share: an active share keeps its expiry, an expired one is reopened without one; to remove an expiry, unshare then share. With cascade=true the linked tableaux/procedures get the same expiry. op=share returns `expires_at` (null = none); op=get lists each grant's `expires_at` and `expired` — an expired share stays listed, marked, until unshared. DELIVER A FULL PROJECT (#52): share/transfer a project with cascade=true to carry its linked entities in one gesture — linked tableaux get the same share/transfer, linked procedures are share-granted read (readable cross-org via oto_procedure op=get guide_id) or COPIED into the target org on transfer (link re-pointed, source untouched), connector links report `recipient_credential` (the recipient plugs their own key; the project's pre-made identity/instructions overrides travel with it) or `inherited_credential` under credentials=inherit; docs & files follow automatically. Returns a per-entity cascade report. Owner OR org/platform admin governing it; never exposes row content.
+         * @description BETA. Same governance surface as oto_resource (ADR 0030), with a STRICT input contract: resource_type is REQUIRED (no default) ∈ {datastore_namespace, project, procedure, doc}, and resource_id must be numeric. PROCEDURES (resource_type=procedure): op=transfer MOVES the procedure with its history — same resource_id, every revision, its project links and its shares follow it (a slug already taken at the destination gets a suffix, nothing is overwritten). By contrast, transferring a PROJECT with cascade=true COPIES its linked procedures into the target (see DELIVER A FULL PROJECT below). resource_type="doc" shares ONE PAGE ALONE (resource_id = its oto_doc id), read-only: role `viewer` (the default — editor/manager are refused with `doc_viewer_only`), audience person/team/org only (public/secret do not apply to a page). The recipient reads it with oto_doc op=get and finds it with oto_doc op=shared_with_me — never its project, sibling pages, sub-pages, revisions or backlinks. Sharing a page takes the right to govern its project; op=unshare closes it at once; op=list lists the pages you shared one by one; a page is never transferred on its own. Prefer this tool over oto_resource: on the legacy one, omitting resource_type silently targets a datastore namespace, so op=transfer/share act on a DIFFERENT resource than the one you meant. Everything else is identical — op=list: resources you govern (platform admins see all); op=get: owner + shares + metadata (each grant carries a `role`); op=transfer: hand ownership to a user (`new_owner_email`), to one of YOUR orgs (`new_owner_org`, you must be a member) OR to one of YOUR teams (`new_owner_group`, ADR 0049 — scoping a resource to a pôle IS the way to restrict it); a user-owned previous owner keeps editor access (transfer is owner/admin only, never a grantee). ANTI-LOCKOUT: if the transfer would leave YOU unable to ever get the resource back (handing to a third party, or to an org/team you don't administer), it is refused with code `confirm_loss_of_control` — resend with `confirm_transfer=true` to proceed consciously (a platform admin is never blocked and can always recover it). op=share/unshare — ONE unified « Share », two axes (ADR 0048): AUDIENCE (`audience`) = where it goes: `person` (`email`) / `team` (`group_id`, a group of an org you belong to) / `org` (`org_id`, a whole org, client delivery) → a grant; `public`/`secret` → PUBLISH the project (public = listed, secret = unguessable link) with `mcp_tools` (defaults to the already-published set); `private` → unpublish. ROLE (`role`) = what they can do: `viewer` (read), `editor` (write), `manager` (GOVERNANCE — re-share / delete / publish, grantable, but NOT ownership transfer); public/secret force viewer. Legacy `permission` read|write is still accepted (mapped to viewer/editor). KEYS (`credentials`, project share only, same for person/team/org): a recipient works in the project with THEIR OWN keys (`own`, the default) — the owner org's and team's keys are NOT lent. `credentials='inherit'` lends them, bounded by your own rights (you must be a member of the owner org; refused with `inherit_beyond_sharer_rights` otherwise); re-share with `credentials='own'` or unshare to revoke. op=get shows each grant's `credentials`. EXPIRY (`ttl_days`, share to person/team/org only; refused with `ttl_days_grant_only` elsewhere): the share expires after N days — past it the recipient loses access (content, listings, lent keys), with NO reminder before. Omitted on a re-share: an active share keeps its expiry, an expired one is reopened without one; to remove an expiry, unshare then share. With cascade=true the linked tableaux/procedures get the same expiry. op=share returns `expires_at` (null = none); op=get lists each grant's `expires_at` and `expired` — an expired share stays listed, marked, until unshared. PENDING SHARE (audience person, `email` with NO oto account yet): the share is NOT refused — it is kept pending: the address gets an email with a link, and on signup (or by opening the link) gets access to THIS resource with the given role and NOTHING else — they never join your org. op=share returns `pending: true` and `pending_note`; sharing again to the same address reuses it (`already_pending`). op=get lists it in `grants` with `pending: true`; op=unshare with the same `email` withdraws it. Refused with cascade=true or credentials='inherit' (`pending_share_plain_only`): share again once they have an account. To give someone ONE resource, share it — never invite them into your org, which opens everything the org owns. DELIVER A FULL PROJECT (#52): share/transfer a project with cascade=true to carry its linked entities in one gesture — linked tableaux get the same share/transfer, linked procedures are share-granted read (readable cross-org via oto_procedure op=get guide_id) or COPIED into the target org on transfer (link re-pointed, source untouched), connector links report `recipient_credential` (the recipient plugs their own key; the project's pre-made identity/instructions overrides travel with it) or `inherited_credential` under credentials=inherit; docs & files follow automatically. Returns a per-entity cascade report. Owner OR org/platform admin governing it; never exposes row content.
          */
         post: operations["resources_govern_v2_post"];
         delete?: never;
@@ -8645,6 +8645,16 @@ export interface components {
              * @default false
              */
             expired: boolean;
+            /**
+             * Pending
+             * @default false
+             */
+            pending: boolean;
+            /**
+             * Invitation Expires At
+             * @default null
+             */
+            invitation_expires_at: string | null;
         };
         /**
          * ResourceList
@@ -8716,6 +8726,26 @@ export interface components {
              * @default null
              */
             notified: boolean | null;
+            /**
+             * Pending
+             * @default null
+             */
+            pending: boolean | null;
+            /**
+             * Already Pending
+             * @default null
+             */
+            already_pending: boolean | null;
+            /**
+             * Invitation Expires At
+             * @default null
+             */
+            invitation_expires_at: string | null;
+            /**
+             * Pending Note
+             * @default null
+             */
+            pending_note: string | null;
         };
         /**
          * ResourceTransferred
@@ -10268,6 +10298,12 @@ export interface components {
              * @default []
              */
             families: string[];
+            /**
+             * Farm Routed
+             * @description This organization is routed to the Claude Code farm (org option `claude_farm`): its `anthropic` agents run ONLY on a farm worker, never on the regular loop, and `families` lists `anthropic` only while a farm worker is alive for it.
+             * @default false
+             */
+            farm_routed: boolean;
             /**
              * Models
              * @default []
@@ -25434,6 +25470,21 @@ export interface operations {
                          * @default null
                          */
                         name: string | null;
+                        /**
+                         * Resource Type
+                         * @default null
+                         */
+                        resource_type: string | null;
+                        /**
+                         * Resource Id
+                         * @default null
+                         */
+                        resource_id: string | null;
+                        /**
+                         * Resource Role
+                         * @default null
+                         */
+                        resource_role: string | null;
                     };
                 };
             };
@@ -28808,6 +28859,12 @@ export interface operations {
                      */
                     org_ids?: number[] | null;
                     /**
+                     * Engine
+                     * @description claim: this worker's execution engine. `farm` = Claude Code in the farm. Jobs of the `anthropic` family of an organization routed to the farm (org option `claude_farm`) are reserved ONLY by a `farm` worker: any other worker never sees them, and without a live `farm` worker they wait. Platform workers only, with `provider=anthropic`. Unset = the regular loop.
+                     * @default null
+                     */
+                    engine?: "farm" | null;
+                    /**
                      * Lease Seconds
                      * @default 600
                      */
@@ -28942,7 +28999,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description `org_key_only_without_provider` — `claim` avec `org_key_only` mais sans `provider` : un worker sans clé propre doit nommer le dépôt qu'il consomme ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
+            /** @description `org_key_only_without_provider` — `claim` avec `org_key_only` mais sans `provider` : un worker sans clé propre doit nommer le dépôt qu'il consomme ; `farm_engine_family` — `claim engine=farm` sans `provider=anthropic` : la ferme ne sert que cette famille ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -28950,7 +29007,7 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
-                        error?: "org_key_only_without_provider" | "run_org_mismatch";
+                        error?: "org_key_only_without_provider" | "farm_engine_family" | "run_org_mismatch";
                     };
                 };
             };
@@ -28963,7 +29020,7 @@ export interface operations {
                     "application/json": components["schemas"]["Erreur"];
                 };
             };
-            /** @description refus d'autorisation (ou hors portée du jeton) */
+            /** @description refus d'autorisation (ou hors portée du jeton) ; `farm_engine_platform_only` — `claim engine=farm` par un porteur qui n'est pas un worker de plateforme : seul un exécutant de la ferme réserve les travaux d'une org routée vers elle */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -37723,7 +37780,7 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceList"] | (components["schemas"]["DatastoreResourceDetail"] | components["schemas"]["ProjectResourceDetail"] | components["schemas"]["GuideResourceDetail"] | components["schemas"]["DocResourceDetail"]) | components["schemas"]["ResourceTransferred"] | components["schemas"]["ResourceShared"] | components["schemas"]["PublishedProject"] | components["schemas"]["ResourceUnshared"];
                 };
             };
-            /** @description `email_required` — share/unshare sans principal : ni `email`, ni `org_id`, ni `group_id` ; `doc_viewer_only` — `share` of a page (`resource_type="doc"`) with a role other than `viewer` — a page is shared read-only; share its project to let someone write ; `credentials_project_share_only` — `credentials` sur autre chose que le partage d'un projet à une personne, une équipe ou une org ; `ttl_days_grant_only` — `ttl_days` hors du partage d'une ressource à une personne, une équipe ou une org (autre op, ou audience public/secret/private) ; `publication_unsupported` — audience `public`/`secret`/`private` sur autre chose qu'un projet — seul un projet se publie ; `unsupported_resource_type` — famille de ressource inconnue — surface héritée seulement, la stricte la refuse à la validation ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
+            /** @description `email_required` — share/unshare sans principal : ni `email`, ni `org_id`, ni `group_id` ; `doc_viewer_only` — `share` of a page (`resource_type="doc"`) with a role other than `viewer` — a page is shared read-only; share its project to let someone write ; `credentials_project_share_only` — `credentials` sur autre chose que le partage d'un projet à une personne, une équipe ou une org ; `ttl_days_grant_only` — `ttl_days` hors du partage d'une ressource à une personne, une équipe ou une org (autre op, ou audience public/secret/private) ; `publication_unsupported` — audience `public`/`secret`/`private` sur autre chose qu'un projet — seul un projet se publie ; `pending_share_plain_only` — partage en attente (adresse sans compte) avec `cascade` ou `credentials='inherit'` : à refaire une fois la personne inscrite ; `unsupported_resource_type` — famille de ressource inconnue — surface héritée seulement, la stricte la refuse à la validation ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -37731,7 +37788,7 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
-                        error?: "email_required" | "doc_viewer_only" | "credentials_project_share_only" | "ttl_days_grant_only" | "publication_unsupported" | "unsupported_resource_type" | "run_org_mismatch";
+                        error?: "email_required" | "doc_viewer_only" | "credentials_project_share_only" | "ttl_days_grant_only" | "publication_unsupported" | "pending_share_plain_only" | "unsupported_resource_type" | "run_org_mismatch";
                     };
                 };
             };
@@ -37753,7 +37810,7 @@ export interface operations {
                     "application/json": components["schemas"]["Erreur"];
                 };
             };
-            /** @description `unknown_user` — aucun utilisateur oto avec cet email ; `unknown_org` — org destinataire inconnue ; `unknown_group` — groupe destinataire inconnu ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
+            /** @description `unknown_user` — aucun compte : transfert vers une adresse inconnue, ou partage par `sub` — un partage par `email` sans compte devient un partage EN ATTENTE ; `unknown_org` — org destinataire inconnue ; `unknown_group` — groupe destinataire inconnu ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -37909,7 +37966,7 @@ export interface operations {
                     "application/json": components["schemas"]["ResourceList"] | (components["schemas"]["DatastoreResourceDetail"] | components["schemas"]["ProjectResourceDetail"] | components["schemas"]["GuideResourceDetail"] | components["schemas"]["DocResourceDetail"]) | components["schemas"]["ResourceTransferred"] | components["schemas"]["ResourceShared"] | components["schemas"]["PublishedProject"] | components["schemas"]["ResourceUnshared"];
                 };
             };
-            /** @description `email_required` — share/unshare sans principal : ni `email`, ni `org_id`, ni `group_id` ; `doc_viewer_only` — `share` of a page (`resource_type="doc"`) with a role other than `viewer` — a page is shared read-only; share its project to let someone write ; `credentials_project_share_only` — `credentials` sur autre chose que le partage d'un projet à une personne, une équipe ou une org ; `ttl_days_grant_only` — `ttl_days` hors du partage d'une ressource à une personne, une équipe ou une org (autre op, ou audience public/secret/private) ; `publication_unsupported` — audience `public`/`secret`/`private` sur autre chose qu'un projet — seul un projet se publie ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
+            /** @description `email_required` — share/unshare sans principal : ni `email`, ni `org_id`, ni `group_id` ; `doc_viewer_only` — `share` of a page (`resource_type="doc"`) with a role other than `viewer` — a page is shared read-only; share its project to let someone write ; `credentials_project_share_only` — `credentials` sur autre chose que le partage d'un projet à une personne, une équipe ou une org ; `ttl_days_grant_only` — `ttl_days` hors du partage d'une ressource à une personne, une équipe ou une org (autre op, ou audience public/secret/private) ; `publication_unsupported` — audience `public`/`secret`/`private` sur autre chose qu'un projet — seul un projet se publie ; `pending_share_plain_only` — partage en attente (adresse sans compte) avec `cascade` ou `credentials='inherit'` : à refaire une fois la personne inscrite ; `run_org_mismatch` — `X-Oto-Org` désigne une autre org que celle du run de `X-Oto-Run` */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -37917,7 +37974,7 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Erreur"] & {
                         /** @enum {unknown} */
-                        error?: "email_required" | "doc_viewer_only" | "credentials_project_share_only" | "ttl_days_grant_only" | "publication_unsupported" | "run_org_mismatch";
+                        error?: "email_required" | "doc_viewer_only" | "credentials_project_share_only" | "ttl_days_grant_only" | "publication_unsupported" | "pending_share_plain_only" | "run_org_mismatch";
                     };
                 };
             };
@@ -37939,7 +37996,7 @@ export interface operations {
                     "application/json": components["schemas"]["Erreur"];
                 };
             };
-            /** @description `unknown_user` — aucun utilisateur oto avec cet email ; `unknown_org` — org destinataire inconnue ; `unknown_group` — groupe destinataire inconnu ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
+            /** @description `unknown_user` — aucun compte : transfert vers une adresse inconnue, ou partage par `sub` — un partage par `email` sans compte devient un partage EN ATTENTE ; `unknown_org` — org destinataire inconnue ; `unknown_group` — groupe destinataire inconnu ; `run_not_found` — `X-Oto-Run` désigne un run inconnu, ou le run d'un autre compte */
             404: {
                 headers: {
                     [name: string]: unknown;

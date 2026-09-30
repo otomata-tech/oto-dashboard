@@ -16,7 +16,7 @@ import type {
   ColumnFilter, CreatedDatastore, DatastoreRow, DatastoreEntry, SharedDatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, RewritableRow, SharePrincipal, ShareResult, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallDetail, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   ConnectorOAuthStatus, ConnectorOAuthDisconnected, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
-  InviteResult,
+  InviteResult, InvitationAccepted,
   FieldFiltersBundle, OrgConnectorActivation,
   EmailSettingsBundle, ScheduledEmail,
   TenantRow, TenantTotals, TenantSheet,
@@ -976,12 +976,7 @@ export const previewInvite = (token: string) =>
   apiPublic<InvitePreview>(`/api/invitations/${encodeURIComponent(token)}`)
 // Accept par token (le code court a été retiré du backend le 15/09) — commun aux 3 scopes.
 export const acceptInvite = (payload: { token: string }) =>
-  api<{ ok: boolean; org_id?: number | null; org_role?: string | null;
-        group_id?: number | null; group_role?: string | null;
-        // partage en attente d'UN objet : l'accès à cet objet, aucune org rejointe
-        resource_type?: string | null; resource_id?: string | null;
-        resource_role?: string | null;
-        name: string | null; self?: boolean }>(
+  api<InvitationAccepted>(
     '/api/me/invitations/accept', { method: 'POST', ...j(payload) })
 export const setOrgMemberRole = (id: number, sub: string, role: string) =>
   api(`/api/orgs/${id}/members/${sub}`, { method: 'POST', ...j({ role }) })

@@ -908,17 +908,14 @@ export interface NamespaceShare {
   invitation_expires_at?: string | null
 }
 
-// Réponse d'un `op=share` à un principal. `pending` = partage EN ATTENTE vers une
-// adresse sans compte (invitation envoyée, accès à l'inscription, jamais l'org) ;
-// `already_pending` = un partage identique attendait déjà (aucun second lien).
-export interface ShareResult {
-  ok: boolean
-  shared_with?: string | null
-  pending?: boolean
-  already_pending?: boolean
-  pending_note?: string | null
-  notified?: boolean | null
-}
+// Réponse d'un `op=share` à un principal (`ResourceShared`, dérivé du contrat servi) :
+// `pending` = partage EN ATTENTE vers une adresse sans compte (invitation envoyée, accès à
+// l'inscription, jamais l'org) ; `already_pending` = un partage identique attendait déjà.
+export type ShareResult = components['schemas']['ResourceShared']
+
+// Réponse de `POST /api/me/invitations/accept` : org, équipe ou, pour un partage en
+// attente, l'objet reçu (`resource_*`) — dérivée du contrat servi.
+export type InvitationAccepted = ApiOut<'org_invite_accept_post'>
 
 // Destinataire d'un partage `oto_resource` : un user (email), une équipe (group_id —
 // groupe d'une org dont on est membre) ou une org entière (org_id, livraison client).
