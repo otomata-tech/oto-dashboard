@@ -202,3 +202,36 @@ describe('CredentialFieldsDialog — le discriminant révèle les champs', () =>
     d.cleanup()
   })
 })
+
+// La clé est enregistrée AVANT la sonde : un échec de la sonde ne doit jamais se lire
+// comme un échec de l'ajout. Vécu le 01/10 : une sonde en erreur après une pose
+// réussie n'affichait que « Failed to fetch », et l'utilisateur recliquait.
+describe('CredentialFieldsDialog — sonde en échec après une pose réussie', () => {
+  beforeEach(() => { document.body.innerHTML = '' })
+
+  it('une sonde qui lève dit que la clé est enregistrée', async () => {
+    const onConfirm = vi.fn(async () => {})
+    const verify = vi.fn(async () => { throw new TypeError('Failed to fetch') })
+    const d = mountDialog({ onConfirm, verify })
+    await nextTick()
+    await type(d.input('bot_token'), 'xoxb-bonne')
+    await submit(d.form())
+
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(verify).toHaveBeenCalledTimes(1)
+    expect(d.text()).toContain('clé enregistrée ; le test a échoué')
+    d.cleanup()
+  })
+
+  it('une sonde qui répond ok:false le dit aussi', async () => {
+    const onConfirm = vi.fn(async () => {})
+    const verify = vi.fn(async () => ({ ok: false, provider: 'slack', error: 'jeton expiré' }))
+    const d = mountDialog({ onConfirm, verify })
+    await nextTick()
+    await type(d.input('bot_token'), 'xoxb-vieux')
+    await submit(d.form())
+
+    expect(d.text()).toContain('clé enregistrée ; le test a échoué : jeton expiré')
+    d.cleanup()
+  })
+})

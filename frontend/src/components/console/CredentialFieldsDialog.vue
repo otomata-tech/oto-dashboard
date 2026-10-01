@@ -207,6 +207,10 @@ const description = computed(() => {
     : t('connectorsUi.credentials.descFields', { label: props.label })
 })
 
+// Le message d'une sonde qui échoue APRÈS une pose réussie : il dit d'abord que la clé
+// est enregistrée, puis pourquoi le test a échoué.
+const savedButTest = (error: string) => t('connectorsUi.credentials.savedTestFailed', { error })
+
 const submit = handleSubmit(async (values) => {
   testRes.value = null
   const all = values as Record<string, string>
@@ -229,13 +233,16 @@ const submit = handleSubmit(async (values) => {
   // fiche). Rester ouvert enfermerait l'utilisateur dans un formulaire qui ne peut
   // pas aboutir (« connecter ne fait rien », vécu 28/07). On ferme et on laisse la
   // fiche afficher l'étape suivante.
+  // ⚠️ À ce stade la clé EST enregistrée : un échec de la sonde ne doit jamais se lire
+  // comme un échec de l'ajout. Vécu le 01/10 : une sonde en erreur juste après une
+  // pose réussie n'affichait que « Failed to fetch », et l'utilisateur recliquait.
   testing.value = true
   try {
     const res = await props.verify(account)
-    testRes.value = res
-    if (res.ok || res.pending) emit('update:open', false)
+    if (res.ok || res.pending) { testRes.value = res; emit('update:open', false) }
+    else testRes.value = { ...res, error: savedButTest(res.error ?? '') }
   } catch (e) {
-    testRes.value = { ok: false, provider: '', error: humanize(e) }
+    testRes.value = { ok: false, provider: '', error: savedButTest(humanize(e)) }
   } finally {
     testing.value = false
   }

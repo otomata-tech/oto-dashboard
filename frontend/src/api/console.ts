@@ -155,9 +155,10 @@ export const deleteApiKey = (
 // credential et vérifie qu'il authentifie réellement, en remontant le vrai message
 // provider. `level='auto'` (défaut) = le credential effectif ; `level='org'` = la clé
 // DE L'ORG consultée (l'en-tête X-Oto-Org est injecté par api()).
-// `account` (palier org seulement, backend v1.314.0) vise UNE instance nommée du
-// connecteur — une société PayFit ; vide = la ligne anonyme. Sans lui, la sonde d'org
-// ne trouve rien dès qu'un compte nommé existe (le serveur a renommé l'anonyme).
+// `account` vise UNE instance nommée du connecteur — une société PayFit ; vide = la
+// ligne anonyme (org) ou le choix de la cascade (auto). Au palier org (backend
+// v1.314.0) sans lui la sonde ne trouve rien dès qu'un compte nommé existe ; sous
+// `auto`, dès deux comptes nommés sans défaut, le serveur refuse `account_required`.
 export const verifyConnector = (provider: string, level: 'auto' | 'org' = 'auto', account = '') =>
   api<VerifyResult>(`/api/me/connectors/${encodeURIComponent(provider)}/verify`,
     { method: 'POST', ...j({ level, ...(account ? { account } : {}) }) })

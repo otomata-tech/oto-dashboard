@@ -33,14 +33,12 @@ export function openAddAccount(
     // Un compte NEUF : rien à pré-remplir, rien à conserver.
     docs: c.doc_sections,
     accountMode: 'new', accountNoun: w.noun, accountNames: existing,
-    // Au palier ORG la sonde vise le compte que la pose vient d'écrire (`account`,
-    // backend v1.314.0) : sans lui elle lirait la ligne anonyme, que le serveur vient
-    // justement de renommer, et répondrait « aucune clé d'org » sur une pose réussie
-    // (vécu 18/09). Au palier membre elle teste le credential effectif de la cascade.
+    // La sonde vise le compte que la pose vient d'écrire, à TOUS les paliers. Au palier
+    // org (backend v1.314.0) sans lui elle lirait la ligne anonyme, que le serveur vient
+    // de renommer (vécu 18/09). Au palier membre sans lui, dès deux comptes nommés sans
+    // défaut, la cascade ne sait pas lequel tester (`account_required`, vécu 01/10).
     verify: c.verifiable
-      ? (account) => (opts.scope === 'org'
-        ? verifyConnector(c.name, 'org', account)
-        : verifyConnector(c.name))
+      ? (account) => verifyConnector(c.name, opts.scope === 'org' ? 'org' : 'auto', account)
       : undefined,
     onConfirm: async (values, account) => {
       await opts.save(values, account)
@@ -67,9 +65,7 @@ export function openReplaceAccount(
     docs: c.doc_sections, existing: true,
     accountMode: 'fixed', account, accountNoun: w.noun,
     verify: c.verifiable
-      ? () => (opts.scope === 'org'
-        ? verifyConnector(c.name, 'org', account)
-        : verifyConnector(c.name))
+      ? () => verifyConnector(c.name, opts.scope === 'org' ? 'org' : 'auto', account)
       : undefined,
     onConfirm: async (values) => {
       await opts.save(values, account)

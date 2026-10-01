@@ -2046,6 +2046,7 @@
       "nothingElse": "rien d'autre à renseigner pour « {mode} ».",
       "cancel": "annuler",
       "testing": "test…",
+      "savedTestFailed": "clé enregistrée ; le test a échoué : {error}",
       "add": "ajouter",
       "save": "enregistrer",
       "connect": "connecter"

@@ -2046,6 +2046,7 @@
       "nothingElse": "nothing else to fill in for “{mode}”.",
       "cancel": "cancel",
       "testing": "testing…",
+      "savedTestFailed": "key saved; the test failed: {error}",
       "add": "add",
       "save": "save",
       "connect": "connect"
