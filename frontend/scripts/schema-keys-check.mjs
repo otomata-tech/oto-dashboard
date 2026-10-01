@@ -8,12 +8,13 @@
  *
  * ## Pourquoi ce contrôle existe
  *
- * La plateforme sert un avertissement (`unknown_keys_warning`) qui dit quels attributs
- * d'un schéma « ne sont lus par personne ». Elle ne sait que ce qu'ELLE interprète : son
- * validateur. Les attributs de PRÉSENTATION (`label`, `help`, `hint`…) n'existent que
- * pour un consommateur, et une première version de cet avertissement les a donc déclarés
- * morts. Six attributs ont été portés au retrait sur cette foi ; un seul l'était. Les
- * cinq autres étaient lus par un écran, en production. Le retrait a été arrêté à temps.
+ * La plateforme déclare les attributs qu'un schéma peut porter, et depuis le 01/10/2026
+ * elle REFUSE les autres à la pose et au patch (vocabulaire fermé, oto#34). Elle ne sait
+ * que ce qu'ELLE interprète : son validateur. Les attributs de PRÉSENTATION (`label`,
+ * `hidden`, `width`…) n'existent que pour un consommateur ; une première version de son
+ * avertissement les a déclarés morts, et six attributs ont été portés au retrait sur
+ * cette foi — un seul l'était. Avec un refus, l'erreur coûterait plus cher : un attribut
+ * que l'écran lit et que la plateforme ignore deviendrait impossible à écrire.
  *
  * Le seul chemin qui ferme cette classe est une confrontation entre les deux côtés. Ce
  * script l'exécute :
@@ -311,9 +312,9 @@ for (const e of nouveaux.filter((e) => e.sens === LUE_NON_SERVIE)) {
   console.error(
     `ÉCART  \`${e.cle}\` — LUE ICI, INCONNUE DE LA PLATEFORME\n` +
       `       Lue en ${p.fichier} (${p.forme}), absente de ${URL_}.\n` +
-      "       Le dashboard s'appuie sur un attribut que la plateforme ne connaît pas : il\n" +
-      "       traverse la validation en silence, donc une faute de frappe y est invisible et\n" +
-      "       l'avertissement `unknown_keys_warning` le dénoncera sur tous les tableaux.\n" +
+      "       Le dashboard s'appuie sur un attribut que la plateforme ne connaît pas : elle\n" +
+      "       le REFUSE à la pose et au patch depuis le 01/10/2026 (vocabulaire fermé), donc\n" +
+      "       un écran qui l'écrit échoue, et un schéma ne peut plus le porter.\n" +
       "       Geste : le faire déclarer côté plateforme (oto-backend, la déclaration des\n" +
       "       attributs de colonne du datastore), ou cesser de le lire ici.\n",
   );

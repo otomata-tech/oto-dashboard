@@ -71,8 +71,8 @@ Les quatre qui coûtent le plus cher quand on les ignore :
   resserrer l'`Output`), puis `npm run api:refresh` ici. → `docs/types-api.md`
 - **Attributs de schéma de tableau : les deux côtés se confrontent, aucun ne se recopie.** `npm run schema:check`
   dérive l'interface `DatastoreField` d'un côté, `GET /api/datastore/schema/keys` de l'autre, et refuse les deux
-  écarts. ⚠️ Ajouter un attribut au rendu sans le faire déclarer côté backend le rend **invisible à la validation**,
-  donc candidat au retrait comme mort. `frontend/scripts/schema-keys-dette.txt` porte la dette connue : **elle ne doit
+  écarts. ⚠️ Ajouter un attribut au rendu sans le faire déclarer côté backend le fait **refuser à la pose** : le
+  vocabulaire des schémas est fermé depuis le 01/10/2026 (oto#34). `frontend/scripts/schema-keys-dette.txt` porte la dette connue : **elle ne doit
   que décroître**, rien ne s'y ajoute sans décision.
 - ⚠️ **Avant push, le typecheck DU CI** : `npx vue-tsc --build` (pas `--noEmit`, moins strict), après
   `rm -f frontend/*.tsbuildinfo` ; et le CI compile l'arbre **COMMITÉ**, pas le working tree partagé — comparer
