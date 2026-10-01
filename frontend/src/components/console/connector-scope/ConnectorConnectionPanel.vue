@@ -22,6 +22,7 @@ import { getOrgConnectorActivation } from '@/api/console'
 import type { ConnectionLever } from './adapter'
 import { connectWidgetKind } from '@/lib/connectorConnect'
 import { poseScope } from '@/lib/credentialScope'
+import { sharedKeySource } from '@/lib/sharedKey'
 import type { ConnectorMode } from '@/lib/consoleTypes'
 import type { MyConnector, OrgConnectorActivation } from '@/types/api'
 import { useI18n } from 'vue-i18n'
@@ -115,6 +116,13 @@ const replaceAccount = computed(() => {
   return rep ? (account: string) => rep(c.value, account) : undefined
 })
 const needsKey = computed(() => connKind.value === 'key')
+// La clé lui PARVIENT d'un niveau partagé (org, équipe, tenant, oto) : il n'a rien à
+// saisir, et l'écran doit le dire d'abord — sinon le formulaire et « Connecter X » se
+// lisent comme une installation à faire de zéro (retour du 01/10/2026). Sa propre clé
+// reste possible, en option secondaire.
+const shared = computed(() => (needsKey.value
+  ? sharedKeySource(status.value, { isPersonal: !!me.value?.active_org_is_personal })
+  : null))
 const docRefCount = computed(() => c.value.doctrine_ref_count ?? 0)
 
 // Verdict « état pour toi » (ADR 0044) — ET-logique des 3 couches.
@@ -137,7 +145,15 @@ const otherKeys = ref(0)
 // le geste pose celle de l'org, et le bouton doit le dire AVANT le formulaire.
 const keyCta = computed(() => (orgKeyOnly.value
   ? t('connectorsUi.connection.cta.org')
+  : shared.value ? t('connectorsUi.sharedKey.useOwn')
   : otherKeys.value > 0 ? t('connectorsUi.connection.cta.mine') : t('connectorsUi.connection.cta.connect', { name: c.value.label })))
+// La ligne « ta clé » sous la pile. Clé fournie ET aucune clé personnelle possible
+// (`byo_org` seul) : il n'y a rien à faire ici — la clé d'org se gère depuis l'écran
+// de l'org, et la reposer d'ici écraserait celle qui sert déjà tout le monde.
+const showMine = computed(() => !keyConfigured.value && !flow.value
+  && !(shared.value && orgKeyOnly.value)
+  && (canWrite.value || ((otherKeys.value > 0 || !!shared.value) && !orgKeyOnly.value)))
+const splitMine = computed(() => (otherKeys.value > 0 || !!shared.value) && !orgKeyOnly.value)
 </script>
 
 <template>
@@ -161,7 +177,8 @@ const keyCta = computed(() => (orgKeyOnly.value
     <!-- connexion -->
     <div class="dr-block">
       <div class="eyebrow" style="margin-bottom: 8px">{{ t('connectorsUi.connection.connection', { mode: authLabel }) }}</div>
-      <p class="helptext" style="margin: 0 0 14px">{{ authExplain }}</p>
+      <p v-if="shared" class="dr-shared"><Dot tone="olive" />{{ t(`connectorsUi.sharedKey.${shared}`) }}</p>
+      <p v-else class="helptext" style="margin: 0 0 14px">{{ authExplain }}</p>
 
       <div v-if="needsKey" class="dr-box">
         <!-- KeyStack (lot 2 B2) : la clé effective en une ligne, dépliable en pile de
@@ -180,14 +197,13 @@ const keyCta = computed(() => (orgKeyOnly.value
              ligne « ta clé — aucune » rendent le geste à son propriétaire. Rien de
              tout ça quand il n'y a aucune clé : il n'y a alors rien au-dessus à
              confondre, et annoncer un vide de plus serait du bruit. -->
-        <div v-if="!keyConfigured && !flow && (canWrite || (otherKeys > 0 && !orgKeyOnly))"
-             class="dr-mine" :class="{ split: otherKeys > 0 && !orgKeyOnly }">
-          <span v-if="otherKeys > 0 && !orgKeyOnly" class="dr-mine-lbl"><Dot tone="saffron" />{{ t('connectorsUi.connection.yourKeyNone') }}</span>
+        <div v-if="showMine" class="dr-mine" :class="{ split: splitMine }">
+          <span v-if="splitMine && !shared" class="dr-mine-lbl"><Dot tone="saffron" />{{ t('connectorsUi.connection.yourKeyNone') }}</span>
           <!-- Clé d'org sans clé personnelle possible : le bouton n'est offert qu'à
                qui peut réellement poser. Un membre voyait ici « Connecter HTTP », et
                le serveur refusait la pose après toute la saisie. En consultation, ni
                geste ni renvoi : la coque dit la lecture seule (oto#212). -->
-          <Btn v-if="canPoseKey" kind="mini" @click="lever.configureKey(c)">{{ keyCta }}</Btn>
+          <Btn v-if="canPoseKey" :kind="shared ? 'ghost' : 'mini'" @click="lever.configureKey(c)">{{ keyCta }}</Btn>
           <span v-else-if="canWrite" class="dr-mine-lbl"><Dot tone="faint" />{{ t('connectorsUi.connection.orgKeyByAdmin') }}</span>
         </div>
         <!-- Geste de connexion déclaré (consentement OAuth…) : il COEXISTE avec le
@@ -242,6 +258,9 @@ const keyCta = computed(() => (orgKeyOnly.value
 .dr-mine-lbl { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px;
   font-weight: 600; color: var(--color-mute); }
 .dim { color: var(--color-faint); font-weight: 500; }
+/* Clé fournie par un niveau partagé : le verdict de la ligne, avant tout geste. */
+.dr-shared { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 13px;
+  font-weight: 600; color: var(--color-ink); }
 .statrow { display: flex; flex-wrap: wrap; gap: 14px; }
 .spill { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--color-ink); }
 .org-link { color: var(--color-cobalt-ink); font-weight: 600; text-decoration: none; }

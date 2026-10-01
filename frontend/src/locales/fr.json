@@ -1731,6 +1731,15 @@
     "dark": "sombre"
   },
   "connectorsUi": {
+    "sharedKey": {
+      "org": "Clé fournie par ton organisation : rien à saisir",
+      "group": "Clé fournie par ton équipe : rien à saisir",
+      "tenant": "Clé fournie par ton tenant : rien à saisir",
+      "platform": "Clé fournie par oto : rien à saisir",
+      "useOwn": "Utiliser ma propre clé",
+      "ownOptional": "pour utiliser ta propre clé (optionnel) :",
+      "activate": "Activer"
+    },
     "connection": {
       "stateForYou": "état pour toi",
       "orgSide": "côté org · {org}",

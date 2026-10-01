@@ -1731,6 +1731,15 @@
     "dark": "dark"
   },
   "connectorsUi": {
+    "sharedKey": {
+      "org": "Key provided by your organization: nothing to enter",
+      "group": "Key provided by your team: nothing to enter",
+      "tenant": "Key provided by your tenant: nothing to enter",
+      "platform": "Key provided by oto: nothing to enter",
+      "useOwn": "Use my own key",
+      "ownOptional": "to use your own key (optional):",
+      "activate": "Activate"
+    },
     "connection": {
       "stateForYou": "status for you",
       "orgSide": "org side · {org}",

@@ -12,6 +12,7 @@ import DocSections from '@/components/console/DocSections.vue'
 import ConnectorToolDialog from '@/components/console/library/ConnectorToolDialog.vue'
 import { authExplain, authModesExplain } from '@/lib/connectorAuth'
 import { useMe, canWriteInOrg } from '@/composables/useMe'
+import { sharedKeySource } from '@/lib/sharedKey'
 import type { DocSection, MyConnector, ToolRegistryEntry } from '@/types/api'
 import { useI18n } from 'vue-i18n'
 
@@ -41,6 +42,15 @@ const installed = computed(() => c.value.state !== 'not_selected')
 // Installer est une écriture, refusée en consultation (oto#212).
 const { me } = useMe()
 const canWrite = computed(() => canWriteInOrg(me.value))
+// La clé lui PARVIENT déjà d'un niveau partagé (org, équipe, tenant, oto) : la fiche le
+// dit d'abord, « Installer » devient « Activer » (rien à saisir), et les champs ne sont
+// plus que l'option « ta propre clé » — sinon la fiche se lit comme une installation à
+// faire de zéro, formulaire compris (retour du 01/10/2026).
+const shared = computed(() => (c.value.auth.method === 'secret'
+  ? sharedKeySource(me.value?.providers?.[c.value.name], { isPersonal: !!me.value?.active_org_is_personal })
+  : null))
+// Sa propre clé n'existe que si le connecteur en accepte une au palier membre.
+const ownKeyPossible = computed(() => !c.value.auth_modes || c.value.auth_modes.includes('byo_user'))
 
 // Outil ouvert dans la fiche détail (« en savoir plus » + banc de test).
 const openTool = ref<string | null>(null)
@@ -53,7 +63,7 @@ const openTool = ref<string | null>(null)
       <a v-if="c.href" :href="c.href" target="_blank" rel="noopener" class="cd-site">{{ t('connectorsUi.library.site') }}</a>
       <template v-if="!installed">
         <Btn v-if="canWrite" kind="mini" :disabled="busy" @click="emit('install')">
-          {{ busy ? '…' : t('connectorsUi.library.install') }}
+          {{ busy ? '…' : shared ? t('connectorsUi.sharedKey.activate') : t('connectorsUi.library.install') }}
         </Btn>
       </template>
       <RouterLink v-else to="/connectors" class="cd-installed">{{ t('connectorsUi.library.installed') }}</RouterLink>
@@ -78,8 +88,10 @@ const openTool = ref<string | null>(null)
         <!-- connexion & configuration -->
         <section class="cd-panel">
           <h4>{{ t('connectorsUi.library.setup') }}</h4>
-          <p class="cd-auth">{{ authExplain(c) }}</p>
-          <div v-if="fields.length" class="cd-fields">
+          <p v-if="shared" class="cd-shared">{{ t(`connectorsUi.sharedKey.${shared}`) }}</p>
+          <p v-else class="cd-auth">{{ authExplain(c) }}</p>
+          <div v-if="shared && fields.length && ownKeyPossible" class="cd-sub">{{ t('connectorsUi.sharedKey.ownOptional') }}</div>
+          <div v-if="fields.length && (!shared || ownKeyPossible)" class="cd-fields">
             <div v-for="f in fields" :key="f.name" class="cd-field">
               <div class="cd-field-head">
                 <span class="cd-field-label">{{ f.label }}</span>
@@ -89,7 +101,7 @@ const openTool = ref<string | null>(null)
               <p v-if="f.help" class="cd-field-help">{{ f.help }}</p>
             </div>
           </div>
-          <template v-if="keyProviders.length">
+          <template v-if="keyProviders.length && !shared">
             <div class="cd-sub">{{ t('connectorsUi.library.keyFrom') }}</div>
             <ul class="cd-modes">
               <li v-for="m in keyProviders" :key="m">{{ m }}</li>
@@ -158,6 +170,7 @@ const openTool = ref<string | null>(null)
   text-transform: uppercase; color: var(--color-faint);
 }
 .cd-auth { font-size: 12.5px; line-height: 1.55; color: var(--color-ink-soft); margin: 0 0 10px; }
+.cd-shared { font-size: 13px; font-weight: 600; color: var(--color-olive); margin: 0 0 10px; }
 
 .cd-fields { display: flex; flex-direction: column; gap: 7px; margin-bottom: 10px; }
 .cd-field { border-bottom: 1px dashed var(--color-hair-soft); padding-bottom: 6px; }

@@ -16,6 +16,7 @@ import ConnectorDetail from '@/components/console/library/ConnectorDetail.vue'
 import { useDeepLink } from '@/composables/useDeepLink'
 import { useMe, canWriteInOrg } from '@/composables/useMe'
 import { getMyConnectors, getToolRegistry, selectConnector } from '@/api/console'
+import { sharedKeySource } from '@/lib/sharedKey'
 import type { MyConnector, ToolRegistryEntry } from '@/types/api'
 import { humanize } from '@/lib/errors'
 import { useI18n } from 'vue-i18n'
@@ -81,6 +82,10 @@ const toolsOf = (c: MyConnector) => toolsByConnector.value.get(c.name) ?? []
 // refusée en consultation (oto#212) : le bouton suit la règle d'écriture d'org.
 const { me } = useMe()
 const canWrite = computed(() => canWriteInOrg(me.value))
+// Une clé partagée le sert déjà (org, équipe, tenant, oto) : le geste n'est pas
+// d'« installer » de zéro, juste d'« activer » — rien à saisir.
+const sharedFor = (c: MyConnector) => c.auth.method === 'secret'
+  && !!sharedKeySource(me.value?.providers?.[c.name], { isPersonal: !!me.value?.active_org_is_personal })
 async function install(c: MyConnector) {
   busy.value = c.name
   try { await selectConnector(c.name); c.state = 'active' }
@@ -140,7 +145,7 @@ const filtered = computed(() => {
                 <span class="lib-more">{{ t('connectorsUi.libraryView.details') }}</span>
                 <template v-if="c.state === 'not_selected'">
                   <Btn v-if="canWrite" kind="mini" :disabled="busy === c.name" @click.stop="install(c)">
-                    {{ busy === c.name ? '…' : t('connectorsUi.libraryView.install') }}
+                    {{ busy === c.name ? '…' : sharedFor(c) ? t('connectorsUi.sharedKey.activate') : t('connectorsUi.libraryView.install') }}
                   </Btn>
                 </template>
                 <RouterLink v-else to="/connectors" class="lib-installed" @click.stop>{{ t('connectorsUi.libraryView.installed') }}</RouterLink>
