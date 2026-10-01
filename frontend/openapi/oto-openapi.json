@@ -7069,18 +7069,6 @@
                       "default": null,
                       "title": "Warning"
                     },
-                    "unknown_keys_warning": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "default": null,
-                      "title": "Unknown Keys Warning"
-                    },
                     "declarations_effacees": {
                       "default": [],
                       "items": {},
@@ -7534,18 +7522,6 @@
                       ],
                       "default": null,
                       "title": "Warning"
-                    },
-                    "unknown_keys_warning": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "default": null,
-                      "title": "Unknown Keys Warning"
                     }
                   },
                   "required": [

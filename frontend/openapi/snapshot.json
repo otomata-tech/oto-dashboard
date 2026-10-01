@@ -1,11 +1,12 @@
 {
   "source": "https://mcp.oto.ninja/api/openapi.json",
   "fetched_at": "2026-09-30T20:02:58.279Z",
-  "sha256": "d128c19cf25aba01d36cd68a7a8d3bc967de8563d9576caabf7895a86b5bc14c",
+  "sha256": "882475c49d52183be5abe4118153ab951a98fe0a7643cae333fa5ead842d5915",
   "coverage": {
     "operations": 305,
     "withResponse": 233,
     "legacy": 31,
     "schemas": 155
-  }
+  },
+  "delta": "oto-backend c5684393 (otomata-tech/oto#34) reporté sur le snapshot : unknown_keys_warning retiré de la réponse 200 de PUT et PATCH /api/datastores/{datastore}/schema"
 }

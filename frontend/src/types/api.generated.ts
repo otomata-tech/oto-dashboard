@@ -14856,11 +14856,6 @@ export interface operations {
                          */
                         warning: string | null;
                         /**
-                         * Unknown Keys Warning
-                         * @default null
-                         */
-                        unknown_keys_warning: string | null;
-                        /**
                          * Declarations Effacees
                          * @default []
                          */
@@ -15044,11 +15039,6 @@ export interface operations {
                          * @default null
                          */
                         warning: string | null;
-                        /**
-                         * Unknown Keys Warning
-                         * @default null
-                         */
-                        unknown_keys_warning: string | null;
                     };
                 };
             };
