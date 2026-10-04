@@ -97,6 +97,7 @@ describe('abandonVerdict', () => {
     expect(abandonVerdict(r, 'statut', LC)).toEqual({
       reason: 'abandonnée après 3 réservations sans écriture, plafond 3',
       reopens: ['a_traiter'],
+      malforme: false,
     })
   })
 
@@ -111,6 +112,17 @@ describe('abandonVerdict', () => {
   it('reste lisible sans champ de statut connu', () => {
     const r = row({ _abandon: 'abandonnée après 2 réservations sans écriture, plafond 2' })
     expect(abandonVerdict(r, null, LC))
-      .toEqual({ reason: 'abandonnée après 2 réservations sans écriture, plafond 2', reopens: [] })
+      .toEqual({ reason: 'abandonnée après 2 réservations sans écriture, plafond 2', reopens: [], malforme: false })
+  })
+
+  it('ne lève pas sur des transitions HORS FORME, il le signale (oto#63)', () => {
+    // Le schéma stocké avant le refus à la pose : `echec` mène à une CHAÎNE. Le `.map`
+    // d'avant levait ici, et la grille — qui précalcule ce verdict par ligne — ne se
+    // rendait plus. Rien n'est deviné : pas de retour inventé, la faute est signalée.
+    const lc = { ...LC, transitions: { a_traiter: ['traite'], echec: 'a_traiter' } } as unknown as DatastoreLifecycle
+    const r = row({ statut: 'echec', _abandon: 'abandonnée après 3 réservations sans écriture, plafond 3' })
+    expect(abandonVerdict(r, 'statut', lc)).toEqual({
+      reason: 'abandonnée après 3 réservations sans écriture, plafond 3', reopens: [], malforme: true,
+    })
   })
 })

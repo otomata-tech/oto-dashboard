@@ -38,6 +38,44 @@ export function etatsTerminaux(lc: DatastoreLifecycle | null | undefined): Set<s
   return new Set((lc.states ?? []).map(String).filter((s) => !sortants.has(s)))
 }
 
+/** La table des transitions telle qu'on peut la LIRE : les états dont la valeur est
+ * bien une liste (`table`), et ce qui ne l'est pas (`fautes`), nommé dans la forme du
+ * schéma — `"neuf": "fait" → attendu {"neuf": ["fait"]}`. */
+export interface TransitionsLues {
+  table: Record<string, string[]>
+  fautes: string[]
+}
+
+const enJson = (v: unknown): string => {
+  try { return JSON.stringify(v) ?? String(v) } catch { return String(v) }
+}
+
+/**
+ * ⚠️ Point UNIQUE de lecture de `lifecycle.transitions` (oto#63). Le serveur acceptait
+ * à la pose `{"neuf": "fait"}` (une chaîne au lieu d'une liste) ; chaque lecteur
+ * appelait `.map` dessus, et un `TypeError` dans un `computed` arrêtait le rendu de la
+ * vue entière — un tableau sain côté API qui ne s'affichait jamais. La pose le refuse
+ * désormais, mais un schéma stocké avant peut encore le porter : on ne le DEVINE pas
+ * (pas d'enrobage silencieux), on le DIT — `fautes` est affiché par l'écran
+ * (`LifecycleFault`), et seules les entrées bien formées alimentent `table`.
+ */
+export function lireTransitions(lc: DatastoreLifecycle | null | undefined): TransitionsLues {
+  const brut: unknown = lc?.transitions
+  if (brut == null) return { table: {}, fautes: [] }
+  if (typeof brut !== 'object' || Array.isArray(brut))
+    return { table: {}, fautes: [`transitions = ${enJson(brut)} → attendu {"état": ["états atteignables"]}`] }
+  const table: Record<string, string[]> = {}
+  const fautes: string[] = []
+  for (const [etat, cibles] of Object.entries(brut as Record<string, unknown>)) {
+    if (Array.isArray(cibles)) table[etat] = cibles.map(String)
+    else {
+      const seule = typeof cibles === 'string' || typeof cibles === 'number' ? cibles : 'état'
+      fautes.push(`${enJson(etat)}: ${enJson(cibles)} → attendu ${enJson({ [etat]: [seule] })}`)
+    }
+  }
+  return { table, fautes }
+}
+
 /** Le geste de transition tel qu'il a été posé : on retient l'état d'AVANT, seul
  * moment où il est encore connu (après l'écriture, la fiche ne porte plus que
  * l'état d'après). */
@@ -65,12 +103,19 @@ export function transitionAnnounce(
   t: LifecycleIntent,
   champ: PorteurDeCycle | null | undefined,
 ): TransitionAnnounce {
-  const transitions = champ?.lifecycle?.transitions
+  const lues = lireTransitions(champ?.lifecycle)
   const de = t.from ? etatLisible(t.from, champ) : '—'
   const vers = etatLisible(t.to, champ)
   const done = `« ${rowLabel} » : ${de} → ${vers}`
   if (!t.from) return { message: done, undo: null }   // pas d'état d'avant : rien à rétablir
-  const back = transitionPath(transitions, t.to, t.from)
+  // Un cycle de vie hors forme ne se parcourt pas à moitié : un chemin trouvé dans la
+  // partie lisible pourrait passer à côté de celui que la partie fautive déclare.
+  if (lues.fautes.length)
+    return {
+      message: `${done} — retour impossible : cycle de vie mal formé (${lues.fautes.join(' ; ')}).`,
+      undo: null,
+    }
+  const back = transitionPath(champ?.lifecycle?.transitions ? lues.table : null, t.to, t.from)
   if (!back || !back.length)
     return {
       message: `${done} — retour impossible : aucun chemin déclaré de « ${vers} » vers « ${de} ».`,

@@ -22,6 +22,7 @@
 //     écriture qui change le statut est REFUSÉE : d'où `reopens`, qui dit à l'écran
 //     s'il peut proposer un retour ou s'il doit annoncer un statut gelé.
 import type { DatastoreLifecycle, DatastoreRow } from '@/types/api'
+import { lireTransitions } from './datastoreLifecycle'
 
 /** Le compteur de réservations sans écriture d'une ligne, lu contre le plafond. */
 export interface ClaimBudget {
@@ -46,6 +47,10 @@ export interface AbandonVerdict {
    *  déclarée : une écriture rouvrira la file (compteur et motif tombent) mais le
    *  statut, lui, restera celui de l'abandon. */
   reopens: string[]
+  /** Le cycle de vie déclare ses transitions hors forme (oto#63) : `reopens` ne dit
+   *  alors pas tout, et « aucun retour » serait une affirmation qu'on ne peut pas
+   *  faire. L'écran dit la faute (`LifecycleFault`) au lieu de conclure. */
+  malforme: boolean
 }
 
 /** Un entier servi par le backend, ou `null` si la clé ne porte rien d'exploitable.
@@ -104,6 +109,10 @@ export function abandonVerdict(
   if (typeof reason !== 'string' || reason === '') return null
   const etat = statusKey ? row?.[statusKey] : null
   const courant = etat == null || etat === '' ? null : String(etat)
-  const sorties = courant === null ? [] : (lifecycle?.transitions?.[courant] ?? [])
-  return { reason, reopens: sorties.map(String) }
+  // oto#63 : lu par `lireTransitions`, jamais `.map` sur la valeur brute — une chaîne
+  // y levait, et la grille entière (qui précalcule ce verdict pour chaque ligne)
+  // cessait de se rendre.
+  const lues = lireTransitions(lifecycle)
+  const reopens = courant === null ? [] : (lues.table[courant] ?? [])
+  return { reason, reopens, malforme: lues.fautes.length > 0 }
 }

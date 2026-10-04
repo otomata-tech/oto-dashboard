@@ -18,6 +18,7 @@ import DatastoreMetrics from '@/components/console/DatastoreMetrics.vue'
 import DatastoreQueueBar from '@/components/console/DatastoreQueueBar.vue'
 import DatastoreStatusBar from '@/components/console/DatastoreStatusBar.vue'
 import RowDrawer from '@/components/console/RowDrawer.vue'
+import LifecycleFault from '@/components/console/LifecycleFault.vue'
 import SharePrincipalDialog from '@/components/console/SharePrincipalDialog.vue'
 import NameDialog from '@/components/console/NameDialog.vue'
 import { useToast } from '@/composables/useToast'
@@ -487,6 +488,11 @@ async function transfer() {
       </span>
     </div>
 
+    <!-- des transitions hors forme (oto#63) se DISENT ici, une fois pour le tableau,
+         au lieu de faire lever chaque lecteur pendant le rendu -->
+    <LifecycleFault v-if="statusField?.lifecycle" class="ds-lcf" :lifecycle="statusField.lifecycle"
+      :column="statusField.label || statusField.key" />
+
     <DatastoreStatusBar v-if="cockpit" :label="statusField?.label || statusField?.key || ''"
       :field="statusField ?? null"
       :states="lifecycleStates" :terminal="terminalStates" :counts="statusCounts"
@@ -561,6 +567,7 @@ async function transfer() {
 </template>
 
 <style scoped>
+.ds-lcf { margin: 8px 16px; }
 .ds-schema { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--color-hair-soft, #e6e6e3); }
 .ds-field { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
 .ds-role { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--color-olive-ink, #5a6a3a); background: var(--color-olive-soft, #eef0e6); border-radius: 4px; padding: 1px 5px; }

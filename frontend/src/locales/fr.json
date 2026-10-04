@@ -1240,7 +1240,8 @@
       "moveHint": "passer la fiche à l'étape « {state} »",
       "final": "étape finale",
       "finalHint": "étape finale, la fiche n'en sort plus",
-      "code": "code : {code}"
+      "code": "code : {code}",
+      "malformed": "Cycle de vie de « {column} » mal formé : chaque état doit mener à une LISTE d'états, même pour une seule destination. À corriger dans le schéma du tableau :"
     },
     "toolbar": {
       "desc": "décroissant — cliquer pour croissant",

@@ -2,7 +2,8 @@
 // l'UI peut proposer « annuler » après une transition. Fixture = le lifecycle réel
 // de mucho-leads (celui de l'incident : un clic « → ecarte » sans retour direct).
 import { describe, expect, it } from 'vitest'
-import { estStatutACycle, etatLisible, etatsTerminaux, transitionAnnounce, transitionPath } from './datastoreLifecycle'
+import { estStatutACycle, etatLisible, etatsTerminaux, lireTransitions, transitionAnnounce, transitionPath } from './datastoreLifecycle'
+import type { DatastoreLifecycle } from '@/types/api'
 
 const MUCHO: Record<string, string[]> = {
   a_enrichir: ['en_cours', 'enrichi', 'ecarte'],
@@ -114,5 +115,33 @@ describe('transitionAnnounce — la confirmation nomme les étapes en clair', ()
     const a = transitionAnnounce('ACME', { key: 'statut', from: 'enrichi', to: 'livre' }, { lifecycle: { transitions: MUCHO } })
     expect(a.message).toBe('« ACME » : Enrichi → Livre — retour impossible : aucun chemin déclaré de « Livre » vers « Enrichi ».')
     expect(a.undo).toBeNull()
+  })
+})
+
+// oto#63 : le serveur acceptait `{"a": "b"}` à la pose. Le schéma stocké avant le refus
+// peut encore le porter ; il ne doit plus faire lever un lecteur — ni être deviné.
+describe('lireTransitions — une forme inattendue est DITE, jamais devinée', () => {
+  const hors = (transitions: unknown) => ({ transitions }) as unknown as DatastoreLifecycle
+
+  it('une table bien formée passe telle quelle, sans faute', () => {
+    expect(lireTransitions({ transitions: MUCHO })).toEqual({ table: MUCHO, fautes: [] })
+    expect(lireTransitions(undefined)).toEqual({ table: {}, fautes: [] })
+    expect(lireTransitions({ states: ['a'] })).toEqual({ table: {}, fautes: [] })
+  })
+  it('une chaîne à la place d’une liste : faute nommée avec la forme attendue, pas d’enrobage', () => {
+    const l = lireTransitions(hors({ neuf: 'fait', fait: ['perdu'] }))
+    expect(l.table).toEqual({ fait: ['perdu'] })
+    expect(l.fautes).toEqual(['"neuf": "fait" → attendu {"neuf":["fait"]}'])
+  })
+  it('une table qui n’est pas un objet est une faute, pas une table vide', () => {
+    expect(lireTransitions(hors('fait')).fautes).toHaveLength(1)
+    expect(lireTransitions(hors(['a'])).fautes).toHaveLength(1)
+  })
+  it('l’annonce ne promet pas de retour sur un cycle hors forme', () => {
+    const a = transitionAnnounce('ACME', { key: 'statut', from: 'neuf', to: 'fait' },
+      { lifecycle: hors({ neuf: 'fait', fait: 'neuf' }) })
+    expect(a.undo).toBeNull()
+    expect(a.message).toContain('retour impossible : cycle de vie mal formé')
+    expect(a.message).toContain('{"fait":["neuf"]}')
   })
 })

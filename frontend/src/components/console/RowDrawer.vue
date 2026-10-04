@@ -18,13 +18,14 @@ import SubRecordEditor from './SubRecordEditor.vue'
 import CellLayers from './CellLayers.vue'
 import ModalOverlay from './ModalOverlay.vue'
 import RowAbandonNotice from './RowAbandonNotice.vue'
+import LifecycleFault from './LifecycleFault.vue'
 import RowActivityList from './RowActivityList.vue'
 import RowWriteRefusal from './RowWriteRefusal.vue'
 import VideAssumeToggle from './VideAssumeToggle.vue'
 import { useFormDialog } from '@/composables/useFormDialog'
 import { useRowEditor } from '@/composables/useRowEditor'
 import type { DatastoreRow, DatastoreSchema } from '@/types/api'
-import { estStatutACycle, etatLisible, etatsTerminaux, type LifecycleIntent } from '@/lib/datastoreLifecycle'
+import { estStatutACycle, etatLisible, etatsTerminaux, lireTransitions, type LifecycleIntent } from '@/lib/datastoreLifecycle'
 import { abandonVerdict, claimBudget } from '@/lib/datastoreClaims'
 import { cellKind, absDate } from '@/lib/cellRender'
 import { bailLigne } from '@/lib/bailDeLigne'
@@ -234,7 +235,9 @@ const transitions = computed<string[]>(() => {
   if (!lc?.states?.length || props.isNew || props.readOnly) return []
   const cur = currentStatus.value
   if (cur == null) return lc.states.map(String)          // pas encore d'état → tous
-  return (lc.transitions?.[cur] ?? []).map(String)       // sinon les cibles déclarées
+  // sinon les cibles déclarées — lues par `lireTransitions` (oto#63) : une valeur hors
+  // forme n'est ni devinée ni parcourue, `LifecycleFault` la dit juste au-dessous.
+  return lireTransitions(lc).table[cur] ?? []
 })
 const terminalStates = computed(() => etatsTerminaux(statusField.value?.lifecycle))
 // Le bloc d'étape : il NOMME la colonne (« Statut ») et l'étape en clair — un badge
@@ -319,6 +322,7 @@ function applyTransition(state: string) {
           </template>
           <Btn v-if="row?._claimed_by && !readOnly" kind="mini" @click="emit('release')">{{ t('dataUi.drawer.release') }}</Btn>
         </div>
+        <LifecycleFault v-if="cycle" class="rd-lcf" :lifecycle="statusField?.lifecycle" :column="stepLabel" />
 
         <!-- une écriture refusée : le brouillon reste, rien n'est renvoyé d'ici (oto#213) -->
         <RowWriteRefusal v-if="refus || echecEcriture" class="rd-refus" :refus="refus"
@@ -484,6 +488,7 @@ function applyTransition(state: string) {
 }
 .rd-close:hover { background: var(--color-paper-2); color: var(--color-ink); }
 .rd-abandon { margin: 0 18px 10px; }
+.rd-lcf { margin: 0 18px 10px; }
 .rd-lifecycle {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   padding: 0 18px 10px;

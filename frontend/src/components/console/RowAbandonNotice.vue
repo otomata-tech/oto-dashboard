@@ -21,7 +21,9 @@ defineProps<{ verdict: AbandonVerdict; canWrite?: boolean }>()
     <p class="rab-why">{{ verdict.reason }}</p>
     <p v-if="canWrite" class="rab-fix">
       {{ t('dataUi.abandon.fix') }}
-      <template v-if="!verdict.reopens.length">
+      <!-- hors forme (oto#63), « aucun retour » serait une conclusion qu'on ne peut
+           pas tirer : `LifecycleFault` dit la faute à côté. -->
+      <template v-if="!verdict.reopens.length && !verdict.malforme">
         {{ t('dataUi.abandon.noReturn') }}
       </template>
     </p>

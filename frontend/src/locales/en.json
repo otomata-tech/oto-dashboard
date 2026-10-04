@@ -1240,7 +1240,8 @@
       "moveHint": "move the record to the “{state}” step",
       "final": "final step",
       "finalHint": "final step: the record doesn't leave it",
-      "code": "code: {code}"
+      "code": "code: {code}",
+      "malformed": "The “{column}” lifecycle is malformed: each state must lead to a LIST of states, even for a single destination. Fix it in the table's schema:"
     },
     "toolbar": {
       "desc": "descending — click for ascending",
