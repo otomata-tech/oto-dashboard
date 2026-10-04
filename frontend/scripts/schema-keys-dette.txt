@@ -51,10 +51,6 @@ servie-non-lue description
 servie-non-lue max_items
 servie-non-lue max_length
 servie-non-lue readonly
-# Inscrites le 01/10/2026 : déclarées « front » côté plateforme depuis (`agent_access`
-# 06/09, `required_layers` 06/09, `formula` oto-backend#1008) sans que ce contrôle ait
-# été relancé — des écarts ANTÉRIEURS à la fermeture, constatés à la remesure, pas
-# créés par elle. Ce sont des réglages de colonne que l'écran ne rend pas encore.
-servie-non-lue agent_access
-servie-non-lue formula
-servie-non-lue required_layers
+# Réglées le 04/10/2026 (oto#34) : `agent_access`, `formula` et `required_layers`,
+# inscrites ici à la remesure du 01/10, ne sont plus déclarées « front » par la
+# plateforme — elle n'en est que le validateur, et l'écran ne les rend pas.
