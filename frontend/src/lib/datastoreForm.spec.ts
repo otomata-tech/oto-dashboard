@@ -7,7 +7,7 @@ import { formFields, isSubRecordList, payloadValue } from './datastoreForm'
 
 const schema: DatastoreSchema = {
   key: 'siren',
-  strict: true,
+  unknown_columns: 'report',
   fields: [
     { key: 'nom', role: 'title', type: 'text', required: true },
     { key: 'bp', type: 'number', label: 'BP/an' },

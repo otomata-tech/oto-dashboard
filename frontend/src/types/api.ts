@@ -888,7 +888,11 @@ export interface DatastoreField {
 export interface DatastoreSchema {
   fields?: DatastoreField[]
   key?: string
-  strict?: boolean
+  // Les deux réglages de tête (oto#127, 02/10/2026) — ils remplacent `strict`,
+  // `unknown_fields` et `key_required`, que le backend refuse désormais. Absents = leur
+  // défaut, `create`. Le dashboard ne les lit pas : il les transporte.
+  unknown_columns?: 'create' | 'report' | 'reject'   // sort d'une colonne non déclarée
+  new_rows?: 'create' | 'reject'                      // une ligne nouvelle peut-elle naître
 }
 
 // Bénéficiaire d'un partage de ressource (vue propriétaire).
