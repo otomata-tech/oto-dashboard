@@ -16,7 +16,9 @@
 //     `@empty` la marque ; `""` et `[]` REMPLACENT la valeur en place (06/10/2026) ;
 //     `@clear` et `@keep` → 400 (08/10/2026) ;
 //   · `@empty` sur `of.key`, dans une colonne json, une liste de valeurs ou un objet
-//     → 400 ; `origine` dans un corps → 400.
+//     → 400 ; `origine` dans un corps → 400 ;
+//   · la relecture ne rend `origine` que DEMANDÉE (`versions=…origine`, oto#273) : sans
+//     elle, la couche est absente en `layers=nested` comme à plat.
 // Une colonne non nommée n'est pas touchée. Ce banc juge l'ÉTAT DU STORE et les requêtes
 // parties, jamais ce que l'écran croit avoir fait.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,6 +85,17 @@ const contientVideAssume = contient([VIDE_ASSUME])
 const contientRetire = contient(RETIRES)
 const contientOrigine = (v: unknown): boolean =>
   !!v && typeof v === 'object' && Object.entries(v).some(([k, x]) => k === 'origine' || contientOrigine(x))
+/** Ce que le store sert sans `versions=origine` : la couche n'existe pas dans la réponse. */
+const sansOrigine = (v: unknown): unknown => {
+  if (Array.isArray(v)) return v.map(sansOrigine)
+  if (!estObjet(v)) return v
+  const out: Ligne = {}
+  for (const [k, x] of Object.entries(v)) if (k !== 'origine') out[k] = sansOrigine(x)
+  return enveloppee(out) && Object.keys(out).length === 1 && out.valeur !== VIDE_ASSUME ? out.valeur : out
+}
+/** La relecture réinscriptible : sentinelles, couches imbriquées — l'origine, si demandée. */
+const estRelecture = (p: URLSearchParams) =>
+  p.get('empties') === 'sentinel' && p.get('layers') === 'nested'
 const repondre = (status: number, corps: unknown) =>
   ({ ok: status < 400, status, statusText: '', json: async () => corps }) as unknown as Response
 const refuser = (status: number, error: string, details?: Ligne) =>
@@ -154,8 +167,10 @@ beforeEach(() => {
     if (u.pathname === '/api/datastores/77/rows/r1/activity' && methode === 'GET' && !query)
       return repondre(200, { activity: [], key: null, retention_days: 30 })
     if (u.pathname === '/api/datastores/77/rows/r1') {
-      if (methode === 'GET' && query === 'empties=sentinel&layers=nested') {
-        const ligne = { _id: 'r1', ...copie(store.ligne) }
+      if (methode === 'GET' && estRelecture(u.searchParams)) {
+        const servie = u.searchParams.getAll('versions').includes('origine')
+          ? copie(store.ligne) : sansOrigine(copie(store.ligne)) as Ligne
+        const ligne = { _id: 'r1', ...servie }
         return repondre(200, store.sansRevision ? ligne : { ...ligne, _revision: String(store.rev) })
       }
       if (methode === 'PATCH' && corps) {
@@ -215,7 +230,7 @@ async function cliquer(b: Element | null) {
   await vider()
 }
 const patches = () => requetes.filter((r) => r.methode === 'PATCH')
-const relectures = () => requetes.filter((r) => r.methode === 'GET' && r.query === 'empties=sentinel&layers=nested')
+const relectures = () => requetes.filter((r) => r.methode === 'GET' && estRelecture(new URLSearchParams(r.query)))
 const saisie = (cle: string) => (champ(cle).querySelector('input') as HTMLInputElement).value
 const intactes = (sauf: string[]) => {
   const attendu = DEPART()
@@ -230,6 +245,19 @@ describe('la fiche relit la ligne, et n’écrit que la différence', () => {
     expect(patches()).toEqual([])
     expect(emis.close).toBe(1)
     intactes([])
+  })
+
+  it('la relecture DEMANDE l’origine (oto#273) — la fiche l’affiche, et ne la renvoie jamais', async () => {
+    store.ligne.siret = { valeur: '123', origine: 'sirene' }
+    await monter()
+    expect(relectures().map((r) => new URLSearchParams(r.query).getAll('versions')))
+      .toEqual([['current', 'origine']])
+    expect(champ('siret').querySelector('.cl-orig')?.textContent ?? '').toContain('sirene')
+    taper(champ('pays').querySelector('input'), 'BE')
+    await cliquer(bouton('Enregistrer'))
+    expect(patches()).toHaveLength(1)
+    expect(contientOrigine(patches()[0]!.corps)).toBe(false)
+    expect(store.ligne.siret).toEqual({ valeur: '123', origine: 'sirene' })
   })
 
   it('une modification : UNE colonne, sur la révision lue ; marqueurs et couches des autres intacts', async () => {

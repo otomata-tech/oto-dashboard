@@ -787,10 +787,12 @@ export const getNamespaceRow = (ns: string, rowId: string) =>
     `/api/datastores/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`)
 // La même row, relue pour être RÉÉCRITE (oto#213) : vides assumés en sentinelle et
 // couches imbriquées — la seule forme qu'on peut renvoyer telle quelle sans rien perdre.
+// L'origine se DEMANDE (oto#273) : `layers=nested` honore `versions` comme la forme plate,
+// et la fiche l'affiche sous chaque case (`origineDe`, `CellLayers`).
 export const getRewritableRow = (ns: string, rowId: string) =>
   api<RewritableRow>(
     `/api/datastores/${encodeURIComponent(ns)}/rows/${encodeURIComponent(rowId)}`
-    + '?empties=sentinel&layers=nested')
+    + '?empties=sentinel&layers=nested&versions=current&versions=origine')
 // File de travail (ADR 0046 D) — supervision : rows sous bail (_claimed_by/_claimed_until).
 export const getNamespaceQueue = (ns: string) =>
   api<{ rows: DatastoreRow[] }>(`/api/datastores/${encodeURIComponent(ns)}/queue`)

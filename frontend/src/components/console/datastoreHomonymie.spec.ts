@@ -117,7 +117,7 @@ beforeEach(() => {
     if (!cible) return { ok: false, status: 404, json: async () => ({ error: 'not_found' }) } as unknown as Response
     const queue = m[2] ?? ''
     const fiche = /^\/rows\/([^/]+)$/.exec(queue)
-    if (fiche && (!query || query === 'empties=sentinel&layers=nested')) {
+    if (fiche && (!query || query === 'empties=sentinel&layers=nested&versions=current&versions=origine')) {
       lecturesDeFiche.push(query)
       const ligne = { _id: fiche[1], societe: `FICHE-DE-${cible.id}` }
       return repondre(query ? { ...ligne, _revision: '1' } : ligne)
@@ -171,7 +171,7 @@ describe('un tableau reçu, homonyme d un des siens', () => {
 
     // Huit routes au moins : lignes, deux agrégats, file, fiche hors page à plat, sa
     // relecture réinscriptible par l'éditeur (oto#213), le journal de la fiche, celui du tableau.
-    expect(lecturesDeFiche).toEqual(['', 'empties=sentinel&layers=nested'])
+    expect(lecturesDeFiche).toEqual(['', 'empties=sentinel&layers=nested&versions=current&versions=origine'])
     expect(new Set(adresses).size).toBeGreaterThan(0)
     expect(adresses.length).toBeGreaterThanOrEqual(8)
     expect(adresses).toEqual(adresses.map(() => String(RECU.id)))
