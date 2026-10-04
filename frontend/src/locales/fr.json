@@ -538,6 +538,8 @@
     }
   },
   "errors": {
+    "days_too_large": "fenêtre trop large : la vue plateforme est bornée à 7 jours",
+    "aggregate_timeout": "la lecture agrégée a dépassé son délai : réduisez la fenêtre ou réessayez",
     "invalid_number": "numéro de facture manquant",
     "invalid_pdf": "le fichier n'est pas un PDF",
     "invalid_invoice": "émission incomplète : le numéro et le PDF sont exigés, la date au format AAAA-MM-JJ",

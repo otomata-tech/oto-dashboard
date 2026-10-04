@@ -12,7 +12,7 @@
 //                    en fiche d'appel (corrélation + lien vers le traceback Sentry).
 //   • usage        — signaux produit : déroulés, manques, qualité des outils
 //                    (panneau UsageView, ex-/platform/usage qui redirige ici).
-// Le sélecteur de fenêtre (7/30/90 j, `?win=`) est PARTAGÉ par TOUTES les lentilles,
+// Le sélecteur de fenêtre (1/7 j, `?win=` ; le backend borne la vue plateforme à 7 j : au-delà, `days_too_large`/`aggregate_timeout`) est PARTAGÉ par TOUTES les lentilles,
 // signaux d'usage compris. Les stats sont chargées en un Promise.all fenêtré (changer
 // d'onglet ne refetch pas) ; le journal a son propre cycle (il dépend des filtres).
 // Les cartes restent les composants présentationnels réutilisables de
@@ -56,7 +56,8 @@ function select(key: string) {
 }
 
 // ── données fenêtrées ────────────────────────────────────────────────────────
-const WINDOWS = [7, 30, 90]
+// Vue plateforme : 7 j max (le backend refuse davantage). Un `?win=30|90` ancien est ignoré → 7.
+const WINDOWS = [1, 7]
 const win = ref(7)
 const error = ref<string | null>(null)
 const loading = ref(false)

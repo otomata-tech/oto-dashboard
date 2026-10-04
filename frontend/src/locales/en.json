@@ -538,6 +538,8 @@
     }
   },
   "errors": {
+    "days_too_large": "window too large: the platform view is capped at 7 days",
+    "aggregate_timeout": "the aggregate read timed out: shrink the window or retry",
     "invalid_number": "missing invoice number",
     "invalid_pdf": "the file is not a PDF",
     "invalid_invoice": "incomplete issue: the number and the PDF are required, the date as YYYY-MM-DD",
