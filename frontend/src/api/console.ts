@@ -12,7 +12,7 @@ import type {
   GoogleOauthStatus, GroupConnectorActivation, GroupDetail, GroupListItem, GroupRole, InstructionDetail,
   InstructionVersion, LinkedProcedure, Locale, Me, MonitoringSummary,
   MonitoringRestStats, MonitoringConnectorStats, ActivationFunnel, OrgAdoption, AuditExport,
-  ColumnFilter, CreatedDatastore, DatastoreRow, DatastoreEntry, SharedDatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, RewritableRow, SharePrincipal, ShareResult, ToolCall, ToolEntry,
+  ColumnFilter, CreatedDatastore, DatastoreRow, DatastoreSchema, DatastoreEntry, SharedDatastoreEntry, NamespaceShare, Org, OrgDetail, OrgInvitation, OrgRole, PlatformAccess, PlatformKey, ResourceEntry, Role, RowActivityEntry, RewritableRow, SharePrincipal, ShareResult, ToolCall, ToolEntry,
   ToolRegistryEntry, ToolDetail, ToolCallDetail, VerifyResult, InstructionUsage, DoctrineRun, UsageGap, ToolFeedbackAgg, RunCall, UsageSignal, PlatformInstrBlock,
   ConnectorOAuthStatus, ConnectorOAuthDisconnected, UnipileStatus, ConnectorIdentity, AccountGrant, UnipileSeat, InvitePreview,
   InviteResult, InvitationAccepted,
@@ -816,11 +816,16 @@ export const getNamespaceActivity = (ns: string, limit?: number) =>
   api<{ activity: RowActivityEntry[]; retention_days: number }>(
     `/api/datastores/${encodeURIComponent(ns)}/activity`
     + (limit ? `?limit=${limit}` : ''))
-// Schéma d'un tableau (ADR 0046). ⚠️ Aucun wrapper d'écriture du schéma ici. Le `PUT …/schema`
-// REPOSAIT la liste entière (tout ce que le corps ne redit pas, effacé sans erreur ni mention) :
-// personne ne l'appelait, et un wrapper qui existe finit par être appelé — `datastoreColumns.spec.ts`
-// tient son absence. Le `PATCH` par clé ne servait qu'« enregistrer comme vue par défaut », retiré
-// du dashboard avec son bouton (oto#192) ; la route reste servie à ses autres clients.
+// Schéma d'un tableau (ADR 0046). ⚠️ Jamais de `PUT …/schema` ici : il REPOSAIT la liste entière
+// (tout ce que le corps ne redit pas, effacé sans erreur ni mention) — `datastoreColumns.spec.ts`
+// tient son absence. Le seul geste de schéma du dashboard est d'AJOUTER des colonnes, par le
+// `PATCH` qui fusionne par clé et ne peut rien retirer : à partir du 21/10/2026, une écriture
+// dans une colonne non déclarée est refusée (`unknown_column`, oto#124) — « + champ » la déclare
+// donc avant que la fiche n'y écrive.
+export const declareNamespaceColumns = (ns: string, keys: string[]) =>
+  api<{ schema: DatastoreSchema | null; added: string[] }>(
+    `/api/datastores/${encodeURIComponent(ns)}/schema`,
+    { method: 'PATCH', ...j({ fields: keys.map((key) => ({ key })) }) })
 export const renameNamespace = (ns: string, name: string) =>
   api<{ ok: boolean; datastore: string }>(
     `/api/datastores/${encodeURIComponent(ns)}`, { method: 'PATCH', ...j({ name }) })

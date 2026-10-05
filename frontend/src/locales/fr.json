@@ -1322,7 +1322,8 @@
       "field": "Champ",
       "addField": "ajouter un champ",
       "fieldName": "nom du champ",
-      "fieldPlaceholder": "ex. statut"
+      "fieldPlaceholder": "ex. statut",
+      "addFieldDeclares": "Le champ est ajouté au schéma du tableau : c'est une nouvelle colonne, pour toutes ses lignes."
     },
     "share": {
       "mode": {

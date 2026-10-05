@@ -1322,7 +1322,8 @@
       "field": "Field",
       "addField": "add field",
       "fieldName": "field name",
-      "fieldPlaceholder": "e.g. status"
+      "fieldPlaceholder": "e.g. status",
+      "addFieldDeclares": "The field is added to the table's schema: a new column, for all its rows."
     },
     "share": {
       "mode": {

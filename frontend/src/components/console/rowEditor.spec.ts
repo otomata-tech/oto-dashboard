@@ -66,7 +66,7 @@ const DEPART = (): Ligne => ({
 })
 
 // ── le faux store ────────────────────────────────────────────────────────────
-const store = { rev: 7, ligne: DEPART(), reservee: false, sansRevision: false }
+const store = { rev: 7, ligne: DEPART(), reservee: false, sansRevision: false, schemaRefuse: false }
 const requetes: Array<{ methode: string; chemin: string; query: string; corps?: Ligne }> = []
 const nonSimulees: string[] = []
 
@@ -154,7 +154,7 @@ function fusionner(corps: Ligne): Response | null {
 }
 
 beforeEach(() => {
-  Object.assign(store, { rev: 7, ligne: DEPART(), reservee: false, sansRevision: false })
+  Object.assign(store, { rev: 7, ligne: DEPART(), reservee: false, sansRevision: false, schemaRefuse: false })
   requetes.length = 0
   nonSimulees.length = 0
   i18n.global.locale.value = 'fr'
@@ -180,6 +180,11 @@ beforeEach(() => {
           return refuser(409, 'revision_conflict', { current_revision: String(store.rev) })
         return fusionner(corps) ?? repondre(200, { _id: 'r1', _revision: String(store.rev) })
       }
+    }
+    // oto#124 : « + champ » déclare la colonne (PATCH par clé, qui n'ajoute que ce qu'il nomme).
+    if (u.pathname === '/api/datastores/77/schema' && methode === 'PATCH' && corps) {
+      if (store.schemaRefuse) return refuser(400, 'invalid_patch_schema')
+      return repondre(200, { schema: SCHEMA, added: (corps.fields as Ligne[]).map((f) => f.key) })
     }
     nonSimulees.push(`${methode} ${u.pathname}${u.search}`)
     return refuser(599, 'non_simulee')
@@ -559,3 +564,38 @@ describe('les refus : le brouillon reste, rien n’est renvoyé', () => {
     expect((bouton('Enregistrer') as HTMLButtonElement).disabled).toBe(true)
   })
 })
+
+// ── « + champ » : une colonne se DÉCLARE avant de s'écrire (oto#124) ─────────────
+// À partir du 21/10/2026, une écriture dans une colonne non déclarée est refusée
+// (`unknown_column`) : le champ ajouté dans la fiche est posé au schéma AVANT que la fiche
+// n'y écrive, sinon la valeur saisie serait perdue à l'enregistrement.
+describe('« + champ » déclare la colonne avant d’y écrire (oto#124)', () => {
+  const declarations = () => requetes.filter((r) => r.chemin === '/api/datastores/77/schema')
+  const dialogue = () => document.body.querySelector<HTMLElement>('[data-slot="dialog-content"]')
+
+  it('la colonne est posée au schéma (PATCH par clé), puis le patch de la ligne la porte', async () => {
+    await monter()
+    await cliquer(bouton('Champ'))
+    taper(dialogue()!.querySelector('input'), 'score')
+    await cliquer(bouton('valider', dialogue()!))
+    expect(declarations()).toEqual([{ methode: 'PATCH', chemin: '/api/datastores/77/schema',
+      query: '', corps: { fields: [{ key: 'score' }] } }])
+    taper(champ('score').querySelector('input'), '12')
+    await cliquer(bouton('Enregistrer'))
+    expect(patches().map((r) => r.chemin)).toEqual(['/api/datastores/77/schema', '/api/datastores/77/rows/r1'])
+    expect(patches()[1]!.corps).toEqual({ score: 12 })
+    expect(store.ligne.score).toBe(12)
+  })
+
+  it('une déclaration refusée n’ajoute pas le champ, et rien n’est écrit', async () => {
+    store.schemaRefuse = true
+    await monter()
+    await cliquer(bouton('Champ'))
+    taper(dialogue()!.querySelector('input'), 'score')
+    await cliquer(bouton('valider', dialogue()!))
+    expect(declarations()).toHaveLength(1)
+    expect(q('[data-field="score"]')).toBeNull()
+    expect(requetes.filter((r) => r.chemin.endsWith('/rows/r1') && r.methode === 'PATCH')).toEqual([])
+  })
+})
+

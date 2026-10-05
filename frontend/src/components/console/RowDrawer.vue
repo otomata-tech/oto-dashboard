@@ -23,6 +23,9 @@ import RowActivityList from './RowActivityList.vue'
 import RowWriteRefusal from './RowWriteRefusal.vue'
 import VideAssumeToggle from './VideAssumeToggle.vue'
 import { useFormDialog } from '@/composables/useFormDialog'
+import { useToast } from '@/composables/useToast'
+import { declareNamespaceColumns } from '@/api/console'
+import { explain } from '@/lib/errors'
 import { useRowEditor } from '@/composables/useRowEditor'
 import type { DatastoreRow, DatastoreSchema } from '@/types/api'
 import { estStatutACycle, etatLisible, etatsTerminaux, lireTransitions, type LifecycleIntent } from '@/lib/datastoreLifecycle'
@@ -54,6 +57,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { formDialog, formDialogOpen, openForm } = useFormDialog()
+const { toast } = useToast()
 
 // Édition (oto#213) : la ligne est RELUE à l'ouverture, seule la différence part, sur la
 // révision lue, et les refus se traitent dans la fiche — tout cela vit dans `useRowEditor`.
@@ -115,13 +119,22 @@ watch(() => [props.open, props.row?._id, props.isNew, props.readOnly], () => {
   else fermer(props.row)
 }, { immediate: true })
 
+// « + champ » AJOUTE UNE COLONNE au tableau : elle est déclarée au schéma avant que la
+// fiche n'y écrive. À partir du 21/10/2026, une écriture dans une colonne non déclarée est
+// refusée (`unknown_column`, oto#124) — sans ce geste, la valeur saisie serait perdue au
+// moment d'enregistrer. Un refus de la déclaration garde le dialog ouvert, la raison en toast.
 function addField() {
   openForm({
     title: t('dataUi.drawer.addField'),
+    description: t('dataUi.drawer.addFieldDeclares'),
     fields: [{ key: 'value', label: t('dataUi.drawer.fieldName'), required: true, placeholder: t('dataUi.drawer.fieldPlaceholder') }],
     onConfirm: async (v) => {
       const name = v.value
       if (!name || name.startsWith('_') || name in scalars.value || name in composites.value) return
+      if (props.datastore) {
+        try { await declareNamespaceColumns(props.datastore, [name]) }
+        catch (e) { toast(explain(e)); throw e }
+      }
       extra.value.push(name)
       scalars.value[name] = ''
     },
