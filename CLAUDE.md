@@ -1,10 +1,12 @@
 # oto-dashboard
 
 Dashboard produit d'**oto-backend** (compte, connecteurs, orgs, projets, mémoire, automatisations, facturation,
-plateforme) — ADR 0007. Repo `otomata-tech/oto-dashboard`, local `/data/oto/oto-dashboard/`.
+plateforme) — ADR 0007 (archive `oto-enterprise`). Repo `otomata-tech/oto-dashboard`, local `/data/oto/oto-dashboard/`.
 
 **Pas de `server/`** : le backend du dashboard EST oto-backend (REST `/api/*`, JWT Logto ES384). Le front ne détient
-aucun secret (ADR 0004). C'est le seul écart au scaffold dev-init — **pas de BFF sans décision explicite**.
+aucun secret (ADR 0004, archive `oto-enterprise`). C'est le seul écart au scaffold dev-init — **pas de BFF sans décision explicite**.
+
+ADR et chantiers d'oto 1 : dépôt archivé `otomata-tech/oto-enterprise` (lecture seule).
 
 > **Carte, pas journal.** Les inventaires d'écrans, l'historique et les incidents vivent dans `docs/` (index en bas).
 > **Un lot qui change un écran met à jour le doc du concept dans le même commit**, pas cette carte.

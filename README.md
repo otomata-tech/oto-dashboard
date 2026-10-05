@@ -2,7 +2,7 @@
 
 The product dashboard for **oto-mcp** — account management, connectors, organizations,
 groups, doctrines and memory. It is the successor to the legacy `oto-app/account/`
-SPA ([ADR 0007](https://github.com/otomata-tech/otomata/blob/main/docs/adr/0007-dashboard-repo-separe.md)),
+SPA ([ADR 0007](https://github.com/otomata-tech/oto-enterprise/blob/main/docs/adr/0007-dashboard-repo-separe.md)),
 served at `dashboard.oto.ninja`.
 
 **There is no backend in this repo.** The dashboard's backend *is*
