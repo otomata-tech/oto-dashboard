@@ -888,10 +888,12 @@ export interface DatastoreField {
 export interface DatastoreSchema {
   fields?: DatastoreField[]
   key?: string
-  // Les deux réglages de tête (oto#127, 02/10/2026) — ils remplacent `strict`,
-  // `unknown_fields` et `key_required`, que le backend refuse désormais. Absents = leur
-  // défaut, `create`. Le dashboard ne les lit pas : il les transporte.
-  unknown_columns?: 'create' | 'report' | 'reject'   // sort d'une colonne non déclarée
+  // Le réglage de tête (oto#127, 02/10/2026) — il remplace `key_required`, que le
+  // backend refuse. Absent = son défaut, `create`. Le dashboard ne le lit pas : il le
+  // transporte. `unknown_columns` est RETIRÉ (oto#124, 05/10/2026 : plus aucun réglage,
+  // les colonnes et les valeurs sont toujours vérifiées) — refusé à la pose ; encore
+  // stocké sur d'anciens tableaux jusqu'à son retrait, il voyage par le rest-spread de
+  // `DatastoreTable.vue` sans être nommé ici, et passe tant qu'il est inchangé.
   new_rows?: 'create' | 'reject'                      // une ligne nouvelle peut-elle naître
 }
 
